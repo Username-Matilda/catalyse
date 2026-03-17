@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Starter Tasks - Catalyse Admin</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a href="/" class="logo">Catalyse <span>Admin</span></a>
+            <nav>
+                <a href="/">Projects</a>
+                <a href="/static/admin/triage.html">Triage</a>
+                <a href="/static/admin/starter-tasks.html" class="active">Starter Tasks</a>
+                <a href="/static/admin/stats.html">Stats</a>
+            </nav>
+            <div class="nav-auth" id="authNav"></div>
+        </div>
+    </header>
+
+    <main class="container page">
+        <div class="section-header">
+            <h1>Starter Tasks</h1>
+            <button class="btn btn-primary" onclick="openModal('createModal')">Create Task</button>
+        </div>
+
+        <p style="color: var(--text-light); margin-bottom: 24px;">
+            Small, scoped tasks to verify volunteer skills before assigning bigger projects.
+        </p>
+
+        <div id="messageDiv" class="message" style="display: none;"></div>
+
+        <div class="filters">
+            <div class="filter-group">
+                <label for="statusFilter">Status</label>
+                <select id="statusFilter">
+                    <option value="">All</option>
+                    <option value="open">Open</option>
+                    <option value="assigned">Assigned</option>
+                    <option value="submitted">Submitted (needs review)</option>
+                    <option value="reviewed">Reviewed</option>
+                    <option value="completed">Completed</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="tasksList">
+            <div class="loading"><div class="spinner"></div>Loading...</div>
+        </div>
+    </main>
+
+    <!-- Create Task Modal -->
+    <div id="createModal" class="modal-overlay" style="display: none;">
+        <div class="modal" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>Create Starter Task</h2>
+                <button class="modal-close" onclick="closeModal('createModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="createForm">
+                    <div class="form-group">
+                        <label for="taskTitle" class="required">Title</label>
+                        <input type="text" id="taskTitle" required placeholder="e.g., Draft 3 social media posts about AI safety">
+                    </div>
+                    <div class="form-group">
+                        <label for="taskDescription" class="required">Description</label>
+                        <textarea id="taskDescription" required placeholder="What should the volunteer do? Include any context, examples, or guidelines."></textarea>
+                    </div>
+                    <div class="grid grid-2">
+                        <div class="form-group">
+                            <label for="taskSkill">Skill Being Tested</label>
+                            <select id="taskSkill">
+                                <option value="">None specific</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="taskHours">Estimated Hours</label>
+                            <input type="number" id="taskHours" min="0.5" max="20" step="0.5" placeholder="e.g., 2">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Create Task</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assign Task Modal -->
+    <div id="assignModal" class="modal-overlay" style="display: none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Assign Task</h2>
+                <button class="modal-close" onclick="closeModal('assignModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="assignForm">
+                    <input type="hidden" id="assignTaskId">
+                    <div class="form-group">
+                        <label for="assignVolunteer" class="required">Volunteer</label>
+                        <select id="assignVolunteer" required>
+                            <option value="">Select volunteer...</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Assign</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Review Task Modal -->
+    <div id="reviewModal" class="modal-overlay" style="display: none;">
+        <div class="modal" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>Review Task</h2>
+                <button class="modal-close" onclick="closeModal('reviewModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <h3 id="reviewTaskTitle"></h3>
+                <p id="reviewTaskVolunteer" style="color: var(--text-light); margin-bottom: 16px;"></p>
+
+                <form id="reviewForm">
+                    <input type="hidden" id="reviewTaskId">
+                    <div class="form-group">
+                        <label class="required">Rating</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="radio" name="rating" value="excellent">
+                                <span><strong>Excellent</strong> - Exceeded expectations</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="radio" name="rating" value="good" checked>
+                                <span><strong>Good</strong> - Met expectations</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="radio" name="rating" value="needs_improvement">
+                                <span><strong>Needs improvement</strong> - Not quite there yet</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="reviewNotes">Internal Notes (admin only)</label>
+                        <textarea id="reviewNotes" placeholder="Your assessment..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="feedbackToVol">Feedback to Volunteer (they'll see this)</label>
+                        <textarea id="feedbackToVol" placeholder="Constructive feedback..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Submit Review</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+    <script>
+        let currentUser = null;
+        let tasks = [];
+
+        async function init() {
+            currentUser = await initAuthNav();
+            if (!currentUser || !currentUser.is_admin) {
+                window.location.href = '/';
+                return;
+            }
+
+            await Promise.all([loadTasks(), loadSkillsDropdown(), loadVolunteersDropdown()]);
+            document.getElementById('statusFilter').addEventListener('change', loadTasks);
+        }
+
+        async function loadTasks() {
+            const status = document.getElementById('statusFilter').value;
+            const params = status ? `?status=${status}` : '';
+
+            try {
+                tasks = await apiRequest(`/api/starter-tasks${params}`);
+                renderTasks();
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        }
+
+        function renderTasks() {
+            const container = document.getElementById('tasksList');
+
+            if (tasks.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No starter tasks</h3>
+                        <p>Create one to verify a volunteer's skills before giving them a bigger project.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const ratingColors = {
+                excellent: 'var(--success)',
+                good: 'var(--secondary)',
+                needs_improvement: 'var(--error)'
+            };
+
+            container.innerHTML = tasks.map(t => `
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <h3 class="card-title">${escapeHtml(t.title)}</h3>
+                            <p class="card-meta">
+                                ${t.skill_name ? `Skill: ${escapeHtml(t.skill_name)}` : ''}
+                                ${t.estimated_hours ? ` · ~${t.estimated_hours}h` : ''}
+                                ${t.assigned_to_name ? ` · Assigned to: <a href="/static/admin/volunteer-detail.html?id=${t.assigned_to_id}">${escapeHtml(t.assigned_to_name)}</a>` : ''}
+                            </p>
+                        </div>
+                        <span class="status-badge status-${t.status === 'completed' ? 'completed' : t.status === 'submitted' ? 'seeking_help' : t.status === 'assigned' ? 'in_progress' : 'on_hold'}">
+                            ${t.status}
+                        </span>
+                    </div>
+                    <p style="white-space: pre-wrap;">${escapeHtml(truncate(t.description, 200))}</p>
+                    ${t.review_rating ? `
+                        <p style="margin-top: 12px; font-weight: 500; color: ${ratingColors[t.review_rating]};">
+                            Rating: ${t.review_rating}
+                        </p>
+                        ${t.review_notes ? `<p style="font-size: 0.875rem; color: var(--text-light);">${escapeHtml(t.review_notes)}</p>` : ''}
+                    ` : ''}
+                    <div class="card-footer">
+                        <span style="font-size: 0.875rem; color: var(--text-light);">${formatDate(t.created_at)}</span>
+                        <div style="display: flex; gap: 8px;">
+                            ${t.status === 'open' ? `<button class="btn btn-small btn-secondary" onclick="openAssign(${t.id})">Assign</button>` : ''}
+                            ${t.status === 'submitted' ? `<button class="btn btn-small btn-primary" onclick="openReview(${t.id})">Review</button>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function loadSkillsDropdown() {
+            const skills = await apiRequest('/api/skills/flat');
+            const select = document.getElementById('taskSkill');
+            skills.forEach(s => {
+                const option = document.createElement('option');
+                option.value = s.id;
+                option.textContent = `${s.name} (${s.category_name})`;
+                select.appendChild(option);
+            });
+        }
+
+        async function loadVolunteersDropdown() {
+            const data = await apiRequest('/api/volunteers?limit=100');
+            const select = document.getElementById('assignVolunteer');
+            data.volunteers.forEach(v => {
+                const option = document.createElement('option');
+                option.value = v.id;
+                option.textContent = v.name;
+                select.appendChild(option);
+            });
+        }
+
+        // Create task
+        document.getElementById('createForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                await apiRequest('/api/starter-tasks', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        title: document.getElementById('taskTitle').value.trim(),
+                        description: document.getElementById('taskDescription').value.trim(),
+                        skill_id: document.getElementById('taskSkill').value ? parseInt(document.getElementById('taskSkill').value) : null,
+                        estimated_hours: document.getElementById('taskHours').value ? parseFloat(document.getElementById('taskHours').value) : null
+                    })
+                });
+                closeModal('createModal');
+                document.getElementById('createForm').reset();
+                showMessage('Task created!', 'success');
+                await loadTasks();
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        });
+
+        // Assign task
+        function openAssign(taskId) {
+            document.getElementById('assignTaskId').value = taskId;
+            openModal('assignModal');
+        }
+
+        document.getElementById('assignForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const taskId = document.getElementById('assignTaskId').value;
+            try {
+                await apiRequest(`/api/starter-tasks/${taskId}/assign`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        volunteer_id: parseInt(document.getElementById('assignVolunteer').value)
+                    })
+                });
+                closeModal('assignModal');
+                showMessage('Task assigned!', 'success');
+                await loadTasks();
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        });
+
+        // Review task
+        function openReview(taskId) {
+            const task = tasks.find(t => t.id === taskId);
+            document.getElementById('reviewTaskId').value = taskId;
+            document.getElementById('reviewTaskTitle').textContent = task.title;
+            document.getElementById('reviewTaskVolunteer').textContent = `Submitted by: ${task.assigned_to_name}`;
+            openModal('reviewModal');
+        }
+
+        document.getElementById('reviewForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const taskId = document.getElementById('reviewTaskId').value;
+            try {
+                await apiRequest(`/api/starter-tasks/${taskId}/review`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        review_rating: document.querySelector('input[name="rating"]:checked').value,
+                        review_notes: document.getElementById('reviewNotes').value.trim() || null,
+                        feedback_to_volunteer: document.getElementById('feedbackToVol').value.trim() || null
+                    })
+                });
+                closeModal('reviewModal');
+                showMessage('Task reviewed!', 'success');
+                await loadTasks();
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        });
+
+        init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project - Catalyse</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a href="/" class="logo">Catalyse <span>PauseAI UK</span></a>
+            <nav>
+                <a href="/" class="active">Projects</a>
+                <a href="/static/volunteers.html">Volunteers</a>
+                <a href="/static/suggest.html">Suggest Project</a>
+            </nav>
+            <div class="nav-auth" id="authNav"></div>
+        </div>
+    </header>
+
+    <main class="container page">
+        <div id="loadingState" class="loading">
+            <div class="spinner"></div>
+            Loading project...
+        </div>
+
+        <div id="projectContent" style="display: none;">
+            <div style="margin-bottom: 20px;">
+                <a href="/" style="color: var(--text-light);">&larr; Back to Projects</a>
+            </div>
+
+            <div id="messageDiv" class="message" style="display: none;"></div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <h1 id="projectTitle" style="margin-bottom: 8px;"></h1>
+                        <div id="projectMeta" class="card-meta"></div>
+                    </div>
+                    <span id="projectStatus" class="status-badge"></span>
+                </div>
+
+                <div id="projectDescription" style="white-space: pre-wrap; margin: 20px 0;"></div>
+
+                <h3>Skills Needed</h3>
+                <div id="projectSkills" class="skills" style="margin-bottom: 20px;"></div>
+
+                <div id="matchSection" style="display: none; margin: 20px 0; padding: 16px; background: var(--background); border-radius: var(--radius);">
+                    <h4 style="margin-bottom: 8px;">Your Match</h4>
+                    <div id="matchDetails"></div>
+                </div>
+
+                <div id="collaborationLink" style="display: none; margin: 20px 0;">
+                    <h3>Project Resources</h3>
+                    <a id="collabLinkAnchor" href="#" target="_blank" class="btn btn-outline">Open Project Doc</a>
+                </div>
+
+                <div id="ownerSection" style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border);">
+                    <h3>Project Owner</h3>
+                    <div id="ownerInfo"></div>
+                </div>
+
+                <div id="interestSection" style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); display: none;">
+                    <div id="existingInterest" style="display: none;">
+                        <div class="message info">
+                            You've expressed interest in this project. Status: <strong id="interestStatus"></strong>
+                        </div>
+                        <button id="withdrawBtn" class="btn btn-outline btn-small" style="margin-top: 12px;">
+                            Withdraw Interest
+                        </button>
+                    </div>
+                    <div id="newInterestForm" style="display: none;">
+                        <h3>Interested in this project?</h3>
+                        <form id="interestForm">
+                            <div class="form-group">
+                                <label>How would you like to contribute?</label>
+                                <div class="checkbox-group">
+                                    <label class="checkbox-label">
+                                        <input type="radio" name="interest_type" value="want_to_contribute" checked>
+                                        <span>I want to help out / contribute</span>
+                                    </label>
+                                    <label class="checkbox-label">
+                                        <input type="radio" name="interest_type" value="want_to_own">
+                                        <span>I want to own / lead this project</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="interestMessage">Message (optional)</label>
+                                <textarea id="interestMessage" placeholder="Tell the project owner why you're interested, what you can bring..."></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Express Interest</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div id="manageInterests" style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); display: none;">
+                    <h3>Interested Volunteers</h3>
+                    <div id="interestsList"></div>
+                </div>
+            </div>
+
+            <div id="updatesSection" class="card" style="display: none;">
+                <h2>Project Updates</h2>
+                <div id="updatesList"></div>
+                <div id="addUpdateForm" style="margin-top: 20px; display: none;">
+                    <h3>Add Update</h3>
+                    <form id="updateForm">
+                        <div class="form-group">
+                            <textarea id="updateContent" required placeholder="Share progress, blockers, or news..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-secondary">Post Update</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Contact Modal -->
+    <div id="contactModal" class="modal-overlay" style="display: none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Contact <span id="contactName"></span></h2>
+                <button class="modal-close" onclick="closeModal('contactModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="contactForm">
+                    <div class="form-group">
+                        <label for="contactSubject" class="required">Subject</label>
+                        <input type="text" id="contactSubject" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="contactMessage" class="required">Message</label>
+                        <textarea id="contactMessage" required placeholder="Introduce yourself and explain why you're reaching out..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Send Message</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+    <script>
+        let project = null;
+        let currentUser = null;
+        let contactTargetId = null;
+
+        async function init() {
+            currentUser = await initAuthNav();
+
+            const projectId = getQueryParam('id');
+            if (!projectId) {
+                window.location.href = '/';
+                return;
+            }
+
+            await loadProject(projectId);
+        }
+
+        async function loadProject(projectId) {
+            try {
+                project = await apiRequest(`/api/projects/${projectId}`);
+                renderProject();
+                document.getElementById('loadingState').style.display = 'none';
+                document.getElementById('projectContent').style.display = 'block';
+            } catch (error) {
+                showMessage(error.message, 'error');
+                document.getElementById('loadingState').innerHTML = `
+                    <p style="color: var(--error);">Project not found or not accessible.</p>
+                    <a href="/" class="btn btn-secondary" style="margin-top: 16px;">Back to Projects</a>
+                `;
+            }
+        }
+
+        function renderProject() {
+            document.title = `${project.title} - Catalyse`;
+
+            document.getElementById('projectTitle').textContent = project.title;
+            document.getElementById('projectStatus').textContent = formatStatus(project.status);
+            document.getElementById('projectStatus').className = `status-badge status-${project.status}`;
+
+            // Meta info
+            let meta = [];
+            if (project.is_org_proposed) meta.push('<span class="org-badge">PauseAI Official</span>');
+            if (project.time_commitment_hours_per_week) meta.push(`${project.time_commitment_hours_per_week}h/week`);
+            meta.push(`<span class="urgency urgency-${project.urgency}">${formatUrgency(project.urgency)} priority</span>`);
+            meta.push(`Added ${formatDate(project.created_at)}`);
+            document.getElementById('projectMeta').innerHTML = meta.join(' · ');
+
+            document.getElementById('projectDescription').textContent = project.description;
+
+            // Skills
+            const skillsHtml = project.skills.map(skill => {
+                let className = 'skill-tag';
+                if (skill.is_required) className += ' required';
+                if (currentUser && project.match) {
+                    const userSkillIds = currentUser.skills?.map(s => s.id) || [];
+                    if (userSkillIds.includes(skill.id)) {
+                        className = 'skill-tag matched';
+                    } else if (skill.is_required) {
+                        className = 'skill-tag unmatched';
+                    }
+                }
+                return `<span class="${className}">${escapeHtml(skill.name)}${skill.is_required ? '' : ' (nice to have)'}</span>`;
+            }).join('');
+            document.getElementById('projectSkills').innerHTML = skillsHtml || '<em>No specific skills listed</em>';
+
+            // Match section
+            if (currentUser && project.match) {
+                document.getElementById('matchSection').style.display = 'block';
+                document.getElementById('matchDetails').innerHTML = `
+                    <div class="match-score">
+                        <div class="match-bar" style="width: 200px;">
+                            <div class="match-bar-fill" style="width: ${project.match.required_match_percent}%"></div>
+                        </div>
+                        <span class="match-percent">${project.match.required_match_percent}% match</span>
+                    </div>
+                    <p style="margin-top: 8px; font-size: 0.875rem; color: var(--text-light);">
+                        You have ${project.match.matched_required_count} of ${project.match.total_required} required skills
+                        ${project.match.total_nice_to_have > 0 ? `, plus ${project.match.matched_nice_to_have_count} of ${project.match.total_nice_to_have} nice-to-have skills` : ''}
+                    </p>
+                `;
+            }
+
+            // Collaboration link
+            if (project.collaboration_link) {
+                document.getElementById('collaborationLink').style.display = 'block';
+                document.getElementById('collabLinkAnchor').href = project.collaboration_link;
+            }
+
+            // Owner info
+            renderOwnerSection();
+
+            // Interest section
+            renderInterestSection();
+
+            // Manage interests (for owner)
+            if (project.interests && (currentUser?.id === project.owner_id || currentUser?.is_admin)) {
+                renderManageInterests();
+            }
+
+            // Updates section
+            renderUpdatesSection();
+        }
+
+        function renderOwnerSection() {
+            const owner = project.owner;
+            if (owner) {
+                document.getElementById('ownerInfo').innerHTML = `
+                    <p><strong>${escapeHtml(owner.name)}</strong></p>
+                    ${currentUser && currentUser.id !== owner.id ? `
+                        <button class="btn btn-outline btn-small" onclick="openContactModal(${owner.id}, '${escapeHtml(owner.name)}')">
+                            Contact Owner
+                        </button>
+                    ` : ''}
+                `;
+            } else {
+                document.getElementById('ownerInfo').innerHTML = `
+                    <p style="color: var(--text-light);">This project doesn't have an owner yet. Express interest below to lead it!</p>
+                `;
+            }
+        }
+
+        function renderInterestSection() {
+            if (!currentUser) return;
+
+            const section = document.getElementById('interestSection');
+            section.style.display = 'block';
+
+            // Don't show interest form for owner
+            if (currentUser.id === project.owner_id) {
+                section.style.display = 'none';
+                return;
+            }
+
+            // Check if project is accepting interest
+            if (!['seeking_owner', 'seeking_help'].includes(project.status)) {
+                section.innerHTML = '<p style="color: var(--text-light);">This project is not currently seeking volunteers.</p>';
+                return;
+            }
+
+            if (project.my_interest) {
+                document.getElementById('existingInterest').style.display = 'block';
+                document.getElementById('newInterestForm').style.display = 'none';
+                document.getElementById('interestStatus').textContent = project.my_interest.status;
+            } else {
+                document.getElementById('existingInterest').style.display = 'none';
+                document.getElementById('newInterestForm').style.display = 'block';
+            }
+        }
+
+        function renderManageInterests() {
+            const section = document.getElementById('manageInterests');
+            section.style.display = 'block';
+
+            if (project.interests.length === 0) {
+                document.getElementById('interestsList').innerHTML = '<p style="color: var(--text-light);">No volunteers have expressed interest yet.</p>';
+                return;
+            }
+
+            document.getElementById('interestsList').innerHTML = project.interests.map(interest => `
+                <div class="interest-card">
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <div>
+                            <div class="volunteer-name">${escapeHtml(interest.volunteer_name)}</div>
+                            <div class="interest-type">${formatInterestType(interest.interest_type)}</div>
+                        </div>
+                        <span class="status-badge status-${interest.status === 'pending' ? 'seeking_help' : interest.status === 'accepted' ? 'completed' : 'on_hold'}">
+                            ${interest.status}
+                        </span>
+                    </div>
+                    ${interest.message ? `<p class="interest-message">"${escapeHtml(interest.message)}"</p>` : ''}
+                    <div class="skills" style="margin: 8px 0;">
+                        ${(interest.volunteer_skills || []).slice(0, 5).map(s => `<span class="skill-tag">${escapeHtml(s.name)}</span>`).join('')}
+                    </div>
+                    ${interest.status === 'pending' ? `
+                        <div class="interest-actions">
+                            <button class="btn btn-small btn-primary" onclick="respondToInterest(${interest.id}, 'accepted')">Accept</button>
+                            <button class="btn btn-small btn-outline" onclick="respondToInterest(${interest.id}, 'declined')">Decline</button>
+                            <button class="btn btn-small btn-ghost" onclick="openContactModal(${interest.volunteer_id}, '${escapeHtml(interest.volunteer_name)}')">Message</button>
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        function renderUpdatesSection() {
+            if (project.updates && project.updates.length > 0) {
+                document.getElementById('updatesSection').style.display = 'block';
+                document.getElementById('updatesList').innerHTML = project.updates.map(update => `
+                    <div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+                        <p style="white-space: pre-wrap;">${escapeHtml(update.content)}</p>
+                        <p style="font-size: 0.875rem; color: var(--text-light); margin-top: 8px;">
+                            ${update.author_name ? escapeHtml(update.author_name) : 'Unknown'} · ${formatDateTime(update.created_at)}
+                        </p>
+                    </div>
+                `).join('');
+            }
+
+            // Show add update form for owner
+            if (currentUser && currentUser.id === project.owner_id) {
+                document.getElementById('updatesSection').style.display = 'block';
+                document.getElementById('addUpdateForm').style.display = 'block';
+            }
+        }
+
+        // Interest form
+        document.getElementById('interestForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const btn = form.querySelector('button[type="submit"]');
+            btn.disabled = true;
+
+            try {
+                await apiRequest(`/api/projects/${project.id}/interest`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        interest_type: form.interest_type.value,
+                        message: document.getElementById('interestMessage').value.trim() || null
+                    })
+                });
+                showMessage('Interest expressed! The project owner will be notified.', 'success');
+                await loadProject(project.id);
+            } catch (error) {
+                showMessage(error.message, 'error');
+                btn.disabled = false;
+            }
+        });
+
+        // Withdraw interest
+        document.getElementById('withdrawBtn').addEventListener('click', async () => {
+            if (!confirm('Withdraw your interest in this project?')) return;
+
+            try {
+                await apiRequest(`/api/projects/${project.id}/interest`, { method: 'DELETE' });
+                showMessage('Interest withdrawn.', 'success');
+                await loadProject(project.id);
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        });
+
+        // Respond to interest
+        async function respondToInterest(interestId, status) {
+            const message = status === 'declined'
+                ? prompt('Optional message to the volunteer:')
+                : null;
+
+            try {
+                await apiRequest(`/api/projects/${project.id}/interest/${interestId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ status, response_message: message })
+                });
+                showMessage(`Interest ${status}.`, 'success');
+                await loadProject(project.id);
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        }
+
+        // Update form
+        document.getElementById('updateForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const content = document.getElementById('updateContent').value.trim();
+            if (!content) return;
+
+            try {
+                await apiRequest(`/api/projects/${project.id}/updates`, {
+                    method: 'POST',
+                    body: JSON.stringify({ content })
+                });
+                document.getElementById('updateContent').value = '';
+                showMessage('Update posted!', 'success');
+                await loadProject(project.id);
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        });
+
+        // Contact modal
+        function openContactModal(volunteerId, name) {
+            contactTargetId = volunteerId;
+            document.getElementById('contactName').textContent = name;
+            document.getElementById('contactSubject').value = `About: ${project.title}`;
+            openModal('contactModal');
+        }
+
+        document.getElementById('contactForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.disabled = true;
+
+            try {
+                await apiRequest(`/api/contact/${contactTargetId}`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        subject: document.getElementById('contactSubject').value.trim(),
+                        message: document.getElementById('contactMessage').value.trim(),
+                        related_project_id: project.id
+                    })
+                });
+                closeModal('contactModal');
+                showMessage('Message sent!', 'success');
+                document.getElementById('contactMessage').value = '';
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+            btn.disabled = false;
+        });
+
+        init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Org Project - Catalyse Admin</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a href="/" class="logo">Catalyse <span>Admin</span></a>
+            <nav>
+                <a href="/">Projects</a>
+                <a href="/static/admin/triage.html">Triage</a>
+                <a href="/static/admin/stats.html">Stats</a>
+            </nav>
+            <div class="nav-auth" id="authNav"></div>
+        </div>
+    </header>
+
+    <main class="container page">
+        <div style="max-width: 700px; margin: 0 auto;">
+            <h1>Create Organisation Project</h1>
+            <p style="color: var(--text-light); margin-bottom: 24px;">
+                Create a project on behalf of PauseAI UK. This skips the approval process.
+            </p>
+
+            <div id="messageDiv" class="message" style="display: none;"></div>
+
+            <form id="createForm" class="card">
+                <div class="form-group">
+                    <label for="title" class="required">Project Title</label>
+                    <input type="text" id="title" name="title" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="description" class="required">Description</label>
+                    <textarea id="description" name="description" required style="min-height: 200px;"></textarea>
+                </div>
+
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label for="time_commitment">Time Commitment (hours/week)</label>
+                        <input type="number" id="time_commitment" name="time_commitment" min="1" max="40">
+                    </div>
+                    <div class="form-group">
+                        <label for="urgency">Urgency</label>
+                        <select id="urgency" name="urgency">
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="collaboration_link">Collaboration Link</label>
+                    <input type="url" id="collaboration_link" name="collaboration_link" placeholder="Notion doc, etc.">
+                </div>
+
+                <h3 style="margin-top: 24px;">Skills Needed</h3>
+                <div id="skillSelector" class="skill-selector">
+                    <div class="loading"><div class="spinner"></div>Loading...</div>
+                </div>
+
+                <div class="form-group" style="margin-top: 16px;">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="want_to_own" name="want_to_own">
+                        <span>I'll be the owner of this project</span>
+                    </label>
+                </div>
+
+                <div style="margin-top: 24px; display: flex; gap: 12px;">
+                    <button type="submit" class="btn btn-primary">Create Project</button>
+                    <a href="/static/admin/triage.html" class="btn btn-outline">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <script src="/static/app.js"></script>
+    <script>
+        let currentUser = null;
+
+        async function init() {
+            currentUser = await initAuthNav();
+
+            if (!currentUser || !currentUser.is_admin) {
+                window.location.href = '/';
+                return;
+            }
+
+            renderSkillSelector('skillSelector');
+        }
+
+        document.getElementById('createForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const form = e.target;
+            const btn = form.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            btn.textContent = 'Creating...';
+
+            try {
+                const skillIds = getSelectedSkills('skillSelector');
+                const skillRequiredMap = {};
+                skillIds.forEach(id => skillRequiredMap[id] = true);
+
+                const data = {
+                    title: form.title.value.trim(),
+                    description: form.description.value.trim(),
+                    time_commitment_hours_per_week: form.time_commitment.value ? parseInt(form.time_commitment.value) : null,
+                    urgency: form.urgency.value,
+                    collaboration_link: form.collaboration_link.value.trim() || null,
+                    skill_ids: skillIds,
+                    skill_required_map: skillRequiredMap,
+                    want_to_own: form.want_to_own.checked
+                };
+
+                const result = await apiRequest('/api/admin/projects', {
+                    method: 'POST',
+                    body: JSON.stringify(data)
+                });
+
+                showMessage('Project created!', 'success');
+                setTimeout(() => {
+                    window.location.href = `/static/project.html?id=${result.id}`;
+                }, 1000);
+
+            } catch (error) {
+                showMessage(error.message, 'error');
+                btn.disabled = false;
+                btn.textContent = 'Create Project';
+            }
+        });
+
+        init();
+    </script>
+</body>
+</html>
