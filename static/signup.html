@@ -152,6 +152,13 @@
             renderSkillSelector('skillSelector');
         }
 
+        // Prevent Enter key from submitting form (except on submit button)
+        document.getElementById('signupForm').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.target.type !== 'submit' && e.target.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+            }
+        });
+
         document.getElementById('signupForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
