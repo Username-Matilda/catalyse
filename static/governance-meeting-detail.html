@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="constitution-refs.js"></script>
+    
+    <title>Governance Meeting - Details</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .nav {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 20px;
+        }
+        
+        .nav a {
+            color: #1976d2;
+            text-decoration: none;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #1976d2;
+            text-decoration: none;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        h1 {
+            color: #1976d2;
+            margin-bottom: 5px;
+        }
+        
+        .meeting-meta {
+            color: #666;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        
+        .section {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .section h2 {
+            font-size: 20px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e3f2fd;
+        }
+        
+        .proposal-card {
+            background: #f9f9f9;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 6px;
+            border-left: 4px solid #1976d2;
+        }
+        
+        .proposal-card h3 {
+            color: #1976d2;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .outcome-badge {
+            font-size: 12px;
+            font-weight: 600;
+            padding: 4px 12px;
+            border-radius: 12px;
+            text-transform: uppercase;
+        }
+        
+        .outcome-adopted {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        
+        .outcome-amended {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+        
+        .outcome-withdrawn {
+            background: #ffebee;
+            color: #c62828;
+        }
+        
+        .phase-section {
+            margin-top: 15px;
+        }
+        
+        .phase-label {
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        
+        .phase-content {
+            color: #666;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+        
+        .empty-state {
+            color: #999;
+            font-style: italic;
+            text-align: center;
+            padding: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav">
+            <a href="index.html">Structure</a>
+            <a href="people.html">Partners</a>
+            <a href="tensions.html">Tensions</a>
+            <a href="governance-meetings.html">Governance</a>
+            <a href="tactical-meetings.html">Tactical</a>
+            <a href="projects.html">Projects</a>
+        </div>
+        
+        <a href="governance-meetings.html" class="back-link">← Back to Governance History</a>
+        
+        <h1 id="meetingTitle">Loading...</h1>
+        <div id="meetingMeta" class="meeting-meta"></div>
+        
+        <div class="section">
+            <h2>Proposals & Outcomes</h2>
+            <div id="proposalsList"></div>
+        </div>
+        
+        <div class="section" id="notesSection" style="display: none;">
+            <h2>Meeting Notes</h2>
+            <div id="meetingNotes" class="phase-content"></div>
+        </div>
+    </div>
+    
+    <script src="governance-meeting-detail.js"></script>
+</body>
+</html>

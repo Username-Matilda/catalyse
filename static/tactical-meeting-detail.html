@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="constitution-refs.js"></script>
+    <title>Tactical Meeting - Details</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .nav {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 20px;
+        }
+        
+        .nav a {
+            color: #1976d2;
+            text-decoration: none;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #f57c00;
+            text-decoration: none;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        h1 {
+            color: #f57c00;
+            margin-bottom: 5px;
+        }
+        
+        .meeting-meta {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        
+        .section {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .section h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #fff3e0;
+            color: #f57c00;
+        }
+        
+        .content {
+            color: #666;
+            line-height: 1.8;
+            white-space: pre-wrap;
+        }
+        
+        .empty-content {
+            color: #999;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav">
+            <a href="index.html">Structure</a>
+            <a href="people.html">Partners</a>
+            <a href="tensions.html">Tensions</a>
+            <a href="governance-meetings.html">Governance</a>
+            <a href="tactical-meetings.html">Tactical</a>
+            <a href="projects.html">Projects</a>
+        </div>
+        
+        <a href="tactical-meetings.html" class="back-link">← Back to Tactical History</a>
+        
+        <h1 id="meetingTitle">Loading...</h1>
+        <div id="meetingMeta" class="meeting-meta"></div>
+        
+        <div class="section" id="checkinSection" style="display: none;">
+            <h2>Check-in Round</h2>
+            <div id="checkinContent" class="content"></div>
+        </div>
+        
+        <div class="section" id="checklistSection" style="display: none;">
+            <h2>Checklist Review</h2>
+            <div id="checklistContent" class="content"></div>
+        </div>
+        
+        <div class="section" id="metricsSection" style="display: none;">
+            <h2>Metrics</h2>
+            <div id="metricsContent" class="content"></div>
+        </div>
+        
+        <div class="section" id="projectsSection" style="display: none;">
+            <h2>Project Updates</h2>
+            <div id="projectsContent" class="content"></div>
+        </div>
+        
+        <div class="section" id="tensionsSection" style="display: none;">
+            <h2>Tension Processing</h2>
+            <div id="tensionsContent" class="content"></div>
+        </div>
+        
+        <div class="section" id="closingSection" style="display: none;">
+            <h2>Closing Round</h2>
+            <div id="closingContent" class="content"></div>
+        </div>
+    </div>
+    
+    <script src="tactical-meeting-detail.js"></script>
+</body>
+</html>

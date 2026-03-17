@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Holacracy Constitution Reference</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+            line-height: 1.7;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .nav {
+            margin-bottom: 30px;
+            display: flex;
+            gap: 20px;
+        }
+        
+        .nav a {
+            color: #1976d2;
+            text-decoration: none;
+        }
+        
+        h1 {
+            color: #1976d2;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #e3f2fd;
+        }
+        
+        h2 {
+            color: #1976d2;
+            margin-top: 40px;
+            margin-bottom: 15px;
+        }
+        
+        h3 {
+            color: #333;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+        
+        p {
+            margin-bottom: 15px;
+            color: #555;
+        }
+        
+        .note {
+            background: #fff3e0;
+            padding: 15px;
+            border-left: 4px solid #f57c00;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav">
+            <a href="index.html">← Back to System</a>
+        </div>
+        
+        <h1>Holacracy Constitution Reference</h1>
+        
+        <div class="note">
+            <strong>Note:</strong> This is a quick reference. For the complete constitution, visit 
+            <a href="https://www.holacracy.org/constitution" target="_blank">holacracy.org/constitution</a>
+        </div>
+        
+        <h2 id="article-1">Article 1: Organizational Structure</h2>
+        
+        <h3>1.1 Roles</h3>
+        <p>A Role is an organizational building block defined by:</p>
+        <ul style="margin-left: 25px; margin-bottom: 15px;">
+            <li><strong>Purpose:</strong> The role's reason for existing</li>
+            <li><strong>Domains:</strong> Exclusive authority over specific resources</li>
+            <li><strong>Accountabilities:</strong> Ongoing activities to perform</li>
+        </ul>
+        
+        <h3>1.1.2 Domains</h3>
+        <p>An asset, process, or resource that a Role has exclusive authority to control on behalf of the Organization.</p>
+        <p><strong>Examples:</strong> Security policies, compute resource allocation, fermentation protocols</p>
+        
+        <h3>1.1.3 Accountabilities</h3>
+        <p>An ongoing activity that a Role is expected to perform for the Organization.</p>
+        <p><strong>Examples:</strong> Monitoring security incidents, coordinating responses, tracking metrics</p>
+        
+        <h2 id="article-2">Article 2: Circle Structure</h2>
+        
+        <h3>2.1 Circles</h3>
+        <p>A Circle is a Role that contains other Roles to organize work in a specific domain.</p>
+        
+        <h3>2.1.3 Policies</h3>
+        <p>Policies are grants or constraints of authority that apply across a Circle's Roles.</p>
+        <p><strong>Examples:</strong></p>
+        <ul style="margin-left: 25px; margin-bottom: 15px;">
+            <li>"Compute allocations over $10k require Research Lead approval"</li>
+            <li>"All fermentation experiments must log temperature daily"</li>
+            <li>"Governance facilitation rotates weekly among circle members"</li>
+        </ul>
+        
+        <h2 id="article-3">Article 3: Governance Process</h2>
+        
+        <h3>3.1 Purpose</h3>
+        <p>Governance meetings process tensions into structural changes—updates to roles, policies, and circle structure.</p>
+        
+        <h3>3.2 Governance Meeting Process</h3>
+        <p>Each tension is processed through these phases:</p>
+        <ol style="margin-left: 25px; margin-bottom: 15px; line-height: 1.8;">
+            <li><strong>Present Proposal:</strong> Proposer describes structural change</li>
+            <li><strong>Clarifying Questions:</strong> Information-seeking only, no reactions</li>
+            <li><strong>Reaction Round:</strong> Each person shares perspective, no discussion</li>
+            <li><strong>Amend & Clarify:</strong> Proposer may modify based on reactions</li>
+            <li><strong>Objection Round:</strong> Test for harm or backwards movement</li>
+            <li><strong>Integration:</strong> If objections exist, work together to integrate them</li>
+        </ol>
+        
+        <h3>3.2.5 Valid Objections</h3>
+        <p>An objection is valid if the proposal would:</p>
+        <ul style="margin-left: 25px; margin-bottom: 15px;">
+            <li>Cause harm to the organization</li>
+            <li>Move the organization backwards</li>
+            <li>Create a new tension worse than the one being addressed</li>
+        </ul>
+        
+        <p style="color: #f57c00;"><strong>Invalid objections:</strong></p>
+        <ul style="margin-left: 25px; margin-bottom: 15px; color: #f57c00;">
+            <li>"I have a better idea" → Offer after adoption</li>
+            <li>"I don't like it" → This is a reaction, not harm</li>
+            <li>"We tried this before" → Past attempts don't predict future outcomes</li>
+        </ul>
+        
+        <h2 id="article-4">Article 4: Tactical Meetings</h2>
+        
+        <h3>4.1 Purpose</h3>
+        <p>Tactical meetings synchronize team work and address operational tensions—not structural changes.</p>
+        
+        <h3>4.2 Tactical Meeting Process</h3>
+        <ol style="margin-left: 25px; margin-bottom: 15px; line-height: 1.8;">
+            <li><strong>Check-in:</strong> Brief personal sharing</li>
+            <li><strong>Checklist Review:</strong> Recurring operational items</li>
+            <li><strong>Metrics:</strong> Key numbers that inform decisions</li>
+            <li><strong>Project Updates:</strong> Progress on multi-step initiatives</li>
+            <li><strong>Tension Processing:</strong> Triage operational gaps, identify next actions</li>
+            <li><strong>Closing Round:</strong> Reflection or appreciation</li>
+        </ol>
+        
+        <div class="note" style="margin-top: 30px;">
+            <strong>Key Distinction:</strong> Tactical meetings coordinate work. Governance meetings change structure. 
+            If a tension requires changing roles/accountabilities/domains, save it for governance.
+        </div>
+    </div>
+</body>
+</html>

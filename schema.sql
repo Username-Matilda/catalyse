@@ -1,334 +1,154 @@
--- Catalyse: PauseAI UK Volunteer & Project Matching Platform
--- Database Schema
-
 PRAGMA foreign_keys = ON;
 
--- ============================================
--- SKILLS TAXONOMY
--- ============================================
-
-CREATE TABLE skill_categories (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL UNIQUE,
-    description TEXT,
-    sort_order INTEGER DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE people (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT UNIQUE,
+  active BOOLEAN DEFAULT 1,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE skills (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    category_id INTEGER NOT NULL REFERENCES skill_categories(id),
-    name TEXT NOT NULL,
-    description TEXT,
-    sort_order INTEGER DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(category_id, name)
+CREATE TABLE circles (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  purpose TEXT,
+  parent_circle_id INTEGER REFERENCES circles(id),
+  deleted_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  
+  CHECK (id != parent_circle_id)
 );
 
-CREATE INDEX idx_skills_category ON skills(category_id);
-
--- ============================================
--- VOLUNTEERS
--- ============================================
-
-CREATE TABLE volunteers (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    email TEXT UNIQUE,
-    bio TEXT,
-
-    -- Contact options (all optional)
-    discord_handle TEXT,
-    signal_number TEXT,
-    whatsapp_number TEXT,
-    contact_preference TEXT CHECK(contact_preference IN ('email', 'discord', 'signal', 'whatsapp')),
-    contact_notes TEXT,
-
-    -- Availability
-    availability_hours_per_week INTEGER,
-    location TEXT,
-
-    -- Privacy settings
-    share_contact_directly BOOLEAN DEFAULT FALSE,  -- If false, use contact form only
-    profile_visible BOOLEAN DEFAULT TRUE,
-
-    -- Other skills not in taxonomy
-    other_skills TEXT,
-
-    -- Consent tracking (GDPR)
-    consent_profile_visible BOOLEAN DEFAULT FALSE,
-    consent_contact_by_owners BOOLEAN DEFAULT FALSE,
-    consent_given_at TIMESTAMP,
-
-    -- Auth (simple token-based for lightweight auth)
-    auth_token TEXT UNIQUE,
-    auth_token_expires_at TIMESTAMP,
-
-    -- Metadata
-    is_admin BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP  -- Soft delete for GDPR
+CREATE TABLE roles (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  purpose TEXT,
+  circle_id INTEGER NOT NULL REFERENCES circles(id),
+  role_type TEXT DEFAULT 'normal',
+  deleted_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  
+  CHECK (role_type IN ('normal', 'circle_lead', 'facilitator', 'secretary', 'circle_rep'))
 );
 
-CREATE INDEX idx_volunteers_email ON volunteers(email);
-CREATE INDEX idx_volunteers_auth_token ON volunteers(auth_token);
-CREATE INDEX idx_volunteers_deleted ON volunteers(deleted_at);
-
--- Junction table: volunteer <-> skills
-CREATE TABLE volunteer_skills (
-    volunteer_id INTEGER NOT NULL REFERENCES volunteers(id) ON DELETE CASCADE,
-    skill_id INTEGER NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
-    proficiency_level TEXT CHECK(proficiency_level IN ('beginner', 'intermediate', 'expert')) DEFAULT 'intermediate',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (volunteer_id, skill_id)
+CREATE TABLE accountabilities (
+  id INTEGER PRIMARY KEY,
+  role_id INTEGER NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+  description TEXT NOT NULL,
+  sort_order INTEGER DEFAULT 0
 );
 
-CREATE INDEX idx_volunteer_skills_skill ON volunteer_skills(skill_id);
+CREATE TABLE domains (
+  id INTEGER PRIMARY KEY,
+  role_id INTEGER REFERENCES roles(id) ON DELETE SET NULL,
+  circle_id INTEGER NOT NULL REFERENCES circles(id),
+  description TEXT NOT NULL,
+  sort_order INTEGER DEFAULT 0
+);
 
--- ============================================
--- PROJECTS
--- ============================================
+CREATE TABLE policies (
+  id INTEGER PRIMARY KEY,
+  circle_id INTEGER NOT NULL REFERENCES circles(id),
+  title TEXT NOT NULL,
+  description TEXT NOT NULL,
+  policy_type TEXT,
+  deleted_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE role_assignments (
+  id INTEGER PRIMARY KEY,
+  role_id INTEGER NOT NULL REFERENCES roles(id),
+  person_id INTEGER NOT NULL REFERENCES people(id),
+  focus TEXT,
+  assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  assigned_until TIMESTAMP,
+  
+  UNIQUE(role_id, person_id, focus)
+);
 
 CREATE TABLE projects (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT NOT NULL,
-    description TEXT NOT NULL,
-
-    -- Status workflow
-    status TEXT NOT NULL DEFAULT 'pending_review' CHECK(status IN (
-        'pending_review',    -- Volunteer-proposed, awaiting team review
-        'needs_discussion',  -- Good idea, needs conversation about fit
-        'seeking_owner',     -- Approved, needs someone to lead
-        'seeking_help',      -- Has owner, needs contributors
-        'in_progress',       -- Active work
-        'on_hold',           -- Paused
-        'completed',         -- Done!
-        'archived'           -- No longer relevant
-    )),
-
-    -- Ownership
-    owner_id INTEGER REFERENCES volunteers(id) ON DELETE SET NULL,
-    proposed_by_id INTEGER REFERENCES volunteers(id) ON DELETE SET NULL,
-    is_org_proposed BOOLEAN DEFAULT FALSE,  -- TRUE = org proposed, FALSE = volunteer proposed
-
-    -- Requirements
-    time_commitment_hours_per_week INTEGER,
-    urgency TEXT CHECK(urgency IN ('low', 'medium', 'high')) DEFAULT 'medium',
-
-    -- For moderation
-    review_notes TEXT,           -- Internal notes from reviewers
-    reviewed_by_id INTEGER REFERENCES volunteers(id),
-    reviewed_at TIMESTAMP,
-    feedback_to_proposer TEXT,   -- Message sent back if needs_discussion
-
-    -- Contact/collaboration
-    collaboration_link TEXT,     -- Notion doc, Google doc, etc.
-
-    -- Outcome tracking
-    outcome TEXT CHECK(outcome IN ('successful', 'partial', 'not_completed', 'ongoing')),
-    outcome_notes TEXT,
-    completed_at TIMESTAMP,
-
-    -- Metadata
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  id INTEGER PRIMARY KEY,
+  role_id INTEGER NOT NULL REFERENCES roles(id),
+  name TEXT NOT NULL,
+  description TEXT,
+  status TEXT DEFAULT 'active',
+  blocked_reason TEXT,
+  blocked_by_project_id INTEGER REFERENCES projects(id),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  completed_at TIMESTAMP,
+  dropped_at TIMESTAMP,
+  
+  CHECK (status IN ('active', 'on_hold', 'blocked', 'completed', 'dropped'))
 );
 
+CREATE TABLE next_actions (
+  id INTEGER PRIMARY KEY,
+  role_id INTEGER NOT NULL REFERENCES roles(id),
+  project_id INTEGER REFERENCES projects(id),
+  description TEXT NOT NULL,
+  completed BOOLEAN DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  completed_at TIMESTAMP
+);
+
+CREATE TABLE tensions (
+  id INTEGER PRIMARY KEY,
+  person_id INTEGER NOT NULL REFERENCES people(id),
+  role_id INTEGER REFERENCES roles(id),
+  description TEXT NOT NULL,
+  status TEXT DEFAULT 'open',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  
+  CHECK (status IN ('open', 'became_proposal', 'resolved', 'abandoned'))
+);
+
+CREATE TABLE proposals (
+  id INTEGER PRIMARY KEY,
+  proposer_id INTEGER NOT NULL REFERENCES people(id),
+  tension_id INTEGER REFERENCES tensions(id),
+  circle_id INTEGER NOT NULL REFERENCES circles(id),
+  proposal_text TEXT NOT NULL,
+  example_situation TEXT,
+  status TEXT DEFAULT 'draft',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  adopted_at TIMESTAMP,
+  
+  CHECK (status IN ('draft', 'in_objection', 'adopted', 'withdrawn'))
+);
+
+CREATE TABLE objections (
+  id INTEGER PRIMARY KEY,
+  proposal_id INTEGER NOT NULL REFERENCES proposals(id),
+  objector_id INTEGER NOT NULL REFERENCES people(id),
+  concern TEXT NOT NULL,
+  is_valid BOOLEAN,
+  resolved BOOLEAN DEFAULT 0,
+  resolution_note TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE tensions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    description TEXT NOT NULL,
+    sensed_by_person_id INTEGER,
+    related_role_id INTEGER,
+    related_circle_id INTEGER,
+    tension_type TEXT CHECK(tension_type IN ('governance', 'tactical', 'project', 'unknown')) DEFAULT 'unknown',
+    status TEXT CHECK(status IN ('open', 'processed', 'archived')) DEFAULT 'open',
+    processing_notes TEXT,
+    processed_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (sensed_by_person_id) REFERENCES people(id),
+    FOREIGN KEY (related_role_id) REFERENCES roles(id),
+    FOREIGN KEY (related_circle_id) REFERENCES circles(id)
+);
+
+-- Indexes for common queries
+CREATE INDEX idx_roles_circle ON roles(circle_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_role_assignments_person ON role_assignments(person_id);
+CREATE INDEX idx_role_assignments_role ON role_assignments(role_id);
 CREATE INDEX idx_projects_status ON projects(status);
-CREATE INDEX idx_projects_owner ON projects(owner_id);
-CREATE INDEX idx_projects_proposed_by ON projects(proposed_by_id);
-
--- Junction table: project <-> skills required
-CREATE TABLE project_skills (
-    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-    skill_id INTEGER NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
-    is_required BOOLEAN DEFAULT TRUE,  -- TRUE = required, FALSE = nice-to-have
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (project_id, skill_id)
-);
-
-CREATE INDEX idx_project_skills_skill ON project_skills(skill_id);
-
--- ============================================
--- PROJECT INTERESTS (Volunteer wants to help)
--- ============================================
-
-CREATE TABLE project_interests (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    volunteer_id INTEGER NOT NULL REFERENCES volunteers(id) ON DELETE CASCADE,
-    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-
-    interest_type TEXT NOT NULL CHECK(interest_type IN ('want_to_contribute', 'want_to_own')),
-    message TEXT,  -- Why they're interested
-
-    status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'accepted', 'declined', 'withdrawn')),
-    response_message TEXT,  -- Owner's response
-
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    responded_at TIMESTAMP,
-
-    UNIQUE(volunteer_id, project_id)
-);
-
-CREATE INDEX idx_project_interests_project ON project_interests(project_id);
-CREATE INDEX idx_project_interests_volunteer ON project_interests(volunteer_id);
-
--- ============================================
--- CONTACT MESSAGES (Privacy-preserving contact)
--- ============================================
-
-CREATE TABLE contact_messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    from_volunteer_id INTEGER NOT NULL REFERENCES volunteers(id) ON DELETE CASCADE,
-    to_volunteer_id INTEGER NOT NULL REFERENCES volunteers(id) ON DELETE CASCADE,
-
-    subject TEXT NOT NULL,
-    message TEXT NOT NULL,
-
-    -- Context (optional)
-    related_project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
-
-    -- Status
-    read_at TIMESTAMP,
-
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_contact_messages_to ON contact_messages(to_volunteer_id);
-CREATE INDEX idx_contact_messages_from ON contact_messages(from_volunteer_id);
-
--- ============================================
--- PROJECT UPDATES (Progress tracking)
--- ============================================
-
-CREATE TABLE project_updates (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-    author_id INTEGER REFERENCES volunteers(id) ON DELETE SET NULL,
-
-    content TEXT NOT NULL,
-
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_project_updates_project ON project_updates(project_id);
-
--- ============================================
--- GDPR: DATA DELETION REQUESTS
--- ============================================
-
-CREATE TABLE deletion_requests (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    volunteer_id INTEGER NOT NULL,  -- No FK since volunteer may be deleted
-    volunteer_email TEXT,           -- Stored for verification
-
-    status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'completed')),
-
-    requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    completed_at TIMESTAMP
-);
-
--- ============================================
--- NOTIFICATIONS (for email digest, etc.)
--- ============================================
-
-CREATE TABLE notifications (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    volunteer_id INTEGER NOT NULL REFERENCES volunteers(id) ON DELETE CASCADE,
-
-    type TEXT NOT NULL,  -- 'new_interest', 'project_approved', 'message_received', etc.
-    title TEXT NOT NULL,
-    body TEXT,
-    link TEXT,           -- URL to relevant page
-
-    read_at TIMESTAMP,
-    emailed_at TIMESTAMP,
-
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_notifications_volunteer ON notifications(volunteer_id);
-CREATE INDEX idx_notifications_unread ON notifications(volunteer_id, read_at);
-
--- ============================================
--- ADMIN NOTES (Private, per volunteer)
--- ============================================
-
-CREATE TABLE admin_notes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    volunteer_id INTEGER NOT NULL REFERENCES volunteers(id) ON DELETE CASCADE,
-    author_id INTEGER NOT NULL REFERENCES volunteers(id),
-
-    content TEXT NOT NULL,
-    category TEXT CHECK(category IN ('skill_feedback', 'reliability', 'fit', 'general')) DEFAULT 'general',
-    related_project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
-
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_admin_notes_volunteer ON admin_notes(volunteer_id);
-
--- ============================================
--- STARTER TASKS
--- ============================================
-
-CREATE TABLE starter_tasks (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
-
-    title TEXT NOT NULL,
-    description TEXT NOT NULL,
-
-    skill_id INTEGER REFERENCES skills(id) ON DELETE SET NULL,
-
-    assigned_to_id INTEGER REFERENCES volunteers(id) ON DELETE SET NULL,
-    assigned_by_id INTEGER REFERENCES volunteers(id),
-
-    status TEXT NOT NULL DEFAULT 'open' CHECK(status IN (
-        'open',
-        'assigned',
-        'submitted',
-        'reviewed',
-        'completed'
-    )),
-
-    review_rating TEXT CHECK(review_rating IN ('excellent', 'good', 'needs_improvement')),
-    review_notes TEXT,
-    feedback_to_volunteer TEXT,
-    reviewed_by_id INTEGER REFERENCES volunteers(id),
-    reviewed_at TIMESTAMP,
-
-    estimated_hours REAL,
-
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_starter_tasks_project ON starter_tasks(project_id);
-CREATE INDEX idx_starter_tasks_assigned ON starter_tasks(assigned_to_id);
-CREATE INDEX idx_starter_tasks_skill ON starter_tasks(skill_id);
-
--- ============================================
--- SKILL ENDORSEMENTS (admin-verified track record)
--- ============================================
-
-CREATE TABLE skill_endorsements (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    volunteer_id INTEGER NOT NULL REFERENCES volunteers(id) ON DELETE CASCADE,
-    skill_id INTEGER NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
-
-    endorsed_by_id INTEGER NOT NULL REFERENCES volunteers(id),
-    source TEXT CHECK(source IN ('project_outcome', 'starter_task', 'direct_observation')) DEFAULT 'direct_observation',
-    source_id INTEGER,
-
-    rating TEXT CHECK(rating IN ('verified', 'strong', 'developing')) DEFAULT 'verified',
-    notes TEXT,
-
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-    UNIQUE(volunteer_id, skill_id, endorsed_by_id)
-);
-
-CREATE INDEX idx_skill_endorsements_volunteer ON skill_endorsements(volunteer_id);
+CREATE INDEX idx_accountabilities_role ON accountabilities(role_id);
+CREATE INDEX idx_domains_role ON domains(role_id);
+CREATE INDEX idx_domains_circle ON domains(circle_id);

@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Project Details</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .nav {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 20px;
+        }
+        
+        .nav a {
+            color: #1976d2;
+            text-decoration: none;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #388e3c;
+            text-decoration: none;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        .project-header {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            color: #388e3c;
+            margin-bottom: 15px;
+        }
+        
+        .project-meta {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            color: #666;
+            margin-bottom: 15px;
+        }
+        
+        .status-badge {
+            font-size: 12px;
+            font-weight: 600;
+            padding: 6px 14px;
+            border-radius: 12px;
+            text-transform: uppercase;
+        }
+        
+        .status-active {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        
+        .status-completed {
+            background: #f5f5f5;
+            color: #666;
+        }
+        
+        .status-on_hold {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+        
+        .project-outcome {
+            color: #555;
+            line-height: 1.8;
+            margin-top: 15px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 4px;
+        }
+        
+        .section {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .section h2 {
+            font-size: 20px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e8f5e9;
+            color: #388e3c;
+        }
+        
+        .update-card {
+            padding: 15px;
+            margin-bottom: 15px;
+            background: #f9f9f9;
+            border-radius: 4px;
+            border-left: 3px solid #388e3c;
+        }
+        
+        .update-meta {
+            font-size: 13px;
+            color: #999;
+            margin-bottom: 8px;
+        }
+        
+        .update-text {
+            color: #555;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 14px;
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        .btn-primary {
+            background: #388e3c;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .btn-primary:hover {
+            background: #2e7d32;
+        }
+        
+        .message {
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        
+        .message.success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #a5d6a7;
+        }
+        
+        .message.error {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #ef9a9a;
+        }
+        
+        .message.show {
+            display: block;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav">
+            <a href="index.html">Structure</a>
+            <a href="people.html">Partners</a>
+            <a href="tensions.html">Tensions</a>
+            <a href="governance-meetings.html">Governance</a>
+            <a href="tactical-meetings.html">Tactical</a>
+            <a href="projects.html">Projects</a>
+        </div>
+        
+        <a href="projects.html" class="back-link">← Back to Projects</a>
+        
+        <div class="project-header">
+            <h1 id="projectTitle">Loading...</h1>
+            <div class="project-meta" id="projectMeta"></div>
+            <div id="projectOutcome" class="project-outcome" style="display: none;"></div>
+        </div>
+        
+        <div class="section">
+            <h2>Add Update</h2>
+            <div id="updateMessage" class="message"></div>
+            
+            <form id="updateForm">
+                <div class="form-group">
+                    <label for="updateText">Progress update</label>
+                    <textarea id="updateText" required
+                              placeholder="What's the current status? What's been accomplished? What's next?
+
+Example: 'Completed interviews with 5 partners about hydroponics failures. Common themes: pH instability (3 cases), pump failures (2 cases). Starting documentation structure draft this week.'"></textarea>
+                </div>
+                <button type="submit" class="btn-primary">Add Update</button>
+            </form>
+        </div>
+        
+        <div class="section">
+            <h2>Update History</h2>
+            <div id="updatesList"></div>
+        </div>
+    </div>
+    
+    <script src="project-detail.js"></script>
+</body>
+</html>

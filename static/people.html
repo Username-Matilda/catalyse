@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Partners - Holacracy</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        .nav {
+            margin-bottom: 20px;
+        }
+        
+        .nav a {
+            color: #1976d2;
+            text-decoration: none;
+            margin-right: 20px;
+        }
+        
+        .nav a:hover {
+            text-decoration: underline;
+        }
+        
+        h1 {
+            color: #1976d2;
+            margin-bottom: 30px;
+        }
+        
+        .section {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .section h2 {
+            font-size: 20px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e3f2fd;
+        }
+        
+        .people-list {
+            list-style: none;
+        }
+        
+        .person-item {
+            padding: 15px;
+            margin: 10px 0;
+            background: #f9f9f9;
+            border-left: 3px solid #1976d2;
+            border-radius: 4px;
+        }
+        
+        .person-item a {
+            color: #1976d2;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        
+        .person-item a:hover {
+            text-decoration: underline;
+        }
+        
+        .person-email {
+            color: #666;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 14px;
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+        
+        .btn-primary {
+            background: #1976d2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .btn-primary:hover {
+            background: #1565c0;
+        }
+        
+        .message {
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        
+        .message.success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #a5d6a7;
+        }
+        
+        .message.error {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #ef9a9a;
+        }
+        
+        .message.show {
+            display: block;
+        }
+        
+        .empty-state {
+            color: #999;
+            font-style: italic;
+            padding: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav">
+            <a href="index.html">Structure</a>
+            <a href="people.html">Partners</a>
+            <a href="tensions.html">Tensions</a>
+            <a href="governance-meetings.html">Governance</a>
+            <a href="tactical-meetings.html">Tactical</a>
+            <a href="projects.html">Projects</a>
+        </div>
+        
+        <h1>Partners</h1>
+        
+        <div class="section">
+            <h2>All Partners</h2>
+            <ul id="peopleList" class="people-list"></ul>
+        </div>
+        
+        <div class="section">
+            <h2>Add New Partner</h2>
+            <div id="message" class="message"></div>
+            
+            <form id="createPersonForm">
+                <div class="form-group">
+                    <label for="personName">Name *</label>
+                    <input type="text" id="personName" name="name" required 
+                           placeholder="Full name">
+                </div>
+                
+                <div class="form-group">
+                    <label for="personEmail">Email (optional)</label>
+                    <input type="email" id="personEmail" name="email" 
+                           placeholder="email@example.com (if needed for communication)">
+                </div>
+                
+                <div class="form-group">
+                    <label for="personNotes">Notes (optional)</label>
+                    <textarea id="personNotes" name="notes" 
+                              placeholder="Any additional context about this person..."></textarea>
+                </div>
+                
+                <button type="submit" class="btn-primary">Add Partner</button>
+            </form>
+        </div>
+    </div>
+    
+    <script src="people.js"></script>
+</body>
+</html>

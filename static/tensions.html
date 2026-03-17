@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tensions</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .nav {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 20px;
+        }
+        
+        .nav a {
+            color: #1976d2;
+            text-decoration: none;
+        }
+        
+        .nav a:hover {
+            text-decoration: underline;
+        }
+        
+        h1 {
+            color: #1976d2;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-style: italic;
+        }
+        
+        .filter-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .filter-tab {
+            padding: 10px 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #666;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .filter-tab.active {
+            color: #1976d2;
+            border-bottom: 2px solid #1976d2;
+            margin-bottom: -2px;
+        }
+        
+        .filter-tab:hover {
+            color: #1976d2;
+        }
+        
+        .board {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .tension-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-left: 4px solid #666;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .tension-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        .tension-card.governance {
+            border-left-color: #1976d2;
+        }
+        
+        .tension-card.tactical {
+            border-left-color: #f57c00;
+        }
+        
+        .tension-card.project {
+            border-left-color: #388e3c;
+        }
+        
+        .tension-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 10px;
+        }
+        
+        .tension-type {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            padding: 4px 8px;
+            border-radius: 3px;
+            background: #e0e0e0;
+            color: #666;
+        }
+        
+        .tension-type.governance {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+        
+        .tension-type.tactical {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+        
+        .tension-type.project {
+            background: #e8f5e9;
+            color: #388e3c;
+        }
+        
+        .tension-description {
+            color: #333;
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+        
+        .tension-meta {
+            font-size: 13px;
+            color: #999;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .section {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .section h2 {
+            font-size: 20px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e3f2fd;
+        }
+        
+        .help-box {
+            background: #fff3e0;
+            border-left: 4px solid #f57c00;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        
+        .help-box summary {
+            font-weight: 600;
+            color: #f57c00;
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .help-box p {
+            margin-top: 10px;
+            color: #666;
+            line-height: 1.5;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 14px;
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 14px;
+        }
+        
+        .btn-primary {
+            background: #1976d2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .btn-primary:hover {
+            background: #1565c0;
+        }
+        
+        .message {
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        
+        .message.success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #a5d6a7;
+        }
+        
+        .message.error {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #ef9a9a;
+        }
+        
+        .message.show {
+            display: block;
+        }
+        
+        .empty-state {
+            color: #999;
+            font-style: italic;
+            padding: 40px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav">
+            <a href="index.html">← Structure</a>
+            <a href="people.html">Partners</a>
+            <a href="tensions.html">Tensions</a>
+            <a href="governance-meetings.html">Governance</a>
+            <a href="tactical-meetings.html">Tactical</a>
+            <a href="projects.html">Projects</a>
+        </div>
+        
+        <h1>Tension Board</h1>
+        <p class="subtitle">The gap between current reality and sensed potential</p>
+        
+        <div class="filter-tabs">
+            <button class="filter-tab active" onclick="filterTensions('all')">All</button>
+            <button class="filter-tab" onclick="filterTensions('governance')">Governance</button>
+            <button class="filter-tab" onclick="filterTensions('tactical')">Tactical</button>
+            <button class="filter-tab" onclick="filterTensions('project')">Project</button>
+        </div>
+        
+        <div id="tensionBoard" class="board"></div>
+        
+        <div class="section">
+            <h2>Capture a New Tension</h2>
+            
+            <details class="help-box">
+                <summary>What is a tension? 📖</summary>
+                <p><strong>Constitution Article 1.1:</strong> A tension is your perception of a gap between current reality and a potential you sense. It's not a problem to solve—it's an opportunity to explore.</p>
+                <p><strong>Good examples:</strong></p>
+                <ul style="margin-top: 10px; margin-left: 20px; line-height: 1.8;">
+                    <li>"The Fermentation Lead lacks authority over refrigerator space allocation" (governance)</li>
+                    <li>"Our worm bin pH is 9.2 and they're actively protesting" (tactical)</li>
+                    <li>"Unclear who approves new microorganism acquisitions after the kombucha incident" (governance)</li>
+                    <li>"The tool shed is chaos since the Great Hoe Incident of Q3" (tactical)</li>
+                </ul>
+                <p style="margin-top: 10px;"><strong>Not-as-good examples:</strong></p>
+                <ul style="margin-top: 5px; margin-left: 20px; line-height: 1.8;">
+                    <li>"We need better processes" (too vague—what specific gap?)</li>
+                    <li>"Sarah should manage the greenhouse" (solution, not tension)</li>
+                </ul>
+            </details>
+            
+            <div id="message" class="message"></div>
+            
+            <form id="createTensionForm">
+                <div class="form-group">
+                    <label for="tensionDescription">Describe the gap you sense *</label>
+                    <textarea id="tensionDescription" name="description" required
+                              placeholder="Example: 'The Soil Systems Coordinator lacks authority over compost temperature monitoring, which led to the thermophilic meltdown last week'
+
+NOT: 'We need better compost management' (too vague)
+NOT: 'Buy more thermometers' (solution, not gap)
+
+Describe the tension—the gap between what is and what could be—not your proposed solution."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="tensionType">Type (your best guess)</label>
+                    <select id="tensionType" name="tension_type">
+                        <option value="unknown">Not sure yet</option>
+                        <option value="governance">Governance (roles, accountabilities, domains)</option>
+                        <option value="tactical">Tactical (operations, immediate actions)</option>
+                        <option value="project">Project (multi-step initiatives)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="sensedBy">Sensed by (optional)</label>
+                    <select id="sensedBy" name="sensed_by_person_id">
+                        <option value="">Select a partner...</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="relatedRole">Related role (optional)</label>
+                    <select id="relatedRole" name="related_role_id">
+                        <option value="">Select a role...</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="relatedCircle">Related circle (optional)</label>
+                    <select id="relatedCircle" name="related_circle_id">
+                        <option value="">Select a circle...</option>
+                    </select>
+                </div>
+                
+                <button type="submit" class="btn-primary">Capture Tension</button>
+            </form>
+        </div>
+    </div>
+    
+    <script src="tensions.js"></script>
+</body>
+</html>

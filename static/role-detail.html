@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="constitution-refs.js"></script>
+    <title>Role Detail - Holacracy</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #1976d2;
+            text-decoration: none;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        .role-header {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .role-header h1 {
+            color: #1976d2;
+            margin-bottom: 10px;
+        }
+        
+        .role-meta {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        
+        .role-purpose {
+            color: #333;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+        
+        .section {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .section h2 {
+            color: #333;
+            font-size: 20px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e3f2fd;
+        }
+        
+        .item-list {
+            list-style: none;
+        }
+        
+        .item {
+            padding: 12px;
+            margin: 8px 0;
+            background: #f9f9f9;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .accountability-item {
+            border-left: 3px solid #1976d2;
+        }
+        
+        .domain-item {
+            border-left: 3px solid #f57c00;
+        }
+        
+        .item-text {
+            flex: 1;
+        }
+        
+        .delete-btn {
+            background: #d32f2f;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .delete-btn:hover {
+            background: #c62828;
+        }
+        
+        .add-form {
+            margin-top: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 14px;
+            resize: vertical;
+            min-height: 80px;
+        }
+        
+        .btn-primary {
+            background: #1976d2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .btn-primary:hover {
+            background: #1565c0;
+        }
+        
+        .message {
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        
+        .message.success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #a5d6a7;
+        }
+        
+        .message.error {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #ef9a9a;
+        }
+        
+        .message.show {
+            display: block;
+        }
+        
+        .empty-state {
+            color: #999;
+            font-style: italic;
+            padding: 20px;
+            text-align: center;
+        }
+        .assignment-item {
+            border-left: 3px solid #4caf50;
+        }
+        
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 14px;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div style="max-width: 900px; margin: 0 auto; padding: 20px;">
+        <div style="margin-bottom: 20px; display: flex; gap: 20px;">
+            <a href="index.html" style="color: #1976d2; text-decoration: none; font-weight: 500;">Structure</a>
+            <a href="people.html" style="color: #1976d2; text-decoration: none; font-weight: 500;">Partners</a>
+            <a href="tensions.html" style="color: #1976d2; text-decoration: none; font-weight: 500;">Tensions</a>
+            <a href="governance-meetings.html" style="color: #1976d2; text-decoration: none; font-weight: 500;">Governance</a>
+            <a href="tactical-meetings.html">Tactical</a>
+            <a href="projects.html">Projects</a>
+        </div>
+
+   <div class="role-header">
+            <div id="viewMode">
+                <div style="display: flex; justify-content: space-between; align-items: start;">
+                    <div>
+                        <h1 id="roleName">Loading...</h1>
+                        <div class="role-meta">
+                            <span id="circleInfo"></span> • <span id="roleType"></span>
+                        </div>
+                        <div class="role-purpose" id="rolePurpose"></div>
+                    </div>
+                    <button class="btn-primary" onclick="enterEditMode()">Edit Role</button>
+                </div>
+            </div>
+
+            <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee;">
+                <button onclick="deleteRole()" 
+                        style="background: #d32f2f; margin-right: 10px;">
+                    Delete Role
+                </button>
+                <span style="color: #999; font-size: 13px;">
+                    This action cannot be undone
+                </span>
+            </div>
+            
+            <div id="editMode" style="display: none;">
+                <h2 style="color: #1976d2; margin-bottom: 20px;">Edit Role</h2>
+                <div id="editMessage" class="message"></div>
+                
+                <form id="editRoleForm">
+                    <div class="form-group">
+                        <label for="editName">Role Name *</label>
+                        <input type="text" id="editName" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="editPurpose">Purpose</label>
+                        <textarea id="editPurpose" style="min-height: 80px;"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="editCircle">Circle *</label>
+                        <select id="editCircle" required>
+                            <option value="">Select a circle...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="editRoleType">Role Type</label>
+                        <select id="editRoleType">
+                            <option value="normal">Normal</option>
+                            <option value="circle_lead">Circle Lead</option>
+                            <option value="facilitator">Facilitator</option>
+                            <option value="secretary">Secretary</option>
+                            <option value="circle_rep">Circle Rep</option>
+                        </select>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px;">
+                        <button type="submit" class="btn-primary">Save Changes</button>
+                        <button type="button" class="btn-primary" onclick="cancelEdit()" 
+                                style="background: #666;">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>Accountabilities</h2>
+            <div id="accountabilityMessage" class="message"></div>
+            <ul id="accountabilityList" class="item-list"></ul>
+            
+            <div class="add-form">
+                <div class="form-group">
+                    <label for="newAccountability">Add New Accountability</label>
+                    <textarea id="newAccountability" 
+                               placeholder="Use action verbs (monitoring, developing, coordinating, maintaining). Examples: 'Monitoring security incidents and coordinating responses'; 'Developing security training programs'; 'Tracking compliance metrics'."></textarea>
+                </div>
+                <button class="btn-primary" onclick="addAccountability()">Add Accountability</button>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>Domains</h2>
+            <div id="domainMessage" class="message"></div>
+            <ul id="domainList" class="item-list"></ul>
+            
+            <div class="add-form">
+                <div class="form-group">
+                    <label for="newDomain">Add New Domain</label>
+                    <textarea id="newDomain" 
+                                   placeholder="Format: specific resources, systems, or processes under exclusive control. Examples: 'Company security policies and procedures'; 'Access control systems and credentials'; 'Incident response protocols'."></textarea>
+                </div>
+                <button class="btn-primary" onclick="addDomain()">Add Domain</button>
+            </div>
+        </div>
+        <div class="section">
+            <h2>Role Assignments</h2>
+            <div id="assignmentMessage" class="message"></div>
+            <ul id="assignmentsList" class="item-list"></ul>
+            
+            <div class="add-form">
+                <div class="form-group">
+                    <label for="assignPerson">Assign Partner</label>
+                    <select id="assignPerson" name="person_id">
+                        <option value="">Select a partner...</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="assignmentFocus">Focus (optional)</label>
+                    <input type="text" id="assignmentFocus" name="focus" 
+                           placeholder="e.g., 'Leading EMEA initiatives' or 'Focusing on technical debt'">
+                </div>
+                
+                <button class="btn-primary" onclick="assignPerson()">Assign to Role</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Projects</h2>
+            <div id="projectsMessage" class="message"></div>
+            <div id="projectsList"></div>
+        </div>
+
+        <div class="section">
+            <h2>Circle Policies</h2>
+            <div id="circlePoliciesList"></div>
+        </div>        
+    </div>
+
+    <script src="role-detail.js"></script>
+</body>
+</html>

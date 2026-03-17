@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Projects - Role Outcomes</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .nav {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 20px;
+        }
+        
+        .nav a {
+            color: #1976d2;
+            text-decoration: none;
+        }
+        
+        .nav a:hover {
+            text-decoration: underline;
+        }
+        
+        h1 {
+            color: #388e3c;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-style: italic;
+        }
+        
+        .actions {
+            margin-bottom: 30px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .btn-primary {
+            background: #388e3c;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        
+        .btn-primary:hover {
+            background: #2e7d32;
+        }
+        
+        .filter-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .projects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+        
+        .project-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-left: 4px solid #388e3c;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .project-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        .project-card.completed {
+            opacity: 0.7;
+            border-left-color: #666;
+        }
+        
+        .project-card.on_hold {
+            border-left-color: #f57c00;
+        }
+        
+        .project-header {
+            margin-bottom: 12px;
+        }
+        
+        .project-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .project-meta {
+            font-size: 13px;
+            color: #666;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .project-outcome {
+            color: #555;
+            line-height: 1.5;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+        
+        .project-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #eee;
+        }
+        
+        .status-badge {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 12px;
+            text-transform: uppercase;
+        }
+        
+        .status-active {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        
+        .status-completed {
+            background: #f5f5f5;
+            color: #666;
+        }
+        
+        .status-on_hold {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+        
+        .jira-link {
+            font-size: 12px;
+            color: #1976d2;
+            text-decoration: none;
+        }
+        
+        .jira-link:hover {
+            text-decoration: underline;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .modal h2 {
+            color: #388e3c;
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 14px;
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        .btn-secondary {
+            background: #666;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        
+        .message {
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        
+        .message.success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #a5d6a7;
+        }
+        
+        .message.error {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #ef9a9a;
+        }
+        
+        .message.show {
+            display: block;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav">
+            <a href="index.html">Structure</a>
+            <a href="people.html">Partners</a>
+            <a href="tensions.html">Tensions</a>
+            <a href="governance-meetings.html">Governance</a>
+            <a href="tactical-meetings.html">Tactical</a>
+            <a href="projects.html">Projects</a>
+        </div>
+        
+        <h1>Projects</h1>
+        <p class="subtitle">Multi-step outcomes tracked by roles</p>
+        
+        <div class="actions">
+            <button class="btn-primary" onclick="openCreateModal()">+ New Project</button>
+            
+            <div class="filter-group">
+                <label for="circleFilter">Circle:</label>
+                <select id="circleFilter" onchange="filterProjects()">
+                    <option value="">All circles</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="statusFilter">Status:</label>
+                <select id="statusFilter" onchange="filterProjects()">
+                    <option value="">All statuses</option>
+                    <option value="active">Active</option>
+                    <option value="completed">Completed</option>
+                    <option value="on_hold">On Hold</option>
+                </select>
+            </div>
+        </div>
+        
+        <div id="projectsGrid" class="projects-grid"></div>
+    </div>
+    
+    <!-- Create Project Modal -->
+    <div id="createModal" class="modal">
+        <div class="modal-content">
+            <h2>Create New Project</h2>
+            <div id="modalMessage" class="message"></div>
+            
+            <form id="createProjectForm">
+                <div class="form-group">
+                    <label for="projectTitle">Project Title *</label>
+                    <input type="text" id="projectTitle" required
+                           placeholder="Example: 'Develop hydroponics failure mode documentation'">
+                </div>
+                
+                <div class="form-group">
+                    <label for="projectOutcome">Desired Outcome</label>
+                    <textarea id="projectOutcome"
+                              placeholder="What does success look like? What will exist when this project is complete?
+
+Example: 'Comprehensive troubleshooting guide for hydroponics system covering common failure modes, diagnostic steps, and interventions—reducing average incident resolution time from 3 days to 1 day.'"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="projectRole">Owned by Role *</label>
+                    <select id="projectRole" required>
+                        <option value="">Select role...</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="projectJira">Jira Reference (optional)</label>
+                    <input type="text" id="projectJira" placeholder="PROJ-247">
+                </div>
+                
+                <div class="form-group">
+                    <label for="projectJiraStatus">Jira Status (optional)</label>
+                    <input type="text" id="projectJiraStatus" placeholder="In Progress">
+                </div>
+                
+                <div class="form-group">
+                    <label for="projectTension">Created from Tension (optional)</label>
+                    <select id="projectTension">
+                        <option value="">None</option>
+                    </select>
+                </div>
+                
+                <button type="submit" class="btn-primary">Create Project</button>
+                <button type="button" class="btn-secondary" onclick="closeCreateModal()">Cancel</button>
+            </form>
+        </div>
+    </div>
+    
+    <script src="projects.js"></script>
+</body>
+</html>
