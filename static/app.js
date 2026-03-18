@@ -127,11 +127,10 @@ function renderSkillSelector(containerId, selectedIds = [], onChangeCallback = n
         // Add click handlers
         container.querySelectorAll('.skill-option').forEach(el => {
             el.addEventListener('click', (e) => {
-                if (e.target.tagName !== 'INPUT') {
-                    const checkbox = el.querySelector('input');
-                    checkbox.checked = !checkbox.checked;
-                }
-                el.classList.toggle('selected', el.querySelector('input').checked);
+                e.preventDefault();
+                const checkbox = el.querySelector('input');
+                checkbox.checked = !checkbox.checked;
+                el.classList.toggle('selected', checkbox.checked);
                 if (onChangeCallback) onChangeCallback(getSelectedSkills(containerId));
             });
         });

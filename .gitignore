@@ -1,7 +1,5 @@
-﻿__pycache__/
-*.py[cod]
-*.db
-*.sqlite
-.vscode/
-.DS_Store
-*.log
+catalyse.db
+__pycache__/
+*.pyc
+.env
+venv/
