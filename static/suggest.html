@@ -9,7 +9,7 @@
 <body>
     <header>
         <div class="container">
-            <a href="/" class="logo">Catalyse <span>PauseAI UK</span></a>
+            <a href="/" class="logo"><img src="/static/images/pauseai-logo.png" alt="PauseAI"> Catalyse</a>
             <nav>
                 <a href="/">Projects</a>
                 <a href="/static/volunteers.html">Volunteers</a>
@@ -44,20 +44,45 @@
 
                 <div class="form-group">
                     <label for="description" class="required">Description</label>
-                    <textarea id="description" name="description" required style="min-height: 200px;"
-                        placeholder="Describe the project in detail:
-- What's the goal?
-- What would success look like?
-- What are the key activities involved?
-- Any resources or context that would help?"></textarea>
-                    <p class="form-hint">Be as detailed as possible to help others understand the project.</p>
+                    <textarea id="description" name="description" required style="min-height: 280px;"
+                        placeholder="Help us understand your project idea:
+
+GOAL & IMPACT
+- What problem does this solve or opportunity does it create?
+- What does success look like? How would we measure it?
+
+APPROACH & ACTIVITIES
+- What are the key steps or activities involved?
+- Do you have a rough sense of how this would work?
+
+FEASIBILITY
+- What are the main uncertainties or risks?
+- What resources, access, or dependencies are needed?
+- Is there existing work we could build on?
+
+TEAM & COLLABORATION
+- What kinds of contributors would be ideal? (skills, experience, availability)
+- How do you imagine the team working together? (async, regular syncs, etc.)"></textarea>
+                    <p class="form-hint">The more detail you provide, the easier it is to find the right contributors and get started.</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="project_type">Project Type</label>
+                    <select id="project_type" name="project_type">
+                        <option value="">Select a project type...</option>
+                        <option value="sprint">Sprint (1-2 weeks) - Focused burst of work with clear deliverable</option>
+                        <option value="container">Time-boxed (1-3 months) - Defined scope with end date</option>
+                        <option value="ongoing">Ongoing - Continuous work without fixed end date</option>
+                        <option value="one_off">One-off task - Single deliverable, minimal coordination</option>
+                    </select>
+                    <p class="form-hint">This helps contributors understand the commitment involved</p>
                 </div>
 
                 <div class="grid grid-2">
                     <div class="form-group">
-                        <label for="time_commitment">Time Commitment (hours/week)</label>
+                        <label for="time_commitment">Hours per Week</label>
                         <input type="number" id="time_commitment" name="time_commitment" min="1" max="40" placeholder="e.g., 5">
-                        <p class="form-hint">Estimated time needed from contributors</p>
+                        <p class="form-hint">Estimated weekly time from each contributor</p>
                     </div>
                     <div class="form-group">
                         <label for="urgency">Urgency</label>
@@ -67,6 +92,12 @@
                             <option value="high">High - Urgent / time-sensitive</option>
                         </select>
                     </div>
+                </div>
+
+                <div class="form-group" id="durationGroup" style="display: none;">
+                    <label for="estimated_duration">Estimated Duration</label>
+                    <input type="text" id="estimated_duration" name="estimated_duration" placeholder="e.g., 6 weeks, 2 months">
+                    <p class="form-hint">Roughly how long do you expect this to take?</p>
                 </div>
 
                 <div class="form-group">
@@ -118,6 +149,13 @@
             renderSkillSelector('skillSelector');
         }
 
+        // Show/hide duration field based on project type
+        document.getElementById('project_type').addEventListener('change', (e) => {
+            const durationGroup = document.getElementById('durationGroup');
+            const showDuration = ['sprint', 'container'].includes(e.target.value);
+            durationGroup.style.display = showDuration ? 'block' : 'none';
+        });
+
         document.getElementById('suggestForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
@@ -135,6 +173,8 @@
                 const data = {
                     title: form.title.value.trim(),
                     description: form.description.value.trim(),
+                    project_type: form.project_type.value || null,
+                    estimated_duration: form.estimated_duration.value.trim() || null,
                     time_commitment_hours_per_week: form.time_commitment.value ? parseInt(form.time_commitment.value) : null,
                     urgency: form.urgency.value,
                     collaboration_link: form.collaboration_link.value.trim() || null,

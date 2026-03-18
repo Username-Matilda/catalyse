@@ -1,24 +1,33 @@
 /* Catalyse - PauseAI UK Volunteer Platform */
 
+/* PauseAI Brand Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@900&family=Roboto+Slab:wght@300;700&family=Saira+Condensed:wght@700&display=swap');
+
 :root {
-    --primary: #E63946;
-    --primary-dark: #C1121F;
-    --secondary: #457B9D;
-    --secondary-dark: #1D3557;
-    --accent: #A8DADC;
-    --background: #F1FAEE;
+    /* PauseAI Brand Colors */
+    --primary: #FF9416;
+    --primary-dark: #E07D00;
+    --secondary: #2D3748;
+    --secondary-dark: #1A202C;
+    --accent: #FFE4C4;
+    --background: #FAFAFA;
     --surface: #FFFFFF;
-    --text: #1D3557;
-    --text-light: #457B9D;
-    --border: #A8DADC;
-    --success: #2A9D8F;
-    --warning: #E9C46A;
-    --error: #E63946;
+    --text: #1A202C;
+    --text-light: #4A5568;
+    --border: #E2E8F0;
+    --success: #38A169;
+    --warning: #ECC94B;
+    --error: #E53E3E;
+
+    /* PauseAI Brand Fonts */
+    --font-heading: 'Saira Condensed', sans-serif;
+    --font-display: 'Montserrat', sans-serif;
+    --font-body: 'Roboto Slab', serif;
 
     --radius: 8px;
     --radius-lg: 12px;
-    --shadow: 0 2px 8px rgba(29, 53, 87, 0.1);
-    --shadow-lg: 0 4px 16px rgba(29, 53, 87, 0.15);
+    --shadow: 0 2px 8px rgba(26, 32, 44, 0.1);
+    --shadow-lg: 0 4px 16px rgba(26, 32, 44, 0.15);
 }
 
 * {
@@ -28,7 +37,8 @@
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    font-family: var(--font-body);
+    font-weight: 300;
     background: var(--background);
     color: var(--text);
     line-height: 1.6;
@@ -65,13 +75,19 @@ header .container {
 }
 
 .logo {
+    font-family: var(--font-display);
     font-size: 1.5rem;
-    font-weight: 700;
+    font-weight: 900;
     color: var(--primary);
     text-decoration: none;
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+.logo img {
+    height: 36px;
+    width: auto;
 }
 
 .logo span {
@@ -110,19 +126,27 @@ nav a.active {
 
 /* Typography */
 h1 {
+    font-family: var(--font-heading);
     font-size: 2rem;
+    font-weight: 700;
     margin-bottom: 16px;
     color: var(--secondary-dark);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 h2 {
+    font-family: var(--font-heading);
     font-size: 1.5rem;
+    font-weight: 700;
     margin-bottom: 12px;
     color: var(--secondary-dark);
 }
 
 h3 {
+    font-family: var(--font-heading);
     font-size: 1.25rem;
+    font-weight: 700;
     margin-bottom: 8px;
 }
 
@@ -139,8 +163,9 @@ p {
     padding: 10px 20px;
     border: none;
     border-radius: var(--radius);
+    font-family: var(--font-body);
     font-size: 1rem;
-    font-weight: 500;
+    font-weight: 700;
     cursor: pointer;
     transition: all 0.2s;
     text-decoration: none;
@@ -212,8 +237,9 @@ p {
 }
 
 .card-title {
+    font-family: var(--font-heading);
     font-size: 1.25rem;
-    font-weight: 600;
+    font-weight: 700;
     color: var(--secondary-dark);
     margin: 0;
 }
@@ -473,10 +499,11 @@ textarea {
 }
 
 .skill-category-title {
-    font-weight: 600;
+    font-family: var(--font-heading);
+    font-weight: 700;
     color: var(--secondary-dark);
     margin-bottom: 8px;
-    font-size: 0.875rem;
+    font-size: 0.9rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }

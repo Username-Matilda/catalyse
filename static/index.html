@@ -1,425 +1,294 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Holacracy Governance</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        body { 
-            font-family: system-ui, -apple-system, sans-serif;
-            padding: 20px;
-            background: #f5f5f5;
-        }
-        
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-        
-        h1 {
-            color: #1976d2;
-            margin-bottom: 30px;
-        }
-        
-        .layout {
-            display: grid;
-            grid-template-columns: 1fr 350px;
-            gap: 20px;
-        }
-        
-        .main-view {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        
-        .sidebar {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        
-        #topology { 
-            width: 100%;
-            height: 600px;
-            border: 1px solid #e0e0e0;
-            border-radius: 4px;
-        }
-        
-        .circle { 
-            fill: #e3f2fd;
-            stroke: #1976d2;
-            stroke-width: 2;
-            cursor: pointer;
-            transition: fill 0.2s;
-        }
-        
-        .circle:hover {
-            fill: #bbdefb;
-        }
-        
-        .circle-card {
-            background: white;
-            border: 2px solid #e3f2fd;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 15px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .circle-card:hover {
-            border-color: #1976d2;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }
-
-        .circle-card.expanded {
-            border-color: #1976d2;
-            background: #f5f9ff;
-        }
-
-        .circle-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .circle-name {
-            font-size: 20px;
-            font-weight: 600;
-            color: #1976d2;
-        }
-
-        .circle-purpose {
-            color: #666;
-            margin-top: 8px;
-            font-style: italic;
-        }
-
-        .circle-meta {
-            color: #999;
-            font-size: 14px;
-        }
-
-        .roles-section {
-            margin-top: 20px;
-            padding-top: 15px;
-            border-top: 1px solid #e0e0e0;
-            display: none;
-        }
-
-        .roles-section.visible {
-            display: block;
-        }
-
-        .role-item {
-            padding: 12px;
-            margin: 8px 0;
-            background: white;
-            border-left: 3px solid #f57c00;
-            border-radius: 4px;
-        }
-
-        .role-item a {
-            color: #1976d2;
-            text-decoration: none;
-            font-weight: 500;
-        }
-
-        .role-item a:hover {
-            text-decoration: underline;
-        }
-
-        .role-purpose {
-            color: #666;
-            font-size: 13px;
-            margin-top: 4px;
-        }
-        
-        .child-circles {
-            margin-left: 30px;
-            margin-top: 15px;
-            position: relative;
-        }
-
-        .child-circles::before {
-            content: '';
-            position: absolute;
-            left: 15px;
-            top: 0;
-            bottom: 15px;
-            width: 2px;
-            background: #1976d2;
-        } 
-
-        .manage-link {
-            color: #1976d2;
-            text-decoration: none;
-            font-size: 14px;
-            padding: 4px 12px;
-            border: 1px solid #1976d2;
-            border-radius: 4px;
-        }
-
-        .manage-link:hover {
-            background: #1976d2;
-            color: white;
-        }
-        
-        .role { 
-            fill: #fff3e0;
-            stroke: #f57c00;
-            stroke-width: 1;
-        }
-        
-        .circle-card.nested {
-            margin-left: 40px;
-            position: relative;
-        }
-
-        .circle-card.nested::before {
-            content: '';
-            position: absolute;
-            left: -25px;
-            top: 30px;
-            width: 20px;
-            height: 2px;
-            background: #1976d2;
-        }
-
-        .circle-card.nested::after {
-            content: '';
-            position: absolute;
-            left: -25px;
-            top: -15px;
-            width: 2px;
-            height: 45px;
-            background: #1976d2;
-        }
-
-        text { 
-            font-size: 12px;
-            pointer-events: none;
-            user-select: none;
-        }
-        
-        #details {
-            margin-top: 20px;
-            padding: 15px;
-            background: #f9f9f9;
-            border-radius: 4px;
-            min-height: 100px;
-        }
-        
-        #details h2 {
-            font-size: 18px;
-            color: #333;
-            margin-bottom: 10px;
-        }
-        
-        #details ul {
-            list-style: none;
-        }
-        
-        #details li {
-            padding: 8px;
-            margin: 4px 0;
-            background: white;
-            border-left: 3px solid #f57c00;
-            border-radius: 2px;
-        }
-        
-        /* Form Styles */
-        .form-section {
-            margin-bottom: 30px;
-        }
-        
-        .form-section h2 {
-            font-size: 20px;
-            color: #1976d2;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #e3f2fd;
-        }
-        
-        .form-group {
-            margin-bottom: 15px;
-        }
-        
-        label {
-            display: block;
-            font-weight: 500;
-            margin-bottom: 5px;
-            color: #555;
-        }
-        
-        input[type="text"],
-        textarea,
-        select {
-            width: 100%;
-            padding: 8px 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
-            font-family: inherit;
-        }
-        
-        textarea {
-            resize: vertical;
-            min-height: 80px;
-        }
-        
-        button {
-            background: #1976d2;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        
-        button:hover {
-            background: #1565c0;
-        }
-        
-        button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-        
-        .message {
-            padding: 12px;
-            border-radius: 4px;
-            margin-bottom: 15px;
-            display: none;
-        }
-        
-        .message.success {
-            background: #e8f5e9;
-            color: #2e7d32;
-            border: 1px solid #a5d6a7;
-        }
-        
-        .message.error {
-            background: #ffebee;
-            color: #c62828;
-            border: 1px solid #ef9a9a;
-        }
-        
-        .message.show {
-            display: block;
-        }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catalyse - PauseAI UK Projects</title>
+    <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-    <div class="container">
-       <div class="nav" style="margin-bottom: 20px; display: flex; gap: 20px;">
-            <a href="index.html" style="color: #1976d2; text-decoration: none; font-weight: 500;">Structure</a>
-            <a href="people.html" style="color: #1976d2; text-decoration: none; font-weight: 500;">Partners</a>
-            <a href="tensions.html" style="color: #1976d2; text-decoration: none; font-weight: 500;">Tensions</a>
-            <a href="governance-meetings.html">Governance</a>
-            <a href="tactical-meetings.html">Tactical</a>
-            <a href="projects.html">Projects</a>
-       </div>
-        <h1>Holacracy Governance Interface</h1>
-        
-        <div class="layout">
-            <div class="main-view">
-                <h2>Organization Structure</h2>
-
-                <div style="margin-bottom: 15px;">
-                    <button id="toggleViewBtn" onclick="toggleStructureView()"
-                            style="background: #666; padding: 8px 16px;">
-                        Show All Roles
-                </button>
+    <header>
+        <div class="container">
+            <a href="/" class="logo"><img src="/static/images/pauseai-logo.png" alt="PauseAI"> Catalyse</a>
+            <nav>
+                <a href="/" class="active">Projects</a>
+                <a href="/static/volunteers.html">Volunteers</a>
+                <a href="/static/suggest.html">Suggest Project</a>
+            </nav>
+            <div class="nav-auth" id="authNav">
+                <!-- Filled by JS -->
             </div>
+        </div>
+    </header>
 
-            <div id="circlesContainer"></div>
+    <main class="container page">
+        <div class="section-header">
+            <h1>Projects</h1>
         </div>
 
-            <div class="sidebar">
-    <div class="form-section">
-        <h2>Create New Circle</h2>
-        
-        <div id="circleMessage" class="message"></div>
-        
-        <form id="createCircleForm">
-            <div class="form-group">
-                <label for="circleName">Circle Name *</label>
-                <input type="text" id="circleName" name="circleName" required placeholder="e.g., Research">
+        <div class="filters" id="filters">
+            <div class="filter-group">
+                <label for="searchInput">Search</label>
+                <input type="text" id="searchInput" placeholder="Search projects...">
             </div>
-            
-            <div class="form-group">
-                <label for="circlePurpose">Purpose</label>
-                <textarea id="circlePurpose" name="circlePurpose"
-                          placeholder="What capacity this circle exists to manifest..."></textarea>
-            </div>
-            
-            <div class="form-group">
-                <label for="parentCircle">Parent Circle</label>
-                <select id="parentCircle" name="parentCircle">
-                    <option value="">None (top-level)</option>
+            <div class="filter-group">
+                <label for="statusFilter">Status</label>
+                <select id="statusFilter">
+                    <option value="">All Active</option>
+                    <option value="seeking_owner">Seeking Owner</option>
+                    <option value="seeking_help">Seeking Help</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="completed">Completed</option>
                 </select>
             </div>
-            
-            <button type="submit">Create Circle</button>
-        </form>
-    </div>
-    
-    <div class="form-section">
-        <h2>Create New Role</h2>
-        <!-- existing role form -->
-
-            
-            <div class="sidebar">
-                <div class="form-section">
-                    <h2>Create New Role</h2>
-                    
-                    <div id="formMessage" class="message"></div>
-                    
-                    <form id="createRoleForm">
-                        <div class="form-group">
-                            <label for="roleName">Role Name *</label>
-                            <input type="text" id="roleName" name="name" required 
-                                   placeholder="e.g., Marketing Lead">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="rolePurpose">Purpose</label>
-                            <textarea id="rolePurpose" name="purpose" 
-                                      placeholder="What capacity or goal this role pursues..."></textarea>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="roleCircle">Circle *</label>
-                            <select id="roleCircle" name="circle_id" required>
-                                <option value="">Select a circle...</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="roleType">Role Type</label>
-                            <select id="roleType" name="role_type">
-                                <option value="normal">Normal</option>
-                                <option value="circle_lead">Circle Lead</option>
-                                <option value="facilitator">Facilitator</option>
-                                <option value="secretary">Secretary</option>
-                                <option value="circle_rep">Circle Rep</option>
-                            </select>
-                        </div>
-                        
-                        <button type="submit">Create Role</button>
-                    </form>
-                </div>
+            <div class="filter-group">
+                <label for="urgencyFilter">Urgency</label>
+                <select id="urgencyFilter">
+                    <option value="">Any</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="sortFilter">Sort By</label>
+                <select id="sortFilter">
+                    <option value="created_at">Newest</option>
+                    <option value="urgency">Urgency</option>
+                    <option value="match">Best Match</option>
+                </select>
             </div>
         </div>
-    </div>
-    
-    <script src="app.js"></script>
+
+        <div id="messageDiv" class="message" style="display: none;"></div>
+
+        <div id="projectsList" class="grid grid-2">
+            <div class="loading">
+                <div class="spinner"></div>
+                Loading projects...
+            </div>
+        </div>
+
+        <div id="emptyState" class="empty-state" style="display: none;">
+            <h3>No projects found</h3>
+            <p>Try adjusting your filters or check back later.</p>
+            <a href="/static/suggest.html" class="btn btn-primary">Suggest a Project</a>
+        </div>
+    </main>
+
+    <script src="/static/app.js"></script>
+    <script>
+        let allProjects = [];
+        let currentUser = null;
+
+        async function init() {
+            await checkAuth();
+            await loadProjects();
+            setupFilters();
+        }
+
+        async function checkAuth() {
+            const token = localStorage.getItem('authToken');
+            if (token) {
+                try {
+                    const response = await fetch('/api/auth/me', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (response.ok) {
+                        currentUser = await response.json();
+                        renderAuthNav(true);
+                        return;
+                    }
+                } catch (e) {
+                    console.error('Auth check failed:', e);
+                }
+                localStorage.removeItem('authToken');
+            }
+            renderAuthNav(false);
+        }
+
+        function renderAuthNav(loggedIn) {
+            const nav = document.getElementById('authNav');
+            if (loggedIn) {
+                nav.innerHTML = `
+                    <a href="/static/dashboard.html" class="btn btn-ghost">Dashboard</a>
+                    <div class="user-menu">
+                        <button class="user-button" onclick="toggleUserMenu()">
+                            ${currentUser.name}
+                        </button>
+                        <div class="user-dropdown" id="userDropdown">
+                            <a href="/static/profile.html">My Profile</a>
+                            <a href="/static/dashboard.html">Dashboard</a>
+                            <a href="#" onclick="logout(); return false;">Logout</a>
+                        </div>
+                    </div>
+                `;
+            } else {
+                nav.innerHTML = `
+                    <a href="/static/login.html" class="btn btn-outline">Login</a>
+                    <a href="/static/signup.html" class="btn btn-primary">Sign Up</a>
+                `;
+            }
+        }
+
+        function toggleUserMenu() {
+            document.getElementById('userDropdown').classList.toggle('show');
+        }
+
+        async function logout() {
+            const token = localStorage.getItem('authToken');
+            if (token) {
+                await fetch('/api/auth/logout', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+            }
+            localStorage.removeItem('authToken');
+            window.location.reload();
+        }
+
+        async function loadProjects() {
+            const token = localStorage.getItem('authToken');
+            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+
+            try {
+                const params = new URLSearchParams();
+                const status = document.getElementById('statusFilter').value;
+                const urgency = document.getElementById('urgencyFilter').value;
+                const search = document.getElementById('searchInput').value;
+                const sortBy = document.getElementById('sortFilter').value;
+
+                if (status) params.set('status', status);
+                if (urgency) params.set('urgency', urgency);
+                if (search) params.set('search', search);
+                if (sortBy) params.set('sort_by', sortBy);
+
+                const response = await fetch(`/api/projects?${params}`, { headers });
+                const data = await response.json();
+                allProjects = data.projects;
+                renderProjects();
+            } catch (error) {
+                showMessage('Failed to load projects', 'error');
+            }
+        }
+
+        function renderProjects() {
+            const container = document.getElementById('projectsList');
+            const emptyState = document.getElementById('emptyState');
+
+            if (allProjects.length === 0) {
+                container.innerHTML = '';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+            container.innerHTML = allProjects.map(project => `
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <a href="/static/project.html?id=${project.id}">${escapeHtml(project.title)}</a>
+                        </h3>
+                        <span class="status-badge status-${project.status}">
+                            ${formatStatus(project.status)}
+                        </span>
+                    </div>
+                    <div class="card-meta">
+                        ${project.is_org_proposed ? '<span class="org-badge">PauseAI</span>' : ''}
+                        ${project.owner ? `Owner: ${escapeHtml(project.owner.name)}` : 'No owner yet'}
+                        ${project.time_commitment_hours_per_week ? ` · ${project.time_commitment_hours_per_week}h/week` : ''}
+                        <span class="urgency urgency-${project.urgency}">· ${project.urgency} priority</span>
+                    </div>
+                    <p class="card-description">${escapeHtml(truncate(project.description, 150))}</p>
+                    <div class="skills">
+                        ${project.skills.slice(0, 5).map(skill => `
+                            <span class="skill-tag ${getSkillClass(skill, project.match)}">${escapeHtml(skill.name)}</span>
+                        `).join('')}
+                        ${project.skills.length > 5 ? `<span class="skill-tag">+${project.skills.length - 5} more</span>` : ''}
+                    </div>
+                    <div class="card-footer">
+                        ${project.match ? `
+                            <div class="match-score">
+                                <div class="match-bar">
+                                    <div class="match-bar-fill" style="width: ${project.match.required_match_percent}%"></div>
+                                </div>
+                                <span class="match-percent">${project.match.required_match_percent}% match</span>
+                            </div>
+                        ` : '<div></div>'}
+                        <a href="/static/project.html?id=${project.id}" class="btn btn-small btn-secondary">View Details</a>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getSkillClass(skill, match) {
+            if (!match || !currentUser) return skill.is_required ? 'required' : '';
+            const userSkillIds = currentUser.skills?.map(s => s.id) || [];
+            if (userSkillIds.includes(skill.id)) return 'matched';
+            return skill.is_required ? 'unmatched' : '';
+        }
+
+        function formatStatus(status) {
+            const labels = {
+                'seeking_owner': 'Seeking Owner',
+                'seeking_help': 'Seeking Help',
+                'in_progress': 'In Progress',
+                'on_hold': 'On Hold',
+                'completed': 'Completed',
+                'pending_review': 'Pending Review',
+                'needs_discussion': 'Needs Discussion'
+            };
+            return labels[status] || status;
+        }
+
+        function truncate(text, length) {
+            if (text.length <= length) return text;
+            return text.substring(0, length) + '...';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function setupFilters() {
+            let debounceTimer;
+            const debouncedLoad = () => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(loadProjects, 300);
+            };
+
+            document.getElementById('searchInput').addEventListener('input', debouncedLoad);
+            document.getElementById('statusFilter').addEventListener('change', loadProjects);
+            document.getElementById('urgencyFilter').addEventListener('change', loadProjects);
+            document.getElementById('sortFilter').addEventListener('change', loadProjects);
+        }
+
+        function showMessage(text, type) {
+            const div = document.getElementById('messageDiv');
+            div.textContent = text;
+            div.className = `message ${type}`;
+            div.style.display = 'flex';
+            setTimeout(() => div.style.display = 'none', 5000);
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.user-menu')) {
+                document.getElementById('userDropdown')?.classList.remove('show');
+            }
+        });
+
+        init();
+    </script>
+
+    <footer style="border-top: 1px solid var(--border); padding: 24px 0; margin-top: 40px; text-align: center; color: var(--text-light); font-size: 0.875rem;">
+        <div class="container">
+            <a href="/static/privacy.html" style="color: var(--text-light); margin: 0 12px;">Privacy & Data</a> ·
+            <a href="mailto:uk@pauseai.info" style="color: var(--text-light); margin: 0 12px;">Contact</a> ·
+            <span style="margin: 0 12px;">PauseAI UK</span>
+        </div>
+    </footer>
 </body>
 </html>
