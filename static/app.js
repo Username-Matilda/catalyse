@@ -179,7 +179,7 @@ function renderHeader(activePage = '') {
     return `
         <header>
             <div class="container">
-                <a href="/" class="logo"><img src="/static/images/pauseai-logo.png" alt="PauseAI"> Catalyse</a>
+                <a href="/" class="logo">Catalyse <img src="/static/images/pauseai-logo.png" alt="PauseAI"></a>
                 <nav>
                     <a href="/" class="${activePage === 'projects' ? 'active' : ''}">Projects</a>
                     <a href="/static/volunteers.html" class="${activePage === 'volunteers' ? 'active' : ''}">Volunteers</a>
