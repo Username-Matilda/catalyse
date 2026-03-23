@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Team - Catalyse Admin</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a href="/" class="logo"><img src="/static/images/pauseai-logo.png" alt="PauseAI"> Catalyse <span>Admin</span></a>
+            <nav>
+                <a href="/">Projects</a>
+                <a href="/static/admin/triage.html">Triage</a>
+                <a href="/static/admin/skills.html">Skills</a>
+                <a href="/static/admin/starter-tasks.html">Starter Tasks</a>
+                <a href="/static/admin/bugs.html">Bug Reports</a>
+                <a href="/static/admin/team.html" class="active">Team</a>
+                <a href="/static/admin/stats.html">Stats</a>
+            </nav>
+            <div class="nav-auth" id="authNav"></div>
+        </div>
+    </header>
+
+    <main class="container page">
+        <div class="section-header">
+            <h1>Admin Team</h1>
+            <button class="btn btn-primary" onclick="openModal('inviteModal')">Invite Admin</button>
+        </div>
+
+        <p style="color: var(--text-light); margin-bottom: 24px;">
+            Manage who has admin access to Catalyse.
+        </p>
+
+        <div id="messageDiv" class="message" style="display: none;"></div>
+
+        <div class="tabs">
+            <button class="tab active" data-tab="admins">Current Admins</button>
+            <button class="tab" data-tab="invites">Pending Invites</button>
+        </div>
+
+        <div id="tab-admins" class="tab-content">
+            <div id="adminList">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Loading...
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-invites" class="tab-content" style="display: none;">
+            <div id="inviteList"></div>
+        </div>
+    </main>
+
+    <!-- Invite Modal -->
+    <div id="inviteModal" class="modal-overlay" style="display: none;">
+        <div class="modal" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>Invite Admin</h2>
+                <button class="modal-close" onclick="closeModal('inviteModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="inviteForm">
+                    <div class="form-group">
+                        <label for="inviteEmail" class="required">Email Address</label>
+                        <input type="email" id="inviteEmail" name="email" required
+                               placeholder="colleague@example.com">
+                        <small>They'll need to sign up or log in with this email to accept.</small>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Send Invite</button>
+                </form>
+
+                <div id="inviteResult" style="display: none; margin-top: 16px;">
+                    <div id="inviteSentMessage" class="message success" style="display: none;">
+                        <strong>Invite sent!</strong>
+                        <p>They'll receive an email with instructions to accept.</p>
+                    </div>
+                    <div id="inviteManualMessage" class="message success" style="display: none;">
+                        <strong>Invite created!</strong>
+                        <p style="font-size: 12px; color: var(--text-light);">(Email not configured - share link manually)</p>
+                        <input type="text" id="inviteLink" readonly style="width: 100%; margin-top: 8px;">
+                        <button class="btn btn-small btn-outline" onclick="copyInviteLink()" style="margin-top: 8px;">
+                            Copy Link
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+    <script>
+        let currentUser = null;
+        let admins = [];
+        let invites = [];
+
+        async function init() {
+            currentUser = await initAuthNav();
+
+            if (!currentUser || !currentUser.is_admin) {
+                window.location.href = '/';
+                return;
+            }
+
+            await Promise.all([loadAdmins(), loadInvites()]);
+            setupTabs();
+            setupInviteForm();
+        }
+
+        async function loadAdmins() {
+            try {
+                admins = await apiRequest('/api/admin/admins');
+                renderAdmins();
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        }
+
+        async function loadInvites() {
+            try {
+                invites = await apiRequest('/api/admin/invites');
+                renderInvites();
+            } catch (error) {
+                console.error('Failed to load invites:', error);
+            }
+        }
+
+        function renderAdmins() {
+            const container = document.getElementById('adminList');
+
+            if (admins.length === 0) {
+                container.innerHTML = '<p style="color: var(--text-light); padding: 20px;">No admins found.</p>';
+                return;
+            }
+
+            container.innerHTML = admins.map(admin => `
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <h3 class="card-title">${escapeHtml(admin.name)}</h3>
+                            <p class="card-meta">${escapeHtml(admin.email)} · Admin since ${formatDate(admin.created_at)}</p>
+                        </div>
+                        ${admin.id !== currentUser.id ? `
+                            <button class="btn btn-small btn-outline" onclick="revokeAdmin(${admin.id}, '${escapeHtml(admin.name)}')">
+                                Revoke Access
+                            </button>
+                        ` : '<span class="status-badge status-seeking_help">You</span>'}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderInvites() {
+            const container = document.getElementById('inviteList');
+            const pendingInvites = invites.filter(i => i.status === 'pending');
+
+            if (pendingInvites.length === 0) {
+                container.innerHTML = '<p style="color: var(--text-light); padding: 20px;">No pending invites.</p>';
+                return;
+            }
+
+            container.innerHTML = pendingInvites.map(invite => {
+                const isExpired = new Date(invite.expires_at) < new Date();
+                return `
+                    <div class="card ${isExpired ? 'opacity-50' : ''}">
+                        <div class="card-header">
+                            <div>
+                                <h3 class="card-title">${escapeHtml(invite.email)}</h3>
+                                <p class="card-meta">
+                                    Invited by ${escapeHtml(invite.invited_by_name)} · ${formatDate(invite.created_at)}
+                                    ${isExpired ? '<span style="color: var(--error)"> · Expired</span>' : ''}
+                                </p>
+                            </div>
+                            <button class="btn btn-small btn-outline" onclick="revokeInvite(${invite.id})">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function revokeAdmin(volunteerId, name) {
+            if (!confirm(`Are you sure you want to revoke admin access for ${name}?`)) {
+                return;
+            }
+
+            try {
+                await apiRequest(`/api/admin/admins/${volunteerId}`, { method: 'DELETE' });
+                showMessage('Admin access revoked', 'success');
+                await loadAdmins();
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        }
+
+        async function revokeInvite(inviteId) {
+            try {
+                await apiRequest(`/api/admin/invites/${inviteId}`, { method: 'DELETE' });
+                showMessage('Invite cancelled', 'success');
+                await loadInvites();
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        }
+
+        function setupInviteForm() {
+            document.getElementById('inviteForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const email = document.getElementById('inviteEmail').value.trim();
+                const btn = e.target.querySelector('button[type="submit"]');
+                btn.disabled = true;
+
+                try {
+                    const result = await apiRequest('/api/admin/admins/invite', {
+                        method: 'POST',
+                        body: JSON.stringify({ email })
+                    });
+
+                    document.getElementById('inviteResult').style.display = 'block';
+                    document.getElementById('inviteForm').style.display = 'none';
+
+                    // Show appropriate message based on whether email was sent
+                    if (result._dev_invite_url) {
+                        // Dev mode - show link to share manually
+                        document.getElementById('inviteManualMessage').style.display = 'block';
+                        document.getElementById('inviteLink').value = window.location.origin + result._dev_invite_url;
+                    } else {
+                        // Email was sent
+                        document.getElementById('inviteSentMessage').style.display = 'block';
+                    }
+
+                    await loadInvites();
+
+                } catch (error) {
+                    showMessage(error.message, 'error');
+                }
+
+                btn.disabled = false;
+            });
+        }
+
+        function copyInviteLink() {
+            const input = document.getElementById('inviteLink');
+            input.select();
+            document.execCommand('copy');
+            showMessage('Link copied to clipboard!', 'success');
+        }
+
+        function setupTabs() {
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+
+                    document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+                    document.getElementById(`tab-${tab.dataset.tab}`).style.display = 'block';
+                });
+            });
+        }
+
+        // Reset modal when closed
+        document.getElementById('inviteModal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) {
+                closeModal('inviteModal');
+                document.getElementById('inviteForm').reset();
+                document.getElementById('inviteForm').style.display = 'block';
+                document.getElementById('inviteResult').style.display = 'none';
+            }
+        });
+
+        init();
+    </script>
+</body>
+</html>

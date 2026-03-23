@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bug Reports - Catalyse Admin</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        .severity-low { color: var(--text-light); }
+        .severity-medium { color: var(--warning); }
+        .severity-high { color: var(--error); }
+        .severity-critical { color: #fff; background: var(--error); padding: 2px 8px; border-radius: 4px; }
+        .category-tag {
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            background: var(--bg-light);
+        }
+        .category-bug { background: #fee; color: var(--error); }
+        .category-feature { background: #efe; color: var(--success); }
+        .category-ux { background: #eef; color: var(--primary); }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a href="/" class="logo"><img src="/static/images/pauseai-logo.png" alt="PauseAI"> Catalyse <span>Admin</span></a>
+            <nav>
+                <a href="/">Projects</a>
+                <a href="/static/admin/triage.html">Triage</a>
+                <a href="/static/admin/skills.html">Skills</a>
+                <a href="/static/admin/starter-tasks.html">Starter Tasks</a>
+                <a href="/static/admin/bugs.html" class="active">Bug Reports</a>
+                <a href="/static/admin/team.html">Team</a>
+                <a href="/static/admin/stats.html">Stats</a>
+            </nav>
+            <div class="nav-auth" id="authNav"></div>
+        </div>
+    </header>
+
+    <main class="container page">
+        <div class="section-header">
+            <h1>Bug Reports & Feedback</h1>
+            <div id="filterContainer">
+                <select id="statusFilter" onchange="filterReports()">
+                    <option value="">All</option>
+                    <option value="open" selected>Open</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="resolved">Resolved</option>
+                    <option value="wont_fix">Won't Fix</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="messageDiv" class="message" style="display: none;"></div>
+
+        <div id="reportList">
+            <div class="loading">
+                <div class="spinner"></div>
+                Loading...
+            </div>
+        </div>
+
+        <div id="emptyState" class="empty-state" style="display: none;">
+            <h3>No reports found</h3>
+            <p>No bug reports match your filter.</p>
+        </div>
+    </main>
+
+    <!-- Detail Modal -->
+    <div id="detailModal" class="modal-overlay" style="display: none;">
+        <div class="modal" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2 id="modalTitle">Bug Report</h2>
+                <button class="modal-close" onclick="closeModal('detailModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="modalContent"></div>
+
+                <form id="updateForm" style="margin-top: 24px; border-top: 1px solid var(--border); padding-top: 16px;">
+                    <input type="hidden" id="reportId">
+
+                    <div class="grid grid-2">
+                        <div class="form-group">
+                            <label for="statusSelect">Status</label>
+                            <select id="statusSelect">
+                                <option value="open">Open</option>
+                                <option value="in_progress">In Progress</option>
+                                <option value="resolved">Resolved</option>
+                                <option value="wont_fix">Won't Fix</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="resolutionNotes">Resolution Notes</label>
+                        <textarea id="resolutionNotes" placeholder="What was done to address this..."></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Update</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+    <script>
+        let currentUser = null;
+        let allReports = [];
+
+        async function init() {
+            currentUser = await initAuthNav();
+
+            if (!currentUser || !currentUser.is_admin) {
+                window.location.href = '/';
+                return;
+            }
+
+            await loadReports();
+            setupUpdateForm();
+        }
+
+        async function loadReports() {
+            try {
+                allReports = await apiRequest('/api/admin/bug-reports');
+                filterReports();
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        }
+
+        function filterReports() {
+            const status = document.getElementById('statusFilter').value;
+            const filtered = status
+                ? allReports.filter(r => r.status === status)
+                : allReports;
+            renderReports(filtered);
+        }
+
+        function renderReports(reports) {
+            const container = document.getElementById('reportList');
+            const emptyState = document.getElementById('emptyState');
+
+            if (reports.length === 0) {
+                container.innerHTML = '';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+
+            container.innerHTML = reports.map(r => `
+                <div class="card" style="cursor: pointer;" onclick="openDetail(${r.id})">
+                    <div class="card-header">
+                        <div>
+                            <h3 class="card-title">
+                                <span class="category-tag category-${r.category}">${r.category}</span>
+                                ${escapeHtml(r.title)}
+                            </h3>
+                            <p class="card-meta">
+                                ${r.reporter_name || r.reporter_email || 'Anonymous'}
+                                · ${formatDate(r.created_at)}
+                                ${r.page_url ? ` · <a href="${escapeHtml(r.page_url)}" onclick="event.stopPropagation()">${escapeHtml(r.page_url.split('/').pop() || 'Page')}</a>` : ''}
+                            </p>
+                        </div>
+                        <div style="text-align: right;">
+                            <span class="severity-${r.severity}">${r.severity.toUpperCase()}</span>
+                            <br>
+                            <span class="status-badge status-${r.status === 'open' ? 'seeking_owner' : r.status === 'resolved' ? 'completed' : 'in_progress'}">
+                                ${r.status.replace('_', ' ')}
+                            </span>
+                        </div>
+                    </div>
+                    <p style="margin-top: 8px; white-space: pre-wrap;">${escapeHtml(truncate(r.description, 200))}</p>
+                </div>
+            `).join('');
+        }
+
+        function openDetail(reportId) {
+            const report = allReports.find(r => r.id === reportId);
+            if (!report) return;
+
+            document.getElementById('reportId').value = report.id;
+            document.getElementById('modalTitle').textContent = report.title;
+            document.getElementById('statusSelect').value = report.status;
+            document.getElementById('resolutionNotes').value = report.resolution_notes || '';
+
+            document.getElementById('modalContent').innerHTML = `
+                <div style="margin-bottom: 16px;">
+                    <span class="category-tag category-${report.category}">${report.category}</span>
+                    <span class="severity-${report.severity}" style="margin-left: 8px;">${report.severity.toUpperCase()}</span>
+                </div>
+                <p style="white-space: pre-wrap; margin-bottom: 16px;">${escapeHtml(report.description)}</p>
+                <div style="color: var(--text-light); font-size: 14px;">
+                    <p><strong>Reported by:</strong> ${report.reporter_name || report.reporter_email || 'Anonymous'}</p>
+                    <p><strong>Date:</strong> ${formatDate(report.created_at)}</p>
+                    ${report.page_url ? `<p><strong>Page:</strong> <a href="${escapeHtml(report.page_url)}">${escapeHtml(report.page_url)}</a></p>` : ''}
+                    ${report.resolved_at ? `<p><strong>Resolved:</strong> ${formatDate(report.resolved_at)}</p>` : ''}
+                </div>
+            `;
+
+            openModal('detailModal');
+        }
+
+        function setupUpdateForm() {
+            document.getElementById('updateForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const reportId = document.getElementById('reportId').value;
+                const btn = e.target.querySelector('button[type="submit"]');
+                btn.disabled = true;
+
+                try {
+                    await apiRequest(`/api/admin/bug-reports/${reportId}`, {
+                        method: 'PUT',
+                        body: JSON.stringify({
+                            status: document.getElementById('statusSelect').value,
+                            resolution_notes: document.getElementById('resolutionNotes').value.trim() || null
+                        })
+                    });
+
+                    closeModal('detailModal');
+                    showMessage('Report updated!', 'success');
+                    await loadReports();
+
+                } catch (error) {
+                    showMessage(error.message, 'error');
+                }
+
+                btn.disabled = false;
+            });
+        }
+
+        init();
+    </script>
+</body>
+</html>

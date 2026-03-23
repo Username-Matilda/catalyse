@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Catalyse</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a href="/" class="logo"><img src="/static/images/pauseai-logo.png" alt="PauseAI"> Catalyse</a>
+            <nav>
+                <a href="/">Projects</a>
+                <a href="/static/volunteers.html">Volunteers</a>
+                <a href="/static/suggest.html">Suggest Project</a>
+            </nav>
+            <div class="nav-auth" id="authNav"></div>
+        </div>
+    </header>
+
+    <main class="container page">
+        <div id="loadingState" class="loading">
+            <div class="spinner"></div>
+            Loading dashboard...
+        </div>
+
+        <div id="dashboardContent" style="display: none;">
+            <div class="section-header">
+                <h1>Welcome back, <span id="userName"></span>!</h1>
+            </div>
+
+            <div id="messageDiv" class="message" style="display: none;"></div>
+
+            <!-- Quick Stats -->
+            <div class="grid grid-3" style="margin-bottom: 32px;">
+                <div class="card" style="text-align: center;">
+                    <div style="font-size: 2rem; font-weight: bold; color: var(--primary);" id="statOwned">0</div>
+                    <div style="color: var(--text-light);">Projects You Own</div>
+                </div>
+                <div class="card" style="text-align: center;">
+                    <div style="font-size: 2rem; font-weight: bold; color: var(--secondary);" id="statInterests">0</div>
+                    <div style="color: var(--text-light);">Active Interests</div>
+                </div>
+                <div class="card" style="text-align: center;">
+                    <div style="font-size: 2rem; font-weight: bold; color: var(--success);" id="statNotifications">0</div>
+                    <div style="color: var(--text-light);">Unread Notifications</div>
+                </div>
+            </div>
+
+            <!-- Starter tasks banner -->
+            <div id="starterTasksBanner" style="display: none;"></div>
+
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab active" data-tab="owned">My Projects</button>
+                <button class="tab" data-tab="interests">My Interests</button>
+                <button class="tab" data-tab="proposed">Proposed</button>
+                <button class="tab" data-tab="suggested">Suggested for You</button>
+                <button class="tab" data-tab="messages">Messages</button>
+            </div>
+
+            <!-- Tab Content: Owned Projects -->
+            <div id="tab-owned" class="tab-content">
+                <div id="ownedProjects"></div>
+            </div>
+
+            <!-- Tab Content: Interests -->
+            <div id="tab-interests" class="tab-content" style="display: none;">
+                <div id="myInterests"></div>
+            </div>
+
+            <!-- Tab Content: Proposed -->
+            <div id="tab-proposed" class="tab-content" style="display: none;">
+                <div id="proposedProjects"></div>
+            </div>
+
+            <!-- Tab Content: Suggested -->
+            <div id="tab-suggested" class="tab-content" style="display: none;">
+                <div id="suggestedProjects"></div>
+            </div>
+
+            <!-- Tab Content: Messages -->
+            <div id="tab-messages" class="tab-content" style="display: none;">
+                <div id="messagesList"></div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/app.js"></script>
+    <script>
+        let currentUser = null;
+        let dashboardData = null;
+
+        async function init() {
+            currentUser = await initAuthNav();
+
+            if (!currentUser) {
+                window.location.href = '/static/login.html?redirect=/static/dashboard.html';
+                return;
+            }
+
+            await loadDashboard();
+            await loadStarterTasks();
+            setupTabs();
+        }
+
+        async function loadDashboard() {
+            try {
+                dashboardData = await apiRequest('/api/dashboard');
+                renderDashboard();
+                document.getElementById('loadingState').style.display = 'none';
+                document.getElementById('dashboardContent').style.display = 'block';
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        }
+
+        async function loadStarterTasks() {
+            try {
+                const tasks = await apiRequest('/api/my/starter-tasks');
+                const activeTasks = tasks.filter(t => ['assigned', 'submitted', 'reviewed'].includes(t.status));
+
+                if (activeTasks.length > 0) {
+                    const banner = document.getElementById('starterTasksBanner');
+                    banner.style.display = 'block';
+                    banner.innerHTML = activeTasks.map(t => `
+                        <div class="card" style="border-left: 4px solid var(--secondary); margin-bottom: 12px;">
+                            <div class="card-header">
+                                <div>
+                                    <h3 class="card-title">Starter Task: ${escapeHtml(t.title)}</h3>
+                                    <p class="card-meta">
+                                        ${t.skill_name ? `Skill: ${escapeHtml(t.skill_name)} · ` : ''}
+                                        ${t.estimated_hours ? `~${t.estimated_hours}h · ` : ''}
+                                        Status: ${t.status}
+                                    </p>
+                                </div>
+                                <span class="status-badge status-${t.status === 'assigned' ? 'in_progress' : t.status === 'submitted' ? 'seeking_help' : 'completed'}">
+                                    ${t.status}
+                                </span>
+                            </div>
+                            <p style="white-space: pre-wrap; margin: 12px 0;">${escapeHtml(t.description)}</p>
+                            ${t.feedback_to_volunteer ? `
+                                <div class="message info">
+                                    <strong>Feedback:</strong> ${escapeHtml(t.feedback_to_volunteer)}
+                                </div>
+                            ` : ''}
+                            ${t.status === 'assigned' ? `
+                                <button class="btn btn-primary btn-small" onclick="submitTask(${t.id})">Mark as Complete</button>
+                            ` : ''}
+                        </div>
+                    `).join('');
+                }
+            } catch (e) {
+                // Starter tasks endpoint might not exist yet, fail silently
+            }
+        }
+
+        async function submitTask(taskId) {
+            try {
+                await apiRequest('/api/starter-tasks/' + taskId + '/submit', { method: 'PUT' });
+                showMessage('Task submitted for review!', 'success');
+                await loadStarterTasks();
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        }
+
+        function renderDashboard() {
+            document.getElementById('userName').textContent = currentUser.name;
+
+            // Stats
+            document.getElementById('statOwned').textContent = dashboardData.owned_projects.length;
+            document.getElementById('statInterests').textContent = dashboardData.my_interests.filter(i => i.status === 'pending').length;
+            document.getElementById('statNotifications').textContent = dashboardData.unread_notification_count;
+
+            // Owned Projects
+            renderProjects('ownedProjects', dashboardData.owned_projects, 'You don\'t own any projects yet.');
+
+            // Interests
+            renderInterests();
+
+            // Proposed Projects
+            renderProjects('proposedProjects', dashboardData.proposed_projects, 'You haven\'t proposed any projects yet.', true);
+
+            // Suggested Projects
+            renderSuggested();
+
+            // Load messages
+            loadMessages();
+        }
+
+        function renderProjects(containerId, projects, emptyMessage, showStatus = false) {
+            const container = document.getElementById(containerId);
+
+            if (projects.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <p>${emptyMessage}</p>
+                        <a href="/static/suggest.html" class="btn btn-primary" style="margin-top: 16px;">Suggest a Project</a>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = projects.map(p => `
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <a href="/static/project.html?id=${p.id}">${escapeHtml(p.title)}</a>
+                        </h3>
+                        <span class="status-badge status-${p.status}">${formatStatus(p.status)}</span>
+                    </div>
+                    <p class="card-description">${escapeHtml(truncate(p.description, 150))}</p>
+                    ${p.pending_interest_count > 0 ? `
+                        <div class="message info" style="margin-bottom: 0;">
+                            ${p.pending_interest_count} volunteer${p.pending_interest_count > 1 ? 's' : ''} interested!
+                        </div>
+                    ` : ''}
+                    <div class="card-footer">
+                        <span style="font-size: 0.875rem; color: var(--text-light);">Updated ${formatDate(p.updated_at)}</span>
+                        <a href="/static/project.html?id=${p.id}" class="btn btn-small btn-outline">View</a>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderInterests() {
+            const container = document.getElementById('myInterests');
+            const interests = dashboardData.my_interests;
+
+            if (interests.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <p>You haven't expressed interest in any projects yet.</p>
+                        <a href="/" class="btn btn-primary" style="margin-top: 16px;">Browse Projects</a>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = interests.map(i => `
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <a href="/static/project.html?id=${i.project_id}">${escapeHtml(i.project_title)}</a>
+                        </h3>
+                        <span class="status-badge status-${i.status === 'pending' ? 'seeking_help' : i.status === 'accepted' ? 'completed' : 'on_hold'}">
+                            ${i.status}
+                        </span>
+                    </div>
+                    <p style="font-size: 0.875rem; color: var(--text-light);">
+                        ${formatInterestType(i.interest_type)} · Submitted ${formatDate(i.created_at)}
+                    </p>
+                    ${i.message ? `<p style="font-style: italic; margin-top: 8px;">"${escapeHtml(truncate(i.message, 100))}"</p>` : ''}
+                    <div class="card-footer">
+                        <span style="font-size: 0.875rem;">Project: <span class="status-badge status-${i.project_status}">${formatStatus(i.project_status)}</span></span>
+                        <a href="/static/project.html?id=${i.project_id}" class="btn btn-small btn-outline">View Project</a>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderSuggested() {
+            const container = document.getElementById('suggestedProjects');
+            const projects = dashboardData.suggested_projects;
+
+            if (projects.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <p>No suggested projects right now.</p>
+                        <p style="color: var(--text-light);">Add more skills to your profile to get better matches!</p>
+                        <a href="/static/profile.html" class="btn btn-outline" style="margin-top: 16px;">Edit Profile</a>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <p style="margin-bottom: 16px; color: var(--text-light);">Based on your skills, these projects might be a good fit:</p>
+                ${projects.map(p => `
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <a href="/static/project.html?id=${p.id}">${escapeHtml(p.title)}</a>
+                            </h3>
+                            ${p.match ? `<span class="match-percent">${p.match.required_match_percent}% match</span>` : ''}
+                        </div>
+                        <p class="card-description">${escapeHtml(truncate(p.description, 150))}</p>
+                        <div class="skills">
+                            ${p.skills.slice(0, 4).map(s => `<span class="skill-tag">${escapeHtml(s.name)}</span>`).join('')}
+                        </div>
+                        <div class="card-footer">
+                            <span class="status-badge status-${p.status}">${formatStatus(p.status)}</span>
+                            <a href="/static/project.html?id=${p.id}" class="btn btn-small btn-secondary">View</a>
+                        </div>
+                    </div>
+                `).join('')}
+            `;
+        }
+
+        async function loadMessages() {
+            try {
+                const data = await apiRequest('/api/messages');
+                renderMessages(data);
+            } catch (error) {
+                document.getElementById('messagesList').innerHTML = `<p class="error">${error.message}</p>`;
+            }
+        }
+
+        function renderMessages(data) {
+            const container = document.getElementById('messagesList');
+            const allMessages = [...data.received.map(m => ({...m, type: 'received'})), ...data.sent.map(m => ({...m, type: 'sent'}))];
+            allMessages.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+            if (allMessages.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <p>No messages yet.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = allMessages.map(m => `
+                <div class="card ${m.type === 'received' && !m.read_at ? 'unread' : ''}" style="${m.type === 'received' && !m.read_at ? 'border-left: 4px solid var(--primary);' : ''}">
+                    <div class="card-header">
+                        <div>
+                            <strong>${m.type === 'received' ? 'From: ' + escapeHtml(m.from_name) : 'To: ' + escapeHtml(m.to_name)}</strong>
+                            <span style="color: var(--text-light);"> · ${formatDateTime(m.created_at)}</span>
+                        </div>
+                        ${m.type === 'received' && !m.read_at ? '<span class="notification-badge">New</span>' : ''}
+                    </div>
+                    <p style="font-weight: 500; margin: 8px 0;">${escapeHtml(m.subject)}</p>
+                    <p style="white-space: pre-wrap;">${escapeHtml(m.message)}</p>
+                    ${m.type === 'received' && !m.read_at ? `
+                        <button class="btn btn-small btn-ghost" style="margin-top: 12px;" onclick="markRead(${m.id})">Mark as Read</button>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        async function markRead(messageId) {
+            try {
+                await apiRequest(`/api/messages/${messageId}/read`, { method: 'PUT' });
+                loadMessages();
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        }
+
+        function setupTabs() {
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    // Update active tab
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+
+                    // Show correct content
+                    document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+                    document.getElementById(`tab-${tab.dataset.tab}`).style.display = 'block';
+                });
+            });
+        }
+
+        init();
+    </script>
+</body>
+</html>

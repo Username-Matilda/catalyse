@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Settings - Catalyse</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        .danger-zone {
+            border: 1px solid var(--error);
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-top: 32px;
+        }
+        .danger-zone h3 {
+            color: var(--error);
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a href="/" class="logo"><img src="/static/images/pauseai-logo.png" alt="PauseAI"> Catalyse</a>
+            <nav>
+                <a href="/">Projects</a>
+                <a href="/static/volunteers.html">Volunteers</a>
+                <a href="/static/dashboard.html">Dashboard</a>
+            </nav>
+            <div class="nav-auth" id="authNav"></div>
+        </div>
+    </header>
+
+    <main class="container page">
+        <div style="max-width: 600px; margin: 0 auto;">
+            <h1>Account Settings</h1>
+
+            <div id="messageDiv" class="message" style="display: none;"></div>
+
+            <!-- Change Password Section -->
+            <div class="card" style="margin-top: 24px;">
+                <h2>Change Password</h2>
+                <form id="passwordForm" style="margin-top: 16px;">
+                    <div class="form-group">
+                        <label for="current_password" class="required">Current Password</label>
+                        <input type="password" id="current_password" name="current_password" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="new_password" class="required">New Password</label>
+                        <input type="password" id="new_password" name="new_password" required minlength="8" placeholder="At least 8 characters">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="confirm_password" class="required">Confirm New Password</label>
+                        <input type="password" id="confirm_password" name="confirm_password" required minlength="8">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Change Password</button>
+                </form>
+            </div>
+
+            <!-- Danger Zone -->
+            <div class="danger-zone">
+                <h3>Delete Account</h3>
+                <p style="color: var(--text-light); margin-bottom: 16px;">
+                    Permanently delete your account and all associated data. This action cannot be undone.
+                </p>
+                <button class="btn btn-outline" style="border-color: var(--error); color: var(--error);" onclick="openModal('deleteModal')">
+                    Delete My Account
+                </button>
+            </div>
+
+            <p style="margin-top: 24px;">
+                <a href="/static/dashboard.html">&larr; Back to Dashboard</a>
+            </p>
+        </div>
+    </main>
+
+    <!-- Delete Account Modal -->
+    <div id="deleteModal" class="modal-overlay" style="display: none;">
+        <div class="modal" style="max-width: 450px;">
+            <div class="modal-header">
+                <h2 style="color: var(--error);">Delete Account</h2>
+                <button class="modal-close" onclick="closeModal('deleteModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 16px;">
+                    This will permanently delete your account, including:
+                </p>
+                <ul style="margin-bottom: 16px; padding-left: 20px; color: var(--text-light);">
+                    <li>Your profile and contact information</li>
+                    <li>Your skill associations</li>
+                    <li>Your project interests</li>
+                </ul>
+                <p style="margin-bottom: 16px; font-weight: bold;">
+                    Projects you own will remain but show "[Deleted User]" as owner.
+                </p>
+
+                <form id="deleteForm">
+                    <div class="form-group">
+                        <label for="delete_password" class="required">Enter your password to confirm</label>
+                        <input type="password" id="delete_password" name="password" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="delete_confirm" class="required">Type DELETE to confirm</label>
+                        <input type="text" id="delete_confirm" name="confirmation" required placeholder="DELETE" pattern="DELETE">
+                    </div>
+
+                    <button type="submit" class="btn" style="background: var(--error); color: white; width: 100%;">
+                        Permanently Delete Account
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+    <script>
+        let currentUser = null;
+
+        async function init() {
+            currentUser = await initAuthNav();
+
+            if (!currentUser) {
+                window.location.href = '/static/login.html?redirect=/static/settings.html';
+                return;
+            }
+        }
+
+        // Change password form
+        document.getElementById('passwordForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const form = e.target;
+
+            if (form.new_password.value !== form.confirm_password.value) {
+                showMessage('New passwords do not match', 'error');
+                return;
+            }
+
+            if (form.new_password.value.length < 8) {
+                showMessage('Password must be at least 8 characters', 'error');
+                return;
+            }
+
+            const btn = form.querySelector('button[type="submit"]');
+            btn.disabled = true;
+
+            try {
+                await apiRequest('/api/auth/change-password', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        current_password: form.current_password.value,
+                        new_password: form.new_password.value
+                    })
+                });
+
+                showMessage('Password changed successfully!', 'success');
+                form.reset();
+
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+
+            btn.disabled = false;
+        });
+
+        // Delete account form
+        document.getElementById('deleteForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const form = e.target;
+
+            if (form.confirmation.value !== 'DELETE') {
+                showMessage('Please type DELETE to confirm', 'error');
+                return;
+            }
+
+            const btn = form.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            btn.textContent = 'Deleting...';
+
+            try {
+                await apiRequest('/api/auth/delete-account', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        password: form.password.value,
+                        confirmation: form.confirmation.value
+                    })
+                });
+
+                // Clear auth and redirect
+                localStorage.removeItem('authToken');
+                alert('Your account has been deleted. We\'re sorry to see you go.');
+                window.location.href = '/';
+
+            } catch (error) {
+                showMessage(error.message, 'error');
+                btn.disabled = false;
+                btn.textContent = 'Permanently Delete Account';
+            }
+        });
+
+        // Close modal on background click
+        document.getElementById('deleteModal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) {
+                closeModal('deleteModal');
+            }
+        });
+
+        init();
+    </script>
+</body>
+</html>

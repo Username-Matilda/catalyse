@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accept Admin Invite - Catalyse</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a href="/" class="logo"><img src="/static/images/pauseai-logo.png" alt="PauseAI"> Catalyse</a>
+            <nav></nav>
+            <div class="nav-auth" id="authNav"></div>
+        </div>
+    </header>
+
+    <main class="container page">
+        <div style="max-width: 500px; margin: 60px auto; text-align: center;">
+            <div id="loading">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Processing invite...
+                </div>
+            </div>
+
+            <div id="needsLogin" style="display: none;" class="card">
+                <h2>Admin Invite</h2>
+                <p style="margin: 16px 0; color: var(--text-light);">
+                    You've been invited to become an admin on Catalyse.
+                </p>
+                <p style="margin-bottom: 24px;">
+                    Please log in or sign up with the invited email address to accept.
+                </p>
+                <a href="/static/login.html" class="btn btn-primary">Log In</a>
+                <a href="/static/signup.html" class="btn btn-outline" style="margin-left: 8px;">Sign Up</a>
+            </div>
+
+            <div id="success" style="display: none;" class="card">
+                <h2>Welcome to the Team!</h2>
+                <p style="margin: 16px 0; color: var(--text-light);">
+                    You now have admin access to Catalyse.
+                </p>
+                <a href="/static/admin/triage.html" class="btn btn-primary">Go to Admin Dashboard</a>
+            </div>
+
+            <div id="error" style="display: none;" class="card">
+                <h2>Invite Error</h2>
+                <p id="errorMessage" style="margin: 16px 0; color: var(--error);"></p>
+                <a href="/" class="btn btn-outline">Back to Home</a>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/app.js"></script>
+    <script>
+        async function init() {
+            const currentUser = await initAuthNav();
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('token');
+
+            document.getElementById('loading').style.display = 'none';
+
+            if (!token) {
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('errorMessage').textContent = 'No invite token provided.';
+                return;
+            }
+
+            if (!currentUser) {
+                // Save token for after login
+                localStorage.setItem('pendingAdminInvite', token);
+                document.getElementById('needsLogin').style.display = 'block';
+                return;
+            }
+
+            // Try to accept the invite
+            try {
+                await apiRequest(`/api/admin/admins/accept-invite?invite_token=${token}`, {
+                    method: 'POST'
+                });
+                localStorage.removeItem('pendingAdminInvite');
+                document.getElementById('success').style.display = 'block';
+            } catch (error) {
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('errorMessage').textContent = error.message;
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

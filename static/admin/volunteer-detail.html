@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Volunteer Admin View - Catalyse</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a href="/" class="logo"><img src="/static/images/pauseai-logo.png" alt="PauseAI"> Catalyse <span>Admin</span></a>
+            <nav>
+                <a href="/">Projects</a>
+                <a href="/static/admin/triage.html">Triage</a>
+                <a href="/static/admin/skills.html">Skills</a>
+                <a href="/static/admin/starter-tasks.html">Starter Tasks</a>
+                <a href="/static/admin/bugs.html">Bug Reports</a>
+                <a href="/static/admin/team.html">Team</a>
+                <a href="/static/admin/stats.html">Stats</a>
+            </nav>
+            <div class="nav-auth" id="authNav"></div>
+        </div>
+    </header>
+
+    <main class="container page">
+        <div id="loadingState" class="loading">
+            <div class="spinner"></div>
+            Loading volunteer...
+        </div>
+
+        <div id="content" style="display: none;">
+            <div style="margin-bottom: 20px;">
+                <a href="/static/volunteers.html" style="color: var(--text-light);">&larr; Back to Volunteers</a>
+            </div>
+
+            <div id="messageDiv" class="message" style="display: none;"></div>
+
+            <!-- Volunteer Header -->
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <h1 id="volunteerName" style="margin: 0;"></h1>
+                        <p id="volunteerMeta" class="card-meta"></p>
+                    </div>
+                </div>
+
+                <div id="volunteerBio" style="margin: 16px 0;"></div>
+
+                <h3>Skills (Self-Assessed)</h3>
+                <div id="volunteerSkills" class="skills" style="margin-bottom: 16px;"></div>
+
+                <h3>Verified Skills (Endorsed)</h3>
+                <div id="endorsements" class="skills" style="margin-bottom: 16px;"></div>
+
+                <h3>Contact Info</h3>
+                <div id="contactInfo" style="margin-top: 8px;"></div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab active" data-tab="notes">Admin Notes</button>
+                <button class="tab" data-tab="tasks">Starter Tasks</button>
+                <button class="tab" data-tab="projects">Project History</button>
+                <button class="tab" data-tab="endorse">Endorse Skill</button>
+            </div>
+
+            <!-- Admin Notes Tab -->
+            <div id="tab-notes" class="tab-content">
+                <div class="card">
+                    <h3>Add Note</h3>
+                    <form id="noteForm" style="margin-bottom: 24px;">
+                        <div class="grid grid-2">
+                            <div class="form-group">
+                                <label for="noteCategory">Category</label>
+                                <select id="noteCategory">
+                                    <option value="general">General</option>
+                                    <option value="skill_feedback">Skill Feedback</option>
+                                    <option value="reliability">Reliability</option>
+                                    <option value="fit">Fit / Suitability</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="noteProject">Related Project (optional)</label>
+                                <select id="noteProject">
+                                    <option value="">None</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="noteContent" class="required">Note</label>
+                            <textarea id="noteContent" required placeholder="E.g., 'Good enthusiasm but writing needed heavy editing. Better suited to research tasks.'"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-secondary">Add Note</button>
+                    </form>
+
+                    <div id="notesList"></div>
+                </div>
+            </div>
+
+            <!-- Starter Tasks Tab -->
+            <div id="tab-tasks" class="tab-content" style="display: none;">
+                <div class="card">
+                    <h3>Assigned Starter Tasks</h3>
+                    <div id="tasksList"></div>
+                </div>
+            </div>
+
+            <!-- Project History Tab -->
+            <div id="tab-projects" class="tab-content" style="display: none;">
+                <div class="card">
+                    <div id="projectHistory"></div>
+                </div>
+            </div>
+
+            <!-- Endorse Skill Tab -->
+            <div id="tab-endorse" class="tab-content" style="display: none;">
+                <div class="card">
+                    <h3>Endorse a Skill</h3>
+                    <p style="color: var(--text-light); margin-bottom: 16px;">
+                        Based on what you've observed, endorse this volunteer's ability in a specific skill.
+                    </p>
+                    <form id="endorseForm">
+                        <div class="grid grid-2">
+                            <div class="form-group">
+                                <label for="endorseSkill" class="required">Skill</label>
+                                <select id="endorseSkill" required>
+                                    <option value="">Select skill...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="endorseRating">Rating</label>
+                                <select id="endorseRating">
+                                    <option value="developing">Developing - Still learning</option>
+                                    <option value="verified" selected>Verified - Can deliver</option>
+                                    <option value="strong">Strong - Consistently excellent</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="endorseSource">Based On</label>
+                            <select id="endorseSource">
+                                <option value="direct_observation">Direct Observation</option>
+                                <option value="project_outcome">Project Outcome</option>
+                                <option value="starter_task">Starter Task</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="endorseNotes">Notes</label>
+                            <textarea id="endorseNotes" placeholder="What did you observe?"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Endorse Skill</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/app.js"></script>
+    <script>
+        let currentUser = null;
+        let volunteer = null;
+        let volunteerId = null;
+
+        async function init() {
+            currentUser = await initAuthNav();
+            if (!currentUser || !currentUser.is_admin) {
+                window.location.href = '/';
+                return;
+            }
+
+            volunteerId = getQueryParam('id');
+            if (!volunteerId) {
+                window.location.href = '/static/volunteers.html';
+                return;
+            }
+
+            await loadVolunteer();
+            await loadSkillsDropdown();
+            setupTabs();
+        }
+
+        async function loadVolunteer() {
+            try {
+                volunteer = await apiRequest(`/api/admin/volunteers/${volunteerId}`);
+                renderVolunteer();
+                document.getElementById('loadingState').style.display = 'none';
+                document.getElementById('content').style.display = 'block';
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        }
+
+        function renderVolunteer() {
+            document.title = `${volunteer.name} (Admin) - Catalyse`;
+            document.getElementById('volunteerName').textContent = volunteer.name;
+
+            let meta = [];
+            if (volunteer.email) meta.push(volunteer.email);
+            if (volunteer.location) meta.push(volunteer.location);
+            if (volunteer.availability_hours_per_week) meta.push(`${volunteer.availability_hours_per_week}h/week`);
+            meta.push(`Joined ${formatDate(volunteer.created_at)}`);
+            document.getElementById('volunteerMeta').textContent = meta.join(' · ');
+
+            document.getElementById('volunteerBio').textContent = volunteer.bio || 'No bio';
+
+            // Self-assessed skills with proficiency
+            document.getElementById('volunteerSkills').innerHTML = volunteer.skills.map(s =>
+                `<span class="skill-tag">${escapeHtml(s.name)} <small style="opacity: 0.7;">(${s.proficiency_level || 'intermediate'})</small></span>`
+            ).join('') || '<em>None</em>';
+
+            // Endorsements
+            document.getElementById('endorsements').innerHTML = volunteer.endorsements.map(e => {
+                const ratingColors = { strong: 'matched', verified: 'required', developing: '' };
+                return `<span class="skill-tag ${ratingColors[e.rating] || ''}">${escapeHtml(e.skill_name)} (${e.rating})</span>`;
+            }).join('') || '<em style="color: var(--text-light);">No endorsements yet</em>';
+
+            // Contact info
+            let contacts = [];
+            if (volunteer.email) contacts.push(`Email: ${volunteer.email}`);
+            if (volunteer.discord_handle) contacts.push(`Discord: ${volunteer.discord_handle}`);
+            if (volunteer.signal_number) contacts.push(`Signal: ${volunteer.signal_number}`);
+            if (volunteer.whatsapp_number) contacts.push(`WhatsApp: ${volunteer.whatsapp_number}`);
+            if (volunteer.contact_preference) contacts.push(`Prefers: ${volunteer.contact_preference}`);
+            if (volunteer.contact_notes) contacts.push(`Notes: ${volunteer.contact_notes}`);
+            document.getElementById('contactInfo').innerHTML = contacts.join('<br>') || '<em>No contact info</em>';
+
+            renderNotes();
+            renderTasks();
+            renderProjectHistory();
+            populateProjectDropdown();
+        }
+
+        function renderNotes() {
+            const container = document.getElementById('notesList');
+            const notes = volunteer.admin_notes || [];
+
+            if (notes.length === 0) {
+                container.innerHTML = '<p style="color: var(--text-light);">No notes yet.</p>';
+                return;
+            }
+
+            const categoryColors = {
+                skill_feedback: 'var(--secondary)',
+                reliability: 'var(--warning)',
+                fit: 'var(--accent)',
+                general: 'var(--text-light)'
+            };
+
+            container.innerHTML = notes.map(n => `
+                <div style="padding: 16px; background: var(--background); border-radius: var(--radius); margin-bottom: 12px; border-left: 4px solid ${categoryColors[n.category] || 'var(--border)'};">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="font-weight: 600; text-transform: uppercase; font-size: 0.75rem; color: var(--text-light);">${n.category.replace('_', ' ')}</span>
+                        <button class="btn btn-ghost btn-small" onclick="deleteNote(${n.id})" style="color: var(--error);">Delete</button>
+                    </div>
+                    <p style="white-space: pre-wrap;">${escapeHtml(n.content)}</p>
+                    <p style="font-size: 0.75rem; color: var(--text-light); margin-top: 8px;">
+                        ${n.author_name} · ${formatDateTime(n.created_at)}
+                    </p>
+                </div>
+            `).join('');
+        }
+
+        function renderTasks() {
+            const container = document.getElementById('tasksList');
+            const tasks = volunteer.starter_tasks || [];
+
+            if (tasks.length === 0) {
+                container.innerHTML = '<p style="color: var(--text-light);">No starter tasks assigned.</p>';
+                return;
+            }
+
+            const ratingColors = {
+                excellent: 'var(--success)',
+                good: 'var(--secondary)',
+                needs_improvement: 'var(--warning)'
+            };
+
+            container.innerHTML = tasks.map(t => `
+                <div style="padding: 16px; background: var(--background); border-radius: var(--radius); margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <div>
+                            <strong>${escapeHtml(t.title)}</strong>
+                            ${t.skill_name ? `<span class="skill-tag" style="margin-left: 8px;">${escapeHtml(t.skill_name)}</span>` : ''}
+                        </div>
+                        <span class="status-badge status-${t.status === 'completed' ? 'completed' : t.status === 'submitted' ? 'seeking_help' : 'on_hold'}">${t.status}</span>
+                    </div>
+                    ${t.review_rating ? `
+                        <p style="margin-top: 8px; font-weight: 500; color: ${ratingColors[t.review_rating] || 'inherit'};">
+                            Rating: ${t.review_rating}
+                        </p>
+                    ` : ''}
+                    ${t.review_notes ? `<p style="margin-top: 4px; font-size: 0.875rem; color: var(--text-light);">${escapeHtml(t.review_notes)}</p>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function renderProjectHistory() {
+            const container = document.getElementById('projectHistory');
+            const projects = volunteer.project_history || [];
+
+            if (projects.length === 0) {
+                container.innerHTML = '<p style="color: var(--text-light);">No project history.</p>';
+                return;
+            }
+
+            container.innerHTML = projects.map(p => `
+                <div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <div>
+                            <a href="/static/project.html?id=${p.id}" style="font-weight: 600; color: var(--secondary-dark);">${escapeHtml(p.title)}</a>
+                            <span style="font-size: 0.875rem; color: var(--text-light); margin-left: 8px;">
+                                ${p.owner_id === parseInt(volunteerId) ? 'Owner' : 'Proposer'}
+                            </span>
+                        </div>
+                        <span class="status-badge status-${p.status}">${formatStatus(p.status)}</span>
+                    </div>
+                    ${p.outcome ? `
+                        <p style="margin-top: 8px; font-size: 0.875rem;">
+                            Outcome: <strong>${p.outcome}</strong>
+                            ${p.outcome_notes ? ` - ${escapeHtml(p.outcome_notes)}` : ''}
+                        </p>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        function populateProjectDropdown() {
+            const projects = volunteer.project_history || [];
+            const select = document.getElementById('noteProject');
+            projects.forEach(p => {
+                const option = document.createElement('option');
+                option.value = p.id;
+                option.textContent = p.title;
+                select.appendChild(option);
+            });
+        }
+
+        async function loadSkillsDropdown() {
+            const skills = await apiRequest('/api/skills/flat');
+            const select = document.getElementById('endorseSkill');
+            skills.forEach(s => {
+                const option = document.createElement('option');
+                option.value = s.id;
+                option.textContent = `${s.name} (${s.category_name})`;
+                select.appendChild(option);
+            });
+        }
+
+        // Add Note
+        document.getElementById('noteForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                await apiRequest(`/api/admin/volunteers/${volunteerId}/notes`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        content: document.getElementById('noteContent').value.trim(),
+                        category: document.getElementById('noteCategory').value,
+                        related_project_id: document.getElementById('noteProject').value || null
+                    })
+                });
+                document.getElementById('noteContent').value = '';
+                showMessage('Note added.', 'success');
+                await loadVolunteer();
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        });
+
+        async function deleteNote(noteId) {
+            if (!confirm('Delete this note?')) return;
+            try {
+                await apiRequest(`/api/admin/notes/${noteId}`, { method: 'DELETE' });
+                showMessage('Note deleted.', 'success');
+                await loadVolunteer();
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        }
+
+        // Endorse Skill
+        document.getElementById('endorseForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                await apiRequest(`/api/admin/volunteers/${volunteerId}/endorsements`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        skill_id: parseInt(document.getElementById('endorseSkill').value),
+                        rating: document.getElementById('endorseRating').value,
+                        source: document.getElementById('endorseSource').value,
+                        notes: document.getElementById('endorseNotes').value.trim() || null
+                    })
+                });
+                showMessage('Skill endorsed!', 'success');
+                document.getElementById('endorseForm').reset();
+                await loadVolunteer();
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        });
+
+        function setupTabs() {
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+                    document.getElementById(`tab-${tab.dataset.tab}`).style.display = 'block';
+                });
+            });
+        }
+
+        init();
+    </script>
+</body>
+</html>

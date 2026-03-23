@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Volunteer Profile - Catalyse</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a href="/" class="logo"><img src="/static/images/pauseai-logo.png" alt="PauseAI"> Catalyse</a>
+            <nav>
+                <a href="/">Projects</a>
+                <a href="/static/volunteers.html" class="active">Volunteers</a>
+                <a href="/static/suggest.html">Suggest Project</a>
+            </nav>
+            <div class="nav-auth" id="authNav"></div>
+        </div>
+    </header>
+
+    <main class="container page">
+        <div id="loadingState" class="loading">
+            <div class="spinner"></div>
+            Loading profile...
+        </div>
+
+        <div id="profileContent" style="display: none;">
+            <div style="margin-bottom: 20px;">
+                <a href="/static/volunteers.html" style="color: var(--text-light);">&larr; Back to Volunteers</a>
+            </div>
+
+            <div id="messageDiv" class="message" style="display: none;"></div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h1 id="volunteerName" style="margin: 0;"></h1>
+                    <button id="contactBtn" class="btn btn-primary" style="display: none;">Contact</button>
+                </div>
+
+                <div id="volunteerLocation" style="color: var(--text-light); margin-bottom: 16px;"></div>
+
+                <div id="volunteerBio" style="white-space: pre-wrap; margin-bottom: 20px;"></div>
+
+                <h3>Skills</h3>
+                <div id="volunteerSkills" class="skills" style="margin-bottom: 20px;"></div>
+
+                <div id="otherSkills" style="display: none; margin-bottom: 20px;">
+                    <h4 style="color: var(--text-light);">Other Skills</h4>
+                    <p id="otherSkillsText"></p>
+                </div>
+
+                <div class="grid grid-2" style="margin-top: 20px;">
+                    <div id="availabilitySection" style="display: none;">
+                        <h4 style="color: var(--text-light);">Availability</h4>
+                        <p id="availabilityText"></p>
+                    </div>
+                    <div id="contactInfo" style="display: none;">
+                        <h4 style="color: var(--text-light);">Contact</h4>
+                        <div id="contactDetails"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="projectsSection" class="card" style="display: none;">
+                <h2>Projects</h2>
+                <div id="volunteerProjects"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Contact Modal -->
+    <div id="contactModal" class="modal-overlay" style="display: none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Contact <span id="contactModalName"></span></h2>
+                <button class="modal-close" onclick="closeModal('contactModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="contactForm">
+                    <div class="form-group">
+                        <label for="contactSubject" class="required">Subject</label>
+                        <input type="text" id="contactSubject" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="contactMessage" class="required">Message</label>
+                        <textarea id="contactMessage" required placeholder="Introduce yourself..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Send Message</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+    <script>
+        let volunteer = null;
+        let currentUser = null;
+
+        async function init() {
+            currentUser = await initAuthNav();
+
+            const volunteerId = getQueryParam('id');
+            if (!volunteerId) {
+                window.location.href = '/static/volunteers.html';
+                return;
+            }
+
+            await loadVolunteer(volunteerId);
+        }
+
+        async function loadVolunteer(volunteerId) {
+            try {
+                volunteer = await apiRequest(`/api/volunteers/${volunteerId}`);
+                renderProfile();
+                document.getElementById('loadingState').style.display = 'none';
+                document.getElementById('profileContent').style.display = 'block';
+            } catch (error) {
+                showMessage(error.message, 'error');
+                document.getElementById('loadingState').innerHTML = `
+                    <p style="color: var(--error);">Volunteer not found.</p>
+                    <a href="/static/volunteers.html" class="btn btn-secondary" style="margin-top: 16px;">Back to Volunteers</a>
+                `;
+            }
+        }
+
+        function renderProfile() {
+            document.title = `${volunteer.name} - Catalyse`;
+
+            document.getElementById('volunteerName').textContent = volunteer.name;
+
+            if (volunteer.location) {
+                document.getElementById('volunteerLocation').textContent = volunteer.location;
+            }
+
+            if (volunteer.bio) {
+                document.getElementById('volunteerBio').textContent = volunteer.bio;
+            } else {
+                document.getElementById('volunteerBio').innerHTML = '<em style="color: var(--text-light);">No bio provided</em>';
+            }
+
+            // Skills
+            if (volunteer.skills && volunteer.skills.length > 0) {
+                document.getElementById('volunteerSkills').innerHTML = volunteer.skills.map(s =>
+                    `<span class="skill-tag">${escapeHtml(s.name)}</span>`
+                ).join('');
+            } else {
+                document.getElementById('volunteerSkills').innerHTML = '<em style="color: var(--text-light);">No skills listed</em>';
+            }
+
+            // Other skills
+            if (volunteer.other_skills) {
+                document.getElementById('otherSkills').style.display = 'block';
+                document.getElementById('otherSkillsText').textContent = volunteer.other_skills;
+            }
+
+            // Availability
+            if (volunteer.availability_hours_per_week) {
+                document.getElementById('availabilitySection').style.display = 'block';
+                document.getElementById('availabilityText').textContent = `${volunteer.availability_hours_per_week} hours/week`;
+            }
+
+            // Contact info (only shown if they opted to share directly)
+            if (volunteer.email || volunteer.discord_handle || volunteer.signal_number || volunteer.whatsapp_number) {
+                document.getElementById('contactInfo').style.display = 'block';
+                let contactHtml = [];
+                if (volunteer.email) contactHtml.push(`Email: ${escapeHtml(volunteer.email)}`);
+                if (volunteer.discord_handle) contactHtml.push(`Discord: ${escapeHtml(volunteer.discord_handle)}`);
+                if (volunteer.signal_number) contactHtml.push(`Signal: ${escapeHtml(volunteer.signal_number)}`);
+                if (volunteer.whatsapp_number) contactHtml.push(`WhatsApp: ${escapeHtml(volunteer.whatsapp_number)}`);
+                if (volunteer.contact_notes) contactHtml.push(`<em>${escapeHtml(volunteer.contact_notes)}</em>`);
+                document.getElementById('contactDetails').innerHTML = contactHtml.join('<br>');
+            }
+
+            // Contact button (only for logged-in users viewing other profiles)
+            if (currentUser && currentUser.id !== volunteer.id) {
+                document.getElementById('contactBtn').style.display = 'inline-flex';
+            }
+
+            // Projects
+            if (volunteer.projects && volunteer.projects.length > 0) {
+                document.getElementById('projectsSection').style.display = 'block';
+                document.getElementById('volunteerProjects').innerHTML = volunteer.projects.map(p => `
+                    <div style="padding: 12px 0; border-bottom: 1px solid var(--border);">
+                        <a href="/static/project.html?id=${p.id}" style="font-weight: 600; color: var(--secondary-dark);">
+                            ${escapeHtml(p.title)}
+                        </a>
+                        <span class="status-badge status-${p.status}" style="margin-left: 8px;">${formatStatus(p.status)}</span>
+                    </div>
+                `).join('');
+            }
+        }
+
+        document.getElementById('contactBtn').addEventListener('click', () => {
+            document.getElementById('contactModalName').textContent = volunteer.name;
+            openModal('contactModal');
+        });
+
+        document.getElementById('contactForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.disabled = true;
+
+            try {
+                await apiRequest(`/api/contact/${volunteer.id}`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        subject: document.getElementById('contactSubject').value.trim(),
+                        message: document.getElementById('contactMessage').value.trim()
+                    })
+                });
+                closeModal('contactModal');
+                showMessage('Message sent!', 'success');
+                document.getElementById('contactForm').reset();
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+            btn.disabled = false;
+        });
+
+        init();
+    </script>
+</body>
+</html>

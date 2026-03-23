@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Catalyse</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a href="/" class="logo"><img src="/static/images/pauseai-logo.png" alt="PauseAI"> Catalyse</a>
+            <nav>
+                <a href="/">Projects</a>
+                <a href="/static/volunteers.html">Volunteers</a>
+            </nav>
+            <div class="nav-auth">
+                <a href="/static/signup.html" class="btn btn-primary">Sign Up</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="container page">
+        <div style="max-width: 400px; margin: 60px auto;">
+            <h1 style="text-align: center;">Welcome Back</h1>
+            <p style="text-align: center; color: var(--text-light); margin-bottom: 32px;">
+                Login to access your dashboard and projects.
+            </p>
+
+            <div id="messageDiv" class="message" style="display: none;"></div>
+
+            <form id="loginForm" class="card">
+                <div class="form-group">
+                    <label for="email" class="required">Email</label>
+                    <input type="email" id="email" name="email" required placeholder="you@example.com" autofocus>
+                </div>
+
+                <div class="form-group">
+                    <label for="password" class="required">Password</label>
+                    <input type="password" id="password" name="password" required placeholder="Your password">
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                    Login
+                </button>
+
+                <p style="text-align: center; margin-top: 16px;">
+                    <a href="/static/forgot-password.html">Forgot your password?</a>
+                </p>
+
+                <p style="text-align: center; margin-top: 12px; color: var(--text-light);">
+                    Don't have an account? <a href="/static/signup.html">Sign up</a>
+                </p>
+            </form>
+        </div>
+    </main>
+
+    <script src="/static/app.js"></script>
+    <script>
+        async function init() {
+            const user = await getCurrentUser();
+            if (user) {
+                const redirect = getQueryParam('redirect') || '/static/dashboard.html';
+                window.location.href = redirect;
+            }
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const form = e.target;
+            const submitBtn = form.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Logging in...';
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: form.email.value.trim(),
+                        password: form.password.value
+                    })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.detail || 'Login failed');
+                }
+
+                localStorage.setItem('authToken', result.auth_token);
+                showMessage('Login successful!', 'success');
+
+                setTimeout(() => {
+                    const redirect = getQueryParam('redirect') || '/static/dashboard.html';
+                    window.location.href = redirect;
+                }, 500);
+
+            } catch (error) {
+                showMessage(error.message, 'error');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Login';
+            }
+        });
+
+        init();
+    </script>
+</body>
+</html>

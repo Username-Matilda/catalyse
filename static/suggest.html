@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suggest a Project - Catalyse</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a href="/" class="logo"><img src="/static/images/pauseai-logo.png" alt="PauseAI"> Catalyse</a>
+            <nav>
+                <a href="/">Projects</a>
+                <a href="/static/volunteers.html">Volunteers</a>
+                <a href="/static/suggest.html" class="active">Suggest Project</a>
+            </nav>
+            <div class="nav-auth" id="authNav"></div>
+        </div>
+    </header>
+
+    <main class="container page">
+        <div style="max-width: 700px; margin: 0 auto;">
+            <h1>Suggest a Project</h1>
+            <p style="color: var(--text-light); margin-bottom: 24px;">
+                Have an idea for something PauseAI UK should do? Propose it here!
+                Our team will review it and, if approved, it'll be visible to all volunteers.
+            </p>
+
+            <div id="messageDiv" class="message" style="display: none;"></div>
+
+            <div id="loginPrompt" class="card" style="display: none; text-align: center;">
+                <h2>Login Required</h2>
+                <p style="margin: 16px 0;">You need to be logged in to suggest a project.</p>
+                <a href="/static/login.html?redirect=/static/suggest.html" class="btn btn-primary">Login</a>
+                <a href="/static/signup.html" class="btn btn-outline" style="margin-left: 12px;">Sign Up</a>
+            </div>
+
+            <form id="suggestForm" class="card" style="display: none;">
+                <div class="form-group">
+                    <label for="title" class="required">Project Title</label>
+                    <input type="text" id="title" name="title" required placeholder="A clear, descriptive name for the project">
+                </div>
+
+                <div class="form-group">
+                    <label for="description" class="required">Description</label>
+                    <textarea id="description" name="description" required style="min-height: 280px;"
+                        placeholder="Help us understand your project idea:
+
+GOAL & IMPACT
+- What problem does this solve or opportunity does it create?
+- What does success look like? How would we measure it?
+
+APPROACH & ACTIVITIES
+- What are the key steps or activities involved?
+- Do you have a rough sense of how this would work?
+
+FEASIBILITY
+- What are the main uncertainties or risks?
+- What resources, access, or dependencies are needed?
+- Is there existing work we could build on?
+
+TEAM & COLLABORATION
+- What kinds of contributors would be ideal? (skills, experience, availability)
+- How do you imagine the team working together? (async, regular syncs, etc.)"></textarea>
+                    <p class="form-hint">The more detail you provide, the easier it is to find the right contributors and get started.</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="project_type">Project Type</label>
+                    <select id="project_type" name="project_type">
+                        <option value="">Select a project type...</option>
+                        <option value="sprint">Sprint (1-2 weeks) - Focused burst of work with clear deliverable</option>
+                        <option value="container">Time-boxed (1-3 months) - Defined scope with end date</option>
+                        <option value="ongoing">Ongoing - Continuous work without fixed end date</option>
+                        <option value="one_off">One-off task - Single deliverable, minimal coordination</option>
+                    </select>
+                    <p class="form-hint">This helps contributors understand the commitment involved</p>
+                </div>
+
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label for="time_commitment">Hours per Week</label>
+                        <input type="number" id="time_commitment" name="time_commitment" min="1" max="40" placeholder="e.g., 5">
+                        <p class="form-hint">Estimated weekly time from each contributor</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="urgency">Urgency</label>
+                        <select id="urgency" name="urgency">
+                            <option value="low">Low - Nice to have</option>
+                            <option value="medium" selected>Medium - Should do soon</option>
+                            <option value="high">High - Urgent / time-sensitive</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group" id="durationGroup" style="display: none;">
+                    <label for="estimated_duration">Estimated Duration</label>
+                    <input type="text" id="estimated_duration" name="estimated_duration" placeholder="e.g., 6 weeks, 2 months">
+                    <p class="form-hint">Roughly how long do you expect this to take?</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="collaboration_link">Collaboration Link (optional)</label>
+                    <input type="url" id="collaboration_link" name="collaboration_link" placeholder="e.g., Notion doc, Google doc, GitHub repo...">
+                    <p class="form-hint">If you have a planning doc or workspace set up</p>
+                </div>
+
+                <h3 style="margin-top: 24px;">Skills Needed</h3>
+                <p class="form-hint" style="margin-bottom: 12px;">What skills would be helpful for this project?</p>
+
+                <div id="skillSelector" class="skill-selector">
+                    <div class="loading"><div class="spinner"></div>Loading skills...</div>
+                </div>
+
+                <div class="form-group" style="margin-top: 16px;">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="want_to_own" name="want_to_own">
+                        <span><strong>I want to lead this project</strong> - I'll be the owner and coordinate the work</span>
+                    </label>
+                </div>
+
+                <div class="message info" style="margin-top: 20px;">
+                    <span>Your project will be reviewed by PauseAI UK team leads before being published. We'll reach out if we have questions or suggestions.</span>
+                </div>
+
+                <div style="margin-top: 24px;">
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">
+                        Submit Project Proposal
+                    </button>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <script src="/static/app.js"></script>
+    <script>
+        let currentUser = null;
+
+        async function init() {
+            currentUser = await initAuthNav();
+
+            if (!currentUser) {
+                document.getElementById('loginPrompt').style.display = 'block';
+                return;
+            }
+
+            document.getElementById('suggestForm').style.display = 'block';
+            renderSkillSelector('skillSelector');
+        }
+
+        // Show/hide duration field based on project type
+        document.getElementById('project_type').addEventListener('change', (e) => {
+            const durationGroup = document.getElementById('durationGroup');
+            const showDuration = ['sprint', 'container'].includes(e.target.value);
+            durationGroup.style.display = showDuration ? 'block' : 'none';
+        });
+
+        document.getElementById('suggestForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const form = e.target;
+            const submitBtn = form.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Submitting...';
+
+            try {
+                const skillIds = getSelectedSkills('skillSelector');
+                // For now, mark all selected skills as required
+                const skillRequiredMap = {};
+                skillIds.forEach(id => skillRequiredMap[id] = true);
+
+                const data = {
+                    title: form.title.value.trim(),
+                    description: form.description.value.trim(),
+                    project_type: form.project_type.value || null,
+                    estimated_duration: form.estimated_duration.value.trim() || null,
+                    time_commitment_hours_per_week: form.time_commitment.value ? parseInt(form.time_commitment.value) : null,
+                    urgency: form.urgency.value,
+                    collaboration_link: form.collaboration_link.value.trim() || null,
+                    skill_ids: skillIds,
+                    skill_required_map: skillRequiredMap,
+                    want_to_own: form.want_to_own.checked
+                };
+
+                const result = await apiRequest('/api/projects', {
+                    method: 'POST',
+                    body: JSON.stringify(data)
+                });
+
+                showMessage('Project submitted for review! We\'ll be in touch.', 'success');
+
+                // Clear form
+                form.reset();
+                document.querySelectorAll('.skill-option.selected').forEach(el => {
+                    el.classList.remove('selected');
+                    el.querySelector('input').checked = false;
+                });
+
+                // Redirect to dashboard after a moment
+                setTimeout(() => {
+                    window.location.href = '/static/dashboard.html';
+                }, 2000);
+
+            } catch (error) {
+                showMessage(error.message, 'error');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit Project Proposal';
+            }
+        });
+
+        init();
+    </script>
+</body>
+</html>
