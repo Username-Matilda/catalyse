@@ -1150,13 +1150,18 @@ def get_volunteer(
         raise HTTPException(status_code=404, detail="Volunteer not found")
 
     # Determine if we should show contact info
+    # All logged-in volunteers can see contact details (small trusted community)
+    # The consent_contact_by_owners flag controls whether they WANT to be contacted
     show_contact = False
     if current_volunteer:
         # Show contact if it's their own profile
         if current_volunteer["id"] == volunteer_id:
             show_contact = True
-        # Show contact if they share directly AND viewer is logged in
-        elif volunteer["share_contact_directly"] and volunteer["consent_contact_by_owners"]:
+        # Admins can always see contact info
+        elif current_volunteer.get("is_admin"):
+            show_contact = True
+        # Show contact to any logged-in volunteer if the person consents to being contacted
+        elif volunteer["consent_contact_by_owners"]:
             show_contact = True
 
     result = enrich_volunteer(conn, dict(volunteer), show_contact=show_contact)

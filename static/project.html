@@ -574,12 +574,10 @@
                 if (vol.whatsapp_number) channels.push(`<div style="padding: 8px 0;"><strong>WhatsApp:</strong> ${escapeHtml(vol.whatsapp_number)}</div>`);
                 if (vol.contact_notes) channels.push(`<div style="padding: 8px 0; color: var(--text-light); font-style: italic;">${escapeHtml(vol.contact_notes)}</div>`);
 
-                if (channels.length === 0) {
-                    document.getElementById('contactChannels').innerHTML = '';
-                    document.getElementById('noContactInfo').style.display = 'block';
-                } else {
-                    document.getElementById('contactChannels').innerHTML = channels.join('');
-                }
+                // Always add a link to their full profile
+                channels.push(`<div style="padding: 12px 0; border-top: 1px solid var(--border); margin-top: 8px;"><a href="/static/volunteer.html?id=${volunteerId}" class="btn btn-small btn-outline">View Full Profile</a></div>`);
+
+                document.getElementById('contactChannels').innerHTML = channels.join('');
             } catch (error) {
                 document.getElementById('contactChannels').innerHTML = '';
                 document.getElementById('noContactInfo').style.display = 'block';
