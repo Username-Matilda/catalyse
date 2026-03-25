@@ -266,7 +266,7 @@
             const tasks = volunteer.starter_tasks || [];
 
             if (tasks.length === 0) {
-                container.innerHTML = '<p style="color: var(--text-light);">No starter tasks assigned.</p>';
+                container.innerHTML = '<div class="empty-state"><p>No starter tasks assigned yet.</p></div>';
                 return;
             }
 
@@ -300,7 +300,7 @@
             const projects = volunteer.project_history || [];
 
             if (projects.length === 0) {
-                container.innerHTML = '<p style="color: var(--text-light);">No project history.</p>';
+                container.innerHTML = '<div class="empty-state"><p>No project history.</p></div>';
                 return;
             }
 

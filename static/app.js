@@ -136,7 +136,10 @@ function renderSkillSelector(containerId, selectedIds = [], onChangeCallback = n
         });
     }).catch(err => {
         console.error('Failed to load skills:', err);
-        container.innerHTML = '<p style="color: var(--error);">Failed to load skills. Please refresh.</p>';
+        container.innerHTML = `
+            <p style="color: var(--error); margin-bottom: 8px;">Failed to load skills.</p>
+            <button class="btn btn-small btn-outline" onclick="renderSkillSelector('${containerId}', ${JSON.stringify(selectedIds)})">Try Again</button>
+        `;
     });
 }
 

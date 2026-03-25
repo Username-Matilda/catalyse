@@ -65,6 +65,10 @@
                 return;
             }
             await loadSkillsFilter();
+            // Restore filters from URL
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('search')) document.getElementById('searchInput').value = urlParams.get('search');
+            if (urlParams.get('skill_ids')) document.getElementById('skillFilter').value = urlParams.get('skill_ids');
             await loadVolunteers();
             setupFilters();
         }
@@ -85,11 +89,17 @@
         }
 
         async function loadVolunteers() {
+            // Save filters to URL
+            const urlParams = new URLSearchParams();
+            const search = document.getElementById('searchInput').value;
+            const skillId = document.getElementById('skillFilter').value;
+            if (search) urlParams.set('search', search);
+            if (skillId) urlParams.set('skill_ids', skillId);
+            const newUrl = urlParams.toString() ? `?${urlParams}` : window.location.pathname;
+            history.replaceState(null, '', newUrl);
+
             try {
                 const params = new URLSearchParams();
-                const search = document.getElementById('searchInput').value;
-                const skillId = document.getElementById('skillFilter').value;
-
                 if (search) params.set('search', search);
                 if (skillId) params.set('skill_ids', skillId);
 

@@ -93,8 +93,31 @@
                 return;
             }
             if (currentUser.is_admin) await loadAdminBanner();
+            restoreFiltersFromURL();
             await loadProjects();
             setupFilters();
+        }
+
+        function restoreFiltersFromURL() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('status')) document.getElementById('statusFilter').value = params.get('status');
+            if (params.get('urgency')) document.getElementById('urgencyFilter').value = params.get('urgency');
+            if (params.get('search')) document.getElementById('searchInput').value = params.get('search');
+            if (params.get('sort_by')) document.getElementById('sortFilter').value = params.get('sort_by');
+        }
+
+        function saveFiltersToURL() {
+            const params = new URLSearchParams();
+            const status = document.getElementById('statusFilter').value;
+            const urgency = document.getElementById('urgencyFilter').value;
+            const search = document.getElementById('searchInput').value;
+            const sortBy = document.getElementById('sortFilter').value;
+            if (status) params.set('status', status);
+            if (urgency) params.set('urgency', urgency);
+            if (search) params.set('search', search);
+            if (sortBy && sortBy !== 'created_at') params.set('sort_by', sortBy);
+            const newUrl = params.toString() ? `?${params}` : window.location.pathname;
+            history.replaceState(null, '', newUrl);
         }
 
         async function loadAdminBanner() {
@@ -114,6 +137,7 @@
         }
 
         async function loadProjects() {
+            saveFiltersToURL();
             try {
                 const params = new URLSearchParams();
                 const status = document.getElementById('statusFilter').value;
