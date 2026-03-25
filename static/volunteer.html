@@ -77,6 +77,10 @@
 
         async function init() {
             currentUser = await initAuthNav();
+            if (!currentUser) {
+                window.location.href = '/static/login.html';
+                return;
+            }
 
             const volunteerId = getQueryParam('id');
             if (!volunteerId) {

@@ -346,7 +346,7 @@
                             ${!n.read_at ? '<span class="notification-badge">New</span>' : ''}
                         </div>
                         ${n.body ? `<p style="margin-top: 8px; color: var(--text-light);">${escapeHtml(n.body)}</p>` : ''}
-                        ${n.link ? `<a href="${n.link.startsWith('/static/') || n.link.startsWith('/') ? n.link : '/static/project.html?id=' + n.link.replace('/projects/', '')}" class="btn btn-small btn-ghost" style="margin-top: 8px;">View</a>` : ''}
+                        ${n.link ? `<a href="${escapeHtml(n.link)}" class="btn btn-small btn-ghost" style="margin-top: 8px;">View</a>` : ''}
                     </div>
                 `).join('')}
             `;

@@ -47,7 +47,11 @@
     <script src="/static/app.js"></script>
     <script>
         async function init() {
-            await initAuthNav();
+            const user = await initAuthNav();
+            if (!user) {
+                window.location.href = '/static/login.html';
+                return;
+            }
             await loadTasks();
         }
 

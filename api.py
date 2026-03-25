@@ -1437,7 +1437,7 @@ def create_project(
                 conn, admin["id"], "new_project_proposal",
                 f"New project proposal: {data.title}",
                 f"Proposed by {volunteer['name']}",
-                f"/admin/triage"
+                "/static/admin/triage.html"
             )
 
         return {"id": project_id, "message": "Project submitted for review"}
@@ -1622,7 +1622,7 @@ def review_project(
                     conn, project["proposed_by_id"], "project_approved",
                     f"Your project '{project['title']}' has been approved!",
                     "It's now visible to other volunteers.",
-                    f"/projects/{project_id}"
+                    f"/static/project.html?id={project_id}"
                 )
 
         elif data.status == "needs_discussion":
@@ -1641,7 +1641,7 @@ def review_project(
                     conn, project["proposed_by_id"], "project_needs_discussion",
                     f"Let's discuss your project '{project['title']}'",
                     data.feedback_to_proposer or "A team lead wants to chat about your proposal.",
-                    f"/projects/{project_id}"
+                    f"/static/project.html?id={project_id}"
                 )
 
         return {"message": f"Project marked as {data.status}"}
@@ -2505,7 +2505,7 @@ def express_interest(
                 conn, project["owner_id"], "new_interest",
                 f"Someone's interested in '{project['title']}'!",
                 f"{volunteer['name']} wants to {data.interest_type.replace('_', ' ')}",
-                f"/projects/{project_id}"
+                f"/static/project.html?id={project_id}"
             )
 
         return {"message": "Interest expressed successfully"}
@@ -2555,7 +2555,7 @@ def respond_to_interest(
             conn, interest["volunteer_id"], f"interest_{status_text}",
             f"Your interest in '{project['title']}' was {status_text}",
             data.response_message,
-            f"/projects/{project_id}"
+            f"/static/project.html?id={project_id}"
         )
 
         # If accepting as owner, update project
@@ -2624,7 +2624,7 @@ def send_contact_message(
             conn, volunteer_id, "message_received",
             f"New message from {sender['name']}",
             data.subject,
-            "/dashboard/messages"
+            "/static/dashboard.html"
         )
 
         return {"message": "Message sent"}

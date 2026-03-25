@@ -39,7 +39,9 @@
                     <option value="seeking_owner">Seeking Owner</option>
                     <option value="seeking_help">Seeking Help</option>
                     <option value="in_progress">In Progress</option>
+                    <option value="on_hold">On Hold</option>
                     <option value="completed">Completed</option>
+                    <option value="archived">Archived</option>
                 </select>
             </div>
             <div class="filter-group">
@@ -60,6 +62,8 @@
                 </select>
             </div>
         </div>
+
+        <div id="adminBanner" style="display: none; margin-bottom: 16px;"></div>
 
         <div id="messageDiv" class="message" style="display: none;"></div>
 
@@ -83,75 +87,33 @@
         let currentUser = null;
 
         async function init() {
-            await checkAuth();
+            currentUser = await initAuthNav();
+            if (!currentUser) {
+                window.location.href = '/static/login.html';
+                return;
+            }
+            if (currentUser.is_admin) await loadAdminBanner();
             await loadProjects();
             setupFilters();
         }
 
-        async function checkAuth() {
-            const token = localStorage.getItem('authToken');
-            if (token) {
-                try {
-                    const response = await fetch('/api/auth/me', {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    });
-                    if (response.ok) {
-                        currentUser = await response.json();
-                        renderAuthNav(true);
-                        return;
-                    }
-                } catch (e) {
-                    console.error('Auth check failed:', e);
-                }
-                localStorage.removeItem('authToken');
-            }
-            renderAuthNav(false);
-        }
-
-        function renderAuthNav(loggedIn) {
-            const nav = document.getElementById('authNav');
-            if (loggedIn) {
-                nav.innerHTML = `
-                    <a href="/static/dashboard.html" class="btn btn-ghost">Dashboard</a>
-                    <div class="user-menu">
-                        <button class="user-button" onclick="toggleUserMenu()">
-                            ${currentUser.name}
-                        </button>
-                        <div class="user-dropdown" id="userDropdown">
-                            <a href="/static/profile.html">My Profile</a>
-                            <a href="/static/dashboard.html">Dashboard</a>
-                            <a href="#" onclick="logout(); return false;">Logout</a>
+        async function loadAdminBanner() {
+            try {
+                const stats = await apiRequest('/api/admin/stats');
+                if (stats.projects.pending_review > 0) {
+                    const banner = document.getElementById('adminBanner');
+                    banner.style.display = 'block';
+                    banner.innerHTML = `
+                        <div class="message info" style="display: flex; justify-content: space-between; align-items: center;">
+                            <span><strong>${stats.projects.pending_review}</strong> project${stats.projects.pending_review > 1 ? 's' : ''} awaiting review</span>
+                            <a href="/static/admin/triage.html" class="btn btn-small btn-primary">Review</a>
                         </div>
-                    </div>
-                `;
-            } else {
-                nav.innerHTML = `
-                    <a href="/static/login.html" class="btn btn-outline">Login</a>
-                    <a href="/static/signup.html" class="btn btn-primary">Sign Up</a>
-                `;
-            }
-        }
-
-        function toggleUserMenu() {
-            document.getElementById('userDropdown').classList.toggle('show');
-        }
-
-        async function logout() {
-            const token = localStorage.getItem('authToken');
-            if (token) {
-                await fetch('/api/auth/logout', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-            }
-            localStorage.removeItem('authToken');
-            window.location.href = '/static/login.html';
+                    `;
+                }
+            } catch (e) { /* not admin or error, ignore */ }
         }
 
         async function loadProjects() {
-            const token = localStorage.getItem('authToken');
-            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-
             try {
                 const params = new URLSearchParams();
                 const status = document.getElementById('statusFilter').value;
@@ -164,8 +126,7 @@
                 if (search) params.set('search', search);
                 if (sortBy) params.set('sort_by', sortBy);
 
-                const response = await fetch(`/api/projects?${params}`, { headers });
-                const data = await response.json();
+                const data = await apiRequest(`/api/projects?${params}`);
                 allProjects = data.projects;
                 renderProjects();
             } catch (error) {
@@ -272,13 +233,6 @@
             div.style.display = 'flex';
             setTimeout(() => div.style.display = 'none', 5000);
         }
-
-        // Close dropdown when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.user-menu')) {
-                document.getElementById('userDropdown')?.classList.remove('show');
-            }
-        });
 
         init();
     </script>
