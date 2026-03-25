@@ -120,12 +120,12 @@
         async function loadStarterTasks() {
             try {
                 const tasks = await apiRequest('/api/my/starter-tasks');
-                const activeTasks = tasks.filter(t => ['assigned', 'submitted', 'reviewed'].includes(t.status));
+                const visibleTasks = tasks.filter(t => ['assigned', 'submitted', 'reviewed', 'completed'].includes(t.status));
 
-                if (activeTasks.length > 0) {
+                if (visibleTasks.length > 0) {
                     const banner = document.getElementById('starterTasksBanner');
                     banner.style.display = 'block';
-                    banner.innerHTML = activeTasks.map(t => `
+                    banner.innerHTML = visibleTasks.map(t => `
                         <div class="card" style="border-left: 4px solid var(--secondary); margin-bottom: 12px;">
                             <div class="card-header">
                                 <div>
@@ -141,6 +141,11 @@
                                 </span>
                             </div>
                             <p style="white-space: pre-wrap; margin: 12px 0;">${escapeHtml(t.description)}</p>
+                            ${t.review_rating ? `
+                                <p style="margin-top: 8px; font-weight: 500; color: ${t.review_rating === 'excellent' ? 'var(--success)' : t.review_rating === 'good' ? 'var(--secondary)' : 'var(--error)'};">
+                                    Rating: ${t.review_rating}
+                                </p>
+                            ` : ''}
                             ${t.feedback_to_volunteer ? `
                                 <div class="message info">
                                     <strong>Feedback:</strong> ${escapeHtml(t.feedback_to_volunteer)}
@@ -260,7 +265,7 @@
                     <p style="font-size: 0.875rem; color: var(--text-light);">
                         ${formatInterestType(i.interest_type)} · Submitted ${formatDate(i.created_at)}
                     </p>
-                    ${i.message ? `<p style="font-style: italic; margin-top: 8px;">"${escapeHtml(truncate(i.message, 100))}"</p>` : ''}
+                    ${i.message ? `<p style="font-style: italic; margin-top: 8px; white-space: pre-wrap;">"${escapeHtml(i.message)}"</p>` : ''}
                     <div class="card-footer">
                         <span style="font-size: 0.875rem;">Project: <span class="status-badge status-${i.project_status}">${formatStatus(i.project_status)}</span></span>
                         <a href="/static/project.html?id=${i.project_id}" class="btn btn-small btn-outline">View Project</a>
@@ -296,7 +301,7 @@
                         </div>
                         <p class="card-description">${escapeHtml(truncate(p.description, 150))}</p>
                         <div class="skills">
-                            ${p.skills.slice(0, 4).map(s => `<span class="skill-tag">${escapeHtml(s.name)}</span>`).join('')}
+                            ${p.skills.map(s => `<span class="skill-tag">${escapeHtml(s.name)}</span>`).join('')}
                         </div>
                         <div class="card-footer">
                             <span class="status-badge status-${p.status}">${formatStatus(p.status)}</span>

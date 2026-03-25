@@ -383,7 +383,7 @@
                     </div>
                     ${interest.message ? `<p class="interest-message">"${escapeHtml(interest.message)}"</p>` : ''}
                     <div class="skills" style="margin: 8px 0;">
-                        ${(interest.volunteer_skills || []).slice(0, 5).map(s => `<span class="skill-tag">${escapeHtml(s.name)}</span>`).join('')}
+                        ${(interest.volunteer_skills || []).map(s => `<span class="skill-tag">${escapeHtml(s.name)}</span>`).join('')}
                     </div>
                     ${interest.status === 'pending' ? `
                         <div class="interest-actions">

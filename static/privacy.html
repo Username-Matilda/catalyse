@@ -29,7 +29,7 @@
 
             <div id="messageDiv" class="message" style="display: none;"></div>
 
-            <div class="card">
+            <div id="dataManagement" class="card" style="display: none;">
                 <h2>Export Your Data</h2>
                 <p style="color: var(--text-light); margin-bottom: 16px;">
                     Download all your data in JSON format. This includes your profile, skills, project interests, and messages.
@@ -37,7 +37,7 @@
                 <button id="exportBtn" class="btn btn-secondary">Download My Data</button>
             </div>
 
-            <div class="card" style="border-color: var(--warning);">
+            <div id="deleteSection" class="card" style="display: none; border-color: var(--warning);">
                 <h2>Delete Your Account</h2>
                 <p style="color: var(--text-light); margin-bottom: 16px;">
                     Permanently delete your account and all associated data. This action cannot be undone.
@@ -136,9 +136,10 @@
         async function init() {
             currentUser = await initAuthNav();
 
-            if (!currentUser) {
-                window.location.href = '/static/login.html?redirect=/static/privacy.html';
-                return;
+            if (currentUser) {
+                // Show data management sections for logged-in users
+                document.getElementById('dataManagement').style.display = 'block';
+                document.getElementById('deleteSection').style.display = 'block';
             }
         }
 
