@@ -133,6 +133,31 @@
                 </div>
                 <button class="btn btn-primary btn-small" onclick="updateProjectStatus()">Update Status</button>
             </div>
+
+            <!-- Admin triage (for pending projects) -->
+            <div id="triageSection" class="card" style="display: none; border-left: 4px solid var(--warning);">
+                <h2>Review This Proposal</h2>
+                <p style="color: var(--text-light); margin-bottom: 16px;">This project is awaiting admin review.</p>
+                <div class="form-group">
+                    <label for="triageNotes">Review Notes (internal)</label>
+                    <textarea id="triageNotes" placeholder="Notes for other admins..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="triageFeedback">Feedback to Proposer (optional)</label>
+                    <textarea id="triageFeedback" placeholder="Message to the person who proposed this..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="triageStatus">Approve as</label>
+                    <select id="triageStatus">
+                        <option value="seeking_owner">Seeking Owner</option>
+                        <option value="seeking_help">Seeking Help</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 12px;">
+                    <button class="btn btn-primary btn-small" onclick="reviewProject('approved')">Approve</button>
+                    <button class="btn btn-outline btn-small" onclick="reviewProject('needs_discussion')">Needs Discussion</button>
+                </div>
+            </div>
         </div>
     </main>
 
@@ -167,6 +192,10 @@
 
         async function init() {
             currentUser = await initAuthNav();
+            if (!currentUser) {
+                window.location.href = '/static/login.html';
+                return;
+            }
 
             const projectId = getQueryParam('id');
             if (!projectId) {
@@ -354,7 +383,7 @@
                     </div>
                     ${interest.message ? `<p class="interest-message">"${escapeHtml(interest.message)}"</p>` : ''}
                     <div class="skills" style="margin: 8px 0;">
-                        ${(interest.volunteer_skills || []).slice(0, 5).map(s => `<span class="skill-tag">${escapeHtml(s.name)}</span>`).join('')}
+                        ${(interest.volunteer_skills || []).map(s => `<span class="skill-tag">${escapeHtml(s.name)}</span>`).join('')}
                     </div>
                     ${interest.status === 'pending' ? `
                         <div class="interest-actions">
@@ -408,6 +437,32 @@
                 }
 
                 select.value = project.status;
+            }
+
+            // Show triage section for admins viewing pending projects
+            if (isAdmin && ['pending_review', 'needs_discussion'].includes(project.status)) {
+                document.getElementById('triageSection').style.display = 'block';
+            }
+        }
+
+        async function reviewProject(decision) {
+            try {
+                const data = {
+                    status: decision,
+                    review_notes: document.getElementById('triageNotes').value.trim() || null,
+                    feedback_to_proposer: document.getElementById('triageFeedback').value.trim() || null
+                };
+                if (decision === 'approved') {
+                    data.target_status = document.getElementById('triageStatus').value;
+                }
+                await apiRequest(`/api/admin/projects/${project.id}/review`, {
+                    method: 'POST',
+                    body: JSON.stringify(data)
+                });
+                showMessage(decision === 'approved' ? 'Project approved!' : 'Marked for discussion.', 'success');
+                await loadProject(project.id);
+            } catch (error) {
+                showMessage(error.message, 'error');
             }
         }
 

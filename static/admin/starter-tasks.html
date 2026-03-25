@@ -217,7 +217,7 @@
                             ${t.status}
                         </span>
                     </div>
-                    <p style="white-space: pre-wrap;">${escapeHtml(truncate(t.description, 200))}</p>
+                    <p style="white-space: pre-wrap;">${escapeHtml(t.description)}</p>
                     ${t.review_rating ? `
                         <p style="margin-top: 12px; font-weight: 500; color: ${ratingColors[t.review_rating]};">
                             Rating: ${t.review_rating}

@@ -199,7 +199,6 @@ async function initAuthNav() {
     if (user) {
         const isAdmin = user.is_admin;
         nav.innerHTML = `
-            ${isAdmin ? '<a href="/static/admin/triage.html" class="btn btn-ghost">Admin</a>' : ''}
             <a href="/static/dashboard.html" class="btn btn-ghost">Dashboard</a>
             <div class="user-menu">
                 <button class="user-button" onclick="toggleUserMenu()">
@@ -210,6 +209,17 @@ async function initAuthNav() {
                     <a href="/static/dashboard.html">Dashboard</a>
                     <a href="/static/settings.html">Account Settings</a>
                     <a href="/static/privacy.html">Privacy & Data</a>
+                    ${isAdmin ? `
+                        <hr style="margin: 6px 0; border: none; border-top: 1px solid var(--border);">
+                        <a href="/static/admin/triage.html">Triage Queue</a>
+                        <a href="/static/admin/create-project.html">Create Org Project</a>
+                        <a href="/static/admin/starter-tasks.html">Manage Starter Tasks</a>
+                        <a href="/static/admin/skills.html">Manage Skills</a>
+                        <a href="/static/admin/bugs.html">Bug Reports</a>
+                        <a href="/static/admin/team.html">Admin Team</a>
+                        <a href="/static/admin/stats.html">Platform Stats</a>
+                    ` : ''}
+                    <hr style="margin: 6px 0; border: none; border-top: 1px solid var(--border);">
                     <a href="#" onclick="logout(); return false;">Logout</a>
                 </div>
             </div>

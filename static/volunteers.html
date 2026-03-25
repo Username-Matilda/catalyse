@@ -60,6 +60,10 @@
 
         async function init() {
             currentUser = await initAuthNav();
+            if (!currentUser) {
+                window.location.href = '/static/login.html';
+                return;
+            }
             await loadSkillsFilter();
             await loadVolunteers();
             setupFilters();
