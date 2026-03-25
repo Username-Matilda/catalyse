@@ -70,22 +70,41 @@
                 emptyState.style.display = 'none';
                 container.innerHTML = tasks.map(task => `
                     <div class="card" style="margin-bottom: 16px;">
-                        <div class="card-header">
-                            <h3 class="card-title">${escapeHtml(task.title)}</h3>
-                            ${task.estimated_hours ? `<span style="color: var(--text-light); font-size: 0.875rem;">~${task.estimated_hours}h</span>` : ''}
+                        <div class="card-header" style="cursor: pointer;" onclick="toggleTask(${task.id})">
+                            <h3 class="card-title" style="display: flex; align-items: center; gap: 8px;">
+                                <span id="st-toggle-${task.id}" style="transition: transform 0.2s; display: inline-block;">&#9654;</span>
+                                ${escapeHtml(task.title)}
+                            </h3>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                ${task.skill_name ? `<span class="skill-tag">${escapeHtml(task.skill_name)}</span>` : ''}
+                                ${task.estimated_hours ? `<span style="color: var(--text-light); font-size: 0.875rem;">~${task.estimated_hours}h</span>` : ''}
+                            </div>
                         </div>
-                        <p style="white-space: pre-wrap; margin: 12px 0;">${escapeHtml(task.description)}</p>
-                        <div class="card-meta">
-                            ${task.skill_name ? `<span class="skill-tag">${escapeHtml(task.skill_name)}</span>` : ''}
-                            ${task.project_title ? `<span style="color: var(--text-light);">Related project: ${escapeHtml(task.project_title)}</span>` : ''}
+                        <div id="st-details-${task.id}" style="display: none;">
+                            <p style="white-space: pre-wrap; margin: 12px 0;">${escapeHtml(task.description)}</p>
+                            <div class="card-meta">
+                                ${task.project_title ? `<span style="color: var(--text-light);">Related project: ${escapeHtml(task.project_title)}</span>` : ''}
+                            </div>
+                            <p style="margin-top: 12px; font-size: 0.875rem; color: var(--text-light);">
+                                Interested? Reach out to the team and let them know you'd like to take this on.
+                            </p>
                         </div>
-                        <p style="margin-top: 12px; font-size: 0.875rem; color: var(--text-light);">
-                            Interested? Reach out to the team and let them know you'd like to take this on.
-                        </p>
                     </div>
                 `).join('');
             } catch (error) {
                 showMessage('Failed to load starter tasks', 'error');
+            }
+        }
+
+        function toggleTask(taskId) {
+            const details = document.getElementById('st-details-' + taskId);
+            const toggle = document.getElementById('st-toggle-' + taskId);
+            if (details.style.display === 'none') {
+                details.style.display = 'block';
+                toggle.style.transform = 'rotate(90deg)';
+            } else {
+                details.style.display = 'none';
+                toggle.style.transform = 'rotate(0deg)';
             }
         }
 

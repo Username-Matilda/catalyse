@@ -141,6 +141,12 @@
                 </p>
             </div>
 
+            <div id="loginHint" class="card" style="display: none; text-align: center;">
+                <p style="color: var(--text-light);">
+                    <a href="/static/login.html">Log in</a> to export your data or manage your account.
+                </p>
+            </div>
+
             <p style="text-align: center; margin-top: 24px;">
                 <a href="/static/profile.html">&larr; Back to Profile</a>
             </p>
@@ -177,9 +183,10 @@
             currentUser = await initAuthNav();
 
             if (currentUser) {
-                // Show data management sections for logged-in users
                 document.getElementById('dataManagement').style.display = 'block';
                 document.getElementById('deleteSection').style.display = 'block';
+            } else {
+                document.getElementById('loginHint').style.display = 'block';
             }
         }
 
