@@ -203,36 +203,59 @@
             };
 
             container.innerHTML = tasks.map(t => `
-                <div class="card">
-                    <div class="card-header">
+                <div class="card" id="task-${t.id}">
+                    <div class="card-header" style="cursor: pointer;" onclick="toggleTask(${t.id})">
                         <div>
-                            <h3 class="card-title">${escapeHtml(t.title)}</h3>
+                            <h3 class="card-title" style="display: flex; align-items: center; gap: 8px;">
+                                <span class="task-toggle" id="toggle-${t.id}" style="transition: transform 0.2s; display: inline-block;">&#9654;</span>
+                                ${escapeHtml(t.title)}
+                            </h3>
                             <p class="card-meta">
                                 ${t.skill_name ? `Skill: ${escapeHtml(t.skill_name)}` : ''}
                                 ${t.estimated_hours ? ` · ~${t.estimated_hours}h` : ''}
-                                ${t.assigned_to_name ? ` · Assigned to: <a href="/static/admin/volunteer-detail.html?id=${t.assigned_to_id}">${escapeHtml(t.assigned_to_name)}</a>` : ''}
+                                ${t.assigned_to_name ? ` · Assigned to: <a href="/static/admin/volunteer-detail.html?id=${t.assigned_to_id}" onclick="event.stopPropagation()">${escapeHtml(t.assigned_to_name)}</a>` : ''}
+                                ${t.review_rating ? ` · <span style="color: ${ratingColors[t.review_rating]};">${t.review_rating}</span>` : ''}
                             </p>
                         </div>
                         <span class="status-badge status-${t.status === 'completed' ? 'completed' : t.status === 'submitted' ? 'seeking_help' : t.status === 'assigned' ? 'in_progress' : 'on_hold'}">
                             ${t.status}
                         </span>
                     </div>
-                    <p style="white-space: pre-wrap;">${escapeHtml(t.description)}</p>
-                    ${t.review_rating ? `
-                        <p style="margin-top: 12px; font-weight: 500; color: ${ratingColors[t.review_rating]};">
-                            Rating: ${t.review_rating}
-                        </p>
-                        ${t.review_notes ? `<p style="font-size: 0.875rem; color: var(--text-light);">${escapeHtml(t.review_notes)}</p>` : ''}
-                    ` : ''}
-                    <div class="card-footer">
-                        <span style="font-size: 0.875rem; color: var(--text-light);">${formatDate(t.created_at)}</span>
-                        <div style="display: flex; gap: 8px;">
-                            ${t.status === 'open' ? `<button class="btn btn-small btn-secondary" onclick="openAssign(${t.id})">Assign</button>` : ''}
-                            ${t.status === 'submitted' ? `<button class="btn btn-small btn-primary" onclick="openReview(${t.id})">Review</button>` : ''}
+                    <div id="details-${t.id}" style="display: none;">
+                        <p style="white-space: pre-wrap; margin: 12px 0;">${escapeHtml(t.description)}</p>
+                        ${t.review_rating ? `
+                            <p style="margin-top: 12px; font-weight: 500; color: ${ratingColors[t.review_rating]};">
+                                Rating: ${t.review_rating}
+                            </p>
+                            ${t.review_notes ? `<p style="font-size: 0.875rem; color: var(--text-light);">Notes: ${escapeHtml(t.review_notes)}</p>` : ''}
+                        ` : ''}
+                        ${t.feedback_to_volunteer ? `
+                            <div class="message info" style="margin-top: 8px;">
+                                <strong>Feedback to volunteer:</strong> ${escapeHtml(t.feedback_to_volunteer)}
+                            </div>
+                        ` : ''}
+                        <div class="card-footer">
+                            <span style="font-size: 0.875rem; color: var(--text-light);">Created ${formatDate(t.created_at)}</span>
+                            <div style="display: flex; gap: 8px;">
+                                ${t.status === 'open' ? `<button class="btn btn-small btn-secondary" onclick="event.stopPropagation(); openAssign(${t.id})">Assign</button>` : ''}
+                                ${t.status === 'submitted' ? `<button class="btn btn-small btn-primary" onclick="event.stopPropagation(); openReview(${t.id})">Review</button>` : ''}
+                            </div>
                         </div>
                     </div>
                 </div>
             `).join('');
+        }
+
+        function toggleTask(taskId) {
+            const details = document.getElementById('details-' + taskId);
+            const toggle = document.getElementById('toggle-' + taskId);
+            if (details.style.display === 'none') {
+                details.style.display = 'block';
+                toggle.style.transform = 'rotate(90deg)';
+            } else {
+                details.style.display = 'none';
+                toggle.style.transform = 'rotate(0deg)';
+            }
         }
 
         async function loadSkillsDropdown() {
