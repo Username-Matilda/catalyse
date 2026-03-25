@@ -120,8 +120,7 @@
                     ${v.location ? `<p class="card-meta">${escapeHtml(v.location)}</p>` : ''}
                     ${v.bio ? `<p class="card-description">${escapeHtml(truncate(v.bio, 100))}</p>` : ''}
                     <div class="skills">
-                        ${v.skills.slice(0, 4).map(s => `<span class="skill-tag">${escapeHtml(s.name)}</span>`).join('')}
-                        ${v.skills.length > 4 ? `<span class="skill-tag">+${v.skills.length - 4}</span>` : ''}
+                        ${v.skills.map(s => `<span class="skill-tag">${escapeHtml(s.name)}</span>`).join('')}
                     </div>
                     ${v.availability_hours_per_week ? `
                         <p style="font-size: 0.875rem; color: var(--text-light); margin-top: 12px;">

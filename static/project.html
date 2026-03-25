@@ -169,17 +169,29 @@
                 <button class="modal-close" onclick="closeModal('contactModal')">&times;</button>
             </div>
             <div class="modal-body">
-                <div id="contactInfo">
+                <div id="contactDirect">
                     <p style="color: var(--text-light); margin-bottom: 16px;">
                         Reach out to them directly through their preferred channels:
                     </p>
                     <div id="contactChannels"></div>
-                    <div id="noContactInfo" style="display: none;">
-                        <p style="color: var(--text-light);">
-                            This person hasn't shared their contact details yet. They may prefer to be contacted through the platform's expression of interest system.
-                        </p>
-                    </div>
                 </div>
+                <div id="contactRelay" style="display: none;">
+                    <p style="color: var(--text-light); margin-bottom: 16px;">
+                        This person hasn't shared their contact details. You can send them a message via the platform — it'll be delivered to their email, and they can reply directly to you.
+                    </p>
+                    <form id="relayForm">
+                        <div class="form-group">
+                            <label for="relaySubject" class="required">Subject</label>
+                            <input type="text" id="relaySubject" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="relayMessage" class="required">Message</label>
+                            <textarea id="relayMessage" required placeholder="Introduce yourself and explain why you're reaching out..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Send Message</button>
+                    </form>
+                </div>
+                <div id="contactProfileLink" style="display: none; padding: 12px 0; border-top: 1px solid var(--border); margin-top: 8px;"></div>
             </div>
         </div>
     </div>
@@ -553,21 +565,25 @@
             }
         });
 
-        // Contact modal - show direct contact channels
+        // Contact modal - show direct channels or relay form
         async function openContactModal(volunteerId, name) {
             contactTargetId = volunteerId;
             document.getElementById('contactName').textContent = name;
+            document.getElementById('contactDirect').style.display = 'none';
+            document.getElementById('contactRelay').style.display = 'none';
             document.getElementById('contactChannels').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
-            document.getElementById('noContactInfo').style.display = 'none';
+            document.getElementById('contactDirect').style.display = 'block';
+            const profileLink = document.getElementById('contactProfileLink');
+            profileLink.style.display = 'block';
+            profileLink.innerHTML = `<a href="/static/volunteer.html?id=${volunteerId}" class="btn btn-small btn-outline">View Full Profile</a>`;
             openModal('contactModal');
 
             try {
                 const vol = await apiRequest(`/api/volunteers/${volunteerId}`);
-                const channels = [];
-
                 const hasContact = vol.email || vol.discord_handle || vol.signal_number || vol.whatsapp_number;
 
                 if (hasContact) {
+                    const channels = [];
                     if (vol.contact_preference) {
                         channels.push(`<div class="message info" style="margin-bottom: 12px;"><strong>Preferred method:</strong> ${escapeHtml(vol.contact_preference)}</div>`);
                     }
@@ -576,22 +592,45 @@
                     if (vol.signal_number) channels.push(`<div style="padding: 8px 0;"><strong>Signal:</strong> ${escapeHtml(vol.signal_number)}</div>`);
                     if (vol.whatsapp_number) channels.push(`<div style="padding: 8px 0;"><strong>WhatsApp:</strong> ${escapeHtml(vol.whatsapp_number)}</div>`);
                     if (vol.contact_notes) channels.push(`<div style="padding: 8px 0; color: var(--text-light); font-style: italic;">${escapeHtml(vol.contact_notes)}</div>`);
+                    document.getElementById('contactChannels').innerHTML = channels.join('');
                 } else {
-                    channels.push(`<div style="padding: 12px 0; color: var(--text-light);">
-                        This person hasn't shared their contact details on the platform.
-                        Try reaching out via the PauseAI community channels (Discord, etc.),
-                        or ask an admin to help connect you.
-                    </div>`);
+                    // No direct contact info — show relay form
+                    document.getElementById('contactDirect').style.display = 'none';
+                    document.getElementById('contactRelay').style.display = 'block';
+                    document.getElementById('relaySubject').value = project ? `About: ${project.title}` : '';
+                    document.getElementById('relayMessage').value = '';
                 }
-
-                channels.push(`<div style="padding: 12px 0; border-top: 1px solid var(--border); margin-top: 8px;"><a href="/static/volunteer.html?id=${volunteerId}" class="btn btn-small btn-outline">View Full Profile</a></div>`);
-
-                document.getElementById('contactChannels').innerHTML = channels.join('');
             } catch (error) {
-                document.getElementById('contactChannels').innerHTML = '';
-                document.getElementById('noContactInfo').style.display = 'block';
+                document.getElementById('contactChannels').innerHTML = `
+                    <p style="color: var(--text-light);">Could not load contact info. <a href="/static/volunteer.html?id=${volunteerId}">View their profile</a> instead.</p>
+                `;
             }
         }
+
+        // Relay form submission
+        document.getElementById('relayForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            btn.textContent = 'Sending...';
+
+            try {
+                await apiRequest(`/api/contact/${contactTargetId}`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        subject: document.getElementById('relaySubject').value.trim(),
+                        message: document.getElementById('relayMessage').value.trim(),
+                        related_project_id: project ? project.id : null
+                    })
+                });
+                closeModal('contactModal');
+                showMessage('Message sent! They\'ll receive it by email.', 'success');
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+            btn.disabled = false;
+            btn.textContent = 'Send Message';
+        });
 
         init();
     </script>

@@ -23,7 +23,8 @@ from email_service import (
     is_email_configured,
     send_password_reset_email,
     send_admin_invite_email,
-    send_welcome_email
+    send_welcome_email,
+    send_relay_message
 )
 
 # ============================================
@@ -2599,7 +2600,7 @@ def send_contact_message(
     data: ContactMessage,
     sender: Dict = Depends(require_auth)
 ) -> Dict:
-    """Send a message to another volunteer."""
+    """Send a relay message to another volunteer via email."""
     if sender["id"] == volunteer_id:
         raise HTTPException(status_code=400, detail="Cannot message yourself")
 
@@ -2615,22 +2616,46 @@ def send_contact_message(
     if not recipient:
         raise HTTPException(status_code=404, detail="Volunteer not found or doesn't accept messages")
 
-    with db_transaction() as conn:
-        conn.execute(
-            """INSERT INTO contact_messages
-               (from_volunteer_id, to_volunteer_id, subject, message, related_project_id)
-               VALUES (?, ?, ?, ?, ?)""",
-            (sender["id"], volunteer_id, data.subject, data.message, data.related_project_id)
-        )
+    if not recipient["email"]:
+        raise HTTPException(status_code=400, detail="This volunteer has no email address on file")
 
+    # Get project title if related
+    project_title = None
+    if data.related_project_id:
+        conn = get_db()
+        project = conn.execute(
+            "SELECT title FROM projects WHERE id = ?", (data.related_project_id,)
+        ).fetchone()
+        conn.close()
+        if project:
+            project_title = project["title"]
+
+    # Send via email relay
+    email_sent = send_relay_message(
+        to=recipient["email"],
+        to_name=recipient["name"],
+        from_name=sender["name"],
+        from_email=sender["email"],
+        subject=data.subject,
+        message=data.message,
+        project_title=project_title
+    )
+
+    if not email_sent:
+        if not is_email_configured():
+            raise HTTPException(status_code=503, detail="Email service is not configured. Contact an admin for help.")
+        raise HTTPException(status_code=500, detail="Failed to send message. Please try again later.")
+
+    # Create notification for recipient
+    with db_transaction() as conn:
         create_notification(
             conn, volunteer_id, "message_received",
-            f"New message from {sender['name']}",
+            f"Message from {sender['name']}",
             data.subject,
             "/static/dashboard.html"
         )
 
-        return {"message": "Message sent"}
+    return {"message": "Message sent! They'll receive it by email and can reply directly to you."}
 
 
 @app.get("/api/messages")

@@ -192,3 +192,85 @@ def send_welcome_email(to: str, name: str) -> bool:
     """
 
     return send_email(to, "Welcome to Catalyse!", html)
+
+
+def send_relay_message(to: str, to_name: str, from_name: str, from_email: str,
+                       subject: str, message: str, project_title: str = None) -> bool:
+    """Send a relay message from one volunteer to another via the platform."""
+    project_context = f" about the project <strong>{project_title}</strong>" if project_title else ""
+
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1a202c; }}
+            .container {{ max-width: 500px; margin: 0 auto; padding: 20px; }}
+            .message-box {{ background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0; white-space: pre-wrap; }}
+            .footer {{ margin-top: 32px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 14px; color: #718096; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>Message from {from_name}</h2>
+            <p>Hi {to_name},</p>
+            <p><strong>{from_name}</strong> has sent you a message via Catalyse{project_context}:</p>
+            <div class="message-box">
+                <p style="font-weight: 500; margin-bottom: 8px;">{subject}</p>
+                <p>{message}</p>
+            </div>
+            <p>You can reply directly to this email to respond to {from_name}.</p>
+            <div class="footer">
+                <p>Catalyse - PauseAI UK Volunteer Platform</p>
+                <p style="font-size: 12px;">This message was sent via the Catalyse platform. If you no longer wish to receive messages,
+                update your contact preferences in your <a href="{APP_URL}/static/profile.html">profile settings</a>.</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+    return send_email_with_reply_to(to, f"[Catalyse] {subject}", html, reply_to=from_email)
+
+
+def send_email_with_reply_to(to: str, subject: str, html: str, reply_to: str = None) -> bool:
+    """Send an email via Resend API with optional reply-to header."""
+    if not RESEND_API_KEY:
+        print(f"[EMAIL NOT CONFIGURED] Would send to {to}: {subject}")
+        return False
+
+    try:
+        payload = {
+            "from": FROM_EMAIL,
+            "to": [to],
+            "subject": subject,
+            "html": html
+        }
+        if reply_to:
+            payload["reply_to"] = reply_to
+
+        data = json.dumps(payload).encode('utf-8')
+
+        request = Request(
+            "https://api.resend.com/emails",
+            data=data,
+            headers={
+                "Authorization": f"Bearer {RESEND_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            method="POST"
+        )
+
+        with urlopen(request, timeout=10) as response:
+            if response.status == 200:
+                return True
+            print(f"[EMAIL ERROR] Status {response.status}")
+            return False
+
+    except URLError as e:
+        print(f"[EMAIL ERROR] {e}")
+        return False
+    except Exception as e:
+        print(f"[EMAIL ERROR] Unexpected: {e}")
+        return False
