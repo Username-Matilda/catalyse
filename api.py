@@ -1155,7 +1155,10 @@ def get_volunteer(
         # Show contact if it's their own profile
         if current_volunteer["id"] == volunteer_id:
             show_contact = True
-        # Show contact if they share directly AND viewer is logged in
+        # Admins can always see contact info
+        elif current_volunteer.get("is_admin"):
+            show_contact = True
+        # Show contact if they've opted to share directly AND consent to being contacted
         elif volunteer["share_contact_directly"] and volunteer["consent_contact_by_owners"]:
             show_contact = True
 

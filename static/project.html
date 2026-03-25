@@ -28,7 +28,7 @@
 
         <div id="projectContent" style="display: none;">
             <div style="margin-bottom: 20px;">
-                <a href="/" style="color: var(--text-light);">&larr; Back to Projects</a>
+                <a href="/static/index.html" style="color: var(--text-light);">&larr; Back to Projects</a>
             </div>
 
             <div id="messageDiv" class="message" style="display: none;"></div>
@@ -565,21 +565,28 @@
                 const vol = await apiRequest(`/api/volunteers/${volunteerId}`);
                 const channels = [];
 
-                if (vol.contact_preference) {
-                    channels.push(`<div class="message info" style="margin-bottom: 12px;"><strong>Preferred method:</strong> ${escapeHtml(vol.contact_preference)}</div>`);
-                }
-                if (vol.email) channels.push(`<div style="padding: 8px 0;"><strong>Email:</strong> <a href="mailto:${escapeHtml(vol.email)}">${escapeHtml(vol.email)}</a></div>`);
-                if (vol.discord_handle) channels.push(`<div style="padding: 8px 0;"><strong>Discord:</strong> ${escapeHtml(vol.discord_handle)}</div>`);
-                if (vol.signal_number) channels.push(`<div style="padding: 8px 0;"><strong>Signal:</strong> ${escapeHtml(vol.signal_number)}</div>`);
-                if (vol.whatsapp_number) channels.push(`<div style="padding: 8px 0;"><strong>WhatsApp:</strong> ${escapeHtml(vol.whatsapp_number)}</div>`);
-                if (vol.contact_notes) channels.push(`<div style="padding: 8px 0; color: var(--text-light); font-style: italic;">${escapeHtml(vol.contact_notes)}</div>`);
+                const hasContact = vol.email || vol.discord_handle || vol.signal_number || vol.whatsapp_number;
 
-                if (channels.length === 0) {
-                    document.getElementById('contactChannels').innerHTML = '';
-                    document.getElementById('noContactInfo').style.display = 'block';
+                if (hasContact) {
+                    if (vol.contact_preference) {
+                        channels.push(`<div class="message info" style="margin-bottom: 12px;"><strong>Preferred method:</strong> ${escapeHtml(vol.contact_preference)}</div>`);
+                    }
+                    if (vol.email) channels.push(`<div style="padding: 8px 0;"><strong>Email:</strong> <a href="mailto:${escapeHtml(vol.email)}">${escapeHtml(vol.email)}</a></div>`);
+                    if (vol.discord_handle) channels.push(`<div style="padding: 8px 0;"><strong>Discord:</strong> ${escapeHtml(vol.discord_handle)}</div>`);
+                    if (vol.signal_number) channels.push(`<div style="padding: 8px 0;"><strong>Signal:</strong> ${escapeHtml(vol.signal_number)}</div>`);
+                    if (vol.whatsapp_number) channels.push(`<div style="padding: 8px 0;"><strong>WhatsApp:</strong> ${escapeHtml(vol.whatsapp_number)}</div>`);
+                    if (vol.contact_notes) channels.push(`<div style="padding: 8px 0; color: var(--text-light); font-style: italic;">${escapeHtml(vol.contact_notes)}</div>`);
                 } else {
-                    document.getElementById('contactChannels').innerHTML = channels.join('');
+                    channels.push(`<div style="padding: 12px 0; color: var(--text-light);">
+                        This person hasn't shared their contact details on the platform.
+                        Try reaching out via the PauseAI community channels (Discord, etc.),
+                        or ask an admin to help connect you.
+                    </div>`);
                 }
+
+                channels.push(`<div style="padding: 12px 0; border-top: 1px solid var(--border); margin-top: 8px;"><a href="/static/volunteer.html?id=${volunteerId}" class="btn btn-small btn-outline">View Full Profile</a></div>`);
+
+                document.getElementById('contactChannels').innerHTML = channels.join('');
             } catch (error) {
                 document.getElementById('contactChannels').innerHTML = '';
                 document.getElementById('noContactInfo').style.display = 'block';
