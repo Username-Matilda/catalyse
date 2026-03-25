@@ -1165,15 +1165,31 @@ def get_volunteer(
 
     result = enrich_volunteer(conn, dict(volunteer), show_contact=show_contact)
 
-    # Get their projects
+    # Get their projects (with role info)
     projects = conn.execute(
-        """SELECT * FROM projects
-           WHERE (owner_id = ? OR proposed_by_id = ?)
-           AND status NOT IN ('archived', 'pending_review', 'needs_discussion')
-           ORDER BY created_at DESC""",
-        (volunteer_id, volunteer_id)
+        """SELECT p.*,
+               CASE WHEN p.owner_id = ? THEN 'owner' ELSE 'proposer' END as role
+           FROM projects p
+           WHERE (p.owner_id = ? OR p.proposed_by_id = ?)
+           AND p.status NOT IN ('archived', 'pending_review', 'needs_discussion')
+           ORDER BY p.created_at DESC""",
+        (volunteer_id, volunteer_id, volunteer_id)
     ).fetchall()
     result["projects"] = rows_to_list(projects)
+
+    # Get completed starter tasks (public track record)
+    completed_tasks = conn.execute(
+        """SELECT st.title, st.review_rating, st.feedback_to_volunteer,
+                  st.reviewed_at, s.name as skill_name
+           FROM starter_tasks st
+           LEFT JOIN skills s ON st.skill_id = s.id
+           WHERE st.assigned_to_id = ?
+           AND st.status IN ('completed', 'reviewed')
+           AND st.review_rating IN ('excellent', 'good')
+           ORDER BY st.reviewed_at DESC""",
+        (volunteer_id,)
+    ).fetchall()
+    result["completed_tasks"] = rows_to_list(completed_tasks)
 
     conn.close()
     return result
