@@ -14,6 +14,7 @@
                 <a href="/" class="active">Projects</a>
                 <a href="/static/volunteers.html">Volunteers</a>
                 <a href="/static/suggest.html">Suggest Project</a>
+                <a href="/static/starter-tasks.html">Starter Tasks</a>
             </nav>
             <div class="nav-auth" id="authNav"></div>
         </div>
@@ -108,11 +109,26 @@
                     <h3>Add Update</h3>
                     <form id="updateForm">
                         <div class="form-group">
-                            <textarea id="updateContent" required placeholder="Share progress, blockers, or news..."></textarea>
+                            <textarea id="updateContent" required placeholder="Let people know what skills are most needed, where the project is at, etc."></textarea>
                         </div>
                         <button type="submit" class="btn btn-secondary">Post Update</button>
                     </form>
                 </div>
+            </div>
+
+            <!-- Status management (owner/admin) -->
+            <div id="statusManagement" class="card" style="display: none;">
+                <h2>Manage Project Status</h2>
+                <div class="form-group">
+                    <label for="statusSelect">Change Status</label>
+                    <select id="statusSelect">
+                        <option value="seeking_help">Seeking Help</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="on_hold">On Hold</option>
+                        <option value="completed">Completed</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary btn-small" onclick="updateProjectStatus()">Update Status</button>
             </div>
         </div>
     </main>
@@ -125,17 +141,17 @@
                 <button class="modal-close" onclick="closeModal('contactModal')">&times;</button>
             </div>
             <div class="modal-body">
-                <form id="contactForm">
-                    <div class="form-group">
-                        <label for="contactSubject" class="required">Subject</label>
-                        <input type="text" id="contactSubject" required>
+                <div id="contactInfo">
+                    <p style="color: var(--text-light); margin-bottom: 16px;">
+                        Reach out to them directly through their preferred channels:
+                    </p>
+                    <div id="contactChannels"></div>
+                    <div id="noContactInfo" style="display: none;">
+                        <p style="color: var(--text-light);">
+                            This person hasn't shared their contact details yet. They may prefer to be contacted through the platform's expression of interest system.
+                        </p>
                     </div>
-                    <div class="form-group">
-                        <label for="contactMessage" class="required">Message</label>
-                        <textarea id="contactMessage" required placeholder="Introduce yourself and explain why you're reaching out..."></textarea>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Send Message</button>
-                </form>
+                </div>
             </div>
         </div>
     </div>
@@ -223,10 +239,21 @@
                 `;
             }
 
-            // Collaboration link
+            // Collaboration link / doc
             if (project.collaboration_link) {
                 document.getElementById('collaborationLink').style.display = 'block';
-                document.getElementById('collabLinkAnchor').href = project.collaboration_link;
+                const isUrl = project.collaboration_link.startsWith('http://') || project.collaboration_link.startsWith('https://');
+                if (isUrl) {
+                    document.getElementById('collabLinkAnchor').href = project.collaboration_link;
+                    document.getElementById('collabLinkAnchor').textContent = 'Open Project Doc';
+                } else {
+                    // Show as text instead of a link
+                    document.getElementById('collabLinkAnchor').removeAttribute('href');
+                    document.getElementById('collabLinkAnchor').className = '';
+                    document.getElementById('collabLinkAnchor').style.cssText = 'color: var(--text); font-style: italic;';
+                    document.getElementById('collabLinkAnchor').textContent = project.collaboration_link;
+                    document.getElementById('collabLinkAnchor').removeAttribute('target');
+                }
             }
 
             // Owner info
@@ -326,6 +353,9 @@
         }
 
         function renderUpdatesSection() {
+            const isOwner = currentUser && currentUser.id === project.owner_id;
+            const isAdmin = currentUser && currentUser.is_admin;
+
             if (project.updates && project.updates.length > 0) {
                 document.getElementById('updatesSection').style.display = 'block';
                 document.getElementById('updatesList').innerHTML = project.updates.map(update => `
@@ -338,10 +368,45 @@
                 `).join('');
             }
 
-            // Show add update form for owner
-            if (currentUser && currentUser.id === project.owner_id) {
+            // Show add update form for owner or admin
+            if (isOwner || isAdmin) {
                 document.getElementById('updatesSection').style.display = 'block';
                 document.getElementById('addUpdateForm').style.display = 'block';
+            }
+
+            // Show status management for owner or admin
+            if (isOwner || isAdmin) {
+                const statusSection = document.getElementById('statusManagement');
+                statusSection.style.display = 'block';
+                const select = document.getElementById('statusSelect');
+
+                // Admins get extra options
+                if (isAdmin) {
+                    select.innerHTML = `
+                        <option value="seeking_owner">Seeking Owner</option>
+                        <option value="seeking_help">Seeking Help</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="on_hold">On Hold</option>
+                        <option value="completed">Completed</option>
+                        <option value="archived">Archived</option>
+                    `;
+                }
+
+                select.value = project.status;
+            }
+        }
+
+        async function updateProjectStatus() {
+            const newStatus = document.getElementById('statusSelect').value;
+            try {
+                await apiRequest(`/api/projects/${project.id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ status: newStatus })
+                });
+                showMessage(`Status updated to ${formatStatus(newStatus)}`, 'success');
+                await loadProject(project.id);
+            } catch (error) {
+                showMessage(error.message, 'error');
             }
         }
 
@@ -418,36 +483,38 @@
             }
         });
 
-        // Contact modal
-        function openContactModal(volunteerId, name) {
+        // Contact modal - show direct contact channels
+        async function openContactModal(volunteerId, name) {
             contactTargetId = volunteerId;
             document.getElementById('contactName').textContent = name;
-            document.getElementById('contactSubject').value = `About: ${project.title}`;
+            document.getElementById('contactChannels').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+            document.getElementById('noContactInfo').style.display = 'none';
             openModal('contactModal');
-        }
-
-        document.getElementById('contactForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const btn = e.target.querySelector('button[type="submit"]');
-            btn.disabled = true;
 
             try {
-                await apiRequest(`/api/contact/${contactTargetId}`, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        subject: document.getElementById('contactSubject').value.trim(),
-                        message: document.getElementById('contactMessage').value.trim(),
-                        related_project_id: project.id
-                    })
-                });
-                closeModal('contactModal');
-                showMessage('Message sent!', 'success');
-                document.getElementById('contactMessage').value = '';
+                const vol = await apiRequest(`/api/volunteers/${volunteerId}`);
+                const channels = [];
+
+                if (vol.contact_preference) {
+                    channels.push(`<div class="message info" style="margin-bottom: 12px;"><strong>Preferred method:</strong> ${escapeHtml(vol.contact_preference)}</div>`);
+                }
+                if (vol.email) channels.push(`<div style="padding: 8px 0;"><strong>Email:</strong> <a href="mailto:${escapeHtml(vol.email)}">${escapeHtml(vol.email)}</a></div>`);
+                if (vol.discord_handle) channels.push(`<div style="padding: 8px 0;"><strong>Discord:</strong> ${escapeHtml(vol.discord_handle)}</div>`);
+                if (vol.signal_number) channels.push(`<div style="padding: 8px 0;"><strong>Signal:</strong> ${escapeHtml(vol.signal_number)}</div>`);
+                if (vol.whatsapp_number) channels.push(`<div style="padding: 8px 0;"><strong>WhatsApp:</strong> ${escapeHtml(vol.whatsapp_number)}</div>`);
+                if (vol.contact_notes) channels.push(`<div style="padding: 8px 0; color: var(--text-light); font-style: italic;">${escapeHtml(vol.contact_notes)}</div>`);
+
+                if (channels.length === 0) {
+                    document.getElementById('contactChannels').innerHTML = '';
+                    document.getElementById('noContactInfo').style.display = 'block';
+                } else {
+                    document.getElementById('contactChannels').innerHTML = channels.join('');
+                }
             } catch (error) {
-                showMessage(error.message, 'error');
+                document.getElementById('contactChannels').innerHTML = '';
+                document.getElementById('noContactInfo').style.display = 'block';
             }
-            btn.disabled = false;
-        });
+        }
 
         init();
     </script>

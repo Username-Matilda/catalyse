@@ -14,6 +14,7 @@
                 <a href="/" class="active">Projects</a>
                 <a href="/static/volunteers.html">Volunteers</a>
                 <a href="/static/suggest.html">Suggest Project</a>
+                <a href="/static/starter-tasks.html">Starter Tasks</a>
             </nav>
             <div class="nav-auth" id="authNav">
                 <!-- Filled by JS -->
@@ -201,10 +202,9 @@
                     </div>
                     <p class="card-description">${escapeHtml(truncate(project.description, 150))}</p>
                     <div class="skills">
-                        ${project.skills.slice(0, 5).map(skill => `
+                        ${project.skills.map(skill => `
                             <span class="skill-tag ${getSkillClass(skill, project.match)}">${escapeHtml(skill.name)}</span>
                         `).join('')}
-                        ${project.skills.length > 5 ? `<span class="skill-tag">+${project.skills.length - 5} more</span>` : ''}
                     </div>
                     <div class="card-footer">
                         ${project.match ? `

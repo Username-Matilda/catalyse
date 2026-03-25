@@ -184,6 +184,7 @@ function renderHeader(activePage = '') {
                     <a href="/" class="${activePage === 'projects' ? 'active' : ''}">Projects</a>
                     <a href="/static/volunteers.html" class="${activePage === 'volunteers' ? 'active' : ''}">Volunteers</a>
                     <a href="/static/suggest.html" class="${activePage === 'suggest' ? 'active' : ''}">Suggest Project</a>
+                    <a href="/static/starter-tasks.html" class="${activePage === 'starter-tasks' ? 'active' : ''}">Starter Tasks</a>
                 </nav>
                 <div class="nav-auth" id="authNav"></div>
             </div>

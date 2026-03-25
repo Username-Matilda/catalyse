@@ -226,7 +226,16 @@
                 showMessage('Welcome to Catalyse!', 'success');
 
                 setTimeout(() => {
-                    window.location.href = '/static/dashboard.html';
+                    // Check for redirect param or pending admin invite
+                    const redirect = getQueryParam('redirect');
+                    const pendingInvite = localStorage.getItem('pendingAdminInvite');
+                    if (redirect) {
+                        window.location.href = decodeURIComponent(redirect);
+                    } else if (pendingInvite) {
+                        window.location.href = `/static/accept-invite.html?token=${pendingInvite}`;
+                    } else {
+                        window.location.href = '/static/dashboard.html';
+                    }
                 }, 1000);
 
             } catch (error) {

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Starter Tasks - Catalyse</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a href="/" class="logo">Catalyse <img src="/static/images/pauseai-logo.png" alt="PauseAI"></a>
+            <nav>
+                <a href="/">Projects</a>
+                <a href="/static/volunteers.html">Volunteers</a>
+                <a href="/static/suggest.html">Suggest Project</a>
+                <a href="/static/starter-tasks.html" class="active">Starter Tasks</a>
+            </nav>
+            <div class="nav-auth" id="authNav"></div>
+        </div>
+    </header>
+
+    <main class="container page">
+        <div class="section-header">
+            <h1>Starter Tasks</h1>
+        </div>
+        <p style="color: var(--text-light); margin-bottom: 24px;">
+            Small, self-contained tasks to help you get started and demonstrate your skills.
+            Completing a starter task is a great way to build your track record on the platform.
+        </p>
+
+        <div id="messageDiv" class="message" style="display: none;"></div>
+
+        <div id="tasksList">
+            <div class="loading">
+                <div class="spinner"></div>
+                Loading starter tasks...
+            </div>
+        </div>
+
+        <div id="emptyState" class="empty-state" style="display: none;">
+            <h3>No starter tasks available right now</h3>
+            <p>Check back soon, or browse <a href="/">projects</a> to find other ways to contribute.</p>
+        </div>
+    </main>
+
+    <script src="/static/app.js"></script>
+    <script>
+        async function init() {
+            await initAuthNav();
+            await loadTasks();
+        }
+
+        async function loadTasks() {
+            try {
+                const tasks = await apiRequest('/api/starter-tasks/available');
+                const container = document.getElementById('tasksList');
+                const emptyState = document.getElementById('emptyState');
+
+                if (tasks.length === 0) {
+                    container.innerHTML = '';
+                    emptyState.style.display = 'block';
+                    return;
+                }
+
+                emptyState.style.display = 'none';
+                container.innerHTML = tasks.map(task => `
+                    <div class="card" style="margin-bottom: 16px;">
+                        <div class="card-header">
+                            <h3 class="card-title">${escapeHtml(task.title)}</h3>
+                            ${task.estimated_hours ? `<span style="color: var(--text-light); font-size: 0.875rem;">~${task.estimated_hours}h</span>` : ''}
+                        </div>
+                        <p style="white-space: pre-wrap; margin: 12px 0;">${escapeHtml(task.description)}</p>
+                        <div class="card-meta">
+                            ${task.skill_name ? `<span class="skill-tag">${escapeHtml(task.skill_name)}</span>` : ''}
+                            ${task.project_title ? `<span style="color: var(--text-light);">Related project: ${escapeHtml(task.project_title)}</span>` : ''}
+                        </div>
+                        <p style="margin-top: 12px; font-size: 0.875rem; color: var(--text-light);">
+                            Interested? Reach out to the team and let them know you'd like to take this on.
+                        </p>
+                    </div>
+                `).join('');
+            } catch (error) {
+                showMessage('Failed to load starter tasks', 'error');
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
