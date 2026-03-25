@@ -127,38 +127,56 @@
                     banner.style.display = 'block';
                     banner.innerHTML = visibleTasks.map(t => `
                         <div class="card" style="border-left: 4px solid var(--secondary); margin-bottom: 12px;">
-                            <div class="card-header">
+                            <div class="card-header" style="cursor: pointer;" onclick="toggleStarterTask(${t.id})">
                                 <div>
-                                    <h3 class="card-title">Starter Task: ${escapeHtml(t.title)}</h3>
+                                    <h3 class="card-title" style="display: flex; align-items: center; gap: 8px;">
+                                        <span id="st-toggle-${t.id}" style="transition: transform 0.2s; display: inline-block;">&#9654;</span>
+                                        Starter Task: ${escapeHtml(t.title)}
+                                    </h3>
                                     <p class="card-meta">
                                         ${t.skill_name ? `Skill: ${escapeHtml(t.skill_name)} · ` : ''}
                                         ${t.estimated_hours ? `~${t.estimated_hours}h · ` : ''}
                                         Status: ${t.status}
+                                        ${t.review_rating ? ` · Rating: ${t.review_rating}` : ''}
                                     </p>
                                 </div>
                                 <span class="status-badge status-${t.status === 'assigned' ? 'in_progress' : t.status === 'submitted' ? 'seeking_help' : 'completed'}">
                                     ${t.status}
                                 </span>
                             </div>
-                            <p style="white-space: pre-wrap; margin: 12px 0;">${escapeHtml(t.description)}</p>
-                            ${t.review_rating ? `
-                                <p style="margin-top: 8px; font-weight: 500; color: ${t.review_rating === 'excellent' ? 'var(--success)' : t.review_rating === 'good' ? 'var(--secondary)' : 'var(--error)'};">
-                                    Rating: ${t.review_rating}
-                                </p>
-                            ` : ''}
-                            ${t.feedback_to_volunteer ? `
-                                <div class="message info">
-                                    <strong>Feedback:</strong> ${escapeHtml(t.feedback_to_volunteer)}
-                                </div>
-                            ` : ''}
-                            ${t.status === 'assigned' ? `
-                                <button class="btn btn-primary btn-small" onclick="submitTask(${t.id})">Mark as Complete</button>
-                            ` : ''}
+                            <div id="st-details-${t.id}" style="display: none;">
+                                <p style="white-space: pre-wrap; margin: 12px 0;">${escapeHtml(t.description)}</p>
+                                ${t.review_rating ? `
+                                    <p style="margin-top: 8px; font-weight: 500; color: ${t.review_rating === 'excellent' ? 'var(--success)' : t.review_rating === 'good' ? 'var(--secondary)' : 'var(--error)'};">
+                                        Rating: ${t.review_rating}
+                                    </p>
+                                ` : ''}
+                                ${t.feedback_to_volunteer ? `
+                                    <div class="message info">
+                                        <strong>Feedback:</strong> ${escapeHtml(t.feedback_to_volunteer)}
+                                    </div>
+                                ` : ''}
+                                ${t.status === 'assigned' ? `
+                                    <button class="btn btn-primary btn-small" onclick="event.stopPropagation(); submitTask(${t.id})">Mark as Complete</button>
+                                ` : ''}
+                            </div>
                         </div>
                     `).join('');
                 }
             } catch (e) {
                 // Starter tasks endpoint might not exist yet, fail silently
+            }
+        }
+
+        function toggleStarterTask(taskId) {
+            const details = document.getElementById('st-details-' + taskId);
+            const toggle = document.getElementById('st-toggle-' + taskId);
+            if (details.style.display === 'none') {
+                details.style.display = 'block';
+                toggle.style.transform = 'rotate(90deg)';
+            } else {
+                details.style.display = 'none';
+                toggle.style.transform = 'rotate(0deg)';
             }
         }
 
