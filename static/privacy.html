@@ -55,49 +55,89 @@
 
             <div class="card">
                 <h2>Our Data Practices</h2>
+
                 <h4>What we collect</h4>
                 <ul style="margin-bottom: 16px; padding-left: 20px; color: var(--text-light);">
                     <li>Information you provide (name, email, bio, contact details)</li>
                     <li>Skills and availability you share</li>
                     <li>Projects you propose or express interest in</li>
-                    <li>Messages you send to other volunteers</li>
+                    <li>Bug reports and feedback you submit</li>
+                    <li>Admin notes about your volunteering activity (visible to admins only)</li>
+                </ul>
+
+                <h4>Legal basis for processing</h4>
+                <p style="color: var(--text-light); margin-bottom: 16px;">
+                    We process your data based on:
+                </p>
+                <ul style="margin-bottom: 16px; padding-left: 20px; color: var(--text-light);">
+                    <li><strong>Consent</strong> — for sharing your profile with other volunteers and allowing project owners to contact you (you can withdraw consent at any time via your profile settings)</li>
+                    <li><strong>Legitimate interest</strong> — for operating the platform, matching volunteers with projects, and platform administration</li>
+                    <li><strong>Contract performance</strong> — for providing you the service you signed up for</li>
                 </ul>
 
                 <h4>How we use it</h4>
                 <ul style="margin-bottom: 16px; padding-left: 20px; color: var(--text-light);">
-                    <li>To match you with relevant projects</li>
-                    <li>To enable project owners to contact you</li>
+                    <li>To match you with relevant projects based on your skills</li>
+                    <li>To enable project owners to contact you (with your consent)</li>
+                    <li>To send you transactional emails (password resets, admin invites, welcome emails)</li>
                     <li>To send you notifications about your projects and interests</li>
+                    <li>For platform administration and volunteer coordination</li>
                 </ul>
 
                 <h4>What we don't do</h4>
                 <ul style="margin-bottom: 16px; padding-left: 20px; color: var(--text-light);">
                     <li>We never sell your data</li>
                     <li>We don't share your contact info without your consent</li>
+                    <li>We don't use analytics or tracking cookies</li>
+                    <li>We don't use your data for automated decision-making or profiling</li>
                     <li>We don't track you across other websites</li>
                 </ul>
 
-                <h4>Where your data is stored</h4>
+                <h4>Third-party services</h4>
+                <ul style="margin-bottom: 16px; padding-left: 20px; color: var(--text-light);">
+                    <li><strong>Railway</strong> (hosting) — our application and database are hosted on Railway's cloud infrastructure</li>
+                    <li><strong>Resend</strong> (email delivery) — used to send transactional emails (password resets, welcome emails, admin invites). Resend processes your email address and name for delivery purposes only</li>
+                </ul>
+                <p style="color: var(--text-light); margin-bottom: 16px;">
+                    These services may process data outside the UK/EEA, including in the United States. We rely on their
+                    standard contractual safeguards for international transfers.
+                </p>
+
+                <h4>Data retention</h4>
+                <ul style="margin-bottom: 16px; padding-left: 20px; color: var(--text-light);">
+                    <li>Active accounts: data is kept as long as your account is active</li>
+                    <li>Deleted accounts: personal data is anonymised immediately upon deletion. Anonymised records (e.g. "[Deleted User]" on project history) are retained for platform integrity</li>
+                    <li>Password reset tokens expire after 1 hour</li>
+                    <li>Admin invite tokens expire after 7 days</li>
+                </ul>
+
+                <h4>Security</h4>
                 <p style="color: var(--text-light);">
-                    Your data is hosted on Railway's cloud infrastructure. By default, this may be processed in the United States.
-                    We take appropriate safeguards to protect your data in accordance with GDPR requirements, including encryption
-                    in transit and at rest. By signing up, you consent to this data processing arrangement.
+                    Passwords are hashed using PBKDF2-SHA256 with random salts and are never stored in plain text.
+                    All data is transmitted over HTTPS. Authentication uses secure random tokens.
                 </p>
             </div>
 
             <div class="card">
                 <h2>Your GDPR Rights</h2>
-                <p style="color: var(--text-light); margin-bottom: 16px;">As a data subject, you have the right to:</p>
+                <p style="color: var(--text-light); margin-bottom: 16px;">Under GDPR and the UK Data Protection Act 2018, you have the right to:</p>
                 <ul style="padding-left: 20px; color: var(--text-light);">
-                    <li><strong>Access</strong> - Download all your data using the export feature above</li>
-                    <li><strong>Rectification</strong> - Update your profile at any time</li>
-                    <li><strong>Erasure</strong> - Delete your account and all data permanently</li>
-                    <li><strong>Portability</strong> - Export your data in a machine-readable format (JSON)</li>
-                    <li><strong>Object</strong> - Contact us to opt out of specific processing</li>
+                    <li><strong>Access</strong> (Article 15) — Download all your data using the export feature above</li>
+                    <li><strong>Rectification</strong> (Article 16) — Update your profile at any time</li>
+                    <li><strong>Erasure</strong> (Article 17) — Delete your account and all personal data</li>
+                    <li><strong>Restrict processing</strong> (Article 18) — Contact us to limit how we use your data</li>
+                    <li><strong>Portability</strong> (Article 20) — Export your data in a machine-readable format (JSON)</li>
+                    <li><strong>Object</strong> (Article 21) — Contact us to opt out of specific processing</li>
+                    <li><strong>Withdraw consent</strong> (Article 7) — Update your privacy settings or delete your account at any time</li>
                 </ul>
                 <p style="color: var(--text-light); margin-top: 16px;">
                     <strong>Data Controller:</strong> PauseAI UK<br>
-                    <strong>Contact:</strong> <a href="mailto:uk@pauseai.info">uk@pauseai.info</a>
+                    <strong>Contact:</strong> <a href="mailto:matilda@pauseai.info">matilda@pauseai.info</a>
+                </p>
+                <p style="color: var(--text-light); margin-top: 12px;">
+                    If you are not satisfied with how we handle your data, you have the right to lodge a complaint with the
+                    <strong>Information Commissioner's Office (ICO)</strong> at
+                    <a href="https://ico.org.uk/make-a-complaint/" target="_blank" rel="noopener">ico.org.uk</a>.
                 </p>
             </div>
 
