@@ -39,7 +39,10 @@
                         <h1 id="projectTitle" style="margin-bottom: 8px;"></h1>
                         <div id="projectMeta" class="card-meta"></div>
                     </div>
-                    <span id="projectStatus" class="status-badge"></span>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span id="projectStatus" class="status-badge"></span>
+                        <a id="editProjectBtn" href="#" class="btn btn-small btn-outline" style="display: none;">Edit</a>
+                    </div>
                 </div>
 
                 <div id="projectDescription" style="white-space: pre-wrap; margin: 20px 0;"></div>
@@ -196,6 +199,18 @@
             document.getElementById('projectStatus').textContent = formatStatus(project.status);
             document.getElementById('projectStatus').className = `status-badge status-${project.status}`;
 
+            // Show edit button for owner, proposer, or admin
+            if (currentUser) {
+                const canEdit = currentUser.id === project.owner_id ||
+                                currentUser.id === project.proposed_by_id ||
+                                currentUser.is_admin;
+                if (canEdit) {
+                    const editBtn = document.getElementById('editProjectBtn');
+                    editBtn.href = `/static/edit-project.html?id=${project.id}`;
+                    editBtn.style.display = 'inline-flex';
+                }
+            }
+
             // Meta info
             let meta = [];
             if (project.is_org_proposed) meta.push('<span class="org-badge">PauseAI Official</span>');
@@ -222,8 +237,8 @@
             }).join('');
             document.getElementById('projectSkills').innerHTML = skillsHtml || '<em>No specific skills listed</em>';
 
-            // Match section
-            if (currentUser && project.match) {
+            // Match section (hide for project owners - they already own it)
+            if (currentUser && project.match && currentUser.id !== project.owner_id) {
                 document.getElementById('matchSection').style.display = 'block';
                 document.getElementById('matchDetails').innerHTML = `
                     <div class="match-score">

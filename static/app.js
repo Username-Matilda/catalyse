@@ -248,7 +248,7 @@ async function logout() {
         }
     }
     localStorage.removeItem('authToken');
-    window.location.href = '/';
+    window.location.href = '/static/login.html';
 }
 
 // Modal helpers

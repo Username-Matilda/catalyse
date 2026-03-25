@@ -1513,6 +1513,28 @@ def update_project(
         return enrich_project(conn, dict(updated))
 
 
+@app.delete("/api/projects/{project_id}")
+def delete_project(
+    project_id: int,
+    admin: Dict = Depends(require_admin)
+) -> Dict:
+    """Delete a project permanently (admin only)."""
+    with db_transaction() as conn:
+        project = conn.execute(
+            "SELECT * FROM projects WHERE id = ?", (project_id,)
+        ).fetchone()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        # Delete related records
+        conn.execute("DELETE FROM project_skills WHERE project_id = ?", (project_id,))
+        conn.execute("DELETE FROM project_interests WHERE project_id = ?", (project_id,))
+        conn.execute("DELETE FROM project_updates WHERE project_id = ?", (project_id,))
+        conn.execute("DELETE FROM projects WHERE id = ?", (project_id,))
+
+        return {"message": f"Project '{project['title']}' deleted"}
+
+
 @app.post("/api/projects/{project_id}/updates")
 def add_project_update(
     project_id: int,

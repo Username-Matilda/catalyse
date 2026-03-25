@@ -145,7 +145,7 @@
                 });
             }
             localStorage.removeItem('authToken');
-            window.location.reload();
+            window.location.href = '/static/login.html';
         }
 
         async function loadProjects() {
@@ -286,6 +286,7 @@
     <footer style="border-top: 1px solid var(--border); padding: 24px 0; margin-top: 40px; text-align: center; color: var(--text-light); font-size: 0.875rem;">
         <div class="container">
             <a href="/static/privacy.html" style="color: var(--text-light); margin: 0 12px;">Privacy & Data</a> ·
+            <a href="#" onclick="openBugReportModal(); return false;" style="color: var(--text-light); margin: 0 12px;">Report a Bug</a> ·
             <a href="mailto:uk@pauseai.info" style="color: var(--text-light); margin: 0 12px;">Contact</a> ·
             <span style="margin: 0 12px;">PauseAI UK</span>
         </div>
