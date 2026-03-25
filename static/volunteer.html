@@ -9,11 +9,12 @@
 <body>
     <header>
         <div class="container">
-            <a href="/" class="logo"><img src="/static/images/pauseai-logo.png" alt="PauseAI"> Catalyse</a>
+            <a href="/" class="logo">Catalyse <img src="/static/images/pauseai-logo.png" alt="PauseAI"></a>
             <nav>
                 <a href="/">Projects</a>
                 <a href="/static/volunteers.html" class="active">Volunteers</a>
                 <a href="/static/suggest.html">Suggest Project</a>
+                <a href="/static/starter-tasks.html">Starter Tasks</a>
             </nav>
             <div class="nav-auth" id="authNav"></div>
         </div>
@@ -35,7 +36,6 @@
             <div class="card">
                 <div class="card-header">
                     <h1 id="volunteerName" style="margin: 0;"></h1>
-                    <button id="contactBtn" class="btn btn-primary" style="display: none;">Contact</button>
                 </div>
 
                 <div id="volunteerLocation" style="color: var(--text-light); margin-bottom: 16px;"></div>
@@ -69,28 +69,6 @@
         </div>
     </main>
 
-    <!-- Contact Modal -->
-    <div id="contactModal" class="modal-overlay" style="display: none;">
-        <div class="modal">
-            <div class="modal-header">
-                <h2>Contact <span id="contactModalName"></span></h2>
-                <button class="modal-close" onclick="closeModal('contactModal')">&times;</button>
-            </div>
-            <div class="modal-body">
-                <form id="contactForm">
-                    <div class="form-group">
-                        <label for="contactSubject" class="required">Subject</label>
-                        <input type="text" id="contactSubject" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="contactMessage" class="required">Message</label>
-                        <textarea id="contactMessage" required placeholder="Introduce yourself..."></textarea>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Send Message</button>
-                </form>
-            </div>
-        </div>
-    </div>
 
     <script src="/static/app.js"></script>
     <script>
@@ -172,10 +150,7 @@
                 document.getElementById('contactDetails').innerHTML = contactHtml.join('<br>');
             }
 
-            // Contact button (only for logged-in users viewing other profiles)
-            if (currentUser && currentUser.id !== volunteer.id) {
-                document.getElementById('contactBtn').style.display = 'inline-flex';
-            }
+            // Contact button removed — contact info shown directly in profile
 
             // Projects
             if (volunteer.projects && volunteer.projects.length > 0) {
@@ -190,33 +165,6 @@
                 `).join('');
             }
         }
-
-        document.getElementById('contactBtn').addEventListener('click', () => {
-            document.getElementById('contactModalName').textContent = volunteer.name;
-            openModal('contactModal');
-        });
-
-        document.getElementById('contactForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const btn = e.target.querySelector('button[type="submit"]');
-            btn.disabled = true;
-
-            try {
-                await apiRequest(`/api/contact/${volunteer.id}`, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        subject: document.getElementById('contactSubject').value.trim(),
-                        message: document.getElementById('contactMessage').value.trim()
-                    })
-                });
-                closeModal('contactModal');
-                showMessage('Message sent!', 'success');
-                document.getElementById('contactForm').reset();
-            } catch (error) {
-                showMessage(error.message, 'error');
-            }
-            btn.disabled = false;
-        });
 
         init();
     </script>

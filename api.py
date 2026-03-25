@@ -540,6 +540,9 @@ def signup(data: VolunteerSignup) -> Dict:
                 (volunteer_id, skill_id)
             )
 
+        # Check for admin bootstrap via ADMIN_EMAILS env var
+        check_admin_bootstrap(data.email, volunteer_id)
+
         # Send welcome email (non-blocking, don't fail signup if email fails)
         send_welcome_email(to=data.email, name=data.name)
 
@@ -1383,9 +1386,9 @@ def get_project(
             for interest in project["interests"]:
                 interest["volunteer_skills"] = get_volunteer_skills(conn, interest["volunteer_id"])
 
-        # Check if current user has expressed interest
+        # Check if current user has expressed interest (exclude withdrawn)
         my_interest = conn.execute(
-            "SELECT * FROM project_interests WHERE project_id = ? AND volunteer_id = ?",
+            "SELECT * FROM project_interests WHERE project_id = ? AND volunteer_id = ? AND status != 'withdrawn'",
             (project_id, current_volunteer["id"])
         ).fetchone()
         project["my_interest"] = row_to_dict(my_interest)
@@ -1468,13 +1471,17 @@ def update_project(
         updates = []
         params = []
 
+        # Define which statuses owners can set (vs admin-only statuses)
+        owner_allowed_statuses = {"seeking_help", "in_progress", "on_hold", "completed"}
+
         for field in ["title", "description", "status", "project_type", "estimated_duration",
                       "time_commitment_hours_per_week", "urgency", "collaboration_link", "owner_id"]:
             value = getattr(data, field, None)
             if value is not None:
-                # Non-admins can't change status directly
+                # Owners can change to allowed statuses; admins can set any status
                 if field == "status" and not is_admin:
-                    continue
+                    if not is_owner or value not in owner_allowed_statuses:
+                        continue
                 updates.append(f"{field} = ?")
                 params.append(value)
 
@@ -1504,6 +1511,28 @@ def update_project(
             (project_id,)
         ).fetchone()
         return enrich_project(conn, dict(updated))
+
+
+@app.delete("/api/projects/{project_id}")
+def delete_project(
+    project_id: int,
+    admin: Dict = Depends(require_admin)
+) -> Dict:
+    """Delete a project permanently (admin only)."""
+    with db_transaction() as conn:
+        project = conn.execute(
+            "SELECT * FROM projects WHERE id = ?", (project_id,)
+        ).fetchone()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        # Delete related records
+        conn.execute("DELETE FROM project_skills WHERE project_id = ?", (project_id,))
+        conn.execute("DELETE FROM project_interests WHERE project_id = ?", (project_id,))
+        conn.execute("DELETE FROM project_updates WHERE project_id = ?", (project_id,))
+        conn.execute("DELETE FROM projects WHERE id = ?", (project_id,))
+
+        return {"message": f"Project '{project['title']}' deleted"}
 
 
 @app.post("/api/projects/{project_id}/updates")
@@ -1787,6 +1816,27 @@ def delete_admin_note(
 # ============================================
 # STARTER TASKS ENDPOINTS
 # ============================================
+
+@app.get("/api/starter-tasks/available")
+def list_available_starter_tasks(
+    current_volunteer: Optional[Dict] = Depends(get_current_volunteer)
+) -> List[Dict]:
+    """List available (open) starter tasks for volunteers to browse."""
+    conn = get_db()
+    tasks = conn.execute(
+        """SELECT st.id, st.title, st.description, st.estimated_hours,
+                  s.name as skill_name, sc.name as skill_category,
+                  p.title as project_title
+           FROM starter_tasks st
+           LEFT JOIN skills s ON st.skill_id = s.id
+           LEFT JOIN skill_categories sc ON s.category_id = sc.id
+           LEFT JOIN projects p ON st.project_id = p.id
+           WHERE st.status = 'open'
+           ORDER BY st.created_at DESC"""
+    ).fetchall()
+    conn.close()
+    return rows_to_list(tasks)
+
 
 @app.get("/api/starter-tasks")
 def list_starter_tasks(
@@ -2434,7 +2484,7 @@ def express_interest(
         raise HTTPException(status_code=404, detail="Project not available")
 
     existing = conn.execute(
-        "SELECT * FROM project_interests WHERE project_id = ? AND volunteer_id = ?",
+        "SELECT * FROM project_interests WHERE project_id = ? AND volunteer_id = ? AND status != 'withdrawn'",
         (project_id, volunteer["id"])
     ).fetchone()
     conn.close()
@@ -2475,7 +2525,10 @@ def respond_to_interest(
         (project_id,)
     ).fetchone()
 
-    if not project or project["owner_id"] != volunteer["id"]:
+    is_owner = project and project["owner_id"] == volunteer["id"]
+    is_admin = volunteer.get("is_admin")
+
+    if not project or not (is_owner or is_admin):
         conn.close()
         raise HTTPException(status_code=403, detail="Not authorized")
 

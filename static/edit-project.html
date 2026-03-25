@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Project - Catalyse</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a href="/" class="logo">Catalyse <img src="/static/images/pauseai-logo.png" alt="PauseAI"></a>
+            <nav>
+                <a href="/" class="active">Projects</a>
+                <a href="/static/volunteers.html">Volunteers</a>
+                <a href="/static/suggest.html">Suggest Project</a>
+                <a href="/static/starter-tasks.html">Starter Tasks</a>
+            </nav>
+            <div class="nav-auth" id="authNav"></div>
+        </div>
+    </header>
+
+    <main class="container page">
+        <div style="max-width: 700px; margin: 0 auto;">
+            <div style="margin-bottom: 20px;">
+                <a id="backLink" href="/" style="color: var(--text-light);">&larr; Back to Project</a>
+            </div>
+
+            <h1>Edit Project</h1>
+
+            <div id="messageDiv" class="message" style="display: none;"></div>
+
+            <div id="loadingState" class="loading">
+                <div class="spinner"></div>
+                Loading project...
+            </div>
+
+            <form id="editForm" class="card" style="display: none;">
+                <div class="form-group">
+                    <label for="title" class="required">Project Title</label>
+                    <input type="text" id="title" name="title" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="description" class="required">Description</label>
+                    <textarea id="description" name="description" required style="min-height: 200px;"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="project_type">Project Type</label>
+                    <select id="project_type" name="project_type">
+                        <option value="">Select a project type...</option>
+                        <option value="sprint">Sprint (1-2 weeks)</option>
+                        <option value="container">Time-boxed (1-3 months)</option>
+                        <option value="ongoing">Ongoing</option>
+                        <option value="one_off">One-off task</option>
+                    </select>
+                </div>
+
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label for="time_commitment">Hours per Week</label>
+                        <input type="number" id="time_commitment" name="time_commitment" min="1" max="40">
+                    </div>
+                    <div class="form-group">
+                        <label for="urgency">Urgency</label>
+                        <select id="urgency" name="urgency">
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="estimated_duration">Estimated Duration</label>
+                    <input type="text" id="estimated_duration" name="estimated_duration" placeholder="e.g., 6 weeks, 2 months">
+                </div>
+
+                <div class="form-group">
+                    <label for="collaboration_link">Collaboration Doc / Link</label>
+                    <input type="text" id="collaboration_link" name="collaboration_link" placeholder="URL or description">
+                </div>
+
+                <h3 style="margin-top: 24px;">Skills Needed</h3>
+                <p class="form-hint" style="margin-bottom: 12px;">Select skills relevant to this project.</p>
+                <div id="skillSelector" class="skill-selector">
+                    <div class="loading"><div class="spinner"></div>Loading skills...</div>
+                </div>
+
+                <div style="margin-top: 24px; display: flex; gap: 12px;">
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">Save Changes</button>
+                    <a id="cancelLink" href="/" class="btn btn-outline">Cancel</a>
+                </div>
+            </form>
+
+            <!-- Admin-only danger zone -->
+            <div id="adminActions" class="card" style="display: none; margin-top: 24px; border: 1px solid var(--error);">
+                <h3 style="color: var(--error); margin-bottom: 12px;">Admin Actions</h3>
+                <div style="display: flex; gap: 12px;">
+                    <button class="btn btn-outline btn-small" onclick="archiveProject()" id="archiveBtn">Archive Project</button>
+                    <button class="btn btn-small" style="background: var(--error); color: white; border: none;" onclick="deleteProject()">Delete Project</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/app.js"></script>
+    <script>
+        let project = null;
+        let currentUser = null;
+
+        async function init() {
+            currentUser = await initAuthNav();
+            if (!currentUser) {
+                window.location.href = '/static/login.html';
+                return;
+            }
+
+            const projectId = getQueryParam('id');
+            if (!projectId) {
+                window.location.href = '/';
+                return;
+            }
+
+            document.getElementById('backLink').href = `/static/project.html?id=${projectId}`;
+            document.getElementById('cancelLink').href = `/static/project.html?id=${projectId}`;
+
+            try {
+                project = await apiRequest(`/api/projects/${projectId}`);
+                populateForm();
+                document.getElementById('loadingState').style.display = 'none';
+                document.getElementById('editForm').style.display = 'block';
+
+                // Show admin actions
+                if (currentUser.is_admin) {
+                    document.getElementById('adminActions').style.display = 'block';
+                    if (project.status === 'archived') {
+                        document.getElementById('archiveBtn').textContent = 'Unarchive Project';
+                    }
+                }
+
+                // Check permission
+                const isOwner = project.owner_id === currentUser.id;
+                const isProposer = project.proposed_by_id === currentUser.id;
+                const isAdmin = currentUser.is_admin;
+                if (!isOwner && !isProposer && !isAdmin) {
+                    showMessage('You do not have permission to edit this project.', 'error');
+                    document.getElementById('editForm').querySelector('button[type="submit"]').disabled = true;
+                }
+            } catch (error) {
+                showMessage(error.message, 'error');
+                document.getElementById('loadingState').innerHTML = `
+                    <p style="color: var(--error);">Could not load project.</p>
+                    <a href="/" class="btn btn-secondary" style="margin-top: 16px;">Back</a>
+                `;
+            }
+        }
+
+        function populateForm() {
+            document.getElementById('title').value = project.title || '';
+            document.getElementById('description').value = project.description || '';
+            document.getElementById('project_type').value = project.project_type || '';
+            document.getElementById('time_commitment').value = project.time_commitment_hours_per_week || '';
+            document.getElementById('urgency').value = project.urgency || 'medium';
+            document.getElementById('estimated_duration').value = project.estimated_duration || '';
+            document.getElementById('collaboration_link').value = project.collaboration_link || '';
+
+            // Load skills with current selections
+            const selectedIds = project.skills.map(s => s.id);
+            renderSkillSelector('skillSelector', selectedIds);
+        }
+
+        document.getElementById('editForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const btn = form.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            btn.textContent = 'Saving...';
+
+            try {
+                const skillIds = getSelectedSkills('skillSelector');
+                const skillRequiredMap = {};
+                skillIds.forEach(id => skillRequiredMap[id] = true);
+
+                const data = {
+                    title: form.title.value.trim(),
+                    description: form.description.value.trim(),
+                    project_type: form.project_type.value || null,
+                    time_commitment_hours_per_week: form.time_commitment.value ? parseInt(form.time_commitment.value) : null,
+                    urgency: form.urgency.value,
+                    estimated_duration: form.estimated_duration.value.trim() || null,
+                    collaboration_link: form.collaboration_link.value.trim() || null,
+                    skill_ids: skillIds,
+                    skill_required_map: skillRequiredMap
+                };
+
+                await apiRequest(`/api/projects/${project.id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(data)
+                });
+
+                showMessage('Project updated!', 'success');
+                setTimeout(() => {
+                    window.location.href = `/static/project.html?id=${project.id}`;
+                }, 1000);
+            } catch (error) {
+                showMessage(error.message, 'error');
+                btn.disabled = false;
+                btn.textContent = 'Save Changes';
+            }
+        });
+
+        async function archiveProject() {
+            const newStatus = project.status === 'archived' ? 'on_hold' : 'archived';
+            const action = newStatus === 'archived' ? 'archive' : 'unarchive';
+            if (!confirm(`Are you sure you want to ${action} this project?`)) return;
+
+            try {
+                await apiRequest(`/api/projects/${project.id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ status: newStatus })
+                });
+                showMessage(`Project ${action}d.`, 'success');
+                setTimeout(() => window.location.href = `/static/project.html?id=${project.id}`, 1000);
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        }
+
+        async function deleteProject() {
+            if (!confirm('Are you sure you want to permanently delete this project? This cannot be undone.')) return;
+            if (!confirm('Really delete? All interests, updates, and skills associations will be removed.')) return;
+
+            try {
+                await apiRequest(`/api/projects/${project.id}`, { method: 'DELETE' });
+                showMessage('Project deleted.', 'success');
+                setTimeout(() => window.location.href = '/', 1500);
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

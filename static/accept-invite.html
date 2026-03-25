@@ -9,7 +9,7 @@
 <body>
     <header>
         <div class="container">
-            <a href="/" class="logo"><img src="/static/images/pauseai-logo.png" alt="PauseAI"> Catalyse</a>
+            <a href="/" class="logo">Catalyse <img src="/static/images/pauseai-logo.png" alt="PauseAI"></a>
             <nav></nav>
             <div class="nav-auth" id="authNav"></div>
         </div>
@@ -32,8 +32,8 @@
                 <p style="margin-bottom: 24px;">
                     Please log in or sign up with the invited email address to accept.
                 </p>
-                <a href="/static/login.html" class="btn btn-primary">Log In</a>
-                <a href="/static/signup.html" class="btn btn-outline" style="margin-left: 8px;">Sign Up</a>
+                <a id="loginLink" href="/static/login.html" class="btn btn-primary">Log In</a>
+                <a id="signupLink" href="/static/signup.html" class="btn btn-outline" style="margin-left: 8px;">Sign Up</a>
             </div>
 
             <div id="success" style="display: none;" class="card">
@@ -68,8 +68,11 @@
             }
 
             if (!currentUser) {
-                // Save token for after login
+                // Save token for after login and set redirect links
                 localStorage.setItem('pendingAdminInvite', token);
+                const redirectUrl = encodeURIComponent(window.location.href);
+                document.getElementById('loginLink').href = `/static/login.html?redirect=${redirectUrl}`;
+                document.getElementById('signupLink').href = `/static/signup.html?redirect=${redirectUrl}`;
                 document.getElementById('needsLogin').style.display = 'block';
                 return;
             }

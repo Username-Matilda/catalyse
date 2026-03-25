@@ -9,11 +9,12 @@
 <body>
     <header>
         <div class="container">
-            <a href="/" class="logo"><img src="/static/images/pauseai-logo.png" alt="PauseAI"> Catalyse</a>
+            <a href="/" class="logo">Catalyse <img src="/static/images/pauseai-logo.png" alt="PauseAI"></a>
             <nav>
                 <a href="/">Projects</a>
                 <a href="/static/volunteers.html">Volunteers</a>
                 <a href="/static/suggest.html">Suggest Project</a>
+                <a href="/static/starter-tasks.html">Starter Tasks</a>
             </nav>
             <div class="nav-auth" id="authNav"></div>
         </div>
@@ -57,7 +58,7 @@
                 <button class="tab" data-tab="interests">My Interests</button>
                 <button class="tab" data-tab="proposed">Proposed</button>
                 <button class="tab" data-tab="suggested">Suggested for You</button>
-                <button class="tab" data-tab="messages">Messages</button>
+                <button class="tab" data-tab="notifications">Notifications <span id="notifBadge" class="notification-badge" style="display: none;"></span></button>
             </div>
 
             <!-- Tab Content: Owned Projects -->
@@ -80,9 +81,9 @@
                 <div id="suggestedProjects"></div>
             </div>
 
-            <!-- Tab Content: Messages -->
-            <div id="tab-messages" class="tab-content" style="display: none;">
-                <div id="messagesList"></div>
+            <!-- Tab Content: Notifications -->
+            <div id="tab-notifications" class="tab-content" style="display: none;">
+                <div id="notificationsList"></div>
             </div>
         </div>
     </main>
@@ -186,8 +187,15 @@
             // Suggested Projects
             renderSuggested();
 
-            // Load messages
-            loadMessages();
+            // Notifications badge
+            if (dashboardData.unread_notification_count > 0) {
+                const badge = document.getElementById('notifBadge');
+                badge.textContent = dashboardData.unread_notification_count;
+                badge.style.display = 'inline';
+            }
+
+            // Load notifications
+            loadNotifications();
         }
 
         function renderProjects(containerId, projects, emptyMessage, showStatus = false) {
@@ -299,51 +307,58 @@
             `;
         }
 
-        async function loadMessages() {
+        async function loadNotifications() {
             try {
-                const data = await apiRequest('/api/messages');
-                renderMessages(data);
+                const notifications = await apiRequest('/api/notifications');
+                renderNotifications(notifications);
             } catch (error) {
-                document.getElementById('messagesList').innerHTML = `<p class="error">${error.message}</p>`;
+                document.getElementById('notificationsList').innerHTML = `<p class="error">${error.message}</p>`;
             }
         }
 
-        function renderMessages(data) {
-            const container = document.getElementById('messagesList');
-            const allMessages = [...data.received.map(m => ({...m, type: 'received'})), ...data.sent.map(m => ({...m, type: 'sent'}))];
-            allMessages.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        function renderNotifications(notifications) {
+            const container = document.getElementById('notificationsList');
 
-            if (allMessages.length === 0) {
+            if (notifications.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
-                        <p>No messages yet.</p>
+                        <p>No notifications yet.</p>
                     </div>
                 `;
                 return;
             }
 
-            container.innerHTML = allMessages.map(m => `
-                <div class="card ${m.type === 'received' && !m.read_at ? 'unread' : ''}" style="${m.type === 'received' && !m.read_at ? 'border-left: 4px solid var(--primary);' : ''}">
-                    <div class="card-header">
-                        <div>
-                            <strong>${m.type === 'received' ? 'From: ' + escapeHtml(m.from_name) : 'To: ' + escapeHtml(m.to_name)}</strong>
-                            <span style="color: var(--text-light);"> · ${formatDateTime(m.created_at)}</span>
-                        </div>
-                        ${m.type === 'received' && !m.read_at ? '<span class="notification-badge">New</span>' : ''}
+            const hasUnread = notifications.some(n => !n.read_at);
+
+            container.innerHTML = `
+                ${hasUnread ? `
+                    <div style="text-align: right; margin-bottom: 12px;">
+                        <button class="btn btn-small btn-ghost" onclick="markAllNotificationsRead()">Mark all as read</button>
                     </div>
-                    <p style="font-weight: 500; margin: 8px 0;">${escapeHtml(m.subject)}</p>
-                    <p style="white-space: pre-wrap;">${escapeHtml(m.message)}</p>
-                    ${m.type === 'received' && !m.read_at ? `
-                        <button class="btn btn-small btn-ghost" style="margin-top: 12px;" onclick="markRead(${m.id})">Mark as Read</button>
-                    ` : ''}
-                </div>
-            `).join('');
+                ` : ''}
+                ${notifications.map(n => `
+                    <div class="card" style="${!n.read_at ? 'border-left: 4px solid var(--primary);' : ''}">
+                        <div class="card-header">
+                            <div>
+                                <strong>${escapeHtml(n.title)}</strong>
+                                <span style="color: var(--text-light);"> · ${formatDateTime(n.created_at)}</span>
+                            </div>
+                            ${!n.read_at ? '<span class="notification-badge">New</span>' : ''}
+                        </div>
+                        ${n.body ? `<p style="margin-top: 8px; color: var(--text-light);">${escapeHtml(n.body)}</p>` : ''}
+                        ${n.link ? `<a href="${n.link.startsWith('/static/') || n.link.startsWith('/') ? n.link : '/static/project.html?id=' + n.link.replace('/projects/', '')}" class="btn btn-small btn-ghost" style="margin-top: 8px;">View</a>` : ''}
+                    </div>
+                `).join('')}
+            `;
         }
 
-        async function markRead(messageId) {
+        async function markAllNotificationsRead() {
             try {
-                await apiRequest(`/api/messages/${messageId}/read`, { method: 'PUT' });
-                loadMessages();
+                await apiRequest('/api/notifications/read-all', { method: 'PUT' });
+                await loadNotifications();
+                document.getElementById('notifBadge').style.display = 'none';
+                document.getElementById('statNotifications').textContent = '0';
+                showMessage('All notifications marked as read', 'success');
             } catch (error) {
                 showMessage(error.message, 'error');
             }

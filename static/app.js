@@ -179,11 +179,12 @@ function renderHeader(activePage = '') {
     return `
         <header>
             <div class="container">
-                <a href="/" class="logo"><img src="/static/images/pauseai-logo.png" alt="PauseAI"> Catalyse</a>
+                <a href="/" class="logo">Catalyse <img src="/static/images/pauseai-logo.png" alt="PauseAI"></a>
                 <nav>
                     <a href="/" class="${activePage === 'projects' ? 'active' : ''}">Projects</a>
                     <a href="/static/volunteers.html" class="${activePage === 'volunteers' ? 'active' : ''}">Volunteers</a>
                     <a href="/static/suggest.html" class="${activePage === 'suggest' ? 'active' : ''}">Suggest Project</a>
+                    <a href="/static/starter-tasks.html" class="${activePage === 'starter-tasks' ? 'active' : ''}">Starter Tasks</a>
                 </nav>
                 <div class="nav-auth" id="authNav"></div>
             </div>
@@ -247,7 +248,7 @@ async function logout() {
         }
     }
     localStorage.removeItem('authToken');
-    window.location.href = '/';
+    window.location.href = '/static/login.html';
 }
 
 // Modal helpers

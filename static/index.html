@@ -9,11 +9,12 @@
 <body>
     <header>
         <div class="container">
-            <a href="/" class="logo"><img src="/static/images/pauseai-logo.png" alt="PauseAI"> Catalyse</a>
+            <a href="/" class="logo">Catalyse <img src="/static/images/pauseai-logo.png" alt="PauseAI"></a>
             <nav>
                 <a href="/" class="active">Projects</a>
                 <a href="/static/volunteers.html">Volunteers</a>
                 <a href="/static/suggest.html">Suggest Project</a>
+                <a href="/static/starter-tasks.html">Starter Tasks</a>
             </nav>
             <div class="nav-auth" id="authNav">
                 <!-- Filled by JS -->
@@ -144,7 +145,7 @@
                 });
             }
             localStorage.removeItem('authToken');
-            window.location.reload();
+            window.location.href = '/static/login.html';
         }
 
         async function loadProjects() {
@@ -201,10 +202,9 @@
                     </div>
                     <p class="card-description">${escapeHtml(truncate(project.description, 150))}</p>
                     <div class="skills">
-                        ${project.skills.slice(0, 5).map(skill => `
+                        ${project.skills.map(skill => `
                             <span class="skill-tag ${getSkillClass(skill, project.match)}">${escapeHtml(skill.name)}</span>
                         `).join('')}
-                        ${project.skills.length > 5 ? `<span class="skill-tag">+${project.skills.length - 5} more</span>` : ''}
                     </div>
                     <div class="card-footer">
                         ${project.match ? `
@@ -286,6 +286,7 @@
     <footer style="border-top: 1px solid var(--border); padding: 24px 0; margin-top: 40px; text-align: center; color: var(--text-light); font-size: 0.875rem;">
         <div class="container">
             <a href="/static/privacy.html" style="color: var(--text-light); margin: 0 12px;">Privacy & Data</a> ·
+            <a href="#" onclick="openBugReportModal(); return false;" style="color: var(--text-light); margin: 0 12px;">Report a Bug</a> ·
             <a href="mailto:uk@pauseai.info" style="color: var(--text-light); margin: 0 12px;">Contact</a> ·
             <span style="margin: 0 12px;">PauseAI UK</span>
         </div>
