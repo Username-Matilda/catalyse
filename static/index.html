@@ -181,6 +181,7 @@
                     </div>
                     <div class="card-meta">
                         ${project.is_org_proposed ? '<span class="org-badge">PauseAI</span>' : ''}
+                        ${project.project_type ? ({'sprint':'Sprint','container':'Time-boxed','ongoing':'Ongoing','one_off':'One-off'}[project.project_type] || project.project_type) + ' · ' : ''}
                         ${project.owner ? `Owner: ${escapeHtml(project.owner.name)}` : 'No owner yet'}
                         ${project.time_commitment_hours_per_week ? ` · ${project.time_commitment_hours_per_week}h/week` : ''}
                         <span class="urgency urgency-${project.urgency}">· ${project.urgency} priority</span>

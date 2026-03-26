@@ -174,7 +174,9 @@
                             <p class="card-meta">
                                 Proposed by: ${p.proposer_name ? escapeHtml(p.proposer_name) : 'Unknown'}
                                 · ${formatDate(p.created_at)}
+                                ${p.project_type ? ` · ${{sprint:'Sprint',container:'Time-boxed',ongoing:'Ongoing',one_off:'One-off'}[p.project_type] || p.project_type}` : ''}
                                 ${p.time_commitment_hours_per_week ? ` · ${p.time_commitment_hours_per_week}h/week` : ''}
+                                ${p.estimated_duration ? ` · ${p.estimated_duration}` : ''}
                             </p>
                         </div>
                         <span class="status-badge status-${p.status}">${formatStatus(p.status)}</span>
