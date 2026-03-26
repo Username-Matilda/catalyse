@@ -26,7 +26,7 @@
     <main class="container page">
         <div class="section-header">
             <h1>Admin Team</h1>
-            <button class="btn btn-primary" onclick="openModal('inviteModal')">Invite Admin</button>
+            <button class="btn btn-primary" onclick="openInviteModal()">Invite Admin</button>
         </div>
 
         <p style="color: var(--text-light); margin-bottom: 24px;">
@@ -263,7 +263,19 @@
             });
         }
 
-        // Reset modal when closed
+        function openInviteModal() {
+            // Reset form state on every open
+            document.getElementById('inviteForm').style.display = 'block';
+            document.getElementById('inviteForm').reset();
+            document.getElementById('inviteResult').style.display = 'none';
+            const manualMsg = document.getElementById('inviteManualMessage');
+            const sentMsg = document.getElementById('inviteSentMessage');
+            if (manualMsg) manualMsg.style.display = 'none';
+            if (sentMsg) sentMsg.style.display = 'none';
+            openModal('inviteModal');
+        }
+
+        // Close modal on background click
         document.getElementById('inviteModal').addEventListener('click', (e) => {
             if (e.target === e.currentTarget) {
                 closeModal('inviteModal');

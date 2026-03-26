@@ -252,12 +252,13 @@ p {
 }
 
 .card-title a {
-    color: inherit;
+    color: var(--primary-dark);
     text-decoration: none;
 }
 
 .card-title a:hover {
     color: var(--primary);
+    text-decoration: underline;
 }
 
 .card-meta {
@@ -360,6 +361,27 @@ p {
 .status-needs_discussion {
     background: #FCE7F3;
     color: #9D174D;
+}
+
+/* Task-specific statuses */
+.status-open {
+    background: #E0E7FF;
+    color: #3730A3;
+}
+
+.status-assigned {
+    background: #DBEAFE;
+    color: #1E40AF;
+}
+
+.status-submitted {
+    background: #FEF3C7;
+    color: #92400E;
+}
+
+.status-reviewed {
+    background: #D1FAE5;
+    color: #065F46;
 }
 
 /* Urgency */

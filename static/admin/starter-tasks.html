@@ -217,7 +217,7 @@
                                 ${t.review_rating ? ` · <span style="color: ${ratingColors[t.review_rating]};">${t.review_rating}</span>` : ''}
                             </p>
                         </div>
-                        <span class="status-badge status-${t.status === 'completed' ? 'completed' : t.status === 'submitted' ? 'seeking_help' : t.status === 'assigned' ? 'in_progress' : 'on_hold'}">
+                        <span class="status-badge status-${t.status}">
                             ${t.status}
                         </span>
                     </div>

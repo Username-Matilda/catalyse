@@ -62,8 +62,20 @@
                 </div>
             </div>
 
+            <!-- Track Record -->
+            <div id="endorsementsSection" class="card" style="display: none;">
+                <h2>Verified Skills</h2>
+                <p style="color: var(--text-light); margin-bottom: 12px;">Skills verified through completed work on the platform.</p>
+                <div id="endorsementsList" class="skills"></div>
+            </div>
+
+            <div id="completedTasksSection" class="card" style="display: none;">
+                <h2>Completed Starter Tasks</h2>
+                <div id="completedTasksList"></div>
+            </div>
+
             <div id="projectsSection" class="card" style="display: none;">
-                <h2>Projects</h2>
+                <h2>Project History</h2>
                 <div id="volunteerProjects"></div>
             </div>
         </div>
@@ -121,11 +133,13 @@
                 document.getElementById('volunteerBio').innerHTML = '<em style="color: var(--text-light);">No bio provided</em>';
             }
 
-            // Skills
+            // Skills (with endorsement indicators)
+            const endorsedSkillIds = new Set((volunteer.endorsements || []).map(e => e.skill_id));
             if (volunteer.skills && volunteer.skills.length > 0) {
-                document.getElementById('volunteerSkills').innerHTML = volunteer.skills.map(s =>
-                    `<span class="skill-tag">${escapeHtml(s.name)}</span>`
-                ).join('');
+                document.getElementById('volunteerSkills').innerHTML = volunteer.skills.map(s => {
+                    const endorsed = endorsedSkillIds.has(s.id);
+                    return `<span class="skill-tag${endorsed ? ' matched' : ''}">${escapeHtml(s.name)}${endorsed ? ' &#10003;' : ''}</span>`;
+                }).join('');
             } else {
                 document.getElementById('volunteerSkills').innerHTML = '<em style="color: var(--text-light);">No skills listed</em>';
             }
@@ -154,17 +168,48 @@
                 document.getElementById('contactDetails').innerHTML = contactHtml.join('<br>');
             }
 
-            // Contact button removed — contact info shown directly in profile
+            // Verified skill endorsements
+            if (volunteer.endorsements && volunteer.endorsements.length > 0) {
+                document.getElementById('endorsementsSection').style.display = 'block';
+                document.getElementById('endorsementsList').innerHTML = volunteer.endorsements.map(e => {
+                    const color = e.rating === 'strong' ? 'var(--success)' : 'var(--secondary)';
+                    return `<span class="skill-tag" style="border-left: 3px solid ${color};">${escapeHtml(e.skill_name)} <small style="color: ${color};">${e.rating}</small></span>`;
+                }).join('');
+            }
 
-            // Projects
+            // Completed starter tasks
+            if (volunteer.completed_tasks && volunteer.completed_tasks.length > 0) {
+                document.getElementById('completedTasksSection').style.display = 'block';
+                document.getElementById('completedTasksList').innerHTML = volunteer.completed_tasks.map(t => `
+                    <div style="padding: 12px 0; border-bottom: 1px solid var(--border);">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <strong>${escapeHtml(t.title)}</strong>
+                            <span style="font-size: 0.875rem; font-weight: 500; color: ${t.review_rating === 'excellent' ? 'var(--success)' : 'var(--secondary)'};">
+                                ${t.review_rating}
+                            </span>
+                        </div>
+                        ${t.skill_name ? `<span class="skill-tag" style="margin-top: 4px;">${escapeHtml(t.skill_name)}</span>` : ''}
+                        ${t.feedback_to_volunteer ? `<p style="margin-top: 8px; font-size: 0.875rem; color: var(--text-light); font-style: italic;">"${escapeHtml(t.feedback_to_volunteer)}"</p>` : ''}
+                        ${t.reviewed_at ? `<p style="font-size: 0.75rem; color: var(--text-light); margin-top: 4px;">${formatDate(t.reviewed_at)}</p>` : ''}
+                    </div>
+                `).join('');
+            }
+
+            // Project history
             if (volunteer.projects && volunteer.projects.length > 0) {
                 document.getElementById('projectsSection').style.display = 'block';
                 document.getElementById('volunteerProjects').innerHTML = volunteer.projects.map(p => `
                     <div style="padding: 12px 0; border-bottom: 1px solid var(--border);">
-                        <a href="/static/project.html?id=${p.id}" style="font-weight: 600; color: var(--secondary-dark);">
-                            ${escapeHtml(p.title)}
-                        </a>
-                        <span class="status-badge status-${p.status}" style="margin-left: 8px;">${formatStatus(p.status)}</span>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <a href="/static/project.html?id=${p.id}" style="font-weight: 600; color: var(--primary-dark);">
+                                ${escapeHtml(p.title)}
+                            </a>
+                            <span class="status-badge status-${p.status}">${formatStatus(p.status)}</span>
+                        </div>
+                        <p style="font-size: 0.875rem; color: var(--text-light); margin-top: 4px;">
+                            ${p.role === 'owner' ? 'Project owner' : 'Proposer'}
+                            ${p.outcome ? ` · Outcome: ${p.outcome}` : ''}
+                        </p>
                     </div>
                 `).join('');
             }

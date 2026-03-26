@@ -116,6 +116,9 @@
                 return;
             }
 
+            // Restore filter from URL
+            const urlStatus = new URLSearchParams(window.location.search).get('status');
+            if (urlStatus) document.getElementById('statusFilter').value = urlStatus;
             await loadReports();
             setupUpdateForm();
         }
@@ -131,6 +134,11 @@
 
         function filterReports() {
             const status = document.getElementById('statusFilter').value;
+            // Persist filter to URL
+            const params = new URLSearchParams();
+            if (status) params.set('status', status);
+            history.replaceState(null, '', params.toString() ? `?${params}` : window.location.pathname);
+
             const filtered = status
                 ? allReports.filter(r => r.status === status)
                 : allReports;
