@@ -585,9 +585,10 @@ def signup(data: VolunteerSignup) -> Dict:
         # Auto-accept any pending admin invites for this email
         pending_invite = conn.execute(
             """SELECT * FROM admin_invites
-               WHERE email = ? AND status = 'pending' AND expires_at > ?""",
+               WHERE LOWER(email) = LOWER(?) AND status = 'pending' AND expires_at > ?""",
             (data.email, datetime.now().isoformat())
         ).fetchone()
+        print(f"[ADMIN_INVITE] Signup check for {data.email}: pending_invite={'found id=' + str(pending_invite['id']) if pending_invite else 'none'}")
         if pending_invite:
             conn.execute(
                 "UPDATE volunteers SET is_admin = 1 WHERE id = ?",
@@ -660,9 +661,10 @@ def login(data: LoginRequest) -> Dict:
     with db_transaction() as conn:
         pending_invite = conn.execute(
             """SELECT * FROM admin_invites
-               WHERE email = ? AND status = 'pending' AND expires_at > ?""",
+               WHERE LOWER(email) = LOWER(?) AND status = 'pending' AND expires_at > ?""",
             (data.email, datetime.now().isoformat())
         ).fetchone()
+        print(f"[ADMIN_INVITE] Login check for {data.email}: pending_invite={'found id=' + str(pending_invite['id']) if pending_invite else 'none'}")
         if pending_invite:
             conn.execute(
                 "UPDATE volunteers SET is_admin = 1 WHERE id = ?",
