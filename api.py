@@ -582,6 +582,26 @@ def signup(data: VolunteerSignup) -> Dict:
         # Check for admin bootstrap via ADMIN_EMAILS env var
         check_admin_bootstrap(data.email, volunteer_id)
 
+        # Auto-accept any pending admin invites for this email
+        pending_invite = conn.execute(
+            """SELECT * FROM admin_invites
+               WHERE LOWER(email) = LOWER(?) AND status = 'pending' AND expires_at > ?""",
+            (data.email, datetime.now().isoformat())
+        ).fetchone()
+        print(f"[ADMIN_INVITE] Signup check for {data.email}: pending_invite={'found id=' + str(pending_invite['id']) if pending_invite else 'none'}")
+        if pending_invite:
+            conn.execute(
+                "UPDATE volunteers SET is_admin = 1 WHERE id = ?",
+                (volunteer_id,)
+            )
+            conn.execute(
+                """UPDATE admin_invites
+                   SET status = 'accepted', accepted_by_id = ?, accepted_at = ?
+                   WHERE id = ?""",
+                (volunteer_id, datetime.now().isoformat(), pending_invite["id"])
+            )
+            print(f"[ADMIN_INVITE] Auto-accepted invite for {data.email} on signup")
+
         # Send welcome email (non-blocking, don't fail signup if email fails)
         send_welcome_email(to=data.email, name=data.name)
 
@@ -636,6 +656,28 @@ def login(data: LoginRequest) -> Dict:
 
     # Check for admin bootstrap via ADMIN_EMAILS env var
     was_promoted = check_admin_bootstrap(data.email, volunteer["id"])
+
+    # Auto-accept any pending admin invites for this email
+    with db_transaction() as conn:
+        pending_invite = conn.execute(
+            """SELECT * FROM admin_invites
+               WHERE LOWER(email) = LOWER(?) AND status = 'pending' AND expires_at > ?""",
+            (data.email, datetime.now().isoformat())
+        ).fetchone()
+        print(f"[ADMIN_INVITE] Login check for {data.email}: pending_invite={'found id=' + str(pending_invite['id']) if pending_invite else 'none'}")
+        if pending_invite:
+            conn.execute(
+                "UPDATE volunteers SET is_admin = 1 WHERE id = ?",
+                (volunteer["id"],)
+            )
+            conn.execute(
+                """UPDATE admin_invites
+                   SET status = 'accepted', accepted_by_id = ?, accepted_at = ?
+                   WHERE id = ?""",
+                (volunteer["id"], datetime.now().isoformat(), pending_invite["id"])
+            )
+            was_promoted = True
+            print(f"[ADMIN_INVITE] Auto-accepted invite for {data.email} on login")
 
     # Generate new token
     auth_token = generate_auth_token()
@@ -2957,6 +2999,20 @@ def mark_all_read(volunteer: Dict = Depends(require_auth)) -> Dict:
             (datetime.now().isoformat(), volunteer["id"])
         )
         return {"message": "All marked as read"}
+
+
+@app.get("/api/admin/backup")
+def download_backup(admin: Dict = Depends(require_admin)):
+    """Download a copy of the database (admin only)."""
+    if not DATABASE_PATH.exists():
+        raise HTTPException(status_code=404, detail="Database not found")
+
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H%M")
+    return FileResponse(
+        path=str(DATABASE_PATH),
+        filename=f"catalyse-backup-{timestamp}.db",
+        media_type="application/octet-stream"
+    )
 
 
 # ============================================
