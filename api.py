@@ -1880,13 +1880,14 @@ def create_org_project(
         cursor = conn.execute(
             """INSERT INTO projects (
                 title, description, status, owner_id, proposed_by_id,
-                is_org_proposed, time_commitment_hours_per_week, urgency,
-                collaboration_link
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                is_org_proposed, project_type, estimated_duration,
+                time_commitment_hours_per_week, urgency, collaboration_link
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 data.title, data.description, status,
                 admin["id"] if data.want_to_own else None,
-                admin["id"], True, data.time_commitment_hours_per_week,
+                admin["id"], True, data.project_type, data.estimated_duration,
+                data.time_commitment_hours_per_week,
                 data.urgency, data.collaboration_link
             )
         )

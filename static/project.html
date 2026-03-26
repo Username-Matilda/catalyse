@@ -281,6 +281,9 @@
             // Meta info
             let meta = [];
             if (project.is_org_proposed) meta.push('<span class="org-badge">PauseAI Official</span>');
+            const typeLabels = { sprint: 'Sprint', container: 'Time-boxed', ongoing: 'Ongoing', one_off: 'One-off' };
+            if (project.project_type) meta.push(typeLabels[project.project_type] || project.project_type);
+            if (project.estimated_duration) meta.push(project.estimated_duration);
             if (project.time_commitment_hours_per_week) meta.push(`${project.time_commitment_hours_per_week}h/week`);
             meta.push(`<span class="urgency urgency-${project.urgency}">${formatUrgency(project.urgency)} priority</span>`);
             meta.push(`Added ${formatDate(project.created_at)}`);
