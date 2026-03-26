@@ -92,6 +92,31 @@ def init_db():
             print("Skills seeded.")
         conn.close()
 
+    # Run any pending migrations
+    run_migrations()
+
+
+def run_migrations():
+    """Run SQL migration files that haven't been applied yet."""
+    migration_dir = Path(__file__).parent
+    migration_files = sorted(migration_dir.glob("migration_*.sql"))
+
+    if not migration_files:
+        return
+
+    conn = get_db()
+    for migration_path in migration_files:
+        try:
+            with open(migration_path) as f:
+                conn.executescript(f.read())
+            print(f"Migration applied: {migration_path.name}")
+        except Exception as e:
+            # Most likely "table already exists" — safe to skip
+            if "already exists" not in str(e).lower():
+                print(f"Migration {migration_path.name}: {e}")
+    conn.commit()
+    conn.close()
+
 
 # ============================================
 # PYDANTIC MODELS
@@ -192,6 +217,19 @@ class ProjectReview(BaseModel):
     review_notes: Optional[str] = None
     feedback_to_proposer: Optional[str] = None
     target_status: Optional[str] = None  # 'seeking_owner' or 'seeking_help' if approved
+
+
+# --- Project Tasks ---
+class ProjectTaskCreate(BaseModel):
+    title: str = Field(..., min_length=1, max_length=300)
+    description: Optional[str] = None
+
+
+class ProjectTaskUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = None  # 'open', 'assigned', 'done'
+    assigned_to_id: Optional[int] = None
 
 
 # --- Interests ---
@@ -1386,6 +1424,20 @@ def get_project(
     ).fetchall()
     project["updates"] = rows_to_list(updates)
 
+    # Get project tasks
+    tasks = conn.execute(
+        """SELECT pt.*, v_assigned.name as assigned_to_name,
+                  v_created.name as created_by_name
+           FROM project_tasks pt
+           LEFT JOIN volunteers v_assigned ON pt.assigned_to_id = v_assigned.id
+           LEFT JOIN volunteers v_created ON pt.created_by_id = v_created.id
+           WHERE pt.project_id = ?
+           ORDER BY CASE pt.status WHEN 'open' THEN 1 WHEN 'assigned' THEN 2 ELSE 3 END,
+                    pt.created_at DESC""",
+        (project_id,)
+    ).fetchall()
+    project["tasks"] = rows_to_list(tasks)
+
     # Get interests if owner or admin
     if current_volunteer:
         is_owner = project.get("owner_id") == current_volunteer["id"]
@@ -1584,6 +1636,155 @@ def add_project_update(
             (project_id, volunteer["id"], data.content)
         )
         return {"id": cursor.lastrowid, "message": "Update added"}
+
+
+# ============================================
+# PROJECT TASKS ENDPOINTS
+# ============================================
+
+@app.get("/api/projects/{project_id}/tasks")
+def list_project_tasks(
+    project_id: int,
+    current_volunteer: Optional[Dict] = Depends(get_current_volunteer)
+) -> List[Dict]:
+    """List tasks for a project."""
+    conn = get_db()
+    tasks = conn.execute(
+        """SELECT pt.*, v_assigned.name as assigned_to_name,
+                  v_created.name as created_by_name
+           FROM project_tasks pt
+           LEFT JOIN volunteers v_assigned ON pt.assigned_to_id = v_assigned.id
+           LEFT JOIN volunteers v_created ON pt.created_by_id = v_created.id
+           WHERE pt.project_id = ?
+           ORDER BY CASE pt.status WHEN 'open' THEN 1 WHEN 'assigned' THEN 2 ELSE 3 END,
+                    pt.created_at DESC""",
+        (project_id,)
+    ).fetchall()
+    conn.close()
+    return rows_to_list(tasks)
+
+
+@app.post("/api/projects/{project_id}/tasks")
+def create_project_task(
+    project_id: int,
+    data: ProjectTaskCreate,
+    volunteer: Dict = Depends(require_auth)
+) -> Dict:
+    """Create a task within a project (owner or admin)."""
+    conn = get_db()
+    project = conn.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
+    conn.close()
+
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    is_owner = project["owner_id"] == volunteer["id"]
+    is_admin = volunteer.get("is_admin")
+    if not (is_owner or is_admin):
+        raise HTTPException(status_code=403, detail="Only project owner or admin can create tasks")
+
+    with db_transaction() as conn:
+        cursor = conn.execute(
+            """INSERT INTO project_tasks (project_id, title, description, created_by_id)
+               VALUES (?, ?, ?, ?)""",
+            (project_id, data.title, data.description, volunteer["id"])
+        )
+        return {"id": cursor.lastrowid, "message": "Task created"}
+
+
+@app.put("/api/projects/{project_id}/tasks/{task_id}")
+def update_project_task(
+    project_id: int,
+    task_id: int,
+    data: ProjectTaskUpdate,
+    volunteer: Dict = Depends(require_auth)
+) -> Dict:
+    """Update a project task. Owner/admin can edit all fields. Volunteers can claim open tasks."""
+    conn = get_db()
+    project = conn.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
+    task = conn.execute(
+        "SELECT * FROM project_tasks WHERE id = ? AND project_id = ?", (task_id, project_id)
+    ).fetchone()
+    conn.close()
+
+    if not project or not task:
+        raise HTTPException(status_code=404, detail="Project or task not found")
+
+    is_owner = project["owner_id"] == volunteer["id"]
+    is_admin = volunteer.get("is_admin")
+    is_assignee = task["assigned_to_id"] == volunteer["id"]
+
+    # Volunteers can claim open tasks or mark their own assigned tasks as done
+    if not (is_owner or is_admin):
+        if data.status == 'assigned' and data.assigned_to_id == volunteer["id"] and task["status"] == "open":
+            pass  # Allow self-claim
+        elif data.status == 'done' and is_assignee and task["status"] == "assigned":
+            pass  # Allow marking own task done
+        else:
+            raise HTTPException(status_code=403, detail="Not authorized to update this task")
+
+    with db_transaction() as conn:
+        updates = []
+        params = []
+
+        if data.title is not None:
+            updates.append("title = ?")
+            params.append(data.title)
+        if data.description is not None:
+            updates.append("description = ?")
+            params.append(data.description)
+        if data.status is not None:
+            updates.append("status = ?")
+            params.append(data.status)
+            if data.status == "done":
+                updates.append("completed_at = ?")
+                params.append(datetime.now().isoformat())
+            elif data.status == "open":
+                updates.append("assigned_to_id = NULL")
+                updates.append("completed_at = NULL")
+        if data.assigned_to_id is not None:
+            updates.append("assigned_to_id = ?")
+            params.append(data.assigned_to_id)
+
+        if updates:
+            updates.append("updated_at = ?")
+            params.append(datetime.now().isoformat())
+            params.append(task_id)
+            conn.execute(
+                f"UPDATE project_tasks SET {', '.join(updates)} WHERE id = ?",
+                params
+            )
+
+        return {"message": "Task updated"}
+
+
+@app.delete("/api/projects/{project_id}/tasks/{task_id}")
+def delete_project_task(
+    project_id: int,
+    task_id: int,
+    volunteer: Dict = Depends(require_auth)
+) -> Dict:
+    """Delete a project task (owner or admin only)."""
+    conn = get_db()
+    project = conn.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
+    conn.close()
+
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    is_owner = project["owner_id"] == volunteer["id"]
+    is_admin = volunteer.get("is_admin")
+    if not (is_owner or is_admin):
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    with db_transaction() as conn:
+        result = conn.execute(
+            "DELETE FROM project_tasks WHERE id = ? AND project_id = ?",
+            (task_id, project_id)
+        )
+        if result.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Task not found")
+        return {"message": "Task deleted"}
 
 
 # ============================================

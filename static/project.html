@@ -105,6 +105,32 @@
                 </div>
             </div>
 
+            <!-- Project Tasks -->
+            <div id="tasksSection" class="card" style="display: none;">
+                <div class="card-header" style="margin-bottom: 16px;">
+                    <h2 style="margin: 0;">Tasks</h2>
+                    <button id="addTaskBtn" class="btn btn-small btn-secondary" style="display: none;" onclick="toggleAddTask()">Add Task</button>
+                </div>
+                <div id="addTaskForm" style="display: none; margin-bottom: 16px; padding: 16px; background: var(--background); border-radius: var(--radius);">
+                    <form id="taskForm">
+                        <div class="form-group">
+                            <input type="text" id="taskTitle" required placeholder="Task title">
+                        </div>
+                        <div class="form-group">
+                            <textarea id="taskDescription" placeholder="Description (optional)" style="min-height: 60px;"></textarea>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button type="submit" class="btn btn-small btn-primary">Create Task</button>
+                            <button type="button" class="btn btn-small btn-ghost" onclick="toggleAddTask()">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+                <div id="tasksList"></div>
+                <div id="tasksEmpty" class="empty-state" style="display: none;">
+                    <p>No tasks yet.</p>
+                </div>
+            </div>
+
             <div id="updatesSection" class="card" style="display: none;">
                 <h2>Project Updates</h2>
                 <div id="updatesList"></div>
@@ -323,6 +349,9 @@
                 renderManageInterests();
             }
 
+            // Tasks section
+            renderTasksSection();
+
             // Updates section
             renderUpdatesSection();
         }
@@ -486,6 +515,134 @@
                     body: JSON.stringify({ status: newStatus })
                 });
                 showMessage(`Status updated to ${formatStatus(newStatus)}`, 'success');
+                await loadProject(project.id);
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        }
+
+        // ---- Project Tasks ----
+
+        function renderTasksSection() {
+            const isOwner = currentUser && currentUser.id === project.owner_id;
+            const isAdmin = currentUser && currentUser.is_admin;
+
+            if (!project.tasks || project.tasks.length === 0) {
+                // Only show empty section to owner/admin (they can add tasks)
+                if (isOwner || isAdmin) {
+                    document.getElementById('tasksSection').style.display = 'block';
+                    document.getElementById('addTaskBtn').style.display = 'inline-flex';
+                    document.getElementById('tasksEmpty').style.display = 'block';
+                }
+                return;
+            }
+
+            document.getElementById('tasksSection').style.display = 'block';
+            if (isOwner || isAdmin) {
+                document.getElementById('addTaskBtn').style.display = 'inline-flex';
+            }
+            document.getElementById('tasksEmpty').style.display = 'none';
+
+            document.getElementById('tasksList').innerHTML = project.tasks.map(t => `
+                <div class="card" style="margin-bottom: 8px; padding: 12px 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: start; gap: 12px;">
+                        <div style="flex: 1;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span class="status-badge status-${t.status}" style="font-size: 0.7rem;">${t.status}</span>
+                                <strong>${escapeHtml(t.title)}</strong>
+                            </div>
+                            ${t.description ? `<p style="margin-top: 4px; font-size: 0.875rem; color: var(--text-light);">${escapeHtml(t.description)}</p>` : ''}
+                            <p style="font-size: 0.75rem; color: var(--text-light); margin-top: 4px;">
+                                ${t.assigned_to_name ? `Assigned to: <a href="/static/volunteer.html?id=${t.assigned_to_id}">${escapeHtml(t.assigned_to_name)}</a>` : ''}
+                                ${t.status === 'done' && t.completed_at ? `Completed ${formatDate(t.completed_at)}` : ''}
+                            </p>
+                        </div>
+                        <div style="display: flex; gap: 4px; flex-shrink: 0;">
+                            ${t.status === 'open' && currentUser ? `
+                                <button class="btn btn-small btn-secondary" onclick="claimTask(${t.id})">Claim</button>
+                            ` : ''}
+                            ${t.status === 'assigned' && t.assigned_to_id === currentUser?.id ? `
+                                <button class="btn btn-small btn-primary" onclick="completeTask(${t.id})">Done</button>
+                            ` : ''}
+                            ${(isOwner || isAdmin) && t.status !== 'done' ? `
+                                <button class="btn btn-small btn-ghost" onclick="reopenTask(${t.id})" title="Reset to open">&#8634;</button>
+                            ` : ''}
+                            ${isOwner || isAdmin ? `
+                                <button class="btn btn-small btn-ghost" onclick="deleteTask(${t.id})" title="Delete task" style="color: var(--error);">&times;</button>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function toggleAddTask() {
+            const form = document.getElementById('addTaskForm');
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        }
+
+        document.getElementById('taskForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                await apiRequest(`/api/projects/${project.id}/tasks`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        title: document.getElementById('taskTitle').value.trim(),
+                        description: document.getElementById('taskDescription').value.trim() || null
+                    })
+                });
+                document.getElementById('taskTitle').value = '';
+                document.getElementById('taskDescription').value = '';
+                document.getElementById('addTaskForm').style.display = 'none';
+                showMessage('Task added!', 'success');
+                await loadProject(project.id);
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        });
+
+        async function claimTask(taskId) {
+            try {
+                await apiRequest(`/api/projects/${project.id}/tasks/${taskId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ status: 'assigned', assigned_to_id: currentUser.id })
+                });
+                showMessage('Task claimed!', 'success');
+                await loadProject(project.id);
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        }
+
+        async function completeTask(taskId) {
+            try {
+                await apiRequest(`/api/projects/${project.id}/tasks/${taskId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ status: 'done' })
+                });
+                showMessage('Task completed!', 'success');
+                await loadProject(project.id);
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        }
+
+        async function reopenTask(taskId) {
+            try {
+                await apiRequest(`/api/projects/${project.id}/tasks/${taskId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ status: 'open' })
+                });
+                await loadProject(project.id);
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        }
+
+        async function deleteTask(taskId) {
+            if (!confirm('Delete this task?')) return;
+            try {
+                await apiRequest(`/api/projects/${project.id}/tasks/${taskId}`, { method: 'DELETE' });
                 await loadProject(project.id);
             } catch (error) {
                 showMessage(error.message, 'error');
