@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Pause Interventions Map — Mockup</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface-hover: #232736;
+    --border: #2a2e3d;
+    --text: #e2e4eb;
+    --text-muted: #8b8fa3;
+    --accent-orange: #f59e0b;
+    --accent-green: #22c55e;
+    --accent-blue: #3b82f6;
+    --accent-red: #ef4444;
+    --accent-purple: #a855f7;
+    --accent-teal: #14b8a6;
+    --neglected: #ef4444;
+    --in-progress: #f59e0b;
+    --well-covered: #22c55e;
+    --unfunded: #ef4444;
+    --sidebar-width: 320px;
+    --detail-width: 400px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  /* ── Top bar ── */
+  .topbar {
+    height: 52px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    z-index: 100;
+    position: relative;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 16px; }
+  .topbar-logo { font-size: 18px; font-weight: 700; color: var(--accent-orange); letter-spacing: -0.5px; }
+  .topbar-subtitle { font-size: 12px; color: var(--text-muted); }
+  .topbar-controls { display: flex; gap: 8px; align-items: center; }
+  .toggle-btn {
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .toggle-btn:hover { background: var(--surface-hover); color: var(--text); }
+  .toggle-btn.active { background: var(--accent-blue); color: white; border-color: var(--accent-blue); }
+  .search-input {
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 12px;
+    width: 200px;
+    outline: none;
+  }
+  .search-input::placeholder { color: var(--text-muted); }
+
+  /* ── Layout ── */
+  .layout {
+    display: flex;
+    height: calc(100vh - 52px);
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: var(--sidebar-width);
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 16px 0;
+    flex-shrink: 0;
+  }
+  .sidebar-header {
+    padding: 0 16px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+  }
+  .tree-node {
+    padding: 6px 16px;
+    cursor: pointer;
+    font-size: 13px;
+    line-height: 1.4;
+    transition: background 0.1s;
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .tree-node:hover { background: var(--surface-hover); }
+  .tree-node.selected { background: rgba(59,130,246,0.12); color: var(--accent-blue); }
+  .tree-node .arrow {
+    color: var(--text-muted);
+    font-size: 10px;
+    margin-top: 3px;
+    flex-shrink: 0;
+    width: 12px;
+    transition: transform 0.15s;
+  }
+  .tree-node .arrow.expanded { transform: rotate(90deg); }
+  .tree-children { display: none; }
+  .tree-children.open { display: block; }
+  .depth-1 { padding-left: 32px; }
+  .depth-2 { padding-left: 48px; }
+  .depth-3 { padding-left: 64px; }
+  .status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 5px;
+  }
+  .status-neglected { background: var(--neglected); }
+  .status-in-progress { background: var(--in-progress); }
+  .status-well-covered { background: var(--well-covered); }
+  .status-unfunded { background: var(--accent-purple); }
+
+  /* ── Canvas (graph area) ── */
+  .canvas {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 1px 1px, rgba(255,255,255,0.03) 1px, transparent 0);
+    background-size: 30px 30px;
+  }
+
+  /* ── Graph nodes ── */
+  .graph-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.85);
+    width: 1600px;
+    height: 900px;
+  }
+
+  .node {
+    position: absolute;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .node:hover { transform: scale(1.04); z-index: 10; }
+
+  .node-goal {
+    background: linear-gradient(135deg, rgba(245,158,11,0.15), rgba(245,158,11,0.05));
+    border: 2px solid var(--accent-orange);
+    padding: 16px 24px;
+    text-align: center;
+    max-width: 440px;
+  }
+  .node-goal .node-title { color: var(--accent-orange); font-size: 15px; font-weight: 700; }
+  .node-goal .node-subtitle { color: var(--text-muted); font-size: 11px; margin-top: 2px; }
+
+  .node-pillar {
+    background: linear-gradient(135deg, rgba(59,130,246,0.12), rgba(59,130,246,0.04));
+    border: 1.5px solid var(--accent-blue);
+    padding: 12px 18px;
+    max-width: 260px;
+  }
+  .node-pillar .node-title { color: var(--accent-blue); font-size: 13px; font-weight: 600; }
+
+  .node-strategy {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 10px 14px;
+    max-width: 220px;
+  }
+  .node-strategy .node-title { font-size: 12px; font-weight: 500; }
+
+  .node-intervention {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    max-width: 200px;
+    border-left: 3px solid;
+  }
+  .node-intervention .node-title { font-size: 11px; font-weight: 400; }
+  .node-intervention.neglected { border-left-color: var(--neglected); }
+  .node-intervention.in-progress { border-left-color: var(--in-progress); }
+  .node-intervention.well-covered { border-left-color: var(--well-covered); }
+
+  .node-annotation {
+    background: transparent;
+    border: 1px dashed rgba(139,143,163,0.3);
+    padding: 8px 12px;
+    max-width: 240px;
+  }
+  .node-annotation .node-title { font-size: 11px; color: var(--text-muted); font-style: italic; }
+
+  .node-meta {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 2px;
+  }
+  .node-badge {
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .badge-neglected { background: rgba(239,68,68,0.15); color: var(--neglected); }
+  .badge-unfunded { background: rgba(168,85,247,0.15); color: var(--accent-purple); }
+  .badge-in-progress { background: rgba(245,158,11,0.15); color: var(--in-progress); }
+  .badge-well-covered { background: rgba(34,197,94,0.15); color: var(--well-covered); }
+
+  /* ── SVG edges ── */
+  .edges-svg {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  .edge {
+    stroke: rgba(255,255,255,0.12);
+    stroke-width: 1.5;
+    fill: none;
+  }
+  .edge-cross {
+    stroke: rgba(168,85,247,0.35);
+    stroke-width: 1;
+    stroke-dasharray: 6,4;
+    fill: none;
+  }
+  .edge-arrow {
+    fill: rgba(255,255,255,0.12);
+  }
+
+  /* ── Detail panel ── */
+  .detail-panel {
+    width: var(--detail-width);
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 24px;
+    flex-shrink: 0;
+  }
+  .detail-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .detail-title { font-size: 16px; font-weight: 700; line-height: 1.3; }
+  .detail-type { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px; }
+  .detail-close {
+    background: none; border: none; color: var(--text-muted); cursor: pointer;
+    font-size: 18px; padding: 4px; line-height: 1;
+  }
+
+  .detail-section { margin-bottom: 20px; }
+  .detail-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .detail-section-title .count {
+    background: var(--bg);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+  }
+  .detail-description {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text-muted);
+  }
+
+  .research-q {
+    padding: 8px 12px;
+    background: var(--bg);
+    border-radius: 6px;
+    margin-bottom: 6px;
+    font-size: 12px;
+    line-height: 1.5;
+    border-left: 2px solid var(--accent-teal);
+  }
+
+  .resource-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .resource-tag {
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: var(--bg);
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+  .resource-link { color: var(--accent-blue); text-decoration: none; }
+  .resource-link:hover { text-decoration: underline; }
+
+  .person-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .person-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+  .person-name { font-size: 12px; font-weight: 500; }
+  .person-role { font-size: 11px; color: var(--text-muted); }
+
+  .add-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 12px;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 8px;
+    transition: all 0.15s;
+  }
+  .add-btn:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+
+  .status-selector {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .status-option {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    transition: all 0.15s;
+  }
+  .status-option.active-neglected { background: rgba(239,68,68,0.15); border-color: var(--neglected); color: var(--neglected); }
+  .status-option.active-unfunded { background: rgba(168,85,247,0.15); border-color: var(--accent-purple); color: var(--accent-purple); }
+
+  /* ── Legend ── */
+  .legend {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    display: flex;
+    gap: 16px;
+    font-size: 11px;
+    z-index: 50;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-muted);
+  }
+  .legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  /* ── Minimap ── */
+  .minimap {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    width: 160px;
+    height: 90px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    z-index: 50;
+    overflow: hidden;
+  }
+  .minimap-viewport {
+    position: absolute;
+    border: 1px solid var(--accent-blue);
+    background: rgba(59,130,246,0.08);
+    border-radius: 2px;
+    top: 15%;
+    left: 20%;
+    width: 50%;
+    height: 60%;
+  }
+  .minimap-dot {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: var(--text-muted);
+  }
+
+  /* ── Cross-link toggle indicator ── */
+  .crosslink-hint {
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 11px;
+    color: var(--text-muted);
+    z-index: 50;
+    display: none;
+  }
+  .crosslink-hint.visible { display: block; }
+</style>
+</head>
+<body>
+
+<!-- ── Top bar ── -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-logo">Catalyse Map</div>
+    <div class="topbar-subtitle">AI Pause Interventions</div>
+  </div>
+  <div class="topbar-controls">
+    <input class="search-input" placeholder="Search interventions..." />
+    <button class="toggle-btn active" id="btn-cascade">Cascade</button>
+    <button class="toggle-btn" id="btn-network">Network</button>
+    <button class="toggle-btn" id="btn-crosslinks" onclick="toggleCrosslinks()">Cross-links</button>
+    <button class="toggle-btn" style="color: var(--accent-green);">+ Add node</button>
+  </div>
+</div>
+
+<div class="layout">
+
+  <!-- ── Sidebar tree ── -->
+  <div class="sidebar">
+    <div class="sidebar-header">Intervention Tree</div>
+
+    <!-- Root -->
+    <div class="tree-node selected" onclick="selectNode(this)">
+      <span class="arrow expanded">&#9654;</span>
+      <span class="status-dot" style="background: var(--accent-orange)"></span>
+      <span>Globally endorsed 10yr+ AI Pause</span>
+    </div>
+    <div class="tree-children open">
+
+      <!-- Pillar 1 -->
+      <div class="tree-node depth-1" onclick="selectNode(this)">
+        <span class="arrow expanded">&#9654;</span>
+        <span class="status-dot status-in-progress"></span>
+        <span>Enforced International Treaty</span>
+      </div>
+      <div class="tree-children open">
+        <div class="tree-node depth-2" onclick="selectNode(this)">
+          <span class="arrow">&#9654;</span>
+          <span class="status-dot status-in-progress"></span>
+          <span>Advance policy prospects</span>
+        </div>
+      </div>
+
+      <!-- Pillar 2 -->
+      <div class="tree-node depth-1" onclick="selectNode(this)">
+        <span class="arrow expanded">&#9654;</span>
+        <span class="status-dot status-neglected"></span>
+        <span>Buy-in from global populations</span>
+      </div>
+      <div class="tree-children open">
+        <div class="tree-node depth-2" onclick="selectNode(this)">
+          <span class="arrow">&#9654;</span>
+          <span class="status-dot status-neglected"></span>
+          <span>Messaging & framing</span>
+        </div>
+        <div class="tree-node depth-2" onclick="selectNode(this)">
+          <span class="arrow">&#9654;</span>
+          <span class="status-dot status-neglected"></span>
+          <span>Community organising</span>
+        </div>
+        <div class="tree-node depth-2" onclick="selectNode(this)">
+          <span class="arrow">&#9654;</span>
+          <span class="status-dot status-in-progress"></span>
+          <span>Talent funnelling</span>
+        </div>
+        <div class="tree-node depth-2" onclick="selectNode(this)">
+          <span class="arrow">&#9654;</span>
+          <span class="status-dot status-neglected"></span>
+          <span>Neglected regions (Asia, Africa)</span>
+        </div>
+      </div>
+
+      <!-- Pillar 3 -->
+      <div class="tree-node depth-1" onclick="selectNode(this)">
+        <span class="arrow expanded">&#9654;</span>
+        <span class="status-dot status-neglected"></span>
+        <span>Economic Incentives</span>
+      </div>
+      <div class="tree-children open">
+        <div class="tree-node depth-2" onclick="selectNode(this)">
+          <span class="arrow">&#9654;</span>
+          <span class="status-dot status-neglected"></span>
+          <span>Burst the AI bubble</span>
+        </div>
+        <div class="tree-node depth-2" onclick="selectNode(this)">
+          <span class="arrow">&#9654;</span>
+          <span class="status-dot status-neglected"></span>
+          <span>Rebranding the pause</span>
+        </div>
+        <div class="tree-node depth-2" onclick="selectNode(this)">
+          <span class="arrow">&#9654;</span>
+          <span class="status-dot status-unfunded"></span>
+          <span>Union organising in AI labs</span>
+        </div>
+        <div class="tree-node depth-2" onclick="selectNode(this)">
+          <span class="arrow">&#9654;</span>
+          <span class="status-dot status-in-progress"></span>
+          <span>Government safety subsidies</span>
+        </div>
+        <div class="tree-node depth-2" onclick="selectNode(this)">
+          <span class="arrow">&#9654;</span>
+          <span class="status-dot status-neglected"></span>
+          <span>Influence AI adoption advisors</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Canvas ── -->
+  <div class="canvas">
+
+    <div class="graph-container">
+      <!-- SVG Edges -->
+      <svg class="edges-svg" viewBox="0 0 1600 900">
+        <!-- Goal → Pillars -->
+        <path class="edge" d="M 800,95 C 800,140 310,160 310,200" />
+        <path class="edge" d="M 800,95 C 800,140 800,160 800,200" />
+        <path class="edge" d="M 800,95 C 800,140 1220,160 1220,200" />
+
+        <!-- Policy → Treaty -->
+        <path class="edge" d="M 145,310 L 310,250" />
+
+        <!-- Buy-in → children -->
+        <path class="edge" d="M 800,280 C 800,320 620,340 620,370" />
+        <path class="edge" d="M 800,280 C 800,320 800,340 800,380" />
+        <path class="edge" d="M 800,280 C 800,340 500,380 500,440" />
+        <path class="edge" d="M 800,280 C 800,340 680,420 680,470" />
+
+        <!-- Economic → children -->
+        <path class="edge" d="M 1220,280 C 1220,340 1050,340 1050,380" />
+        <path class="edge" d="M 1220,280 C 1220,320 1220,340 1220,380" />
+        <path class="edge" d="M 1220,280 C 1220,340 1400,340 1400,380" />
+
+        <!-- Cross-links (hidden by default) -->
+        <g id="crosslinks" style="display: none;">
+          <path class="edge-cross" d="M 620,400 C 700,420 950,400 1050,380" />
+          <path class="edge-cross" d="M 800,420 C 900,440 1100,440 1220,420" />
+          <path class="edge-cross" d="M 310,250 C 500,300 700,280 800,240" />
+        </g>
+      </svg>
+
+      <!-- ── GOAL ── -->
+      <div class="node node-goal" style="left: 580px; top: 30px;">
+        <div class="node-title">Globally endorsed & enforced 10yr+ AI Pause</div>
+        <div class="node-subtitle">with deep public and institutional buy-in</div>
+      </div>
+
+      <!-- ── KEY PRINCIPLES ── -->
+      <div class="node node-annotation" style="left: 1050px; top: 10px;">
+        <div class="node-title">Key components: 1) Add friction to buy time 2) Channel toward tractability & buy-in</div>
+      </div>
+
+      <!-- ── PILLARS ── -->
+      <div class="node node-pillar" style="left: 195px; top: 200px;">
+        <div class="node-title">Enforced International Treaty</div>
+        <div class="node-meta">
+          <span class="node-badge badge-in-progress">In progress</span>
+        </div>
+      </div>
+
+      <div class="node node-pillar" style="left: 680px; top: 200px;">
+        <div class="node-title">Buy-in from global populations</div>
+        <div class="node-meta">
+          <span class="node-badge badge-neglected">Neglected</span>
+        </div>
+      </div>
+
+      <div class="node node-pillar" style="left: 1100px; top: 200px;">
+        <div class="node-title">Economic incentives changed</div>
+        <div class="node-meta">
+          <span class="node-badge badge-neglected">Neglected</span>
+        </div>
+      </div>
+
+      <!-- ── STRATEGIES (Treaty branch) ── -->
+      <div class="node node-strategy" style="left: 40px; top: 290px;">
+        <div class="node-title">Advance policy prospects</div>
+        <div class="node-meta"><span class="node-badge badge-in-progress">In progress</span></div>
+      </div>
+
+      <!-- ── STRATEGIES (Buy-in branch) ── -->
+      <div class="node node-strategy" style="left: 530px; top: 340px;">
+        <div class="node-title">Messaging & framing</div>
+        <div class="node-meta"><span class="node-badge badge-neglected">Neglected</span></div>
+      </div>
+
+      <div class="node node-strategy" style="left: 740px; top: 350px;">
+        <div class="node-title">Community organising</div>
+        <div class="node-meta"><span class="node-badge badge-neglected">Neglected</span></div>
+      </div>
+
+      <!-- ── INTERVENTIONS (Buy-in branch) ── -->
+      <div class="node node-intervention neglected" style="left: 410px; top: 430px;">
+        <div class="node-title">Rebrand pause: more 'climate change', less 'antivax'</div>
+      </div>
+
+      <div class="node node-intervention neglected" style="left: 610px; top: 460px;">
+        <div class="node-title">Mobilise communities around job losses</div>
+      </div>
+
+      <div class="node node-intervention in-progress" style="left: 410px; top: 510px;">
+        <div class="node-title">Funnel talented people toward useful interventions</div>
+      </div>
+
+      <div class="node node-annotation" style="left: 360px; top: 590px;">
+        <div class="node-title">Asia & Africa neglected. Supply chain actors (miners, civil servants) could add friction.</div>
+      </div>
+
+      <!-- ── STRATEGIES (Economic branch) ── -->
+      <div class="node node-strategy" style="left: 960px; top: 340px;">
+        <div class="node-title">Burst the AI bubble</div>
+        <div class="node-meta"><span class="node-badge badge-unfunded">Unfunded</span></div>
+      </div>
+
+      <div class="node node-strategy" style="left: 1150px; top: 340px;">
+        <div class="node-title">Influence AI adoption advisors</div>
+        <div class="node-meta"><span class="node-badge badge-neglected">Neglected</span></div>
+      </div>
+
+      <div class="node node-strategy" style="left: 1330px; top: 340px;">
+        <div class="node-title">Union organising in AI labs</div>
+        <div class="node-meta"><span class="node-badge badge-unfunded">Unfunded</span></div>
+      </div>
+
+      <!-- ── INTERVENTIONS (Economic branch) ── -->
+      <div class="node node-intervention neglected" style="left: 930px; top: 430px;">
+        <div class="node-title">Show companies they're wasting money on AI</div>
+      </div>
+
+      <div class="node node-intervention neglected" style="left: 930px; top: 500px;">
+        <div class="node-title">Prove AI capabilities gains can be slowed as proof of concept</div>
+      </div>
+
+      <div class="node node-intervention neglected" style="left: 1150px; top: 430px;">
+        <div class="node-title">Create brand: 'pausing is how the world works'</div>
+      </div>
+
+      <div class="node node-intervention in-progress" style="left: 1150px; top: 500px;">
+        <div class="node-title">AI companies subsidised for safety research</div>
+      </div>
+
+      <div class="node node-intervention neglected" style="left: 1340px; top: 430px;">
+        <div class="node-title">Piece making lab members pro-union</div>
+      </div>
+
+      <div class="node node-intervention neglected" style="left: 1340px; top: 500px;">
+        <div class="node-title">Get influential libertarians onboard (Paul Graham et al.)</div>
+      </div>
+
+      <div class="node node-intervention neglected" style="left: 1340px; top: 570px;">
+        <div class="node-title">Union strikes for conditional pause agreement</div>
+      </div>
+
+      <div class="node node-annotation" style="left: 930px; top: 580px;">
+        <div class="node-title">Asset holders: convince them AI assets will depreciate. Anti-AI sentiment already present — inform & direct it.</div>
+      </div>
+
+    </div>
+
+    <!-- Legend -->
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background: var(--well-covered)"></div> Well covered</div>
+      <div class="legend-item"><div class="legend-dot" style="background: var(--in-progress)"></div> In progress</div>
+      <div class="legend-item"><div class="legend-dot" style="background: var(--neglected)"></div> Neglected</div>
+      <div class="legend-item"><div class="legend-dot" style="background: var(--accent-purple)"></div> Unfunded</div>
+      <div class="legend-item"><div style="width: 20px; border-top: 1.5px dashed var(--accent-purple);"></div> Cross-link</div>
+    </div>
+
+    <!-- Crosslinks hint -->
+    <div class="crosslink-hint" id="crosslink-hint">
+      Showing cross-links between branches
+    </div>
+
+    <!-- Minimap -->
+    <div class="minimap">
+      <div class="minimap-viewport"></div>
+      <div class="minimap-dot" style="top: 15%; left: 50%;"></div>
+      <div class="minimap-dot" style="top: 30%; left: 25%;"></div>
+      <div class="minimap-dot" style="top: 30%; left: 50%;"></div>
+      <div class="minimap-dot" style="top: 30%; left: 75%;"></div>
+      <div class="minimap-dot" style="top: 50%; left: 20%;"></div>
+      <div class="minimap-dot" style="top: 50%; left: 40%;"></div>
+      <div class="minimap-dot" style="top: 50%; left: 60%;"></div>
+      <div class="minimap-dot" style="top: 50%; left: 80%;"></div>
+      <div class="minimap-dot" style="top: 70%; left: 35%;"></div>
+      <div class="minimap-dot" style="top: 70%; left: 65%;"></div>
+    </div>
+  </div>
+
+  <!-- ── Detail Panel ── -->
+  <div class="detail-panel">
+    <div class="detail-header">
+      <div>
+        <div class="detail-type">Strategy</div>
+        <div class="detail-title">Union organising in AI labs</div>
+      </div>
+      <button class="detail-close">&times;</button>
+    </div>
+
+    <div class="detail-section">
+      <div class="status-selector">
+        <span class="status-option">Well covered</span>
+        <span class="status-option">In progress</span>
+        <span class="status-option active-unfunded">Unfunded</span>
+        <span class="status-option active-neglected">Neglected</span>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">Description</div>
+      <div class="detail-description">
+        Organise AI lab employees into unions that can collectively bargain for safety conditions, including conditional agreements to pause frontier capabilities research. Requires both internal champions and external support infrastructure.
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">Research Questions <span class="count">3</span></div>
+      <div class="research-q">What legal frameworks exist for tech worker unionisation in US, UK, and EU?</div>
+      <div class="research-q">Which labs have the most receptive employee sentiment toward collective action?</div>
+      <div class="research-q">What would a "conditional pause agreement" actually look like contractually?</div>
+      <button class="add-btn">+ Add a research question</button>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">Resources <span class="count">3</span></div>
+      <div class="resource-item">
+        <span class="resource-tag">Post</span>
+        <a class="resource-link" href="#">"Why AI researchers should unionise" — LessWrong</a>
+      </div>
+      <div class="resource-item">
+        <span class="resource-tag">Org</span>
+        <a class="resource-link" href="#">Alphabet Workers Union — case study</a>
+      </div>
+      <div class="resource-item">
+        <span class="resource-tag">Grant</span>
+        <a class="resource-link" href="#">Open Phil: Labour organising in high-risk tech</a>
+      </div>
+      <button class="add-btn">+ Add a resource</button>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">Who's on this <span class="count">2</span></div>
+      <div class="person-item">
+        <div class="person-avatar">JR</div>
+        <div>
+          <div class="person-name">Jamie Richardson</div>
+          <div class="person-role">Researching legal frameworks</div>
+        </div>
+      </div>
+      <div class="person-item">
+        <div class="person-avatar">SK</div>
+        <div>
+          <div class="person-name">Sarah Kim</div>
+          <div class="person-role">Connected to Anthropic employees</div>
+        </div>
+      </div>
+      <button class="add-btn">+ I'm working on this</button>
+      <button class="add-btn">+ I know someone working on this</button>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">Child nodes <span class="count">3</span></div>
+      <div class="resource-item" style="cursor: pointer;">
+        <span class="status-dot status-neglected"></span>
+        <span>Piece making lab members pro-union</span>
+      </div>
+      <div class="resource-item" style="cursor: pointer;">
+        <span class="status-dot status-neglected"></span>
+        <span>Get influential libertarians onboard</span>
+      </div>
+      <div class="resource-item" style="cursor: pointer;">
+        <span class="status-dot status-neglected"></span>
+        <span>Union strikes for conditional pause</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function selectNode(el) {
+    document.querySelectorAll('.tree-node').forEach(n => n.classList.remove('selected'));
+    el.classList.add('selected');
+  }
+
+  function toggleCrosslinks() {
+    const btn = document.getElementById('btn-crosslinks');
+    const links = document.getElementById('crosslinks');
+    const hint = document.getElementById('crosslink-hint');
+    btn.classList.toggle('active');
+    if (btn.classList.contains('active')) {
+      links.style.display = 'block';
+      hint.classList.add('visible');
+    } else {
+      links.style.display = 'none';
+      hint.classList.remove('visible');
+    }
+  }
+</script>
+
+</body>
+</html>
