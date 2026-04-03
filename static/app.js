@@ -124,14 +124,21 @@ function renderSkillSelector(containerId, selectedIds = [], onChangeCallback = n
             </div>
         `).join('');
 
-        // Add click handlers
+        // Add click handlers — use change event on checkbox for reliable cross-browser behavior
+        container.querySelectorAll('.skill-option input').forEach(checkbox => {
+            checkbox.addEventListener('change', () => {
+                checkbox.closest('.skill-option').classList.toggle('selected', checkbox.checked);
+                if (onChangeCallback) onChangeCallback(getSelectedSkills(containerId));
+            });
+        });
+        // Also allow clicking the label area (not just the hidden checkbox)
         container.querySelectorAll('.skill-option').forEach(el => {
             el.addEventListener('click', (e) => {
+                if (e.target.tagName === 'INPUT') return; // let native checkbox handle it
                 e.preventDefault();
                 const checkbox = el.querySelector('input');
                 checkbox.checked = !checkbox.checked;
-                el.classList.toggle('selected', checkbox.checked);
-                if (onChangeCallback) onChangeCallback(getSelectedSkills(containerId));
+                checkbox.dispatchEvent(new Event('change'));
             });
         });
     }).catch(err => {

@@ -543,6 +543,7 @@ textarea {
 }
 
 .skill-option {
+    position: relative;
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -553,6 +554,8 @@ textarea {
     cursor: pointer;
     transition: all 0.2s;
     font-size: 0.875rem;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
 }
 
 .skill-option:hover {
@@ -566,7 +569,11 @@ textarea {
 }
 
 .skill-option input {
-    display: none;
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
 }
 
 /* Grid layouts */
