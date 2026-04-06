@@ -1,5 +1,13 @@
 // Catalyse - Shared JavaScript Utilities
 
+// Apply dark mode immediately to prevent flash
+(function() {
+    const saved = localStorage.getItem('theme');
+    if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+    }
+})();
+
 // API helpers
 async function apiRequest(endpoint, options = {}) {
     const token = localStorage.getItem('authToken');
@@ -288,6 +296,40 @@ function validateEmail(email) {
 function validateRequired(value) {
     return value && value.trim().length > 0;
 }
+
+// ============================================
+// DARK MODE
+// ============================================
+
+function initDarkMode() {
+    // Restore preference
+    const saved = localStorage.getItem('theme');
+    if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+    }
+
+    // Create toggle button
+    const toggle = document.createElement('button');
+    toggle.className = 'theme-toggle';
+    toggle.title = 'Toggle dark mode';
+    toggle.innerHTML = document.documentElement.getAttribute('data-theme') === 'dark' ? '&#9788;' : '&#9789;';
+    toggle.addEventListener('click', () => {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        if (isDark) {
+            document.documentElement.removeAttribute('data-theme');
+            localStorage.setItem('theme', 'light');
+            toggle.innerHTML = '&#9789;';
+        } else {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            localStorage.setItem('theme', 'dark');
+            toggle.innerHTML = '&#9788;';
+        }
+    });
+    document.body.appendChild(toggle);
+}
+
+document.addEventListener('DOMContentLoaded', initDarkMode);
+
 
 // ============================================
 // BUG REPORT FLOATING BUTTON
