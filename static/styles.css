@@ -30,6 +30,25 @@
     --shadow-lg: 0 4px 16px rgba(26, 32, 44, 0.15);
 }
 
+/* Dark Mode */
+[data-theme="dark"] {
+    --primary: #FFa633;
+    --primary-dark: #FF9416;
+    --secondary: #A0AEC0;
+    --secondary-dark: #E2E8F0;
+    --accent: #3D2E1A;
+    --background: #111827;
+    --surface: #1F2937;
+    --text: #F3F4F6;
+    --text-light: #9CA3AF;
+    --border: #374151;
+    --success: #4ADE80;
+    --warning: #FACC15;
+    --error: #F87171;
+    --shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
 * {
     box-sizing: border-box;
     margin: 0;
@@ -234,6 +253,9 @@ p {
     box-shadow: var(--shadow);
     padding: 24px;
     margin-bottom: 16px;
+    overflow: hidden;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 .card-header {
@@ -241,6 +263,8 @@ p {
     justify-content: space-between;
     align-items: flex-start;
     margin-bottom: 12px;
+    gap: 12px;
+    min-width: 0;
 }
 
 .card-title {
@@ -249,6 +273,9 @@ p {
     font-weight: 700;
     color: var(--secondary-dark);
     margin: 0;
+    min-width: 0;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 .card-title a {
@@ -270,6 +297,8 @@ p {
 .card-description {
     color: var(--text);
     margin-bottom: 16px;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 .card-footer {
@@ -383,6 +412,38 @@ p {
     background: #D1FAE5;
     color: #065F46;
 }
+
+/* Dark mode badge overrides */
+[data-theme="dark"] .status-seeking_owner { background: #78350F; color: #FDE68A; }
+[data-theme="dark"] .status-seeking_help { background: #1E3A5F; color: #93C5FD; }
+[data-theme="dark"] .status-in_progress { background: #064E3B; color: #6EE7B7; }
+[data-theme="dark"] .status-on_hold { background: #374151; color: #9CA3AF; }
+[data-theme="dark"] .status-completed { background: #064E3B; color: #6EE7B7; }
+[data-theme="dark"] .status-pending_review { background: #78350F; color: #FDE68A; }
+[data-theme="dark"] .status-needs_discussion { background: #831843; color: #F9A8D4; }
+[data-theme="dark"] .status-open { background: #312E81; color: #A5B4FC; }
+[data-theme="dark"] .status-assigned { background: #1E3A5F; color: #93C5FD; }
+[data-theme="dark"] .status-submitted { background: #78350F; color: #FDE68A; }
+[data-theme="dark"] .status-reviewed { background: #064E3B; color: #6EE7B7; }
+
+/* Dark mode skill tags */
+[data-theme="dark"] .skill-tag { background: #374151; color: #D1D5DB; }
+[data-theme="dark"] .skill-tag.matched { background: #064E3B; color: #6EE7B7; }
+[data-theme="dark"] .skill-tag.required { border-color: #F59E0B; }
+[data-theme="dark"] .skill-tag.unmatched { border-color: #EF4444; }
+[data-theme="dark"] .skill-option { background: #374151; }
+[data-theme="dark"] .skill-option:hover { background: #4B5563; }
+[data-theme="dark"] .skill-option.selected { background: var(--secondary); color: #111827; }
+
+/* Dark mode messages */
+[data-theme="dark"] .message.info { background: #1E3A5F; color: #93C5FD; border-color: #2563EB; }
+[data-theme="dark"] .message.success { background: #064E3B; color: #6EE7B7; border-color: #059669; }
+[data-theme="dark"] .message.error { background: #7F1D1D; color: #FCA5A5; border-color: #DC2626; }
+[data-theme="dark"] .message.warning { background: #78350F; color: #FDE68A; border-color: #D97706; }
+
+/* Dark mode header */
+[data-theme="dark"] header { background: #1F2937; border-color: #374151; }
+[data-theme="dark"] .org-badge { background: #78350F; color: #FDE68A; }
 
 /* Urgency */
 .urgency {
@@ -543,6 +604,7 @@ textarea {
 }
 
 .skill-option {
+    position: relative;
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -553,6 +615,8 @@ textarea {
     cursor: pointer;
     transition: all 0.2s;
     font-size: 0.875rem;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
 }
 
 .skill-option:hover {
@@ -566,7 +630,11 @@ textarea {
 }
 
 .skill-option input {
-    display: none;
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
 }
 
 /* Grid layouts */
@@ -910,6 +978,32 @@ textarea {
     font-weight: 600;
 }
 
+/* Dark Mode Toggle */
+.theme-toggle {
+    position: fixed;
+    bottom: 24px;
+    left: 24px;
+    z-index: 1000;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 20px;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.theme-toggle:hover {
+    background: var(--accent);
+    transform: scale(1.05);
+}
+
 /* Floating Bug Report Button */
 .bug-report-fab {
     position: fixed;
@@ -988,5 +1082,13 @@ textarea {
         width: 48px;
         height: 48px;
         font-size: 20px;
+    }
+
+    .theme-toggle {
+        bottom: 16px;
+        left: 16px;
+        width: 40px;
+        height: 40px;
+        font-size: 18px;
     }
 }

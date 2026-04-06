@@ -3015,6 +3015,19 @@ def download_backup(admin: Dict = Depends(require_admin)):
     )
 
 
+@app.post("/api/admin/backup/run")
+def trigger_backup(admin: Dict = Depends(require_admin)) -> Dict:
+    """Trigger an immediate backup (admin only)."""
+    from backup_service import run_backup, is_b2_configured
+
+    if not is_b2_configured():
+        run_backup()
+        return {"message": "Local backup created. B2 not configured — set B2_KEY_ID, B2_APP_KEY, B2_BUCKET_NAME to enable cloud backups."}
+
+    run_backup()
+    return {"message": "Backup complete (local + B2)"}
+
+
 # ============================================
 # GDPR / PRIVACY ENDPOINTS
 # ============================================
@@ -3205,8 +3218,31 @@ def serve_index():
 
 @app.on_event("startup")
 def startup():
-    """Initialize database on startup."""
+    """Initialize database and start backup scheduler."""
     init_db()
+    start_backup_scheduler()
+
+
+def start_backup_scheduler():
+    """Start a background thread that runs daily backups."""
+    import threading
+    import time
+    from backup_service import run_backup, is_b2_configured
+
+    def backup_loop():
+        # Wait 60 seconds after startup before first backup
+        time.sleep(60)
+        while True:
+            try:
+                run_backup()
+            except Exception as e:
+                print(f"[BACKUP ERROR] Unexpected error in backup loop: {e}")
+            # Sleep 24 hours
+            time.sleep(24 * 60 * 60)
+
+    thread = threading.Thread(target=backup_loop, daemon=True)
+    thread.start()
+    print(f"[BACKUP] Scheduler started (B2 configured: {is_b2_configured()})")
 
 
 # ============================================
