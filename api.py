@@ -1331,7 +1331,7 @@ def list_volunteers(
 
     query = """
         SELECT DISTINCT v.id, v.name, v.bio, v.availability_hours_per_week,
-               v.location, v.country, v.other_skills, v.created_at
+               v.location, v.other_skills, v.created_at
         FROM volunteers v
         WHERE v.deleted_at IS NULL
         AND v.profile_visible = 1
@@ -1355,12 +1355,17 @@ def list_volunteers(
         params.extend([f"%{search}%", f"%{search}%"])
 
     if country:
-        query += " AND v.country = ?"
-        params.append(country)
+        # Only filter by country if the column exists (migration may not have run yet)
+        try:
+            conn.execute("SELECT country FROM volunteers LIMIT 1")
+            query += " AND v.country = ?"
+            params.append(country)
+        except Exception:
+            pass  # Column doesn't exist yet
 
     # Get total count
     count_query = query.replace(
-        "SELECT DISTINCT v.id, v.name, v.bio, v.availability_hours_per_week, v.location, v.country, v.other_skills, v.created_at",
+        "SELECT DISTINCT v.id, v.name, v.bio, v.availability_hours_per_week, v.location, v.other_skills, v.created_at",
         "SELECT COUNT(DISTINCT v.id)"
     )
     total = conn.execute(count_query, params).fetchone()[0]
@@ -1545,8 +1550,12 @@ def list_projects(
         params.append(urgency)
 
     if country:
-        query += " AND p.country = ?"
-        params.append(country)
+        try:
+            conn.execute("SELECT country FROM projects LIMIT 1")
+            query += " AND p.country = ?"
+            params.append(country)
+        except Exception:
+            pass
 
     if is_org_proposed is not None:
         query += " AND p.is_org_proposed = ?"
