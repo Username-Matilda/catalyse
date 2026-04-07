@@ -106,14 +106,27 @@ def run_migrations():
 
     conn = get_db()
     for migration_path in migration_files:
-        try:
-            with open(migration_path) as f:
-                conn.executescript(f.read())
-            print(f"Migration applied: {migration_path.name}")
-        except Exception as e:
-            # Most likely "table already exists" — safe to skip
-            if "already exists" not in str(e).lower():
-                print(f"Migration {migration_path.name}: {e}")
+        with open(migration_path) as f:
+            sql = f.read()
+
+        # Execute each statement individually so one failure doesn't skip the rest
+        statements = [s.strip() for s in sql.split(';') if s.strip()]
+        applied = 0
+        for statement in statements:
+            if not statement or statement.startswith('--'):
+                continue
+            try:
+                conn.execute(statement)
+                applied += 1
+            except Exception as e:
+                # "already exists" / "duplicate column" are safe to skip
+                err = str(e).lower()
+                if "already exists" not in err and "duplicate column" not in err:
+                    print(f"Migration {migration_path.name}: {e}")
+
+        if applied:
+            print(f"Migration applied: {migration_path.name} ({applied} statements)")
+
     conn.commit()
     conn.close()
 
@@ -135,6 +148,7 @@ class VolunteerSignup(BaseModel):
     contact_notes: Optional[str] = None
     availability_hours_per_week: Optional[int] = None
     location: Optional[str] = None
+    country: Optional[str] = None
     share_contact_directly: bool = False
     other_skills: Optional[str] = None
     skill_ids: List[int] = []
@@ -152,6 +166,7 @@ class VolunteerUpdate(BaseModel):
     contact_notes: Optional[str] = None
     availability_hours_per_week: Optional[int] = None
     location: Optional[str] = None
+    country: Optional[str] = None
     share_contact_directly: Optional[bool] = None
     other_skills: Optional[str] = None
     skill_ids: Optional[List[int]] = None
@@ -161,6 +176,10 @@ class VolunteerUpdate(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+
+
+class GoogleAuthRequest(BaseModel):
+    credential: str  # JWT token from Google Sign-In
 
 
 class ForgotPasswordRequest(BaseModel):
@@ -194,6 +213,7 @@ class ProjectCreate(BaseModel):
     skill_required_map: Dict[int, bool] = {}  # skill_id -> is_required
     want_to_own: bool = False  # If true, proposer becomes owner
     collaboration_link: Optional[str] = None
+    country: Optional[str] = None  # e.g., "UK", "US", "Remote"
 
 
 class ProjectUpdate(BaseModel):
@@ -207,6 +227,7 @@ class ProjectUpdate(BaseModel):
     skill_ids: Optional[List[int]] = None
     skill_required_map: Optional[Dict[int, bool]] = None
     collaboration_link: Optional[str] = None
+    country: Optional[str] = None
     owner_id: Optional[int] = None
     outcome: Optional[str] = None
     outcome_notes: Optional[str] = None
@@ -557,14 +578,15 @@ def signup(data: VolunteerSignup) -> Dict:
             """INSERT INTO volunteers (
                 name, email, bio, discord_handle, signal_number, whatsapp_number,
                 contact_preference, contact_notes, availability_hours_per_week,
-                location, share_contact_directly, other_skills,
+                location, country, share_contact_directly, other_skills,
                 consent_profile_visible, consent_contact_by_owners, consent_given_at,
                 auth_token, password_hash
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 data.name, data.email, data.bio, data.discord_handle,
                 data.signal_number, data.whatsapp_number, data.contact_preference,
                 data.contact_notes, data.availability_hours_per_week, data.location,
+                data.country,
                 data.share_contact_directly, data.other_skills,
                 data.consent_profile_visible, data.consent_contact_by_owners,
                 datetime.now().isoformat(), auth_token, password_hash
@@ -697,6 +719,148 @@ def login(data: LoginRequest) -> Dict:
         result["message"] = "Login successful - you've been granted admin access!"
 
     return result
+
+
+# Google OAuth configuration
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
+
+
+def verify_google_token(credential: str) -> Optional[Dict]:
+    """Verify a Google Sign-In JWT token and return user info."""
+    from urllib.request import Request, urlopen
+    import json
+
+    if not GOOGLE_CLIENT_ID:
+        return None
+
+    try:
+        # Use Google's tokeninfo endpoint to verify the JWT
+        # This is simpler than manually verifying JWTs and equally secure
+        request = Request(
+            f"https://oauth2.googleapis.com/tokeninfo?id_token={credential}"
+        )
+        with urlopen(request, timeout=10) as response:
+            data = json.loads(response.read())
+
+        # Verify the audience matches our client ID
+        if data.get("aud") != GOOGLE_CLIENT_ID:
+            print(f"[GOOGLE_AUTH] Token audience mismatch: {data.get('aud')}")
+            return None
+
+        # Verify email is verified
+        if data.get("email_verified") != "true":
+            print(f"[GOOGLE_AUTH] Email not verified: {data.get('email')}")
+            return None
+
+        return {
+            "email": data["email"],
+            "name": data.get("name", data["email"].split("@")[0]),
+            "google_id": data["sub"],
+            "picture": data.get("picture")
+        }
+
+    except Exception as e:
+        print(f"[GOOGLE_AUTH] Token verification failed: {e}")
+        return None
+
+
+@app.get("/api/auth/google-client-id")
+def get_google_client_id() -> Dict:
+    """Return the Google client ID for frontend initialization."""
+    return {"client_id": GOOGLE_CLIENT_ID or ""}
+
+
+@app.post("/api/auth/google")
+def google_auth(data: GoogleAuthRequest) -> Dict:
+    """Authenticate via Google Sign-In. Creates account if new, logs in if existing."""
+    if not GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=503, detail="Google Sign-In is not configured")
+
+    # Verify the Google token
+    google_user = verify_google_token(data.credential)
+    if not google_user:
+        raise HTTPException(status_code=401, detail="Invalid Google token")
+
+    email = google_user["email"]
+    name = google_user["name"]
+
+    conn = get_db()
+    existing = conn.execute(
+        "SELECT * FROM volunteers WHERE email = ? AND deleted_at IS NULL",
+        (email,)
+    ).fetchone()
+    conn.close()
+
+    if existing:
+        # Existing user — log them in
+        auth_token = generate_auth_token()
+        with db_transaction() as conn:
+            conn.execute(
+                "UPDATE volunteers SET auth_token = ?, updated_at = ? WHERE id = ?",
+                (auth_token, datetime.now().isoformat(), existing["id"])
+            )
+
+        # Check for admin bootstrap
+        was_promoted = check_admin_bootstrap(email, existing["id"])
+
+        # Auto-accept pending admin invites
+        with db_transaction() as conn:
+            pending_invite = conn.execute(
+                """SELECT * FROM admin_invites
+                   WHERE LOWER(email) = LOWER(?) AND status = 'pending' AND expires_at > ?""",
+                (email, datetime.now().isoformat())
+            ).fetchone()
+            if pending_invite:
+                conn.execute("UPDATE volunteers SET is_admin = 1 WHERE id = ?", (existing["id"],))
+                conn.execute(
+                    """UPDATE admin_invites SET status = 'accepted', accepted_by_id = ?, accepted_at = ? WHERE id = ?""",
+                    (existing["id"], datetime.now().isoformat(), pending_invite["id"])
+                )
+                was_promoted = True
+
+        result = {"message": "Login successful", "auth_token": auth_token}
+        if was_promoted:
+            result["message"] = "Login successful - you've been granted admin access!"
+        return result
+
+    else:
+        # New user — create account
+        auth_token = generate_auth_token()
+
+        with db_transaction() as conn:
+            cursor = conn.execute(
+                """INSERT INTO volunteers (
+                    name, email, auth_token,
+                    consent_profile_visible, consent_contact_by_owners, consent_given_at
+                ) VALUES (?, ?, ?, ?, ?, ?)""",
+                (name, email, auth_token, True, True, datetime.now().isoformat())
+            )
+            volunteer_id = cursor.lastrowid
+
+            # Check admin bootstrap
+            check_admin_bootstrap(email, volunteer_id)
+
+            # Auto-accept pending admin invites
+            pending_invite = conn.execute(
+                """SELECT * FROM admin_invites
+                   WHERE LOWER(email) = LOWER(?) AND status = 'pending' AND expires_at > ?""",
+                (email, datetime.now().isoformat())
+            ).fetchone()
+            if pending_invite:
+                conn.execute("UPDATE volunteers SET is_admin = 1 WHERE id = ?", (volunteer_id,))
+                conn.execute(
+                    """UPDATE admin_invites SET status = 'accepted', accepted_by_id = ?, accepted_at = ? WHERE id = ?""",
+                    (volunteer_id, datetime.now().isoformat(), pending_invite["id"])
+                )
+
+        # Send welcome email
+        send_welcome_email(to=email, name=name)
+
+        return {
+            "auth_token": auth_token,
+            "message": "Welcome to Catalyse!",
+            "is_new_user": True
+        }
 
 
 @app.post("/api/auth/logout")
@@ -1158,6 +1322,7 @@ def delete_skill(
 def list_volunteers(
     skill_ids: Optional[str] = Query(None, description="Comma-separated skill IDs"),
     search: Optional[str] = Query(None),
+    country: Optional[str] = Query(None),
     limit: int = Query(50, le=100),
     offset: int = Query(0)
 ) -> Dict:
@@ -1166,7 +1331,7 @@ def list_volunteers(
 
     query = """
         SELECT DISTINCT v.id, v.name, v.bio, v.availability_hours_per_week,
-               v.location, v.other_skills, v.created_at
+               v.location, v.country, v.other_skills, v.created_at
         FROM volunteers v
         WHERE v.deleted_at IS NULL
         AND v.profile_visible = 1
@@ -1189,9 +1354,13 @@ def list_volunteers(
         query += " AND (v.name LIKE ? OR v.bio LIKE ?)"
         params.extend([f"%{search}%", f"%{search}%"])
 
+    if country:
+        query += " AND v.country = ?"
+        params.append(country)
+
     # Get total count
     count_query = query.replace(
-        "SELECT DISTINCT v.id, v.name, v.bio, v.availability_hours_per_week, v.location, v.other_skills, v.created_at",
+        "SELECT DISTINCT v.id, v.name, v.bio, v.availability_hours_per_week, v.location, v.country, v.other_skills, v.created_at",
         "SELECT COUNT(DISTINCT v.id)"
     )
     total = conn.execute(count_query, params).fetchone()[0]
@@ -1284,7 +1453,7 @@ def update_me(data: VolunteerUpdate, volunteer: Dict = Depends(require_auth)) ->
 
         for field in ["name", "bio", "discord_handle", "signal_number",
                       "whatsapp_number", "contact_preference", "contact_notes",
-                      "availability_hours_per_week", "location",
+                      "availability_hours_per_week", "location", "country",
                       "share_contact_directly", "other_skills", "profile_visible"]:
             value = getattr(data, field, None)
             if value is not None:
@@ -1331,6 +1500,7 @@ def list_projects(
     skill_ids: Optional[str] = Query(None, description="Comma-separated skill IDs"),
     search: Optional[str] = Query(None),
     urgency: Optional[str] = Query(None),
+    country: Optional[str] = Query(None),
     is_org_proposed: Optional[bool] = Query(None),
     sort_by: str = Query("created_at", pattern="^(created_at|urgency|match)$"),
     limit: int = Query(50, le=100),
@@ -1373,6 +1543,10 @@ def list_projects(
     if urgency:
         query += " AND p.urgency = ?"
         params.append(urgency)
+
+    if country:
+        query += " AND p.country = ?"
+        params.append(country)
 
     if is_org_proposed is not None:
         query += " AND p.is_org_proposed = ?"
@@ -1525,13 +1699,13 @@ def create_project(
             """INSERT INTO projects (
                 title, description, status, owner_id, proposed_by_id,
                 is_org_proposed, project_type, estimated_duration,
-                time_commitment_hours_per_week, urgency, collaboration_link
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                time_commitment_hours_per_week, urgency, collaboration_link, country
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 data.title, data.description, status, owner_id, volunteer["id"],
                 False, data.project_type, data.estimated_duration,
                 data.time_commitment_hours_per_week, data.urgency,
-                data.collaboration_link
+                data.collaboration_link, data.country
             )
         )
         project_id = cursor.lastrowid
@@ -1589,7 +1763,7 @@ def update_project(
         owner_allowed_statuses = {"seeking_help", "in_progress", "on_hold", "completed"}
 
         for field in ["title", "description", "status", "project_type", "estimated_duration",
-                      "time_commitment_hours_per_week", "urgency", "collaboration_link", "owner_id"]:
+                      "time_commitment_hours_per_week", "urgency", "collaboration_link", "country", "owner_id"]:
             value = getattr(data, field, None)
             if value is not None:
                 # Owners can change to allowed statuses; admins can set any status
@@ -1923,14 +2097,14 @@ def create_org_project(
             """INSERT INTO projects (
                 title, description, status, owner_id, proposed_by_id,
                 is_org_proposed, project_type, estimated_duration,
-                time_commitment_hours_per_week, urgency, collaboration_link
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                time_commitment_hours_per_week, urgency, collaboration_link, country
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 data.title, data.description, status,
                 admin["id"] if data.want_to_own else None,
                 admin["id"], True, data.project_type, data.estimated_duration,
                 data.time_commitment_hours_per_week,
-                data.urgency, data.collaboration_link
+                data.urgency, data.collaboration_link, data.country
             )
         )
         project_id = cursor.lastrowid

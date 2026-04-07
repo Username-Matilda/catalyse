@@ -8,6 +8,24 @@
     }
 })();
 
+// Country options for PauseAI Global
+const COUNTRIES = [
+    "Remote",
+    "Australia", "Austria", "Belgium", "Brazil", "Canada",
+    "Czech Republic", "Denmark", "Finland", "France", "Germany",
+    "India", "Ireland", "Italy", "Japan", "Mexico",
+    "Netherlands", "New Zealand", "Norway", "Poland", "Portugal",
+    "Singapore", "South Korea", "Spain", "Sweden", "Switzerland",
+    "UK", "US", "Other"
+];
+
+function renderCountrySelect(selectId, selectedValue = '') {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+    select.innerHTML = '<option value="">Any country</option>' +
+        COUNTRIES.map(c => `<option value="${c}" ${c === selectedValue ? 'selected' : ''}>${c}</option>`).join('');
+}
+
 // API helpers
 async function apiRequest(endpoint, options = {}) {
     const token = localStorage.getItem('authToken');

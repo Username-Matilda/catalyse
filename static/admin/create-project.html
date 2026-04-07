@@ -70,6 +70,13 @@
                     </div>
                 </div>
 
+                <div class="form-group">
+                    <label for="country">Country / Region</label>
+                    <select id="country" name="country">
+                        <option value="">Select...</option>
+                    </select>
+                </div>
+
                 <div class="form-group" id="durationGroup" style="display: none;">
                     <label for="estimated_duration">Estimated Duration</label>
                     <input type="text" id="estimated_duration" name="estimated_duration" placeholder="e.g., 6 weeks, 2 months">
@@ -113,6 +120,7 @@
             }
 
             renderSkillSelector('skillSelector');
+            renderCountrySelect('country');
 
             // Show/hide duration field based on project type
             document.getElementById('project_type').addEventListener('change', (e) => {
@@ -142,6 +150,7 @@
                     time_commitment_hours_per_week: form.time_commitment.value ? parseInt(form.time_commitment.value) : null,
                     urgency: form.urgency.value,
                     collaboration_link: form.collaboration_link.value.trim() || null,
+                    country: form.country.value || null,
                     skill_ids: skillIds,
                     skill_required_map: skillRequiredMap,
                     want_to_own: form.want_to_own.checked
