@@ -443,6 +443,8 @@ p {
 
 /* Dark mode header */
 [data-theme="dark"] header { background: #1F2937; border-color: #374151; }
+[data-theme="dark"] .logo img { background: #FFFFFF; border-radius: 6px; padding: 2px 6px; }
+[data-theme="dark"] .user-button { background: #374151; color: #F3F4F6; border-color: #4B5563; }
 [data-theme="dark"] .org-badge { background: #78350F; color: #FDE68A; }
 
 /* Urgency */
@@ -889,10 +891,13 @@ textarea {
     gap: 8px;
     padding: 8px 16px;
     background: var(--accent);
-    border: none;
+    color: var(--text);
+    border: 1px solid var(--border);
     border-radius: var(--radius);
     cursor: pointer;
     font-weight: 500;
+    font-family: var(--font-body);
+    font-size: 0.875rem;
 }
 
 .user-dropdown {
