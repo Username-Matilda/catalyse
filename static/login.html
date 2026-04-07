@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Catalyse</title>
     <link rel="stylesheet" href="/static/styles.css">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
     <header>
@@ -28,6 +29,29 @@
             </p>
 
             <div id="messageDiv" class="message" style="display: none;"></div>
+
+            <!-- Google Sign-In -->
+            <div id="googleSignIn" class="card" style="display: none; text-align: center;">
+                <div id="g_id_onload"
+                     data-callback="handleGoogleSignIn"
+                     data-auto_prompt="false">
+                </div>
+                <div class="g_id_signin"
+                     data-type="standard"
+                     data-size="large"
+                     data-theme="outline"
+                     data-text="sign_in_with"
+                     data-shape="rectangular"
+                     data-logo_alignment="left"
+                     data-width="350">
+                </div>
+
+                <div style="display: flex; align-items: center; margin: 20px 0; gap: 16px;">
+                    <hr style="flex: 1; border: none; border-top: 1px solid var(--border);">
+                    <span style="color: var(--text-light); font-size: 0.875rem;">or use email</span>
+                    <hr style="flex: 1; border: none; border-top: 1px solid var(--border);">
+                </div>
+            </div>
 
             <form id="loginForm" class="card">
                 <div class="form-group">
@@ -67,6 +91,68 @@
             if (user) {
                 const redirect = getQueryParam('redirect') || '/static/dashboard.html';
                 window.location.href = redirect;
+            }
+
+            // Initialize Google Sign-In if configured
+            initGoogleSignIn();
+        }
+
+        async function initGoogleSignIn() {
+            try {
+                const config = await fetch('/api/auth/google-client-id').then(r => r.json());
+                if (config.client_id) {
+                    const onloadDiv = document.getElementById('g_id_onload');
+                    onloadDiv.setAttribute('data-client_id', config.client_id);
+                    document.getElementById('googleSignIn').style.display = 'block';
+
+                    // Render the button (GSI library needs to re-process)
+                    if (window.google?.accounts?.id) {
+                        google.accounts.id.initialize({
+                            client_id: config.client_id,
+                            callback: handleGoogleSignIn
+                        });
+                        google.accounts.id.renderButton(
+                            document.querySelector('.g_id_signin'),
+                            { theme: 'outline', size: 'large', width: 350, text: 'sign_in_with' }
+                        );
+                    }
+                }
+            } catch (e) {
+                // Google Sign-In not configured, just show password form
+            }
+        }
+
+        async function handleGoogleSignIn(response) {
+            try {
+                const result = await fetch('/api/auth/google', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ credential: response.credential })
+                });
+
+                const data = await result.json();
+
+                if (!result.ok) {
+                    throw new Error(data.detail || 'Google sign-in failed');
+                }
+
+                localStorage.setItem('authToken', data.auth_token);
+
+                if (data.is_new_user) {
+                    showMessage('Welcome to Catalyse! Please complete your profile.', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/static/profile.html';
+                    }, 1000);
+                } else {
+                    showMessage(data.message, 'success');
+                    setTimeout(() => {
+                        const redirect = getQueryParam('redirect') || '/static/dashboard.html';
+                        window.location.href = redirect;
+                    }, 500);
+                }
+
+            } catch (error) {
+                showMessage(error.message, 'error');
             }
         }
 

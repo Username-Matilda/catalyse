@@ -178,6 +178,10 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class GoogleAuthRequest(BaseModel):
+    credential: str  # JWT token from Google Sign-In
+
+
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
 
@@ -715,6 +719,148 @@ def login(data: LoginRequest) -> Dict:
         result["message"] = "Login successful - you've been granted admin access!"
 
     return result
+
+
+# Google OAuth configuration
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
+
+
+def verify_google_token(credential: str) -> Optional[Dict]:
+    """Verify a Google Sign-In JWT token and return user info."""
+    from urllib.request import Request, urlopen
+    import json
+
+    if not GOOGLE_CLIENT_ID:
+        return None
+
+    try:
+        # Use Google's tokeninfo endpoint to verify the JWT
+        # This is simpler than manually verifying JWTs and equally secure
+        request = Request(
+            f"https://oauth2.googleapis.com/tokeninfo?id_token={credential}"
+        )
+        with urlopen(request, timeout=10) as response:
+            data = json.loads(response.read())
+
+        # Verify the audience matches our client ID
+        if data.get("aud") != GOOGLE_CLIENT_ID:
+            print(f"[GOOGLE_AUTH] Token audience mismatch: {data.get('aud')}")
+            return None
+
+        # Verify email is verified
+        if data.get("email_verified") != "true":
+            print(f"[GOOGLE_AUTH] Email not verified: {data.get('email')}")
+            return None
+
+        return {
+            "email": data["email"],
+            "name": data.get("name", data["email"].split("@")[0]),
+            "google_id": data["sub"],
+            "picture": data.get("picture")
+        }
+
+    except Exception as e:
+        print(f"[GOOGLE_AUTH] Token verification failed: {e}")
+        return None
+
+
+@app.get("/api/auth/google-client-id")
+def get_google_client_id() -> Dict:
+    """Return the Google client ID for frontend initialization."""
+    return {"client_id": GOOGLE_CLIENT_ID or ""}
+
+
+@app.post("/api/auth/google")
+def google_auth(data: GoogleAuthRequest) -> Dict:
+    """Authenticate via Google Sign-In. Creates account if new, logs in if existing."""
+    if not GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=503, detail="Google Sign-In is not configured")
+
+    # Verify the Google token
+    google_user = verify_google_token(data.credential)
+    if not google_user:
+        raise HTTPException(status_code=401, detail="Invalid Google token")
+
+    email = google_user["email"]
+    name = google_user["name"]
+
+    conn = get_db()
+    existing = conn.execute(
+        "SELECT * FROM volunteers WHERE email = ? AND deleted_at IS NULL",
+        (email,)
+    ).fetchone()
+    conn.close()
+
+    if existing:
+        # Existing user — log them in
+        auth_token = generate_auth_token()
+        with db_transaction() as conn:
+            conn.execute(
+                "UPDATE volunteers SET auth_token = ?, updated_at = ? WHERE id = ?",
+                (auth_token, datetime.now().isoformat(), existing["id"])
+            )
+
+        # Check for admin bootstrap
+        was_promoted = check_admin_bootstrap(email, existing["id"])
+
+        # Auto-accept pending admin invites
+        with db_transaction() as conn:
+            pending_invite = conn.execute(
+                """SELECT * FROM admin_invites
+                   WHERE LOWER(email) = LOWER(?) AND status = 'pending' AND expires_at > ?""",
+                (email, datetime.now().isoformat())
+            ).fetchone()
+            if pending_invite:
+                conn.execute("UPDATE volunteers SET is_admin = 1 WHERE id = ?", (existing["id"],))
+                conn.execute(
+                    """UPDATE admin_invites SET status = 'accepted', accepted_by_id = ?, accepted_at = ? WHERE id = ?""",
+                    (existing["id"], datetime.now().isoformat(), pending_invite["id"])
+                )
+                was_promoted = True
+
+        result = {"message": "Login successful", "auth_token": auth_token}
+        if was_promoted:
+            result["message"] = "Login successful - you've been granted admin access!"
+        return result
+
+    else:
+        # New user — create account
+        auth_token = generate_auth_token()
+
+        with db_transaction() as conn:
+            cursor = conn.execute(
+                """INSERT INTO volunteers (
+                    name, email, auth_token,
+                    consent_profile_visible, consent_contact_by_owners, consent_given_at
+                ) VALUES (?, ?, ?, ?, ?, ?)""",
+                (name, email, auth_token, True, True, datetime.now().isoformat())
+            )
+            volunteer_id = cursor.lastrowid
+
+            # Check admin bootstrap
+            check_admin_bootstrap(email, volunteer_id)
+
+            # Auto-accept pending admin invites
+            pending_invite = conn.execute(
+                """SELECT * FROM admin_invites
+                   WHERE LOWER(email) = LOWER(?) AND status = 'pending' AND expires_at > ?""",
+                (email, datetime.now().isoformat())
+            ).fetchone()
+            if pending_invite:
+                conn.execute("UPDATE volunteers SET is_admin = 1 WHERE id = ?", (volunteer_id,))
+                conn.execute(
+                    """UPDATE admin_invites SET status = 'accepted', accepted_by_id = ?, accepted_at = ? WHERE id = ?""",
+                    (volunteer_id, datetime.now().isoformat(), pending_invite["id"])
+                )
+
+        # Send welcome email
+        send_welcome_email(to=email, name=name)
+
+        return {
+            "auth_token": auth_token,
+            "message": "Welcome to Catalyse!",
+            "is_new_user": True
+        }
 
 
 @app.post("/api/auth/logout")
