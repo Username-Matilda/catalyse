@@ -82,6 +82,13 @@
                     <input type="text" id="collaboration_link" name="collaboration_link" placeholder="URL or description">
                 </div>
 
+                <div class="form-group">
+                    <label for="country">Country / Region</label>
+                    <select id="country" name="country">
+                        <option value="">Select...</option>
+                    </select>
+                </div>
+
                 <h3 style="margin-top: 24px;">Skills Needed</h3>
                 <p class="form-hint" style="margin-bottom: 12px;">Select skills relevant to this project.</p>
                 <div id="skillSelector" class="skill-selector">
@@ -183,6 +190,7 @@
             document.getElementById('urgency').value = project.urgency || 'medium';
             document.getElementById('estimated_duration').value = project.estimated_duration || '';
             document.getElementById('collaboration_link').value = project.collaboration_link || '';
+            renderCountrySelect('country', project.country || '');
 
             // Load skills with current selections
             const selectedIds = project.skills.map(s => s.id);
@@ -200,6 +208,7 @@
                    form.urgency.value !== (project.urgency || 'medium') ||
                    form.estimated_duration.value.trim() !== (project.estimated_duration || '') ||
                    form.collaboration_link.value.trim() !== (project.collaboration_link || '') ||
+                   (form.country.value || '') !== (project.country || '') ||
                    currentSkills !== originalSkills;
         }
 
@@ -229,6 +238,7 @@
                     urgency: form.urgency.value,
                     estimated_duration: form.estimated_duration.value.trim() || null,
                     collaboration_link: form.collaboration_link.value.trim() || null,
+                    country: form.country.value || null,
                     skill_ids: skillIds,
                     skill_required_map: skillRequiredMap
                 };

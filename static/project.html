@@ -158,6 +158,19 @@
                     </select>
                 </div>
                 <button class="btn btn-primary btn-small" onclick="updateProjectStatus()">Update Status</button>
+
+                <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border);">
+                    <h3>Transfer Ownership</h3>
+                    <p style="font-size: 0.875rem; color: var(--text-light); margin-bottom: 8px;">Hand this project over to another volunteer.</p>
+                    <div style="display: flex; gap: 8px; align-items: end;">
+                        <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                            <select id="transferSelect">
+                                <option value="">Select volunteer...</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-small btn-outline" onclick="transferOwnership()">Transfer</button>
+                    </div>
+                </div>
             </div>
 
             <!-- Admin triage (for pending projects) -->
@@ -481,6 +494,7 @@
                 }
 
                 select.value = project.status;
+                loadTransferOptions();
             }
 
             // Show triage section for admins viewing pending projects
@@ -518,6 +532,42 @@
                     body: JSON.stringify({ status: newStatus })
                 });
                 showMessage(`Status updated to ${formatStatus(newStatus)}`, 'success');
+                await loadProject(project.id);
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        }
+
+        async function loadTransferOptions() {
+            try {
+                const data = await apiRequest('/api/volunteers?limit=100');
+                const select = document.getElementById('transferSelect');
+                data.volunteers
+                    .filter(v => v.id !== project.owner_id)
+                    .forEach(v => {
+                        const option = document.createElement('option');
+                        option.value = v.id;
+                        option.textContent = v.name;
+                        select.appendChild(option);
+                    });
+            } catch (e) { /* ignore */ }
+        }
+
+        async function transferOwnership() {
+            const newOwnerId = document.getElementById('transferSelect').value;
+            if (!newOwnerId) {
+                showMessage('Please select a volunteer', 'error');
+                return;
+            }
+            const volunteerName = document.getElementById('transferSelect').selectedOptions[0].textContent;
+            if (!confirm(`Transfer ownership of "${project.title}" to ${volunteerName}?`)) return;
+
+            try {
+                await apiRequest(`/api/projects/${project.id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ owner_id: parseInt(newOwnerId) })
+                });
+                showMessage(`Ownership transferred to ${volunteerName}!`, 'success');
                 await loadProject(project.id);
             } catch (error) {
                 showMessage(error.message, 'error');

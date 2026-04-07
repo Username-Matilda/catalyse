@@ -30,10 +30,16 @@
                 <label for="searchInput">Search</label>
                 <input type="text" id="searchInput" placeholder="Search by name...">
             </div>
-            <div class="filter-group" style="flex: 2;">
+            <div class="filter-group">
                 <label for="skillFilter">Filter by Skill</label>
                 <select id="skillFilter">
                     <option value="">All Skills</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="countryFilter">Country</label>
+                <select id="countryFilter">
+                    <option value="">All Countries</option>
                 </select>
             </div>
         </div>
@@ -65,10 +71,12 @@
                 return;
             }
             await loadSkillsFilter();
+            renderCountrySelect('countryFilter');
             // Restore filters from URL
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('search')) document.getElementById('searchInput').value = urlParams.get('search');
             if (urlParams.get('skill_ids')) document.getElementById('skillFilter').value = urlParams.get('skill_ids');
+            if (urlParams.get('country')) document.getElementById('countryFilter').value = urlParams.get('country');
             await loadVolunteers();
             setupFilters();
         }
@@ -93,8 +101,10 @@
             const urlParams = new URLSearchParams();
             const search = document.getElementById('searchInput').value;
             const skillId = document.getElementById('skillFilter').value;
+            const country = document.getElementById('countryFilter').value;
             if (search) urlParams.set('search', search);
             if (skillId) urlParams.set('skill_ids', skillId);
+            if (country) urlParams.set('country', country);
             const newUrl = urlParams.toString() ? `?${urlParams}` : window.location.pathname;
             history.replaceState(null, '', newUrl);
 
@@ -102,6 +112,7 @@
                 const params = new URLSearchParams();
                 if (search) params.set('search', search);
                 if (skillId) params.set('skill_ids', skillId);
+                if (country) params.set('country', country);
 
                 const data = await apiRequest(`/api/volunteers?${params}`);
                 allVolunteers = data.volunteers;
@@ -154,6 +165,7 @@
 
             document.getElementById('searchInput').addEventListener('input', debouncedLoad);
             document.getElementById('skillFilter').addEventListener('change', loadVolunteers);
+            document.getElementById('countryFilter').addEventListener('change', loadVolunteers);
         }
 
         init();

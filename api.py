@@ -106,14 +106,27 @@ def run_migrations():
 
     conn = get_db()
     for migration_path in migration_files:
-        try:
-            with open(migration_path) as f:
-                conn.executescript(f.read())
-            print(f"Migration applied: {migration_path.name}")
-        except Exception as e:
-            # Most likely "table already exists" — safe to skip
-            if "already exists" not in str(e).lower():
-                print(f"Migration {migration_path.name}: {e}")
+        with open(migration_path) as f:
+            sql = f.read()
+
+        # Execute each statement individually so one failure doesn't skip the rest
+        statements = [s.strip() for s in sql.split(';') if s.strip()]
+        applied = 0
+        for statement in statements:
+            if not statement or statement.startswith('--'):
+                continue
+            try:
+                conn.execute(statement)
+                applied += 1
+            except Exception as e:
+                # "already exists" / "duplicate column" are safe to skip
+                err = str(e).lower()
+                if "already exists" not in err and "duplicate column" not in err:
+                    print(f"Migration {migration_path.name}: {e}")
+
+        if applied:
+            print(f"Migration applied: {migration_path.name} ({applied} statements)")
+
     conn.commit()
     conn.close()
 
@@ -135,6 +148,7 @@ class VolunteerSignup(BaseModel):
     contact_notes: Optional[str] = None
     availability_hours_per_week: Optional[int] = None
     location: Optional[str] = None
+    country: Optional[str] = None
     share_contact_directly: bool = False
     other_skills: Optional[str] = None
     skill_ids: List[int] = []
@@ -152,6 +166,7 @@ class VolunteerUpdate(BaseModel):
     contact_notes: Optional[str] = None
     availability_hours_per_week: Optional[int] = None
     location: Optional[str] = None
+    country: Optional[str] = None
     share_contact_directly: Optional[bool] = None
     other_skills: Optional[str] = None
     skill_ids: Optional[List[int]] = None
@@ -194,6 +209,7 @@ class ProjectCreate(BaseModel):
     skill_required_map: Dict[int, bool] = {}  # skill_id -> is_required
     want_to_own: bool = False  # If true, proposer becomes owner
     collaboration_link: Optional[str] = None
+    country: Optional[str] = None  # e.g., "UK", "US", "Remote"
 
 
 class ProjectUpdate(BaseModel):
@@ -207,6 +223,7 @@ class ProjectUpdate(BaseModel):
     skill_ids: Optional[List[int]] = None
     skill_required_map: Optional[Dict[int, bool]] = None
     collaboration_link: Optional[str] = None
+    country: Optional[str] = None
     owner_id: Optional[int] = None
     outcome: Optional[str] = None
     outcome_notes: Optional[str] = None
@@ -557,14 +574,15 @@ def signup(data: VolunteerSignup) -> Dict:
             """INSERT INTO volunteers (
                 name, email, bio, discord_handle, signal_number, whatsapp_number,
                 contact_preference, contact_notes, availability_hours_per_week,
-                location, share_contact_directly, other_skills,
+                location, country, share_contact_directly, other_skills,
                 consent_profile_visible, consent_contact_by_owners, consent_given_at,
                 auth_token, password_hash
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 data.name, data.email, data.bio, data.discord_handle,
                 data.signal_number, data.whatsapp_number, data.contact_preference,
                 data.contact_notes, data.availability_hours_per_week, data.location,
+                data.country,
                 data.share_contact_directly, data.other_skills,
                 data.consent_profile_visible, data.consent_contact_by_owners,
                 datetime.now().isoformat(), auth_token, password_hash
@@ -1158,6 +1176,7 @@ def delete_skill(
 def list_volunteers(
     skill_ids: Optional[str] = Query(None, description="Comma-separated skill IDs"),
     search: Optional[str] = Query(None),
+    country: Optional[str] = Query(None),
     limit: int = Query(50, le=100),
     offset: int = Query(0)
 ) -> Dict:
@@ -1166,7 +1185,7 @@ def list_volunteers(
 
     query = """
         SELECT DISTINCT v.id, v.name, v.bio, v.availability_hours_per_week,
-               v.location, v.other_skills, v.created_at
+               v.location, v.country, v.other_skills, v.created_at
         FROM volunteers v
         WHERE v.deleted_at IS NULL
         AND v.profile_visible = 1
@@ -1189,9 +1208,13 @@ def list_volunteers(
         query += " AND (v.name LIKE ? OR v.bio LIKE ?)"
         params.extend([f"%{search}%", f"%{search}%"])
 
+    if country:
+        query += " AND v.country = ?"
+        params.append(country)
+
     # Get total count
     count_query = query.replace(
-        "SELECT DISTINCT v.id, v.name, v.bio, v.availability_hours_per_week, v.location, v.other_skills, v.created_at",
+        "SELECT DISTINCT v.id, v.name, v.bio, v.availability_hours_per_week, v.location, v.country, v.other_skills, v.created_at",
         "SELECT COUNT(DISTINCT v.id)"
     )
     total = conn.execute(count_query, params).fetchone()[0]
@@ -1284,7 +1307,7 @@ def update_me(data: VolunteerUpdate, volunteer: Dict = Depends(require_auth)) ->
 
         for field in ["name", "bio", "discord_handle", "signal_number",
                       "whatsapp_number", "contact_preference", "contact_notes",
-                      "availability_hours_per_week", "location",
+                      "availability_hours_per_week", "location", "country",
                       "share_contact_directly", "other_skills", "profile_visible"]:
             value = getattr(data, field, None)
             if value is not None:
@@ -1331,6 +1354,7 @@ def list_projects(
     skill_ids: Optional[str] = Query(None, description="Comma-separated skill IDs"),
     search: Optional[str] = Query(None),
     urgency: Optional[str] = Query(None),
+    country: Optional[str] = Query(None),
     is_org_proposed: Optional[bool] = Query(None),
     sort_by: str = Query("created_at", pattern="^(created_at|urgency|match)$"),
     limit: int = Query(50, le=100),
@@ -1373,6 +1397,10 @@ def list_projects(
     if urgency:
         query += " AND p.urgency = ?"
         params.append(urgency)
+
+    if country:
+        query += " AND p.country = ?"
+        params.append(country)
 
     if is_org_proposed is not None:
         query += " AND p.is_org_proposed = ?"
@@ -1525,13 +1553,13 @@ def create_project(
             """INSERT INTO projects (
                 title, description, status, owner_id, proposed_by_id,
                 is_org_proposed, project_type, estimated_duration,
-                time_commitment_hours_per_week, urgency, collaboration_link
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                time_commitment_hours_per_week, urgency, collaboration_link, country
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 data.title, data.description, status, owner_id, volunteer["id"],
                 False, data.project_type, data.estimated_duration,
                 data.time_commitment_hours_per_week, data.urgency,
-                data.collaboration_link
+                data.collaboration_link, data.country
             )
         )
         project_id = cursor.lastrowid
@@ -1589,7 +1617,7 @@ def update_project(
         owner_allowed_statuses = {"seeking_help", "in_progress", "on_hold", "completed"}
 
         for field in ["title", "description", "status", "project_type", "estimated_duration",
-                      "time_commitment_hours_per_week", "urgency", "collaboration_link", "owner_id"]:
+                      "time_commitment_hours_per_week", "urgency", "collaboration_link", "country", "owner_id"]:
             value = getattr(data, field, None)
             if value is not None:
                 # Owners can change to allowed statuses; admins can set any status
@@ -1923,14 +1951,14 @@ def create_org_project(
             """INSERT INTO projects (
                 title, description, status, owner_id, proposed_by_id,
                 is_org_proposed, project_type, estimated_duration,
-                time_commitment_hours_per_week, urgency, collaboration_link
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                time_commitment_hours_per_week, urgency, collaboration_link, country
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 data.title, data.description, status,
                 admin["id"] if data.want_to_own else None,
                 admin["id"], True, data.project_type, data.estimated_duration,
                 data.time_commitment_hours_per_week,
-                data.urgency, data.collaboration_link
+                data.urgency, data.collaboration_link, data.country
             )
         )
         project_id = cursor.lastrowid
