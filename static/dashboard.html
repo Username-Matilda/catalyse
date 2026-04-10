@@ -33,6 +33,17 @@
 
             <div id="messageDiv" class="message" style="display: none;"></div>
 
+            <!-- Email preferences banner -->
+            <div id="emailBanner" style="display: none; margin-bottom: 16px;">
+                <div class="message info" style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                    <span>Want to hear about new projects? Set your email notification preferences so you don't miss opportunities that match your skills.</span>
+                    <div style="display: flex; gap: 8px; flex-shrink: 0;">
+                        <a href="/static/profile.html" class="btn btn-small btn-primary">Set preferences</a>
+                        <button class="btn btn-small btn-ghost" onclick="dismissEmailBanner()">Dismiss</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Quick Stats -->
             <div class="grid grid-3" style="margin-bottom: 32px;">
                 <div class="card" style="text-align: center;">
@@ -168,6 +179,11 @@
             }
         }
 
+        function dismissEmailBanner() {
+            localStorage.setItem('emailBannerDismissed', 'true');
+            document.getElementById('emailBanner').style.display = 'none';
+        }
+
         function toggleStarterTask(taskId) {
             const details = document.getElementById('st-details-' + taskId);
             const toggle = document.getElementById('st-toggle-' + taskId);
@@ -192,6 +208,12 @@
 
         function renderDashboard() {
             document.getElementById('userName').textContent = currentUser.name;
+
+            // Show email preferences banner if not dismissed and no preference set
+            if (!localStorage.getItem('emailBannerDismissed') &&
+                (!currentUser.email_digest || currentUser.email_digest === 'none')) {
+                document.getElementById('emailBanner').style.display = 'block';
+            }
 
             // Stats
             document.getElementById('statOwned').textContent = dashboardData.owned_projects.length;
