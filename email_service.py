@@ -194,6 +194,70 @@ def send_welcome_email(to: str, name: str) -> bool:
     return send_email(to, "Welcome to Catalyse!", html)
 
 
+def send_digest_email(to: str, name: str, projects: list, is_match: bool = False) -> bool:
+    """Send a project digest email to a volunteer."""
+    if not projects:
+        return False
+
+    match_intro = "Here are new projects that match your skills:" if is_match else "Here's what's new on Catalyse:"
+
+    project_html = ""
+    for p in projects:
+        skills_html = ", ".join(p.get("skill_names", [])[:5])
+        match_pct = p.get("match_percent")
+        match_badge = f' <span style="background: #D1FAE5; color: #065F46; padding: 2px 8px; border-radius: 10px; font-size: 12px;">{match_pct}% match</span>' if match_pct else ""
+        desc = p.get("description", "")
+
+        project_html += f"""
+            <div style="padding: 16px; margin-bottom: 12px; background: #f7fafc; border-radius: 8px; border-left: 4px solid #FF9416;">
+                <a href="{APP_URL}/static/project.html?id={p['id']}" style="font-weight: bold; color: #1A202C; text-decoration: none; font-size: 16px;">
+                    {p['title']}
+                </a>{match_badge}
+                <p style="color: #4A5568; margin: 8px 0 4px 0; font-size: 14px;">
+                    {desc[:150]}{'...' if len(desc) > 150 else ''}
+                </p>
+                {f'<p style="font-size: 12px; color: #718096;">Skills: {skills_html}</p>' if skills_html else ''}
+            </div>
+        """
+
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1a202c; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            .button {{ display: inline-block; background: #FF9416; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; }}
+            .footer {{ margin-top: 32px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 14px; color: #718096; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2 style="color: #FF9416;">Catalyse Project Update</h2>
+            <p>Hi {name},</p>
+            <p>{match_intro}</p>
+
+            {project_html}
+
+            <p style="text-align: center; margin: 32px 0;">
+                <a href="{APP_URL}" class="button">Browse All Projects</a>
+            </p>
+
+            <div class="footer">
+                <p>Catalyse - PauseAI Volunteer Platform</p>
+                <p style="font-size: 12px;">You're receiving this because you opted in to project notifications.
+                <a href="{APP_URL}/static/profile.html">Change your preferences</a> at any time.</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+    subject = "New projects matching your skills" if is_match else "What's new on Catalyse"
+    return send_email(to, subject, html)
+
+
 def send_relay_message(to: str, to_name: str, from_name: str, from_email: str,
                        subject: str, message: str, project_title: str = None) -> bool:
     """Send a relay message from one volunteer to another via the platform."""

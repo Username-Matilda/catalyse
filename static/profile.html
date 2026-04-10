@@ -112,6 +112,17 @@
                     </label>
                 </div>
 
+                <h3 style="margin-top: 24px;">Email Notifications</h3>
+
+                <div class="form-group">
+                    <label for="email_digest">Keep me in the loop about new projects</label>
+                    <select id="email_digest" name="email_digest">
+                        <option value="none">Don't email me</option>
+                        <option value="match">Email me when a project matches my skills</option>
+                        <option value="fortnightly">Send me a fortnightly digest</option>
+                    </select>
+                </div>
+
                 <div style="margin-top: 32px; display: flex; gap: 12px;">
                     <button type="submit" class="btn btn-primary">Save Changes</button>
                     <a href="/static/dashboard.html" class="btn btn-outline">Cancel</a>
@@ -160,6 +171,7 @@
             form.other_skills.value = currentUser.other_skills || '';
             form.profile_visible.checked = currentUser.profile_visible !== false;
             form.share_contact_directly.checked = currentUser.share_contact_directly || false;
+            form.email_digest.value = currentUser.email_digest || 'none';
 
             // Skills
             const selectedSkillIds = currentUser.skills?.map(s => s.id) || [];
@@ -189,6 +201,7 @@
                     other_skills: form.other_skills.value.trim() || null,
                     profile_visible: form.profile_visible.checked,
                     share_contact_directly: form.share_contact_directly.checked,
+                    email_digest: form.email_digest.value,
                     skill_ids: getSelectedSkills('skillSelector')
                 };
 

@@ -24,7 +24,8 @@ from email_service import (
     send_password_reset_email,
     send_admin_invite_email,
     send_welcome_email,
-    send_relay_message
+    send_relay_message,
+    send_digest_email
 )
 
 # ============================================
@@ -154,6 +155,7 @@ class VolunteerSignup(BaseModel):
     skill_ids: List[int] = []
     consent_profile_visible: bool = True
     consent_contact_by_owners: bool = True
+    email_digest: Optional[str] = "none"  # 'none', 'match', 'fortnightly'
 
 
 class VolunteerUpdate(BaseModel):
@@ -171,6 +173,7 @@ class VolunteerUpdate(BaseModel):
     other_skills: Optional[str] = None
     skill_ids: Optional[List[int]] = None
     profile_visible: Optional[bool] = None
+    email_digest: Optional[str] = None  # 'none', 'match', 'fortnightly'
 
 
 class LoginRequest(BaseModel):
@@ -585,8 +588,8 @@ def signup(data: VolunteerSignup) -> Dict:
                 contact_preference, contact_notes, availability_hours_per_week,
                 location, country, share_contact_directly, other_skills,
                 consent_profile_visible, consent_contact_by_owners, consent_given_at,
-                auth_token, password_hash
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                email_digest, auth_token, password_hash
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 data.name, data.email, data.bio, data.discord_handle,
                 data.signal_number, data.whatsapp_number, data.contact_preference,
@@ -594,7 +597,8 @@ def signup(data: VolunteerSignup) -> Dict:
                 data.country,
                 data.share_contact_directly, data.other_skills,
                 data.consent_profile_visible, data.consent_contact_by_owners,
-                datetime.now().isoformat(), auth_token, password_hash
+                datetime.now().isoformat(), data.email_digest or 'none',
+                auth_token, password_hash
             )
         )
         volunteer_id = cursor.lastrowid
@@ -1502,7 +1506,7 @@ def update_me(data: VolunteerUpdate, volunteer: Dict = Depends(require_auth)) ->
         for field in ["name", "bio", "discord_handle", "signal_number",
                       "whatsapp_number", "contact_preference", "contact_notes",
                       "availability_hours_per_week", "location", "country",
-                      "share_contact_directly", "other_skills", "profile_visible"]:
+                      "share_contact_directly", "other_skills", "profile_visible", "email_digest"]:
             value = getattr(data, field, None)
             if value is not None:
                 updates.append(f"{field} = ?")
@@ -2113,6 +2117,18 @@ def review_project(
                     "It's now visible to other volunteers.",
                     f"/static/project.html?id={project_id}"
                 )
+
+            # Send skill-match email notifications (async-safe, non-blocking)
+            try:
+                from digest_service import send_skill_match_notifications
+                import threading
+                threading.Thread(
+                    target=send_skill_match_notifications,
+                    args=(project_id,),
+                    daemon=True
+                ).start()
+            except Exception as e:
+                print(f"[DIGEST] Failed to trigger skill match notifications: {e}")
 
         elif data.status == "needs_discussion":
             conn.execute(
@@ -3444,9 +3460,10 @@ def serve_index():
 
 @app.on_event("startup")
 def startup():
-    """Initialize database and start backup scheduler."""
+    """Initialize database and start background schedulers."""
     init_db()
     start_backup_scheduler()
+    start_digest_scheduler()
 
 
 def start_backup_scheduler():
@@ -3469,6 +3486,29 @@ def start_backup_scheduler():
     thread = threading.Thread(target=backup_loop, daemon=True)
     thread.start()
     print(f"[BACKUP] Scheduler started (B2 configured: {is_b2_configured()})")
+
+
+def start_digest_scheduler():
+    """Start a background thread that sends fortnightly digest emails."""
+    import threading
+    import time
+    from digest_service import send_fortnightly_digest
+    from email_service import is_email_configured
+
+    def digest_loop():
+        # Wait 5 minutes after startup before first check
+        time.sleep(300)
+        while True:
+            try:
+                send_fortnightly_digest()
+            except Exception as e:
+                print(f"[DIGEST ERROR] Unexpected error in digest loop: {e}")
+            # Sleep 14 days
+            time.sleep(14 * 24 * 60 * 60)
+
+    thread = threading.Thread(target=digest_loop, daemon=True)
+    thread.start()
+    print(f"[DIGEST] Scheduler started (email configured: {is_email_configured()})")
 
 
 # ============================================
