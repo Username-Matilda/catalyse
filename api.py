@@ -196,6 +196,11 @@ class ChangePasswordRequest(BaseModel):
     new_password: str = Field(..., min_length=8, max_length=128)
 
 
+class ChangeEmailRequest(BaseModel):
+    new_email: EmailStr
+    password: str
+
+
 class DeleteAccountRequest(BaseModel):
     password: str
     confirmation: str = Field(..., pattern="^DELETE$")  # Must type "DELETE"
@@ -989,6 +994,44 @@ def change_password(
         )
 
     return {"message": "Password changed successfully"}
+
+
+@app.post("/api/auth/change-email")
+def change_email(
+    data: ChangeEmailRequest,
+    volunteer: Dict = Depends(require_auth)
+) -> Dict:
+    """Change email for logged-in user."""
+    conn = get_db()
+    vol = conn.execute(
+        "SELECT password_hash FROM volunteers WHERE id = ?",
+        (volunteer["id"],)
+    ).fetchone()
+
+    # Check if new email is already taken
+    existing = conn.execute(
+        "SELECT id FROM volunteers WHERE email = ? AND id != ?",
+        (data.new_email, volunteer["id"])
+    ).fetchone()
+    conn.close()
+
+    if existing:
+        raise HTTPException(status_code=400, detail="This email is already registered to another account")
+
+    # Verify password (skip for Google-only users who have no password)
+    if vol["password_hash"]:
+        if not verify_password(data.password, vol["password_hash"]):
+            raise HTTPException(status_code=400, detail="Password is incorrect")
+    else:
+        raise HTTPException(status_code=400, detail="Cannot change email for accounts without a password. Contact an admin.")
+
+    with db_transaction() as conn:
+        conn.execute(
+            "UPDATE volunteers SET email = ?, updated_at = ? WHERE id = ?",
+            (data.new_email, datetime.now().isoformat(), volunteer["id"])
+        )
+
+    return {"message": "Email changed successfully"}
 
 
 @app.post("/api/auth/delete-account")

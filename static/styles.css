@@ -445,6 +445,98 @@ p {
 [data-theme="dark"] header { background: #1F2937; border-color: #374151; }
 [data-theme="dark"] .logo img { background: #FFFFFF; border-radius: 6px; padding: 2px 6px; }
 [data-theme="dark"] .user-button { background: #374151; color: #F3F4F6; border-color: #4B5563; }
+
+/* Dark mode form inputs */
+[data-theme="dark"] input[type="text"],
+[data-theme="dark"] input[type="email"],
+[data-theme="dark"] input[type="number"],
+[data-theme="dark"] input[type="url"],
+[data-theme="dark"] input[type="password"],
+[data-theme="dark"] textarea,
+[data-theme="dark"] select {
+    background: #1F2937;
+    color: #F3F4F6;
+    border-color: #4B5563;
+}
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+    color: #6B7280;
+}
+[data-theme="dark"] select option {
+    background: #1F2937;
+    color: #F3F4F6;
+}
+[data-theme="dark"] .form-hint {
+    color: #9CA3AF;
+}
+[data-theme="dark"] .checkbox-label {
+    color: #F3F4F6;
+}
+[data-theme="dark"] .consent-section {
+    background: #1F2937;
+    border-color: #374151;
+}
+[data-theme="dark"] .danger-zone,
+[data-theme="dark"] [style*="border-color: var(--error)"] {
+    border-color: #F87171;
+}
+[data-theme="dark"] .modal {
+    background: #1F2937;
+}
+[data-theme="dark"] .modal-header {
+    border-color: #374151;
+}
+[data-theme="dark"] .loading {
+    color: #9CA3AF;
+}
+[data-theme="dark"] .empty-state {
+    color: #9CA3AF;
+}
+[data-theme="dark"] a {
+    color: var(--primary);
+}
+[data-theme="dark"] .btn-outline {
+    border-color: #4B5563;
+    color: #D1D5DB;
+}
+[data-theme="dark"] .btn-outline:hover {
+    background: #374151;
+}
+[data-theme="dark"] .btn-ghost {
+    color: #D1D5DB;
+}
+[data-theme="dark"] .btn-ghost:hover {
+    background: #374151;
+}
+[data-theme="dark"] nav a {
+    color: #D1D5DB;
+}
+[data-theme="dark"] nav a.active,
+[data-theme="dark"] nav a:hover {
+    color: var(--primary);
+}
+[data-theme="dark"] .tabs {
+    border-color: #374151;
+}
+[data-theme="dark"] .tab {
+    color: #9CA3AF;
+}
+[data-theme="dark"] .tab.active {
+    color: var(--primary);
+    border-color: var(--primary);
+}
+[data-theme="dark"] .notification-badge {
+    background: var(--primary);
+    color: #111827;
+}
+[data-theme="dark"] .interest-card {
+    background: #1F2937;
+    border-color: #374151;
+}
+[data-theme="dark"] .cookie-banner {
+    background: #1F2937;
+    border-color: #374151;
+}
 [data-theme="dark"] .org-badge { background: #78350F; color: #FDE68A; }
 
 /* Urgency */
@@ -517,6 +609,7 @@ input[type="text"],
 input[type="email"],
 input[type="number"],
 input[type="url"],
+input[type="password"],
 textarea,
 select {
     width: 100%;
@@ -524,8 +617,10 @@ select {
     border: 2px solid var(--border);
     border-radius: var(--radius);
     font-size: 1rem;
+    font-family: var(--font-body);
     transition: border-color 0.2s;
     background: var(--surface);
+    color: var(--text);
 }
 
 input:focus,
@@ -1095,5 +1190,46 @@ textarea {
         width: 40px;
         height: 40px;
         font-size: 18px;
+    }
+}
+
+/* Cookie Consent Banner */
+.cookie-banner {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 2000;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.1);
+    padding: 16px 24px;
+}
+
+.cookie-banner-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.cookie-banner-content p {
+    font-size: 0.875rem;
+    color: var(--text-light);
+    margin: 0;
+}
+
+.cookie-banner-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+    .cookie-banner-content {
+        flex-direction: column;
+        text-align: center;
     }
 }

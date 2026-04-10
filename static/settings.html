@@ -37,6 +37,23 @@
 
             <div id="messageDiv" class="message" style="display: none;"></div>
 
+            <!-- Change Email Section -->
+            <div class="card" style="margin-top: 24px;">
+                <h2>Change Email</h2>
+                <p id="currentEmail" style="color: var(--text-light); margin-bottom: 16px;"></p>
+                <form id="emailForm" style="margin-top: 16px;">
+                    <div class="form-group">
+                        <label for="new_email" class="required">New Email Address</label>
+                        <input type="email" id="new_email" name="new_email" required placeholder="newemail@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="email_password" class="required">Confirm Password</label>
+                        <input type="password" id="email_password" name="password" required placeholder="Enter your current password">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Change Email</button>
+                </form>
+            </div>
+
             <!-- Change Password Section -->
             <div class="card" style="margin-top: 24px;">
                 <h2>Change Password</h2>
@@ -127,7 +144,38 @@
                 window.location.href = '/static/login.html?redirect=/static/settings.html';
                 return;
             }
+
+            document.getElementById('currentEmail').textContent = `Current email: ${currentUser.email}`;
         }
+
+        // Change email form
+        document.getElementById('emailForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const btn = form.querySelector('button[type="submit"]');
+            btn.disabled = true;
+
+            try {
+                await apiRequest('/api/auth/change-email', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        new_email: form.new_email.value.trim(),
+                        password: form.password.value
+                    })
+                });
+
+                showMessage('Email changed successfully!', 'success');
+                form.reset();
+                // Refresh user data to show new email
+                currentUser = await getCurrentUser();
+                document.getElementById('currentEmail').textContent = `Current email: ${currentUser.email}`;
+
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+
+            btn.disabled = false;
+        });
 
         // Change password form
         document.getElementById('passwordForm').addEventListener('submit', async (e) => {
