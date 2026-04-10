@@ -163,6 +163,16 @@
                     </p>
                 </div>
 
+                <h3 style="margin-top: 24px;">Email Notifications</h3>
+                <div class="form-group">
+                    <label for="email_digest">Keep me in the loop about new projects</label>
+                    <select id="email_digest" name="email_digest">
+                        <option value="none">Don't email me</option>
+                        <option value="match" selected>Email me when a project matches my skills</option>
+                        <option value="fortnightly">Send me a fortnightly digest</option>
+                    </select>
+                </div>
+
                 <div style="margin-top: 24px;">
                     <button type="submit" class="btn btn-primary" style="width: 100%;">
                         Create Account
@@ -283,7 +293,8 @@
                     other_skills: form.other_skills.value.trim() || null,
                     skill_ids: getSelectedSkills('skillSelector'),
                     consent_profile_visible: form.consent_profile_visible.checked,
-                    consent_contact_by_owners: form.consent_contact_by_owners.checked
+                    consent_contact_by_owners: form.consent_contact_by_owners.checked,
+                    email_digest: form.email_digest.value
                 };
 
                 const response = await fetch('/api/auth/signup', {
