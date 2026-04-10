@@ -504,3 +504,71 @@ function openBugReportModal() {
 
 // Auto-initialize bug report button on all pages
 document.addEventListener('DOMContentLoaded', initBugReportButton);
+
+
+// ============================================
+// GOOGLE ANALYTICS + COOKIE CONSENT
+// ============================================
+
+const GA_ID = 'G-5V7B3WCJ42';
+
+function loadGoogleAnalytics() {
+    if (document.getElementById('ga-script')) return; // already loaded
+
+    const script = document.createElement('script');
+    script.id = 'ga-script';
+    script.async = true;
+    script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_ID}`;
+    document.head.appendChild(script);
+
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){ dataLayer.push(arguments); }
+    window.gtag = gtag;
+    gtag('js', new Date());
+    gtag('config', GA_ID, { anonymize_ip: true });
+}
+
+function initCookieConsent() {
+    // Don't show on login/signup pages (clutters the auth flow)
+    if (window.location.pathname.includes('login.html') ||
+        window.location.pathname.includes('signup.html')) return;
+
+    const consent = localStorage.getItem('cookie_consent');
+
+    if (consent === 'accepted') {
+        loadGoogleAnalytics();
+        return;
+    }
+
+    if (consent === 'declined') {
+        return; // respect their choice
+    }
+
+    // Show consent banner
+    const banner = document.createElement('div');
+    banner.className = 'cookie-banner';
+    banner.innerHTML = `
+        <div class="cookie-banner-content">
+            <p>We use cookies for analytics to improve the platform.
+               <a href="/static/privacy.html" style="color: inherit; text-decoration: underline;">Privacy policy</a></p>
+            <div class="cookie-banner-actions">
+                <button class="btn btn-small btn-primary" onclick="acceptCookies()">Accept</button>
+                <button class="btn btn-small btn-outline" onclick="declineCookies()">Decline</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(banner);
+}
+
+function acceptCookies() {
+    localStorage.setItem('cookie_consent', 'accepted');
+    document.querySelector('.cookie-banner')?.remove();
+    loadGoogleAnalytics();
+}
+
+function declineCookies() {
+    localStorage.setItem('cookie_consent', 'declined');
+    document.querySelector('.cookie-banner')?.remove();
+}
+
+document.addEventListener('DOMContentLoaded', initCookieConsent);
