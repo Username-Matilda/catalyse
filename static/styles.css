@@ -445,6 +445,98 @@ p {
 [data-theme="dark"] header { background: #1F2937; border-color: #374151; }
 [data-theme="dark"] .logo img { background: #FFFFFF; border-radius: 6px; padding: 2px 6px; }
 [data-theme="dark"] .user-button { background: #374151; color: #F3F4F6; border-color: #4B5563; }
+
+/* Dark mode form inputs */
+[data-theme="dark"] input[type="text"],
+[data-theme="dark"] input[type="email"],
+[data-theme="dark"] input[type="number"],
+[data-theme="dark"] input[type="url"],
+[data-theme="dark"] input[type="password"],
+[data-theme="dark"] textarea,
+[data-theme="dark"] select {
+    background: #1F2937;
+    color: #F3F4F6;
+    border-color: #4B5563;
+}
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+    color: #6B7280;
+}
+[data-theme="dark"] select option {
+    background: #1F2937;
+    color: #F3F4F6;
+}
+[data-theme="dark"] .form-hint {
+    color: #9CA3AF;
+}
+[data-theme="dark"] .checkbox-label {
+    color: #F3F4F6;
+}
+[data-theme="dark"] .consent-section {
+    background: #1F2937;
+    border-color: #374151;
+}
+[data-theme="dark"] .danger-zone,
+[data-theme="dark"] [style*="border-color: var(--error)"] {
+    border-color: #F87171;
+}
+[data-theme="dark"] .modal {
+    background: #1F2937;
+}
+[data-theme="dark"] .modal-header {
+    border-color: #374151;
+}
+[data-theme="dark"] .loading {
+    color: #9CA3AF;
+}
+[data-theme="dark"] .empty-state {
+    color: #9CA3AF;
+}
+[data-theme="dark"] a {
+    color: var(--primary);
+}
+[data-theme="dark"] .btn-outline {
+    border-color: #4B5563;
+    color: #D1D5DB;
+}
+[data-theme="dark"] .btn-outline:hover {
+    background: #374151;
+}
+[data-theme="dark"] .btn-ghost {
+    color: #D1D5DB;
+}
+[data-theme="dark"] .btn-ghost:hover {
+    background: #374151;
+}
+[data-theme="dark"] nav a {
+    color: #D1D5DB;
+}
+[data-theme="dark"] nav a.active,
+[data-theme="dark"] nav a:hover {
+    color: var(--primary);
+}
+[data-theme="dark"] .tabs {
+    border-color: #374151;
+}
+[data-theme="dark"] .tab {
+    color: #9CA3AF;
+}
+[data-theme="dark"] .tab.active {
+    color: var(--primary);
+    border-color: var(--primary);
+}
+[data-theme="dark"] .notification-badge {
+    background: var(--primary);
+    color: #111827;
+}
+[data-theme="dark"] .interest-card {
+    background: #1F2937;
+    border-color: #374151;
+}
+[data-theme="dark"] .cookie-banner {
+    background: #1F2937;
+    border-color: #374151;
+}
 [data-theme="dark"] .org-badge { background: #78350F; color: #FDE68A; }
 
 /* Urgency */
@@ -517,6 +609,7 @@ input[type="text"],
 input[type="email"],
 input[type="number"],
 input[type="url"],
+input[type="password"],
 textarea,
 select {
     width: 100%;
@@ -524,8 +617,10 @@ select {
     border: 2px solid var(--border);
     border-radius: var(--radius);
     font-size: 1rem;
+    font-family: var(--font-body);
     transition: border-color 0.2s;
     background: var(--surface);
+    color: var(--text);
 }
 
 input:focus,

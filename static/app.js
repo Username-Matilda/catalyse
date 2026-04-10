@@ -549,7 +549,7 @@ function initCookieConsent() {
     banner.className = 'cookie-banner';
     banner.innerHTML = `
         <div class="cookie-banner-content">
-            <p>We use cookies for analytics to improve the platform.
+            <p>Accepting cookies helps us understand how volunteers use this platform so we can make it better. That's the only reason we use analytics.
                <a href="/static/privacy.html" style="color: inherit; text-decoration: underline;">Privacy policy</a></p>
             <div class="cookie-banner-actions">
                 <button class="btn btn-small btn-primary" onclick="acceptCookies()">Accept</button>
