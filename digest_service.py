@@ -36,43 +36,45 @@ def send_skill_match_notifications(project_id: int):
         return
 
     conn = get_db()
+    try:
+        project = conn.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
+        if not project:
+            return
 
-    # Get the project and its required skills
-    project = conn.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
-    if not project:
+        project_skills = conn.execute(
+            "SELECT skill_id FROM project_skills WHERE project_id = ?", (project_id,)
+        ).fetchall()
+        skill_ids = {row["skill_id"] for row in project_skills}
+        if not skill_ids:
+            return
+
+        skill_names = []
+        for sid in skill_ids:
+            skill = conn.execute("SELECT name FROM skills WHERE id = ?", (sid,)).fetchone()
+            if skill:
+                skill_names.append(skill["name"])
+
+        # Check if email_digest column exists
+        try:
+            conn.execute("SELECT email_digest FROM volunteers LIMIT 1")
+        except Exception:
+            print("[DIGEST] email_digest column not found, skipping")
+            return
+
+        placeholders = ",".join("?" * len(skill_ids))
+        volunteers = conn.execute(
+            f"""SELECT DISTINCT v.id, v.name, v.email
+                FROM volunteers v
+                JOIN volunteer_skills vs ON v.id = vs.volunteer_id
+                WHERE vs.skill_id IN ({placeholders})
+                AND v.email_digest = 'match'
+                AND v.email IS NOT NULL
+                AND v.deleted_at IS NULL
+                AND v.id != ?""",
+            list(skill_ids) + [project.get("owner_id") or 0]
+        ).fetchall()
+    finally:
         conn.close()
-        return
-
-    project_skills = conn.execute(
-        "SELECT skill_id FROM project_skills WHERE project_id = ?", (project_id,)
-    ).fetchall()
-    skill_ids = {row["skill_id"] for row in project_skills}
-
-    if not skill_ids:
-        conn.close()
-        return
-
-    # Get skill names for the email
-    skill_names = []
-    for sid in skill_ids:
-        skill = conn.execute("SELECT name FROM skills WHERE id = ?", (sid,)).fetchone()
-        if skill:
-            skill_names.append(skill["name"])
-
-    # Find volunteers who opted in to match notifications and have matching skills
-    placeholders = ",".join("?" * len(skill_ids))
-    volunteers = conn.execute(
-        f"""SELECT DISTINCT v.id, v.name, v.email
-            FROM volunteers v
-            JOIN volunteer_skills vs ON v.id = vs.volunteer_id
-            WHERE vs.skill_id IN ({placeholders})
-            AND v.email_digest = 'match'
-            AND v.email IS NOT NULL
-            AND v.deleted_at IS NULL
-            AND v.id != ?""",
-        list(skill_ids) + [project.get("owner_id") or 0]
-    ).fetchall()
-    conn.close()
 
     if not volunteers:
         print(f"[DIGEST] No skill-match volunteers for project {project_id}")
@@ -103,49 +105,53 @@ def send_fortnightly_digest():
         return
 
     conn = get_db()
-
-    # Get projects created/approved in the last 14 days
-    cutoff = (datetime.now() - timedelta(days=14)).isoformat()
-    projects = conn.execute(
-        """SELECT p.id, p.title, p.description, p.status, p.urgency
-           FROM projects p
-           WHERE p.status IN ('seeking_owner', 'seeking_help', 'in_progress')
-           AND p.created_at >= ?
-           ORDER BY p.created_at DESC
-           LIMIT 10""",
-        (cutoff,)
-    ).fetchall()
-
-    if not projects:
-        print("[DIGEST] No new projects in the last 14 days, skipping digest")
-        conn.close()
-        return
-
-    # Build project data with skill names
-    project_list = []
-    for p in projects:
-        skills = conn.execute(
-            """SELECT s.name FROM skills s
-               JOIN project_skills ps ON s.id = ps.skill_id
-               WHERE ps.project_id = ?""",
-            (p["id"],)
+    try:
+        cutoff = (datetime.now() - timedelta(days=14)).isoformat()
+        projects = conn.execute(
+            """SELECT p.id, p.title, p.description, p.status, p.urgency
+               FROM projects p
+               WHERE p.status IN ('seeking_owner', 'seeking_help', 'in_progress')
+               AND p.created_at >= ?
+               ORDER BY p.created_at DESC
+               LIMIT 10""",
+            (cutoff,)
         ).fetchall()
-        project_list.append({
-            "id": p["id"],
-            "title": p["title"],
-            "description": p["description"] or "",
-            "skill_names": [s["name"] for s in skills]
-        })
 
-    # Get volunteers who opted in to fortnightly digest
-    volunteers = conn.execute(
-        """SELECT id, name, email
-           FROM volunteers
-           WHERE email_digest = 'fortnightly'
-           AND email IS NOT NULL
-           AND deleted_at IS NULL"""
-    ).fetchall()
-    conn.close()
+        if not projects:
+            print("[DIGEST] No new projects in the last 14 days, skipping digest")
+            return
+
+        project_list = []
+        for p in projects:
+            skills = conn.execute(
+                """SELECT s.name FROM skills s
+                   JOIN project_skills ps ON s.id = ps.skill_id
+                   WHERE ps.project_id = ?""",
+                (p["id"],)
+            ).fetchall()
+            project_list.append({
+                "id": p["id"],
+                "title": p["title"],
+                "description": p["description"] or "",
+                "skill_names": [s["name"] for s in skills]
+            })
+
+        # Check if email_digest column exists
+        try:
+            conn.execute("SELECT email_digest FROM volunteers LIMIT 1")
+        except Exception:
+            print("[DIGEST] email_digest column not found, skipping fortnightly digest")
+            return
+
+        volunteers = conn.execute(
+            """SELECT id, name, email
+               FROM volunteers
+               WHERE email_digest = 'fortnightly'
+               AND email IS NOT NULL
+               AND deleted_at IS NULL"""
+        ).fetchall()
+    finally:
+        conn.close()
 
     if not volunteers:
         print("[DIGEST] No volunteers opted in to fortnightly digest")

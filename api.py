@@ -1018,16 +1018,7 @@ def change_email(
         "SELECT password_hash FROM volunteers WHERE id = ?",
         (volunteer["id"],)
     ).fetchone()
-
-    # Check if new email is already taken
-    existing = conn.execute(
-        "SELECT id FROM volunteers WHERE email = ? AND id != ?",
-        (data.new_email, volunteer["id"])
-    ).fetchone()
     conn.close()
-
-    if existing:
-        raise HTTPException(status_code=400, detail="This email is already registered to another account")
 
     # Verify password (skip for Google-only users who have no password)
     if vol["password_hash"]:
@@ -1036,7 +1027,14 @@ def change_email(
     else:
         raise HTTPException(status_code=400, detail="Cannot change email for accounts without a password. Contact an admin.")
 
+    # Check duplicate and update inside same transaction to prevent race condition
     with db_transaction() as conn:
+        existing = conn.execute(
+            "SELECT id FROM volunteers WHERE email = ? AND id != ?",
+            (data.new_email, volunteer["id"])
+        ).fetchone()
+        if existing:
+            raise HTTPException(status_code=400, detail="This email is already registered to another account")
         conn.execute(
             "UPDATE volunteers SET email = ?, updated_at = ? WHERE id = ?",
             (data.new_email, datetime.now().isoformat(), volunteer["id"])
@@ -1764,18 +1762,24 @@ def create_project(
         status = "pending_review"
         owner_id = volunteer["id"] if data.want_to_own else None
 
+        # Build INSERT dynamically based on existing columns
+        proj_columns = {row["name"] for row in conn.execute("PRAGMA table_info(projects)").fetchall()}
+        proj_fields = {
+            "title": data.title, "description": data.description, "status": status,
+            "owner_id": owner_id, "proposed_by_id": volunteer["id"],
+            "is_org_proposed": False, "project_type": data.project_type,
+            "estimated_duration": data.estimated_duration,
+            "time_commitment_hours_per_week": data.time_commitment_hours_per_week,
+            "urgency": data.urgency, "collaboration_link": data.collaboration_link
+        }
+        if "country" in proj_columns:
+            proj_fields["country"] = data.country
+
+        col_names = ", ".join(proj_fields.keys())
+        placeholders = ", ".join("?" * len(proj_fields))
         cursor = conn.execute(
-            """INSERT INTO projects (
-                title, description, status, owner_id, proposed_by_id,
-                is_org_proposed, project_type, estimated_duration,
-                time_commitment_hours_per_week, urgency, collaboration_link, country
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                data.title, data.description, status, owner_id, volunteer["id"],
-                False, data.project_type, data.estimated_duration,
-                data.time_commitment_hours_per_week, data.urgency,
-                data.collaboration_link, data.country
-            )
+            f"INSERT INTO projects ({col_names}) VALUES ({placeholders})",
+            list(proj_fields.values())
         )
         project_id = cursor.lastrowid
 
@@ -2174,19 +2178,23 @@ def create_org_project(
     with db_transaction() as conn:
         status = "seeking_owner" if not data.want_to_own else "seeking_help"
 
+        proj_columns = {row["name"] for row in conn.execute("PRAGMA table_info(projects)").fetchall()}
+        proj_fields = {
+            "title": data.title, "description": data.description, "status": status,
+            "owner_id": admin["id"] if data.want_to_own else None,
+            "proposed_by_id": admin["id"], "is_org_proposed": True,
+            "project_type": data.project_type, "estimated_duration": data.estimated_duration,
+            "time_commitment_hours_per_week": data.time_commitment_hours_per_week,
+            "urgency": data.urgency, "collaboration_link": data.collaboration_link
+        }
+        if "country" in proj_columns:
+            proj_fields["country"] = data.country
+
+        col_names = ", ".join(proj_fields.keys())
+        placeholders = ", ".join("?" * len(proj_fields))
         cursor = conn.execute(
-            """INSERT INTO projects (
-                title, description, status, owner_id, proposed_by_id,
-                is_org_proposed, project_type, estimated_duration,
-                time_commitment_hours_per_week, urgency, collaboration_link, country
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                data.title, data.description, status,
-                admin["id"] if data.want_to_own else None,
-                admin["id"], True, data.project_type, data.estimated_duration,
-                data.time_commitment_hours_per_week,
-                data.urgency, data.collaboration_link, data.country
-            )
+            f"INSERT INTO projects ({col_names}) VALUES ({placeholders})",
+            list(proj_fields.values())
         )
         project_id = cursor.lastrowid
 
@@ -3475,8 +3483,14 @@ def serve_index():
 def startup():
     """Initialize database and start background schedulers."""
     init_db()
-    start_backup_scheduler()
-    start_digest_scheduler()
+    try:
+        start_backup_scheduler()
+    except Exception as e:
+        print(f"[STARTUP] Backup scheduler failed to start: {e}")
+    try:
+        start_digest_scheduler()
+    except Exception as e:
+        print(f"[STARTUP] Digest scheduler failed to start: {e}")
 
 
 def start_backup_scheduler():
