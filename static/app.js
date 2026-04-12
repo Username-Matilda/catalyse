@@ -299,11 +299,13 @@ async function logout() {
 
 // Modal helpers
 function openModal(modalId) {
-    document.getElementById(modalId).style.display = 'flex';
+    const el = document.getElementById(modalId);
+    if (el) el.style.display = 'flex';
 }
 
 function closeModal(modalId) {
-    document.getElementById(modalId).style.display = 'none';
+    const el = document.getElementById(modalId);
+    if (el) el.style.display = 'none';
 }
 
 // Form validation
