@@ -130,7 +130,7 @@
                     body: JSON.stringify({ credential: response.credential })
                 });
 
-                const data = await result.json();
+                const data = await result.json().catch(() => ({ detail: 'Server error. Please try again.' }));
 
                 if (!result.ok) {
                     throw new Error(data.detail || 'Google sign-in failed');
@@ -174,7 +174,7 @@
                     })
                 });
 
-                const result = await response.json();
+                const result = await response.json().catch(() => ({ detail: 'Server error. Please try again.' }));
 
                 if (!response.ok) {
                     throw new Error(result.detail || 'Login failed');

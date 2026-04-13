@@ -303,7 +303,7 @@
                     body: JSON.stringify(data)
                 });
 
-                const result = await response.json();
+                const result = await response.json().catch(() => ({ detail: 'Server error. Please try again.' }));
 
                 if (!response.ok) {
                     throw new Error(result.detail || 'Signup failed');
