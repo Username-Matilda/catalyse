@@ -45,7 +45,7 @@ async function apiRequest(endpoint, options = {}) {
         throw new Error(error.detail || 'Request failed');
     }
 
-    return response.json();
+    return response.json().catch(() => ({}));
 }
 
 // Utility functions
