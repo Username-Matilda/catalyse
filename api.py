@@ -542,6 +542,7 @@ def enrich_volunteer(conn, volunteer: Dict, show_contact: bool = False) -> Dict:
     # Always hide these
     volunteer.pop("auth_token", None)
     volunteer.pop("auth_token_expires_at", None)
+    volunteer.pop("password_hash", None)
 
     return volunteer
 

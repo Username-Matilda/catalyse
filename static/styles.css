@@ -511,9 +511,12 @@ p {
 [data-theme="dark"] nav a {
     color: #D1D5DB;
 }
-[data-theme="dark"] nav a.active,
 [data-theme="dark"] nav a:hover {
     color: var(--primary);
+}
+[data-theme="dark"] nav a.active {
+    color: white;
+    background: var(--primary);
 }
 [data-theme="dark"] .tabs {
     border-color: #374151;
