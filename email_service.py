@@ -194,6 +194,45 @@ def send_welcome_email(to: str, name: str) -> bool:
     return send_email(to, "Welcome to Catalyse!", html)
 
 
+def send_project_notification_email(to: str, name: str, subject: str,
+                                     message: str, project_title: str,
+                                     project_id: int, extra_html: str = "") -> bool:
+    """Send a project-related notification email to a volunteer."""
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1a202c; }}
+            .container {{ max-width: 500px; margin: 0 auto; padding: 20px; }}
+            .button {{ display: inline-block; background: #FF9416; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; }}
+            .footer {{ margin-top: 32px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 14px; color: #718096; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>{subject}</h2>
+            <p>Hi {name},</p>
+            <p>{message}</p>
+            {extra_html}
+            <p style="text-align: center; margin: 32px 0;">
+                <a href="{APP_URL}/static/project.html?id={project_id}" class="button">View Project</a>
+            </p>
+            <div class="footer">
+                <p>Catalyse - PauseAI Volunteer Platform</p>
+                <p style="font-size: 12px;">
+                    <a href="{APP_URL}/static/profile.html">Manage notification preferences</a>
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+    return send_email(to, subject, html)
+
+
 def send_digest_email(to: str, name: str, projects: list, is_match: bool = False) -> bool:
     """Send a project digest email to a volunteer."""
     if not projects:
