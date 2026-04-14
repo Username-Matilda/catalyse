@@ -25,7 +25,8 @@ from email_service import (
     send_admin_invite_email,
     send_welcome_email,
     send_relay_message,
-    send_digest_email
+    send_digest_email,
+    send_project_notification_email
 )
 
 # ============================================
@@ -1868,6 +1869,50 @@ def update_project(
                     (project_id, skill_id, is_required)
                 )
 
+        # Notify stakeholders if status changed
+        if data.status and data.status != project["status"]:
+            status_label = {
+                'seeking_owner': 'Seeking Owner', 'seeking_help': 'Seeking Help',
+                'in_progress': 'In Progress', 'on_hold': 'On Hold',
+                'completed': 'Completed', 'archived': 'Archived'
+            }.get(data.status, data.status)
+
+            # Collect people to notify (deduplicated)
+            notify_ids = set()
+            if project["owner_id"] and project["owner_id"] != volunteer["id"]:
+                notify_ids.add(project["owner_id"])
+            if project["proposed_by_id"] and project["proposed_by_id"] != volunteer["id"]:
+                notify_ids.add(project["proposed_by_id"])
+
+            # Also notify accepted volunteers
+            accepted = conn.execute(
+                "SELECT DISTINCT volunteer_id FROM project_interests WHERE project_id = ? AND status = 'accepted'",
+                (project_id,)
+            ).fetchall()
+            for row in accepted:
+                if row["volunteer_id"] != volunteer["id"]:
+                    notify_ids.add(row["volunteer_id"])
+
+            for vid in notify_ids:
+                create_notification(
+                    conn, vid, "project_status_changed",
+                    f"'{project['title']}' is now {status_label}",
+                    f"Status changed by {volunteer['name']}",
+                    f"/static/project.html?id={project_id}"
+                )
+                # Email them
+                vol = conn.execute(
+                    "SELECT name, email FROM volunteers WHERE id = ? AND deleted_at IS NULL",
+                    (vid,)
+                ).fetchone()
+                if vol and vol["email"]:
+                    send_project_notification_email(
+                        to=vol["email"], name=vol["name"],
+                        subject=f"'{project['title']}' is now {status_label}",
+                        message=f"The project <strong>{project['title']}</strong> has been updated to <strong>{status_label}</strong>.",
+                        project_title=project["title"], project_id=project_id
+                    )
+
         updated = conn.execute(
             "SELECT * FROM projects WHERE id = ?",
             (project_id,)
@@ -2135,6 +2180,18 @@ def review_project(
                     "It's now visible to other volunteers.",
                     f"/static/project.html?id={project_id}"
                 )
+                # Email the proposer
+                proposer = conn.execute(
+                    "SELECT name, email FROM volunteers WHERE id = ?",
+                    (project["proposed_by_id"],)
+                ).fetchone()
+                if proposer and proposer["email"]:
+                    send_project_notification_email(
+                        to=proposer["email"], name=proposer["name"],
+                        subject=f"Your project '{project['title']}' has been approved!",
+                        message="Great news! Your project has been approved and is now visible to all volunteers. People can start expressing interest.",
+                        project_title=project["title"], project_id=project_id
+                    )
 
             # Send skill-match email notifications (async-safe, non-blocking)
             try:
@@ -2160,12 +2217,27 @@ def review_project(
 
             # Notify proposer
             if project["proposed_by_id"]:
+                feedback = data.feedback_to_proposer or "A team lead wants to chat about your proposal."
                 create_notification(
                     conn, project["proposed_by_id"], "project_needs_discussion",
                     f"Let's discuss your project '{project['title']}'",
-                    data.feedback_to_proposer or "A team lead wants to chat about your proposal.",
+                    feedback,
                     f"/static/project.html?id={project_id}"
                 )
+                # Email the proposer
+                proposer = conn.execute(
+                    "SELECT name, email FROM volunteers WHERE id = ?",
+                    (project["proposed_by_id"],)
+                ).fetchone()
+                if proposer and proposer["email"]:
+                    extra = f'<div style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"><strong>Feedback:</strong> {feedback}</div>'
+                    send_project_notification_email(
+                        to=proposer["email"], name=proposer["name"],
+                        subject=f"Let's discuss your project '{project['title']}'",
+                        message="A team lead would like to discuss your project proposal before it goes live.",
+                        project_title=project["title"], project_id=project_id,
+                        extra_html=extra
+                    )
 
         return {"message": f"Project marked as {data.status}"}
 
@@ -3129,6 +3201,23 @@ def respond_to_interest(
             conn.execute(
                 "UPDATE projects SET owner_id = ?, status = 'in_progress' WHERE id = ?",
                 (interest["volunteer_id"], project_id)
+            )
+
+        # Email the volunteer
+        vol = conn.execute(
+            "SELECT name, email FROM volunteers WHERE id = ?",
+            (interest["volunteer_id"],)
+        ).fetchone()
+        if vol and vol["email"]:
+            extra = ""
+            if data.response_message:
+                extra = f'<div style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"><strong>Message:</strong> {data.response_message}</div>'
+            send_project_notification_email(
+                to=vol["email"], name=vol["name"],
+                subject=f"Your interest in '{project['title']}' was {status_text}",
+                message=f"The team has <strong>{status_text}</strong> your interest in the project <strong>{project['title']}</strong>.",
+                project_title=project["title"], project_id=project_id,
+                extra_html=extra
             )
 
         return {"message": f"Interest {status_text}"}
