@@ -38,6 +38,7 @@
         <div class="tabs">
             <button class="tab active" data-tab="pending">Pending Review</button>
             <button class="tab" data-tab="discussion">Needs Discussion</button>
+            <button class="tab" data-tab="interests">Volunteer Interests <span id="interestBadge" class="notification-badge" style="display: none;"></span></button>
         </div>
 
         <div id="tab-pending" class="tab-content">
@@ -51,6 +52,22 @@
 
         <div id="tab-discussion" class="tab-content" style="display: none;">
             <div id="discussionList"></div>
+        </div>
+
+        <div id="tab-interests" class="tab-content" style="display: none;">
+            <div class="filters" style="margin-bottom: 16px;">
+                <div class="filter-group">
+                    <label for="interestStatusFilter">Status</label>
+                    <select id="interestStatusFilter">
+                        <option value="pending">Pending</option>
+                        <option value="">All</option>
+                        <option value="accepted">Accepted</option>
+                        <option value="declined">Declined</option>
+                        <option value="withdrawn">Withdrawn</option>
+                    </select>
+                </div>
+            </div>
+            <div id="interestsList"></div>
         </div>
 
         <div id="emptyState" class="empty-state" style="display: none;">
@@ -129,9 +146,10 @@
                 return;
             }
 
-            await loadTriageQueue();
+            await Promise.all([loadTriageQueue(), loadInterests()]);
             setupTabs();
             setupReviewForm();
+            document.getElementById('interestStatusFilter').addEventListener('change', loadInterests);
         }
 
         async function loadTriageQueue() {
@@ -262,6 +280,87 @@
 
                 btn.disabled = false;
             });
+        }
+
+        async function loadInterests() {
+            const status = document.getElementById('interestStatusFilter').value;
+            const params = status ? `?status=${status}` : '';
+
+            try {
+                const interests = await apiRequest(`/api/admin/interests${params}`);
+                const container = document.getElementById('interestsList');
+
+                // Update badge count for pending
+                const pendingCount = status === 'pending' ? interests.length : null;
+                if (pendingCount !== null && pendingCount > 0) {
+                    const badge = document.getElementById('interestBadge');
+                    badge.textContent = pendingCount;
+                    badge.style.display = 'inline';
+                }
+
+                if (interests.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <p>No ${status || ''} interests found.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = interests.map(i => `
+                    <div class="card" style="${i.status === 'pending' ? 'border-left: 4px solid var(--primary);' : ''}">
+                        <div class="card-header">
+                            <div>
+                                <h3 class="card-title">
+                                    <a href="/static/volunteer.html?id=${i.volunteer_id}">${escapeHtml(i.volunteer_name)}</a>
+                                    <span style="font-weight: normal; font-size: 0.875rem; color: var(--text-light);">
+                                        wants to ${i.interest_type === 'want_to_own' ? 'own' : 'contribute to'}
+                                    </span>
+                                    <a href="/static/project.html?id=${i.project_id}">${escapeHtml(i.project_title)}</a>
+                                </h3>
+                                <p class="card-meta">
+                                    ${formatDate(i.created_at)}
+                                    ${i.owner_name ? ` · Owner: ${escapeHtml(i.owner_name)}` : ' · No owner yet'}
+                                    · Project: <span class="status-badge status-${i.project_status}">${formatStatus(i.project_status)}</span>
+                                </p>
+                            </div>
+                            <span class="status-badge status-${i.status === 'pending' ? 'seeking_help' : i.status === 'accepted' ? 'completed' : 'on_hold'}">
+                                ${i.status}
+                            </span>
+                        </div>
+                        ${i.message ? `<p style="margin: 8px 0; font-style: italic; color: var(--text-light);">"${escapeHtml(i.message)}"</p>` : ''}
+                        <div class="skills" style="margin: 8px 0;">
+                            ${(i.volunteer_skills || []).map(s => `<span class="skill-tag">${escapeHtml(s.name)}</span>`).join('')}
+                        </div>
+                        ${i.status === 'pending' ? `
+                            <div style="display: flex; gap: 8px; margin-top: 8px;">
+                                <button class="btn btn-small btn-primary" onclick="respondInterest(${i.project_id}, ${i.id}, 'accepted')">Accept</button>
+                                <button class="btn btn-small btn-outline" onclick="respondInterest(${i.project_id}, ${i.id}, 'declined')">Decline</button>
+                                <a href="/static/project.html?id=${i.project_id}" class="btn btn-small btn-ghost">View Project</a>
+                            </div>
+                        ` : ''}
+                    </div>
+                `).join('');
+            } catch (error) {
+                document.getElementById('interestsList').innerHTML = `<p class="error">${error.message}</p>`;
+            }
+        }
+
+        async function respondInterest(projectId, interestId, status) {
+            const message = status === 'declined'
+                ? prompt('Optional message to volunteer:')
+                : null;
+
+            try {
+                await apiRequest(`/api/projects/${projectId}/interest/${interestId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ status, response_message: message })
+                });
+                showMessage(`Interest ${status}.`, 'success');
+                await loadInterests();
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
         }
 
         function setupTabs() {

@@ -542,6 +542,7 @@ def enrich_volunteer(conn, volunteer: Dict, show_contact: bool = False) -> Dict:
     # Always hide these
     volunteer.pop("auth_token", None)
     volunteer.pop("auth_token_expires_at", None)
+    volunteer.pop("password_hash", None)
 
     return volunteer
 
@@ -2249,6 +2250,44 @@ def get_admin_stats(admin: Dict = Depends(require_admin)) -> Dict:
 
     conn.close()
     return stats
+
+
+@app.get("/api/admin/interests")
+def list_all_interests(
+    status: Optional[str] = Query(None),
+    admin: Dict = Depends(require_admin)
+) -> List[Dict]:
+    """List all project interests across all projects (admin only)."""
+    conn = get_db()
+
+    query = """
+        SELECT pi.*, p.title as project_title, p.status as project_status,
+               v.name as volunteer_name, v.email as volunteer_email,
+               owner.name as owner_name
+        FROM project_interests pi
+        JOIN projects p ON pi.project_id = p.id
+        JOIN volunteers v ON pi.volunteer_id = v.id
+        LEFT JOIN volunteers owner ON p.owner_id = owner.id
+        WHERE 1=1
+    """
+    params = []
+
+    if status:
+        query += " AND pi.status = ?"
+        params.append(status)
+
+    query += " ORDER BY pi.created_at DESC"
+
+    interests = conn.execute(query, params).fetchall()
+
+    result = []
+    for i in interests:
+        interest = dict(i)
+        interest["volunteer_skills"] = get_volunteer_skills(conn, i["volunteer_id"])
+        result.append(interest)
+
+    conn.close()
+    return result
 
 
 # ============================================
