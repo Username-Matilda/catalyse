@@ -70,6 +70,42 @@ The app will be available at `http://localhost:8001`
 UPDATE volunteers SET is_admin = 1 WHERE email = 'your@email.com';
 ```
 
+## Testing
+
+### Setup
+
+Install test dependencies (once):
+
+```bash
+make install
+```
+
+### Running tests
+
+```bash
+make test          # Run all tests headlessly — fast, no browser window
+make test-headed   # Run with a visible browser, slowed down so you can follow along
+make test-debug    # Open Playwright Inspector — step through each action with a GUI debugger
+```
+
+Tests start their own server on port 8002 with a fresh isolated database — your dev server doesn't need to be running.
+
+### Smoke testing against production
+
+Runs a read-only subset of tests against the live site using your real account. No data is created.
+
+```bash
+make test-smoke EMAIL=you@example.com PASSWORD=yourpassword
+```
+
+### Claude scenario walkthroughs
+
+For more complex flows (project proposals, admin triage, expressing interest), there are step-by-step scenario files in `tests/scenarios/`. Ask Claude to run one:
+
+> "Please run the scenario in `tests/scenarios/02-admin-triage-project.md` against http://localhost:8001"
+
+See `tests/scenarios/README.md` for the full list.
+
 ## Project Structure
 
 ```
@@ -79,7 +115,11 @@ catalyse/
 ├── seed_skills.sql     # Pre-populated skills taxonomy
 ├── catalyse.db         # SQLite database (created on run)
 ├── requirements.txt    # Python dependencies
+├── Makefile            # Common commands (make dev, make test, etc.)
 ├── README.md
+├── tests/
+│   ├── e2e/            # Playwright tests for critical flows (signup, login, projects)
+│   └── scenarios/      # Step-by-step flows for Claude to walk through manually
 └── static/
     ├── styles.css      # Shared styles
     ├── app.js          # Shared JavaScript utilities
