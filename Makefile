@@ -21,13 +21,35 @@ test-debug:
 	. venv/bin/activate && PWDEBUG=1 pytest tests/e2e/ --headed
 
 # Run smoke tests against production (read-only, no data created)
-# Usage: make test-smoke EMAIL=you@example.com PASSWORD=yourpassword
+# Usage: make test-smoke SMOKE_TEST_EMAIL=you@example.com SMOKE_TEST_PASSWORD=yourpassword
+# Alternatively, create a .env file with SMOKE_TEST_EMAIL and SMOKE_TEST_PASSWORD
 test-smoke:
 	. venv/bin/activate && \
-	BASE_URL=https://catalyse.pauseai.uk \
-	TEST_USER_EMAIL=$(EMAIL) \
-	TEST_USER_PASSWORD=$(PASSWORD) \
+	if [ -f .env ]; then export $(cat .env | xargs); fi; \
+	BASE_URL=https://catalyse.up.railway.app \
+	TEST_USER_EMAIL=$(SMOKE_TEST_EMAIL) \
+	TEST_USER_PASSWORD=$(SMOKE_TEST_PASSWORD) \
 	pytest tests/e2e/ -m "not local_only"
+
+# Run smoke tests against production with visible browser (slowed down for observation)
+# Usage: make test-smoke-headed SMOKE_TEST_EMAIL=you@example.com SMOKE_TEST_PASSWORD=yourpassword
+test-smoke-headed:
+	. venv/bin/activate && \
+	if [ -f .env ]; then export $(cat .env | xargs); fi; \
+	BASE_URL=https://catalyse.up.railway.app \
+	TEST_USER_EMAIL=$(SMOKE_TEST_EMAIL) \
+	TEST_USER_PASSWORD=$(SMOKE_TEST_PASSWORD) \
+	pytest tests/e2e/ -m "not local_only" --headed --slowmo=500
+
+# Run smoke tests against production with Playwright Inspector for debugging
+# Usage: make test-smoke-debug SMOKE_TEST_EMAIL=you@example.com SMOKE_TEST_PASSWORD=yourpassword
+test-smoke-debug:
+	. venv/bin/activate && \
+	if [ -f .env ]; then export $(cat .env | xargs); fi; \
+	BASE_URL=https://catalyse.up.railway.app \
+	TEST_USER_EMAIL=$(SMOKE_TEST_EMAIL) \
+	TEST_USER_PASSWORD=$(SMOKE_TEST_PASSWORD) \
+	PWDEBUG=1 pytest tests/e2e/ -m "not local_only" --headed
 
 # Run a single Claude scenario walkthrough against the local dev server
 # Requires the dev server to be running first: make dev

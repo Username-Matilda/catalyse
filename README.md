@@ -94,9 +94,20 @@ Tests start their own server on port 8002 with a fresh isolated database — you
 
 Runs a read-only subset of tests against the live site using your real account. No data is created.
 
+You can provide credentials either:
+1. As command arguments:
 ```bash
-make test-smoke EMAIL=you@example.com PASSWORD=yourpassword
+make test-smoke SMOKE_TEST_EMAIL=you@example.com SMOKE_TEST_PASSWORD=yourpassword
 ```
+
+2. Or via a `.env` file (create `.env` in the project root):
+```
+SMOKE_TEST_EMAIL=you@example.com
+SMOKE_TEST_PASSWORD=yourpassword
+```
+Then run: `make test-smoke`
+
+The `.env` file is automatically loaded if present, keeping credentials out of your shell history.
 
 ### Claude scenario walkthroughs
 
