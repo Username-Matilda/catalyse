@@ -45,6 +45,12 @@ _data_dir = os.environ.get("RAILWAY_VOLUME_MOUNT_PATH", str(Path(__file__).paren
 DATABASE_PATH = Path(_data_dir) / "catalyse.db"
 
 
+@app.get("/api/version")
+def get_version():
+    sha = os.environ.get("RAILWAY_GIT_COMMIT_SHA", "dev")
+    return {"sha": sha}
+
+
 def get_db():
     """Get database connection with row factory."""
     conn = sqlite3.connect(DATABASE_PATH)

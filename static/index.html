@@ -280,8 +280,18 @@
             <a href="/static/privacy.html" style="color: var(--text-light); margin: 0 12px;">Privacy & Data</a> ·
             <a href="#" onclick="openBugReportModal(); return false;" style="color: var(--text-light); margin: 0 12px;">Report a Bug</a> ·
             <a href="mailto:matilda@pauseai.info" style="color: var(--text-light); margin: 0 12px;">Contact</a> ·
-            <span style="margin: 0 12px;">PauseAI UK</span>
+            <span style="margin: 0 12px;">PauseAI UK</span> ·
+            <span id="version-sha" style="margin: 0 12px; font-family: monospace;"></span>
         </div>
     </footer>
+    <script>
+        fetch('/api/version').then(r => r.json()).then(d => {
+            const el = document.getElementById('version-sha');
+            if (d.sha && d.sha !== 'dev') {
+                el.textContent = d.sha.slice(0, 7);
+                el.title = d.sha;
+            }
+        }).catch(() => {});
+    </script>
 </body>
 </html>
