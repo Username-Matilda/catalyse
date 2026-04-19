@@ -21,7 +21,7 @@
     </header>
 
     <main class="container page">
-        <div style="max-width: 700px; margin: 0 auto;">
+        <div style="max-width: 850px; margin: 0 auto;">
             <h1>Suggest a Project</h1>
             <p style="color: var(--text-light); margin-bottom: 24px;">
                 Have an idea for something PauseAI UK should do? Propose it here!
@@ -45,29 +45,21 @@
 
                 <div class="form-group">
                     <label for="description" class="required">Description</label>
-                    <textarea id="description" name="description" required style="min-height: 280px;"
-                        placeholder="Help us understand your project idea:
-
-GOAL & IMPACT
-- What problem does this solve or opportunity does it create?
-- What does success look like? How would we measure it?
-
-APPROACH & ACTIVITIES
-- What are the key steps or activities involved?
-- Do you have a rough sense of how this would work?
-
-FEASIBILITY
-- What are the main uncertainties or risks?
-- What resources, access, or dependencies are needed?
-- Is there existing work we could build on?
-
-TEAM & COLLABORATION
-- What kinds of contributors would be ideal? (skills, experience, availability)
-- How do you imagine the team working together? (async, regular syncs, etc.)
-
-CHALLENGE YOUR IDEA
-- What's the best argument against doing this?
-- What's your Theory of Change? (How does this project lead to the impact you want?)"></textarea>
+                    <aside class="description-guide">
+                        <dl>
+                            <dt>Goal &amp; Impact</dt>
+                            <dd>What problem does this solve? What does success look like and how would you measure it?</dd>
+                            <dt>Approach &amp; Activities</dt>
+                            <dd>What are the key steps? Do you have a rough sense of how this would work?</dd>
+                            <dt>Feasibility</dt>
+                            <dd>Main uncertainties or risks? Resources or dependencies needed? Existing work to build on?</dd>
+                            <dt>Team &amp; Collaboration</dt>
+                            <dd>What skills and availability are ideal? How do you imagine the team working together?</dd>
+                            <dt>Challenge Your Idea</dt>
+                            <dd>What's the best argument against doing this? What's your Theory of Change?</dd>
+                        </dl>
+                    </aside>
+                    <textarea id="description" name="description" required style="min-height: 280px;" placeholder="Describe your project idea..."></textarea>
                     <p class="form-hint">The more detail you provide, the easier it is to find the right contributors and get started.</p>
                 </div>
 
