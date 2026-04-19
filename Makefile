@@ -1,4 +1,4 @@
-.PHONY: dev install test test-headed test-debug test-smoke
+.PHONY: dev install test test-headed test-debug test-smoke scenario scenarios
 
 # Start the development server on http://localhost:8001
 dev:
@@ -27,3 +27,16 @@ test-smoke:
 	TEST_USER_EMAIL=$(EMAIL) \
 	TEST_USER_PASSWORD=$(PASSWORD) \
 	pytest tests/e2e/ -m "not local_only"
+
+# Run a single Claude scenario walkthrough against the local dev server
+# Requires the dev server to be running first: make dev
+# Usage: make scenario NAME=01-volunteer-propose-project
+scenario:
+	@curl -sf http://localhost:8001/api/skills > /dev/null || (echo "Error: dev server is not running. Start it with 'make dev' in another terminal." && exit 1)
+	claude -p "Please run the scenario in tests/scenarios/$(NAME).md against http://localhost:8001 and report the results"
+
+# Run all Claude scenario walkthroughs in order
+# Requires the dev server to be running first: make dev
+scenarios:
+	@curl -sf http://localhost:8001/api/skills > /dev/null || (echo "Error: dev server is not running. Start it with 'make dev' in another terminal." && exit 1)
+	claude -p "Please run each scenario in tests/scenarios/ in order against http://localhost:8001 and report a summary of results"

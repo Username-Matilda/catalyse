@@ -100,11 +100,16 @@ make test-smoke EMAIL=you@example.com PASSWORD=yourpassword
 
 ### Claude scenario walkthroughs
 
-For more complex flows (project proposals, admin triage, expressing interest), there are step-by-step scenario files in `tests/scenarios/`. Ask Claude to run one:
+For more complex flows (project proposals, admin triage, expressing interest), there are step-by-step scenario files in `tests/scenarios/`. These require the dev server to be running first:
 
-> "Please run the scenario in `tests/scenarios/02-admin-triage-project.md` against http://localhost:8001"
+```bash
+make dev  # in one terminal
 
-See `tests/scenarios/README.md` for the full list.
+make scenario NAME=01-volunteer-propose-project  # in another
+make scenarios                                   # or run all of them
+```
+
+Both commands will error immediately if the dev server isn't running. See `tests/scenarios/README.md` for the full list of scenarios.
 
 ## Project Structure
 
