@@ -644,6 +644,43 @@ textarea {
     margin-top: 4px;
 }
 
+.description-guide {
+    background: var(--bg-secondary, #f9fafb);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 0.8125rem;
+    margin-bottom: 8px;
+}
+
+.description-guide dl {
+    margin: 0;
+    columns: 2;
+    column-gap: 24px;
+}
+
+.description-guide dt {
+    font-weight: 600;
+    color: var(--text-primary);
+    break-after: avoid;
+}
+
+.description-guide dd {
+    margin: 0 0 8px 0;
+    color: var(--text-light);
+    line-height: 1.4;
+    break-inside: avoid;
+}
+
+.description-guide dd:last-child {
+    margin-bottom: 0;
+}
+
+[data-theme="dark"] .description-guide {
+    background: var(--bg-secondary, #1f2937);
+    border-color: var(--border-color, #374151);
+}
+
 .form-error {
     font-size: 0.875rem;
     color: var(--error);
