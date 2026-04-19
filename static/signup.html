@@ -306,7 +306,10 @@
                 const result = await response.json().catch(() => ({ detail: 'Server error. Please try again.' }));
 
                 if (!response.ok) {
-                    throw new Error(result.detail || 'Signup failed');
+                    const detail = Array.isArray(result.detail)
+                        ? result.detail.map(e => e.msg).join(', ')
+                        : result.detail;
+                    throw new Error(detail || 'Signup failed');
                 }
 
                 // Store token and redirect

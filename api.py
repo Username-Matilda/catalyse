@@ -115,10 +115,14 @@ def run_migrations():
         statements = [s.strip() for s in sql.split(';') if s.strip()]
         applied = 0
         for statement in statements:
-            if not statement or statement.startswith('--'):
+            # Strip leading comment lines before deciding whether to skip
+            non_comment = '\n'.join(
+                l for l in statement.split('\n') if not l.strip().startswith('--')
+            ).strip()
+            if not non_comment:
                 continue
             try:
-                conn.execute(statement)
+                conn.execute(non_comment)
                 applied += 1
             except Exception as e:
                 # "already exists" / "duplicate column" are safe to skip
