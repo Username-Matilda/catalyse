@@ -3137,14 +3137,52 @@ def express_interest(
             (volunteer["id"], project_id, data.interest_type, data.message)
         )
 
-        # Notify owner
+        interest_label = "own / lead" if data.interest_type == "want_to_own" else "contribute to"
+
+        # Notify and email the project owner
         if project["owner_id"]:
             create_notification(
                 conn, project["owner_id"], "new_interest",
                 f"Someone's interested in '{project['title']}'!",
-                f"{volunteer['name']} wants to {data.interest_type.replace('_', ' ')}",
+                f"{volunteer['name']} wants to {interest_label}",
                 f"/static/project.html?id={project_id}"
             )
+            owner = conn.execute(
+                "SELECT name, email FROM volunteers WHERE id = ?",
+                (project["owner_id"],)
+            ).fetchone()
+            if owner and owner["email"]:
+                extra = ""
+                if data.message:
+                    extra = f'<div style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"><strong>Their message:</strong> {data.message}</div>'
+                send_project_notification_email(
+                    to=owner["email"], name=owner["name"],
+                    subject=f"{volunteer['name']} wants to {interest_label} '{project['title']}'",
+                    message=f"<strong>{volunteer['name']}</strong> has expressed interest in your project <strong>{project['title']}</strong>. Log in to review and accept or decline.",
+                    project_title=project["title"], project_id=project_id,
+                    extra_html=extra
+                )
+
+        # Also notify all admins (so they can triage from the admin panel)
+        admins = conn.execute(
+            "SELECT id, name, email FROM volunteers WHERE is_admin = 1 AND deleted_at IS NULL"
+        ).fetchall()
+        for admin in admins:
+            if admin["id"] == project.get("owner_id"):
+                continue  # already notified as owner
+            create_notification(
+                conn, admin["id"], "new_interest",
+                f"New interest in '{project['title']}'",
+                f"{volunteer['name']} wants to {interest_label}",
+                f"/static/project.html?id={project_id}"
+            )
+            if admin["email"]:
+                send_project_notification_email(
+                    to=admin["email"], name=admin["name"],
+                    subject=f"New interest: {volunteer['name']} → '{project['title']}'",
+                    message=f"<strong>{volunteer['name']}</strong> wants to {interest_label} the project <strong>{project['title']}</strong>.",
+                    project_title=project["title"], project_id=project_id
+                )
 
         return {"message": "Interest expressed successfully"}
 
