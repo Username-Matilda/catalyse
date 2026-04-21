@@ -133,15 +133,30 @@
         async function loadAdminBanner() {
             try {
                 const stats = await apiRequest('/api/admin/stats');
+                const banner = document.getElementById('adminBanner');
+                const alerts = [];
+
                 if (stats.projects.pending_review > 0) {
-                    const banner = document.getElementById('adminBanner');
-                    banner.style.display = 'block';
-                    banner.innerHTML = `
-                        <div class="message info" style="display: flex; justify-content: space-between; align-items: center;">
+                    alerts.push(`
+                        <div class="message info" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                             <span><strong>${stats.projects.pending_review}</strong> project${stats.projects.pending_review > 1 ? 's' : ''} awaiting review</span>
                             <a href="/static/admin/triage.html" class="btn btn-small btn-primary">Review</a>
                         </div>
-                    `;
+                    `);
+                }
+
+                if (stats.interests && stats.interests.pending > 0) {
+                    alerts.push(`
+                        <div class="message info" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span><strong>${stats.interests.pending}</strong> pending volunteer interest${stats.interests.pending > 1 ? 's' : ''} — any admin can accept or decline</span>
+                            <a href="/static/admin/triage.html#interests" class="btn btn-small btn-primary">Triage</a>
+                        </div>
+                    `);
+                }
+
+                if (alerts.length > 0) {
+                    banner.style.display = 'block';
+                    banner.innerHTML = alerts.join('');
                 }
             } catch (e) { /* not admin or error, ignore */ }
         }
