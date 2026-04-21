@@ -373,6 +373,13 @@
                     document.getElementById(`tab-${tab.dataset.tab}`).style.display = 'block';
                 });
             });
+
+            // Auto-switch to tab if URL hash matches (e.g. #interests)
+            const hash = window.location.hash.replace('#', '');
+            if (hash) {
+                const targetTab = document.querySelector(`.tab[data-tab="${hash}"]`);
+                if (targetTab) targetTab.click();
+            }
         }
 
         init();
