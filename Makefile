@@ -1,4 +1,4 @@
-.PHONY: dev install build test test-headed test-debug test-smoke scenario scenarios scenario-clean
+.PHONY: dev install build serve test test-headed test-debug test-smoke scenario scenarios scenario-clean
 
 # Start the development server on http://localhost:8001
 dev:
@@ -7,6 +7,10 @@ dev:
 # Build dist/ from static/, injecting content-hash query params into HTML files
 build:
 	. venv/bin/activate && python build.py
+
+# Build and serve (mirrors production — serves from dist/)
+serve: build
+	. venv/bin/activate && python api.py
 
 # Install Python dependencies and download the Playwright Chromium browser
 install:
