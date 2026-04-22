@@ -173,7 +173,9 @@
                     </select>
                 </div>
 
-                <div style="margin-top: 24px;">
+                <div id="submitMessageDiv" class="message" style="display: none; margin-top: 24px;"></div>
+
+                <div style="margin-top: 12px;">
                     <button type="submit" class="btn btn-primary" style="width: 100%;">
                         Create Account
                     </button>
@@ -331,6 +333,7 @@
 
             } catch (error) {
                 showMessage(error.message, 'error');
+                showMessage(error.message, 'error', 'submitMessageDiv');
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Create Account';
             }

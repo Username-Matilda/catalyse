@@ -9,12 +9,13 @@ import secrets
 import hashlib
 import json
 import base64
+import traceback
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 from contextlib import contextmanager
 
-from fastapi import FastAPI, HTTPException, Depends, Header, Query, Response
+from fastapi import FastAPI, HTTPException, Depends, Header, Query, Response, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, EmailStr, Field
@@ -38,6 +39,31 @@ app = FastAPI(
     description="Volunteer & Project Matching for PauseAI UK",
     version="1.0.0"
 )
+
+
+class AppError(Exception):
+    def __init__(self, code: str, message: str):
+        self.code = code
+        self.message = message
+        super().__init__(message)
+
+
+@app.exception_handler(AppError)
+async def app_error_handler(request: Request, exc: AppError):
+    print(f"[ERROR] {request.method} {request.url.path} — {exc.code}: {exc.message}")
+    traceback.print_exc()
+    detail = f"{exc.message} Error Code: {exc.code}"
+    return JSONResponse(status_code=500, content={"detail": detail})
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    print(f"[ERROR] {request.method} {request.url.path} — {type(exc).__name__}: {exc}")
+    traceback.print_exc()
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Something went wrong. Please try again or contact us. Error Code: E"}
+    )
 
 # Use RAILWAY_VOLUME_MOUNT_PATH for persistent storage if available,
 # otherwise store next to the app (local dev)
@@ -630,27 +656,37 @@ def signup(data: VolunteerSignup) -> Dict:
             )
 
         # Check for admin bootstrap via ADMIN_EMAILS env var
-        check_admin_bootstrap(data.email, volunteer_id)
+        try:
+            check_admin_bootstrap(data.email, volunteer_id, conn=conn)
+        except Exception as e:
+            print(f"[SIGNUP ERROR] admin bootstrap failed for {data.email}: {type(e).__name__}: {e}")
+            raise AppError("A", "Something went wrong creating your account. Please try again or contact us.")
 
         # Auto-accept any pending admin invites for this email
-        pending_invite = conn.execute(
-            """SELECT * FROM admin_invites
-               WHERE LOWER(email) = LOWER(?) AND status = 'pending' AND expires_at > ?""",
-            (data.email, datetime.now().isoformat())
-        ).fetchone()
-        print(f"[ADMIN_INVITE] Signup check for {data.email}: pending_invite={'found id=' + str(pending_invite['id']) if pending_invite else 'none'}")
-        if pending_invite:
-            conn.execute(
-                "UPDATE volunteers SET is_admin = 1 WHERE id = ?",
-                (volunteer_id,)
-            )
-            conn.execute(
-                """UPDATE admin_invites
-                   SET status = 'accepted', accepted_by_id = ?, accepted_at = ?
-                   WHERE id = ?""",
-                (volunteer_id, datetime.now().isoformat(), pending_invite["id"])
-            )
-            print(f"[ADMIN_INVITE] Auto-accepted invite for {data.email} on signup")
+        try:
+            pending_invite = conn.execute(
+                """SELECT * FROM admin_invites
+                   WHERE LOWER(email) = LOWER(?) AND status = 'pending' AND expires_at > ?""",
+                (data.email, datetime.now().isoformat())
+            ).fetchone()
+            print(f"[ADMIN_INVITE] Signup check for {data.email}: pending_invite={'found id=' + str(pending_invite['id']) if pending_invite else 'none'}")
+            if pending_invite:
+                conn.execute(
+                    "UPDATE volunteers SET is_admin = 1 WHERE id = ?",
+                    (volunteer_id,)
+                )
+                conn.execute(
+                    """UPDATE admin_invites
+                       SET status = 'accepted', accepted_by_id = ?, accepted_at = ?
+                       WHERE id = ?""",
+                    (volunteer_id, datetime.now().isoformat(), pending_invite["id"])
+                )
+                print(f"[ADMIN_INVITE] Auto-accepted invite for {data.email} on signup")
+        except AppError:
+            raise
+        except Exception as e:
+            print(f"[SIGNUP ERROR] admin invite check failed for {data.email}: {type(e).__name__}: {e}")
+            raise AppError("B", "Something went wrong creating your account. Please try again or contact us.")
 
         # Send welcome email (non-blocking, don't fail signup if email fails)
         send_welcome_email(to=data.email, name=data.name)
@@ -662,7 +698,7 @@ def signup(data: VolunteerSignup) -> Dict:
         }
 
 
-def check_admin_bootstrap(email: str, volunteer_id: int) -> bool:
+def check_admin_bootstrap(email: str, volunteer_id: int, conn=None) -> bool:
     """
     Check if email is in ADMIN_EMAILS env var and promote to admin if so.
     Returns True if user was promoted.
@@ -678,11 +714,17 @@ def check_admin_bootstrap(email: str, volunteer_id: int) -> bool:
     print(f"[ADMIN_BOOTSTRAP] Parsed allowed_emails={allowed_emails}, checking against {email.lower()}")
 
     if email.lower() in allowed_emails:
-        with db_transaction() as conn:
+        if conn is not None:
             conn.execute(
                 "UPDATE volunteers SET is_admin = 1 WHERE id = ? AND is_admin = 0",
                 (volunteer_id,)
             )
+        else:
+            with db_transaction() as new_conn:
+                new_conn.execute(
+                    "UPDATE volunteers SET is_admin = 1 WHERE id = ? AND is_admin = 0",
+                    (volunteer_id,)
+                )
         return True
     return False
 
@@ -866,20 +908,30 @@ def google_auth(data: GoogleAuthRequest) -> Dict:
             volunteer_id = cursor.lastrowid
 
             # Check admin bootstrap
-            check_admin_bootstrap(email, volunteer_id)
+            try:
+                check_admin_bootstrap(email, volunteer_id, conn=conn)
+            except Exception as e:
+                print(f"[GOOGLE_SIGNUP ERROR] admin bootstrap failed for {email}: {type(e).__name__}: {e}")
+                raise AppError("C", "Something went wrong creating your account. Please try again or contact us.")
 
             # Auto-accept pending admin invites
-            pending_invite = conn.execute(
-                """SELECT * FROM admin_invites
-                   WHERE LOWER(email) = LOWER(?) AND status = 'pending' AND expires_at > ?""",
-                (email, datetime.now().isoformat())
-            ).fetchone()
-            if pending_invite:
-                conn.execute("UPDATE volunteers SET is_admin = 1 WHERE id = ?", (volunteer_id,))
-                conn.execute(
-                    """UPDATE admin_invites SET status = 'accepted', accepted_by_id = ?, accepted_at = ? WHERE id = ?""",
-                    (volunteer_id, datetime.now().isoformat(), pending_invite["id"])
-                )
+            try:
+                pending_invite = conn.execute(
+                    """SELECT * FROM admin_invites
+                       WHERE LOWER(email) = LOWER(?) AND status = 'pending' AND expires_at > ?""",
+                    (email, datetime.now().isoformat())
+                ).fetchone()
+                if pending_invite:
+                    conn.execute("UPDATE volunteers SET is_admin = 1 WHERE id = ?", (volunteer_id,))
+                    conn.execute(
+                        """UPDATE admin_invites SET status = 'accepted', accepted_by_id = ?, accepted_at = ? WHERE id = ?""",
+                        (volunteer_id, datetime.now().isoformat(), pending_invite["id"])
+                    )
+            except AppError:
+                raise
+            except Exception as e:
+                print(f"[GOOGLE_SIGNUP ERROR] admin invite check failed for {email}: {type(e).__name__}: {e}")
+                raise AppError("D", "Something went wrong creating your account. Please try again or contact us.")
 
         # Send welcome email
         send_welcome_email(to=email, name=name)
