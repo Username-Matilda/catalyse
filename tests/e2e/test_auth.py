@@ -25,6 +25,27 @@ class TestSignup:
         expect(page).to_have_url(f"{BASE_URL}/static/dashboard.html", timeout=10000)
 
     @pytest.mark.local_only
+    def test_server_error_shows_error_code(self, page: Page):
+        """500 responses with an error code surface that code in the UI."""
+        page.route(
+            "**/api/auth/signup",
+            lambda route: route.fulfill(
+                status=500,
+                content_type="application/json",
+                body='{"detail": "Something went wrong creating your account. Please try again or contact us. Error Code: A"}'
+            )
+        )
+        page.goto(f"{BASE_URL}/static/signup.html")
+        page.fill("#name", "Test User")
+        page.fill("#email", "test@example.com")
+        page.fill("#password", "testpassword1")
+        page.fill("#password_confirm", "testpassword1")
+        page.click("#signupForm button[type=submit]")
+        msg = page.locator("#submitMessageDiv")
+        expect(msg).to_be_visible(timeout=5000)
+        expect(msg).to_contain_text("Error Code: A")
+
+    @pytest.mark.local_only
     def test_duplicate_email_shows_error(self, page: Page, new_user):
         page.goto(f"{BASE_URL}/static/signup.html")
         page.fill("#name", "Dupe User")

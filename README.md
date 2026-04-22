@@ -220,6 +220,20 @@ Currently uses simple email-based login with tokens. For production:
 - Add email verification / magic links
 - Set token expiration
 
+## Error Codes
+
+When a server error occurs, users see a message ending with `Error Code: X`. Codes are intentionally opaque to avoid exposing implementation details. Reference:
+
+| Code | Location | Cause |
+|------|----------|-------|
+| A | Email/password signup | Failed during admin bootstrap step |
+| B | Email/password signup | Failed during admin invite auto-accept step |
+| C | Google SSO signup | Failed during admin bootstrap step |
+| D | Google SSO signup | Failed during admin invite auto-accept step |
+| E | Anywhere | Unexpected error not covered by the above |
+
+Full exception details (including stack trace) are logged server-side alongside the code.
+
 ## License
 
 MIT - Built for PauseAI UK
