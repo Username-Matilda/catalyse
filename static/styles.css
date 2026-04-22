@@ -112,7 +112,7 @@ header .container {
 }
 
 .logo img {
-    height: 64px;
+    height: 40px;
     width: auto;
 }
 
@@ -127,7 +127,7 @@ nav {
 }
 
 nav a {
-    padding: 8px 16px;
+    padding: 8px 10px;
     color: var(--text);
     text-decoration: none;
     border-radius: var(--radius);
@@ -944,11 +944,33 @@ textarea {
 }
 
 /* Tabs */
+.tabs-wrapper {
+    position: relative;
+    margin-bottom: 24px;
+}
+
+.tabs-wrapper::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 2px;
+    width: 32px;
+    background: linear-gradient(to right, transparent, var(--surface));
+    pointer-events: none;
+}
+
 .tabs {
     display: flex;
     gap: 4px;
     border-bottom: 2px solid var(--border);
-    margin-bottom: 24px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.tabs::-webkit-scrollbar {
+    display: none;
 }
 
 .tab {
@@ -961,6 +983,8 @@ textarea {
     font-weight: 500;
     color: var(--text-light);
     transition: all 0.2s;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .tab:hover {
@@ -980,17 +1004,134 @@ textarea {
     margin-bottom: 20px;
 }
 
+/* Mobile menu button (hidden on desktop) */
+.mobile-menu-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px;
+    cursor: pointer;
+    color: var(--text);
+    flex-shrink: 0;
+}
+
+/* Mobile nav panel */
+.mobile-nav-panel {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: var(--surface);
+    z-index: 1500;
+    overflow-y: auto;
+    flex-direction: column;
+}
+
+.mobile-nav-panel.open {
+    display: flex;
+}
+
+.mobile-nav-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+    z-index: 1;
+}
+
+.mobile-nav-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px;
+    cursor: pointer;
+    color: var(--text);
+    flex-shrink: 0;
+}
+
+.mobile-nav-links a {
+    display: block;
+    padding: 16px 20px;
+    color: var(--text);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 1rem;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+}
+
+.mobile-nav-links a:hover {
+    background: var(--background);
+}
+
+.mobile-nav-links a.active {
+    color: var(--primary);
+    background: var(--accent);
+}
+
+.mobile-nav-section {
+    padding: 8px 20px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-light);
+    background: var(--background);
+    border-bottom: 1px solid var(--border);
+}
+
+.mobile-nav-section--admin {
+    color: var(--primary);
+}
+
+/* Dropdown section labels */
+.dropdown-section {
+    padding: 6px 16px 4px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-light);
+    background: var(--background);
+    border-top: 1px solid var(--border);
+}
+
+.dropdown-section--admin {
+    color: var(--primary);
+}
+
 /* Responsive */
-@media (max-width: 768px) {
+@media (max-width: 1279px) {
     header .container {
-        flex-direction: column;
-        align-items: stretch;
+        flex-wrap: nowrap;
+        gap: 8px;
     }
 
-    nav {
-        justify-content: center;
+    header nav,
+    header .nav-auth {
+        display: none;
     }
 
+    .mobile-menu-btn {
+        display: flex;
+    }
+
+    .page {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+}
+
+@media (max-width: 768px) {
     h1 {
         font-size: 1.5rem;
     }
@@ -1005,6 +1146,23 @@ textarea {
 
     .filter-group {
         width: 100%;
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+    }
+
+    .stats-grid .card {
+        padding: 10px 8px;
+    }
+
+    .stats-grid .stat-number {
+        font-size: 1.25rem;
+    }
+
+    .stats-grid .stat-label {
+        font-size: 0.7rem;
     }
 }
 
@@ -1045,10 +1203,12 @@ textarea {
     margin-top: 8px;
     background: var(--surface);
     border-radius: var(--radius);
+    border: 1px solid var(--border);
     box-shadow: var(--shadow-lg);
     min-width: 200px;
     z-index: 101;
     display: none;
+    overflow: hidden;
 }
 
 .user-dropdown.show {

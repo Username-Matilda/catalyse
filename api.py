@@ -41,6 +41,20 @@ app = FastAPI(
 )
 
 
+@app.middleware("http")
+async def cache_static(request: Request, call_next):
+    response = await call_next(request)
+    path = request.url.path
+    if path.startswith("/static/"):
+        if path.endswith(".html"):
+            # HTML is the entry point — always revalidate so browsers pick up new asset hashes
+            response.headers["Cache-Control"] = "no-cache"
+        else:
+            # CSS/JS/images have content-hashed URLs, safe to cache for a year
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    return response
+
+
 class AppError(Exception):
     def __init__(self, code: str, message: str):
         self.code = code
@@ -3692,16 +3706,17 @@ def get_dashboard(volunteer: Dict = Depends(require_auth)) -> Dict:
 # STATIC FILES & STARTUP
 # ============================================
 
-# Mount static files
-static_path = Path(__file__).parent / "static"
-if static_path.exists():
-    app.mount("/static", StaticFiles(directory=static_path), name="static")
+# Serve from dist/ (built artefact with hashed URLs) if available, else fall back to static/
+_dist_path = Path(__file__).parent / "dist"
+_static_path = Path(__file__).parent / "static"
+_serve_path = _dist_path if _dist_path.exists() else _static_path
+app.mount("/static", StaticFiles(directory=_serve_path), name="static")
 
 
 @app.get("/")
 def serve_index():
     """Serve the main page."""
-    index_path = Path(__file__).parent / "static" / "index.html"
+    index_path = _serve_path / "index.html"
     if index_path.exists():
         return FileResponse(index_path)
     return {"message": "Welcome to Catalyse API", "docs": "/docs"}
