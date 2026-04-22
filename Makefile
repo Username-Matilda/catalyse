@@ -1,8 +1,12 @@
-.PHONY: dev install test test-headed test-debug test-smoke scenario scenarios scenario-clean
+.PHONY: dev install digest test test-headed test-debug test-smoke scenario scenarios scenario-clean
 
 # Start the development server on http://localhost:8001
 dev:
 	. venv/bin/activate && python api.py
+
+# Inject content-hash query params into all HTML files (run before deploying)
+digest:
+	. venv/bin/activate && python digest.py
 
 # Install Python dependencies and download the Playwright Chromium browser
 install:

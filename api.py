@@ -41,6 +41,20 @@ app = FastAPI(
 )
 
 
+@app.middleware("http")
+async def cache_static(request: Request, call_next):
+    response = await call_next(request)
+    path = request.url.path
+    if path.startswith("/static/"):
+        if path.endswith(".html"):
+            # HTML is the entry point — always revalidate so browsers pick up new asset hashes
+            response.headers["Cache-Control"] = "no-cache"
+        else:
+            # CSS/JS/images have content-hashed URLs, safe to cache for a year
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    return response
+
+
 class AppError(Exception):
     def __init__(self, code: str, message: str):
         self.code = code

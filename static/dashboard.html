@@ -11,7 +11,7 @@
         <div class="container">
             <a href="/" class="logo">Catalyse <img src="/static/images/pauseai-logo.png" alt="PauseAI"></a>
             <nav>
-                <a href="/">Projects</a>
+                <a href="/">All Projects</a>
                 <a href="/static/volunteers.html">Volunteers</a>
                 <a href="/static/suggest.html">Suggest Project</a>
                 <a href="/static/starter-tasks.html">Starter Tasks</a>
@@ -45,18 +45,18 @@
             </div>
 
             <!-- Quick Stats -->
-            <div class="grid grid-3" style="margin-bottom: 32px;">
+            <div class="grid grid-3 stats-grid" style="margin-bottom: 32px;">
                 <div class="card" style="text-align: center;">
-                    <div style="font-size: 2rem; font-weight: bold; color: var(--primary);" id="statOwned">0</div>
-                    <div style="color: var(--text-light);">Projects You Own</div>
+                    <div class="stat-number" style="font-size: 2rem; font-weight: bold; color: var(--primary);" id="statOwned">0</div>
+                    <div class="stat-label" style="color: var(--text-light);">Projects You Own</div>
                 </div>
                 <div class="card" style="text-align: center;">
-                    <div style="font-size: 2rem; font-weight: bold; color: var(--secondary);" id="statInterests">0</div>
-                    <div style="color: var(--text-light);">Active Interests</div>
+                    <div class="stat-number" style="font-size: 2rem; font-weight: bold; color: var(--secondary);" id="statInterests">0</div>
+                    <div class="stat-label" style="color: var(--text-light);">Active Interests</div>
                 </div>
                 <div class="card" style="text-align: center;">
-                    <div style="font-size: 2rem; font-weight: bold; color: var(--success);" id="statNotifications">0</div>
-                    <div style="color: var(--text-light);">Unread Notifications</div>
+                    <div class="stat-number" style="font-size: 2rem; font-weight: bold; color: var(--success);" id="statNotifications">0</div>
+                    <div class="stat-label" style="color: var(--text-light);">Unread Notifications</div>
                 </div>
             </div>
 
@@ -64,12 +64,14 @@
             <div id="starterTasksBanner" style="display: none;"></div>
 
             <!-- Tabs -->
-            <div class="tabs">
-                <button class="tab active" data-tab="owned">My Projects</button>
-                <button class="tab" data-tab="interests">My Interests</button>
-                <button class="tab" data-tab="proposed">Proposed</button>
-                <button class="tab" data-tab="suggested">Suggested for You</button>
-                <button class="tab" data-tab="notifications">Notifications <span id="notifBadge" class="notification-badge" style="display: none;"></span></button>
+            <div class="tabs-wrapper">
+                <div class="tabs">
+                    <button class="tab active" data-tab="owned">My Projects</button>
+                    <button class="tab" data-tab="interests">My Interests</button>
+                    <button class="tab" data-tab="proposed">Proposed</button>
+                    <button class="tab" data-tab="suggested">Suggested for You</button>
+                    <button class="tab" data-tab="notifications">Notifications <span id="notifBadge" class="notification-badge" style="display: none;"></span></button>
+                </div>
             </div>
 
             <!-- Tab Content: Owned Projects -->

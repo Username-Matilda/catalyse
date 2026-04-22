@@ -237,19 +237,19 @@ async function initAuthNav() {
 
     if (user) {
         const isAdmin = user.is_admin;
+        const isAdminPage = window.location.pathname.includes('/admin/');
         nav.innerHTML = `
-            <a href="/static/dashboard.html" class="btn btn-ghost">Dashboard</a>
+            <a href="/static/dashboard.html" class="btn btn-ghost">My Projects</a>
             <div class="user-menu">
-                <button class="user-button" onclick="toggleUserMenu()">
-                    ${escapeHtml(user.name)}
+                <button class="user-button" onclick="toggleUserMenu()" aria-label="Account menu">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
                 </button>
                 <div class="user-dropdown" id="userDropdown">
                     <a href="/static/profile.html">My Profile</a>
-                    <a href="/static/dashboard.html">Dashboard</a>
                     <a href="/static/settings.html">Account Settings</a>
                     <a href="/static/privacy.html">Privacy & Data</a>
-                    ${isAdmin ? `
-                        <hr style="margin: 6px 0; border: none; border-top: 1px solid var(--border);">
+                    ${isAdmin && !isAdminPage ? `
+                        <div class="dropdown-section dropdown-section--admin">Admin</div>
                         <a href="/static/admin/triage.html">Triage Queue</a>
                         <a href="/static/admin/create-project.html">Create Org Project</a>
                         <a href="/static/admin/starter-tasks.html">Manage Starter Tasks</a>
@@ -258,8 +258,8 @@ async function initAuthNav() {
                         <a href="/static/admin/team.html">Admin Team</a>
                         <a href="/static/admin/stats.html">Platform Stats</a>
                     ` : ''}
-                    <hr style="margin: 6px 0; border: none; border-top: 1px solid var(--border);">
-                    <a href="#" onclick="logout(); return false;">Logout</a>
+                    <div class="dropdown-section">Session</div>
+                    <a href="#" onclick="logout(); return false;">Sign Out</a>
                 </div>
             </div>
         `;
@@ -277,11 +277,100 @@ async function initAuthNav() {
         }
     });
 
+    initMobileMenu(user);
+
     return user;
 }
 
 function toggleUserMenu() {
     document.getElementById('userDropdown')?.classList.toggle('show');
+}
+
+function initMobileMenu(user) {
+    const header = document.querySelector('header .container');
+    if (!header || document.getElementById('mobileMenuBtn')) return;
+
+    const isAdminPage = window.location.pathname.includes('/admin/');
+
+    // Hamburger button
+    const btn = document.createElement('button');
+    btn.className = 'mobile-menu-btn';
+    btn.id = 'mobileMenuBtn';
+    btn.setAttribute('aria-label', 'Open menu');
+    btn.innerHTML = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>`;
+    header.appendChild(btn);
+
+    // Collect nav links from the current page's <nav>
+    const navLinks = Array.from(document.querySelectorAll('header nav a'));
+    const navHTML = navLinks.map(link => {
+        const active = link.classList.contains('active') ? ' class="active"' : '';
+        return `<a href="${link.getAttribute('href')}"${active}>${link.textContent.trim()}</a>`;
+    }).join('');
+
+    // Auth section
+    let authHTML = '';
+    if (user) {
+        authHTML = `
+            <div class="mobile-nav-section">Account</div>
+            <a href="/static/dashboard.html">My Projects</a>
+            <a href="/static/profile.html">My Profile</a>
+            <a href="/static/settings.html">Account Settings</a>
+            <a href="/static/privacy.html">Privacy &amp; Data</a>
+        `;
+        if (user.is_admin && !isAdminPage) {
+            authHTML += `
+                <div class="mobile-nav-section mobile-nav-section--admin">Admin</div>
+                <a href="/static/admin/triage.html">Triage Queue</a>
+                <a href="/static/admin/create-project.html">Create Org Project</a>
+                <a href="/static/admin/starter-tasks.html">Manage Starter Tasks</a>
+                <a href="/static/admin/skills.html">Manage Skills</a>
+                <a href="/static/admin/bugs.html">Bug Reports</a>
+                <a href="/static/admin/team.html">Admin Team</a>
+                <a href="/static/admin/stats.html">Platform Stats</a>
+            `;
+        }
+        authHTML += `
+            <div class="mobile-nav-section">Session</div>
+            <a href="#" onclick="logout(); return false;">Sign Out</a>
+        `;
+    } else {
+        authHTML = `
+            <div class="mobile-nav-section">Account</div>
+            <a href="/static/login.html">Login</a>
+            <a href="/static/signup.html">Sign Up</a>
+        `;
+    }
+
+    // Clone logo from header
+    const logoEl = header.querySelector('.logo');
+    const logoHTML = logoEl ? logoEl.outerHTML : `<a href="/" class="logo">Catalyse</a>`;
+
+    const panel = document.createElement('div');
+    panel.className = 'mobile-nav-panel';
+    panel.id = 'mobileNavPanel';
+    panel.innerHTML = `
+        <div class="mobile-nav-header">
+            ${logoHTML}
+            <button class="mobile-nav-close" id="mobileMenuClose" aria-label="Close menu">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="mobile-nav-links">
+            ${navHTML}
+            ${authHTML}
+        </div>
+    `;
+    document.body.appendChild(panel);
+
+    btn.addEventListener('click', () => {
+        panel.classList.add('open');
+        document.body.style.overflow = 'hidden';
+    });
+
+    document.getElementById('mobileMenuClose').addEventListener('click', () => {
+        panel.classList.remove('open');
+        document.body.style.overflow = '';
+    });
 }
 
 async function logout() {

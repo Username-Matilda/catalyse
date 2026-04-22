@@ -11,7 +11,7 @@
         <div class="container">
             <a href="/" class="logo">Catalyse <img src="/static/images/pauseai-logo.png" alt="PauseAI"> <span>Admin</span></a>
             <nav>
-                <a href="/">Projects</a>
+                <a href="/">All Projects</a>
                 <a href="/static/admin/triage.html">Triage</a>
                 <a href="/static/admin/skills.html">Skills</a>
                 <a href="/static/admin/starter-tasks.html">Starter Tasks</a>
@@ -35,9 +35,11 @@
 
         <div id="messageDiv" class="message" style="display: none;"></div>
 
-        <div class="tabs">
-            <button class="tab active" data-tab="admins">Current Admins</button>
-            <button class="tab" data-tab="invites">Pending Invites</button>
+        <div class="tabs-wrapper">
+            <div class="tabs">
+                <button class="tab active" data-tab="admins">Current Admins</button>
+                <button class="tab" data-tab="invites">Pending Invites</button>
+            </div>
         </div>
 
         <div id="tab-admins" class="tab-content">
