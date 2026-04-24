@@ -230,7 +230,8 @@ When a server error occurs, users see a message ending with `Error Code: X`. Cod
 | B | Email/password signup | Failed during admin invite auto-accept step |
 | C | Google SSO signup | Failed during admin bootstrap step |
 | D | Google SSO signup | Failed during admin invite auto-accept step |
-| E | Anywhere | Unexpected error not covered by the above |
+| E | Express interest | Unexpected error saving interest or sending notifications |
+| Unknown | Anywhere | Unexpected error not covered by the above |
 
 Full exception details (including stack trace) are logged server-side alongside the code.
 
