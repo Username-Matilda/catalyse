@@ -703,7 +703,10 @@ def signup(data: VolunteerSignup) -> Dict:
             raise AppError("B", "Something went wrong creating your account. Please try again or contact us.")
 
         # Send welcome email (non-blocking, don't fail signup if email fails)
-        send_welcome_email(to=data.email, name=data.name)
+        try:
+            send_welcome_email(to=data.email, name=data.name)
+        except Exception as e:
+            print(f"[SIGNUP] Welcome email failed for {data.email}: {e}")
 
         return {
             "id": volunteer_id,
@@ -1869,8 +1872,10 @@ def create_project(
                 (project_id, skill_id, is_required)
             )
 
-        # Notify admins
-        admins = conn.execute("SELECT id FROM volunteers WHERE is_admin = 1").fetchall()
+        # Notify admins (in-app + email)
+        admins = conn.execute(
+            "SELECT id, name, email FROM volunteers WHERE is_admin = 1 AND deleted_at IS NULL"
+        ).fetchall()
         for admin in admins:
             create_notification(
                 conn, admin["id"], "new_project_proposal",
@@ -1878,6 +1883,16 @@ def create_project(
                 f"Proposed by {volunteer['name']}",
                 "/static/admin/triage.html"
             )
+            try:
+                if admin["email"]:
+                    send_project_notification_email(
+                        to=admin["email"], name=admin["name"],
+                        subject=f"New project proposal: {data.title}",
+                        message=f"<strong>{volunteer['name']}</strong> has submitted a new project proposal: <strong>{data.title}</strong>. Please review it in the triage queue.",
+                        project_title=data.title, project_id=project_id
+                    )
+            except Exception as e:
+                print(f"[NOTIFY ERROR] Admin email failed for new proposal: {e}")
 
         return {"id": project_id, "message": "Project submitted for review"}
 
@@ -3225,50 +3240,56 @@ def express_interest(
 
             interest_label = "own / lead" if data.interest_type == "want_to_own" else "contribute to"
 
-            # Notify and email the project owner
-            if project["owner_id"]:
-                create_notification(
-                    conn, project["owner_id"], "new_interest",
-                    f"Someone's interested in '{project['title']}'!",
-                    f"{volunteer['name']} wants to {interest_label}",
-                    f"/static/project.html?id={project_id}"
-                )
-                owner = conn.execute(
-                    "SELECT name, email FROM volunteers WHERE id = ?",
-                    (project["owner_id"],)
-                ).fetchone()
-                if owner and owner["email"]:
-                    extra = ""
-                    if data.message:
-                        extra = f'<div style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"><strong>Their message:</strong> {data.message}</div>'
-                    send_project_notification_email(
-                        to=owner["email"], name=owner["name"],
-                        subject=f"{volunteer['name']} wants to {interest_label} '{project['title']}'",
-                        message=f"<strong>{volunteer['name']}</strong> has expressed interest in your project <strong>{project['title']}</strong>. Log in to review and accept or decline.",
-                        project_title=project["title"], project_id=project_id,
-                        extra_html=extra
+            # Notify and email the project owner (non-blocking — email failures shouldn't break the interest)
+            try:
+                if project["owner_id"]:
+                    create_notification(
+                        conn, project["owner_id"], "new_interest",
+                        f"Someone's interested in '{project['title']}'!",
+                        f"{volunteer['name']} wants to {interest_label}",
+                        f"/static/project.html?id={project_id}"
                     )
+                    owner = conn.execute(
+                        "SELECT name, email FROM volunteers WHERE id = ?",
+                        (project["owner_id"],)
+                    ).fetchone()
+                    if owner and owner["email"]:
+                        extra = ""
+                        if data.message:
+                            extra = f'<div style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"><strong>Their message:</strong> {data.message}</div>'
+                        send_project_notification_email(
+                            to=owner["email"], name=owner["name"],
+                            subject=f"{volunteer['name']} wants to {interest_label} '{project['title']}'",
+                            message=f"<strong>{volunteer['name']}</strong> has expressed interest in your project <strong>{project['title']}</strong>. Log in to review and accept or decline.",
+                            project_title=project["title"], project_id=project_id,
+                            extra_html=extra
+                        )
+            except Exception as e:
+                print(f"[NOTIFY ERROR] Owner notification failed for interest: {e}")
 
-            # Also notify all admins (so they can triage from the admin panel)
-            admins = conn.execute(
-                "SELECT id, name, email FROM volunteers WHERE is_admin = 1 AND deleted_at IS NULL"
-            ).fetchall()
-            for admin in admins:
-                if admin["id"] == project["owner_id"]:
-                    continue  # already notified as owner
-                create_notification(
-                    conn, admin["id"], "new_interest",
-                    f"New interest in '{project['title']}'",
-                    f"{volunteer['name']} wants to {interest_label}",
-                    f"/static/project.html?id={project_id}"
-                )
-                if admin["email"]:
-                    send_project_notification_email(
-                        to=admin["email"], name=admin["name"],
-                        subject=f"New interest: {volunteer['name']} → '{project['title']}'",
-                        message=f"<strong>{volunteer['name']}</strong> wants to {interest_label} the project <strong>{project['title']}</strong>.",
-                        project_title=project["title"], project_id=project_id
+            # Also notify all admins (non-blocking)
+            try:
+                admins = conn.execute(
+                    "SELECT id, name, email FROM volunteers WHERE is_admin = 1 AND deleted_at IS NULL"
+                ).fetchall()
+                for admin in admins:
+                    if admin["id"] == project["owner_id"]:
+                        continue
+                    create_notification(
+                        conn, admin["id"], "new_interest",
+                        f"New interest in '{project['title']}'",
+                        f"{volunteer['name']} wants to {interest_label}",
+                        f"/static/project.html?id={project_id}"
                     )
+                    if admin["email"]:
+                        send_project_notification_email(
+                            to=admin["email"], name=admin["name"],
+                            subject=f"New interest: {volunteer['name']} → '{project['title']}'",
+                            message=f"<strong>{volunteer['name']}</strong> wants to {interest_label} the project <strong>{project['title']}</strong>.",
+                            project_title=project["title"], project_id=project_id
+                        )
+            except Exception as e:
+                print(f"[NOTIFY ERROR] Admin notification failed for interest: {e}")
     except HTTPException:
         raise
     except Exception:
