@@ -110,7 +110,7 @@ def send_fortnightly_digest():
         projects = conn.execute(
             """SELECT p.id, p.title, p.description, p.status, p.urgency
                FROM projects p
-               WHERE p.status IN ('seeking_owner', 'seeking_help', 'in_progress')
+               WHERE p.status NOT IN ('archived', 'pending_review', 'needs_discussion')
                AND p.created_at >= ?
                ORDER BY p.created_at DESC
                LIMIT 10""",

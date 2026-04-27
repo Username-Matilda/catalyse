@@ -1671,7 +1671,7 @@ def list_projects(
         query += " AND p.status = ?"
         params.append(status)
     else:
-        query += " AND p.status IN ('seeking_owner', 'seeking_help', 'in_progress', 'completed')"
+        query += " AND p.status NOT IN ('archived', 'pending_review', 'needs_discussion')"
 
     if skill_ids:
         skill_list = [int(s) for s in skill_ids.split(",")]
@@ -2289,15 +2289,33 @@ def review_project(
 
     with db_transaction() as conn:
         if data.status == "approved":
-            new_status = data.target_status or "seeking_owner"
-            conn.execute(
-                """UPDATE projects SET
-                   status = ?, review_notes = ?, reviewed_by_id = ?, reviewed_at = ?,
-                   updated_at = ?
-                   WHERE id = ?""",
-                (new_status, data.review_notes, admin["id"],
-                 datetime.now().isoformat(), datetime.now().isoformat(), project_id)
-            )
+            # Determine lifecycle status and seeking flags
+            has_owner = project["owner_id"] is not None
+            new_status = "in_progress" if has_owner else "in_progress"
+            target = data.target_status or "seeking_owner"
+
+            # Build update with seeking flags if columns exist
+            proj_columns = {row["name"] for row in conn.execute("PRAGMA table_info(projects)").fetchall()}
+            if "is_seeking_help" in proj_columns:
+                is_seeking_help = target in ("seeking_help",) or target == "seeking_owner"
+                is_seeking_owner = target in ("seeking_owner",) and not has_owner
+                conn.execute(
+                    """UPDATE projects SET
+                       status = ?, is_seeking_help = ?, is_seeking_owner = ?,
+                       review_notes = ?, reviewed_by_id = ?, reviewed_at = ?, updated_at = ?
+                       WHERE id = ?""",
+                    (new_status, is_seeking_help, is_seeking_owner,
+                     data.review_notes, admin["id"],
+                     datetime.now().isoformat(), datetime.now().isoformat(), project_id)
+                )
+            else:
+                conn.execute(
+                    """UPDATE projects SET
+                       status = ?, review_notes = ?, reviewed_by_id = ?, reviewed_at = ?, updated_at = ?
+                       WHERE id = ?""",
+                    (target, data.review_notes, admin["id"],
+                     datetime.now().isoformat(), datetime.now().isoformat(), project_id)
+                )
 
             # Notify proposer
             if project["proposed_by_id"]:
@@ -2376,7 +2394,7 @@ def create_org_project(
 ) -> Dict:
     """Create an org-proposed project (skips review)."""
     with db_transaction() as conn:
-        status = "seeking_owner" if not data.want_to_own else "seeking_help"
+        status = "in_progress" if data.want_to_own else "in_progress"
 
         proj_columns = {row["name"] for row in conn.execute("PRAGMA table_info(projects)").fetchall()}
         proj_fields = {
@@ -2411,6 +2429,18 @@ def create_org_project(
         return {"id": project_id, "message": "Org project created"}
 
 
+def _count_seeking(conn) -> int:
+    """Count projects that are seeking help or owner (handles missing columns)."""
+    try:
+        return conn.execute(
+            "SELECT COUNT(*) FROM projects WHERE is_seeking_help = 1 OR is_seeking_owner = 1 OR status IN ('seeking_owner', 'seeking_help')"
+        ).fetchone()[0]
+    except Exception:
+        return conn.execute(
+            "SELECT COUNT(*) FROM projects WHERE status IN ('seeking_owner', 'seeking_help')"
+        ).fetchone()[0]
+
+
 @app.get("/api/admin/stats")
 def get_admin_stats(admin: Dict = Depends(require_admin)) -> Dict:
     """Get platform statistics."""
@@ -2432,9 +2462,7 @@ def get_admin_stats(admin: Dict = Depends(require_admin)) -> Dict:
             "pending_review": conn.execute(
                 "SELECT COUNT(*) FROM projects WHERE status = 'pending_review'"
             ).fetchone()[0],
-            "seeking_help": conn.execute(
-                "SELECT COUNT(*) FROM projects WHERE status IN ('seeking_owner', 'seeking_help')"
-            ).fetchone()[0],
+            "seeking_help": _count_seeking(conn),
             "in_progress": conn.execute(
                 "SELECT COUNT(*) FROM projects WHERE status = 'in_progress'"
             ).fetchone()[0],
@@ -3757,7 +3785,7 @@ def get_dashboard(volunteer: Dict = Depends(require_auth)) -> Dict:
            FROM projects p
            JOIN project_skills ps ON p.id = ps.project_id
            WHERE ps.skill_id IN ({})
-           AND p.status IN ('seeking_owner', 'seeking_help')
+           AND (p.is_seeking_help = 1 OR p.is_seeking_owner = 1 OR p.status IN ('seeking_owner', 'seeking_help'))
            AND p.owner_id != ?
            AND p.id NOT IN (
                SELECT project_id FROM project_interests WHERE volunteer_id = ?
