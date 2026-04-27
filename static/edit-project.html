@@ -60,13 +60,25 @@
                 <div class="form-group">
                     <label for="status">Project Status</label>
                     <select id="status" name="status">
-                        <option value="seeking_owner">Seeking Owner</option>
-                        <option value="seeking_help">Seeking Help</option>
                         <option value="in_progress">In Progress</option>
                         <option value="on_hold">On Hold</option>
                         <option value="completed">Completed</option>
                     </select>
                     <p class="form-hint" id="statusHint"></p>
+                </div>
+
+                <div class="form-group">
+                    <label>This project is currently looking for:</label>
+                    <div class="checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="is_seeking_help" name="is_seeking_help">
+                            <span>Help / contributors</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="is_seeking_owner" name="is_seeking_owner">
+                            <span>An owner / lead</span>
+                        </label>
+                    </div>
                 </div>
 
                 <div class="grid grid-2">
@@ -220,7 +232,11 @@
                     `<option value="${s.value}">${s.label}</option>`
                 ).join('');
             }
-            statusSelect.value = project.status || 'seeking_help';
+            statusSelect.value = project.status || 'in_progress';
+
+            // Seeking flags
+            document.getElementById('is_seeking_help').checked = project.is_seeking_help || false;
+            document.getElementById('is_seeking_owner').checked = project.is_seeking_owner || false;
 
             // Load skills with current selections
             const selectedIds = project.skills.map(s => s.id);
@@ -266,6 +282,8 @@
                     description: form.description.value.trim(),
                     project_type: form.project_type.value || null,
                     status: form.status.value,
+                    is_seeking_help: form.is_seeking_help.checked,
+                    is_seeking_owner: form.is_seeking_owner.checked,
                     time_commitment_hours_per_week: form.time_commitment.value ? parseInt(form.time_commitment.value) : null,
                     urgency: form.urgency.value,
                     estimated_duration: form.estimated_duration.value.trim() || null,

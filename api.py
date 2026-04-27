@@ -264,15 +264,17 @@ class DeleteAccountRequest(BaseModel):
 class ProjectCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=300)
     description: str = Field(..., min_length=10)
-    project_type: Optional[str] = None  # sprint, container, ongoing, one_off
-    estimated_duration: Optional[str] = None  # e.g., "2 weeks", "3 months"
+    project_type: Optional[str] = None
+    estimated_duration: Optional[str] = None
     time_commitment_hours_per_week: Optional[int] = None
     urgency: str = "medium"
     skill_ids: List[int] = []
-    skill_required_map: Dict[int, bool] = {}  # skill_id -> is_required
-    want_to_own: bool = False  # If true, proposer becomes owner
+    skill_required_map: Dict[int, bool] = {}
+    want_to_own: bool = False
     collaboration_link: Optional[str] = None
-    country: Optional[str] = None  # e.g., "UK", "US", "Remote"
+    country: Optional[str] = None
+    is_seeking_help: bool = True
+    is_seeking_owner: bool = False
 
 
 class ProjectUpdate(BaseModel):
@@ -288,6 +290,8 @@ class ProjectUpdate(BaseModel):
     collaboration_link: Optional[str] = None
     country: Optional[str] = None
     owner_id: Optional[int] = None
+    is_seeking_help: Optional[bool] = None
+    is_seeking_owner: Optional[bool] = None
     outcome: Optional[str] = None
     outcome_notes: Optional[str] = None
 
@@ -1704,11 +1708,19 @@ def list_projects(
     count_query = query.replace("SELECT DISTINCT p.*", "SELECT COUNT(DISTINCT p.id)")
     total = conn.execute(count_query, params).fetchone()[0]
 
-    # Add ordering
+    # Add ordering — seeking projects first, then by urgency
+    # Check if seeking flags exist
+    seeking_sort = ""
+    try:
+        conn.execute("SELECT is_seeking_help FROM projects LIMIT 1")
+        seeking_sort = "CASE WHEN p.is_seeking_help OR p.is_seeking_owner THEN 0 ELSE 1 END, "
+    except Exception:
+        pass
+
     if sort_by == "urgency":
-        query += " ORDER BY CASE p.urgency WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, p.created_at DESC"
+        query += f" ORDER BY {seeking_sort}CASE p.urgency WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, p.created_at DESC"
     else:
-        query += " ORDER BY p.created_at DESC"
+        query += f" ORDER BY {seeking_sort}CASE p.urgency WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, p.created_at DESC"
 
     query += " LIMIT ? OFFSET ?"
     params.extend([limit, offset])
@@ -1855,6 +1867,9 @@ def create_project(
         }
         if "country" in proj_columns:
             proj_fields["country"] = data.country
+        if "is_seeking_help" in proj_columns:
+            proj_fields["is_seeking_help"] = getattr(data, "is_seeking_help", True)
+            proj_fields["is_seeking_owner"] = getattr(data, "is_seeking_owner", not data.want_to_own)
 
         col_names = ", ".join(proj_fields.keys())
         placeholders = ", ".join("?" * len(proj_fields))
@@ -1925,6 +1940,10 @@ def update_project(
         updates = []
         params = []
 
+        # Check which columns exist for seeking flags
+        proj_columns = {row["name"] for row in conn.execute("PRAGMA table_info(projects)").fetchall()}
+        has_seeking_flags = "is_seeking_help" in proj_columns
+
         # Define which statuses owners can set (vs admin-only statuses)
         owner_allowed_statuses = {"seeking_owner", "seeking_help", "in_progress", "on_hold", "completed"}
 
@@ -1932,12 +1951,29 @@ def update_project(
                       "time_commitment_hours_per_week", "urgency", "collaboration_link", "country", "owner_id"]:
             value = getattr(data, field, None)
             if value is not None:
-                # Owners can change to allowed statuses; admins can set any status
                 if field == "status" and not is_admin:
                     if not is_owner or value not in owner_allowed_statuses:
                         continue
                 updates.append(f"{field} = ?")
                 params.append(value)
+
+        # Handle seeking flags
+        if has_seeking_flags:
+            if data.is_seeking_help is not None:
+                updates.append("is_seeking_help = ?")
+                params.append(data.is_seeking_help)
+            if data.is_seeking_owner is not None:
+                updates.append("is_seeking_owner = ?")
+                params.append(data.is_seeking_owner)
+
+            # Auto-clear seeking flags when completing or archiving
+            if data.status in ("completed", "archived"):
+                if "is_seeking_help = ?" not in updates:
+                    updates.append("is_seeking_help = ?")
+                    params.append(False)
+                if "is_seeking_owner = ?" not in updates:
+                    updates.append("is_seeking_owner = ?")
+                    params.append(False)
 
         if updates:
             updates.append("updated_at = ?")
@@ -2353,6 +2389,9 @@ def create_org_project(
         }
         if "country" in proj_columns:
             proj_fields["country"] = data.country
+        if "is_seeking_help" in proj_columns:
+            proj_fields["is_seeking_help"] = getattr(data, "is_seeking_help", True)
+            proj_fields["is_seeking_owner"] = getattr(data, "is_seeking_owner", not data.want_to_own)
 
         col_names = ", ".join(proj_fields.keys())
         placeholders = ", ".join("?" * len(proj_fields))
@@ -3203,14 +3242,23 @@ def express_interest(
 ) -> Dict:
     """Express interest in a project."""
     conn = get_db()
-    project = conn.execute(
-        "SELECT * FROM projects WHERE id = ? AND status IN ('seeking_owner', 'seeking_help')",
-        (project_id,)
-    ).fetchone()
+    # Check if seeking flags column exists
+    try:
+        conn.execute("SELECT is_seeking_help FROM projects LIMIT 1")
+        project = conn.execute(
+            """SELECT * FROM projects WHERE id = ? AND status NOT IN ('completed', 'archived')
+               AND (is_seeking_help = 1 OR is_seeking_owner = 1 OR status IN ('seeking_owner', 'seeking_help'))""",
+            (project_id,)
+        ).fetchone()
+    except Exception:
+        project = conn.execute(
+            "SELECT * FROM projects WHERE id = ? AND status IN ('seeking_owner', 'seeking_help')",
+            (project_id,)
+        ).fetchone()
 
     if not project:
         conn.close()
-        raise HTTPException(status_code=404, detail="Project not available")
+        raise HTTPException(status_code=404, detail="This project is not currently seeking volunteers")
 
     existing = conn.execute(
         "SELECT * FROM project_interests WHERE project_id = ? AND volunteer_id = ?",
