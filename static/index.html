@@ -36,12 +36,20 @@
                 <label for="statusFilter">Status</label>
                 <select id="statusFilter">
                     <option value="">All Active</option>
-                    <option value="seeking_owner">Seeking Owner</option>
-                    <option value="seeking_help">Seeking Help</option>
                     <option value="in_progress">In Progress</option>
                     <option value="on_hold">On Hold</option>
                     <option value="completed">Completed</option>
                     <option value="archived">Archived</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="seekingFilter">Needs</label>
+                <select id="seekingFilter">
+                    <option value="">Any</option>
+                    <option value="seeking">Looking for People</option>
+                    <option value="seeking_help">Seeking Help</option>
+                    <option value="seeking_owner">Seeking Owner</option>
+                    <option value="not_seeking">Not Seeking</option>
                 </select>
             </div>
             <div class="filter-group">
@@ -112,6 +120,7 @@
         function restoreFiltersFromURL() {
             const params = new URLSearchParams(window.location.search);
             if (params.get('status')) document.getElementById('statusFilter').value = params.get('status');
+            if (params.get('seeking')) document.getElementById('seekingFilter').value = params.get('seeking');
             if (params.get('urgency')) document.getElementById('urgencyFilter').value = params.get('urgency');
             if (params.get('country')) document.getElementById('countryFilter').value = params.get('country');
             if (params.get('search')) document.getElementById('searchInput').value = params.get('search');
@@ -121,11 +130,13 @@
         function saveFiltersToURL() {
             const params = new URLSearchParams();
             const status = document.getElementById('statusFilter').value;
+            const seeking = document.getElementById('seekingFilter').value;
             const urgency = document.getElementById('urgencyFilter').value;
             const country = document.getElementById('countryFilter').value;
             const search = document.getElementById('searchInput').value;
             const sortBy = document.getElementById('sortFilter').value;
             if (status) params.set('status', status);
+            if (seeking) params.set('seeking', seeking);
             if (urgency) params.set('urgency', urgency);
             if (country) params.set('country', country);
             if (search) params.set('search', search);
@@ -194,7 +205,20 @@
             const emptyState = document.getElementById('emptyState');
             const summaryBar = document.getElementById('statusSummary');
 
-            if (allProjects.length === 0) {
+            // Apply client-side seeking filter
+            const seekingFilter = document.getElementById('seekingFilter').value;
+            let filteredProjects = allProjects;
+            if (seekingFilter === 'seeking') {
+                filteredProjects = allProjects.filter(p => p.is_seeking_help || p.is_seeking_owner);
+            } else if (seekingFilter === 'seeking_help') {
+                filteredProjects = allProjects.filter(p => p.is_seeking_help);
+            } else if (seekingFilter === 'seeking_owner') {
+                filteredProjects = allProjects.filter(p => p.is_seeking_owner);
+            } else if (seekingFilter === 'not_seeking') {
+                filteredProjects = allProjects.filter(p => !p.is_seeking_help && !p.is_seeking_owner);
+            }
+
+            if (filteredProjects.length === 0) {
                 container.innerHTML = '';
                 summaryBar.style.display = 'none';
                 emptyState.style.display = 'block';
@@ -203,34 +227,28 @@
 
             emptyState.style.display = 'none';
 
-            // Count by status for summary bar
+            // Summary bar
             const statusFilter = document.getElementById('statusFilter').value;
-            const counts = {};
-            allProjects.forEach(p => {
-                counts[p.status] = (counts[p.status] || 0) + 1;
-            });
-
-            // Show summary bar only when viewing "All Active"
-            if (!statusFilter) {
+            if (!statusFilter && !seekingFilter) {
                 summaryBar.style.display = 'block';
-                const seekingCount = allProjects.filter(p => p.is_seeking_help || p.is_seeking_owner).length;
-                const inProgressCount = allProjects.filter(p => !p.is_seeking_help && !p.is_seeking_owner && p.status === 'in_progress').length;
+                const seekingCount = filteredProjects.filter(p => p.is_seeking_help || p.is_seeking_owner).length;
+                const inProgressCount = filteredProjects.filter(p => !p.is_seeking_help && !p.is_seeking_owner && p.status === 'in_progress').length;
                 const badges = [];
                 if (seekingCount) badges.push(`<span class="status-badge status-seeking_help" style="font-size: 0.8rem; padding: 6px 14px;">Looking for People: ${seekingCount}</span>`);
                 if (inProgressCount) badges.push(`<span class="status-badge status-in_progress" style="font-size: 0.8rem; padding: 6px 14px;">In Progress: ${inProgressCount}</span>`);
-                badges.push(`<span style="color: var(--text-light); font-size: 0.875rem; margin-left: 4px;">${allProjects.length} total</span>`);
+                badges.push(`<span style="color: var(--text-light); font-size: 0.875rem; margin-left: 4px;">${filteredProjects.length} total</span>`);
                 summaryBar.querySelector('div').innerHTML = badges.join('');
             } else {
                 summaryBar.style.display = 'none';
             }
 
             // Group projects: seeking first, then by lifecycle status
-            if (!statusFilter) {
-                const seeking = allProjects.filter(p => p.is_seeking_help || p.is_seeking_owner);
-                const inProgress = allProjects.filter(p => !p.is_seeking_help && !p.is_seeking_owner && p.status === 'in_progress');
-                const onHold = allProjects.filter(p => !p.is_seeking_help && !p.is_seeking_owner && p.status === 'on_hold');
-                const completed = allProjects.filter(p => p.status === 'completed');
-                const other = allProjects.filter(p =>
+            if (!statusFilter && !seekingFilter) {
+                const seeking = filteredProjects.filter(p => p.is_seeking_help || p.is_seeking_owner);
+                const inProgress = filteredProjects.filter(p => !p.is_seeking_help && !p.is_seeking_owner && p.status === 'in_progress');
+                const onHold = filteredProjects.filter(p => !p.is_seeking_help && !p.is_seeking_owner && p.status === 'on_hold');
+                const completed = filteredProjects.filter(p => p.status === 'completed');
+                const other = filteredProjects.filter(p =>
                     !p.is_seeking_help && !p.is_seeking_owner &&
                     !['in_progress', 'on_hold', 'completed'].includes(p.status) &&
                     !seeking.includes(p)
@@ -262,8 +280,8 @@
                 }
                 container.innerHTML = html;
             } else {
-                // Filtered view — flat grid like before
-                container.innerHTML = `<div class="grid grid-2">${allProjects.map(project => renderProjectCard(project)).join('')}</div>`;
+                // Filtered view — flat grid
+                container.innerHTML = `<div class="grid grid-2">${filteredProjects.map(project => renderProjectCard(project)).join('')}</div>`;
             }
         }
 
@@ -349,6 +367,7 @@
 
             document.getElementById('searchInput').addEventListener('input', debouncedLoad);
             document.getElementById('statusFilter').addEventListener('change', loadProjects);
+            document.getElementById('seekingFilter').addEventListener('change', () => { saveFiltersToURL(); renderProjects(); });
             document.getElementById('urgencyFilter').addEventListener('change', loadProjects);
             document.getElementById('countryFilter').addEventListener('change', loadProjects);
             document.getElementById('sortFilter').addEventListener('change', loadProjects);
