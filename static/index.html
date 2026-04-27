@@ -71,9 +71,13 @@
 
         <div id="adminBanner" style="display: none; margin-bottom: 16px;"></div>
 
+        <div id="statusSummary" style="display: none; margin-bottom: 20px;">
+            <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;"></div>
+        </div>
+
         <div id="messageDiv" class="message" style="display: none;"></div>
 
-        <div id="projectsList" class="grid grid-2">
+        <div id="projectsList">
             <div class="loading">
                 <div class="spinner"></div>
                 Loading projects...
@@ -188,15 +192,74 @@
         function renderProjects() {
             const container = document.getElementById('projectsList');
             const emptyState = document.getElementById('emptyState');
+            const summaryBar = document.getElementById('statusSummary');
 
             if (allProjects.length === 0) {
                 container.innerHTML = '';
+                summaryBar.style.display = 'none';
                 emptyState.style.display = 'block';
                 return;
             }
 
             emptyState.style.display = 'none';
-            container.innerHTML = allProjects.map(project => `
+
+            // Count by status for summary bar
+            const statusFilter = document.getElementById('statusFilter').value;
+            const counts = {};
+            allProjects.forEach(p => {
+                counts[p.status] = (counts[p.status] || 0) + 1;
+            });
+
+            // Show summary bar only when viewing "All Active"
+            if (!statusFilter) {
+                summaryBar.style.display = 'block';
+                const statusOrder = ['in_progress', 'seeking_help', 'seeking_owner', 'on_hold', 'completed'];
+                summaryBar.querySelector('div').innerHTML =
+                    statusOrder
+                        .filter(s => counts[s])
+                        .map(s => `<span class="status-badge status-${s}" style="cursor: pointer; font-size: 0.8rem; padding: 6px 14px;" onclick="document.getElementById('statusFilter').value='${s}'; loadProjects();">${formatStatus(s)}: ${counts[s]}</span>`)
+                        .join('') +
+                    `<span style="color: var(--text-light); font-size: 0.875rem; margin-left: 4px;">${allProjects.length} total</span>`;
+            } else {
+                summaryBar.style.display = 'none';
+            }
+
+            // Group projects by status when viewing "All Active"
+            if (!statusFilter) {
+                const groupOrder = [
+                    { status: 'in_progress', label: 'In Progress', icon: '▶' },
+                    { status: 'seeking_help', label: 'Seeking Help', icon: '🤝' },
+                    { status: 'seeking_owner', label: 'Seeking Owner', icon: '📋' },
+                    { status: 'on_hold', label: 'On Hold', icon: '⏸' },
+                    { status: 'completed', label: 'Completed', icon: '✓' }
+                ];
+
+                let html = '';
+                for (const group of groupOrder) {
+                    const projects = allProjects.filter(p => p.status === group.status);
+                    if (projects.length === 0) continue;
+
+                    html += `
+                        <div style="margin-bottom: 32px;">
+                            <h2 style="font-family: var(--font-heading); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                                <span class="status-badge status-${group.status}">${group.label}</span>
+                                <span style="color: var(--text-light); font-size: 0.875rem; font-weight: normal;">${projects.length} project${projects.length > 1 ? 's' : ''}</span>
+                            </h2>
+                            <div class="grid grid-2">
+                                ${projects.map(project => renderProjectCard(project)).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+                container.innerHTML = html;
+            } else {
+                // Filtered view — flat grid like before
+                container.innerHTML = `<div class="grid grid-2">${allProjects.map(project => renderProjectCard(project)).join('')}</div>`;
+            }
+        }
+
+        function renderProjectCard(project) {
+            return `
                 <div class="card">
                     <div class="card-header">
                         <h3 class="card-title">
@@ -231,7 +294,7 @@
                         <a href="/static/project.html?id=${project.id}" class="btn btn-small btn-secondary">View Details</a>
                     </div>
                 </div>
-            `).join('');
+            `;
         }
 
         function getSkillClass(skill, match) {
