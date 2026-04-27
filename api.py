@@ -264,15 +264,17 @@ class DeleteAccountRequest(BaseModel):
 class ProjectCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=300)
     description: str = Field(..., min_length=10)
-    project_type: Optional[str] = None  # sprint, container, ongoing, one_off
-    estimated_duration: Optional[str] = None  # e.g., "2 weeks", "3 months"
+    project_type: Optional[str] = None
+    estimated_duration: Optional[str] = None
     time_commitment_hours_per_week: Optional[int] = None
     urgency: str = "medium"
     skill_ids: List[int] = []
-    skill_required_map: Dict[int, bool] = {}  # skill_id -> is_required
-    want_to_own: bool = False  # If true, proposer becomes owner
+    skill_required_map: Dict[int, bool] = {}
+    want_to_own: bool = False
     collaboration_link: Optional[str] = None
-    country: Optional[str] = None  # e.g., "UK", "US", "Remote"
+    country: Optional[str] = None
+    is_seeking_help: bool = True
+    is_seeking_owner: bool = False
 
 
 class ProjectUpdate(BaseModel):
@@ -288,6 +290,8 @@ class ProjectUpdate(BaseModel):
     collaboration_link: Optional[str] = None
     country: Optional[str] = None
     owner_id: Optional[int] = None
+    is_seeking_help: Optional[bool] = None
+    is_seeking_owner: Optional[bool] = None
     outcome: Optional[str] = None
     outcome_notes: Optional[str] = None
 
@@ -1667,7 +1671,7 @@ def list_projects(
         query += " AND p.status = ?"
         params.append(status)
     else:
-        query += " AND p.status IN ('seeking_owner', 'seeking_help', 'in_progress', 'completed')"
+        query += " AND p.status NOT IN ('archived', 'pending_review', 'needs_discussion')"
 
     if skill_ids:
         skill_list = [int(s) for s in skill_ids.split(",")]
@@ -1704,11 +1708,19 @@ def list_projects(
     count_query = query.replace("SELECT DISTINCT p.*", "SELECT COUNT(DISTINCT p.id)")
     total = conn.execute(count_query, params).fetchone()[0]
 
-    # Add ordering
+    # Add ordering — seeking projects first, then by urgency
+    # Check if seeking flags exist
+    seeking_sort = ""
+    try:
+        conn.execute("SELECT is_seeking_help FROM projects LIMIT 1")
+        seeking_sort = "CASE WHEN p.is_seeking_help OR p.is_seeking_owner THEN 0 ELSE 1 END, "
+    except Exception:
+        pass
+
     if sort_by == "urgency":
-        query += " ORDER BY CASE p.urgency WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, p.created_at DESC"
+        query += f" ORDER BY {seeking_sort}CASE p.urgency WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, p.created_at DESC"
     else:
-        query += " ORDER BY p.created_at DESC"
+        query += f" ORDER BY {seeking_sort}CASE p.urgency WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, p.created_at DESC"
 
     query += " LIMIT ? OFFSET ?"
     params.extend([limit, offset])
@@ -1855,6 +1867,9 @@ def create_project(
         }
         if "country" in proj_columns:
             proj_fields["country"] = data.country
+        if "is_seeking_help" in proj_columns:
+            proj_fields["is_seeking_help"] = getattr(data, "is_seeking_help", True)
+            proj_fields["is_seeking_owner"] = getattr(data, "is_seeking_owner", not data.want_to_own)
 
         col_names = ", ".join(proj_fields.keys())
         placeholders = ", ".join("?" * len(proj_fields))
@@ -1925,19 +1940,40 @@ def update_project(
         updates = []
         params = []
 
+        # Check which columns exist for seeking flags
+        proj_columns = {row["name"] for row in conn.execute("PRAGMA table_info(projects)").fetchall()}
+        has_seeking_flags = "is_seeking_help" in proj_columns
+
         # Define which statuses owners can set (vs admin-only statuses)
-        owner_allowed_statuses = {"seeking_help", "in_progress", "on_hold", "completed"}
+        owner_allowed_statuses = {"seeking_owner", "seeking_help", "in_progress", "on_hold", "completed"}
 
         for field in ["title", "description", "status", "project_type", "estimated_duration",
                       "time_commitment_hours_per_week", "urgency", "collaboration_link", "country", "owner_id"]:
             value = getattr(data, field, None)
             if value is not None:
-                # Owners can change to allowed statuses; admins can set any status
                 if field == "status" and not is_admin:
                     if not is_owner or value not in owner_allowed_statuses:
                         continue
                 updates.append(f"{field} = ?")
                 params.append(value)
+
+        # Handle seeking flags
+        if has_seeking_flags:
+            if data.is_seeking_help is not None:
+                updates.append("is_seeking_help = ?")
+                params.append(data.is_seeking_help)
+            if data.is_seeking_owner is not None:
+                updates.append("is_seeking_owner = ?")
+                params.append(data.is_seeking_owner)
+
+            # Auto-clear seeking flags when completing or archiving
+            if data.status in ("completed", "archived"):
+                if "is_seeking_help = ?" not in updates:
+                    updates.append("is_seeking_help = ?")
+                    params.append(False)
+                if "is_seeking_owner = ?" not in updates:
+                    updates.append("is_seeking_owner = ?")
+                    params.append(False)
 
         if updates:
             updates.append("updated_at = ?")
@@ -2253,15 +2289,33 @@ def review_project(
 
     with db_transaction() as conn:
         if data.status == "approved":
-            new_status = data.target_status or "seeking_owner"
-            conn.execute(
-                """UPDATE projects SET
-                   status = ?, review_notes = ?, reviewed_by_id = ?, reviewed_at = ?,
-                   updated_at = ?
-                   WHERE id = ?""",
-                (new_status, data.review_notes, admin["id"],
-                 datetime.now().isoformat(), datetime.now().isoformat(), project_id)
-            )
+            # Determine lifecycle status and seeking flags
+            has_owner = project["owner_id"] is not None
+            new_status = "in_progress" if has_owner else "in_progress"
+            target = data.target_status or "seeking_owner"
+
+            # Build update with seeking flags if columns exist
+            proj_columns = {row["name"] for row in conn.execute("PRAGMA table_info(projects)").fetchall()}
+            if "is_seeking_help" in proj_columns:
+                is_seeking_help = target in ("seeking_help",) or target == "seeking_owner"
+                is_seeking_owner = target in ("seeking_owner",) and not has_owner
+                conn.execute(
+                    """UPDATE projects SET
+                       status = ?, is_seeking_help = ?, is_seeking_owner = ?,
+                       review_notes = ?, reviewed_by_id = ?, reviewed_at = ?, updated_at = ?
+                       WHERE id = ?""",
+                    (new_status, is_seeking_help, is_seeking_owner,
+                     data.review_notes, admin["id"],
+                     datetime.now().isoformat(), datetime.now().isoformat(), project_id)
+                )
+            else:
+                conn.execute(
+                    """UPDATE projects SET
+                       status = ?, review_notes = ?, reviewed_by_id = ?, reviewed_at = ?, updated_at = ?
+                       WHERE id = ?""",
+                    (target, data.review_notes, admin["id"],
+                     datetime.now().isoformat(), datetime.now().isoformat(), project_id)
+                )
 
             # Notify proposer
             if project["proposed_by_id"]:
@@ -2340,7 +2394,7 @@ def create_org_project(
 ) -> Dict:
     """Create an org-proposed project (skips review)."""
     with db_transaction() as conn:
-        status = "seeking_owner" if not data.want_to_own else "seeking_help"
+        status = "in_progress" if data.want_to_own else "in_progress"
 
         proj_columns = {row["name"] for row in conn.execute("PRAGMA table_info(projects)").fetchall()}
         proj_fields = {
@@ -2353,6 +2407,9 @@ def create_org_project(
         }
         if "country" in proj_columns:
             proj_fields["country"] = data.country
+        if "is_seeking_help" in proj_columns:
+            proj_fields["is_seeking_help"] = getattr(data, "is_seeking_help", True)
+            proj_fields["is_seeking_owner"] = getattr(data, "is_seeking_owner", not data.want_to_own)
 
         col_names = ", ".join(proj_fields.keys())
         placeholders = ", ".join("?" * len(proj_fields))
@@ -2370,6 +2427,18 @@ def create_org_project(
             )
 
         return {"id": project_id, "message": "Org project created"}
+
+
+def _count_seeking(conn) -> int:
+    """Count projects that are seeking help or owner (handles missing columns)."""
+    try:
+        return conn.execute(
+            "SELECT COUNT(*) FROM projects WHERE is_seeking_help = 1 OR is_seeking_owner = 1 OR status IN ('seeking_owner', 'seeking_help')"
+        ).fetchone()[0]
+    except Exception:
+        return conn.execute(
+            "SELECT COUNT(*) FROM projects WHERE status IN ('seeking_owner', 'seeking_help')"
+        ).fetchone()[0]
 
 
 @app.get("/api/admin/stats")
@@ -2393,9 +2462,7 @@ def get_admin_stats(admin: Dict = Depends(require_admin)) -> Dict:
             "pending_review": conn.execute(
                 "SELECT COUNT(*) FROM projects WHERE status = 'pending_review'"
             ).fetchone()[0],
-            "seeking_help": conn.execute(
-                "SELECT COUNT(*) FROM projects WHERE status IN ('seeking_owner', 'seeking_help')"
-            ).fetchone()[0],
+            "seeking_help": _count_seeking(conn),
             "in_progress": conn.execute(
                 "SELECT COUNT(*) FROM projects WHERE status = 'in_progress'"
             ).fetchone()[0],
@@ -3203,14 +3270,23 @@ def express_interest(
 ) -> Dict:
     """Express interest in a project."""
     conn = get_db()
-    project = conn.execute(
-        "SELECT * FROM projects WHERE id = ? AND status IN ('seeking_owner', 'seeking_help')",
-        (project_id,)
-    ).fetchone()
+    # Check if seeking flags column exists
+    try:
+        conn.execute("SELECT is_seeking_help FROM projects LIMIT 1")
+        project = conn.execute(
+            """SELECT * FROM projects WHERE id = ? AND status NOT IN ('completed', 'archived')
+               AND (is_seeking_help = 1 OR is_seeking_owner = 1 OR status IN ('seeking_owner', 'seeking_help'))""",
+            (project_id,)
+        ).fetchone()
+    except Exception:
+        project = conn.execute(
+            "SELECT * FROM projects WHERE id = ? AND status IN ('seeking_owner', 'seeking_help')",
+            (project_id,)
+        ).fetchone()
 
     if not project:
         conn.close()
-        raise HTTPException(status_code=404, detail="Project not available")
+        raise HTTPException(status_code=404, detail="This project is not currently seeking volunteers")
 
     existing = conn.execute(
         "SELECT * FROM project_interests WHERE project_id = ? AND volunteer_id = ?",
@@ -3709,7 +3785,7 @@ def get_dashboard(volunteer: Dict = Depends(require_auth)) -> Dict:
            FROM projects p
            JOIN project_skills ps ON p.id = ps.project_id
            WHERE ps.skill_id IN ({})
-           AND p.status IN ('seeking_owner', 'seeking_help')
+           AND (p.is_seeking_help = 1 OR p.is_seeking_owner = 1 OR p.status IN ('seeking_owner', 'seeking_help'))
            AND p.owner_id != ?
            AND p.id NOT IN (
                SELECT project_id FROM project_interests WHERE volunteer_id = ?

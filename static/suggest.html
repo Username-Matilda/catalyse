@@ -119,6 +119,20 @@
                 </div>
 
                 <div class="form-group" style="margin-top: 16px;">
+                    <label>This project needs:</label>
+                    <div class="checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="is_seeking_help" name="is_seeking_help" checked>
+                            <span>Help / contributors</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="is_seeking_owner" name="is_seeking_owner">
+                            <span>An owner / lead</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 8px;">
                     <label class="checkbox-label">
                         <input type="checkbox" id="want_to_own" name="want_to_own">
                         <span><strong>I want to lead this project</strong> - I'll be the owner and coordinate the work</span>
@@ -187,7 +201,9 @@
                     country: form.country.value || null,
                     skill_ids: skillIds,
                     skill_required_map: skillRequiredMap,
-                    want_to_own: form.want_to_own.checked
+                    want_to_own: form.want_to_own.checked,
+                    is_seeking_help: form.is_seeking_help.checked,
+                    is_seeking_owner: form.is_seeking_owner.checked
                 };
 
                 const result = await apiRequest('/api/projects', {

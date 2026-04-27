@@ -39,8 +39,9 @@
                         <h1 id="projectTitle" style="margin-bottom: 8px;"></h1>
                         <div id="projectMeta" class="card-meta"></div>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                         <span id="projectStatus" class="status-badge"></span>
+                        <span id="seekingBadges"></span>
                         <a id="editProjectBtn" href="#" class="btn btn-small btn-outline" style="display: none;">Edit</a>
                     </div>
                 </div>
@@ -279,6 +280,12 @@
             document.getElementById('projectStatus').textContent = formatStatus(project.status);
             document.getElementById('projectStatus').className = `status-badge status-${project.status}`;
 
+            // Seeking badges
+            const seekingBadges = [];
+            if (project.is_seeking_help) seekingBadges.push('<span class="status-badge status-seeking_help">Seeking Help</span>');
+            if (project.is_seeking_owner) seekingBadges.push('<span class="status-badge status-seeking_owner">Seeking Owner</span>');
+            document.getElementById('seekingBadges').innerHTML = seekingBadges.join(' ');
+
             // Show edit button for owner, proposer, or admin
             if (currentUser) {
                 const canEdit = currentUser.id === project.owner_id ||
@@ -402,8 +409,10 @@
                 return;
             }
 
-            // Check if project is accepting interest
-            if (!['seeking_owner', 'seeking_help'].includes(project.status)) {
+            // Check if project is accepting interest (via seeking flags or legacy status)
+            const isSeeking = project.is_seeking_help || project.is_seeking_owner ||
+                              ['seeking_owner', 'seeking_help'].includes(project.status);
+            if (!isSeeking) {
                 section.innerHTML = '<p style="color: var(--text-light);">This project is not currently seeking volunteers.</p>';
                 return;
             }

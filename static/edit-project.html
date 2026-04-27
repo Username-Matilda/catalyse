@@ -57,6 +57,30 @@
                     </select>
                 </div>
 
+                <div class="form-group">
+                    <label for="status">Project Status</label>
+                    <select id="status" name="status">
+                        <option value="in_progress">In Progress</option>
+                        <option value="on_hold">On Hold</option>
+                        <option value="completed">Completed</option>
+                    </select>
+                    <p class="form-hint" id="statusHint"></p>
+                </div>
+
+                <div class="form-group">
+                    <label>This project is currently looking for:</label>
+                    <div class="checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="is_seeking_help" name="is_seeking_help">
+                            <span>Help / contributors</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="is_seeking_owner" name="is_seeking_owner">
+                            <span>An owner / lead</span>
+                        </label>
+                    </div>
+                </div>
+
                 <div class="grid grid-2">
                     <div class="form-group">
                         <label for="time_commitment">Hours per Week</label>
@@ -192,6 +216,28 @@
             document.getElementById('collaboration_link').value = project.collaboration_link || '';
             renderCountrySelect('country', project.country || '');
 
+            // Status dropdown — admins get extra options
+            const statusSelect = document.getElementById('status');
+            if (currentUser.is_admin) {
+                // Add admin-only statuses
+                const adminStatuses = [
+                    { value: 'seeking_owner', label: 'Seeking Owner' },
+                    { value: 'seeking_help', label: 'Seeking Help' },
+                    { value: 'in_progress', label: 'In Progress' },
+                    { value: 'on_hold', label: 'On Hold' },
+                    { value: 'completed', label: 'Completed' },
+                    { value: 'archived', label: 'Archived' }
+                ];
+                statusSelect.innerHTML = adminStatuses.map(s =>
+                    `<option value="${s.value}">${s.label}</option>`
+                ).join('');
+            }
+            statusSelect.value = project.status || 'in_progress';
+
+            // Seeking flags
+            document.getElementById('is_seeking_help').checked = project.is_seeking_help || false;
+            document.getElementById('is_seeking_owner').checked = project.is_seeking_owner || false;
+
             // Load skills with current selections
             const selectedIds = project.skills.map(s => s.id);
             renderSkillSelector('skillSelector', selectedIds);
@@ -204,6 +250,7 @@
             return form.title.value.trim() !== (project.title || '') ||
                    form.description.value.trim() !== (project.description || '') ||
                    form.project_type.value !== (project.project_type || '') ||
+                   form.status.value !== (project.status || '') ||
                    (form.time_commitment.value || '') !== String(project.time_commitment_hours_per_week || '') ||
                    form.urgency.value !== (project.urgency || 'medium') ||
                    form.estimated_duration.value.trim() !== (project.estimated_duration || '') ||
@@ -234,6 +281,9 @@
                     title: form.title.value.trim(),
                     description: form.description.value.trim(),
                     project_type: form.project_type.value || null,
+                    status: form.status.value,
+                    is_seeking_help: form.is_seeking_help.checked,
+                    is_seeking_owner: form.is_seeking_owner.checked,
                     time_commitment_hours_per_week: form.time_commitment.value ? parseInt(form.time_commitment.value) : null,
                     urgency: form.urgency.value,
                     estimated_duration: form.estimated_duration.value.trim() || null,

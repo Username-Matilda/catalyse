@@ -213,40 +213,49 @@
             // Show summary bar only when viewing "All Active"
             if (!statusFilter) {
                 summaryBar.style.display = 'block';
-                const statusOrder = ['in_progress', 'seeking_help', 'seeking_owner', 'on_hold', 'completed'];
-                summaryBar.querySelector('div').innerHTML =
-                    statusOrder
-                        .filter(s => counts[s])
-                        .map(s => `<span class="status-badge status-${s}" style="cursor: pointer; font-size: 0.8rem; padding: 6px 14px;" onclick="document.getElementById('statusFilter').value='${s}'; loadProjects();">${formatStatus(s)}: ${counts[s]}</span>`)
-                        .join('') +
-                    `<span style="color: var(--text-light); font-size: 0.875rem; margin-left: 4px;">${allProjects.length} total</span>`;
+                const seekingCount = allProjects.filter(p => p.is_seeking_help || p.is_seeking_owner).length;
+                const inProgressCount = allProjects.filter(p => !p.is_seeking_help && !p.is_seeking_owner && p.status === 'in_progress').length;
+                const badges = [];
+                if (seekingCount) badges.push(`<span class="status-badge status-seeking_help" style="font-size: 0.8rem; padding: 6px 14px;">Looking for People: ${seekingCount}</span>`);
+                if (inProgressCount) badges.push(`<span class="status-badge status-in_progress" style="font-size: 0.8rem; padding: 6px 14px;">In Progress: ${inProgressCount}</span>`);
+                badges.push(`<span style="color: var(--text-light); font-size: 0.875rem; margin-left: 4px;">${allProjects.length} total</span>`);
+                summaryBar.querySelector('div').innerHTML = badges.join('');
             } else {
                 summaryBar.style.display = 'none';
             }
 
-            // Group projects by status when viewing "All Active"
+            // Group projects: seeking first, then by lifecycle status
             if (!statusFilter) {
-                const groupOrder = [
-                    { status: 'in_progress', label: 'In Progress', icon: '▶' },
-                    { status: 'seeking_help', label: 'Seeking Help', icon: '🤝' },
-                    { status: 'seeking_owner', label: 'Seeking Owner', icon: '📋' },
-                    { status: 'on_hold', label: 'On Hold', icon: '⏸' },
-                    { status: 'completed', label: 'Completed', icon: '✓' }
+                const seeking = allProjects.filter(p => p.is_seeking_help || p.is_seeking_owner);
+                const inProgress = allProjects.filter(p => !p.is_seeking_help && !p.is_seeking_owner && p.status === 'in_progress');
+                const onHold = allProjects.filter(p => !p.is_seeking_help && !p.is_seeking_owner && p.status === 'on_hold');
+                const completed = allProjects.filter(p => p.status === 'completed');
+                const other = allProjects.filter(p =>
+                    !p.is_seeking_help && !p.is_seeking_owner &&
+                    !['in_progress', 'on_hold', 'completed'].includes(p.status) &&
+                    !seeking.includes(p)
+                );
+
+                const groups = [
+                    { projects: seeking, label: 'Looking for People', badgeClass: 'seeking_help', desc: 'These projects need your help' },
+                    { projects: inProgress, label: 'In Progress', badgeClass: 'in_progress', desc: 'Actively being worked on' },
+                    { projects: other, label: 'Other Active', badgeClass: 'on_hold', desc: '' },
+                    { projects: onHold, label: 'On Hold', badgeClass: 'on_hold', desc: '' },
+                    { projects: completed, label: 'Completed', badgeClass: 'completed', desc: '' }
                 ];
 
                 let html = '';
-                for (const group of groupOrder) {
-                    const projects = allProjects.filter(p => p.status === group.status);
-                    if (projects.length === 0) continue;
-
+                for (const group of groups) {
+                    if (group.projects.length === 0) continue;
                     html += `
                         <div style="margin-bottom: 32px;">
-                            <h2 style="font-family: var(--font-heading); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
-                                <span class="status-badge status-${group.status}">${group.label}</span>
-                                <span style="color: var(--text-light); font-size: 0.875rem; font-weight: normal;">${projects.length} project${projects.length > 1 ? 's' : ''}</span>
+                            <h2 style="font-family: var(--font-heading); margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
+                                <span class="status-badge status-${group.badgeClass}">${group.label}</span>
+                                <span style="color: var(--text-light); font-size: 0.875rem; font-weight: normal;">${group.projects.length} project${group.projects.length > 1 ? 's' : ''}</span>
                             </h2>
+                            ${group.desc ? `<p style="color: var(--text-light); font-size: 0.875rem; margin-bottom: 12px;">${group.desc}</p>` : '<div style="margin-bottom: 12px;"></div>'}
                             <div class="grid grid-2">
-                                ${projects.map(project => renderProjectCard(project)).join('')}
+                                ${group.projects.map(project => renderProjectCard(project)).join('')}
                             </div>
                         </div>
                     `;
@@ -265,9 +274,11 @@
                         <h3 class="card-title">
                             <a href="/static/project.html?id=${project.id}">${escapeHtml(project.title)}</a>
                         </h3>
-                        <span class="status-badge status-${project.status}">
-                            ${formatStatus(project.status)}
-                        </span>
+                        <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                            <span class="status-badge status-${project.status}">${formatStatus(project.status)}</span>
+                            ${project.is_seeking_help ? '<span class="status-badge status-seeking_help">Seeking Help</span>' : ''}
+                            ${project.is_seeking_owner ? '<span class="status-badge status-seeking_owner">Seeking Owner</span>' : ''}
+                        </div>
                     </div>
                     <div class="card-meta">
                         ${project.is_org_proposed ? '<span class="org-badge">PauseAI</span>' : ''}
