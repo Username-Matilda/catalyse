@@ -1926,7 +1926,7 @@ def update_project(
         params = []
 
         # Define which statuses owners can set (vs admin-only statuses)
-        owner_allowed_statuses = {"seeking_help", "in_progress", "on_hold", "completed"}
+        owner_allowed_statuses = {"seeking_owner", "seeking_help", "in_progress", "on_hold", "completed"}
 
         for field in ["title", "description", "status", "project_type", "estimated_duration",
                       "time_commitment_hours_per_week", "urgency", "collaboration_link", "country", "owner_id"]:

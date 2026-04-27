@@ -57,6 +57,18 @@
                     </select>
                 </div>
 
+                <div class="form-group">
+                    <label for="status">Project Status</label>
+                    <select id="status" name="status">
+                        <option value="seeking_owner">Seeking Owner</option>
+                        <option value="seeking_help">Seeking Help</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="on_hold">On Hold</option>
+                        <option value="completed">Completed</option>
+                    </select>
+                    <p class="form-hint" id="statusHint"></p>
+                </div>
+
                 <div class="grid grid-2">
                     <div class="form-group">
                         <label for="time_commitment">Hours per Week</label>
@@ -192,6 +204,24 @@
             document.getElementById('collaboration_link').value = project.collaboration_link || '';
             renderCountrySelect('country', project.country || '');
 
+            // Status dropdown — admins get extra options
+            const statusSelect = document.getElementById('status');
+            if (currentUser.is_admin) {
+                // Add admin-only statuses
+                const adminStatuses = [
+                    { value: 'seeking_owner', label: 'Seeking Owner' },
+                    { value: 'seeking_help', label: 'Seeking Help' },
+                    { value: 'in_progress', label: 'In Progress' },
+                    { value: 'on_hold', label: 'On Hold' },
+                    { value: 'completed', label: 'Completed' },
+                    { value: 'archived', label: 'Archived' }
+                ];
+                statusSelect.innerHTML = adminStatuses.map(s =>
+                    `<option value="${s.value}">${s.label}</option>`
+                ).join('');
+            }
+            statusSelect.value = project.status || 'seeking_help';
+
             // Load skills with current selections
             const selectedIds = project.skills.map(s => s.id);
             renderSkillSelector('skillSelector', selectedIds);
@@ -204,6 +234,7 @@
             return form.title.value.trim() !== (project.title || '') ||
                    form.description.value.trim() !== (project.description || '') ||
                    form.project_type.value !== (project.project_type || '') ||
+                   form.status.value !== (project.status || '') ||
                    (form.time_commitment.value || '') !== String(project.time_commitment_hours_per_week || '') ||
                    form.urgency.value !== (project.urgency || 'medium') ||
                    form.estimated_duration.value.trim() !== (project.estimated_duration || '') ||
@@ -234,6 +265,7 @@
                     title: form.title.value.trim(),
                     description: form.description.value.trim(),
                     project_type: form.project_type.value || null,
+                    status: form.status.value,
                     time_commitment_hours_per_week: form.time_commitment.value ? parseInt(form.time_commitment.value) : null,
                     urgency: form.urgency.value,
                     estimated_duration: form.estimated_duration.value.trim() || null,
