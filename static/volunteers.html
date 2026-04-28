@@ -37,10 +37,11 @@
                 </select>
             </div>
             <div class="filter-group">
-                <label for="countryFilter">Country</label>
-                <select id="countryFilter">
-                    <option value="">All Countries</option>
-                </select>
+                <label>Location</label>
+                <div class="location-filter" id="locationFilter"></div>
+            </div>
+            <div class="filter-group filter-group-clear">
+                <button type="button" class="btn btn-small btn-ghost" onclick="clearFilters()">Clear filters</button>
             </div>
         </div>
 
@@ -63,6 +64,7 @@
     <script>
         let allVolunteers = [];
         let currentUser = null;
+        let locationFilter = null;
 
         async function init() {
             currentUser = await initAuthNav();
@@ -71,12 +73,13 @@
                 return;
             }
             await loadSkillsFilter();
-            renderCountrySelect('countryFilter');
+            locationFilter = createLocationFilter('locationFilter', loadVolunteers);
             // Restore filters from URL
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('search')) document.getElementById('searchInput').value = urlParams.get('search');
             if (urlParams.get('skill_ids')) document.getElementById('skillFilter').value = urlParams.get('skill_ids');
-            if (urlParams.get('country')) document.getElementById('countryFilter').value = urlParams.get('country');
+            if (urlParams.get('country') || urlParams.get('local_group'))
+                locationFilter.setValue(urlParams.get('country') || '', urlParams.get('local_group') || '');
             await loadVolunteers();
             setupFilters();
         }
@@ -101,10 +104,11 @@
             const urlParams = new URLSearchParams();
             const search = document.getElementById('searchInput').value;
             const skillId = document.getElementById('skillFilter').value;
-            const country = document.getElementById('countryFilter').value;
+            const { country, localGroup } = locationFilter.getValue();
             if (search) urlParams.set('search', search);
             if (skillId) urlParams.set('skill_ids', skillId);
             if (country) urlParams.set('country', country);
+            if (localGroup) urlParams.set('local_group', localGroup);
             const newUrl = urlParams.toString() ? `?${urlParams}` : window.location.pathname;
             history.replaceState(null, '', newUrl);
 
@@ -113,6 +117,7 @@
                 if (search) params.set('search', search);
                 if (skillId) params.set('skill_ids', skillId);
                 if (country) params.set('country', country);
+                if (localGroup) params.set('local_group', localGroup);
 
                 const data = await apiRequest(`/api/volunteers?${params}`);
                 allVolunteers = data.volunteers;
@@ -139,6 +144,7 @@
                         <a href="/static/volunteer.html?id=${v.id}">${escapeHtml(v.name)}</a>
                     </h3>
                     ${v.location ? `<p class="card-meta">${escapeHtml(v.location)}</p>` : ''}
+                    ${v.local_group ? `<p class="card-meta" style="margin-top: 0;">${escapeHtml(v.local_group)}</p>` : ''}
                     ${v.bio ? `<p class="card-description">${escapeHtml(truncate(v.bio, 100))}</p>` : ''}
                     <div class="skills">
                         ${v.skills.map(s => `<span class="skill-tag">${escapeHtml(s.name)}</span>`).join('')}
@@ -165,7 +171,13 @@
 
             document.getElementById('searchInput').addEventListener('input', debouncedLoad);
             document.getElementById('skillFilter').addEventListener('change', loadVolunteers);
-            document.getElementById('countryFilter').addEventListener('change', loadVolunteers);
+        }
+
+        function clearFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('skillFilter').value = '';
+            locationFilter.setValue('', '');
+            loadVolunteers();
         }
 
         init();

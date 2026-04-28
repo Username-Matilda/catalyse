@@ -201,6 +201,7 @@ class VolunteerSignup(BaseModel):
     availability_hours_per_week: Optional[int] = None
     location: Optional[str] = None
     country: Optional[str] = None
+    local_group: Optional[str] = None
     share_contact_directly: bool = False
     other_skills: Optional[str] = None
     skill_ids: List[int] = []
@@ -220,6 +221,7 @@ class VolunteerUpdate(BaseModel):
     availability_hours_per_week: Optional[int] = None
     location: Optional[str] = None
     country: Optional[str] = None
+    local_group: Optional[str] = None
     share_contact_directly: Optional[bool] = None
     other_skills: Optional[str] = None
     skill_ids: Optional[List[int]] = None
@@ -273,6 +275,7 @@ class ProjectCreate(BaseModel):
     want_to_own: bool = False
     collaboration_link: Optional[str] = None
     country: Optional[str] = None
+    local_group: Optional[str] = None
     is_seeking_help: bool = True
     is_seeking_owner: bool = False
 
@@ -289,6 +292,7 @@ class ProjectUpdate(BaseModel):
     skill_required_map: Optional[Dict[int, bool]] = None
     collaboration_link: Optional[str] = None
     country: Optional[str] = None
+    local_group: Optional[str] = None
     owner_id: Optional[int] = None
     is_seeking_help: Optional[bool] = None
     is_seeking_owner: Optional[bool] = None
@@ -655,6 +659,8 @@ def signup(data: VolunteerSignup) -> Dict:
         # Add optional columns only if they exist in the DB
         if "country" in existing_columns:
             fields["country"] = data.country
+        if "local_group" in existing_columns:
+            fields["local_group"] = data.local_group
         if "email_digest" in existing_columns:
             fields["email_digest"] = getattr(data, "email_digest", None) or "none"
 
@@ -1460,6 +1466,7 @@ def list_volunteers(
     skill_ids: Optional[str] = Query(None, description="Comma-separated skill IDs"),
     search: Optional[str] = Query(None),
     country: Optional[str] = Query(None),
+    local_group: Optional[str] = Query(None),
     limit: int = Query(50, le=100),
     offset: int = Query(0)
 ) -> Dict:
@@ -1468,7 +1475,7 @@ def list_volunteers(
 
     query = """
         SELECT DISTINCT v.id, v.name, v.bio, v.availability_hours_per_week,
-               v.location, v.other_skills, v.created_at
+               v.location, v.other_skills, v.local_group, v.created_at
         FROM volunteers v
         WHERE v.deleted_at IS NULL
         AND v.profile_visible = 1
@@ -1500,11 +1507,16 @@ def list_volunteers(
         except Exception:
             pass  # Column doesn't exist yet
 
+    if local_group:
+        try:
+            conn.execute("SELECT local_group FROM volunteers LIMIT 1")
+            query += " AND v.local_group = ?"
+            params.append(local_group)
+        except Exception:
+            pass  # Column doesn't exist yet
+
     # Get total count
-    count_query = query.replace(
-        "SELECT DISTINCT v.id, v.name, v.bio, v.availability_hours_per_week, v.location, v.other_skills, v.created_at",
-        "SELECT COUNT(DISTINCT v.id)"
-    )
+    count_query = "SELECT COUNT(DISTINCT v.id)" + query[query.index("FROM volunteers"):]
     total = conn.execute(count_query, params).fetchone()[0]
 
     # Get paginated results
@@ -1599,12 +1611,12 @@ def update_me(data: VolunteerUpdate, volunteer: Dict = Depends(require_auth)) ->
 
         for field in ["name", "bio", "discord_handle", "signal_number",
                       "whatsapp_number", "contact_preference", "contact_notes",
-                      "availability_hours_per_week", "location", "country",
+                      "availability_hours_per_week", "location", "country", "local_group",
                       "share_contact_directly", "other_skills", "profile_visible", "email_digest"]:
             if field not in existing_columns:
                 continue
             value = getattr(data, field, None)
-            if value is not None:
+            if value is not None or (field == "local_group" and field in data.model_fields_set):
                 updates.append(f"{field} = ?")
                 params.append(value)
 
@@ -1649,6 +1661,7 @@ def list_projects(
     search: Optional[str] = Query(None),
     urgency: Optional[str] = Query(None),
     country: Optional[str] = Query(None),
+    local_group: Optional[str] = Query(None),
     is_org_proposed: Optional[bool] = Query(None),
     sort_by: str = Query("created_at", pattern="^(created_at|urgency|match)$"),
     limit: int = Query(50, le=100),
@@ -1697,6 +1710,14 @@ def list_projects(
             conn.execute("SELECT country FROM projects LIMIT 1")
             query += " AND p.country = ?"
             params.append(country)
+        except Exception:
+            pass
+
+    if local_group:
+        try:
+            conn.execute("SELECT local_group FROM projects LIMIT 1")
+            query += " AND p.local_group = ?"
+            params.append(local_group)
         except Exception:
             pass
 
@@ -1867,6 +1888,8 @@ def create_project(
         }
         if "country" in proj_columns:
             proj_fields["country"] = data.country
+        if "local_group" in proj_columns:
+            proj_fields["local_group"] = data.local_group
         if "is_seeking_help" in proj_columns:
             proj_fields["is_seeking_help"] = getattr(data, "is_seeking_help", True)
             proj_fields["is_seeking_owner"] = getattr(data, "is_seeking_owner", not data.want_to_own)
@@ -1948,9 +1971,9 @@ def update_project(
         owner_allowed_statuses = {"seeking_owner", "seeking_help", "in_progress", "on_hold", "completed"}
 
         for field in ["title", "description", "status", "project_type", "estimated_duration",
-                      "time_commitment_hours_per_week", "urgency", "collaboration_link", "country", "owner_id"]:
+                      "time_commitment_hours_per_week", "urgency", "collaboration_link", "country", "local_group", "owner_id"]:
             value = getattr(data, field, None)
-            if value is not None:
+            if value is not None or (field == "local_group" and field in data.model_fields_set):
                 if field == "status" and not is_admin:
                     if not is_owner or value not in owner_allowed_statuses:
                         continue
@@ -2407,6 +2430,8 @@ def create_org_project(
         }
         if "country" in proj_columns:
             proj_fields["country"] = data.country
+        if "local_group" in proj_columns:
+            proj_fields["local_group"] = data.local_group
         if "is_seeking_help" in proj_columns:
             proj_fields["is_seeking_help"] = getattr(data, "is_seeking_help", True)
             proj_fields["is_seeking_owner"] = getattr(data, "is_seeking_owner", not data.want_to_own)

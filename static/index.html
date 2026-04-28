@@ -62,10 +62,8 @@
                 </select>
             </div>
             <div class="filter-group">
-                <label for="countryFilter">Country</label>
-                <select id="countryFilter">
-                    <option value="">All Countries</option>
-                </select>
+                <label>Location</label>
+                <div class="location-filter" id="locationFilter"></div>
             </div>
             <div class="filter-group">
                 <label for="sortFilter">Sort By</label>
@@ -74,6 +72,9 @@
                     <option value="urgency">Urgency</option>
                     <option value="match">Best Match</option>
                 </select>
+            </div>
+            <div class="filter-group filter-group-clear">
+                <button type="button" class="btn btn-small btn-ghost" id="clearFiltersBtn" onclick="clearFilters()">Clear filters</button>
             </div>
         </div>
 
@@ -103,6 +104,7 @@
     <script>
         let allProjects = [];
         let currentUser = null;
+        let locationFilter = null;
 
         async function init() {
             currentUser = await initAuthNav();
@@ -111,7 +113,7 @@
                 return;
             }
             if (currentUser.is_admin) await loadAdminBanner();
-            renderCountrySelect('countryFilter');
+            locationFilter = createLocationFilter('locationFilter', loadProjects);
             restoreFiltersFromURL();
             await loadProjects();
             setupFilters();
@@ -122,7 +124,8 @@
             if (params.get('status')) document.getElementById('statusFilter').value = params.get('status');
             if (params.get('seeking')) document.getElementById('seekingFilter').value = params.get('seeking');
             if (params.get('urgency')) document.getElementById('urgencyFilter').value = params.get('urgency');
-            if (params.get('country')) document.getElementById('countryFilter').value = params.get('country');
+            if (params.get('country') || params.get('local_group'))
+                locationFilter.setValue(params.get('country') || '', params.get('local_group') || '');
             if (params.get('search')) document.getElementById('searchInput').value = params.get('search');
             if (params.get('sort_by')) document.getElementById('sortFilter').value = params.get('sort_by');
         }
@@ -132,13 +135,14 @@
             const status = document.getElementById('statusFilter').value;
             const seeking = document.getElementById('seekingFilter').value;
             const urgency = document.getElementById('urgencyFilter').value;
-            const country = document.getElementById('countryFilter').value;
+            const { country, localGroup } = locationFilter.getValue();
             const search = document.getElementById('searchInput').value;
             const sortBy = document.getElementById('sortFilter').value;
             if (status) params.set('status', status);
             if (seeking) params.set('seeking', seeking);
             if (urgency) params.set('urgency', urgency);
             if (country) params.set('country', country);
+            if (localGroup) params.set('local_group', localGroup);
             if (search) params.set('search', search);
             if (sortBy && sortBy !== 'created_at') params.set('sort_by', sortBy);
             const newUrl = params.toString() ? `?${params}` : window.location.pathname;
@@ -182,13 +186,14 @@
                 const params = new URLSearchParams();
                 const status = document.getElementById('statusFilter').value;
                 const urgency = document.getElementById('urgencyFilter').value;
-                const country = document.getElementById('countryFilter').value;
+                const { country, localGroup } = locationFilter.getValue();
                 const search = document.getElementById('searchInput').value;
                 const sortBy = document.getElementById('sortFilter').value;
 
                 if (status) params.set('status', status);
                 if (urgency) params.set('urgency', urgency);
                 if (country) params.set('country', country);
+                if (localGroup) params.set('local_group', localGroup);
                 if (search) params.set('search', search);
                 if (sortBy) params.set('sort_by', sortBy);
 
@@ -272,7 +277,7 @@
                                 <span style="color: var(--text-light); font-size: 0.875rem; font-weight: normal;">${group.projects.length} project${group.projects.length > 1 ? 's' : ''}</span>
                             </h2>
                             ${group.desc ? `<p style="color: var(--text-light); font-size: 0.875rem; margin-bottom: 12px;">${group.desc}</p>` : '<div style="margin-bottom: 12px;"></div>'}
-                            <div class="grid grid-2">
+                            <div class="grid grid-3">
                                 ${group.projects.map(project => renderProjectCard(project)).join('')}
                             </div>
                         </div>
@@ -281,7 +286,7 @@
                 container.innerHTML = html;
             } else {
                 // Filtered view — flat grid
-                container.innerHTML = `<div class="grid grid-2">${filteredProjects.map(project => renderProjectCard(project)).join('')}</div>`;
+                container.innerHTML = `<div class="grid grid-3">${filteredProjects.map(project => renderProjectCard(project)).join('')}</div>`;
             }
         }
 
@@ -293,13 +298,14 @@
                             <a href="/static/project.html?id=${project.id}">${escapeHtml(project.title)}</a>
                         </h3>
                         <div style="display: flex; gap: 4px; flex-wrap: wrap;">
-                            <span class="status-badge status-${project.status}">${formatStatus(project.status)}</span>
+                            ${!['seeking_owner', 'seeking_help'].includes(project.status) ? `<span class="status-badge status-${project.status}">${formatStatus(project.status)}</span>` : ''}
                             ${project.is_seeking_help ? '<span class="status-badge status-seeking_help">Seeking Help</span>' : ''}
                             ${project.is_seeking_owner ? '<span class="status-badge status-seeking_owner">Seeking Owner</span>' : ''}
                         </div>
                     </div>
                     <div class="card-meta">
                         ${project.is_org_proposed ? '<span class="org-badge">PauseAI</span>' : ''}
+                        ${project.local_group ? `<span class="org-badge" style="background: var(--secondary); color: white;">${escapeHtml(project.local_group)}</span>` : ''}
                         ${project.project_type ? ({'sprint':'Sprint','container':'Time-boxed','ongoing':'Ongoing','one_off':'One-off'}[project.project_type] || project.project_type) + ' · ' : ''}
                         ${project.owner ? `Owner: ${escapeHtml(project.owner.name)}` : 'No owner yet'}
                         ${project.time_commitment_hours_per_week ? ` · ${project.time_commitment_hours_per_week}h/week` : ''}
@@ -369,7 +375,6 @@
             document.getElementById('statusFilter').addEventListener('change', loadProjects);
             document.getElementById('seekingFilter').addEventListener('change', () => { saveFiltersToURL(); renderProjects(); });
             document.getElementById('urgencyFilter').addEventListener('change', loadProjects);
-            document.getElementById('countryFilter').addEventListener('change', loadProjects);
             document.getElementById('sortFilter').addEventListener('change', loadProjects);
         }
 
@@ -379,6 +384,16 @@
             div.className = `message ${type}`;
             div.style.display = 'flex';
             setTimeout(() => div.style.display = 'none', 5000);
+        }
+
+        function clearFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('statusFilter').value = '';
+            document.getElementById('seekingFilter').value = '';
+            document.getElementById('urgencyFilter').value = '';
+            document.getElementById('sortFilter').value = 'created_at';
+            locationFilter.setValue('', '');
+            loadProjects();
         }
 
         init();
