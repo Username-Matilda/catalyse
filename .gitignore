@@ -1,7 +1,9 @@
 catalyse.db
+backups/
 __pycache__/
 *.pyc
 .env
 venv/
 .playwright-mcp
 dist/
+tests/scenarios/results/
