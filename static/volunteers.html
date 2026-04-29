@@ -31,10 +31,8 @@
                 <input type="text" id="searchInput" placeholder="Search by name...">
             </div>
             <div class="filter-group">
-                <label for="skillFilter">Filter by Skill</label>
-                <select id="skillFilter">
-                    <option value="">All Skills</option>
-                </select>
+                <label>Filter by Skill</label>
+                <div class="location-filter" id="skillFilter"></div>
             </div>
             <div class="filter-group">
                 <label>Location</label>
@@ -65,6 +63,7 @@
         let allVolunteers = [];
         let currentUser = null;
         let locationFilter = null;
+        let skillFilter = null;
 
         async function init() {
             currentUser = await initAuthNav();
@@ -72,12 +71,13 @@
                 window.location.href = '/static/login.html';
                 return;
             }
-            await loadSkillsFilter();
+            skillFilter = createSelectFilter('skillFilter', [{ value: '', label: 'All Skills' }], loadVolunteers);
             locationFilter = createLocationFilter('locationFilter', loadVolunteers);
+            await loadSkillsFilter();
             // Restore filters from URL
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('search')) document.getElementById('searchInput').value = urlParams.get('search');
-            if (urlParams.get('skill_ids')) document.getElementById('skillFilter').value = urlParams.get('skill_ids');
+            if (urlParams.get('skill_ids')) skillFilter.setValue(urlParams.get('skill_ids'));
             if (urlParams.get('country') || urlParams.get('local_group'))
                 locationFilter.setValue(urlParams.get('country') || '', urlParams.get('local_group') || '');
             await loadVolunteers();
@@ -87,13 +87,9 @@
         async function loadSkillsFilter() {
             try {
                 const skills = await apiRequest('/api/skills/flat');
-                const select = document.getElementById('skillFilter');
-                skills.forEach(skill => {
-                    const option = document.createElement('option');
-                    option.value = skill.id;
-                    option.textContent = `${skill.name} (${skill.category_name})`;
-                    select.appendChild(option);
-                });
+                const options = [{ value: '', label: 'All Skills' }];
+                skills.forEach(skill => options.push({ value: String(skill.id), label: `${skill.name} (${skill.category_name})` }));
+                skillFilter.setOptions(options);
             } catch (error) {
                 console.error('Failed to load skills:', error);
             }
@@ -101,10 +97,10 @@
 
         async function loadVolunteers() {
             // Save filters to URL
-            const urlParams = new URLSearchParams();
             const search = document.getElementById('searchInput').value;
-            const skillId = document.getElementById('skillFilter').value;
+            const skillId = skillFilter.getValue();
             const { country, localGroup } = locationFilter.getValue();
+            const urlParams = new URLSearchParams();
             if (search) urlParams.set('search', search);
             if (skillId) urlParams.set('skill_ids', skillId);
             if (country) urlParams.set('country', country);
@@ -164,18 +160,15 @@
 
         function setupFilters() {
             let debounceTimer;
-            const debouncedLoad = () => {
+            document.getElementById('searchInput').addEventListener('input', () => {
                 clearTimeout(debounceTimer);
                 debounceTimer = setTimeout(loadVolunteers, 300);
-            };
-
-            document.getElementById('searchInput').addEventListener('input', debouncedLoad);
-            document.getElementById('skillFilter').addEventListener('change', loadVolunteers);
+            });
         }
 
         function clearFilters() {
             document.getElementById('searchInput').value = '';
-            document.getElementById('skillFilter').value = '';
+            skillFilter.setValue('');
             locationFilter.setValue('', '');
             loadVolunteers();
         }

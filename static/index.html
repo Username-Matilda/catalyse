@@ -33,45 +33,24 @@
                 <input type="text" id="searchInput" placeholder="Search projects...">
             </div>
             <div class="filter-group">
-                <label for="statusFilter">Status</label>
-                <select id="statusFilter">
-                    <option value="">All Active</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="on_hold">On Hold</option>
-                    <option value="completed">Completed</option>
-                    <option value="archived">Archived</option>
-                </select>
+                <label>Status</label>
+                <div class="location-filter" id="statusFilter"></div>
             </div>
             <div class="filter-group">
-                <label for="seekingFilter">Needs</label>
-                <select id="seekingFilter">
-                    <option value="">Any</option>
-                    <option value="seeking">Looking for People</option>
-                    <option value="seeking_help">Seeking Help</option>
-                    <option value="seeking_owner">Seeking Owner</option>
-                    <option value="not_seeking">Not Seeking</option>
-                </select>
+                <label>Needs</label>
+                <div class="location-filter" id="seekingFilter"></div>
             </div>
             <div class="filter-group">
-                <label for="urgencyFilter">Urgency</label>
-                <select id="urgencyFilter">
-                    <option value="">Any</option>
-                    <option value="high">High</option>
-                    <option value="medium">Medium</option>
-                    <option value="low">Low</option>
-                </select>
+                <label>Urgency</label>
+                <div class="location-filter" id="urgencyFilter"></div>
             </div>
             <div class="filter-group">
                 <label>Location</label>
                 <div class="location-filter" id="locationFilter"></div>
             </div>
             <div class="filter-group">
-                <label for="sortFilter">Sort By</label>
-                <select id="sortFilter">
-                    <option value="created_at">Newest</option>
-                    <option value="urgency">Urgency</option>
-                    <option value="match">Best Match</option>
-                </select>
+                <label>Sort By</label>
+                <div class="location-filter" id="sortFilter"></div>
             </div>
             <div class="filter-group filter-group-clear">
                 <button type="button" class="btn btn-small btn-ghost" id="clearFiltersBtn" onclick="clearFilters()">Clear filters</button>
@@ -105,6 +84,10 @@
         let allProjects = [];
         let currentUser = null;
         let locationFilter = null;
+        let statusFilter = null;
+        let seekingFilter = null;
+        let urgencyFilter = null;
+        let sortFilter = null;
 
         async function init() {
             currentUser = await initAuthNav();
@@ -113,6 +96,31 @@
                 return;
             }
             if (currentUser.is_admin) await loadAdminBanner();
+            statusFilter = createSelectFilter('statusFilter', [
+                { value: '', label: 'All Active' },
+                { value: 'in_progress', label: 'In Progress' },
+                { value: 'on_hold', label: 'On Hold' },
+                { value: 'completed', label: 'Completed' },
+                { value: 'archived', label: 'Archived' },
+            ], loadProjects);
+            seekingFilter = createSelectFilter('seekingFilter', [
+                { value: '', label: 'Any' },
+                { value: 'seeking', label: 'Looking for People' },
+                { value: 'seeking_help', label: 'Seeking Help' },
+                { value: 'seeking_owner', label: 'Seeking Owner' },
+                { value: 'not_seeking', label: 'Not Seeking' },
+            ], () => { saveFiltersToURL(); renderProjects(); });
+            urgencyFilter = createSelectFilter('urgencyFilter', [
+                { value: '', label: 'Any' },
+                { value: 'high', label: 'High' },
+                { value: 'medium', label: 'Medium' },
+                { value: 'low', label: 'Low' },
+            ], loadProjects);
+            sortFilter = createSelectFilter('sortFilter', [
+                { value: 'created_at', label: 'Newest' },
+                { value: 'urgency', label: 'Urgency' },
+                { value: 'match', label: 'Best Match' },
+            ], loadProjects);
             locationFilter = createLocationFilter('locationFilter', loadProjects);
             restoreFiltersFromURL();
             await loadProjects();
@@ -121,23 +129,23 @@
 
         function restoreFiltersFromURL() {
             const params = new URLSearchParams(window.location.search);
-            if (params.get('status')) document.getElementById('statusFilter').value = params.get('status');
-            if (params.get('seeking')) document.getElementById('seekingFilter').value = params.get('seeking');
-            if (params.get('urgency')) document.getElementById('urgencyFilter').value = params.get('urgency');
+            if (params.get('status')) statusFilter.setValue(params.get('status'));
+            if (params.get('seeking')) seekingFilter.setValue(params.get('seeking'));
+            if (params.get('urgency')) urgencyFilter.setValue(params.get('urgency'));
             if (params.get('country') || params.get('local_group'))
                 locationFilter.setValue(params.get('country') || '', params.get('local_group') || '');
             if (params.get('search')) document.getElementById('searchInput').value = params.get('search');
-            if (params.get('sort_by')) document.getElementById('sortFilter').value = params.get('sort_by');
+            if (params.get('sort_by')) sortFilter.setValue(params.get('sort_by'));
         }
 
         function saveFiltersToURL() {
             const params = new URLSearchParams();
-            const status = document.getElementById('statusFilter').value;
-            const seeking = document.getElementById('seekingFilter').value;
-            const urgency = document.getElementById('urgencyFilter').value;
+            const status = statusFilter.getValue();
+            const seeking = seekingFilter.getValue();
+            const urgency = urgencyFilter.getValue();
             const { country, localGroup } = locationFilter.getValue();
             const search = document.getElementById('searchInput').value;
-            const sortBy = document.getElementById('sortFilter').value;
+            const sortBy = sortFilter.getValue();
             if (status) params.set('status', status);
             if (seeking) params.set('seeking', seeking);
             if (urgency) params.set('urgency', urgency);
@@ -184,11 +192,11 @@
             saveFiltersToURL();
             try {
                 const params = new URLSearchParams();
-                const status = document.getElementById('statusFilter').value;
-                const urgency = document.getElementById('urgencyFilter').value;
+                const status = statusFilter.getValue();
+                const urgency = urgencyFilter.getValue();
                 const { country, localGroup } = locationFilter.getValue();
                 const search = document.getElementById('searchInput').value;
-                const sortBy = document.getElementById('sortFilter').value;
+                const sortBy = sortFilter.getValue();
 
                 if (status) params.set('status', status);
                 if (urgency) params.set('urgency', urgency);
@@ -211,15 +219,15 @@
             const summaryBar = document.getElementById('statusSummary');
 
             // Apply client-side seeking filter
-            const seekingFilter = document.getElementById('seekingFilter').value;
+            const seekingVal = seekingFilter.getValue();
             let filteredProjects = allProjects;
-            if (seekingFilter === 'seeking') {
+            if (seekingVal === 'seeking') {
                 filteredProjects = allProjects.filter(p => p.is_seeking_help || p.is_seeking_owner);
-            } else if (seekingFilter === 'seeking_help') {
+            } else if (seekingVal === 'seeking_help') {
                 filteredProjects = allProjects.filter(p => p.is_seeking_help);
-            } else if (seekingFilter === 'seeking_owner') {
+            } else if (seekingVal === 'seeking_owner') {
                 filteredProjects = allProjects.filter(p => p.is_seeking_owner);
-            } else if (seekingFilter === 'not_seeking') {
+            } else if (seekingVal === 'not_seeking') {
                 filteredProjects = allProjects.filter(p => !p.is_seeking_help && !p.is_seeking_owner);
             }
 
@@ -233,8 +241,8 @@
             emptyState.style.display = 'none';
 
             // Summary bar
-            const statusFilter = document.getElementById('statusFilter').value;
-            if (!statusFilter && !seekingFilter) {
+            const statusVal = statusFilter.getValue();
+            if (!statusVal && !seekingVal) {
                 summaryBar.style.display = 'block';
                 const seekingCount = filteredProjects.filter(p => p.is_seeking_help || p.is_seeking_owner).length;
                 const inProgressCount = filteredProjects.filter(p => !p.is_seeking_help && !p.is_seeking_owner && p.status === 'in_progress').length;
@@ -248,7 +256,7 @@
             }
 
             // Group projects: seeking first, then by lifecycle status
-            if (!statusFilter && !seekingFilter) {
+            if (!statusVal && !seekingVal) {
                 const seeking = filteredProjects.filter(p => p.is_seeking_help || p.is_seeking_owner);
                 const inProgress = filteredProjects.filter(p => !p.is_seeking_help && !p.is_seeking_owner && p.status === 'in_progress');
                 const onHold = filteredProjects.filter(p => !p.is_seeking_help && !p.is_seeking_owner && p.status === 'on_hold');
@@ -366,16 +374,10 @@
 
         function setupFilters() {
             let debounceTimer;
-            const debouncedLoad = () => {
+            document.getElementById('searchInput').addEventListener('input', () => {
                 clearTimeout(debounceTimer);
                 debounceTimer = setTimeout(loadProjects, 300);
-            };
-
-            document.getElementById('searchInput').addEventListener('input', debouncedLoad);
-            document.getElementById('statusFilter').addEventListener('change', loadProjects);
-            document.getElementById('seekingFilter').addEventListener('change', () => { saveFiltersToURL(); renderProjects(); });
-            document.getElementById('urgencyFilter').addEventListener('change', loadProjects);
-            document.getElementById('sortFilter').addEventListener('change', loadProjects);
+            });
         }
 
         function showMessage(text, type) {
@@ -388,10 +390,10 @@
 
         function clearFilters() {
             document.getElementById('searchInput').value = '';
-            document.getElementById('statusFilter').value = '';
-            document.getElementById('seekingFilter').value = '';
-            document.getElementById('urgencyFilter').value = '';
-            document.getElementById('sortFilter').value = 'created_at';
+            statusFilter.setValue('');
+            seekingFilter.setValue('');
+            urgencyFilter.setValue('');
+            sortFilter.setValue('created_at');
             locationFilter.setValue('', '');
             loadProjects();
         }

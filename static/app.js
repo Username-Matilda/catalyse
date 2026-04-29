@@ -94,6 +94,7 @@ function createLocationFilter(containerId, onChange) {
 
     btn.addEventListener('click', e => {
         e.stopPropagation();
+        document.querySelectorAll('.location-filter-panel.open').forEach(p => { if (p !== panel) p.classList.remove('open'); });
         panel.classList.toggle('open');
     });
 
@@ -104,8 +105,6 @@ function createLocationFilter(containerId, onChange) {
         panel.classList.remove('open');
         onChange();
     });
-
-    document.addEventListener('click', () => panel.classList.remove('open'));
 
     // Initialise with "All locations" selected
     select('', '');
@@ -118,6 +117,68 @@ function createLocationFilter(containerId, onChange) {
         },
         setValue(country, group) {
             select(country, group || '');
+        }
+    };
+}
+
+// Close all open filter panels when clicking outside
+document.addEventListener('click', () => {
+    document.querySelectorAll('.location-filter-panel.open').forEach(p => p.classList.remove('open'));
+});
+
+// Generic single-select custom dropdown for filter bars. Returns { getValue(), setValue(), setOptions() }.
+function createSelectFilter(containerId, options, onChange) {
+    const container = document.getElementById(containerId);
+    if (!container) return null;
+
+    function markSelected(value) {
+        const btn = container.querySelector('.location-filter-btn');
+        const items = container.querySelectorAll('.location-filter-item');
+        let found = null;
+        items.forEach(el => {
+            const match = el.dataset.value === String(value ?? '');
+            el.classList.toggle('selected', match);
+            if (match) found = el;
+        });
+        if (!found && items.length > 0) { items[0].classList.add('selected'); found = items[0]; }
+        if (btn && found) btn.textContent = found.textContent.trim();
+    }
+
+    function build(opts) {
+        container.innerHTML = `
+            <button type="button" class="location-filter-btn">${escapeHtml(opts[0]?.label || '')}</button>
+            <div class="location-filter-panel">
+                ${opts.map(opt => `<div class="location-filter-item" data-value="${opt.value}">${escapeHtml(opt.label)}</div>`).join('')}
+            </div>
+        `;
+        container.querySelector('.location-filter-btn').addEventListener('click', e => {
+            e.stopPropagation();
+            const p = container.querySelector('.location-filter-panel');
+            document.querySelectorAll('.location-filter-panel.open').forEach(op => { if (op !== p) op.classList.remove('open'); });
+            p.classList.toggle('open');
+        });
+        container.querySelector('.location-filter-panel').addEventListener('click', e => {
+            const item = e.target.closest('.location-filter-item');
+            if (!item) return;
+            markSelected(item.dataset.value);
+            container.querySelector('.location-filter-panel').classList.remove('open');
+            onChange();
+        });
+        markSelected(opts[0]?.value ?? '');
+    }
+
+    build(options);
+
+    return {
+        getValue() {
+            const sel = container.querySelector('.location-filter-item.selected');
+            return sel ? sel.dataset.value : '';
+        },
+        setValue(value) { markSelected(String(value ?? '')); },
+        setOptions(opts) {
+            const current = this.getValue();
+            build(opts);
+            markSelected(current);
         }
     };
 }

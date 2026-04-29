@@ -839,6 +839,11 @@ textarea {
     padding: 8px 12px;
 }
 
+.filter-group .location-filter-btn {
+    font-size: 1rem;
+    border-width: 2px;
+}
+
 /* Location filter dropdown */
 .location-filter {
     position: relative;
