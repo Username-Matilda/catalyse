@@ -2408,39 +2408,37 @@ def update_project_task(
 ) -> Dict:
     """Update a project task. Owner/admin can edit all fields. Volunteers can claim open tasks."""
     conn = get_db()
-    project = conn.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
-    task = conn.execute(
-        "SELECT * FROM project_tasks WHERE id = ? AND project_id = ?", (task_id, project_id)
-    ).fetchone()
-
-    if not project or not task:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Project or task not found")
-
-    is_owner = project["owner_id"] == volunteer["id"]
-    is_admin = volunteer.get("is_admin")
-    is_assignee = task["assigned_to_id"] == volunteer["id"]
-
-    # Volunteers can claim open tasks or mark their own assigned tasks as done
-    if not (is_owner or is_admin):
-        if data.status == 'assigned' and data.assigned_to_id == volunteer["id"] and task["status"] == "open":
-            pass  # Allow self-claim
-        elif data.status == 'done' and is_assignee and task["status"] == "assigned":
-            pass  # Allow marking own task done
-        else:
-            conn.close()
-            raise HTTPException(status_code=403, detail="Not authorized to update this task")
-
-    if data.assigned_to_id is not None:
-        assignee_is_contributor = conn.execute(
-            "SELECT 1 FROM project_interests WHERE project_id = ? AND volunteer_id = ? AND status = 'accepted'",
-            (project_id, data.assigned_to_id)
+    try:
+        project = conn.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
+        task = conn.execute(
+            "SELECT * FROM project_tasks WHERE id = ? AND project_id = ?", (task_id, project_id)
         ).fetchone()
-        assignee_is_owner = project["owner_id"] == data.assigned_to_id
-        conn.close()
-        if not (assignee_is_contributor or assignee_is_owner):
-            raise HTTPException(status_code=400, detail="Assignee is not a contributor to this project")
-    else:
+
+        if not project or not task:
+            raise HTTPException(status_code=404, detail="Project or task not found")
+
+        is_owner = project["owner_id"] == volunteer["id"]
+        is_admin = volunteer.get("is_admin")
+        is_assignee = task["assigned_to_id"] == volunteer["id"]
+
+        # Volunteers can claim open tasks or mark their own assigned tasks as done
+        if not (is_owner or is_admin):
+            if data.status == 'assigned' and data.assigned_to_id == volunteer["id"] and task["status"] == "open":
+                pass  # Allow self-claim
+            elif data.status == 'done' and is_assignee and task["status"] == "assigned":
+                pass  # Allow marking own task done
+            else:
+                raise HTTPException(status_code=403, detail="Not authorized to update this task")
+
+        if data.assigned_to_id is not None:
+            assignee_is_contributor = conn.execute(
+                "SELECT 1 FROM project_interests WHERE project_id = ? AND volunteer_id = ? AND status = 'accepted'",
+                (project_id, data.assigned_to_id)
+            ).fetchone()
+            assignee_is_owner = project["owner_id"] == data.assigned_to_id
+            if not (assignee_is_contributor or assignee_is_owner):
+                raise HTTPException(status_code=400, detail="Assignee is not a contributor to this project")
+    finally:
         conn.close()
 
     with db_transaction() as conn:

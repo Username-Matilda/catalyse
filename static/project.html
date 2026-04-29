@@ -266,6 +266,10 @@
                 renderProject();
                 document.getElementById('loadingState').style.display = 'none';
                 document.getElementById('projectContent').style.display = 'block';
+                if (location.hash) {
+                    const el = document.querySelector(location.hash);
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
             } catch (error) {
                 showMessage(error.message, 'error');
                 document.getElementById('loadingState').innerHTML = `
@@ -616,7 +620,7 @@
             document.getElementById('tasksEmpty').style.display = 'none';
 
             document.getElementById('tasksList').innerHTML = project.tasks.map(t => `
-                <div class="card" style="margin-bottom: 8px; padding: 12px 16px;">
+                <div id="task-${t.id}" class="card" style="margin-bottom: 8px; padding: 12px 16px;">
                     <div style="display: flex; justify-content: space-between; align-items: start; gap: 12px;">
                         <div style="flex: 1;">
                             <div style="display: flex; align-items: center; gap: 8px;">

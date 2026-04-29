@@ -320,7 +320,7 @@ def send_task_nudge_email(to: str, name: str, task_title: str, project_title: st
             <p>It's been {days_inactive} days since there was any activity on your task <strong>{task_title}</strong> in the project <strong>{project_title}</strong>.</p>
             <p>Could you leave a quick comment with a progress update? This helps the project owner stay informed and keeps things moving.</p>
             <p style="text-align: center; margin: 32px 0;">
-                <a href="{APP_URL}/static/project.html?id={project_id}" class="button">View Task</a>
+                <a href="{APP_URL}/static/project.html?id={project_id}#task-{task_id}" class="button">View Task</a>
             </p>
             <div class="footer">
                 <p>Catalyse - PauseAI Volunteer Platform</p>
@@ -360,7 +360,7 @@ def send_task_final_warning_email(to: str, name: str, task_title: str, project_t
             </div>
             <p>Please leave a comment with a progress update — even a brief one — to keep the task assigned to you.</p>
             <p style="text-align: center; margin: 32px 0;">
-                <a href="{APP_URL}/static/project.html?id={project_id}" class="button">View Task</a>
+                <a href="{APP_URL}/static/project.html?id={project_id}#task-{task_id}" class="button">View Task</a>
             </p>
             <div class="footer">
                 <p>Catalyse - PauseAI Volunteer Platform</p>
