@@ -329,7 +329,6 @@ class ChangeEmailRequest(BaseModel):
 
 class DeleteAccountRequest(BaseModel):
     password: str
-    confirmation: str = Field(..., pattern="^DELETE$")  # Must type "DELETE"
 
 
 # --- Projects ---
@@ -1368,6 +1367,11 @@ def delete_account(
                 updated_at = ?
                WHERE id = ?""",
             (datetime.now().isoformat(), datetime.now().isoformat(), volunteer["id"])
+        )
+
+        conn.execute(
+            "DELETE FROM volunteer_skills WHERE volunteer_id = ?",
+            (volunteer["id"],)
         )
 
     return {"message": "Your account has been deleted. We're sorry to see you go."}
@@ -3939,45 +3943,6 @@ def export_my_data(volunteer: Dict = Depends(require_auth)) -> Dict:
         "messages_sent": rows_to_list(messages_sent),
         "messages_received": rows_to_list(messages_received)
     }
-
-
-@app.delete("/api/privacy/delete-account")
-def request_account_deletion(volunteer: Dict = Depends(require_auth)) -> Dict:
-    """Request account deletion (GDPR right to erasure)."""
-    with db_transaction() as conn:
-        # Log the deletion request
-        conn.execute(
-            "INSERT INTO deletion_requests (volunteer_id, volunteer_email) VALUES (?, ?)",
-            (volunteer["id"], volunteer.get("email"))
-        )
-
-        _send_account_deletion_notifications(conn, volunteer["id"], volunteer["name"])
-
-        # Soft delete the volunteer
-        conn.execute(
-            """UPDATE volunteers SET
-               deleted_at = ?,
-               email = NULL,
-               discord_handle = NULL,
-               signal_number = NULL,
-               whatsapp_number = NULL,
-               bio = NULL,
-               other_skills = NULL,
-               auth_token = NULL,
-               name = 'Deleted User'
-               WHERE id = ?""",
-            (datetime.now().isoformat(), volunteer["id"])
-        )
-
-        # Remove from skill associations
-        conn.execute(
-            "DELETE FROM volunteer_skills WHERE volunteer_id = ?",
-            (volunteer["id"],)
-        )
-
-        return {
-            "message": "Your account has been deleted. Your data has been anonymized."
-        }
 
 
 # ============================================
