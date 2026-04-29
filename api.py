@@ -418,6 +418,10 @@ class ProjectUpdateCreate(BaseModel):
     content: str = Field(..., min_length=1)
 
 
+class TaskCommentCreate(BaseModel):
+    content: str = Field(..., min_length=1)
+
+
 # --- Admin Notes ---
 class AdminNoteCreate(BaseModel):
     content: str = Field(..., min_length=1)
@@ -2501,6 +2505,69 @@ def delete_project_task(
         if result.rowcount == 0:
             raise HTTPException(status_code=404, detail="Task not found")
         return {"message": "Task deleted"}
+
+
+@app.get("/api/projects/{project_id}/tasks/{task_id}/comments")
+def list_task_comments(
+    project_id: int,
+    task_id: int,
+    current_volunteer: Optional[Dict] = Depends(get_current_volunteer)
+) -> List[Dict]:
+    """List comments on a task."""
+    conn = get_db()
+    task = conn.execute(
+        "SELECT * FROM project_tasks WHERE id = ? AND project_id = ?", (task_id, project_id)
+    ).fetchone()
+    if not task:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Task not found")
+    comments = conn.execute(
+        """SELECT ptc.*, v.name as author_name
+           FROM project_task_comments ptc
+           LEFT JOIN volunteers v ON ptc.author_id = v.id
+           WHERE ptc.task_id = ?
+           ORDER BY ptc.created_at ASC""",
+        (task_id,)
+    ).fetchall()
+    conn.close()
+    return [row_to_dict(c) for c in comments]
+
+
+@app.post("/api/projects/{project_id}/tasks/{task_id}/comments")
+def add_task_comment(
+    project_id: int,
+    task_id: int,
+    data: TaskCommentCreate,
+    volunteer: Dict = Depends(require_auth)
+) -> Dict:
+    """Add a comment to a task. Must be a project contributor, owner, or admin."""
+    conn = get_db()
+    project = conn.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
+    task = conn.execute(
+        "SELECT * FROM project_tasks WHERE id = ? AND project_id = ?", (task_id, project_id)
+    ).fetchone()
+
+    if not project or not task:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Project or task not found")
+
+    is_owner = project["owner_id"] == volunteer["id"]
+    is_admin = volunteer.get("is_admin")
+    is_contributor = conn.execute(
+        "SELECT 1 FROM project_interests WHERE project_id = ? AND volunteer_id = ? AND status = 'accepted'",
+        (project_id, volunteer["id"])
+    ).fetchone()
+    conn.close()
+
+    if not (is_owner or is_admin or is_contributor):
+        raise HTTPException(status_code=403, detail="Only project contributors can comment on tasks")
+
+    with db_transaction() as conn:
+        cursor = conn.execute(
+            "INSERT INTO project_task_comments (task_id, author_id, content) VALUES (?, ?, ?)",
+            (task_id, volunteer["id"], data.content)
+        )
+        return {"id": cursor.lastrowid, "message": "Comment added"}
 
 
 # ============================================
