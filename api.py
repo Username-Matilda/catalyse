@@ -16,6 +16,7 @@ from typing import Optional, List, Dict, Any
 from contextlib import contextmanager
 
 from fastapi import FastAPI, HTTPException, Depends, Header, Query, Response, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, EmailStr, Field
@@ -68,6 +69,75 @@ async def app_error_handler(request: Request, exc: AppError):
     traceback.print_exc()
     detail = f"{exc.message} Error Code: {exc.code}"
     return JSONResponse(status_code=500, content={"detail": detail})
+
+
+_FIELD_LABELS = {
+    # Auth / account
+    "name": "Name",
+    "email": "Email",
+    "password": "Password",
+    "new_password": "New password",
+    "current_password": "Current password",
+    "whatsapp_number": "WhatsApp number",
+    "page_url": "Page URL",
+    # Projects
+    "title": "Title",
+    "description": "Description",
+    "project_type": "Project type",
+    "urgency": "Urgency",
+    "time_commitment_hours_per_week": "Hours per week",
+    "estimated_duration": "Estimated duration",
+    "collaboration_link": "Collaboration link",
+    "country": "Country",
+    "local_group": "Local group",
+    "tasks": "Tasks",
+    # Messaging / content
+    "message": "Message",
+    "subject": "Subject",
+    "content": "Content",
+    # IDs that would otherwise get " id" appended
+    "category_id": "Category",
+    "volunteer_id": "Volunteer",
+    "skill_id": "Skill",
+}
+
+
+def _friendly_validation_error(err: dict) -> str:
+    loc = err.get("loc", [])
+    field = loc[-1] if loc else ""
+    label = _FIELD_LABELS.get(str(field), str(field).replace("_", " ").capitalize())
+    error_type = err.get("type", "")
+    ctx = err.get("ctx", {})
+
+    if error_type == "missing":
+        return f"{label} is required"
+    if error_type == "string_too_short":
+        n = ctx.get("min_length", 1)
+        return f"{label} must be at least {n} character{'s' if n != 1 else ''}"
+    if error_type == "string_too_long":
+        n = ctx.get("max_length", "")
+        return f"{label} must be no more than {n} characters"
+    if error_type in ("int_parsing", "float_parsing"):
+        return f"{label} must be a number"
+    if error_type == "value_error":
+        return f"{label}: {ctx.get('error', err.get('msg', 'invalid value'))}"
+    if error_type == "enum":
+        allowed = ", ".join(str(v) for v in ctx.get("expected", []))
+        return f"{label} must be one of: {allowed}" if allowed else f"{label} is not a valid option"
+
+    # Fallback: strip Pydantic's boilerplate and sentence-case what remains
+    msg = err.get("msg", "Invalid value")
+    msg = msg.removeprefix("Value error, ").removeprefix("String ")
+    return f"{label}: {msg[0].lower()}{msg[1:]}" if msg else f"{label}: invalid value"
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(request: Request, exc: RequestValidationError):
+    errors = [
+        {"loc": list(e["loc"]), "msg": _friendly_validation_error(e), "type": e.get("type")}
+        for e in exc.errors()
+    ]
+    return JSONResponse(status_code=422, content={"detail": errors})
 
 
 @app.exception_handler(Exception)
@@ -263,6 +333,11 @@ class DeleteAccountRequest(BaseModel):
 
 
 # --- Projects ---
+class InitialTaskData(BaseModel):
+    title: str = Field(..., min_length=1, max_length=300)
+    description: Optional[str] = None
+
+
 class ProjectCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=300)
     description: str = Field(..., min_length=10)
@@ -278,6 +353,7 @@ class ProjectCreate(BaseModel):
     local_group: Optional[str] = None
     is_seeking_help: bool = True
     is_seeking_owner: bool = False
+    tasks: List[InitialTaskData] = []
 
 
 class ProjectUpdate(BaseModel):
@@ -1872,6 +1948,9 @@ def create_project(
     volunteer: Dict = Depends(require_auth)
 ) -> Dict:
     """Create a new project (volunteer-proposed)."""
+    if not data.tasks:
+        raise HTTPException(status_code=400, detail="At least one task is required to submit a project proposal")
+
     with db_transaction() as conn:
         status = "pending_review"
         owner_id = volunteer["id"] if data.want_to_own else None
@@ -1908,6 +1987,13 @@ def create_project(
             conn.execute(
                 "INSERT INTO project_skills (project_id, skill_id, is_required) VALUES (?, ?, ?)",
                 (project_id, skill_id, is_required)
+            )
+
+        # Add initial tasks
+        for task in data.tasks:
+            conn.execute(
+                "INSERT INTO project_tasks (project_id, title, description, created_by_id) VALUES (?, ?, ?, ?)",
+                (project_id, task.title, task.description, volunteer["id"])
             )
 
         # Notify admins (in-app + email)
@@ -1963,12 +2049,24 @@ def update_project(
         updates = []
         params = []
 
+        # Enforce: cannot move to in_progress without at least one open task
+        if data.status == 'in_progress' and project["status"] != 'in_progress':
+            open_task_count = conn.execute(
+                "SELECT COUNT(*) FROM project_tasks WHERE project_id = ? AND status != 'done'",
+                (project_id,)
+            ).fetchone()[0]
+            if open_task_count == 0:
+                raise HTTPException(
+                    status_code=400,
+                    detail="A project cannot be moved to In Progress without at least one open task"
+                )
+
         # Check which columns exist for seeking flags
         proj_columns = {row["name"] for row in conn.execute("PRAGMA table_info(projects)").fetchall()}
         has_seeking_flags = "is_seeking_help" in proj_columns
 
         # Define which statuses owners can set (vs admin-only statuses)
-        owner_allowed_statuses = {"seeking_owner", "seeking_help", "in_progress", "on_hold", "completed"}
+        owner_allowed_statuses = {"seeking_owner", "seeking_help", "needs_tasks", "in_progress", "on_hold", "completed"}
 
         for field in ["title", "description", "status", "project_type", "estimated_duration",
                       "time_commitment_hours_per_week", "urgency", "collaboration_link", "country", "local_group", "owner_id"]:
@@ -2023,6 +2121,7 @@ def update_project(
         if data.status and data.status != project["status"]:
             status_label = {
                 'seeking_owner': 'Seeking Owner', 'seeking_help': 'Seeking Help',
+                'needs_tasks': 'Needs Tasks',
                 'in_progress': 'In Progress', 'on_hold': 'On Hold',
                 'completed': 'Completed', 'archived': 'Archived'
             }.get(data.status, data.status)
@@ -3446,11 +3545,13 @@ def respond_to_interest(
             f"/static/project.html?id={project_id}"
         )
 
-        # If accepting as owner, update project
+        # If accepting as owner, assign them and move to needs_tasks so they can
+        # set up tasks before starting (unless the project is already in_progress)
         if data.status == "accepted" and interest["interest_type"] == "want_to_own":
+            new_status = 'in_progress' if project["status"] == 'in_progress' else 'needs_tasks'
             conn.execute(
-                "UPDATE projects SET owner_id = ?, status = 'in_progress' WHERE id = ?",
-                (interest["volunteer_id"], project_id)
+                "UPDATE projects SET owner_id = ?, status = ? WHERE id = ?",
+                (interest["volunteer_id"], new_status, project_id)
             )
 
         # Email the volunteer

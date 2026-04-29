@@ -60,6 +60,7 @@
                 <div class="form-group">
                     <label for="status">Project Status</label>
                     <select id="status" name="status">
+                        <option value="needs_tasks">Needs Tasks</option>
                         <option value="in_progress">In Progress</option>
                         <option value="on_hold">On Hold</option>
                         <option value="completed">Completed</option>
@@ -231,6 +232,7 @@
                 const adminStatuses = [
                     { value: 'seeking_owner', label: 'Seeking Owner' },
                     { value: 'seeking_help', label: 'Seeking Help' },
+                    { value: 'needs_tasks', label: 'Needs Tasks' },
                     { value: 'in_progress', label: 'In Progress' },
                     { value: 'on_hold', label: 'On Hold' },
                     { value: 'completed', label: 'Completed' },
@@ -317,6 +319,8 @@
                     window.location.href = `/static/project.html?id=${project.id}`;
                 }, 1000);
             } catch (error) {
+                clearFieldErrors(form);
+                showFieldErrors(error.fieldErrors, form);
                 showMessage(error.message, 'error');
                 btn.disabled = false;
                 btn.textContent = 'Save Changes';
