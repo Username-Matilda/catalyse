@@ -1210,6 +1210,75 @@ def change_email(
     return {"message": "Email changed successfully"}
 
 
+def _send_account_deletion_notifications(conn, deleted_volunteer_id: int, deleted_volunteer_name: str):
+    """Notify affected parties when a volunteer deletes their account."""
+    # Project owners with tasks assigned to the deleted user
+    affected = conn.execute(
+        """SELECT p.owner_id, v.name AS owner_name, v.email AS owner_email,
+                  p.id AS project_id, p.title AS project_title,
+                  COUNT(st.id) AS task_count
+           FROM starter_tasks st
+           JOIN projects p ON st.project_id = p.id
+           JOIN volunteers v ON p.owner_id = v.id
+           WHERE st.assigned_to_id = ?
+             AND st.status NOT IN ('completed', 'reviewed')
+             AND p.owner_id != ?
+             AND v.deleted_at IS NULL
+           GROUP BY p.id""",
+        (deleted_volunteer_id, deleted_volunteer_id)
+    ).fetchall()
+
+    for row in affected:
+        task_word = "task" if row["task_count"] == 1 else "tasks"
+        create_notification(
+            conn, row["owner_id"], "task_assignee_deleted",
+            "Task assignee deleted their account",
+            f"{row['task_count']} {task_word} in '{row['project_title']}' assigned to {deleted_volunteer_name} need a new assignee.",
+            f"/static/project.html?id={row['project_id']}"
+        )
+        try:
+            if row["owner_email"]:
+                send_project_notification_email(
+                    to=row["owner_email"], name=row["owner_name"],
+                    subject=f"Task assignee deleted their account — '{row['project_title']}'",
+                    message=f"<strong>{deleted_volunteer_name}</strong> has deleted their account. They had {row['task_count']} {task_word} assigned to them in your project <strong>{row['project_title']}</strong>. Please reassign or unassign as needed.",
+                    project_title=row["project_title"], project_id=row["project_id"]
+                )
+        except Exception as e:
+            print(f"[NOTIFY ERROR] Task assignee deletion email failed: {e}")
+
+    # Admins: notify about each project losing its owner
+    owned_projects = conn.execute(
+        """SELECT id, title FROM projects
+           WHERE owner_id = ? AND status NOT IN ('completed', 'archived')""",
+        (deleted_volunteer_id,)
+    ).fetchall()
+
+    if owned_projects:
+        admins = conn.execute(
+            "SELECT id, name, email FROM volunteers WHERE is_admin = 1 AND deleted_at IS NULL AND id != ?",
+            (deleted_volunteer_id,)
+        ).fetchall()
+        for project in owned_projects:
+            for admin in admins:
+                create_notification(
+                    conn, admin["id"], "project_owner_deleted",
+                    "Project owner deleted their account",
+                    f"'{project['title']}' needs a new owner — {deleted_volunteer_name} has deleted their account.",
+                    f"/static/project.html?id={project['id']}"
+                )
+                try:
+                    if admin["email"]:
+                        send_project_notification_email(
+                            to=admin["email"], name=admin["name"],
+                            subject=f"Project owner deleted their account — '{project['title']}'",
+                            message=f"<strong>{deleted_volunteer_name}</strong> has deleted their account. They were the owner of <strong>{project['title']}</strong>. Please assign a new owner or archive the project.",
+                            project_title=project["title"], project_id=project["id"]
+                        )
+                except Exception as e:
+                    print(f"[NOTIFY ERROR] Project owner deletion admin email failed: {e}")
+
+
 @app.post("/api/auth/delete-account")
 def delete_account(
     data: DeleteAccountRequest,
@@ -1234,6 +1303,8 @@ def delete_account(
                VALUES (?, ?, 'completed')""",
             (volunteer["id"], volunteer["email"])
         )
+
+        _send_account_deletion_notifications(conn, volunteer["id"], volunteer["name"])
 
         # Soft delete - anonymize personal data but keep for referential integrity
         conn.execute(
@@ -3835,6 +3906,8 @@ def request_account_deletion(volunteer: Dict = Depends(require_auth)) -> Dict:
             "INSERT INTO deletion_requests (volunteer_id, volunteer_email) VALUES (?, ?)",
             (volunteer["id"], volunteer.get("email"))
         )
+
+        _send_account_deletion_notifications(conn, volunteer["id"], volunteer["name"])
 
         # Soft delete the volunteer
         conn.execute(
