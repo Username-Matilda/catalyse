@@ -72,6 +72,8 @@ def send_email(to: str, subject: str, html: str) -> bool:
 # EMAIL TEMPLATES
 # ============================================
 
+# TODO: make email templates use a consistent style and container
+
 def send_password_reset_email(to: str, reset_token: str, name: str = "there") -> bool:
     """Send password reset email."""
     reset_url = f"{APP_URL}/static/reset-password.html?token={reset_token}"
@@ -298,7 +300,8 @@ def send_digest_email(to: str, name: str, projects: list, is_match: bool = False
 
 
 def send_task_nudge_email(to: str, name: str, task_title: str, project_title: str,
-                          project_id: int, task_id: int, days_inactive: int) -> bool:
+                          project_id: int, task_id: int, days_inactive: int,
+                          activity_phrase: str, last_activity_date: str) -> bool:
     """Send a 1-week inactivity nudge to a task assignee."""
     subject = f"Update needed: {task_title}"
     html = f"""
@@ -317,7 +320,7 @@ def send_task_nudge_email(to: str, name: str, task_title: str, project_title: st
         <div class="container">
             <h2>How's it going?</h2>
             <p>Hi {name},</p>
-            <p>It's been {days_inactive} days since there was any activity on your task <strong>{task_title}</strong> in the project <strong>{project_title}</strong>.</p>
+            <p>It's been {days_inactive} days since {activity_phrase} <strong>{task_title}</strong> in the project <strong>{project_title}</strong> (on {last_activity_date}).</p>
             <p>Could you leave a quick comment with a progress update? This helps the project owner stay informed and keeps things moving.</p>
             <p style="text-align: center; margin: 32px 0;">
                 <a href="{APP_URL}/static/project.html?id={project_id}#task-{task_id}" class="button">View Task</a>
@@ -334,7 +337,9 @@ def send_task_nudge_email(to: str, name: str, task_title: str, project_title: st
 
 
 def send_task_final_warning_email(to: str, name: str, task_title: str, project_title: str,
-                                   project_id: int, task_id: int, days_inactive: int) -> bool:
+                                   project_id: int, task_id: int, days_inactive: int,
+                                   activity_phrase: str, last_activity_date: str,
+                                   surrender_date: str) -> bool:
     """Send a 2-week final warning to a task assignee before automatic surrender."""
     subject = f"Final reminder: {task_title}"
     html = f"""
@@ -354,9 +359,9 @@ def send_task_final_warning_email(to: str, name: str, task_title: str, project_t
         <div class="container">
             <h2>Final reminder needed</h2>
             <p>Hi {name},</p>
-            <p>It's now been {days_inactive} days since there was any activity on your task <strong>{task_title}</strong> in <strong>{project_title}</strong>.</p>
+            <p>It's now been {days_inactive} days since {activity_phrase} <strong>{task_title}</strong> in <strong>{project_title}</strong> (on {last_activity_date}).</p>
             <div class="warning">
-                <strong>If there is no update within the next week, you will be automatically removed from this task</strong> so someone else can take it on.
+                <strong>If there is no update by {surrender_date}, you will be automatically removed from this task</strong> so someone else can take it on.
             </div>
             <p>Please leave a comment with a progress update — even a brief one — to keep the task assigned to you.</p>
             <p style="text-align: center; margin: 32px 0;">

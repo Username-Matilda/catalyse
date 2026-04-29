@@ -258,8 +258,17 @@ def check_task_inactivity():
         except (ValueError, TypeError):
             continue
         days_inactive = (now - last_activity).days
+        activity_phrase = "you last updated this task" if t["last_comment_at"] else "you were assigned this task"
+        last_activity_date = f"{last_activity.day} {last_activity.strftime('%B %Y')}"
 
-        if days_inactive >= 21:
+        days_since_final_warning = None
+        if t["final_warning_sent_at"]:
+            try:
+                days_since_final_warning = (now - datetime.fromisoformat(t["final_warning_sent_at"])).days
+            except (ValueError, TypeError):
+                pass
+
+        if days_since_final_warning is not None and days_since_final_warning >= 7:
             # Surrender: unassign task, notify owner
             update_conn = get_db()
             try:
@@ -287,10 +296,12 @@ def check_task_inactivity():
             surrendered += 1
 
         elif days_inactive >= 14 and not t["final_warning_sent_at"]:
+            surrender_date = f"{(now + timedelta(days=7)).day} {(now + timedelta(days=7)).strftime('%B %Y')}"
             if t["assignee_email"]:
                 send_task_final_warning_email(
                     t["assignee_email"], t["assignee_name"], t["title"],
-                    t["project_title"], t["project_id"], t["id"], days_inactive
+                    t["project_title"], t["project_id"], t["id"], days_inactive,
+                    activity_phrase, last_activity_date, surrender_date
                 )
             update_conn = get_db()
             try:
@@ -307,7 +318,8 @@ def check_task_inactivity():
             if t["assignee_email"]:
                 send_task_nudge_email(
                     t["assignee_email"], t["assignee_name"], t["title"],
-                    t["project_title"], t["project_id"], t["id"], days_inactive
+                    t["project_title"], t["project_id"], t["id"], days_inactive,
+                    activity_phrase, last_activity_date
                 )
             update_conn = get_db()
             try:
