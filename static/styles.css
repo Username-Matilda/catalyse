@@ -367,6 +367,11 @@ p {
     color: #1E40AF;
 }
 
+.status-needs_tasks {
+    background: #FEF9C3;
+    color: #713F12;
+}
+
 .status-in_progress {
     background: #D1FAE5;
     color: #065F46;
@@ -416,6 +421,7 @@ p {
 /* Dark mode badge overrides */
 [data-theme="dark"] .status-seeking_owner { background: #78350F; color: #FDE68A; }
 [data-theme="dark"] .status-seeking_help { background: #1E3A5F; color: #93C5FD; }
+[data-theme="dark"] .status-needs_tasks { background: #713F12; color: #FEF08A; }
 [data-theme="dark"] .status-in_progress { background: #064E3B; color: #6EE7B7; }
 [data-theme="dark"] .status-on_hold { background: #374151; color: #9CA3AF; }
 [data-theme="dark"] .status-completed { background: #064E3B; color: #6EE7B7; }
@@ -1561,4 +1567,102 @@ textarea {
         flex-direction: column;
         text-align: center;
     }
+}
+
+/* ============================================
+   TOASTS
+   ============================================ */
+
+#toastContainer {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 360px;
+    pointer-events: none;
+}
+
+@media (max-width: 640px) {
+    #toastContainer {
+        right: 12px;
+        left: 12px;
+        bottom: 16px;
+        max-width: none;
+    }
+}
+
+.toast {
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.4;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    animation: toast-in 0.2s ease forwards;
+    pointer-events: auto;
+}
+
+.toast-hiding {
+    animation: toast-out 0.2s ease forwards;
+}
+
+.toast-error {
+    background: #FEE2E2;
+    color: #991B1B;
+    border-left: 4px solid #DC2626;
+}
+
+.toast-success {
+    background: #D1FAE5;
+    color: #065F46;
+    border-left: 4px solid #10B981;
+}
+
+.toast-info {
+    background: #DBEAFE;
+    color: #1E40AF;
+    border-left: 4px solid #3B82F6;
+}
+
+@keyframes toast-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes toast-out {
+    from { opacity: 1; transform: translateY(0); }
+    to   { opacity: 0; transform: translateY(10px); }
+}
+
+[data-theme="dark"] .toast-error   { background: #7F1D1D; color: #FCA5A5; border-color: #EF4444; }
+[data-theme="dark"] .toast-success { background: #064E3B; color: #6EE7B7; border-color: #10B981; }
+[data-theme="dark"] .toast-info    { background: #1E3A5F; color: #93C5FD; border-color: #3B82F6; }
+
+/* ============================================
+   FIELD-LEVEL VALIDATION ERRORS
+   ============================================ */
+
+.field-error-msg {
+    color: #DC2626;
+    font-size: 0.8rem;
+    margin-top: 4px;
+    display: block;
+}
+
+input.input-error,
+textarea.input-error,
+select.input-error {
+    border-color: #DC2626 !important;
+    box-shadow: 0 0 0 1px #DC2626;
+}
+
+[data-theme="dark"] .field-error-msg { color: #FCA5A5; }
+[data-theme="dark"] input.input-error,
+[data-theme="dark"] textarea.input-error,
+[data-theme="dark"] select.input-error {
+    border-color: #EF4444 !important;
+    box-shadow: 0 0 0 1px #EF4444;
 }

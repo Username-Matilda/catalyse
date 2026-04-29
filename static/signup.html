@@ -332,6 +332,8 @@
                 }, 1000);
 
             } catch (error) {
+                clearFieldErrors(form);
+                showFieldErrors(error.fieldErrors, form);
                 showMessage(error.message, 'error');
                 showMessage(error.message, 'error', 'submitMessageDiv');
                 submitBtn.disabled = false;

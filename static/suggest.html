@@ -133,21 +133,32 @@
                             <input type="checkbox" id="is_seeking_help" name="is_seeking_help" checked>
                             <span>Help / contributors</span>
                         </label>
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="is_seeking_owner" name="is_seeking_owner">
-                            <span>An owner / lead</span>
-                        </label>
                     </div>
                 </div>
 
                 <div class="form-group" style="margin-top: 8px;">
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="want_to_own" name="want_to_own">
-                        <span><strong>I want to lead this project</strong> - I'll be the owner and coordinate the work</span>
-                    </label>
+                    <label>Project ownership:</label>
+                    <div class="checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="radio" id="ownership_seeking" name="ownership" value="seeking">
+                            <span>This project needs an owner / lead</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="radio" id="ownership_want_to_own" name="ownership" value="want_to_own">
+                            <span><strong>I want to lead this project</strong> - I'll be the owner and coordinate the work</span>
+                        </label>
+                    </div>
                 </div>
 
-                <div class="message info" style="margin-top: 20px;">
+                <h3 style="margin-top: 32px;">Initial Tasks <span style="color: var(--error, #DC2626); font-weight: 400;">*</span></h3>
+                <p class="form-hint" style="margin-bottom: 16px;">Break the project into at least one concrete task. This helps reviewers understand the scope and gives volunteers something to pick up.</p>
+
+                <div id="taskList"></div>
+
+                <button type="button" class="btn btn-outline btn-small" onclick="addTask()" style="margin-top: 8px;">+ Add another task</button>
+                <p id="taskError" class="form-hint" style="color: var(--error, #DC2626); display: none; margin-top: 8px;">At least one task with a title is required.</p>
+
+                <div class="message info" style="margin-top: 24px;">
                     <span>Your project will be reviewed by PauseAI UK team leads before being published. We'll reach out if we have questions or suggestions.</span>
                 </div>
 
@@ -164,6 +175,52 @@
     <script>
         let currentUser = null;
 
+        let taskCount = 0;
+
+        function addTask(title = '', description = '') {
+            const idx = taskCount++;
+            const list = document.getElementById('taskList');
+            const div = document.createElement('div');
+            div.id = `task-${idx}`;
+            div.style.cssText = 'border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 12px; position: relative;';
+            div.innerHTML = `
+                <button type="button" onclick="removeTask(${idx})" title="Remove task"
+                    style="position: absolute; top: 10px; right: 12px; background: none; border: none; cursor: pointer; font-size: 1.1rem; color: var(--text-light); line-height: 1;">&times;</button>
+                <div class="form-group" style="margin-bottom: 10px;">
+                    <label class="required">Task title</label>
+                    <input type="text" class="task-title" value="${escapeAttr(title)}" placeholder="e.g. Draft copy for homepage" maxlength="300">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Description (optional)</label>
+                    <textarea class="task-description" rows="2" placeholder="More detail about what needs doing...">${escapeHtml(description)}</textarea>
+                </div>`;
+            list.appendChild(div);
+            updateRemoveButtons();
+        }
+
+        function removeTask(idx) {
+            const el = document.getElementById(`task-${idx}`);
+            if (el) el.remove();
+            updateRemoveButtons();
+        }
+
+        function updateRemoveButtons() {
+            const tasks = document.querySelectorAll('#taskList > div');
+            tasks.forEach(t => {
+                const btn = t.querySelector('button[title="Remove task"]');
+                if (btn) btn.style.display = tasks.length === 1 ? 'none' : '';
+            });
+        }
+
+        function escapeAttr(s) { return s.replace(/"/g, '&quot;'); }
+
+        function getTasksFromForm() {
+            return Array.from(document.querySelectorAll('#taskList > div')).map(div => ({
+                title: div.querySelector('.task-title').value.trim(),
+                description: div.querySelector('.task-description').value.trim() || null
+            })).filter(t => t.title);
+        }
+
         async function init() {
             currentUser = await initAuthNav();
 
@@ -176,6 +233,7 @@
             renderSkillSelector('skillSelector');
             renderCountrySelect('country');
             renderLocalGroupSelect('local_group');
+            addTask();
         }
 
         document.getElementById('country').addEventListener('change', (e) => {
@@ -191,6 +249,15 @@
 
         document.getElementById('suggestForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+
+            const tasks = getTasksFromForm();
+            const taskError = document.getElementById('taskError');
+            if (tasks.length === 0) {
+                taskError.style.display = 'block';
+                document.getElementById('taskList').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return;
+            }
+            taskError.style.display = 'none';
 
             const form = e.target;
             const submitBtn = form.querySelector('button[type="submit"]');
@@ -215,9 +282,10 @@
                     local_group: form.local_group.value || null,
                     skill_ids: skillIds,
                     skill_required_map: skillRequiredMap,
-                    want_to_own: form.want_to_own.checked,
+                    want_to_own: form.ownership.value === 'want_to_own',
                     is_seeking_help: form.is_seeking_help.checked,
-                    is_seeking_owner: form.is_seeking_owner.checked
+                    is_seeking_owner: form.ownership.value === 'seeking',
+                    tasks
                 };
 
                 const result = await apiRequest('/api/projects', {
@@ -240,11 +308,22 @@
                 }, 2000);
 
             } catch (error) {
-                showMessage(error.message, 'error');
+                clearFieldErrors(form);
+                if (error.fieldErrors) {
+                    showFieldErrors(error.fieldErrors, form, FIELD_ID_MAP);
+                    showToast('Submission failed – check the fields for issues', 'error');
+                } else {
+                    showToast(error.message, 'error');
+                }
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Submit Project Proposal';
             }
         });
+
+        // Maps Pydantic field names → form element IDs where they differ
+        const FIELD_ID_MAP = {
+            time_commitment_hours_per_week: 'time_commitment',
+        };
 
         init();
     </script>

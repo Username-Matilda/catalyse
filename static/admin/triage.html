@@ -345,6 +345,7 @@
                 `).join('');
             } catch (error) {
                 document.getElementById('interestsList').innerHTML = `<p class="error">${error.message}</p>`;
+                showToast(error.message, 'error');
             }
         }
 

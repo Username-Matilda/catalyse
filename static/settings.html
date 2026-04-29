@@ -171,6 +171,8 @@
                 document.getElementById('currentEmail').textContent = `Current email: ${currentUser.email}`;
 
             } catch (error) {
+                clearFieldErrors(form);
+                showFieldErrors(error.fieldErrors, form);
                 showMessage(error.message, 'error');
             }
 
@@ -209,6 +211,8 @@
                 form.reset();
 
             } catch (error) {
+                clearFieldErrors(form);
+                showFieldErrors(error.fieldErrors, form);
                 showMessage(error.message, 'error');
             }
 

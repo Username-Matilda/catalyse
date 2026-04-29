@@ -151,14 +151,16 @@
                 <h2>Manage Project Status</h2>
                 <div class="form-group">
                     <label for="statusSelect">Change Status</label>
-                    <select id="statusSelect">
+                    <select id="statusSelect" onchange="onStatusSelectChange()">
                         <option value="seeking_help">Seeking Help</option>
+                        <option value="needs_tasks">Needs Tasks</option>
                         <option value="in_progress">In Progress</option>
                         <option value="on_hold">On Hold</option>
                         <option value="completed">Completed</option>
                     </select>
                 </div>
                 <button class="btn btn-primary btn-small" onclick="updateProjectStatus()">Update Status</button>
+                <p id="inProgressHint" style="display: none; font-size: 0.8rem; color: var(--text-light); margin-top: 8px;">Moving to In Progress requires at least one open task.</p>
 
                 <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border);">
                     <h3>Transfer Ownership</h3>
@@ -496,6 +498,7 @@
                     select.innerHTML = `
                         <option value="seeking_owner">Seeking Owner</option>
                         <option value="seeking_help">Seeking Help</option>
+                        <option value="needs_tasks">Needs Tasks</option>
                         <option value="in_progress">In Progress</option>
                         <option value="on_hold">On Hold</option>
                         <option value="completed">Completed</option>
@@ -504,6 +507,7 @@
                 }
 
                 select.value = project.status;
+                onStatusSelectChange();
                 loadTransferOptions();
             }
 
@@ -532,6 +536,11 @@
             } catch (error) {
                 showMessage(error.message, 'error');
             }
+        }
+
+        function onStatusSelectChange() {
+            const hint = document.getElementById('inProgressHint');
+            if (hint) hint.style.display = document.getElementById('statusSelect').value === 'in_progress' ? 'block' : 'none';
         }
 
         async function updateProjectStatus() {
