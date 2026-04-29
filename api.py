@@ -2408,9 +2408,9 @@ def update_project_task(
     task = conn.execute(
         "SELECT * FROM project_tasks WHERE id = ? AND project_id = ?", (task_id, project_id)
     ).fetchone()
-    conn.close()
 
     if not project or not task:
+        conn.close()
         raise HTTPException(status_code=404, detail="Project or task not found")
 
     is_owner = project["owner_id"] == volunteer["id"]
@@ -2424,7 +2424,20 @@ def update_project_task(
         elif data.status == 'done' and is_assignee and task["status"] == "assigned":
             pass  # Allow marking own task done
         else:
+            conn.close()
             raise HTTPException(status_code=403, detail="Not authorized to update this task")
+
+    if data.assigned_to_id is not None:
+        assignee_is_contributor = conn.execute(
+            "SELECT 1 FROM project_interests WHERE project_id = ? AND volunteer_id = ? AND status = 'accepted'",
+            (project_id, data.assigned_to_id)
+        ).fetchone()
+        assignee_is_owner = project["owner_id"] == data.assigned_to_id
+        conn.close()
+        if not (assignee_is_contributor or assignee_is_owner):
+            raise HTTPException(status_code=400, detail="Assignee is not a contributor to this project")
+    else:
+        conn.close()
 
     with db_transaction() as conn:
         updates = []
