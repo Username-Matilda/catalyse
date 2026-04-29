@@ -329,7 +329,6 @@ class ChangeEmailRequest(BaseModel):
 
 class DeleteAccountRequest(BaseModel):
     password: str
-    confirmation: str = Field(..., pattern="^DELETE$")  # Must type "DELETE"
 
 
 # --- Projects ---
@@ -1210,6 +1209,119 @@ def change_email(
     return {"message": "Email changed successfully"}
 
 
+def _send_account_deletion_notifications(conn, deleted_volunteer_id: int, deleted_volunteer_name: str):
+    """Notify affected parties when a volunteer deletes their account."""
+    # Projects with unfinished tasks assigned to the deleted user, grouped by project owner
+    task_rows = conn.execute(
+        """SELECT p.owner_id, v.name AS owner_name, v.email AS owner_email,
+                  p.id AS project_id, p.title AS project_title,
+                  COUNT(st.id) AS task_count
+           FROM starter_tasks st
+           JOIN projects p ON st.project_id = p.id
+           JOIN volunteers v ON p.owner_id = v.id
+           WHERE st.assigned_to_id = ?
+             AND st.status NOT IN ('completed', 'reviewed')
+             AND p.owner_id != ?
+             AND v.deleted_at IS NULL
+           GROUP BY p.id""",
+        (deleted_volunteer_id, deleted_volunteer_id)
+    ).fetchall()
+
+    # Active projects owned by the deleted user
+    owned_projects = conn.execute(
+        """SELECT id, title FROM projects
+           WHERE owner_id = ? AND status NOT IN ('completed', 'archived')""",
+        (deleted_volunteer_id,)
+    ).fetchall()
+
+    if not task_rows and not owned_projects:
+        return
+
+    # Build per-owner task map
+    owner_task_map = {}
+    for row in task_rows:
+        oid = row["owner_id"]
+        if oid not in owner_task_map:
+            owner_task_map[oid] = {"name": row["owner_name"], "email": row["owner_email"], "task_projects": []}
+        owner_task_map[oid]["task_projects"].append({
+            "project_id": row["project_id"],
+            "project_title": row["project_title"],
+            "task_count": row["task_count"],
+        })
+
+    ownerless = [{"project_id": p["id"], "project_title": p["title"]} for p in owned_projects]
+
+    # Build unified recipient map — admins and task-project owners may overlap
+    recipients = {}
+    for owner_id, data in owner_task_map.items():
+        recipients[owner_id] = {
+            "name": data["name"], "email": data["email"],
+            "task_projects": data["task_projects"], "ownerless_projects": [],
+        }
+
+    if ownerless:
+        admins = conn.execute(
+            "SELECT id, name, email FROM volunteers WHERE is_admin = 1 AND deleted_at IS NULL AND id != ?",
+            (deleted_volunteer_id,)
+        ).fetchall()
+        for admin in admins:
+            aid = admin["id"]
+            if aid not in recipients:
+                recipients[aid] = {"name": admin["name"], "email": admin["email"], "task_projects": [], "ownerless_projects": []}
+            recipients[aid]["ownerless_projects"] = ownerless
+
+    # Send per-project in-app notifications, but only one email per recipient
+    for recipient_id, r in recipients.items():
+        for p in r["task_projects"]:
+            word = "task" if p["task_count"] == 1 else "tasks"
+            try:
+                create_notification(
+                    conn, recipient_id, "account_deleted_impact",
+                    f"{deleted_volunteer_name} has deleted their account",
+                    f"{p['task_count']} {word} in '{p['project_title']}' assigned to {deleted_volunteer_name} need a new assignee.",
+                    f"/static/project.html?id={p['project_id']}"
+                )
+            except Exception as e:
+                print(f"[NOTIFY ERROR] Account deletion notification failed: {e}")
+
+        for p in r["ownerless_projects"]:
+            try:
+                create_notification(
+                    conn, recipient_id, "account_deleted_impact",
+                    f"{deleted_volunteer_name} has deleted their account",
+                    f"'{p['project_title']}' needs a new owner.",
+                    f"/static/project.html?id={p['project_id']}"
+                )
+            except Exception as e:
+                print(f"[NOTIFY ERROR] Account deletion notification failed: {e}")
+
+        try:
+            if r["email"]:
+                all_projects = r["task_projects"] + r["ownerless_projects"]
+                msg_parts = [f"<p><strong>{deleted_volunteer_name}</strong> has deleted their account.</p>"]
+                if r["task_projects"]:
+                    rows_html = "".join(
+                        f"<li>{p['task_count']} {'task' if p['task_count'] == 1 else 'tasks'} in <strong>{p['project_title']}</strong></li>"
+                        for p in r["task_projects"]
+                    )
+                    msg_parts.append(f"<p>The following tasks need a new assignee:</p><ul>{rows_html}</ul>")
+                if r["ownerless_projects"]:
+                    rows_html = "".join(
+                        f"<li><strong>{p['project_title']}</strong></li>"
+                        for p in r["ownerless_projects"]
+                    )
+                    msg_parts.append(f"<p>The following projects need a new owner:</p><ul>{rows_html}</ul>")
+                send_project_notification_email(
+                    to=r["email"], name=r["name"],
+                    subject=f"{deleted_volunteer_name} has deleted their account",
+                    message="".join(msg_parts),
+                    project_title=all_projects[0]["project_title"],
+                    project_id=all_projects[0]["project_id"]
+                )
+        except Exception as e:
+            print(f"[NOTIFY ERROR] Account deletion email failed: {e}")
+
+
 @app.post("/api/auth/delete-account")
 def delete_account(
     data: DeleteAccountRequest,
@@ -1235,6 +1347,8 @@ def delete_account(
             (volunteer["id"], volunteer["email"])
         )
 
+        _send_account_deletion_notifications(conn, volunteer["id"], volunteer["name"])
+
         # Soft delete - anonymize personal data but keep for referential integrity
         conn.execute(
             """UPDATE volunteers SET
@@ -1253,6 +1367,11 @@ def delete_account(
                 updated_at = ?
                WHERE id = ?""",
             (datetime.now().isoformat(), datetime.now().isoformat(), volunteer["id"])
+        )
+
+        conn.execute(
+            "DELETE FROM volunteer_skills WHERE volunteer_id = ?",
+            (volunteer["id"],)
         )
 
     return {"message": "Your account has been deleted. We're sorry to see you go."}
@@ -3824,43 +3943,6 @@ def export_my_data(volunteer: Dict = Depends(require_auth)) -> Dict:
         "messages_sent": rows_to_list(messages_sent),
         "messages_received": rows_to_list(messages_received)
     }
-
-
-@app.delete("/api/privacy/delete-account")
-def request_account_deletion(volunteer: Dict = Depends(require_auth)) -> Dict:
-    """Request account deletion (GDPR right to erasure)."""
-    with db_transaction() as conn:
-        # Log the deletion request
-        conn.execute(
-            "INSERT INTO deletion_requests (volunteer_id, volunteer_email) VALUES (?, ?)",
-            (volunteer["id"], volunteer.get("email"))
-        )
-
-        # Soft delete the volunteer
-        conn.execute(
-            """UPDATE volunteers SET
-               deleted_at = ?,
-               email = NULL,
-               discord_handle = NULL,
-               signal_number = NULL,
-               whatsapp_number = NULL,
-               bio = NULL,
-               other_skills = NULL,
-               auth_token = NULL,
-               name = 'Deleted User'
-               WHERE id = ?""",
-            (datetime.now().isoformat(), volunteer["id"])
-        )
-
-        # Remove from skill associations
-        conn.execute(
-            "DELETE FROM volunteer_skills WHERE volunteer_id = ?",
-            (volunteer["id"],)
-        )
-
-        return {
-            "message": "Your account has been deleted. Your data has been anonymized."
-        }
 
 
 # ============================================
