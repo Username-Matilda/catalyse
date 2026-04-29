@@ -113,6 +113,13 @@
                     </select>
                 </div>
 
+                <div class="form-group">
+                    <label for="local_group">Local Group</label>
+                    <select id="local_group" name="local_group">
+                        <option value="">Not specific to a local group</option>
+                    </select>
+                </div>
+
                 <h3 style="margin-top: 24px;">Skills Needed</h3>
                 <p class="form-hint" style="margin-bottom: 12px;">Select skills relevant to this project.</p>
                 <div id="skillSelector" class="skill-selector">
@@ -215,6 +222,7 @@
             document.getElementById('estimated_duration').value = project.estimated_duration || '';
             document.getElementById('collaboration_link').value = project.collaboration_link || '';
             renderCountrySelect('country', project.country || '');
+            renderLocalGroupSelect('local_group', project.country || '', project.local_group || '');
 
             // Status dropdown — admins get extra options
             const statusSelect = document.getElementById('status');
@@ -256,8 +264,13 @@
                    form.estimated_duration.value.trim() !== (project.estimated_duration || '') ||
                    form.collaboration_link.value.trim() !== (project.collaboration_link || '') ||
                    (form.country.value || '') !== (project.country || '') ||
+                   (form.local_group.value || '') !== (project.local_group || '') ||
                    currentSkills !== originalSkills;
         }
+
+        document.getElementById('country').addEventListener('change', (e) => {
+            renderLocalGroupSelect('local_group', e.target.value);
+        });
 
         document.getElementById('editForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -289,6 +302,7 @@
                     estimated_duration: form.estimated_duration.value.trim() || null,
                     collaboration_link: form.collaboration_link.value.trim() || null,
                     country: form.country.value || null,
+                    local_group: form.local_group.value || null,
                     skill_ids: skillIds,
                     skill_required_map: skillRequiredMap
                 };

@@ -26,6 +26,163 @@ function renderCountrySelect(selectId, selectedValue = '') {
         COUNTRIES.map(c => `<option value="${c}" ${c === selectedValue ? 'selected' : ''}>${c}</option>`).join('');
 }
 
+// Local group options keyed by country — add new countries here to expand
+const LOCAL_GROUPS = {
+    "UK": ["Oxfordshire", "London", "Scotland", "West of England", "Leicester", "Manchester"]
+};
+
+// Show/populate the local group select for the given country, or hide it if no groups exist.
+function renderLocalGroupSelect(selectId, country = '', selectedValue = '') {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+    const groups = LOCAL_GROUPS[country] || [];
+    const container = select.closest('.form-group');
+    if (groups.length === 0) {
+        if (container) container.style.display = 'none';
+        select.value = '';
+        return;
+    }
+    if (container) container.style.display = '';
+    select.innerHTML = '<option value="">Any local group</option>' +
+        groups.map(g => `<option value="${g}" ${g === selectedValue ? 'selected' : ''}>${g}</option>`).join('');
+}
+
+// Combined country + local group filter dropdown for listing pages.
+// Returns { getValue(), setValue() } for external state management.
+function createLocationFilter(containerId, onChange) {
+    const container = document.getElementById(containerId);
+    if (!container) return null;
+
+    // Build flat list of items: countries with their sub-items interleaved
+    const items = [{ label: 'All locations', country: '', group: '' }];
+    COUNTRIES.forEach(country => {
+        items.push({ label: country, country, group: '' });
+        (LOCAL_GROUPS[country] || []).forEach(group => {
+            items.push({ label: group, country, group, isSubItem: true });
+        });
+    });
+
+    container.innerHTML = `
+        <button type="button" class="location-filter-btn">All locations</button>
+        <div class="location-filter-panel">
+            ${items.map(item => `
+                <div class="location-filter-item${item.isSubItem ? ' is-subitem' : ''}"
+                     data-country="${item.country}"
+                     data-group="${item.group}">
+                    ${item.isSubItem ? '<span class="subitem-arrow">↳</span>' : ''}${escapeHtml(item.label)}
+                </div>
+            `).join('')}
+        </div>
+    `;
+
+    const btn = container.querySelector('.location-filter-btn');
+    const panel = container.querySelector('.location-filter-panel');
+
+    function getLabel(country, group) {
+        if (!country && !group) return 'All locations';
+        if (group) return `${country} - ${group}`;
+        return country;
+    }
+
+    function select(country, group) {
+        panel.querySelectorAll('.location-filter-item').forEach(el => {
+            el.classList.toggle('selected',
+                el.dataset.country === country && el.dataset.group === group);
+        });
+        btn.textContent = getLabel(country, group);
+    }
+
+    btn.addEventListener('click', e => {
+        e.stopPropagation();
+        document.querySelectorAll('.location-filter-panel.open').forEach(p => { if (p !== panel) p.classList.remove('open'); });
+        panel.classList.toggle('open');
+    });
+
+    panel.addEventListener('click', e => {
+        const item = e.target.closest('.location-filter-item');
+        if (!item) return;
+        select(item.dataset.country, item.dataset.group);
+        panel.classList.remove('open');
+        onChange();
+    });
+
+    // Initialise with "All locations" selected
+    select('', '');
+
+    return {
+        getValue() {
+            const sel = panel.querySelector('.location-filter-item.selected');
+            if (!sel) return { country: '', localGroup: '' };
+            return { country: sel.dataset.country, localGroup: sel.dataset.group };
+        },
+        setValue(country, group) {
+            select(country, group || '');
+        }
+    };
+}
+
+// Close all open filter panels when clicking outside
+document.addEventListener('click', () => {
+    document.querySelectorAll('.location-filter-panel.open').forEach(p => p.classList.remove('open'));
+});
+
+// Generic single-select custom dropdown for filter bars. Returns { getValue(), setValue(), setOptions() }.
+function createSelectFilter(containerId, options, onChange) {
+    const container = document.getElementById(containerId);
+    if (!container) return null;
+
+    function markSelected(value) {
+        const btn = container.querySelector('.location-filter-btn');
+        const items = container.querySelectorAll('.location-filter-item');
+        let found = null;
+        items.forEach(el => {
+            const match = el.dataset.value === String(value ?? '');
+            el.classList.toggle('selected', match);
+            if (match) found = el;
+        });
+        if (!found && items.length > 0) { items[0].classList.add('selected'); found = items[0]; }
+        if (btn && found) btn.textContent = found.textContent.trim();
+    }
+
+    function build(opts) {
+        container.innerHTML = `
+            <button type="button" class="location-filter-btn">${escapeHtml(opts[0]?.label || '')}</button>
+            <div class="location-filter-panel">
+                ${opts.map(opt => `<div class="location-filter-item" data-value="${opt.value}">${escapeHtml(opt.label)}</div>`).join('')}
+            </div>
+        `;
+        container.querySelector('.location-filter-btn').addEventListener('click', e => {
+            e.stopPropagation();
+            const p = container.querySelector('.location-filter-panel');
+            document.querySelectorAll('.location-filter-panel.open').forEach(op => { if (op !== p) op.classList.remove('open'); });
+            p.classList.toggle('open');
+        });
+        container.querySelector('.location-filter-panel').addEventListener('click', e => {
+            const item = e.target.closest('.location-filter-item');
+            if (!item) return;
+            markSelected(item.dataset.value);
+            container.querySelector('.location-filter-panel').classList.remove('open');
+            onChange();
+        });
+        markSelected(opts[0]?.value ?? '');
+    }
+
+    build(options);
+
+    return {
+        getValue() {
+            const sel = container.querySelector('.location-filter-item.selected');
+            return sel ? sel.dataset.value : '';
+        },
+        setValue(value) { markSelected(String(value ?? '')); },
+        setOptions(opts) {
+            const current = this.getValue();
+            build(opts);
+            markSelected(current);
+        }
+    };
+}
+
 // API helpers
 async function apiRequest(endpoint, options = {}) {
     const token = localStorage.getItem('authToken');

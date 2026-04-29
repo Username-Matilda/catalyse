@@ -301,6 +301,7 @@
             // Meta info
             let meta = [];
             if (project.is_org_proposed) meta.push('<span class="org-badge">PauseAI Official</span>');
+            if (project.local_group) meta.push(`<span class="org-badge" style="background: var(--secondary); color: white;">${escapeHtml(project.local_group)}</span>`);
             const typeLabels = { sprint: 'Sprint', container: 'Time-boxed', ongoing: 'Ongoing', one_off: 'One-off' };
             if (project.project_type) meta.push(typeLabels[project.project_type] || project.project_type);
             if (project.estimated_duration) meta.push(project.estimated_duration);
