@@ -407,6 +407,41 @@ def send_task_surrendered_owner_email(to: str, owner_name: str, volunteer_name: 
     return send_email(to, subject, html)
 
 
+def send_task_surrendered_assignee_email(to: str, name: str, task_title: str,
+                                          project_title: str, project_id: int) -> bool:
+    """Notify a volunteer that they have been removed from a task due to inactivity."""
+    subject = f"You've been removed from a task: {task_title}"
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1a202c; }}
+            .container {{ max-width: 500px; margin: 0 auto; padding: 20px; }}
+            .button {{ display: inline-block; background: #FF9416; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; }}
+            .footer {{ margin-top: 32px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 14px; color: #718096; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>You've been removed from a task</h2>
+            <p>Hi {name},</p>
+            <p>As there has been no activity for three weeks, you have been removed from the task <strong>{task_title}</strong> in the project <strong>{project_title}</strong>.</p>
+            <p>The task is now open for someone else to claim. If you'd still like to work on it, you're welcome to claim it again.</p>
+            <p style="text-align: center; margin: 32px 0;">
+                <a href="{APP_URL}/static/project.html?id={project_id}" class="button">View Project</a>
+            </p>
+            <div class="footer">
+                <p>Catalyse - PauseAI Volunteer Platform</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    return send_email(to, subject, html)
+
+
 def send_relay_message(to: str, to_name: str, from_name: str, from_email: str,
                        subject: str, message: str, project_title: str = None) -> bool:
     """Send a relay message from one volunteer to another via the platform."""

@@ -23,6 +23,7 @@ from email_service import (
     send_task_nudge_email,
     send_task_final_warning_email,
     send_task_surrendered_owner_email,
+    send_task_surrendered_assignee_email,
 )
 
 
@@ -273,6 +274,11 @@ def check_task_inactivity():
                 update_conn.commit()
             finally:
                 update_conn.close()
+            if t["assignee_email"]:
+                send_task_surrendered_assignee_email(
+                    t["assignee_email"], t["assignee_name"],
+                    t["title"], t["project_title"], t["project_id"]
+                )
             if t["owner_email"]:
                 send_task_surrendered_owner_email(
                     t["owner_email"], t["owner_name"], t["assignee_name"],
