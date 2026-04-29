@@ -5,6 +5,11 @@ Sends project notification emails to volunteers who opted in.
 Two modes:
 - Skill match: immediate notification when a project matching their skills is approved
 - Fortnightly digest: summary of new projects every two weeks
+
+Also handles task inactivity reminders (legitimate interest basis):
+- 7 days without a comment: nudge email to assignee
+- 14 days: final warning email to assignee
+- 21 days: task unassigned, project owner notified
 """
 
 import sqlite3
