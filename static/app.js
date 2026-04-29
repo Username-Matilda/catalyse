@@ -199,10 +199,13 @@ async function apiRequest(endpoint, options = {}) {
 
     if (!response.ok) {
         const error = await response.json().catch(() => ({ detail: 'Request failed' }));
-        const detail = Array.isArray(error.detail)
+        const isFieldErrors = Array.isArray(error.detail);
+        const message = isFieldErrors
             ? error.detail.map(e => e.msg).join(', ')
-            : error.detail;
-        throw new Error(detail || 'Request failed');
+            : (error.detail || 'Request failed');
+        const err = new Error(message);
+        if (isFieldErrors) err.fieldErrors = error.detail;
+        throw err;
     }
 
     return response.json().catch(() => ({}));
@@ -248,6 +251,7 @@ function formatStatus(status) {
     const labels = {
         'seeking_owner': 'Seeking Owner',
         'seeking_help': 'Seeking Help',
+        'needs_tasks': 'Needs Tasks',
         'in_progress': 'In Progress',
         'on_hold': 'On Hold',
         'completed': 'Completed',
@@ -270,8 +274,57 @@ function formatUrgency(urgency) {
     return urgency.charAt(0).toUpperCase() + urgency.slice(1);
 }
 
-// Message display
+// Field-level validation error display
+function clearFieldErrors(container = document) {
+    container.querySelectorAll('.field-error-msg').forEach(el => el.remove());
+    container.querySelectorAll('.input-error').forEach(el => el.classList.remove('input-error'));
+}
+
+function showFieldErrors(fieldErrors, container = document, fieldMap = {}) {
+    if (!fieldErrors || !fieldErrors.length) return;
+    let firstInput = null;
+    for (const err of fieldErrors) {
+        const fieldName = err.loc && err.loc[err.loc.length - 1];
+        if (!fieldName) continue;
+        const elId = fieldMap[fieldName] || fieldName;
+        const input = container.querySelector(`#${elId}, [name="${elId}"]`);
+        if (!input) continue;
+        input.classList.add('input-error');
+        const msg = document.createElement('p');
+        msg.className = 'field-error-msg';
+        msg.textContent = err.msg;
+        const group = input.closest('.form-group');
+        if (group) group.appendChild(msg);
+        else input.after(msg);
+        if (!firstInput) firstInput = input;
+    }
+    if (firstInput) firstInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// Toast notifications (bottom-right desktop, bottom-centre mobile)
+function showToast(text, type = 'error', duration = 5000) {
+    let container = document.getElementById('toastContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toastContainer';
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = text;
+    container.appendChild(toast);
+
+    // Animate out then remove
+    setTimeout(() => {
+        toast.classList.add('toast-hiding');
+        toast.addEventListener('animationend', () => toast.remove(), { once: true });
+    }, duration);
+}
+
+// Message display — errors also appear as toasts
 function showMessage(text, type, containerId = 'messageDiv') {
+    if (type === 'error') showToast(text, 'error');
     const div = document.getElementById(containerId);
     if (!div) return;
     div.textContent = text;
@@ -724,7 +777,7 @@ function initBugReportButton() {
             document.getElementById('bugReportSuccess').style.display = 'block';
 
         } catch (error) {
-            alert('Failed to submit: ' + error.message);
+            showToast(error.message, 'error');
         }
 
         btn.disabled = false;

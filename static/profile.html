@@ -229,6 +229,8 @@
                 document.getElementById('saveMessage').scrollIntoView({ behavior: 'smooth', block: 'center' });
 
             } catch (error) {
+                clearFieldErrors(form);
+                showFieldErrors(error.fieldErrors, form);
                 showMessage(error.message, 'error', 'saveMessage');
                 document.getElementById('saveMessage').scrollIntoView({ behavior: 'smooth', block: 'center' });
             }

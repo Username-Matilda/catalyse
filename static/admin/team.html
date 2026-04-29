@@ -126,7 +126,7 @@
                 invites = await apiRequest('/api/admin/invites');
                 renderInvites();
             } catch (error) {
-                console.error('Failed to load invites:', error);
+                showToast('Failed to load invites', 'error');
             }
         }
 
