@@ -1212,8 +1212,8 @@ def change_email(
 
 def _send_account_deletion_notifications(conn, deleted_volunteer_id: int, deleted_volunteer_name: str):
     """Notify affected parties when a volunteer deletes their account."""
-    # Project owners with tasks assigned to the deleted user
-    affected = conn.execute(
+    # Projects with unfinished tasks assigned to the deleted user, grouped by project owner
+    task_rows = conn.execute(
         """SELECT p.owner_id, v.name AS owner_name, v.email AS owner_email,
                   p.id AS project_id, p.title AS project_title,
                   COUNT(st.id) AS task_count
@@ -1228,55 +1228,99 @@ def _send_account_deletion_notifications(conn, deleted_volunteer_id: int, delete
         (deleted_volunteer_id, deleted_volunteer_id)
     ).fetchall()
 
-    for row in affected:
-        task_word = "task" if row["task_count"] == 1 else "tasks"
-        create_notification(
-            conn, row["owner_id"], "task_assignee_deleted",
-            "Task assignee deleted their account",
-            f"{row['task_count']} {task_word} in '{row['project_title']}' assigned to {deleted_volunteer_name} need a new assignee.",
-            f"/static/project.html?id={row['project_id']}"
-        )
-        try:
-            if row["owner_email"]:
-                send_project_notification_email(
-                    to=row["owner_email"], name=row["owner_name"],
-                    subject=f"Task assignee deleted their account — '{row['project_title']}'",
-                    message=f"<strong>{deleted_volunteer_name}</strong> has deleted their account. They had {row['task_count']} {task_word} assigned to them in your project <strong>{row['project_title']}</strong>. Please reassign or unassign as needed.",
-                    project_title=row["project_title"], project_id=row["project_id"]
-                )
-        except Exception as e:
-            print(f"[NOTIFY ERROR] Task assignee deletion email failed: {e}")
-
-    # Admins: notify about each project losing its owner
+    # Active projects owned by the deleted user
     owned_projects = conn.execute(
         """SELECT id, title FROM projects
            WHERE owner_id = ? AND status NOT IN ('completed', 'archived')""",
         (deleted_volunteer_id,)
     ).fetchall()
 
-    if owned_projects:
+    if not task_rows and not owned_projects:
+        return
+
+    # Build per-owner task map
+    owner_task_map = {}
+    for row in task_rows:
+        oid = row["owner_id"]
+        if oid not in owner_task_map:
+            owner_task_map[oid] = {"name": row["owner_name"], "email": row["owner_email"], "task_projects": []}
+        owner_task_map[oid]["task_projects"].append({
+            "project_id": row["project_id"],
+            "project_title": row["project_title"],
+            "task_count": row["task_count"],
+        })
+
+    ownerless = [{"project_id": p["id"], "project_title": p["title"]} for p in owned_projects]
+
+    # Build unified recipient map — admins and task-project owners may overlap
+    recipients = {}
+    for owner_id, data in owner_task_map.items():
+        recipients[owner_id] = {
+            "name": data["name"], "email": data["email"],
+            "task_projects": data["task_projects"], "ownerless_projects": [],
+        }
+
+    if ownerless:
         admins = conn.execute(
             "SELECT id, name, email FROM volunteers WHERE is_admin = 1 AND deleted_at IS NULL AND id != ?",
             (deleted_volunteer_id,)
         ).fetchall()
-        for project in owned_projects:
-            for admin in admins:
+        for admin in admins:
+            aid = admin["id"]
+            if aid not in recipients:
+                recipients[aid] = {"name": admin["name"], "email": admin["email"], "task_projects": [], "ownerless_projects": []}
+            recipients[aid]["ownerless_projects"] = ownerless
+
+    # Send per-project in-app notifications, but only one email per recipient
+    for recipient_id, r in recipients.items():
+        for p in r["task_projects"]:
+            word = "task" if p["task_count"] == 1 else "tasks"
+            try:
                 create_notification(
-                    conn, admin["id"], "project_owner_deleted",
-                    "Project owner deleted their account",
-                    f"'{project['title']}' needs a new owner — {deleted_volunteer_name} has deleted their account.",
-                    f"/static/project.html?id={project['id']}"
+                    conn, recipient_id, "account_deleted_impact",
+                    f"{deleted_volunteer_name} has deleted their account",
+                    f"{p['task_count']} {word} in '{p['project_title']}' assigned to {deleted_volunteer_name} need a new assignee.",
+                    f"/static/project.html?id={p['project_id']}"
                 )
-                try:
-                    if admin["email"]:
-                        send_project_notification_email(
-                            to=admin["email"], name=admin["name"],
-                            subject=f"Project owner deleted their account — '{project['title']}'",
-                            message=f"<strong>{deleted_volunteer_name}</strong> has deleted their account. They were the owner of <strong>{project['title']}</strong>. Please assign a new owner or archive the project.",
-                            project_title=project["title"], project_id=project["id"]
-                        )
-                except Exception as e:
-                    print(f"[NOTIFY ERROR] Project owner deletion admin email failed: {e}")
+            except Exception as e:
+                print(f"[NOTIFY ERROR] Account deletion notification failed: {e}")
+
+        for p in r["ownerless_projects"]:
+            try:
+                create_notification(
+                    conn, recipient_id, "account_deleted_impact",
+                    f"{deleted_volunteer_name} has deleted their account",
+                    f"'{p['project_title']}' needs a new owner.",
+                    f"/static/project.html?id={p['project_id']}"
+                )
+            except Exception as e:
+                print(f"[NOTIFY ERROR] Account deletion notification failed: {e}")
+
+        try:
+            if r["email"]:
+                all_projects = r["task_projects"] + r["ownerless_projects"]
+                msg_parts = [f"<p><strong>{deleted_volunteer_name}</strong> has deleted their account.</p>"]
+                if r["task_projects"]:
+                    rows_html = "".join(
+                        f"<li>{p['task_count']} {'task' if p['task_count'] == 1 else 'tasks'} in <strong>{p['project_title']}</strong></li>"
+                        for p in r["task_projects"]
+                    )
+                    msg_parts.append(f"<p>The following tasks need a new assignee:</p><ul>{rows_html}</ul>")
+                if r["ownerless_projects"]:
+                    rows_html = "".join(
+                        f"<li><strong>{p['project_title']}</strong></li>"
+                        for p in r["ownerless_projects"]
+                    )
+                    msg_parts.append(f"<p>The following projects need a new owner:</p><ul>{rows_html}</ul>")
+                send_project_notification_email(
+                    to=r["email"], name=r["name"],
+                    subject=f"{deleted_volunteer_name} has deleted their account",
+                    message="".join(msg_parts),
+                    project_title=all_projects[0]["project_title"],
+                    project_id=all_projects[0]["project_id"]
+                )
+        except Exception as e:
+            print(f"[NOTIFY ERROR] Account deletion email failed: {e}")
 
 
 @app.post("/api/auth/delete-account")
