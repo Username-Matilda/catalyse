@@ -297,6 +297,116 @@ def send_digest_email(to: str, name: str, projects: list, is_match: bool = False
     return send_email(to, subject, html)
 
 
+def send_task_nudge_email(to: str, name: str, task_title: str, project_title: str,
+                          project_id: int, task_id: int, days_inactive: int) -> bool:
+    """Send a 1-week inactivity nudge to a task assignee."""
+    subject = f"Update needed: {task_title}"
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1a202c; }}
+            .container {{ max-width: 500px; margin: 0 auto; padding: 20px; }}
+            .button {{ display: inline-block; background: #FF9416; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; }}
+            .footer {{ margin-top: 32px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 14px; color: #718096; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>How's it going?</h2>
+            <p>Hi {name},</p>
+            <p>It's been {days_inactive} days since there was any activity on your task <strong>{task_title}</strong> in the project <strong>{project_title}</strong>.</p>
+            <p>Could you leave a quick comment with a progress update? This helps the project owner stay informed and keeps things moving.</p>
+            <p style="text-align: center; margin: 32px 0;">
+                <a href="{APP_URL}/static/project.html?id={project_id}" class="button">View Task</a>
+            </p>
+            <div class="footer">
+                <p>Catalyse - PauseAI Volunteer Platform</p>
+                <p style="font-size: 12px;">You're receiving this because you have an active task on Catalyse. If you can no longer work on this task, please release it so someone else can pick it up.</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    return send_email(to, subject, html)
+
+
+def send_task_final_warning_email(to: str, name: str, task_title: str, project_title: str,
+                                   project_id: int, task_id: int, days_inactive: int) -> bool:
+    """Send a 2-week final warning to a task assignee before automatic surrender."""
+    subject = f"Final reminder: {task_title}"
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1a202c; }}
+            .container {{ max-width: 500px; margin: 0 auto; padding: 20px; }}
+            .button {{ display: inline-block; background: #FF9416; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; }}
+            .warning {{ background: #FFF3CD; border-left: 4px solid #FF9416; padding: 12px 16px; border-radius: 4px; margin: 16px 0; }}
+            .footer {{ margin-top: 32px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 14px; color: #718096; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>Final reminder needed</h2>
+            <p>Hi {name},</p>
+            <p>It's now been {days_inactive} days since there was any activity on your task <strong>{task_title}</strong> in <strong>{project_title}</strong>.</p>
+            <div class="warning">
+                <strong>If there is no update within the next week, you will be automatically removed from this task</strong> so someone else can take it on.
+            </div>
+            <p>Please leave a comment with a progress update — even a brief one — to keep the task assigned to you.</p>
+            <p style="text-align: center; margin: 32px 0;">
+                <a href="{APP_URL}/static/project.html?id={project_id}" class="button">View Task</a>
+            </p>
+            <div class="footer">
+                <p>Catalyse - PauseAI Volunteer Platform</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    return send_email(to, subject, html)
+
+
+def send_task_surrendered_owner_email(to: str, owner_name: str, volunteer_name: str,
+                                       task_title: str, project_title: str, project_id: int) -> bool:
+    """Notify a project owner that an inactive volunteer has been removed from a task."""
+    subject = f"Task unassigned due to inactivity: {task_title}"
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1a202c; }}
+            .container {{ max-width: 500px; margin: 0 auto; padding: 20px; }}
+            .button {{ display: inline-block; background: #FF9416; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; }}
+            .footer {{ margin-top: 32px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 14px; color: #718096; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>Task unassigned due to inactivity</h2>
+            <p>Hi {owner_name},</p>
+            <p><strong>{volunteer_name}</strong> has been removed from the task <strong>{task_title}</strong> in your project <strong>{project_title}</strong> after three weeks of inactivity despite reminders.</p>
+            <p>The task is now open and can be claimed by another contributor.</p>
+            <p style="text-align: center; margin: 32px 0;">
+                <a href="{APP_URL}/static/project.html?id={project_id}" class="button">View Project</a>
+            </p>
+            <div class="footer">
+                <p>Catalyse - PauseAI Volunteer Platform</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    return send_email(to, subject, html)
+
+
 def send_relay_message(to: str, to_name: str, from_name: str, from_email: str,
                        subject: str, message: str, project_title: str = None) -> bool:
     """Send a relay message from one volunteer to another via the platform."""

@@ -2461,10 +2461,17 @@ def update_project_task(
                 params.append(datetime.now().isoformat())
             elif data.status == "open":
                 updates.append("assigned_to_id = NULL")
+                updates.append("assigned_at = NULL")
+                updates.append("nudge_sent_at = NULL")
+                updates.append("final_warning_sent_at = NULL")
                 updates.append("completed_at = NULL")
         if data.assigned_to_id is not None:
             updates.append("assigned_to_id = ?")
             params.append(data.assigned_to_id)
+            updates.append("assigned_at = ?")
+            params.append(datetime.now().isoformat())
+            updates.append("nudge_sent_at = NULL")
+            updates.append("final_warning_sent_at = NULL")
 
         if updates:
             updates.append("updated_at = ?")
@@ -2566,6 +2573,10 @@ def add_task_comment(
         cursor = conn.execute(
             "INSERT INTO project_task_comments (task_id, author_id, content) VALUES (?, ?, ?)",
             (task_id, volunteer["id"], data.content)
+        )
+        conn.execute(
+            "UPDATE project_tasks SET nudge_sent_at = NULL, final_warning_sent_at = NULL WHERE id = ?",
+            (task_id,)
         )
         return {"id": cursor.lastrowid, "message": "Comment added"}
 
@@ -4133,6 +4144,10 @@ def startup():
         start_digest_scheduler()
     except Exception as e:
         print(f"[STARTUP] Digest scheduler failed to start: {e}")
+    try:
+        start_inactivity_scheduler()
+    except Exception as e:
+        print(f"[STARTUP] Inactivity scheduler failed to start: {e}")
 
 
 def start_backup_scheduler():
@@ -4178,6 +4193,29 @@ def start_digest_scheduler():
     thread = threading.Thread(target=digest_loop, daemon=True)
     thread.start()
     print(f"[DIGEST] Scheduler started (email configured: {is_email_configured()})")
+
+
+def start_inactivity_scheduler():
+    """Start a background thread that checks for inactive tasks daily."""
+    import threading
+    import time
+    from digest_service import check_task_inactivity
+    from email_service import is_email_configured
+
+    def inactivity_loop():
+        # Wait 2 minutes after startup before first check
+        time.sleep(120)
+        while True:
+            try:
+                check_task_inactivity()
+            except Exception as e:
+                print(f"[INACTIVITY ERROR] Unexpected error in inactivity loop: {e}")
+            # Sleep 24 hours
+            time.sleep(24 * 60 * 60)
+
+    thread = threading.Thread(target=inactivity_loop, daemon=True)
+    thread.start()
+    print(f"[INACTIVITY] Scheduler started (email configured: {is_email_configured()})")
 
 
 # ============================================

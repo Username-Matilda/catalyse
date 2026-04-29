@@ -631,7 +631,10 @@
                         </div>
                         <div style="display: flex; gap: 4px; flex-shrink: 0;">
                             ${t.status === 'open' && currentUser ? `
-                                <button class="btn btn-small btn-secondary" onclick="claimTask(${t.id})">Claim</button>
+                                <div style="text-align: right;">
+                                    <button class="btn btn-small btn-secondary" onclick="claimTask(${t.id})">Claim</button>
+                                    <p style="font-size: 0.7rem; color: var(--text-light); margin-top: 4px;">By claiming this task you may receive inactivity reminder emails.</p>
+                                </div>
                             ` : ''}
                             ${t.status === 'assigned' && t.assigned_to_id === currentUser?.id ? `
                                 <button class="btn btn-small btn-primary" onclick="completeTask(${t.id})">Done</button>
