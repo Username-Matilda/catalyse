@@ -2532,7 +2532,7 @@ def review_project(
         if data.status == "approved":
             # Determine lifecycle status and seeking flags
             has_owner = project["owner_id"] is not None
-            new_status = "in_progress" if has_owner else "in_progress"
+            new_status = "needs_tasks" if has_owner else "in_progress"
             target = data.target_status or "seeking_owner"
 
             # Build update with seeking flags if columns exist
@@ -2635,7 +2635,7 @@ def create_org_project(
 ) -> Dict:
     """Create an org-proposed project (skips review)."""
     with db_transaction() as conn:
-        status = "in_progress" if data.want_to_own else "in_progress"
+        status = "needs_tasks" if data.want_to_own else "in_progress"
 
         proj_columns = {row["name"] for row in conn.execute("PRAGMA table_info(projects)").fetchall()}
         proj_fields = {

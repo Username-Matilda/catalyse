@@ -540,7 +540,11 @@
 
         function onStatusSelectChange() {
             const hint = document.getElementById('inProgressHint');
-            if (hint) hint.style.display = document.getElementById('statusSelect').value === 'in_progress' ? 'block' : 'none';
+            if (hint) {
+                const movingToInProgress = document.getElementById('statusSelect').value === 'in_progress'
+                    && project.status !== 'in_progress';
+                hint.style.display = movingToInProgress ? 'block' : 'none';
+            }
         }
 
         async function updateProjectStatus() {
