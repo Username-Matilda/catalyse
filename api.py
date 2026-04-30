@@ -2532,7 +2532,14 @@ def review_project(
         if data.status == "approved":
             # Determine lifecycle status and seeking flags
             has_owner = project["owner_id"] is not None
-            new_status = "needs_tasks" if has_owner else "in_progress"
+            if has_owner:
+                open_task_count = conn.execute(
+                    "SELECT COUNT(*) FROM project_tasks WHERE project_id = ? AND status != 'done'",
+                    (project_id,)
+                ).fetchone()[0]
+                new_status = "in_progress" if open_task_count > 0 else "needs_tasks"
+            else:
+                new_status = "in_progress"
             target = data.target_status or "seeking_owner"
 
             # Build update with seeking flags if columns exist
