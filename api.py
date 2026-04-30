@@ -3671,10 +3671,14 @@ def respond_to_interest(
             f"/static/project.html?id={project_id}"
         )
 
-        # If accepting as owner, assign them and move to needs_tasks so they can
-        # set up tasks before starting (unless the project is already in_progress)
+        # If accepting as owner, assign them. Move to in_progress if there are
+        # already open tasks, otherwise needs_tasks so the owner can add them first.
         if data.status == "accepted" and interest["interest_type"] == "want_to_own":
-            new_status = 'in_progress' if project["status"] == 'in_progress' else 'needs_tasks'
+            open_task_count = conn.execute(
+                "SELECT COUNT(*) FROM project_tasks WHERE project_id = ? AND status != 'done'",
+                (project_id,)
+            ).fetchone()[0]
+            new_status = 'in_progress' if open_task_count > 0 else 'needs_tasks'
             conn.execute(
                 "UPDATE projects SET owner_id = ?, status = ? WHERE id = ?",
                 (interest["volunteer_id"], new_status, project_id)
