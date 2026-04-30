@@ -7,9 +7,9 @@ Two modes:
 - Fortnightly digest: summary of new projects every two weeks
 
 Also handles task inactivity reminders (legitimate interest basis):
-- 7 days without a comment: nudge email to assignee
-- 14 days: final warning email to assignee
-- 21 days: task unassigned, project owner notified
+- 14 days without a comment: nudge email to assignee
+- 21 days: final warning email to assignee
+- 28 days: task unassigned, project owner notified
 """
 
 import sqlite3
@@ -210,9 +210,9 @@ def send_fortnightly_digest():
 def check_task_inactivity():
     """
     Daily check for inactive assigned tasks. Applies three escalating actions:
-    - 7+ days inactive: send nudge email to assignee
-    - 14+ days inactive: send final warning email to assignee
-    - 21+ days inactive: unassign the task, notify project owner
+    - 14+ days inactive: send nudge email to assignee
+    - 21+ days inactive: send final warning email to assignee
+    - 7 days after final warning (28+ days total): unassign the task, notify project owner
     Activity is reset whenever a comment is posted on the task.
     """
     if not is_email_configured():
@@ -295,7 +295,7 @@ def check_task_inactivity():
                 )
             surrendered += 1
 
-        elif days_inactive >= 14 and not t["final_warning_sent_at"]:
+        elif days_inactive >= 21 and not t["final_warning_sent_at"]:
             surrender_date = f"{(now + timedelta(days=7)).day} {(now + timedelta(days=7)).strftime('%B %Y')}"
             if t["assignee_email"]:
                 send_task_final_warning_email(
@@ -314,7 +314,7 @@ def check_task_inactivity():
                 update_conn.close()
             final_warned += 1
 
-        elif days_inactive >= 7 and not t["nudge_sent_at"]:
+        elif days_inactive >= 14 and not t["nudge_sent_at"]:
             if t["assignee_email"]:
                 send_task_nudge_email(
                     t["assignee_email"], t["assignee_name"], t["title"],
