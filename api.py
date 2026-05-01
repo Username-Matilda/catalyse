@@ -2089,8 +2089,8 @@ def create_project(
         if "local_group" in proj_columns:
             proj_fields["local_group"] = data.local_group
         if "is_seeking_help" in proj_columns:
-            proj_fields["is_seeking_help"] = getattr(data, "is_seeking_help", True)
-            proj_fields["is_seeking_owner"] = getattr(data, "is_seeking_owner", not data.want_to_own)
+            proj_fields["is_seeking_help"] = data.is_seeking_help
+            proj_fields["is_seeking_owner"] = not data.want_to_own
 
         col_names = ", ".join(proj_fields.keys())
         placeholders = ", ".join("?" * len(proj_fields))
@@ -2392,6 +2392,11 @@ def create_project_task(
                VALUES (?, ?, ?, ?)""",
             (project_id, data.title, data.description, volunteer["id"])
         )
+        if project["status"] == "needs_tasks":
+            conn.execute(
+                "UPDATE projects SET status = 'in_progress' WHERE id = ?",
+                (project_id,)
+            )
         return {"id": cursor.lastrowid, "message": "Task created"}
 
 
@@ -2532,14 +2537,11 @@ def review_project(
         if data.status == "approved":
             # Determine lifecycle status and seeking flags
             has_owner = project["owner_id"] is not None
-            if has_owner:
-                open_task_count = conn.execute(
-                    "SELECT COUNT(*) FROM project_tasks WHERE project_id = ? AND status != 'done'",
-                    (project_id,)
-                ).fetchone()[0]
-                new_status = "in_progress" if open_task_count > 0 else "needs_tasks"
-            else:
-                new_status = "in_progress"
+            open_task_count = conn.execute(
+                "SELECT COUNT(*) FROM project_tasks WHERE project_id = ? AND status != 'done'",
+                (project_id,)
+            ).fetchone()[0]
+            new_status = "in_progress" if open_task_count > 0 else "needs_tasks"
             target = data.target_status or "seeking_owner"
 
             # Build update with seeking flags if columns exist
@@ -2642,7 +2644,7 @@ def create_org_project(
 ) -> Dict:
     """Create an org-proposed project (skips review)."""
     with db_transaction() as conn:
-        status = "needs_tasks" if data.want_to_own else "in_progress"
+        status = "needs_tasks"
 
         proj_columns = {row["name"] for row in conn.execute("PRAGMA table_info(projects)").fetchall()}
         proj_fields = {
@@ -2658,8 +2660,8 @@ def create_org_project(
         if "local_group" in proj_columns:
             proj_fields["local_group"] = data.local_group
         if "is_seeking_help" in proj_columns:
-            proj_fields["is_seeking_help"] = getattr(data, "is_seeking_help", True)
-            proj_fields["is_seeking_owner"] = getattr(data, "is_seeking_owner", not data.want_to_own)
+            proj_fields["is_seeking_help"] = data.is_seeking_help
+            proj_fields["is_seeking_owner"] = not data.want_to_own
 
         col_names = ", ".join(proj_fields.keys())
         placeholders = ", ".join("?" * len(proj_fields))
@@ -2674,6 +2676,18 @@ def create_org_project(
             conn.execute(
                 "INSERT INTO project_skills (project_id, skill_id, is_required) VALUES (?, ?, ?)",
                 (project_id, skill_id, is_required)
+            )
+
+        for task in data.tasks:
+            conn.execute(
+                "INSERT INTO project_tasks (project_id, title, description, created_by_id) VALUES (?, ?, ?, ?)",
+                (project_id, task.title, task.description, admin["id"])
+            )
+
+        if data.tasks:
+            conn.execute(
+                "UPDATE projects SET status = 'in_progress' WHERE id = ?",
+                (project_id,)
             )
 
         return {"id": project_id, "message": "Org project created"}
