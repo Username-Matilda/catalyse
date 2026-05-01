@@ -5,6 +5,11 @@ Sends project notification emails to volunteers who opted in.
 Two modes:
 - Skill match: immediate notification when a project matching their skills is approved
 - Fortnightly digest: summary of new projects every two weeks
+
+Also handles task inactivity reminders (legitimate interest basis):
+- 14 days without a comment: nudge email to assignee
+- 21 days: final warning email to assignee
+- 28 days: task unassigned, project owner notified
 """
 
 import sqlite3
@@ -12,7 +17,14 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import os
 
-from email_service import send_digest_email, is_email_configured
+from email_service import (
+    send_digest_email,
+    is_email_configured,
+    send_task_nudge_email,
+    send_task_final_warning_email,
+    send_task_surrendered_owner_email,
+    send_task_surrendered_assignee_email,
+)
 
 
 # Database location (same logic as api.py)
@@ -193,6 +205,134 @@ def send_fortnightly_digest():
             sent += 1
 
     print(f"[DIGEST] Sent fortnightly digest to {sent}/{len(volunteers)} volunteers ({len(project_list)} projects)")
+
+
+def check_task_inactivity():
+    """
+    Daily check for inactive assigned tasks. Applies three escalating actions:
+    - 14+ days inactive: send nudge email to assignee
+    - 21+ days inactive: send final warning email to assignee
+    - 7 days after final warning (28+ days total): unassign the task, notify project owner
+    Activity is reset whenever a comment is posted on the task.
+    """
+    if not is_email_configured():
+        print("[INACTIVITY] Email not configured, skipping task inactivity check")
+        return
+
+    conn = get_db()
+    try:
+        # Check columns exist (migration may not have run yet)
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(project_tasks)").fetchall()}
+        if "assigned_at" not in cols:
+            print("[INACTIVITY] assigned_at column not found, skipping")
+            return
+
+        now = datetime.now()
+
+        tasks = conn.execute(
+            """SELECT pt.id, pt.project_id, pt.title,
+                      pt.assigned_at, pt.nudge_sent_at, pt.final_warning_sent_at,
+                      pt.assigned_to_id,
+                      v.name AS assignee_name, v.email AS assignee_email,
+                      p.title AS project_title, p.owner_id,
+                      ov.name AS owner_name, ov.email AS owner_email,
+                      (SELECT MAX(created_at) FROM project_task_comments
+                       WHERE task_id = pt.id) AS last_comment_at
+               FROM project_tasks pt
+               JOIN projects p ON pt.project_id = p.id
+               JOIN volunteers v ON pt.assigned_to_id = v.id
+               JOIN volunteers ov ON p.owner_id = ov.id
+               WHERE pt.status = 'assigned'
+               AND pt.assigned_at IS NOT NULL
+               AND v.deleted_at IS NULL"""
+        ).fetchall()
+    finally:
+        conn.close()
+
+    nudged = final_warned = surrendered = 0
+
+    for t in tasks:
+        last_activity_str = t["last_comment_at"] or t["assigned_at"]
+        try:
+            last_activity = datetime.fromisoformat(last_activity_str)
+        except (ValueError, TypeError):
+            continue
+        days_inactive = (now - last_activity).days
+        activity_phrase = "you last updated this task" if t["last_comment_at"] else "you were assigned this task"
+        last_activity_date = f"{last_activity.day} {last_activity.strftime('%B %Y')}"
+
+        days_since_final_warning = None
+        if t["final_warning_sent_at"]:
+            try:
+                days_since_final_warning = (now - datetime.fromisoformat(t["final_warning_sent_at"])).days
+            except (ValueError, TypeError):
+                pass
+
+        if days_since_final_warning is not None and days_since_final_warning >= 7:
+            # Surrender: unassign task, notify owner
+            update_conn = get_db()
+            try:
+                update_conn.execute(
+                    """UPDATE project_tasks
+                       SET status = 'open', assigned_to_id = NULL, assigned_at = NULL,
+                           nudge_sent_at = NULL, final_warning_sent_at = NULL,
+                           updated_at = ?
+                       WHERE id = ?""",
+                    (now.isoformat(), t["id"])
+                )
+                update_conn.commit()
+            finally:
+                update_conn.close()
+            if t["assignee_email"]:
+                send_task_surrendered_assignee_email(
+                    t["assignee_email"], t["assignee_name"],
+                    t["title"], t["project_title"], t["project_id"]
+                )
+            if t["owner_email"]:
+                send_task_surrendered_owner_email(
+                    t["owner_email"], t["owner_name"], t["assignee_name"],
+                    t["title"], t["project_title"], t["project_id"]
+                )
+            surrendered += 1
+
+        elif days_inactive >= 21 and not t["final_warning_sent_at"]:
+            surrender_date = f"{(now + timedelta(days=7)).day} {(now + timedelta(days=7)).strftime('%B %Y')}"
+            if t["assignee_email"]:
+                send_task_final_warning_email(
+                    t["assignee_email"], t["assignee_name"], t["title"],
+                    t["project_title"], t["project_id"], t["id"], days_inactive,
+                    activity_phrase, last_activity_date, surrender_date
+                )
+            update_conn = get_db()
+            try:
+                update_conn.execute(
+                    "UPDATE project_tasks SET final_warning_sent_at = ? WHERE id = ?",
+                    (now.isoformat(), t["id"])
+                )
+                update_conn.commit()
+            finally:
+                update_conn.close()
+            final_warned += 1
+
+        elif days_inactive >= 14 and not t["nudge_sent_at"]:
+            if t["assignee_email"]:
+                send_task_nudge_email(
+                    t["assignee_email"], t["assignee_name"], t["title"],
+                    t["project_title"], t["project_id"], t["id"], days_inactive,
+                    activity_phrase, last_activity_date
+                )
+            update_conn = get_db()
+            try:
+                update_conn.execute(
+                    "UPDATE project_tasks SET nudge_sent_at = ? WHERE id = ?",
+                    (now.isoformat(), t["id"])
+                )
+                update_conn.commit()
+            finally:
+                update_conn.close()
+            nudged += 1
+
+    print(f"[INACTIVITY] Done — nudged: {nudged}, final warnings: {final_warned}, surrendered: {surrendered}")
 
 
 if __name__ == "__main__":

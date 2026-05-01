@@ -418,6 +418,10 @@ class ProjectUpdateCreate(BaseModel):
     content: str = Field(..., min_length=1)
 
 
+class TaskCommentCreate(BaseModel):
+    content: str = Field(..., min_length=1)
+
+
 # --- Admin Notes ---
 class AdminNoteCreate(BaseModel):
     content: str = Field(..., min_length=1)
@@ -2409,27 +2413,38 @@ def update_project_task(
 ) -> Dict:
     """Update a project task. Owner/admin can edit all fields. Volunteers can claim open tasks."""
     conn = get_db()
-    project = conn.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
-    task = conn.execute(
-        "SELECT * FROM project_tasks WHERE id = ? AND project_id = ?", (task_id, project_id)
-    ).fetchone()
-    conn.close()
+    try:
+        project = conn.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
+        task = conn.execute(
+            "SELECT * FROM project_tasks WHERE id = ? AND project_id = ?", (task_id, project_id)
+        ).fetchone()
 
-    if not project or not task:
-        raise HTTPException(status_code=404, detail="Project or task not found")
+        if not project or not task:
+            raise HTTPException(status_code=404, detail="Project or task not found")
 
-    is_owner = project["owner_id"] == volunteer["id"]
-    is_admin = volunteer.get("is_admin")
-    is_assignee = task["assigned_to_id"] == volunteer["id"]
+        is_owner = project["owner_id"] == volunteer["id"]
+        is_admin = volunteer.get("is_admin")
+        is_assignee = task["assigned_to_id"] == volunteer["id"]
 
-    # Volunteers can claim open tasks or mark their own assigned tasks as done
-    if not (is_owner or is_admin):
-        if data.status == 'assigned' and data.assigned_to_id == volunteer["id"] and task["status"] == "open":
-            pass  # Allow self-claim
-        elif data.status == 'done' and is_assignee and task["status"] == "assigned":
-            pass  # Allow marking own task done
-        else:
-            raise HTTPException(status_code=403, detail="Not authorized to update this task")
+        # Volunteers can claim open tasks or mark their own assigned tasks as done
+        if not (is_owner or is_admin):
+            if data.status == 'assigned' and data.assigned_to_id == volunteer["id"] and task["status"] == "open":
+                pass  # Allow self-claim
+            elif data.status == 'done' and is_assignee and task["status"] == "assigned":
+                pass  # Allow marking own task done
+            else:
+                raise HTTPException(status_code=403, detail="Not authorized to update this task")
+
+        if data.assigned_to_id is not None:
+            assignee_is_contributor = conn.execute(
+                "SELECT 1 FROM project_interests WHERE project_id = ? AND volunteer_id = ? AND status = 'accepted'",
+                (project_id, data.assigned_to_id)
+            ).fetchone()
+            assignee_is_owner = project["owner_id"] == data.assigned_to_id
+            if not (assignee_is_contributor or assignee_is_owner):
+                raise HTTPException(status_code=400, detail="Assignee is not a contributor to this project")
+    finally:
+        conn.close()
 
     with db_transaction() as conn:
         updates = []
@@ -2449,10 +2464,17 @@ def update_project_task(
                 params.append(datetime.now().isoformat())
             elif data.status == "open":
                 updates.append("assigned_to_id = NULL")
+                updates.append("assigned_at = NULL")
+                updates.append("nudge_sent_at = NULL")
+                updates.append("final_warning_sent_at = NULL")
                 updates.append("completed_at = NULL")
         if data.assigned_to_id is not None:
             updates.append("assigned_to_id = ?")
             params.append(data.assigned_to_id)
+            updates.append("assigned_at = ?")
+            params.append(datetime.now().isoformat())
+            updates.append("nudge_sent_at = NULL")
+            updates.append("final_warning_sent_at = NULL")
 
         if updates:
             updates.append("updated_at = ?")
@@ -2493,6 +2515,73 @@ def delete_project_task(
         if result.rowcount == 0:
             raise HTTPException(status_code=404, detail="Task not found")
         return {"message": "Task deleted"}
+
+
+@app.get("/api/projects/{project_id}/tasks/{task_id}/comments")
+def list_task_comments(
+    project_id: int,
+    task_id: int,
+    current_volunteer: Optional[Dict] = Depends(get_current_volunteer)
+) -> List[Dict]:
+    """List comments on a task."""
+    conn = get_db()
+    task = conn.execute(
+        "SELECT * FROM project_tasks WHERE id = ? AND project_id = ?", (task_id, project_id)
+    ).fetchone()
+    if not task:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Task not found")
+    comments = conn.execute(
+        """SELECT ptc.*, v.name as author_name
+           FROM project_task_comments ptc
+           LEFT JOIN volunteers v ON ptc.author_id = v.id
+           WHERE ptc.task_id = ?
+           ORDER BY ptc.created_at ASC""",
+        (task_id,)
+    ).fetchall()
+    conn.close()
+    return [row_to_dict(c) for c in comments]
+
+
+@app.post("/api/projects/{project_id}/tasks/{task_id}/comments")
+def add_task_comment(
+    project_id: int,
+    task_id: int,
+    data: TaskCommentCreate,
+    volunteer: Dict = Depends(require_auth)
+) -> Dict:
+    """Add a comment to a task. Must be a project contributor, owner, or admin."""
+    conn = get_db()
+    project = conn.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
+    task = conn.execute(
+        "SELECT * FROM project_tasks WHERE id = ? AND project_id = ?", (task_id, project_id)
+    ).fetchone()
+
+    if not project or not task:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Project or task not found")
+
+    is_owner = project["owner_id"] == volunteer["id"]
+    is_admin = volunteer.get("is_admin")
+    is_contributor = conn.execute(
+        "SELECT 1 FROM project_interests WHERE project_id = ? AND volunteer_id = ? AND status = 'accepted'",
+        (project_id, volunteer["id"])
+    ).fetchone()
+    conn.close()
+
+    if not (is_owner or is_admin or is_contributor):
+        raise HTTPException(status_code=403, detail="Only project contributors can comment on tasks")
+
+    with db_transaction() as conn:
+        cursor = conn.execute(
+            "INSERT INTO project_task_comments (task_id, author_id, content) VALUES (?, ?, ?)",
+            (task_id, volunteer["id"], data.content)
+        )
+        conn.execute(
+            "UPDATE project_tasks SET nudge_sent_at = NULL, final_warning_sent_at = NULL WHERE id = ?",
+            (task_id,)
+        )
+        return {"id": cursor.lastrowid, "message": "Comment added"}
 
 
 # ============================================
@@ -4078,6 +4167,10 @@ def startup():
         start_digest_scheduler()
     except Exception as e:
         print(f"[STARTUP] Digest scheduler failed to start: {e}")
+    try:
+        start_inactivity_scheduler()
+    except Exception as e:
+        print(f"[STARTUP] Inactivity scheduler failed to start: {e}")
 
 
 def start_backup_scheduler():
@@ -4123,6 +4216,29 @@ def start_digest_scheduler():
     thread = threading.Thread(target=digest_loop, daemon=True)
     thread.start()
     print(f"[DIGEST] Scheduler started (email configured: {is_email_configured()})")
+
+
+def start_inactivity_scheduler():
+    """Start a background thread that checks for inactive tasks daily."""
+    import threading
+    import time
+    from digest_service import check_task_inactivity
+    from email_service import is_email_configured
+
+    def inactivity_loop():
+        # Wait 2 minutes after startup before first check
+        time.sleep(120)
+        while True:
+            try:
+                check_task_inactivity()
+            except Exception as e:
+                print(f"[INACTIVITY ERROR] Unexpected error in inactivity loop: {e}")
+            # Sleep 24 hours
+            time.sleep(24 * 60 * 60)
+
+    thread = threading.Thread(target=inactivity_loop, daemon=True)
+    thread.start()
+    print(f"[INACTIVITY] Scheduler started (email configured: {is_email_configured()})")
 
 
 # ============================================

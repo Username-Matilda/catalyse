@@ -266,6 +266,10 @@
                 renderProject();
                 document.getElementById('loadingState').style.display = 'none';
                 document.getElementById('projectContent').style.display = 'block';
+                if (location.hash) {
+                    const el = document.querySelector(location.hash);
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
             } catch (error) {
                 showMessage(error.message, 'error');
                 document.getElementById('loadingState').innerHTML = `
@@ -620,7 +624,7 @@
             document.getElementById('tasksEmpty').style.display = 'none';
 
             document.getElementById('tasksList').innerHTML = project.tasks.map(t => `
-                <div class="card" style="margin-bottom: 8px; padding: 12px 16px;">
+                <div id="task-${t.id}" class="card" style="margin-bottom: 8px; padding: 12px 16px;">
                     <div style="display: flex; justify-content: space-between; align-items: start; gap: 12px;">
                         <div style="flex: 1;">
                             <div style="display: flex; align-items: center; gap: 8px;">
@@ -635,7 +639,10 @@
                         </div>
                         <div style="display: flex; gap: 4px; flex-shrink: 0;">
                             ${t.status === 'open' && currentUser ? `
-                                <button class="btn btn-small btn-secondary" onclick="claimTask(${t.id})">Claim</button>
+                                <div style="text-align: right;">
+                                    <button class="btn btn-small btn-secondary" onclick="claimTask(${t.id})">Claim</button>
+                                    <p style="font-size: 0.7rem; color: var(--text-light); margin-top: 4px;">By claiming this task you may receive inactivity reminder emails.</p>
+                                </div>
                             ` : ''}
                             ${t.status === 'assigned' && t.assigned_to_id === currentUser?.id ? `
                                 <button class="btn btn-small btn-primary" onclick="completeTask(${t.id})">Done</button>
