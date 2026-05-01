@@ -162,14 +162,16 @@
                 <h2>Manage Project Status</h2>
                 <div class="form-group">
                     <label for="statusSelect">Change Status</label>
-                    <select id="statusSelect">
+                    <select id="statusSelect" onchange="onStatusSelectChange()">
                         <option value="seeking_help">Seeking Help</option>
+                        <option value="needs_tasks">Needs Tasks</option>
                         <option value="in_progress">In Progress</option>
                         <option value="on_hold">On Hold</option>
                         <option value="completed">Completed</option>
                     </select>
                 </div>
                 <button class="btn btn-primary btn-small" onclick="updateProjectStatus()">Update Status</button>
+                <p id="inProgressHint" style="display: none; font-size: 0.8rem; color: var(--text-light); margin-top: 8px;">Moving to In Progress requires at least one open task.</p>
 
                 <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border);">
                     <h3>Transfer Ownership</h3>
@@ -312,6 +314,7 @@
             // Meta info
             let meta = [];
             if (project.is_org_proposed) meta.push('<span class="org-badge">PauseAI Official</span>');
+            if (project.local_group) meta.push(`<span class="org-badge" style="background: var(--secondary); color: white;">${escapeHtml(project.local_group)}</span>`);
             const typeLabels = { sprint: 'Sprint', container: 'Time-boxed', ongoing: 'Ongoing', one_off: 'One-off' };
             if (project.project_type) meta.push(typeLabels[project.project_type] || project.project_type);
             if (project.estimated_duration) meta.push(project.estimated_duration);
@@ -510,6 +513,7 @@
                     select.innerHTML = `
                         <option value="seeking_owner">Seeking Owner</option>
                         <option value="seeking_help">Seeking Help</option>
+                        <option value="needs_tasks">Needs Tasks</option>
                         <option value="in_progress">In Progress</option>
                         <option value="on_hold">On Hold</option>
                         <option value="completed">Completed</option>
@@ -518,6 +522,7 @@
                 }
 
                 select.value = project.status;
+                onStatusSelectChange();
                 loadTransferOptions();
             }
 
@@ -545,6 +550,15 @@
                 await loadProject(project.id);
             } catch (error) {
                 showMessage(error.message, 'error');
+            }
+        }
+
+        function onStatusSelectChange() {
+            const hint = document.getElementById('inProgressHint');
+            if (hint) {
+                const movingToInProgress = document.getElementById('statusSelect').value === 'in_progress'
+                    && project.status !== 'in_progress';
+                hint.style.display = movingToInProgress ? 'block' : 'none';
             }
         }
 

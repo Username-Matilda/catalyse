@@ -87,6 +87,7 @@
             } catch (error) {
                 document.getElementById('error').style.display = 'block';
                 document.getElementById('errorMessage').textContent = error.message;
+                showToast(error.message, 'error');
             }
         }
 

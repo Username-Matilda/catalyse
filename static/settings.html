@@ -116,13 +116,13 @@
 
                 <form id="deleteForm">
                     <div class="form-group">
-                        <label for="delete_password" class="required">Enter your password to confirm</label>
+                        <label for="delete_password" class="required">Enter your password</label>
                         <input type="password" id="delete_password" name="password" required>
                     </div>
 
                     <div class="form-group">
-                        <label for="delete_confirm" class="required">Type DELETE to confirm</label>
-                        <input type="text" id="delete_confirm" name="confirmation" required placeholder="DELETE" pattern="DELETE">
+                        <label for="delete_password_confirm" class="required">Confirm your password</label>
+                        <input type="password" id="delete_password_confirm" name="password_confirm" required>
                     </div>
 
                     <button type="submit" class="btn" style="background: var(--error); color: white; width: 100%;">
@@ -171,6 +171,8 @@
                 document.getElementById('currentEmail').textContent = `Current email: ${currentUser.email}`;
 
             } catch (error) {
+                clearFieldErrors(form);
+                showFieldErrors(error.fieldErrors, form);
                 showMessage(error.message, 'error');
             }
 
@@ -209,6 +211,8 @@
                 form.reset();
 
             } catch (error) {
+                clearFieldErrors(form);
+                showFieldErrors(error.fieldErrors, form);
                 showMessage(error.message, 'error');
             }
 
@@ -221,8 +225,8 @@
 
             const form = e.target;
 
-            if (form.confirmation.value !== 'DELETE') {
-                showMessage('Please type DELETE to confirm', 'error');
+            if (form.password.value !== form.password_confirm.value) {
+                showMessage('Passwords do not match', 'error');
                 return;
             }
 
@@ -233,16 +237,12 @@
             try {
                 await apiRequest('/api/auth/delete-account', {
                     method: 'POST',
-                    body: JSON.stringify({
-                        password: form.password.value,
-                        confirmation: form.confirmation.value
-                    })
+                    body: JSON.stringify({ password: form.password.value })
                 });
 
-                // Clear auth and redirect
                 localStorage.removeItem('authToken');
-                alert('Your account has been deleted. We\'re sorry to see you go.');
-                window.location.href = '/';
+                showMessage('Your account has been deleted. We\'re sorry to see you go.', 'success');
+                setTimeout(() => { window.location.href = '/'; }, 2000);
 
             } catch (error) {
                 showMessage(error.message, 'error');

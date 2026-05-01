@@ -123,8 +123,11 @@
 
             document.getElementById('volunteerName').textContent = volunteer.name;
 
-            if (volunteer.location) {
-                document.getElementById('volunteerLocation').textContent = volunteer.location;
+            const locationParts = [];
+            if (volunteer.location) locationParts.push(volunteer.location);
+            if (volunteer.local_group) locationParts.push(volunteer.local_group);
+            if (locationParts.length > 0) {
+                document.getElementById('volunteerLocation').textContent = locationParts.join(' · ');
             }
 
             if (volunteer.bio) {

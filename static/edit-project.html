@@ -60,6 +60,7 @@
                 <div class="form-group">
                     <label for="status">Project Status</label>
                     <select id="status" name="status">
+                        <option value="needs_tasks">Needs Tasks</option>
                         <option value="in_progress">In Progress</option>
                         <option value="on_hold">On Hold</option>
                         <option value="completed">Completed</option>
@@ -110,6 +111,13 @@
                     <label for="country">Country / Region</label>
                     <select id="country" name="country">
                         <option value="">Select...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="local_group">Local Group</label>
+                    <select id="local_group" name="local_group">
+                        <option value="">Not specific to a local group</option>
                     </select>
                 </div>
 
@@ -215,6 +223,7 @@
             document.getElementById('estimated_duration').value = project.estimated_duration || '';
             document.getElementById('collaboration_link').value = project.collaboration_link || '';
             renderCountrySelect('country', project.country || '');
+            renderLocalGroupSelect('local_group', project.country || '', project.local_group || '');
 
             // Status dropdown — admins get extra options
             const statusSelect = document.getElementById('status');
@@ -223,6 +232,7 @@
                 const adminStatuses = [
                     { value: 'seeking_owner', label: 'Seeking Owner' },
                     { value: 'seeking_help', label: 'Seeking Help' },
+                    { value: 'needs_tasks', label: 'Needs Tasks' },
                     { value: 'in_progress', label: 'In Progress' },
                     { value: 'on_hold', label: 'On Hold' },
                     { value: 'completed', label: 'Completed' },
@@ -256,10 +266,15 @@
                    form.estimated_duration.value.trim() !== (project.estimated_duration || '') ||
                    form.collaboration_link.value.trim() !== (project.collaboration_link || '') ||
                    (form.country.value || '') !== (project.country || '') ||
+                   (form.local_group.value || '') !== (project.local_group || '') ||
                    form.is_seeking_help.checked !== (project.is_seeking_help || false) ||
                    form.is_seeking_owner.checked !== (project.is_seeking_owner || false) ||
                    currentSkills !== originalSkills;
         }
+
+        document.getElementById('country').addEventListener('change', (e) => {
+            renderLocalGroupSelect('local_group', e.target.value);
+        });
 
         document.getElementById('editForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -291,6 +306,7 @@
                     estimated_duration: form.estimated_duration.value.trim() || null,
                     collaboration_link: form.collaboration_link.value.trim() || null,
                     country: form.country.value || null,
+                    local_group: form.local_group.value || null,
                     skill_ids: skillIds,
                     skill_required_map: skillRequiredMap
                 };
@@ -305,6 +321,8 @@
                     window.location.href = `/static/project.html?id=${project.id}`;
                 }, 1000);
             } catch (error) {
+                clearFieldErrors(form);
+                showFieldErrors(error.fieldErrors, form);
                 showMessage(error.message, 'error');
                 btn.disabled = false;
                 btn.textContent = 'Save Changes';

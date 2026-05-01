@@ -16,6 +16,7 @@ from typing import Optional, List, Dict, Any
 from contextlib import contextmanager
 
 from fastapi import FastAPI, HTTPException, Depends, Header, Query, Response, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, EmailStr, Field
@@ -68,6 +69,75 @@ async def app_error_handler(request: Request, exc: AppError):
     traceback.print_exc()
     detail = f"{exc.message} Error Code: {exc.code}"
     return JSONResponse(status_code=500, content={"detail": detail})
+
+
+_FIELD_LABELS = {
+    # Auth / account
+    "name": "Name",
+    "email": "Email",
+    "password": "Password",
+    "new_password": "New password",
+    "current_password": "Current password",
+    "whatsapp_number": "WhatsApp number",
+    "page_url": "Page URL",
+    # Projects
+    "title": "Title",
+    "description": "Description",
+    "project_type": "Project type",
+    "urgency": "Urgency",
+    "time_commitment_hours_per_week": "Hours per week",
+    "estimated_duration": "Estimated duration",
+    "collaboration_link": "Collaboration link",
+    "country": "Country",
+    "local_group": "Local group",
+    "tasks": "Tasks",
+    # Messaging / content
+    "message": "Message",
+    "subject": "Subject",
+    "content": "Content",
+    # IDs that would otherwise get " id" appended
+    "category_id": "Category",
+    "volunteer_id": "Volunteer",
+    "skill_id": "Skill",
+}
+
+
+def _friendly_validation_error(err: dict) -> str:
+    loc = err.get("loc", [])
+    field = loc[-1] if loc else ""
+    label = _FIELD_LABELS.get(str(field), str(field).replace("_", " ").capitalize())
+    error_type = err.get("type", "")
+    ctx = err.get("ctx", {})
+
+    if error_type == "missing":
+        return f"{label} is required"
+    if error_type == "string_too_short":
+        n = ctx.get("min_length", 1)
+        return f"{label} must be at least {n} character{'s' if n != 1 else ''}"
+    if error_type == "string_too_long":
+        n = ctx.get("max_length", "")
+        return f"{label} must be no more than {n} characters"
+    if error_type in ("int_parsing", "float_parsing"):
+        return f"{label} must be a number"
+    if error_type == "value_error":
+        return f"{label}: {ctx.get('error', err.get('msg', 'invalid value'))}"
+    if error_type == "enum":
+        allowed = ", ".join(str(v) for v in ctx.get("expected", []))
+        return f"{label} must be one of: {allowed}" if allowed else f"{label} is not a valid option"
+
+    # Fallback: strip Pydantic's boilerplate and sentence-case what remains
+    msg = err.get("msg", "Invalid value")
+    msg = msg.removeprefix("Value error, ").removeprefix("String ")
+    return f"{label}: {msg[0].lower()}{msg[1:]}" if msg else f"{label}: invalid value"
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(request: Request, exc: RequestValidationError):
+    errors = [
+        {"loc": list(e["loc"]), "msg": _friendly_validation_error(e), "type": e.get("type")}
+        for e in exc.errors()
+    ]
+    return JSONResponse(status_code=422, content={"detail": errors})
 
 
 @app.exception_handler(Exception)
@@ -201,6 +271,7 @@ class VolunteerSignup(BaseModel):
     availability_hours_per_week: Optional[int] = None
     location: Optional[str] = None
     country: Optional[str] = None
+    local_group: Optional[str] = None
     share_contact_directly: bool = False
     other_skills: Optional[str] = None
     skill_ids: List[int] = []
@@ -220,6 +291,7 @@ class VolunteerUpdate(BaseModel):
     availability_hours_per_week: Optional[int] = None
     location: Optional[str] = None
     country: Optional[str] = None
+    local_group: Optional[str] = None
     share_contact_directly: Optional[bool] = None
     other_skills: Optional[str] = None
     skill_ids: Optional[List[int]] = None
@@ -257,10 +329,14 @@ class ChangeEmailRequest(BaseModel):
 
 class DeleteAccountRequest(BaseModel):
     password: str
-    confirmation: str = Field(..., pattern="^DELETE$")  # Must type "DELETE"
 
 
 # --- Projects ---
+class InitialTaskData(BaseModel):
+    title: str = Field(..., min_length=1, max_length=300)
+    description: Optional[str] = None
+
+
 class ProjectCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=300)
     description: str = Field(..., min_length=10)
@@ -273,8 +349,10 @@ class ProjectCreate(BaseModel):
     want_to_own: bool = False
     collaboration_link: Optional[str] = None
     country: Optional[str] = None
+    local_group: Optional[str] = None
     is_seeking_help: bool = True
     is_seeking_owner: bool = False
+    tasks: List[InitialTaskData] = []
 
 
 class ProjectUpdate(BaseModel):
@@ -289,6 +367,7 @@ class ProjectUpdate(BaseModel):
     skill_required_map: Optional[Dict[int, bool]] = None
     collaboration_link: Optional[str] = None
     country: Optional[str] = None
+    local_group: Optional[str] = None
     owner_id: Optional[int] = None
     is_seeking_help: Optional[bool] = None
     is_seeking_owner: Optional[bool] = None
@@ -655,6 +734,8 @@ def signup(data: VolunteerSignup) -> Dict:
         # Add optional columns only if they exist in the DB
         if "country" in existing_columns:
             fields["country"] = data.country
+        if "local_group" in existing_columns:
+            fields["local_group"] = data.local_group
         if "email_digest" in existing_columns:
             fields["email_digest"] = getattr(data, "email_digest", None) or "none"
 
@@ -1128,6 +1209,119 @@ def change_email(
     return {"message": "Email changed successfully"}
 
 
+def _send_account_deletion_notifications(conn, deleted_volunteer_id: int, deleted_volunteer_name: str):
+    """Notify affected parties when a volunteer deletes their account."""
+    # Projects with unfinished tasks assigned to the deleted user, grouped by project owner
+    task_rows = conn.execute(
+        """SELECT p.owner_id, v.name AS owner_name, v.email AS owner_email,
+                  p.id AS project_id, p.title AS project_title,
+                  COUNT(st.id) AS task_count
+           FROM starter_tasks st
+           JOIN projects p ON st.project_id = p.id
+           JOIN volunteers v ON p.owner_id = v.id
+           WHERE st.assigned_to_id = ?
+             AND st.status NOT IN ('completed', 'reviewed')
+             AND p.owner_id != ?
+             AND v.deleted_at IS NULL
+           GROUP BY p.id""",
+        (deleted_volunteer_id, deleted_volunteer_id)
+    ).fetchall()
+
+    # Active projects owned by the deleted user
+    owned_projects = conn.execute(
+        """SELECT id, title FROM projects
+           WHERE owner_id = ? AND status NOT IN ('completed', 'archived')""",
+        (deleted_volunteer_id,)
+    ).fetchall()
+
+    if not task_rows and not owned_projects:
+        return
+
+    # Build per-owner task map
+    owner_task_map = {}
+    for row in task_rows:
+        oid = row["owner_id"]
+        if oid not in owner_task_map:
+            owner_task_map[oid] = {"name": row["owner_name"], "email": row["owner_email"], "task_projects": []}
+        owner_task_map[oid]["task_projects"].append({
+            "project_id": row["project_id"],
+            "project_title": row["project_title"],
+            "task_count": row["task_count"],
+        })
+
+    ownerless = [{"project_id": p["id"], "project_title": p["title"]} for p in owned_projects]
+
+    # Build unified recipient map — admins and task-project owners may overlap
+    recipients = {}
+    for owner_id, data in owner_task_map.items():
+        recipients[owner_id] = {
+            "name": data["name"], "email": data["email"],
+            "task_projects": data["task_projects"], "ownerless_projects": [],
+        }
+
+    if ownerless:
+        admins = conn.execute(
+            "SELECT id, name, email FROM volunteers WHERE is_admin = 1 AND deleted_at IS NULL AND id != ?",
+            (deleted_volunteer_id,)
+        ).fetchall()
+        for admin in admins:
+            aid = admin["id"]
+            if aid not in recipients:
+                recipients[aid] = {"name": admin["name"], "email": admin["email"], "task_projects": [], "ownerless_projects": []}
+            recipients[aid]["ownerless_projects"] = ownerless
+
+    # Send per-project in-app notifications, but only one email per recipient
+    for recipient_id, r in recipients.items():
+        for p in r["task_projects"]:
+            word = "task" if p["task_count"] == 1 else "tasks"
+            try:
+                create_notification(
+                    conn, recipient_id, "account_deleted_impact",
+                    f"{deleted_volunteer_name} has deleted their account",
+                    f"{p['task_count']} {word} in '{p['project_title']}' assigned to {deleted_volunteer_name} need a new assignee.",
+                    f"/static/project.html?id={p['project_id']}"
+                )
+            except Exception as e:
+                print(f"[NOTIFY ERROR] Account deletion notification failed: {e}")
+
+        for p in r["ownerless_projects"]:
+            try:
+                create_notification(
+                    conn, recipient_id, "account_deleted_impact",
+                    f"{deleted_volunteer_name} has deleted their account",
+                    f"'{p['project_title']}' needs a new owner.",
+                    f"/static/project.html?id={p['project_id']}"
+                )
+            except Exception as e:
+                print(f"[NOTIFY ERROR] Account deletion notification failed: {e}")
+
+        try:
+            if r["email"]:
+                all_projects = r["task_projects"] + r["ownerless_projects"]
+                msg_parts = [f"<p><strong>{deleted_volunteer_name}</strong> has deleted their account.</p>"]
+                if r["task_projects"]:
+                    rows_html = "".join(
+                        f"<li>{p['task_count']} {'task' if p['task_count'] == 1 else 'tasks'} in <strong>{p['project_title']}</strong></li>"
+                        for p in r["task_projects"]
+                    )
+                    msg_parts.append(f"<p>The following tasks need a new assignee:</p><ul>{rows_html}</ul>")
+                if r["ownerless_projects"]:
+                    rows_html = "".join(
+                        f"<li><strong>{p['project_title']}</strong></li>"
+                        for p in r["ownerless_projects"]
+                    )
+                    msg_parts.append(f"<p>The following projects need a new owner:</p><ul>{rows_html}</ul>")
+                send_project_notification_email(
+                    to=r["email"], name=r["name"],
+                    subject=f"{deleted_volunteer_name} has deleted their account",
+                    message="".join(msg_parts),
+                    project_title=all_projects[0]["project_title"],
+                    project_id=all_projects[0]["project_id"]
+                )
+        except Exception as e:
+            print(f"[NOTIFY ERROR] Account deletion email failed: {e}")
+
+
 @app.post("/api/auth/delete-account")
 def delete_account(
     data: DeleteAccountRequest,
@@ -1153,6 +1347,8 @@ def delete_account(
             (volunteer["id"], volunteer["email"])
         )
 
+        _send_account_deletion_notifications(conn, volunteer["id"], volunteer["name"])
+
         # Soft delete - anonymize personal data but keep for referential integrity
         conn.execute(
             """UPDATE volunteers SET
@@ -1171,6 +1367,11 @@ def delete_account(
                 updated_at = ?
                WHERE id = ?""",
             (datetime.now().isoformat(), datetime.now().isoformat(), volunteer["id"])
+        )
+
+        conn.execute(
+            "DELETE FROM volunteer_skills WHERE volunteer_id = ?",
+            (volunteer["id"],)
         )
 
     return {"message": "Your account has been deleted. We're sorry to see you go."}
@@ -1460,6 +1661,7 @@ def list_volunteers(
     skill_ids: Optional[str] = Query(None, description="Comma-separated skill IDs"),
     search: Optional[str] = Query(None),
     country: Optional[str] = Query(None),
+    local_group: Optional[str] = Query(None),
     limit: int = Query(50, le=100),
     offset: int = Query(0)
 ) -> Dict:
@@ -1468,7 +1670,7 @@ def list_volunteers(
 
     query = """
         SELECT DISTINCT v.id, v.name, v.bio, v.availability_hours_per_week,
-               v.location, v.other_skills, v.created_at
+               v.location, v.other_skills, v.local_group, v.created_at
         FROM volunteers v
         WHERE v.deleted_at IS NULL
         AND v.profile_visible = 1
@@ -1500,11 +1702,16 @@ def list_volunteers(
         except Exception:
             pass  # Column doesn't exist yet
 
+    if local_group:
+        try:
+            conn.execute("SELECT local_group FROM volunteers LIMIT 1")
+            query += " AND v.local_group = ?"
+            params.append(local_group)
+        except Exception:
+            pass  # Column doesn't exist yet
+
     # Get total count
-    count_query = query.replace(
-        "SELECT DISTINCT v.id, v.name, v.bio, v.availability_hours_per_week, v.location, v.other_skills, v.created_at",
-        "SELECT COUNT(DISTINCT v.id)"
-    )
+    count_query = "SELECT COUNT(DISTINCT v.id)" + query[query.index("FROM volunteers"):]
     total = conn.execute(count_query, params).fetchone()[0]
 
     # Get paginated results
@@ -1599,12 +1806,12 @@ def update_me(data: VolunteerUpdate, volunteer: Dict = Depends(require_auth)) ->
 
         for field in ["name", "bio", "discord_handle", "signal_number",
                       "whatsapp_number", "contact_preference", "contact_notes",
-                      "availability_hours_per_week", "location", "country",
+                      "availability_hours_per_week", "location", "country", "local_group",
                       "share_contact_directly", "other_skills", "profile_visible", "email_digest"]:
             if field not in existing_columns:
                 continue
             value = getattr(data, field, None)
-            if value is not None:
+            if value is not None or (field == "local_group" and field in data.model_fields_set):
                 updates.append(f"{field} = ?")
                 params.append(value)
 
@@ -1649,6 +1856,7 @@ def list_projects(
     search: Optional[str] = Query(None),
     urgency: Optional[str] = Query(None),
     country: Optional[str] = Query(None),
+    local_group: Optional[str] = Query(None),
     is_org_proposed: Optional[bool] = Query(None),
     sort_by: str = Query("created_at", pattern="^(created_at|urgency|match)$"),
     limit: int = Query(50, le=100),
@@ -1697,6 +1905,14 @@ def list_projects(
             conn.execute("SELECT country FROM projects LIMIT 1")
             query += " AND p.country = ?"
             params.append(country)
+        except Exception:
+            pass
+
+    if local_group:
+        try:
+            conn.execute("SELECT local_group FROM projects LIMIT 1")
+            query += " AND p.local_group = ?"
+            params.append(local_group)
         except Exception:
             pass
 
@@ -1851,6 +2067,9 @@ def create_project(
     volunteer: Dict = Depends(require_auth)
 ) -> Dict:
     """Create a new project (volunteer-proposed)."""
+    if not data.tasks:
+        raise HTTPException(status_code=400, detail="At least one task is required to submit a project proposal")
+
     with db_transaction() as conn:
         status = "pending_review"
         owner_id = volunteer["id"] if data.want_to_own else None
@@ -1867,9 +2086,11 @@ def create_project(
         }
         if "country" in proj_columns:
             proj_fields["country"] = data.country
+        if "local_group" in proj_columns:
+            proj_fields["local_group"] = data.local_group
         if "is_seeking_help" in proj_columns:
-            proj_fields["is_seeking_help"] = getattr(data, "is_seeking_help", True)
-            proj_fields["is_seeking_owner"] = getattr(data, "is_seeking_owner", not data.want_to_own)
+            proj_fields["is_seeking_help"] = data.is_seeking_help
+            proj_fields["is_seeking_owner"] = not data.want_to_own
 
         col_names = ", ".join(proj_fields.keys())
         placeholders = ", ".join("?" * len(proj_fields))
@@ -1885,6 +2106,13 @@ def create_project(
             conn.execute(
                 "INSERT INTO project_skills (project_id, skill_id, is_required) VALUES (?, ?, ?)",
                 (project_id, skill_id, is_required)
+            )
+
+        # Add initial tasks
+        for task in data.tasks:
+            conn.execute(
+                "INSERT INTO project_tasks (project_id, title, description, created_by_id) VALUES (?, ?, ?, ?)",
+                (project_id, task.title, task.description, volunteer["id"])
             )
 
         # Notify admins (in-app + email)
@@ -1940,17 +2168,29 @@ def update_project(
         updates = []
         params = []
 
+        # Enforce: cannot move to in_progress without at least one open task
+        if data.status == 'in_progress' and project["status"] != 'in_progress':
+            open_task_count = conn.execute(
+                "SELECT COUNT(*) FROM project_tasks WHERE project_id = ? AND status != 'done'",
+                (project_id,)
+            ).fetchone()[0]
+            if open_task_count == 0:
+                raise HTTPException(
+                    status_code=400,
+                    detail="A project cannot be moved to In Progress without at least one open task"
+                )
+
         # Check which columns exist for seeking flags
         proj_columns = {row["name"] for row in conn.execute("PRAGMA table_info(projects)").fetchall()}
         has_seeking_flags = "is_seeking_help" in proj_columns
 
         # Define which statuses owners can set (vs admin-only statuses)
-        owner_allowed_statuses = {"seeking_owner", "seeking_help", "in_progress", "on_hold", "completed"}
+        owner_allowed_statuses = {"seeking_owner", "seeking_help", "needs_tasks", "in_progress", "on_hold", "completed"}
 
         for field in ["title", "description", "status", "project_type", "estimated_duration",
-                      "time_commitment_hours_per_week", "urgency", "collaboration_link", "country", "owner_id"]:
+                      "time_commitment_hours_per_week", "urgency", "collaboration_link", "country", "local_group", "owner_id"]:
             value = getattr(data, field, None)
-            if value is not None:
+            if value is not None or (field == "local_group" and field in data.model_fields_set):
                 if field == "status" and not is_admin:
                     if not is_owner or value not in owner_allowed_statuses:
                         continue
@@ -2000,6 +2240,7 @@ def update_project(
         if data.status and data.status != project["status"]:
             status_label = {
                 'seeking_owner': 'Seeking Owner', 'seeking_help': 'Seeking Help',
+                'needs_tasks': 'Needs Tasks',
                 'in_progress': 'In Progress', 'on_hold': 'On Hold',
                 'completed': 'Completed', 'archived': 'Archived'
             }.get(data.status, data.status)
@@ -2151,6 +2392,11 @@ def create_project_task(
                VALUES (?, ?, ?, ?)""",
             (project_id, data.title, data.description, volunteer["id"])
         )
+        if project["status"] == "needs_tasks":
+            conn.execute(
+                "UPDATE projects SET status = 'in_progress' WHERE id = ?",
+                (project_id,)
+            )
         return {"id": cursor.lastrowid, "message": "Task created"}
 
 
@@ -2291,7 +2537,11 @@ def review_project(
         if data.status == "approved":
             # Determine lifecycle status and seeking flags
             has_owner = project["owner_id"] is not None
-            new_status = "in_progress" if has_owner else "in_progress"
+            open_task_count = conn.execute(
+                "SELECT COUNT(*) FROM project_tasks WHERE project_id = ? AND status != 'done'",
+                (project_id,)
+            ).fetchone()[0]
+            new_status = "in_progress" if open_task_count > 0 else "needs_tasks"
             target = data.target_status or "seeking_owner"
 
             # Build update with seeking flags if columns exist
@@ -2394,7 +2644,7 @@ def create_org_project(
 ) -> Dict:
     """Create an org-proposed project (skips review)."""
     with db_transaction() as conn:
-        status = "in_progress" if data.want_to_own else "in_progress"
+        status = "needs_tasks"
 
         proj_columns = {row["name"] for row in conn.execute("PRAGMA table_info(projects)").fetchall()}
         proj_fields = {
@@ -2407,9 +2657,11 @@ def create_org_project(
         }
         if "country" in proj_columns:
             proj_fields["country"] = data.country
+        if "local_group" in proj_columns:
+            proj_fields["local_group"] = data.local_group
         if "is_seeking_help" in proj_columns:
-            proj_fields["is_seeking_help"] = getattr(data, "is_seeking_help", True)
-            proj_fields["is_seeking_owner"] = getattr(data, "is_seeking_owner", not data.want_to_own)
+            proj_fields["is_seeking_help"] = data.is_seeking_help
+            proj_fields["is_seeking_owner"] = not data.want_to_own
 
         col_names = ", ".join(proj_fields.keys())
         placeholders = ", ".join("?" * len(proj_fields))
@@ -2424,6 +2676,18 @@ def create_org_project(
             conn.execute(
                 "INSERT INTO project_skills (project_id, skill_id, is_required) VALUES (?, ?, ?)",
                 (project_id, skill_id, is_required)
+            )
+
+        for task in data.tasks:
+            conn.execute(
+                "INSERT INTO project_tasks (project_id, title, description, created_by_id) VALUES (?, ?, ?, ?)",
+                (project_id, task.title, task.description, admin["id"])
+            )
+
+        if data.tasks:
+            conn.execute(
+                "UPDATE projects SET status = 'in_progress' WHERE id = ?",
+                (project_id,)
             )
 
         return {"id": project_id, "message": "Org project created"}
@@ -3491,11 +3755,17 @@ def respond_to_interest(
             f"/static/project.html?id={project_id}"
         )
 
-        # If accepting as owner, update project
+        # If accepting as owner, assign them. Move to in_progress if there are
+        # already open tasks, otherwise needs_tasks so the owner can add them first.
         if data.status == "accepted" and interest["interest_type"] == "want_to_own":
+            open_task_count = conn.execute(
+                "SELECT COUNT(*) FROM project_tasks WHERE project_id = ? AND status != 'done'",
+                (project_id,)
+            ).fetchone()[0]
+            new_status = 'in_progress' if open_task_count > 0 else 'needs_tasks'
             conn.execute(
-                "UPDATE projects SET owner_id = ?, status = 'in_progress' WHERE id = ?",
-                (interest["volunteer_id"], project_id)
+                "UPDATE projects SET owner_id = ?, status = ? WHERE id = ?",
+                (interest["volunteer_id"], new_status, project_id)
             )
 
         # Email the volunteer
@@ -3768,43 +4038,6 @@ def export_my_data(volunteer: Dict = Depends(require_auth)) -> Dict:
         "messages_sent": rows_to_list(messages_sent),
         "messages_received": rows_to_list(messages_received)
     }
-
-
-@app.delete("/api/privacy/delete-account")
-def request_account_deletion(volunteer: Dict = Depends(require_auth)) -> Dict:
-    """Request account deletion (GDPR right to erasure)."""
-    with db_transaction() as conn:
-        # Log the deletion request
-        conn.execute(
-            "INSERT INTO deletion_requests (volunteer_id, volunteer_email) VALUES (?, ?)",
-            (volunteer["id"], volunteer.get("email"))
-        )
-
-        # Soft delete the volunteer
-        conn.execute(
-            """UPDATE volunteers SET
-               deleted_at = ?,
-               email = NULL,
-               discord_handle = NULL,
-               signal_number = NULL,
-               whatsapp_number = NULL,
-               bio = NULL,
-               other_skills = NULL,
-               auth_token = NULL,
-               name = 'Deleted User'
-               WHERE id = ?""",
-            (datetime.now().isoformat(), volunteer["id"])
-        )
-
-        # Remove from skill associations
-        conn.execute(
-            "DELETE FROM volunteer_skills WHERE volunteer_id = ?",
-            (volunteer["id"],)
-        )
-
-        return {
-            "message": "Your account has been deleted. Your data has been anonymized."
-        }
 
 
 # ============================================

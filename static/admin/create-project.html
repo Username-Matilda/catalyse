@@ -77,6 +77,13 @@
                     </select>
                 </div>
 
+                <div class="form-group">
+                    <label for="local_group">Local Group</label>
+                    <select id="local_group" name="local_group">
+                        <option value="">Not specific to a local group</option>
+                    </select>
+                </div>
+
                 <div class="form-group" id="durationGroup" style="display: none;">
                     <label for="estimated_duration">Estimated Duration</label>
                     <input type="text" id="estimated_duration" name="estimated_duration" placeholder="e.g., 6 weeks, 2 months">
@@ -135,6 +142,7 @@
 
             renderSkillSelector('skillSelector');
             renderCountrySelect('country');
+            renderLocalGroupSelect('local_group');
 
             // Show/hide duration field based on project type
             document.getElementById('project_type').addEventListener('change', (e) => {
@@ -165,6 +173,7 @@
                     urgency: form.urgency.value,
                     collaboration_link: form.collaboration_link.value.trim() || null,
                     country: form.country.value || null,
+                    local_group: form.local_group.value || null,
                     skill_ids: skillIds,
                     skill_required_map: skillRequiredMap,
                     want_to_own: form.want_to_own.checked,

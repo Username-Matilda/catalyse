@@ -360,6 +360,7 @@
                 renderNotifications(notifications);
             } catch (error) {
                 document.getElementById('notificationsList').innerHTML = `<p class="error">${error.message}</p>`;
+                showToast(error.message, 'error');
             }
         }
 
