@@ -256,6 +256,8 @@
                    form.estimated_duration.value.trim() !== (project.estimated_duration || '') ||
                    form.collaboration_link.value.trim() !== (project.collaboration_link || '') ||
                    (form.country.value || '') !== (project.country || '') ||
+                   form.is_seeking_help.checked !== (project.is_seeking_help || false) ||
+                   form.is_seeking_owner.checked !== (project.is_seeking_owner || false) ||
                    currentSkills !== originalSkills;
         }
 
