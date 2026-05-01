@@ -103,6 +103,17 @@
                 <div id="manageInterests" style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); display: none;">
                     <h3>Interested Volunteers</h3>
                     <div id="interestsList"></div>
+                    <div id="assignVolunteerSection" style="display: none; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+                        <h4>Assign a volunteer directly</h4>
+                        <div style="display: flex; gap: 8px; align-items: end; margin-top: 8px;">
+                            <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                                <select id="assignVolunteerSelect">
+                                    <option value="">Select volunteer...</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-small btn-secondary" onclick="assignVolunteer()">Assign</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -430,6 +441,10 @@
         function renderManageInterests() {
             const section = document.getElementById('manageInterests');
             section.style.display = 'block';
+
+            // Show assign volunteer section and load volunteers
+            document.getElementById('assignVolunteerSection').style.display = 'block';
+            loadAssignableVolunteers();
 
             if (project.interests.length === 0) {
                 document.getElementById('interestsList').innerHTML = '<p style="color: var(--text-light);">No volunteers have expressed interest yet.</p>';
@@ -759,6 +774,43 @@
                     body: JSON.stringify({ status, response_message: message })
                 });
                 showMessage(`Interest ${status}.`, 'success');
+                await loadProject(project.id);
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        }
+
+        async function loadAssignableVolunteers() {
+            try {
+                const data = await apiRequest('/api/volunteers?limit=100');
+                const select = document.getElementById('assignVolunteerSelect');
+                const assignedIds = new Set((project.interests || [])
+                    .filter(i => i.status === 'accepted')
+                    .map(i => i.volunteer_id));
+                select.innerHTML = '<option value="">Select volunteer...</option>';
+                data.volunteers
+                    .filter(v => !assignedIds.has(v.id) && v.id !== project.owner_id)
+                    .forEach(v => {
+                        const option = document.createElement('option');
+                        option.value = v.id;
+                        option.textContent = v.name;
+                        select.appendChild(option);
+                    });
+            } catch (e) { /* ignore */ }
+        }
+
+        async function assignVolunteer() {
+            const volunteerId = document.getElementById('assignVolunteerSelect').value;
+            if (!volunteerId) {
+                showMessage('Please select a volunteer', 'error');
+                return;
+            }
+            try {
+                await apiRequest(`/api/projects/${project.id}/assign`, {
+                    method: 'POST',
+                    body: JSON.stringify({ volunteer_id: parseInt(volunteerId) })
+                });
+                showMessage('Volunteer assigned!', 'success');
                 await loadProject(project.id);
             } catch (error) {
                 showMessage(error.message, 'error');
