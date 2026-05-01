@@ -415,15 +415,19 @@
         function setupTabs() {
             document.querySelectorAll('.tab').forEach(tab => {
                 tab.addEventListener('click', () => {
-                    // Update active tab
                     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
                     tab.classList.add('active');
-
-                    // Show correct content
                     document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
                     document.getElementById(`tab-${tab.dataset.tab}`).style.display = 'block';
                 });
             });
+
+            // Auto-switch to tab if URL hash matches
+            const hash = window.location.hash.replace('#', '');
+            if (hash) {
+                const targetTab = document.querySelector(`.tab[data-tab="${hash}"]`);
+                if (targetTab) targetTab.click();
+            }
         }
 
         init();

@@ -3526,6 +3526,76 @@ def update_bug_report(
 # INTEREST ENDPOINTS
 # ============================================
 
+class AssignVolunteer(BaseModel):
+    volunteer_id: int
+    interest_type: str = "want_to_contribute"
+
+
+@app.post("/api/projects/{project_id}/assign")
+def assign_volunteer_to_project(
+    project_id: int,
+    data: AssignVolunteer,
+    volunteer: Dict = Depends(require_auth)
+) -> Dict:
+    """Assign a volunteer directly to a project (owner or admin only)."""
+    conn = get_db()
+    project = conn.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
+    conn.close()
+
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    is_owner = project["owner_id"] == volunteer["id"]
+    is_admin = volunteer.get("is_admin")
+    if not (is_owner or is_admin):
+        raise HTTPException(status_code=403, detail="Only project owner or admin can assign volunteers")
+
+    with db_transaction() as conn:
+        # Check if already has an active interest
+        existing = conn.execute(
+            "SELECT * FROM project_interests WHERE project_id = ? AND volunteer_id = ? AND status != 'withdrawn'",
+            (project_id, data.volunteer_id)
+        ).fetchone()
+
+        if existing:
+            if existing["status"] == "pending":
+                # Auto-accept existing pending interest
+                conn.execute(
+                    "UPDATE project_interests SET status = 'accepted', responded_at = ? WHERE id = ?",
+                    (datetime.now().isoformat(), existing["id"])
+                )
+            elif existing["status"] == "accepted":
+                return {"message": "This volunteer is already assigned to this project"}
+        else:
+            # Create and auto-accept interest
+            conn.execute(
+                """INSERT INTO project_interests (volunteer_id, project_id, interest_type, message, status, responded_at)
+                   VALUES (?, ?, ?, 'Assigned by admin/owner', 'accepted', ?)""",
+                (data.volunteer_id, project_id, data.interest_type, datetime.now().isoformat())
+            )
+
+        # Notify the volunteer
+        assignee = conn.execute("SELECT name, email FROM volunteers WHERE id = ?", (data.volunteer_id,)).fetchone()
+        if assignee:
+            create_notification(
+                conn, data.volunteer_id, "assigned_to_project",
+                f"You've been assigned to '{project['title']}'",
+                f"Assigned by {volunteer['name']}",
+                f"/static/project.html?id={project_id}"
+            )
+            try:
+                if assignee["email"]:
+                    send_project_notification_email(
+                        to=assignee["email"], name=assignee["name"],
+                        subject=f"You've been assigned to '{project['title']}'",
+                        message=f"<strong>{volunteer['name']}</strong> has assigned you to the project <strong>{project['title']}</strong>.",
+                        project_title=project["title"], project_id=project_id
+                    )
+            except Exception as e:
+                print(f"[NOTIFY ERROR] Assignment email failed: {e}")
+
+    return {"message": f"Volunteer assigned to project"}
+
 @app.post("/api/projects/{project_id}/interest")
 def express_interest(
     project_id: int,
@@ -4013,18 +4083,28 @@ def get_dashboard(volunteer: Dict = Depends(require_auth)) -> Dict:
     ).fetchall()
 
     # Suggested projects (matching my skills)
+    # Check if seeking flags exist for the query
+    try:
+        conn.execute("SELECT is_seeking_help FROM projects LIMIT 1")
+        seeking_clause = "(p.is_seeking_help = 1 OR p.is_seeking_owner = 1 OR p.status IN ('seeking_owner', 'seeking_help'))"
+    except Exception:
+        seeking_clause = "p.status IN ('seeking_owner', 'seeking_help')"
+
     suggested = conn.execute(
         """SELECT DISTINCT p.*
            FROM projects p
            JOIN project_skills ps ON p.id = ps.project_id
            WHERE ps.skill_id IN ({})
-           AND (p.is_seeking_help = 1 OR p.is_seeking_owner = 1 OR p.status IN ('seeking_owner', 'seeking_help'))
+           AND {}
            AND p.owner_id != ?
            AND p.id NOT IN (
                SELECT project_id FROM project_interests WHERE volunteer_id = ?
            )
            ORDER BY p.created_at DESC
-           LIMIT 5""".format(",".join("?" * len(volunteer_skill_ids)) if volunteer_skill_ids else "0"),
+           LIMIT 5""".format(
+               ",".join("?" * len(volunteer_skill_ids)) if volunteer_skill_ids else "0",
+               seeking_clause
+           ),
         list(volunteer_skill_ids) + [volunteer["id"], volunteer["id"]]
     ).fetchall() if volunteer_skill_ids else []
     suggested = [enrich_project(conn, dict(p), volunteer_skill_ids) for p in suggested]

@@ -449,6 +449,7 @@ async function initAuthNav() {
         const isAdmin = user.is_admin;
         const isAdminPage = window.location.pathname.includes('/admin/');
         nav.innerHTML = `
+            <a href="/static/dashboard.html#notifications" class="btn btn-ghost" id="navNotifLink">Notifications</a>
             <a href="/static/dashboard.html" class="btn btn-ghost">My Projects</a>
             <div class="user-menu">
                 <button class="user-button" onclick="toggleUserMenu()" aria-label="Account menu">
