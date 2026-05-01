@@ -3780,18 +3780,28 @@ def get_dashboard(volunteer: Dict = Depends(require_auth)) -> Dict:
     ).fetchall()
 
     # Suggested projects (matching my skills)
+    # Check if seeking flags exist for the query
+    try:
+        conn.execute("SELECT is_seeking_help FROM projects LIMIT 1")
+        seeking_clause = "(p.is_seeking_help = 1 OR p.is_seeking_owner = 1 OR p.status IN ('seeking_owner', 'seeking_help'))"
+    except Exception:
+        seeking_clause = "p.status IN ('seeking_owner', 'seeking_help')"
+
     suggested = conn.execute(
         """SELECT DISTINCT p.*
            FROM projects p
            JOIN project_skills ps ON p.id = ps.project_id
            WHERE ps.skill_id IN ({})
-           AND (p.is_seeking_help = 1 OR p.is_seeking_owner = 1 OR p.status IN ('seeking_owner', 'seeking_help'))
+           AND {}
            AND p.owner_id != ?
            AND p.id NOT IN (
                SELECT project_id FROM project_interests WHERE volunteer_id = ?
            )
            ORDER BY p.created_at DESC
-           LIMIT 5""".format(",".join("?" * len(volunteer_skill_ids)) if volunteer_skill_ids else "0"),
+           LIMIT 5""".format(
+               ",".join("?" * len(volunteer_skill_ids)) if volunteer_skill_ids else "0",
+               seeking_clause
+           ),
         list(volunteer_skill_ids) + [volunteer["id"], volunteer["id"]]
     ).fetchall() if volunteer_skill_ids else []
     suggested = [enrich_project(conn, dict(p), volunteer_skill_ids) for p in suggested]
