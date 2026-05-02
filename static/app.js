@@ -686,9 +686,9 @@ function initBugReportButton() {
     modal.className = 'modal-overlay';
     modal.style.display = 'none';
     modal.innerHTML = `
-        <div class="modal">
+        <div class="modal" role="dialog" aria-labelledby="bugReportModalTitle">
             <div class="modal-header">
-                <h2>Report an Issue</h2>
+                <h2 id="bugReportModalTitle">Report an Issue</h2>
                 <button class="modal-close" onclick="closeModal('bugReportModal')">&times;</button>
             </div>
             <div class="modal-body">
@@ -729,7 +729,7 @@ function initBugReportButton() {
                     </div>
 
                     <div class="form-group">
-                        <label>How urgent is this?</label>
+                        <label for="bugSeverity">How urgent is this?</label>
                         <select id="bugSeverity" name="severity">
                             <option value="low">Low - Minor issue</option>
                             <option value="medium" selected>Medium - Annoying but workable</option>

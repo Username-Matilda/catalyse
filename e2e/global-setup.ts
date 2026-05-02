@@ -1,4 +1,5 @@
 import { chromium } from '@playwright/test';
+import { execSync } from 'child_process';
 import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
@@ -11,16 +12,29 @@ import {
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const VENV_PYTHON = path.join(PROJECT_ROOT, 'venv', 'bin', 'python3');
 const PYTHON = fs.existsSync(VENV_PYTHON) ? VENV_PYTHON : 'python3';
+const SERVER_PORT = 8002;
+
+function killServerOnPort(port: number): void {
+  try {
+    execSync(`lsof -ti :${port} | xargs kill -TERM 2>/dev/null || true`, { shell: true });
+  } catch {
+    // nothing listening
+  }
+}
 
 async function globalSetup(): Promise<void> {
   if (IS_LOCAL) {
+    // Kill any stale server from a previous run before wiping the DB dir,
+    // so it doesn't return 500 and block waitForServer.
+    killServerOnPort(SERVER_PORT);
+
     fs.rmSync(TEST_DB_DIR, { recursive: true, force: true });
     fs.mkdirSync(TEST_DB_DIR, { recursive: true });
 
     const server = spawn(PYTHON, ['api.py'], {
       env: {
         ...process.env,
-        PORT: '8002',
+        PORT: String(SERVER_PORT),
         RAILWAY_VOLUME_MOUNT_PATH: TEST_DB_DIR,
         ADMIN_EMAILS: ADMIN_EMAIL,
         RESEND_API_KEY: '',
