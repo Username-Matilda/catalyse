@@ -42,6 +42,7 @@
         <div class="section-header">
             <h1>Bug Reports & Feedback</h1>
             <div id="filterContainer">
+                <label for="statusFilter">Filter by status</label>
                 <select id="statusFilter" onchange="filterReports()">
                     <option value="">All</option>
                     <option value="open" selected>Open</option>
@@ -69,7 +70,7 @@
 
     <!-- Detail Modal -->
     <div id="detailModal" class="modal-overlay" style="display: none;">
-        <div class="modal" style="max-width: 600px;">
+        <div class="modal" role="dialog" aria-labelledby="modalTitle" style="max-width: 600px;">
             <div class="modal-header">
                 <h2 id="modalTitle">Bug Report</h2>
                 <button class="modal-close" onclick="closeModal('detailModal')">&times;</button>
