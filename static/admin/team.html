@@ -58,9 +58,9 @@
 
     <!-- Invite Modal -->
     <div id="inviteModal" class="modal-overlay" style="display: none;">
-        <div class="modal" style="max-width: 500px;">
+        <div class="modal" role="dialog" aria-labelledby="inviteModalHeading" style="max-width: 500px;">
             <div class="modal-header">
-                <h2>Invite Admin</h2>
+                <h2 id="inviteModalHeading">Invite Admin</h2>
                 <button class="modal-close" onclick="closeModal('inviteModal')">&times;</button>
             </div>
             <div class="modal-body">
@@ -75,7 +75,7 @@
                     <button type="submit" class="btn btn-primary">Send Invite</button>
                 </form>
 
-                <div id="inviteResult" style="display: none; margin-top: 16px;">
+                <div id="inviteResult" role="status" style="display: none; margin-top: 16px;">
                     <div id="inviteSentMessage" class="message success" style="display: none;">
                         <strong>Invite sent!</strong>
                         <p>They'll receive an email with instructions to accept.</p>
