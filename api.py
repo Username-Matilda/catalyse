@@ -223,7 +223,23 @@ def run_migrations():
         return
 
     conn = get_db()
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS schema_migrations (
+            filename TEXT PRIMARY KEY,
+            applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
+
     for migration_path in migration_files:
+        already_applied = conn.execute(
+            "SELECT 1 FROM schema_migrations WHERE filename = ?",
+            (migration_path.name,)
+        ).fetchone()
+        if already_applied:
+            continue
+
         with open(migration_path) as f:
             sql = f.read()
 
@@ -241,15 +257,17 @@ def run_migrations():
                 conn.execute(non_comment)
                 applied += 1
             except Exception as e:
-                # "already exists" / "duplicate column" are safe to skip
                 err = str(e).lower()
                 if "already exists" not in err and "duplicate column" not in err:
                     print(f"Migration {migration_path.name}: {e}")
 
-        if applied:
-            print(f"Migration applied: {migration_path.name} ({applied} statements)")
+        conn.execute(
+            "INSERT INTO schema_migrations (filename) VALUES (?)",
+            (migration_path.name,)
+        )
+        conn.commit()
+        print(f"Migration applied: {migration_path.name} ({applied} statements)")
 
-    conn.commit()
     conn.close()
 
 
