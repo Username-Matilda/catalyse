@@ -1,12 +1,16 @@
 import { Page, expect } from '@playwright/test';
 import { BASE_URL } from '../config';
 
-export async function proposeProject(page: Page, title: string, description: string): Promise<number> {
+export async function proposeProject(page: Page, title: string, description: string, skillName?: string): Promise<number> {
   await page.goto(`${BASE_URL}/static/suggest.html`);
   await expect(page.getByRole('button', { name: 'Submit Project Proposal' })).toBeVisible({ timeout: 10_000 });
 
   await page.getByLabel('Project Title').fill(title);
   await page.getByLabel('Description').fill(description);
+  if (skillName) {
+    // Skill options use custom styled labels; click the wrapper label for exact name match
+    await page.locator('label.skill-option').filter({ hasText: new RegExp(`^\\s*${skillName}\\s*$`) }).click();
+  }
   // One task input is added automatically on page load
   await page.getByLabel('Task title').first().fill('Initial task');
 
@@ -51,6 +55,16 @@ export async function adminApproveProject(adminPage: Page, projectTitle: string)
 
   await expect(adminPage.getByRole('alert')).toBeVisible({ timeout: 10_000 });
   await expect(adminPage.getByRole('heading', { name: 'Review Project' })).not.toBeVisible({ timeout: 10_000 });
+}
+
+export async function adminRecordOutcome(adminPage: Page, projectId: number, outcome: string, notes: string): Promise<void> {
+  await adminPage.goto(`${BASE_URL}/static/project.html?id=${projectId}`);
+  await expect(adminPage.getByRole('heading', { level: 2, name: 'Record Project Outcome' })).toBeVisible({ timeout: 10_000 });
+
+  await adminPage.getByLabel('Outcome', { exact: true }).selectOption(outcome);
+  await adminPage.getByLabel('Outcome Notes').fill(notes);
+  await adminPage.getByRole('button', { name: 'Record Outcome' }).click();
+  await expect(adminPage.getByRole('alert')).toBeVisible({ timeout: 10_000 });
 }
 
 export async function setProjectStatus(page: Page, projectId: number, status: string): Promise<void> {
