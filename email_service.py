@@ -20,11 +20,14 @@ from typing import Optional
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
 FROM_EMAIL = os.environ.get("FROM_EMAIL", "Catalyse <noreply@catalyse.pauseai.uk>")
 APP_URL = os.environ.get("APP_URL", "http://localhost:8000")
+# When STUB_EMAIL=true the service reports itself as configured and silently
+# accepts all send calls without making HTTP requests. For testing only.
+STUB_EMAIL = os.environ.get("STUB_EMAIL", "").lower() in ("1", "true", "yes")
 
 
 def is_email_configured() -> bool:
     """Check if email sending is properly configured."""
-    return bool(RESEND_API_KEY)
+    return STUB_EMAIL or bool(RESEND_API_KEY)
 
 
 def send_email(to: str, subject: str, html: str) -> bool:
@@ -32,6 +35,10 @@ def send_email(to: str, subject: str, html: str) -> bool:
     Send an email via Resend API.
     Returns True if sent, False if failed or not configured.
     """
+    if STUB_EMAIL:
+        print(f"[EMAIL STUB] Would send to {to}: {subject}")
+        return True
+
     if not RESEND_API_KEY:
         print(f"[EMAIL NOT CONFIGURED] Would send to {to}: {subject}")
         return False
@@ -339,6 +346,10 @@ def send_relay_message(to: str, to_name: str, from_name: str, from_email: str,
 
 def send_email_with_reply_to(to: str, subject: str, html: str, reply_to: str = None) -> bool:
     """Send an email via Resend API with optional reply-to header."""
+    if STUB_EMAIL:
+        print(f"[EMAIL STUB] Would send to {to}: {subject}")
+        return True
+
     if not RESEND_API_KEY:
         print(f"[EMAIL NOT CONFIGURED] Would send to {to}: {subject}")
         return False

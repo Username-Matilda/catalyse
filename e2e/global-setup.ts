@@ -38,6 +38,7 @@ async function globalSetup(): Promise<void> {
         RAILWAY_VOLUME_MOUNT_PATH: TEST_DB_DIR,
         ADMIN_EMAILS: ADMIN_EMAIL,
         RESEND_API_KEY: '',
+        STUB_EMAIL: 'true',
       },
       cwd: PROJECT_ROOT,
       detached: false,

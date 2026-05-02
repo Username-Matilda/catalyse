@@ -3864,6 +3864,11 @@ def send_contact_message(
         if project:
             project_title = project["title"]
 
+    # TODO: The message/notification is only created if email succeeds, meaning it
+    # fails entirely in environments without RESEND_API_KEY configured (e.g. local
+    # dev and the e2e test suite). Consider saving to contact_messages and creating
+    # the notification unconditionally, then treating email as best-effort delivery.
+
     # Send via email relay
     email_sent = send_relay_message(
         to=recipient["email"],
