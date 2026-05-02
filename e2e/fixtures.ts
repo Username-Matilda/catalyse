@@ -26,7 +26,7 @@ export const test = base.extend<Fixtures>({
   volunteer: async ({ browser }: { browser: Browser }, use: (v: Volunteer) => Promise<void>) => {
     const id = crypto.randomBytes(4).toString('hex');
     const credentials = {
-      name: 'Test Volunteer',
+      name: `Test Volunteer ${id}`,
       email: `vol_${id}@test.com`,
       password: 'testpassword1',
     };

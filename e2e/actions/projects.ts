@@ -67,6 +67,16 @@ export async function adminRecordOutcome(adminPage: Page, projectId: number, out
   await expect(adminPage.getByRole('alert')).toBeVisible({ timeout: 10_000 });
 }
 
+export async function transferProjectOwnership(adminPage: Page, projectId: number, volunteerName: string): Promise<void> {
+  await adminPage.goto(`${BASE_URL}/static/project.html?id=${projectId}`);
+  await expect(adminPage.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 });
+  await expect(adminPage.getByLabel('Transfer to').locator(`option:has-text("${volunteerName}")`)).toBeAttached({ timeout: 10_000 });
+  await adminPage.getByLabel('Transfer to').selectOption({ label: volunteerName });
+  adminPage.once('dialog', dialog => dialog.accept());
+  await adminPage.getByRole('button', { name: 'Transfer' }).click();
+  await expect(adminPage.getByRole('alert')).toBeVisible({ timeout: 10_000 });
+}
+
 export async function setProjectStatus(page: Page, projectId: number, status: string): Promise<void> {
   await page.goto(`${BASE_URL}/static/project.html?id=${projectId}`);
   await expect(page.getByRole('heading', { name: 'Manage Project Status' })).toBeVisible({ timeout: 10_000 });

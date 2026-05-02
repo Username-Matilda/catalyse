@@ -152,10 +152,10 @@
                 <h2>Project Updates</h2>
                 <div id="updatesList"></div>
                 <div id="addUpdateForm" style="margin-top: 20px; display: none;">
-                    <h3>Add Update</h3>
+                    <h3 id="addUpdateHeading">Add Update</h3>
                     <form id="updateForm">
                         <div class="form-group">
-                            <textarea id="updateContent" required placeholder="Let people know what skills are most needed, where the project is at, etc."></textarea>
+                            <textarea id="updateContent" aria-labelledby="addUpdateHeading" required placeholder="Let people know what skills are most needed, where the project is at, etc."></textarea>
                         </div>
                         <button type="submit" class="btn btn-secondary">Post Update</button>
                     </form>

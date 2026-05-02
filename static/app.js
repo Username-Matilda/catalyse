@@ -64,9 +64,10 @@ function createLocationFilter(containerId, onChange) {
 
     container.innerHTML = `
         <button type="button" class="location-filter-btn">All locations</button>
-        <div class="location-filter-panel">
+        <div class="location-filter-panel" role="listbox">
             ${items.map(item => `
                 <div class="location-filter-item${item.isSubItem ? ' is-subitem' : ''}"
+                     role="option"
                      data-country="${item.country}"
                      data-group="${item.group}">
                     ${item.isSubItem ? '<span class="subitem-arrow">↳</span>' : ''}${escapeHtml(item.label)}
@@ -147,8 +148,8 @@ function createSelectFilter(containerId, options, onChange) {
     function build(opts) {
         container.innerHTML = `
             <button type="button" class="location-filter-btn">${escapeHtml(opts[0]?.label || '')}</button>
-            <div class="location-filter-panel">
-                ${opts.map(opt => `<div class="location-filter-item" data-value="${opt.value}">${escapeHtml(opt.label)}</div>`).join('')}
+            <div class="location-filter-panel" role="listbox">
+                ${opts.map(opt => `<div class="location-filter-item" role="option" data-value="${opt.value}">${escapeHtml(opt.label)}</div>`).join('')}
             </div>
         `;
         container.querySelector('.location-filter-btn').addEventListener('click', e => {

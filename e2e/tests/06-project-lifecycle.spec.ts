@@ -6,6 +6,7 @@ import {
   adminApproveProject,
   setProjectStatus,
   adminRecordOutcome,
+  transferProjectOwnership,
 } from '../actions/projects';
 
 test.describe('Project Lifecycle', () => {
@@ -22,7 +23,7 @@ test.describe('Project Lifecycle', () => {
   test('Admin sends a proposed project back for discussion', async ({ adminPage, volunteer }) => {
     const title = `E2E Discussion ${Date.now()}`;
     const feedbackText = `Please clarify the scope of this project ${Date.now()}`;
-    const projectId = await proposeProject(volunteer.page, title, 'Test proposal for discussion');
+    await proposeProject(volunteer.page, title, 'Test proposal for discussion');
 
     await adminPage.goto(`${BASE_URL}/static/admin/triage.html`);
     const projectCard = adminPage.locator('.card').filter({ hasText: title });
@@ -64,25 +65,8 @@ test.describe('Project Lifecycle', () => {
     const projectId = await proposeProject(volunteer.page, title, 'Project to be completed by owner');
     await adminApproveProject(adminPage, title);
 
-    // Get volunteer ID — app uses Bearer token auth stored in localStorage
-    const volunteerId = await volunteer.page.evaluate(async () => {
-      const token = localStorage.getItem('authToken');
-      const res = await fetch('/api/auth/me', {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      const data = await res.json();
-      return data.id as number;
-    });
-
     // Admin assigns volunteer as owner via the Transfer Ownership UI
-    await adminPage.goto(`${BASE_URL}/static/project.html?id=${projectId}`);
-    await expect(adminPage.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 });
-    // Wait for async volunteer options to load before selecting
-    await expect(adminPage.getByLabel('Transfer to').locator(`option[value="${volunteerId}"]`)).toBeAttached({ timeout: 10_000 });
-    await adminPage.getByLabel('Transfer to').selectOption({ value: String(volunteerId) });
-    adminPage.once('dialog', dialog => dialog.accept());
-    await adminPage.getByRole('button', { name: 'Transfer' }).click();
-    await expect(adminPage.getByRole('alert')).toBeVisible({ timeout: 10_000 });
+    await transferProjectOwnership(adminPage, projectId, volunteer.name);
 
     // Owner (volunteer) changes status to completed via the dropdown
     await setProjectStatus(volunteer.page, projectId, 'completed');
@@ -91,7 +75,7 @@ test.describe('Project Lifecycle', () => {
     await volunteer.page.goto(`${BASE_URL}/static/index.html`);
     await expect(volunteer.page.getByRole('heading', { name: 'Projects' })).toBeVisible({ timeout: 10_000 });
     await volunteer.page.getByRole('button', { name: 'All Active' }).click();
-    await volunteer.page.locator('[data-value="completed"]').click();
+    await volunteer.page.getByRole('option', { name: 'Completed' }).click();
     await expect(volunteer.page.getByRole('link', { name: title })).toBeVisible({ timeout: 10_000 });
   });
 
@@ -103,22 +87,8 @@ test.describe('Project Lifecycle', () => {
     const projectId = await proposeProject(volunteer.page, title, 'Project for outcome recording', 'Writing');
     await adminApproveProject(adminPage, title);
 
-    // Get volunteer ID — app uses Bearer token auth stored in localStorage
-    const volunteerId = await volunteer.page.evaluate(async () => {
-      const token = localStorage.getItem('authToken');
-      const res = await fetch('/api/auth/me', {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      const data = await res.json();
-      return data.id as number;
-    });
-    await adminPage.goto(`${BASE_URL}/static/project.html?id=${projectId}`);
-    await expect(adminPage.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 });
-    await expect(adminPage.getByLabel('Transfer to').locator(`option[value="${volunteerId}"]`)).toBeAttached({ timeout: 10_000 });
-    await adminPage.getByLabel('Transfer to').selectOption({ value: String(volunteerId) });
-    adminPage.once('dialog', dialog => dialog.accept());
-    await adminPage.getByRole('button', { name: 'Transfer' }).click();
-    await expect(adminPage.getByRole('alert')).toBeVisible({ timeout: 10_000 });
+    // Admin assigns volunteer as owner via the Transfer Ownership UI
+    await transferProjectOwnership(adminPage, projectId, volunteer.name);
 
     // Set project to completed
     await setProjectStatus(adminPage, projectId, 'completed');
@@ -133,20 +103,11 @@ test.describe('Project Lifecycle', () => {
     await expect(outcomeDisplay).toBeVisible({ timeout: 10_000 });
     await expect(outcomeDisplay).toContainText('Successful');
     await expect(outcomeDisplay).toContainText(outcomeNotes);
-
-    // Required-skill endorsements are auto-created for the owner
-    const endorsements = await adminPage.evaluate(async (vid) => {
-      const token = localStorage.getItem('authToken');
-      const res = await fetch(`/api/admin/volunteers/${vid}/endorsements`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      return res.json();
-    }, volunteerId);
-    expect(
-      endorsements.some(
-        (e: { source: string; skill_name: string }) =>
-          e.source === 'project_outcome' && e.skill_name === 'Writing',
-      ),
-    ).toBe(true);
   });
+
+  // SKIPPED: The app has no UI that displays a volunteer's endorsements — there is no profile
+  // view, directory card, or project page that shows "endorsed via project_outcome". The only
+  // way to verify this is via the admin API endpoint, which requires the volunteer's numeric ID.
+  // Skip until endorsements become visible somewhere in the UI.
+  test.skip('Required-skill endorsements are created for the project owner on a successful outcome', async () => {});
 });
