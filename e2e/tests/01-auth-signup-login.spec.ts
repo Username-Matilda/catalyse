@@ -1,53 +1,52 @@
 import crypto from 'crypto';
 import { test, expect } from '../fixtures';
-import { BASE_URL } from '../config';
 import { signup, login } from '../actions/auth';
 
 test.describe('Authentication: Signup & Login', () => {
-  test('Visitor signs up successfully', async ({ browser }) => {
+  test('Visitor signs up successfully', async ({ browser, baseUrl }) => {
     const id = crypto.randomBytes(4).toString('hex');
     const context = await browser.newContext();
     const page = await context.newPage();
     try {
-      await signup(page, `New User ${id}`, `new_${id}@test.com`, 'testpassword1');
-      await expect(page).toHaveURL(`${BASE_URL}/static/dashboard.html`);
+      await signup(baseUrl, page, `New User ${id}`, `new_${id}@test.com`, 'testpassword1');
+      await expect(page).toHaveURL(`${baseUrl}/static/dashboard.html`);
     } finally {
       await context.close();
     }
   });
 
-  test('Visitor logs in successfully', async ({ browser, volunteer }) => {
+  test('Visitor logs in successfully', async ({ browser, volunteer, baseUrl }) => {
     const context = await browser.newContext();
     const page = await context.newPage();
     try {
-      await login(page, volunteer.email, volunteer.password);
-      await expect(page).toHaveURL(`${BASE_URL}/static/dashboard.html`);
+      await login(baseUrl, page, volunteer.email, volunteer.password);
+      await expect(page).toHaveURL(`${baseUrl}/static/dashboard.html`);
     } finally {
       await context.close();
     }
   });
 
-  test('Login fails with wrong password', async ({ browser, volunteer }) => {
+  test('Login fails with wrong password', async ({ browser, volunteer, baseUrl }) => {
     const context = await browser.newContext();
     const page = await context.newPage();
     try {
-      await page.goto(`${BASE_URL}/static/login.html`);
+      await page.goto(`${baseUrl}/static/login.html`);
       await page.getByLabel('Email', { exact: true }).fill(volunteer.email);
       await page.getByLabel('Password').fill('wrongpassword');
       await page.getByRole('button', { name: 'Login' }).click();
       await expect(page.getByRole('alert')).toBeVisible({ timeout: 10_000 });
-      await expect(page).toHaveURL(`${BASE_URL}/static/login.html`);
+      await expect(page).toHaveURL(`${baseUrl}/static/login.html`);
     } finally {
       await context.close();
     }
   });
 
-  test('Login fails with unknown email', async ({ browser }) => {
+  test('Login fails with unknown email', async ({ browser, baseUrl }) => {
     const id = crypto.randomBytes(4).toString('hex');
     const context = await browser.newContext();
     const page = await context.newPage();
     try {
-      await page.goto(`${BASE_URL}/static/login.html`);
+      await page.goto(`${baseUrl}/static/login.html`);
       await page.getByLabel('Email', { exact: true }).fill(`unknown_${id}@test.com`);
       await page.getByLabel('Password').fill('testpassword1');
       await page.getByRole('button', { name: 'Login' }).click();
@@ -57,11 +56,11 @@ test.describe('Authentication: Signup & Login', () => {
     }
   });
 
-  test('Signup fails when email is already registered', async ({ browser, volunteer }) => {
+  test('Signup fails when email is already registered', async ({ browser, volunteer, baseUrl }) => {
     const context = await browser.newContext();
     const page = await context.newPage();
     try {
-      await page.goto(`${BASE_URL}/static/signup.html`);
+      await page.goto(`${baseUrl}/static/signup.html`);
       await page.getByLabel('Your Name').fill('Duplicate User');
       await page.getByLabel('Email', { exact: true }).fill(volunteer.email);
       await page.getByLabel('Password', { exact: true }).fill('testpassword1');
@@ -73,12 +72,12 @@ test.describe('Authentication: Signup & Login', () => {
     }
   });
 
-  test('Signup fails with a short password', async ({ browser }) => {
+  test('Signup fails with a short password', async ({ browser, baseUrl }) => {
     const id = crypto.randomBytes(4).toString('hex');
     const context = await browser.newContext();
     const page = await context.newPage();
     try {
-      await page.goto(`${BASE_URL}/static/signup.html`);
+      await page.goto(`${baseUrl}/static/signup.html`);
       await page.getByLabel('Your Name').fill(`Short Pwd ${id}`);
       await page.getByLabel('Email', { exact: true }).fill(`short_${id}@test.com`);
       // Remove HTML minlength so the browser doesn't intercept before the JS handler runs
@@ -95,8 +94,8 @@ test.describe('Authentication: Signup & Login', () => {
     }
   });
 
-  test('Logged-in user visiting login page is redirected to dashboard', async ({ volunteer }) => {
-    await volunteer.page.goto(`${BASE_URL}/static/login.html`);
-    await expect(volunteer.page).toHaveURL(`${BASE_URL}/static/dashboard.html`, { timeout: 10_000 });
+  test('Logged-in user visiting login page is redirected to dashboard', async ({ volunteer, baseUrl }) => {
+    await volunteer.page.goto(`${baseUrl}/static/login.html`);
+    await expect(volunteer.page).toHaveURL(`${baseUrl}/static/dashboard.html`, { timeout: 10_000 });
   });
 });

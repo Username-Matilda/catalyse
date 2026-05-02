@@ -1,15 +1,15 @@
 import { test, expect } from '../fixtures';
 import type { Page } from '@playwright/test';
-import { BASE_URL } from '../config';
 import { proposeProject, adminApproveProject } from '../actions/projects';
 
 async function createNotificationForVolunteer(
-  volunteerPage: Parameters<typeof proposeProject>[0],
-  adminPage: Parameters<typeof adminApproveProject>[0],
+  baseUrl: string,
+  volunteerPage: Page,
+  adminPage: Page,
   title: string,
 ): Promise<void> {
-  await proposeProject(volunteerPage, title, 'Project created for notification e2e testing');
-  await adminApproveProject(adminPage, title);
+  await proposeProject(baseUrl, volunteerPage, title, 'Project created for notification e2e testing');
+  await adminApproveProject(baseUrl, adminPage, title);
 }
 
 const notificationBadge = (page: Page) =>
@@ -19,8 +19,8 @@ const unreadNotificationCount = (page: Page) =>
   page.locator('.card').filter({ has: page.getByText('Unread Notifications', { exact: true }) }).locator('.stat-number');
 
 test.describe('Dashboard', () => {
-  test('Volunteer views their dashboard', async ({ volunteer }) => {
-    await volunteer.page.goto(`${BASE_URL}/static/dashboard.html`);
+  test('Volunteer views their dashboard', async ({ volunteer, baseUrl }) => {
+    await volunteer.page.goto(`${baseUrl}/static/dashboard.html`);
     await expect(volunteer.page.getByRole('heading', { name: /Welcome back/ })).toBeVisible({ timeout: 10_000 });
 
     // My Projects tab is active by default
@@ -35,22 +35,22 @@ test.describe('Dashboard', () => {
     await expect(volunteer.page.getByRole('button', { name: 'Suggested for You' })).toHaveClass(/\bactive\b/);
   });
 
-  test('Dashboard shows unread notification badge', async ({ adminPage, volunteer }) => {
+  test('Dashboard shows unread notification badge', async ({ adminPage, volunteer, baseUrl }) => {
     const title = `Notification Test Project ${Date.now()}`;
-    await createNotificationForVolunteer(volunteer.page, adminPage, title);
+    await createNotificationForVolunteer(baseUrl, volunteer.page, adminPage, title);
 
-    await volunteer.page.goto(`${BASE_URL}/static/dashboard.html`);
+    await volunteer.page.goto(`${baseUrl}/static/dashboard.html`);
     await expect(volunteer.page.getByRole('heading', { name: /Welcome back/ })).toBeVisible({ timeout: 10_000 });
 
     await expect(notificationBadge(volunteer.page)).toBeVisible({ timeout: 10_000 });
     await expect(unreadNotificationCount(volunteer.page)).not.toHaveText('0');
   });
 
-  test('Volunteer marks all notifications as read', async ({ adminPage, volunteer }) => {
+  test('Volunteer marks all notifications as read', async ({ adminPage, volunteer, baseUrl }) => {
     const title = `Notification Test Project ${Date.now()}`;
-    await createNotificationForVolunteer(volunteer.page, adminPage, title);
+    await createNotificationForVolunteer(baseUrl, volunteer.page, adminPage, title);
 
-    await volunteer.page.goto(`${BASE_URL}/static/dashboard.html`);
+    await volunteer.page.goto(`${baseUrl}/static/dashboard.html`);
     await expect(volunteer.page.getByRole('heading', { name: /Welcome back/ })).toBeVisible({ timeout: 10_000 });
     await expect(notificationBadge(volunteer.page)).toBeVisible({ timeout: 10_000 });
 

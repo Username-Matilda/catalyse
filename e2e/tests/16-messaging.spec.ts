@@ -1,28 +1,24 @@
 import { test, expect } from '../fixtures';
-import { BASE_URL } from '../config';
 import crypto from 'crypto';
 import { signup } from '../actions/auth';
 import { adminCreateProject, transferProjectOwnership } from '../actions/projects';
 
 test.describe('Messaging', () => {
-  test('Volunteer sends a contact message to another volunteer', async ({ adminPage, volunteer, browser }) => {
+  test('Volunteer sends a contact message to another volunteer', async ({ adminPage, volunteer, browser, baseUrl }) => {
     const ts = Date.now();
     const subject = `E2E Subject ${ts}`;
     const body = `E2E message body ${ts}`;
 
-    // Admin creates a project and makes the recipient volunteer its owner so the
-    // "Contact Owner" button appears to other logged-in users.
-    const projectId = await adminCreateProject(adminPage, `E2E Contact ${ts}`, 'Project for contact test');
-    await transferProjectOwnership(adminPage, projectId, volunteer.name);
+    const projectId = await adminCreateProject(baseUrl, adminPage, `E2E Contact ${ts}`, 'Project for contact test');
+    await transferProjectOwnership(baseUrl, adminPage, projectId, volunteer.name);
 
-    // Create a separate sender volunteer in a fresh browser context.
     const senderCtx = await browser.newContext();
     const senderPage = await senderCtx.newPage();
     const sid = crypto.randomBytes(4).toString('hex');
-    await signup(senderPage, `Msg Sender ${sid}`, `msgsender_${sid}@test.com`, 'testpassword1');
+    await signup(baseUrl, senderPage, `Msg Sender ${sid}`, `msgsender_${sid}@test.com`, 'testpassword1');
 
     try {
-      await senderPage.goto(`${BASE_URL}/static/project.html?id=${projectId}`);
+      await senderPage.goto(`${baseUrl}/static/project.html?id=${projectId}`);
       await expect(senderPage.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 });
 
       await senderPage.getByRole('button', { name: 'Contact Owner' }).click();
@@ -36,22 +32,21 @@ test.describe('Messaging', () => {
       await dialog.getByLabel('Message').fill(body);
       await dialog.getByRole('button', { name: 'Send Message' }).click();
 
-      // Modal closes and a success alert appears on the project page.
       await expect(senderPage.getByRole('alert')).toContainText('Message sent', { timeout: 10_000 });
     } finally {
       await senderCtx.close();
     }
   });
 
-  test('Recipient sees a message notification', async ({ adminPage, volunteer, browser }) => {
+  test('Recipient sees a message notification', async ({ adminPage, volunteer, browser, baseUrl }) => {
     const ts = Date.now();
     const subject = `E2E Notify Subject ${ts}`;
 
-    const projectId = await adminCreateProject(adminPage, `E2E Notify ${ts}`, 'Project for notification test');
-    await transferProjectOwnership(adminPage, projectId, volunteer.name);
+    const projectId = await adminCreateProject(baseUrl, adminPage, `E2E Notify ${ts}`, 'Project for notification test');
+    await transferProjectOwnership(baseUrl, adminPage, projectId, volunteer.name);
 
     // Confirm the recipient starts with no unread notifications.
-    await volunteer.page.goto(`${BASE_URL}/static/dashboard.html`);
+    await volunteer.page.goto(`${baseUrl}/static/dashboard.html`);
     await expect(volunteer.page.getByRole('heading', { name: /Welcome back/ })).toBeVisible({ timeout: 10_000 });
     const notifTab = volunteer.page.getByRole('button', { name: /^Notifications/ });
     await expect(notifTab.locator('.notification-badge')).not.toBeVisible();
@@ -60,10 +55,10 @@ test.describe('Messaging', () => {
     const senderCtx = await browser.newContext();
     const senderPage = await senderCtx.newPage();
     const sid = crypto.randomBytes(4).toString('hex');
-    await signup(senderPage, `Notif Sender ${sid}`, `notifsender_${sid}@test.com`, 'testpassword1');
+    await signup(baseUrl, senderPage, `Notif Sender ${sid}`, `notifsender_${sid}@test.com`, 'testpassword1');
 
     try {
-      await senderPage.goto(`${BASE_URL}/static/project.html?id=${projectId}`);
+      await senderPage.goto(`${baseUrl}/static/project.html?id=${projectId}`);
       await expect(senderPage.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 });
       await senderPage.getByRole('button', { name: 'Contact Owner' }).click();
       const dialog = senderPage.getByRole('dialog');
@@ -77,15 +72,12 @@ test.describe('Messaging', () => {
     }
 
     // Recipient refreshes the dashboard — the notification badge now shows 1.
-    await volunteer.page.goto(`${BASE_URL}/static/dashboard.html`);
+    await volunteer.page.goto(`${baseUrl}/static/dashboard.html`);
     await expect(volunteer.page.getByRole('heading', { name: /Welcome back/ })).toBeVisible({ timeout: 10_000 });
     const notifTabAfter = volunteer.page.getByRole('button', { name: /^Notifications/ });
     await expect(notifTabAfter.locator('.notification-badge')).toBeVisible({ timeout: 10_000 });
     await expect(notifTabAfter.locator('.notification-badge')).toContainText('1');
 
-    // Opening the Notifications tab shows the message notification with the subject
-    // as its body, and a View link pointing to the dashboard (there is no dedicated
-    // messages page — notifications surface there).
     await notifTabAfter.click();
     await expect(volunteer.page.getByText(/Message from /)).toBeVisible({ timeout: 10_000 });
     await expect(volunteer.page.getByText(subject)).toBeVisible({ timeout: 10_000 });

@@ -1,12 +1,11 @@
 import crypto from 'crypto';
 import { readFileSync } from 'fs';
 import { test, expect } from '../fixtures';
-import { BASE_URL } from '../config';
 import { signup } from '../actions/auth';
 
 test.describe('GDPR & Privacy', () => {
-  test('Volunteer exports their personal data', async ({ volunteer }) => {
-    await volunteer.page.goto(`${BASE_URL}/static/privacy.html`);
+  test('Volunteer exports their personal data', async ({ volunteer, baseUrl }) => {
+    await volunteer.page.goto(`${baseUrl}/static/privacy.html`);
     await expect(
       volunteer.page.getByRole('heading', { name: 'Export Your Data' })
     ).toBeVisible({ timeout: 10_000 });
@@ -32,7 +31,7 @@ test.describe('GDPR & Privacy', () => {
     expect(data).toHaveProperty('messages_received');
   });
 
-  test('Volunteer with contact sharing disabled does not expose contact handles', async ({ volunteer, browser }) => {
+  test('Volunteer with contact sharing disabled does not expose contact handles', async ({ volunteer, browser, baseUrl }) => {
     const id = crypto.randomBytes(4).toString('hex');
     const vol2Name = `Private Vol ${id}`;
     const discordHandle = `privdiscord_${id}`;
@@ -43,9 +42,9 @@ test.describe('GDPR & Privacy', () => {
     const page2 = await ctx2.newPage();
 
     try {
-      await signup(page2, vol2Name, `privvol_${id}@test.com`, 'testpassword1');
+      await signup(baseUrl, page2, vol2Name, `privvol_${id}@test.com`, 'testpassword1');
 
-      await page2.goto(`${BASE_URL}/static/profile.html`);
+      await page2.goto(`${baseUrl}/static/profile.html`);
       await expect(page2.getByLabel('Discord Handle')).toBeVisible({ timeout: 10_000 });
 
       await page2.getByLabel('Discord Handle').fill(discordHandle);
@@ -60,8 +59,7 @@ test.describe('GDPR & Privacy', () => {
       await page2.getByRole('button', { name: 'Save Changes' }).click();
       await expect(page2.getByRole('alert')).toContainText('Profile updated!', { timeout: 10_000 });
 
-      // Navigate to vol2's public profile via the volunteers directory
-      await volunteer.page.goto(`${BASE_URL}/static/volunteers.html`);
+      await volunteer.page.goto(`${baseUrl}/static/volunteers.html`);
       await volunteer.page.getByLabel('Search').fill(vol2Name);
       await volunteer.page.getByRole('link', { name: vol2Name }).click();
 
@@ -69,7 +67,6 @@ test.describe('GDPR & Privacy', () => {
         volunteer.page.getByRole('heading', { name: vol2Name, level: 1 })
       ).toBeVisible({ timeout: 10_000 });
 
-      // None of vol2's contact handles should be visible on the page
       await expect(volunteer.page.getByText(discordHandle)).not.toBeVisible();
       await expect(volunteer.page.getByText(signalNumber)).not.toBeVisible();
       await expect(volunteer.page.getByText(whatsappNumber)).not.toBeVisible();

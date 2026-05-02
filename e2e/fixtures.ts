@@ -1,7 +1,7 @@
-import { test as base, Browser, Page } from '@playwright/test';
+import { test as base, Browser, Page, WorkerInfo } from '@playwright/test';
 import crypto from 'crypto';
 import { signup } from './actions/auth';
-import { ADMIN_STATE_FILE } from './config';
+import { workerAuthFile, workerBaseUrl, parallelIndexFromBaseUrl } from './config';
 
 interface Volunteer {
   page: Page;
@@ -15,15 +15,24 @@ interface Fixtures {
   volunteer: Volunteer;
 }
 
-export const test = base.extend<Fixtures>({
-  adminPage: async ({ browser }: { browser: Browser }, use: (page: Page) => Promise<void>) => {
-    const context = await browser.newContext({ storageState: ADMIN_STATE_FILE });
+interface WorkerFixtures {
+  baseUrl: string;
+}
+
+export const test = base.extend<Fixtures, WorkerFixtures>({
+  baseUrl: [async ({}, use, workerInfo: WorkerInfo) => {
+    await use(workerBaseUrl(workerInfo.parallelIndex));
+  }, { scope: 'worker' }],
+
+  adminPage: async ({ browser, baseUrl }, use) => {
+    const authFile = workerAuthFile(parallelIndexFromBaseUrl(baseUrl));
+    const context = await browser.newContext({ storageState: authFile });
     const page = await context.newPage();
     await use(page);
     await context.close();
   },
 
-  volunteer: async ({ browser }: { browser: Browser }, use: (v: Volunteer) => Promise<void>) => {
+  volunteer: async ({ browser, baseUrl }: { browser: Browser; baseUrl: string }, use: (v: Volunteer) => Promise<void>) => {
     const id = crypto.randomBytes(4).toString('hex');
     const credentials = {
       name: `Test Volunteer ${id}`,
@@ -32,7 +41,7 @@ export const test = base.extend<Fixtures>({
     };
     const context = await browser.newContext();
     const page = await context.newPage();
-    await signup(page, credentials.name, credentials.email, credentials.password);
+    await signup(baseUrl, page, credentials.name, credentials.email, credentials.password);
     await use({ page, ...credentials });
     await context.close();
   },

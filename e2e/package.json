@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "test": "playwright test",
+    "test:log": "playwright test 2>&1 | tee test-output.txt",
     "test:headed": "playwright test --headed",
     "test:ui": "playwright test --ui",
     "install:browsers": "playwright install chromium"

@@ -1,16 +1,15 @@
 import { defineConfig, devices } from '@playwright/test';
-import { BASE_URL } from './config';
+import { WORKER_COUNT } from './config';
 
 export default defineConfig({
   testDir: './tests',
-  fullyParallel: false,
-  workers: 1,
+  fullyParallel: true,
+  workers: WORKER_COUNT,
   retries: 0,
   timeout: 30_000,
   globalSetup: require.resolve('./global-setup'),
   globalTeardown: require.resolve('./global-teardown'),
   use: {
-    baseURL: BASE_URL,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },

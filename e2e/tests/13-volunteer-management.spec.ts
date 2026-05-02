@@ -1,36 +1,9 @@
 import { test, expect } from '../fixtures';
-import { BASE_URL } from '../config';
 import type { Page } from '@playwright/test';
+import { createSkill } from '../actions/skills';
 
-interface SkillInfo {
-  name: string;
-  optionLabel: string;
-}
-
-async function createSkill(adminPage: Page): Promise<SkillInfo> {
-  const ts = Date.now();
-  const categoryName = `E2E Cat ${ts}`;
-  const skillName = `E2E Skill ${ts}`;
-
-  await adminPage.goto(`${BASE_URL}/static/admin/skills.html`);
-  await expect(adminPage.getByRole('button', { name: '+ Add Category' })).toBeVisible({ timeout: 10_000 });
-
-  await adminPage.getByRole('button', { name: '+ Add Category' }).click();
-  await adminPage.getByLabel('Category Name').fill(categoryName);
-  await adminPage.getByRole('button', { name: 'Save Category' }).click();
-  await expect(adminPage.getByRole('alert')).toBeVisible({ timeout: 10_000 });
-
-  const categoryCard = adminPage.locator('.category-card').filter({ hasText: categoryName });
-  await categoryCard.getByRole('button', { name: '+ Add Skill' }).click();
-  await adminPage.getByLabel('Skill Name').fill(skillName);
-  await adminPage.getByRole('button', { name: 'Save Skill' }).click();
-  await expect(adminPage.getByRole('alert')).toBeVisible({ timeout: 10_000 });
-
-  return { name: skillName, optionLabel: `${skillName} (${categoryName})` };
-}
-
-async function navigateToAdminVolunteerDetail(adminPage: Page, volunteerName: string): Promise<void> {
-  await adminPage.goto(`${BASE_URL}/static/volunteers.html`);
+async function navigateToAdminVolunteerDetail(baseUrl: string, adminPage: Page, volunteerName: string): Promise<void> {
+  await adminPage.goto(`${baseUrl}/static/volunteers.html`);
   await expect(adminPage.getByRole('heading', { name: 'Volunteer Directory', level: 1 })).toBeVisible({ timeout: 10_000 });
   await expect(adminPage.locator('#volunteersList .loading')).not.toBeVisible({ timeout: 10_000 });
 
@@ -40,15 +13,15 @@ async function navigateToAdminVolunteerDetail(adminPage: Page, volunteerName: st
   await expect(volunteerCard).toBeVisible({ timeout: 10_000 });
 
   const href = await volunteerCard.getByRole('link', { name: 'View Profile' }).getAttribute('href');
-  const id = new URL(href!, BASE_URL).searchParams.get('id');
+  const id = new URL(href!, baseUrl).searchParams.get('id');
 
-  await adminPage.goto(`${BASE_URL}/static/admin/volunteer-detail.html?id=${id}`);
+  await adminPage.goto(`${baseUrl}/static/admin/volunteer-detail.html?id=${id}`);
   await expect(adminPage.getByRole('heading', { name: volunteerName, level: 1 })).toBeVisible({ timeout: 10_000 });
 }
 
 test.describe('Volunteer Management', () => {
-  test('Admin searches the volunteers list', async ({ adminPage, volunteer }) => {
-    await adminPage.goto(`${BASE_URL}/static/volunteers.html`);
+  test('Admin searches the volunteers list', async ({ adminPage, volunteer, baseUrl }) => {
+    await adminPage.goto(`${baseUrl}/static/volunteers.html`);
     await expect(adminPage.getByRole('heading', { name: 'Volunteer Directory', level: 1 })).toBeVisible({ timeout: 10_000 });
     await expect(adminPage.locator('#volunteersList .loading')).not.toBeVisible({ timeout: 10_000 });
 
@@ -59,8 +32,8 @@ test.describe('Volunteer Management', () => {
     await expect(volunteerCard.getByRole('link', { name: 'View Profile' })).toBeVisible();
   });
 
-  test('Admin views a comprehensive volunteer profile', async ({ adminPage, volunteer }) => {
-    await navigateToAdminVolunteerDetail(adminPage, volunteer.name);
+  test('Admin views a comprehensive volunteer profile', async ({ adminPage, volunteer, baseUrl }) => {
+    await navigateToAdminVolunteerDetail(baseUrl, adminPage, volunteer.name);
 
     // Profile info sections visible
     await expect(adminPage.getByRole('heading', { name: 'Skills (Self-Assessed)', level: 3 })).toBeVisible({ timeout: 10_000 });
@@ -85,12 +58,11 @@ test.describe('Volunteer Management', () => {
     await expect(adminPage.getByText('No project history.')).toBeVisible({ timeout: 10_000 });
   });
 
-  test('Admin adds an admin note (skill_feedback category)', async ({ adminPage, volunteer }) => {
+  test('Admin adds an admin note (skill_feedback category)', async ({ adminPage, volunteer, baseUrl }) => {
     const noteContent = `E2E skill feedback note ${Date.now()}`;
 
-    await navigateToAdminVolunteerDetail(adminPage, volunteer.name);
+    await navigateToAdminVolunteerDetail(baseUrl, adminPage, volunteer.name);
 
-    // Admin Notes tab is active by default
     await adminPage.getByLabel('Category').selectOption({ label: 'Skill Feedback' });
     await adminPage.getByLabel('Note', { exact: true }).fill(noteContent);
     await adminPage.getByRole('button', { name: 'Add Note' }).click();
@@ -102,11 +74,11 @@ test.describe('Volunteer Management', () => {
     await expect(notesList).toContainText('skill feedback', { timeout: 10_000 });
   });
 
-  test('Admin adds an admin note (reliability category); both notes visible', async ({ adminPage, volunteer }) => {
+  test('Admin adds an admin note (reliability category); both notes visible', async ({ adminPage, volunteer, baseUrl }) => {
     const noteContent1 = `E2E skill feedback note ${Date.now()}`;
     const noteContent2 = `E2E reliability note ${Date.now()}`;
 
-    await navigateToAdminVolunteerDetail(adminPage, volunteer.name);
+    await navigateToAdminVolunteerDetail(baseUrl, adminPage, volunteer.name);
 
     // First note: skill_feedback
     await adminPage.getByLabel('Category').selectOption({ label: 'Skill Feedback' });
@@ -127,11 +99,11 @@ test.describe('Volunteer Management', () => {
     await expect(notesList).toContainText('reliability', { timeout: 10_000 });
   });
 
-  test('Admin edits an admin note', async ({ adminPage, volunteer }) => {
+  test('Admin edits an admin note', async ({ adminPage, volunteer, baseUrl }) => {
     const originalContent = `E2E note to edit ${Date.now()}`;
     const updatedContent = `E2E updated note ${Date.now()}`;
 
-    await navigateToAdminVolunteerDetail(adminPage, volunteer.name);
+    await navigateToAdminVolunteerDetail(baseUrl, adminPage, volunteer.name);
 
     await adminPage.getByLabel('Note', { exact: true }).fill(originalContent);
     await adminPage.getByRole('button', { name: 'Add Note' }).click();
@@ -149,10 +121,10 @@ test.describe('Volunteer Management', () => {
     await expect(notesList).not.toContainText(originalContent, { timeout: 10_000 });
   });
 
-  test('Admin deletes an admin note', async ({ adminPage, volunteer }) => {
+  test('Admin deletes an admin note', async ({ adminPage, volunteer, baseUrl }) => {
     const noteContent = `E2E note to delete ${Date.now()}`;
 
-    await navigateToAdminVolunteerDetail(adminPage, volunteer.name);
+    await navigateToAdminVolunteerDetail(baseUrl, adminPage, volunteer.name);
 
     await adminPage.getByLabel('Note', { exact: true }).fill(noteContent);
     await adminPage.getByRole('button', { name: 'Add Note' }).click();
@@ -168,10 +140,10 @@ test.describe('Volunteer Management', () => {
     await expect(notesList).not.toContainText(noteContent, { timeout: 10_000 });
   });
 
-  test('Admin creates a skill endorsement for a volunteer', async ({ adminPage, volunteer }) => {
-    const skill = await createSkill(adminPage);
+  test('Admin creates a skill endorsement for a volunteer', async ({ adminPage, volunteer, baseUrl }) => {
+    const skill = await createSkill(baseUrl, adminPage);
 
-    await navigateToAdminVolunteerDetail(adminPage, volunteer.name);
+    await navigateToAdminVolunteerDetail(baseUrl, adminPage, volunteer.name);
 
     await adminPage.getByRole('tab', { name: 'Endorse Skill' }).click();
     await expect(adminPage.getByRole('heading', { name: 'Endorse a Skill', level: 3 })).toBeVisible({ timeout: 5_000 });
@@ -188,7 +160,7 @@ test.describe('Volunteer Management', () => {
 
     // Navigate to the volunteer's public profile to confirm the endorsement is visible there too
     const volunteerId = new URL(adminPage.url()).searchParams.get('id');
-    await adminPage.goto(`${BASE_URL}/static/volunteer.html?id=${volunteerId}`);
+    await adminPage.goto(`${baseUrl}/static/volunteer.html?id=${volunteerId}`);
     await expect(adminPage.getByRole('heading', { name: 'Verified Skills', level: 2 })).toBeVisible({ timeout: 10_000 });
     await expect(adminPage.locator('#endorsementsList')).toContainText(skill.name, { timeout: 10_000 });
   });

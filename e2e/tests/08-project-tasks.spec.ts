@@ -1,5 +1,4 @@
 import { test, expect } from '../fixtures';
-import { BASE_URL } from '../config';
 import {
   proposeProject,
   adminCreateProject,
@@ -10,18 +9,20 @@ import { Page } from '@playwright/test';
 
 // Produces an in_progress project with one open task ("Initial task") proposed by the volunteer
 async function setupInProgressProject(
+  baseUrl: string,
   adminPage: Page,
   volunteer: { page: Page; name: string }
 ): Promise<number> {
   const title = `E2E Tasks ${Date.now()}`;
-  const id = await proposeProject(volunteer.page, title, 'Setup for task scenarios');
-  await adminApproveProject(adminPage, title);
+  const id = await proposeProject(baseUrl, volunteer.page, title, 'Setup for task scenarios');
+  await adminApproveProject(baseUrl, adminPage, title);
   return id;
 }
 
 test.describe('Project Tasks', () => {
-  test('Adding a task to a needs_tasks project auto-promotes it to In Progress', async ({ adminPage }) => {
+  test('Adding a task to a needs_tasks project auto-promotes it to In Progress', async ({ adminPage, baseUrl }) => {
     await adminCreateProject(
+      baseUrl,
       adminPage,
       `E2E Task Promote ${Date.now()}`,
       'Project for auto-promotion test'
@@ -37,10 +38,10 @@ test.describe('Project Tasks', () => {
     await expect(adminPage.getByLabel('project status')).toContainText('In Progress', { timeout: 10_000 });
   });
 
-  test('A volunteer can claim an open task', async ({ adminPage, volunteer }) => {
-    const projectId = await setupInProgressProject(adminPage, volunteer);
+  test('A volunteer can claim an open task', async ({ adminPage, volunteer, baseUrl }) => {
+    const projectId = await setupInProgressProject(baseUrl, adminPage, volunteer);
 
-    await volunteer.page.goto(`${BASE_URL}/static/project.html?id=${projectId}`);
+    await volunteer.page.goto(`${baseUrl}/static/project.html?id=${projectId}`);
     await expect(volunteer.page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 });
 
     await expect(volunteer.page.getByRole('button', { name: 'Claim' })).toBeVisible({ timeout: 10_000 });
@@ -51,10 +52,10 @@ test.describe('Project Tasks', () => {
     await expect(volunteer.page.getByRole('button', { name: 'Done' })).toBeVisible({ timeout: 10_000 });
   });
 
-  test('A volunteer can mark their claimed task as done', async ({ adminPage, volunteer }) => {
-    const projectId = await setupInProgressProject(adminPage, volunteer);
+  test('A volunteer can mark their claimed task as done', async ({ adminPage, volunteer, baseUrl }) => {
+    const projectId = await setupInProgressProject(baseUrl, adminPage, volunteer);
 
-    await volunteer.page.goto(`${BASE_URL}/static/project.html?id=${projectId}`);
+    await volunteer.page.goto(`${baseUrl}/static/project.html?id=${projectId}`);
     await expect(volunteer.page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 });
 
     await volunteer.page.getByRole('button', { name: 'Claim' }).click();
@@ -67,11 +68,11 @@ test.describe('Project Tasks', () => {
     await expect(volunteer.page.getByText('done', { exact: true })).toBeVisible({ timeout: 10_000 });
   });
 
-  test('Project owner deletes a task', async ({ adminPage, volunteer }) => {
-    const projectId = await setupInProgressProject(adminPage, volunteer);
-    await transferProjectOwnership(adminPage, projectId, volunteer.name);
+  test('Project owner deletes a task', async ({ adminPage, volunteer, baseUrl }) => {
+    const projectId = await setupInProgressProject(baseUrl, adminPage, volunteer);
+    await transferProjectOwnership(baseUrl, adminPage, projectId, volunteer.name);
 
-    await volunteer.page.goto(`${BASE_URL}/static/project.html?id=${projectId}`);
+    await volunteer.page.goto(`${baseUrl}/static/project.html?id=${projectId}`);
     await expect(volunteer.page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 });
     await expect(volunteer.page.getByText('Initial task')).toBeVisible({ timeout: 10_000 });
 

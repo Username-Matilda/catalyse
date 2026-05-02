@@ -1,12 +1,11 @@
 import { test, expect } from '../fixtures';
-import { BASE_URL } from '../config';
 import { login } from '../actions/auth';
 
 test.describe('Account Management', () => {
-  test('Volunteer changes their password', async ({ browser, volunteer }) => {
+  test('Volunteer changes their password', async ({ browser, volunteer, baseUrl }) => {
     const newPassword = 'newpassword1';
 
-    await volunteer.page.goto(`${BASE_URL}/static/settings.html`);
+    await volunteer.page.goto(`${baseUrl}/static/settings.html`);
     await expect(volunteer.page.getByRole('heading', { name: 'Change Password' })).toBeVisible({ timeout: 10_000 });
 
     await volunteer.page.getByLabel('Current Password').fill(volunteer.password);
@@ -20,15 +19,15 @@ test.describe('Account Management', () => {
     const ctx2 = await browser.newContext();
     const page2 = await ctx2.newPage();
     try {
-      await login(page2, volunteer.email, newPassword);
-      await expect(page2).toHaveURL(`${BASE_URL}/static/dashboard.html`);
+      await login(baseUrl, page2, volunteer.email, newPassword);
+      await expect(page2).toHaveURL(`${baseUrl}/static/dashboard.html`);
     } finally {
       await ctx2.close();
     }
   });
 
-  test('Change password fails with wrong current password', async ({ volunteer }) => {
-    await volunteer.page.goto(`${BASE_URL}/static/settings.html`);
+  test('Change password fails with wrong current password', async ({ volunteer, baseUrl }) => {
+    await volunteer.page.goto(`${baseUrl}/static/settings.html`);
     await expect(volunteer.page.getByRole('heading', { name: 'Change Password' })).toBeVisible({ timeout: 10_000 });
 
     await volunteer.page.getByLabel('Current Password').fill('wrongpassword123');
@@ -40,8 +39,8 @@ test.describe('Account Management', () => {
     await expect(volunteer.page.getByRole('alert')).not.toContainText('successfully');
   });
 
-  test('Volunteer deletes their account', async ({ browser, volunteer }) => {
-    await volunteer.page.goto(`${BASE_URL}/static/settings.html`);
+  test('Volunteer deletes their account', async ({ browser, volunteer, baseUrl }) => {
+    await volunteer.page.goto(`${baseUrl}/static/settings.html`);
     await expect(volunteer.page.getByRole('button', { name: 'Delete My Account' })).toBeVisible({ timeout: 10_000 });
 
     await volunteer.page.getByRole('button', { name: 'Delete My Account' }).click();
@@ -56,7 +55,7 @@ test.describe('Account Management', () => {
     const ctx2 = await browser.newContext();
     const page2 = await ctx2.newPage();
     try {
-      await page2.goto(`${BASE_URL}/static/login.html`);
+      await page2.goto(`${baseUrl}/static/login.html`);
       await page2.getByLabel('Email', { exact: true }).fill(volunteer.email);
       await page2.getByLabel('Password').fill(volunteer.password);
       await page2.getByRole('button', { name: 'Login' }).click();
