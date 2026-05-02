@@ -149,10 +149,13 @@ function createSelectFilter(containerId, options, onChange) {
         container.innerHTML = `
             <button type="button" class="location-filter-btn">${escapeHtml(opts[0]?.label || '')}</button>
             <div class="location-filter-panel" role="listbox">
-                ${opts.map(opt => `<div class="location-filter-item" role="option" data-value="${opt.value}">${escapeHtml(opt.label)}</div>`).join('')}
+                ${opts.map(opt => `<div class="location-filter-item${opt.isSubItem ? ' is-subitem' : ''}" role="option" data-value="${opt.value}">${opt.isSubItem ? '<span class="subitem-arrow">↳</span>' : ''}${escapeHtml(opt.label)}</div>`).join('')}
             </div>
         `;
-        container.querySelector('.location-filter-btn').addEventListener('click', e => {
+        const btn = container.querySelector('.location-filter-btn');
+        const labelEl = container.closest('.filter-group')?.querySelector(':scope > label');
+        if (labelEl) btn.setAttribute('aria-label', labelEl.textContent.trim() + ' filter');
+        btn.addEventListener('click', e => {
             e.stopPropagation();
             const p = container.querySelector('.location-filter-panel');
             document.querySelectorAll('.location-filter-panel.open').forEach(op => { if (op !== p) op.classList.remove('open'); });

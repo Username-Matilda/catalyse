@@ -74,7 +74,7 @@ test.describe('Project Lifecycle', () => {
     // Project appears in the completed tab on the projects index
     await volunteer.page.goto(`${BASE_URL}/static/index.html`);
     await expect(volunteer.page.getByRole('heading', { name: 'Projects' })).toBeVisible({ timeout: 10_000 });
-    await volunteer.page.getByRole('button', { name: 'All Active' }).click();
+    await volunteer.page.getByRole('button', { name: 'Status filter' }).click();
     await volunteer.page.getByRole('option', { name: 'Completed' }).click();
     await expect(volunteer.page.getByRole('link', { name: title })).toBeVisible({ timeout: 10_000 });
   });

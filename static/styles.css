@@ -920,12 +920,14 @@ textarea {
 
 .location-filter-item.is-subitem {
     padding-left: 28px;
-    color: var(--text-light);
+    color: var(--text);
     font-size: 0.825rem;
+    opacity: 0.72;
 }
 
 .location-filter-item.is-subitem.selected {
-    color: #111827;
+    color: var(--text);
+    opacity: 1;
 }
 
 .subitem-arrow {
