@@ -74,7 +74,7 @@
                 <div id="interestSection" style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); display: none;">
                     <div id="existingInterest" style="display: none;">
                         <div class="message info">
-                            You've expressed interest in this project. Status: <strong id="interestStatus"></strong>
+                            You've expressed interest in this project. Status: <strong id="interestStatus" aria-label="interest status"></strong>
                         </div>
                         <button id="withdrawBtn" class="btn btn-outline btn-small" style="margin-top: 12px;">
                             Withdraw Interest
@@ -112,6 +112,7 @@
                         <h4>Assign a volunteer directly</h4>
                         <div style="display: flex; gap: 8px; align-items: end; margin-top: 8px;">
                             <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                                <label for="assignVolunteerSelect" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">Volunteer to assign</label>
                                 <select id="assignVolunteerSelect">
                                     <option value="">Select volunteer...</option>
                                 </select>
