@@ -1,6 +1,5 @@
 import { test, expect } from '../fixtures';
 import crypto from 'crypto';
-import { signup } from '../actions/auth';
 import { adminCreateProject, transferProjectOwnership } from '../actions/projects';
 
 test.describe('Messaging', () => {
@@ -60,10 +59,17 @@ test.describe('Messaging', () => {
     await expect(notifTab.locator('.notification-badge')).not.toBeVisible();
 
     // Sender sends the message.
-    const senderCtx = await browser.newContext();
-    const senderPage = await senderCtx.newPage();
     const sid = crypto.randomBytes(4).toString('hex');
-    await signup(baseUrl, senderPage, `Notif Sender ${sid}`, `notifsender_${sid}@test.com`, 'testpassword1');
+    const senderSignupResp = await fetch(`${baseUrl}/api/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: `Notif Sender ${sid}`, email: `notifsender_${sid}@test.com`, password: 'testpassword1', consent_profile_visible: true, consent_contact_by_owners: true }),
+    });
+    if (!senderSignupResp.ok) throw new Error(`Sender signup failed: ${await senderSignupResp.text()}`);
+    const { auth_token: senderToken } = await senderSignupResp.json();
+    const senderCtx = await browser.newContext();
+    await senderCtx.addInitScript((token: string) => { localStorage.setItem('authToken', token); }, senderToken);
+    const senderPage = await senderCtx.newPage();
 
     try {
       await senderPage.goto(`${baseUrl}/static/project.html?id=${projectId}`);
