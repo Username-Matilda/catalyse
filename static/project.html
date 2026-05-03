@@ -31,7 +31,7 @@
                 <a href="/static/index.html" style="color: var(--text-light);">&larr; Back to Projects</a>
             </div>
 
-            <div id="messageDiv" class="message" style="display: none;"></div>
+            <div id="messageDiv" role="alert" class="message" style="display: none;"></div>
 
             <div class="card">
                 <div class="card-header">
@@ -40,13 +40,18 @@
                         <div id="projectMeta" class="card-meta"></div>
                     </div>
                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                        <span id="projectStatus" class="status-badge"></span>
+                        <span id="projectStatus" class="status-badge" aria-label="project status"></span>
                         <span id="seekingBadges"></span>
                         <a id="editProjectBtn" href="#" class="btn btn-small btn-outline" style="display: none;">Edit</a>
                     </div>
                 </div>
 
                 <div id="projectDescription" style="white-space: pre-wrap; margin: 20px 0;"></div>
+
+                <div id="outcomeDisplay" role="status" style="display: none; margin: 20px 0; padding: 16px; background: var(--background); border-radius: var(--radius);">
+                    <h3>Project Outcome</h3>
+                    <div id="outcomeDetails"></div>
+                </div>
 
                 <h3>Skills Needed</h3>
                 <div id="projectSkills" class="skills" style="margin-bottom: 20px;"></div>
@@ -69,7 +74,7 @@
                 <div id="interestSection" style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); display: none;">
                     <div id="existingInterest" style="display: none;">
                         <div class="message info">
-                            You've expressed interest in this project. Status: <strong id="interestStatus"></strong>
+                            You've expressed interest in this project. Status: <strong id="interestStatus" aria-label="interest status"></strong>
                         </div>
                         <button id="withdrawBtn" class="btn btn-outline btn-small" style="margin-top: 12px;">
                             Withdraw Interest
@@ -107,6 +112,7 @@
                         <h4>Assign a volunteer directly</h4>
                         <div style="display: flex; gap: 8px; align-items: end; margin-top: 8px;">
                             <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                                <label for="assignVolunteerSelect" class="sr-only">Volunteer to assign</label>
                                 <select id="assignVolunteerSelect">
                                     <option value="">Select volunteer...</option>
                                 </select>
@@ -126,6 +132,7 @@
                 <div id="addTaskForm" style="display: none; margin-bottom: 16px; padding: 16px; background: var(--background); border-radius: var(--radius);">
                     <form id="taskForm">
                         <div class="form-group">
+                            <label for="taskTitle">Task title</label>
                             <input type="text" id="taskTitle" required placeholder="Task title">
                         </div>
                         <div class="form-group">
@@ -147,10 +154,10 @@
                 <h2>Project Updates</h2>
                 <div id="updatesList"></div>
                 <div id="addUpdateForm" style="margin-top: 20px; display: none;">
-                    <h3>Add Update</h3>
+                    <h3 id="addUpdateHeading">Add Update</h3>
                     <form id="updateForm">
                         <div class="form-group">
-                            <textarea id="updateContent" required placeholder="Let people know what skills are most needed, where the project is at, etc."></textarea>
+                            <textarea id="updateContent" aria-labelledby="addUpdateHeading" required placeholder="Let people know what skills are most needed, where the project is at, etc."></textarea>
                         </div>
                         <button type="submit" class="btn btn-secondary">Post Update</button>
                     </form>
@@ -178,6 +185,7 @@
                     <p style="font-size: 0.875rem; color: var(--text-light); margin-bottom: 8px;">Hand this project over to another volunteer.</p>
                     <div style="display: flex; gap: 8px; align-items: end;">
                         <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                            <label for="transferSelect" class="sr-only">Transfer to</label>
                             <select id="transferSelect">
                                 <option value="">Select volunteer...</option>
                             </select>
@@ -211,14 +219,33 @@
                     <button class="btn btn-outline btn-small" onclick="reviewProject('needs_discussion')">Needs Discussion</button>
                 </div>
             </div>
+
+            <!-- Admin outcome recording (for completed projects) -->
+            <div id="recordOutcomeSection" class="card" style="display: none;">
+                <h2>Record Project Outcome</h2>
+                <div class="form-group">
+                    <label for="outcomeSelect">Outcome</label>
+                    <select id="outcomeSelect">
+                        <option value="successful">Successful</option>
+                        <option value="partial">Partial Success</option>
+                        <option value="not_completed">Not Completed</option>
+                        <option value="ongoing">Ongoing</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="outcomeNotes">Outcome Notes</label>
+                    <textarea id="outcomeNotes" placeholder="What was achieved? What went well or poorly?"></textarea>
+                </div>
+                <button class="btn btn-primary btn-small" onclick="recordOutcome()">Record Outcome</button>
+            </div>
         </div>
     </main>
 
     <!-- Contact Modal -->
     <div id="contactModal" class="modal-overlay" style="display: none;">
-        <div class="modal">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="contactModalTitle">
             <div class="modal-header">
-                <h2>Contact <span id="contactName"></span></h2>
+                <h2 id="contactModalTitle">Contact <span id="contactName"></span></h2>
                 <button class="modal-close" onclick="closeModal('contactModal')">&times;</button>
             </div>
             <div class="modal-body">
@@ -391,6 +418,47 @@
 
             // Updates section
             renderUpdatesSection();
+
+            // Outcome section
+            renderOutcomeSection();
+        }
+
+        function renderOutcomeSection() {
+            const outcomeLabels = { successful: 'Successful', partial: 'Partial Success', not_completed: 'Not Completed', ongoing: 'Ongoing' };
+
+            if (project.outcome) {
+                const display = document.getElementById('outcomeDisplay');
+                display.style.display = 'block';
+                document.getElementById('outcomeDetails').innerHTML = `
+                    <p><strong>${outcomeLabels[project.outcome] || project.outcome}</strong></p>
+                    ${project.outcome_notes ? `<p style="margin-top: 8px; color: var(--text-light);">${escapeHtml(project.outcome_notes)}</p>` : ''}
+                `;
+            }
+
+            const isAdmin = currentUser && currentUser.is_admin;
+            if (isAdmin && project.status === 'completed') {
+                const section = document.getElementById('recordOutcomeSection');
+                section.style.display = 'block';
+                if (project.outcome) {
+                    document.getElementById('outcomeSelect').value = project.outcome;
+                    if (project.outcome_notes) document.getElementById('outcomeNotes').value = project.outcome_notes;
+                }
+            }
+        }
+
+        async function recordOutcome() {
+            const outcome = document.getElementById('outcomeSelect').value;
+            const notes = document.getElementById('outcomeNotes').value.trim();
+            try {
+                await apiRequest(`/api/admin/projects/${project.id}/outcome`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ outcome, outcome_notes: notes || null })
+                });
+                showMessage('Outcome recorded!', 'success');
+                await loadProject(project.id);
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
         }
 
         function renderOwnerSection() {
@@ -619,6 +687,7 @@
             const isAdmin = currentUser && currentUser.is_admin;
 
             if (!project.tasks || project.tasks.length === 0) {
+                document.getElementById('tasksList').innerHTML = '';
                 // Only show empty section to owner/admin (they can add tasks)
                 if (isOwner || isAdmin) {
                     document.getElementById('tasksSection').style.display = 'block';
@@ -659,7 +728,7 @@
                                 <button class="btn btn-small btn-ghost" onclick="reopenTask(${t.id})" title="Reset to open">&#8634;</button>
                             ` : ''}
                             ${isOwner || isAdmin ? `
-                                <button class="btn btn-small btn-ghost" onclick="deleteTask(${t.id})" title="Delete task" style="color: var(--error);">&times;</button>
+                                <button class="btn btn-small btn-ghost" aria-label="Delete task" onclick="deleteTask(${t.id})" title="Delete task" style="color: var(--error);">&times;</button>
                             ` : ''}
                         </div>
                     </div>
@@ -734,6 +803,7 @@
             if (!confirm('Delete this task?')) return;
             try {
                 await apiRequest(`/api/projects/${project.id}/tasks/${taskId}`, { method: 'DELETE' });
+                showMessage('Task deleted!', 'success');
                 await loadProject(project.id);
             } catch (error) {
                 showMessage(error.message, 'error');

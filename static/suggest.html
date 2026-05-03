@@ -28,7 +28,7 @@
                 Our team will review it and, if approved, it'll be visible to all volunteers.
             </p>
 
-            <div id="messageDiv" class="message" style="display: none;"></div>
+            <div id="messageDiv" role="alert" class="message" style="display: none;"></div>
 
             <div id="loginPrompt" class="card" style="display: none; text-align: center;">
                 <h2>Login Required</h2>
@@ -187,8 +187,8 @@
                 <button type="button" onclick="removeTask(${idx})" title="Remove task"
                     style="position: absolute; top: 10px; right: 12px; background: none; border: none; cursor: pointer; font-size: 1.1rem; color: var(--text-light); line-height: 1;">&times;</button>
                 <div class="form-group" style="margin-bottom: 10px;">
-                    <label class="required">Task title</label>
-                    <input type="text" class="task-title" value="${escapeAttr(title)}" placeholder="e.g. Draft copy for homepage" maxlength="300">
+                    <label class="required" for="task-title-${idx}">Task title</label>
+                    <input type="text" id="task-title-${idx}" class="task-title" value="${escapeAttr(title)}" placeholder="e.g. Draft copy for homepage" maxlength="300">
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
                     <label>Description (optional)</label>

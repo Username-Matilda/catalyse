@@ -64,9 +64,10 @@ function createLocationFilter(containerId, onChange) {
 
     container.innerHTML = `
         <button type="button" class="location-filter-btn">All locations</button>
-        <div class="location-filter-panel">
+        <div class="location-filter-panel" role="listbox">
             ${items.map(item => `
                 <div class="location-filter-item${item.isSubItem ? ' is-subitem' : ''}"
+                     role="option"
                      data-country="${item.country}"
                      data-group="${item.group}">
                     ${item.isSubItem ? '<span class="subitem-arrow">↳</span>' : ''}${escapeHtml(item.label)}
@@ -147,11 +148,14 @@ function createSelectFilter(containerId, options, onChange) {
     function build(opts) {
         container.innerHTML = `
             <button type="button" class="location-filter-btn">${escapeHtml(opts[0]?.label || '')}</button>
-            <div class="location-filter-panel">
-                ${opts.map(opt => `<div class="location-filter-item" data-value="${opt.value}">${escapeHtml(opt.label)}</div>`).join('')}
+            <div class="location-filter-panel" role="listbox">
+                ${opts.map(opt => `<div class="location-filter-item${opt.isSubItem ? ' is-subitem' : ''}" role="option" data-value="${opt.value}">${opt.isSubItem ? '<span class="subitem-arrow">↳</span>' : ''}${escapeHtml(opt.label)}</div>`).join('')}
             </div>
         `;
-        container.querySelector('.location-filter-btn').addEventListener('click', e => {
+        const btn = container.querySelector('.location-filter-btn');
+        const labelEl = container.closest('.filter-group')?.querySelector(':scope > label');
+        if (labelEl) btn.setAttribute('aria-label', labelEl.textContent.trim() + ' filter');
+        btn.addEventListener('click', e => {
             e.stopPropagation();
             const p = container.querySelector('.location-filter-panel');
             document.querySelectorAll('.location-filter-panel.open').forEach(op => { if (op !== p) op.classList.remove('open'); });
@@ -682,9 +686,9 @@ function initBugReportButton() {
     modal.className = 'modal-overlay';
     modal.style.display = 'none';
     modal.innerHTML = `
-        <div class="modal">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="bugReportModalTitle">
             <div class="modal-header">
-                <h2>Report an Issue</h2>
+                <h2 id="bugReportModalTitle">Report an Issue</h2>
                 <button class="modal-close" onclick="closeModal('bugReportModal')">&times;</button>
             </div>
             <div class="modal-body">
@@ -725,7 +729,7 @@ function initBugReportButton() {
                     </div>
 
                     <div class="form-group">
-                        <label>How urgent is this?</label>
+                        <label for="bugSeverity">How urgent is this?</label>
                         <select id="bugSeverity" name="severity">
                             <option value="low">Low - Minor issue</option>
                             <option value="medium" selected>Medium - Annoying but workable</option>

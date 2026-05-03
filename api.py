@@ -23,6 +23,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 from email_service import (
     is_email_configured,
+    is_real_email_sending,
     send_password_reset_email,
     send_admin_invite_email,
     send_welcome_email,
@@ -165,6 +166,8 @@ def get_db():
     """Get database connection with row factory."""
     conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA busy_timeout = 5000")
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
@@ -398,6 +401,11 @@ class ProjectReview(BaseModel):
     review_notes: Optional[str] = None
     feedback_to_proposer: Optional[str] = None
     target_status: Optional[str] = None  # 'seeking_owner' or 'seeking_help' if approved
+
+
+class ProjectOutcomeUpdate(BaseModel):
+    outcome: str
+    outcome_notes: Optional[str] = None
 
 
 # --- Project Tasks ---
@@ -3158,11 +3166,12 @@ def create_endorsement(
 @app.put("/api/admin/projects/{project_id}/outcome")
 def set_project_outcome(
     project_id: int,
-    outcome: str = Query(...),
-    outcome_notes: Optional[str] = Query(None),
+    data: ProjectOutcomeUpdate,
     admin: Dict = Depends(require_admin)
 ) -> Dict:
     """Record the outcome of a completed project."""
+    outcome = data.outcome
+    outcome_notes = data.outcome_notes
     if outcome not in ("successful", "partial", "not_completed", "ongoing"):
         raise HTTPException(status_code=400, detail="Invalid outcome")
 
@@ -3336,8 +3345,8 @@ def invite_admin(data: AdminInviteCreate, admin: Dict = Depends(require_admin)) 
         "expires_at": expires_at
     }
 
-    # In dev mode (no email configured), include token for manual sharing
-    if not is_email_configured():
+    # In dev/test mode (no real email API or stub mode), include token for manual sharing
+    if not is_real_email_sending():
         result["_dev_invite_token"] = invite_token
         result["_dev_invite_url"] = f"/static/accept-invite.html?token={invite_token}"
         result["_dev_note"] = "Email not configured. Share link manually."
@@ -3863,6 +3872,11 @@ def send_contact_message(
         conn.close()
         if project:
             project_title = project["title"]
+
+    # TODO: The message/notification is only created if email succeeds, meaning it
+    # fails entirely in environments without RESEND_API_KEY configured (e.g. local
+    # dev and the e2e test suite). Consider saving to contact_messages and creating
+    # the notification unconditionally, then treating email as best-effort delivery.
 
     # Send via email relay
     email_sent = send_relay_message(
