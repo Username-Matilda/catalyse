@@ -686,7 +686,7 @@ function initBugReportButton() {
     modal.className = 'modal-overlay';
     modal.style.display = 'none';
     modal.innerHTML = `
-        <div class="modal" role="dialog" aria-labelledby="bugReportModalTitle">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="bugReportModalTitle">
             <div class="modal-header">
                 <h2 id="bugReportModalTitle">Report an Issue</h2>
                 <button class="modal-close" onclick="closeModal('bugReportModal')">&times;</button>

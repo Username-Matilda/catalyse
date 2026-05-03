@@ -1668,3 +1668,12 @@ select.input-error {
     border-color: #EF4444 !important;
     box-shadow: 0 0 0 1px #EF4444;
 }
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+}

@@ -112,7 +112,7 @@
                         <h4>Assign a volunteer directly</h4>
                         <div style="display: flex; gap: 8px; align-items: end; margin-top: 8px;">
                             <div class="form-group" style="flex: 1; margin-bottom: 0;">
-                                <label for="assignVolunteerSelect" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">Volunteer to assign</label>
+                                <label for="assignVolunteerSelect" class="sr-only">Volunteer to assign</label>
                                 <select id="assignVolunteerSelect">
                                     <option value="">Select volunteer...</option>
                                 </select>
@@ -185,7 +185,7 @@
                     <p style="font-size: 0.875rem; color: var(--text-light); margin-bottom: 8px;">Hand this project over to another volunteer.</p>
                     <div style="display: flex; gap: 8px; align-items: end;">
                         <div class="form-group" style="flex: 1; margin-bottom: 0;">
-                            <label for="transferSelect" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">Transfer to</label>
+                            <label for="transferSelect" class="sr-only">Transfer to</label>
                             <select id="transferSelect">
                                 <option value="">Select volunteer...</option>
                             </select>
@@ -450,8 +450,10 @@
             const outcome = document.getElementById('outcomeSelect').value;
             const notes = document.getElementById('outcomeNotes').value.trim();
             try {
-                const qs = `outcome=${encodeURIComponent(outcome)}${notes ? '&outcome_notes=' + encodeURIComponent(notes) : ''}`;
-                await apiRequest(`/api/admin/projects/${project.id}/outcome?${qs}`, { method: 'PUT' });
+                await apiRequest(`/api/admin/projects/${project.id}/outcome`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ outcome, outcome_notes: notes || null })
+                });
                 showMessage('Outcome recorded!', 'success');
                 await loadProject(project.id);
             } catch (error) {

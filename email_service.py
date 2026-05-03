@@ -30,6 +30,11 @@ def is_email_configured() -> bool:
     return STUB_EMAIL or bool(RESEND_API_KEY)
 
 
+def is_real_email_sending() -> bool:
+    """Return True only when real emails are being sent (not stubbed, not unconfigured)."""
+    return bool(RESEND_API_KEY) and not STUB_EMAIL
+
+
 def send_email(to: str, subject: str, html: str) -> bool:
     """
     Send an email via Resend API.

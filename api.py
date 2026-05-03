@@ -23,7 +23,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 from email_service import (
     is_email_configured,
-    STUB_EMAIL,
+    is_real_email_sending,
     send_password_reset_email,
     send_admin_invite_email,
     send_welcome_email,
@@ -401,6 +401,11 @@ class ProjectReview(BaseModel):
     review_notes: Optional[str] = None
     feedback_to_proposer: Optional[str] = None
     target_status: Optional[str] = None  # 'seeking_owner' or 'seeking_help' if approved
+
+
+class ProjectOutcomeUpdate(BaseModel):
+    outcome: str
+    outcome_notes: Optional[str] = None
 
 
 # --- Project Tasks ---
@@ -3161,11 +3166,12 @@ def create_endorsement(
 @app.put("/api/admin/projects/{project_id}/outcome")
 def set_project_outcome(
     project_id: int,
-    outcome: str = Query(...),
-    outcome_notes: Optional[str] = Query(None),
+    data: ProjectOutcomeUpdate,
     admin: Dict = Depends(require_admin)
 ) -> Dict:
     """Record the outcome of a completed project."""
+    outcome = data.outcome
+    outcome_notes = data.outcome_notes
     if outcome not in ("successful", "partial", "not_completed", "ongoing"):
         raise HTTPException(status_code=400, detail="Invalid outcome")
 
@@ -3340,7 +3346,7 @@ def invite_admin(data: AdminInviteCreate, admin: Dict = Depends(require_admin)) 
     }
 
     # In dev/test mode (no real email API or stub mode), include token for manual sharing
-    if STUB_EMAIL or not is_email_configured():
+    if not is_real_email_sending():
         result["_dev_invite_token"] = invite_token
         result["_dev_invite_url"] = f"/static/accept-invite.html?token={invite_token}"
         result["_dev_note"] = "Email not configured. Share link manually."
