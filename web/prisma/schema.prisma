@@ -1,0 +1,395 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model AdminInvite {
+  id           Int        @id @default(autoincrement())
+  email        String
+  inviteToken  String     @unique(map: "sqlite_autoindex_admin_invites_1") @map("invite_token")
+  invitedById  Int        @map("invited_by_id")
+  status       String     @default("pending")
+  acceptedById Int?       @map("accepted_by_id")
+  acceptedAt   DateTime?  @map("accepted_at")
+  expiresAt    DateTime   @map("expires_at")
+  createdAt    DateTime?  @default(now()) @map("created_at")
+  acceptedBy   Volunteer? @relation("AdminInviteAcceptedBy", fields: [acceptedById], references: [id], onUpdate: NoAction)
+  invitedBy    Volunteer  @relation("AdminInviteInvitedBy", fields: [invitedById], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([inviteToken], map: "idx_admin_invites_token")
+  @@index([email], map: "idx_admin_invites_email")
+  @@map("admin_invites")
+}
+
+model AdminNote {
+  id               Int       @id @default(autoincrement())
+  volunteerId      Int       @map("volunteer_id")
+  authorId         Int       @map("author_id")
+  content          String
+  category         String?   @default("general")
+  relatedProjectId Int?      @map("related_project_id")
+  createdAt        DateTime? @default(now()) @map("created_at")
+  updatedAt        DateTime? @default(now()) @map("updated_at")
+  relatedProject   Project?  @relation(fields: [relatedProjectId], references: [id], onUpdate: NoAction)
+  author           Volunteer @relation("AdminNoteAuthor", fields: [authorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  volunteer        Volunteer @relation("AdminNoteVolunteer", fields: [volunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([volunteerId], map: "idx_admin_notes_volunteer")
+  @@map("admin_notes")
+}
+
+model BugReport {
+  id              Int        @id @default(autoincrement())
+  reporterId      Int?       @map("reporter_id")
+  reporterEmail   String?    @map("reporter_email")
+  title           String
+  description     String
+  pageUrl         String?    @map("page_url")
+  category        String?    @default("bug")
+  severity        String?    @default("medium")
+  status          String     @default("open")
+  resolutionNotes String?    @map("resolution_notes")
+  resolvedById    Int?       @map("resolved_by_id")
+  resolvedAt      DateTime?  @map("resolved_at")
+  createdAt       DateTime?  @default(now()) @map("created_at")
+  resolvedBy      Volunteer? @relation("BugReportResolvedBy", fields: [resolvedById], references: [id], onUpdate: NoAction)
+  reporter        Volunteer? @relation("BugReportReporter", fields: [reporterId], references: [id], onUpdate: NoAction)
+
+  @@index([reporterId], map: "idx_bug_reports_reporter")
+  @@index([status], map: "idx_bug_reports_status")
+  @@map("bug_reports")
+}
+
+model Message {
+  id               Int       @id @default(autoincrement())
+  fromVolunteerId  Int       @map("from_volunteer_id")
+  toVolunteerId    Int       @map("to_volunteer_id")
+  subject          String
+  message          String
+  relatedProjectId Int?      @map("related_project_id")
+  readAt           DateTime? @map("read_at")
+  createdAt        DateTime? @default(now()) @map("created_at")
+  relatedProject   Project?  @relation(fields: [relatedProjectId], references: [id], onUpdate: NoAction)
+  to               Volunteer @relation("MessageTo", fields: [toVolunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  from             Volunteer @relation("MessageFrom", fields: [fromVolunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([fromVolunteerId], map: "idx_contact_messages_from")
+  @@index([toVolunteerId], map: "idx_contact_messages_to")
+  @@map("contact_messages")
+}
+
+model DeletionRequest {
+  id             Int       @id @default(autoincrement())
+  volunteerId    Int       @map("volunteer_id")
+  volunteerEmail String?   @map("volunteer_email")
+  status         String    @default("pending")
+  requestedAt    DateTime? @default(now()) @map("requested_at")
+  completedAt    DateTime? @map("completed_at")
+
+  @@map("deletion_requests")
+}
+
+model Notification {
+  id          Int        @id @default(autoincrement())
+  volunteerId Int        @map("volunteer_id")
+  type        String
+  title       String
+  body        String?
+  link        String?
+  readAt      DateTime?  @map("read_at")
+  emailedAt   DateTime?  @map("emailed_at")
+  createdAt   DateTime?  @default(now()) @map("created_at")
+  volunteer   Volunteer  @relation(fields: [volunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([volunteerId, readAt], map: "idx_notifications_unread")
+  @@index([volunteerId], map: "idx_notifications_volunteer")
+  @@map("notifications")
+}
+
+model PasswordResetToken {
+  id          Int       @id @default(autoincrement())
+  volunteerId Int       @map("volunteer_id")
+  token       String    @unique(map: "sqlite_autoindex_password_reset_tokens_1")
+  expiresAt   DateTime  @map("expires_at")
+  usedAt      DateTime? @map("used_at")
+  createdAt   DateTime? @default(now()) @map("created_at")
+  volunteer   Volunteer @relation(fields: [volunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([volunteerId], map: "idx_password_reset_tokens_volunteer")
+  @@index([token], map: "idx_password_reset_tokens_token")
+  @@map("password_reset_tokens")
+}
+
+model ProjectInterest {
+  id              Int        @id @default(autoincrement())
+  volunteerId     Int        @map("volunteer_id")
+  projectId       Int        @map("project_id")
+  interestType    String     @map("interest_type")
+  message         String?
+  status          String     @default("pending")
+  responseMessage String?    @map("response_message")
+  createdAt       DateTime?  @default(now()) @map("created_at")
+  respondedAt     DateTime?  @map("responded_at")
+  project         Project    @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  volunteer       Volunteer  @relation(fields: [volunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([volunteerId, projectId], map: "sqlite_autoindex_project_interests_1")
+  @@index([volunteerId], map: "idx_project_interests_volunteer")
+  @@index([projectId], map: "idx_project_interests_project")
+  @@map("project_interests")
+}
+
+model ProjectSkill {
+  projectId  Int       @map("project_id")
+  skillId    Int       @map("skill_id")
+  isRequired Boolean?  @default(true) @map("is_required")
+  createdAt  DateTime? @default(now()) @map("created_at")
+  skill      Skill     @relation(fields: [skillId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([projectId, skillId])
+  @@index([skillId], map: "idx_project_skills_skill")
+  @@map("project_skills")
+}
+
+model ProjectTask {
+  id           Int        @id @default(autoincrement())
+  projectId    Int        @map("project_id")
+  title        String
+  description  String?
+  assignedToId Int?       @map("assigned_to_id")
+  status       String     @default("open")
+  createdById  Int        @map("created_by_id")
+  completedAt  DateTime?  @map("completed_at")
+  createdAt    DateTime?  @default(now()) @map("created_at")
+  updatedAt    DateTime?  @default(now()) @map("updated_at")
+  createdBy    Volunteer  @relation("ProjectTaskCreatedBy", fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  assignedTo   Volunteer? @relation("ProjectTaskAssignedTo", fields: [assignedToId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  project      Project    @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([assignedToId], map: "idx_project_tasks_assigned")
+  @@index([projectId], map: "idx_project_tasks_project")
+  @@map("project_tasks")
+}
+
+model ProjectUpdate {
+  id        Int        @id @default(autoincrement())
+  projectId Int        @map("project_id")
+  authorId  Int?       @map("author_id")
+  content   String
+  createdAt DateTime?  @default(now()) @map("created_at")
+  author    Volunteer? @relation(fields: [authorId], references: [id], onUpdate: NoAction)
+  project   Project    @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([projectId], map: "idx_project_updates_project")
+  @@map("project_updates")
+}
+
+model Project {
+  id                         Int               @id @default(autoincrement())
+  title                      String
+  description                String
+  status                     String            @default("pending_review")
+  ownerId                    Int?              @map("owner_id")
+  proposedById               Int?              @map("proposed_by_id")
+  isOrgProposed              Boolean?          @default(false) @map("is_org_proposed")
+  projectType                String?           @map("project_type")
+  estimatedDuration          String?           @map("estimated_duration")
+  timeCommitmentHoursPerWeek Int?              @map("time_commitment_hours_per_week")
+  urgency                    String?           @default("medium")
+  reviewNotes                String?           @map("review_notes")
+  reviewedById               Int?              @map("reviewed_by_id")
+  reviewedAt                 DateTime?         @map("reviewed_at")
+  feedbackToProposer         String?           @map("feedback_to_proposer")
+  collaborationLink          String?           @map("collaboration_link")
+  outcome                    String?
+  outcomeNotes               String?           @map("outcome_notes")
+  completedAt                DateTime?         @map("completed_at")
+  createdAt                  DateTime?         @default(now()) @map("created_at")
+  updatedAt                  DateTime?         @default(now()) @map("updated_at")
+  country                    String?
+  isSeekingHelp              Boolean?          @default(false) @map("is_seeking_help")
+  isSeekingOwner             Boolean?          @default(false) @map("is_seeking_owner")
+  localGroup                 String?           @map("local_group")
+  adminNotes                 AdminNote[]
+  messages                   Message[]
+  interests                  ProjectInterest[]
+  skills                     ProjectSkill[]
+  tasks                      ProjectTask[]
+  updates                    ProjectUpdate[]
+  reviewedBy                 Volunteer?        @relation("ProjectReviewedBy", fields: [reviewedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  proposedBy                 Volunteer?        @relation("ProjectProposedBy", fields: [proposedById], references: [id], onUpdate: NoAction)
+  owner                      Volunteer?        @relation("ProjectOwner", fields: [ownerId], references: [id], onUpdate: NoAction)
+  starterTasks               StarterTask[]
+
+  @@index([localGroup], map: "idx_projects_local_group")
+  @@index([country], map: "idx_projects_country")
+  @@index([proposedById], map: "idx_projects_proposed_by")
+  @@index([ownerId], map: "idx_projects_owner")
+  @@index([status], map: "idx_projects_status")
+  @@map("projects")
+}
+
+/// Not exposed via Prisma Client — no valid unique identifier.
+model SchemaMigration {
+  filename  String?   @id
+  appliedAt DateTime? @default(now()) @map("applied_at")
+
+  @@ignore
+  @@map("schema_migrations")
+}
+
+model SkillCategory {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique(map: "sqlite_autoindex_skill_categories_1")
+  description String?
+  sortOrder   Int?      @default(0) @map("sort_order")
+  createdAt   DateTime? @default(now()) @map("created_at")
+  skills      Skill[]
+
+  @@map("skill_categories")
+}
+
+model SkillEndorsement {
+  id           Int        @id @default(autoincrement())
+  volunteerId  Int        @map("volunteer_id")
+  skillId      Int        @map("skill_id")
+  endorsedById Int        @map("endorsed_by_id")
+  source       String?    @default("direct_observation")
+  sourceId     Int?       @map("source_id")
+  rating       String?    @default("verified")
+  notes        String?
+  createdAt    DateTime?  @default(now()) @map("created_at")
+  endorsedBy   Volunteer  @relation("SkillEndorsementEndorsedBy", fields: [endorsedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  skill        Skill      @relation(fields: [skillId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  volunteer    Volunteer  @relation("SkillEndorsementVolunteer", fields: [volunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([volunteerId, skillId, endorsedById], map: "sqlite_autoindex_skill_endorsements_1")
+  @@index([volunteerId], map: "idx_skill_endorsements_volunteer")
+  @@map("skill_endorsements")
+}
+
+model Skill {
+  id              Int                @id @default(autoincrement())
+  categoryId      Int                @map("category_id")
+  name            String
+  description     String?
+  sortOrder       Int?               @default(0) @map("sort_order")
+  createdAt       DateTime?          @default(now()) @map("created_at")
+  projectSkills   ProjectSkill[]
+  endorsements    SkillEndorsement[]
+  category        SkillCategory      @relation(fields: [categoryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  starterTasks    StarterTask[]
+  volunteerSkills VolunteerSkill[]
+
+  @@unique([categoryId, name], map: "sqlite_autoindex_skills_1")
+  @@index([categoryId], map: "idx_skills_category")
+  @@map("skills")
+}
+
+model StarterTask {
+  id                  Int        @id @default(autoincrement())
+  projectId           Int?       @map("project_id")
+  title               String
+  description         String
+  skillId             Int?       @map("skill_id")
+  assignedToId        Int?       @map("assigned_to_id")
+  assignedById        Int?       @map("assigned_by_id")
+  status              String     @default("open")
+  reviewRating        String?    @map("review_rating")
+  reviewNotes         String?    @map("review_notes")
+  feedbackToVolunteer String?    @map("feedback_to_volunteer")
+  reviewedById        Int?       @map("reviewed_by_id")
+  reviewedAt          DateTime?  @map("reviewed_at")
+  estimatedHours      Float?     @map("estimated_hours")
+  createdAt           DateTime?  @default(now()) @map("created_at")
+  updatedAt           DateTime?  @default(now()) @map("updated_at")
+  reviewedBy          Volunteer? @relation("StarterTaskReviewedBy", fields: [reviewedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  assignedBy          Volunteer? @relation("StarterTaskAssignedBy", fields: [assignedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  assignedTo          Volunteer? @relation("StarterTaskAssignedTo", fields: [assignedToId], references: [id], onUpdate: NoAction)
+  skill               Skill?     @relation(fields: [skillId], references: [id], onUpdate: NoAction)
+  project             Project?   @relation(fields: [projectId], references: [id], onUpdate: NoAction)
+
+  @@index([skillId], map: "idx_starter_tasks_skill")
+  @@index([assignedToId], map: "idx_starter_tasks_assigned")
+  @@index([projectId], map: "idx_starter_tasks_project")
+  @@map("starter_tasks")
+}
+
+model VolunteerSkill {
+  volunteerId      Int       @map("volunteer_id")
+  skillId          Int       @map("skill_id")
+  proficiencyLevel String?   @default("intermediate") @map("proficiency_level")
+  createdAt        DateTime? @default(now()) @map("created_at")
+  skill            Skill     @relation(fields: [skillId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  volunteer        Volunteer @relation(fields: [volunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([volunteerId, skillId])
+  @@index([skillId], map: "idx_volunteer_skills_skill")
+  @@map("volunteer_skills")
+}
+
+model Volunteer {
+  id                        Int                  @id @default(autoincrement())
+  name                      String
+  email                     String?              @unique(map: "sqlite_autoindex_volunteers_1")
+  bio                       String?
+  discordHandle             String?              @map("discord_handle")
+  signalNumber              String?              @map("signal_number")
+  whatsappNumber            String?              @map("whatsapp_number")
+  contactPreference         String?              @map("contact_preference")
+  contactNotes              String?              @map("contact_notes")
+  availabilityHoursPerWeek  Int?                 @map("availability_hours_per_week")
+  location                  String?
+  shareContactDirectly      Boolean?             @default(false) @map("share_contact_directly")
+  profileVisible            Boolean?             @default(true) @map("profile_visible")
+  otherSkills               String?              @map("other_skills")
+  consentProfileVisible     Boolean?             @default(false) @map("consent_profile_visible")
+  consentContactByOwners    Boolean?             @default(false) @map("consent_contact_by_owners")
+  consentGivenAt            DateTime?            @map("consent_given_at")
+  authToken                 String?              @unique(map: "sqlite_autoindex_volunteers_2") @map("auth_token")
+  authTokenExpiresAt        DateTime?            @map("auth_token_expires_at")
+  passwordHash              String?              @map("password_hash")
+  isAdmin                   Boolean?             @default(false) @map("is_admin")
+  createdAt                 DateTime?            @default(now()) @map("created_at")
+  updatedAt                 DateTime?            @default(now()) @map("updated_at")
+  deletedAt                 DateTime?            @map("deleted_at")
+  country                   String?
+  emailDigest               String?              @default("none") @map("email_digest")
+  localGroup                String?              @map("local_group")
+  invitesAccepted           AdminInvite[]        @relation("AdminInviteAcceptedBy")
+  invitesSent               AdminInvite[]        @relation("AdminInviteInvitedBy")
+  adminNotesAuthored        AdminNote[]          @relation("AdminNoteAuthor")
+  adminNotesAbout           AdminNote[]          @relation("AdminNoteVolunteer")
+  bugReportsResolved        BugReport[]          @relation("BugReportResolvedBy")
+  bugReportsReported        BugReport[]          @relation("BugReportReporter")
+  messagesSent              Message[]            @relation("MessageFrom")
+  messagesReceived          Message[]            @relation("MessageTo")
+  notifications             Notification[]
+  passwordResetTokens       PasswordResetToken[]
+  projectInterests          ProjectInterest[]
+  projectTasksCreated       ProjectTask[]        @relation("ProjectTaskCreatedBy")
+  projectTasksAssigned      ProjectTask[]        @relation("ProjectTaskAssignedTo")
+  projectUpdates            ProjectUpdate[]
+  projectsReviewed          Project[]            @relation("ProjectReviewedBy")
+  projectsProposed          Project[]            @relation("ProjectProposedBy")
+  projectsOwned             Project[]            @relation("ProjectOwner")
+  skillEndorsementsGiven    SkillEndorsement[]   @relation("SkillEndorsementEndorsedBy")
+  skillEndorsementsReceived SkillEndorsement[]   @relation("SkillEndorsementVolunteer")
+  starterTasksReviewed      StarterTask[]        @relation("StarterTaskReviewedBy")
+  starterTasksAssignedBy    StarterTask[]        @relation("StarterTaskAssignedBy")
+  starterTasksAssigned      StarterTask[]        @relation("StarterTaskAssignedTo")
+  skills                    VolunteerSkill[]
+
+  @@index([localGroup], map: "idx_volunteers_local_group")
+  @@index([country], map: "idx_volunteers_country")
+  @@index([deletedAt], map: "idx_volunteers_deleted")
+  @@index([authToken], map: "idx_volunteers_auth_token")
+  @@index([email], map: "idx_volunteers_email")
+  @@map("volunteers")
+}
