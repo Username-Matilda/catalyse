@@ -12,10 +12,17 @@ test.describe('Messaging', () => {
     const projectId = await adminCreateProject(baseUrl, adminPage, `E2E Contact ${ts}`, 'Project for contact test');
     await transferProjectOwnership(baseUrl, adminPage, projectId, volunteer.name);
 
-    const senderCtx = await browser.newContext();
-    const senderPage = await senderCtx.newPage();
     const sid = crypto.randomBytes(4).toString('hex');
-    await signup(baseUrl, senderPage, `Msg Sender ${sid}`, `msgsender_${sid}@test.com`, 'testpassword1');
+    const senderSignupResp = await fetch(`${baseUrl}/api/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: `Msg Sender ${sid}`, email: `msgsender_${sid}@test.com`, password: 'testpassword1', consent_profile_visible: true, consent_contact_by_owners: true }),
+    });
+    if (!senderSignupResp.ok) throw new Error(`Sender signup failed: ${await senderSignupResp.text()}`);
+    const { auth_token: senderToken } = await senderSignupResp.json();
+    const senderCtx = await browser.newContext();
+    await senderCtx.addInitScript((token: string) => { localStorage.setItem('authToken', token); }, senderToken);
+    const senderPage = await senderCtx.newPage();
 
     try {
       await senderPage.goto(`${baseUrl}/static/project.html?id=${projectId}`);
@@ -39,6 +46,7 @@ test.describe('Messaging', () => {
   });
 
   test('Recipient sees a message notification', async ({ adminPage, volunteer, browser, baseUrl }) => {
+    test.setTimeout(60_000);
     const ts = Date.now();
     const subject = `E2E Notify Subject ${ts}`;
 

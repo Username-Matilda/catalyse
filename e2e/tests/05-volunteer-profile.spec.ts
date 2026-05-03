@@ -1,6 +1,5 @@
 import crypto from 'crypto';
 import { test, expect } from '../fixtures';
-import { signup } from '../actions/auth';
 import { Page } from '@playwright/test';
 
 async function getVolunteerId(page: Page): Promise<number> {
@@ -39,7 +38,7 @@ test.describe('Volunteer Profile', () => {
 
   test('Volunteer adds skills to their profile', async ({ volunteer, baseUrl }) => {
     await volunteer.page.goto(`${baseUrl}/static/profile.html`);
-    const skillOption = volunteer.page.locator('.skill-option').filter({ hasText: 'Writing' });
+    const skillOption = volunteer.page.locator('.skill-option').filter({ hasText: 'Fundraising' });
     await expect(skillOption).toBeVisible({ timeout: 10_000 });
     await skillOption.click();
 
@@ -50,7 +49,7 @@ test.describe('Volunteer Profile', () => {
     const volunteerId = await getVolunteerId(volunteer.page);
     await volunteer.page.goto(`${baseUrl}/static/volunteer.html?id=${volunteerId}`);
     await expect(volunteer.page.locator('#profileContent')).toBeVisible({ timeout: 10_000 });
-    await expect(volunteer.page.locator('#volunteerSkills')).toContainText('Writing');
+    await expect(volunteer.page.locator('#volunteerSkills')).toContainText('Fundraising');
   });
 
   test('Volunteer sets profile visibility to hidden', async ({ volunteer, baseUrl }) => {
@@ -136,15 +135,24 @@ test.describe('Volunteer Profile', () => {
   test("Volunteer views another volunteer's public profile", async ({ browser, volunteer, baseUrl }) => {
     const id = crypto.randomBytes(4).toString('hex');
     const vol2Name = `Second Vol ${id}`;
+    const vol2Email = `vol2_${id}@test.com`;
+
+    const signupResp = await fetch(`${baseUrl}/api/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: vol2Name, email: vol2Email, password: 'testpassword1', consent_profile_visible: true, consent_contact_by_owners: true }),
+    });
+    if (!signupResp.ok) throw new Error(`Second volunteer signup failed: ${await signupResp.text()}`);
+    const { auth_token: vol2Token } = await signupResp.json();
+
     const ctx2 = await browser.newContext();
+    await ctx2.addInitScript((token: string) => { localStorage.setItem('authToken', token); }, vol2Token);
     const page2 = await ctx2.newPage();
 
     try {
-      await signup(baseUrl, page2, vol2Name, `vol2_${id}@test.com`, 'testpassword1');
-
       // Set up profile with a skill and profile_visible=true
       await page2.goto(`${baseUrl}/static/profile.html`);
-      const skillOption = page2.locator('.skill-option').filter({ hasText: 'Writing' });
+      const skillOption = page2.locator('.skill-option').filter({ hasText: 'Fundraising' });
       await expect(skillOption).toBeVisible({ timeout: 10_000 });
       await skillOption.click();
       await page2.locator('#profile_visible').check();
@@ -158,7 +166,7 @@ test.describe('Volunteer Profile', () => {
       await expect(volunteer.page.locator('#profileContent')).toBeVisible({ timeout: 10_000 });
 
       await expect(volunteer.page.locator('#volunteerName')).toContainText(vol2Name);
-      await expect(volunteer.page.locator('#volunteerSkills')).toContainText('Writing');
+      await expect(volunteer.page.locator('#volunteerSkills')).toContainText('Fundraising');
       // Endorsements section only appears if there are endorsements; not present for fresh volunteer
       await expect(volunteer.page.locator('#endorsementsSection')).not.toBeVisible();
       // Contact info not shown because share_contact_directly defaults to false

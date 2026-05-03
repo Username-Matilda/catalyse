@@ -81,8 +81,8 @@ test.describe('Project Lifecycle', () => {
     const title = `E2E Outcome ${Date.now()}`;
     const outcomeNotes = `Great work on this project ${Date.now()}`;
 
-    // Create project with a required skill (Writing, id=1)
-    const projectId = await proposeProject(baseUrl, volunteer.page, title, 'Project for outcome recording', 'Writing');
+    // Create project with a required skill
+    const projectId = await proposeProject(baseUrl, volunteer.page, title, 'Project for outcome recording', 'Fundraising');
     await adminApproveProject(baseUrl, adminPage, title);
 
     // Admin assigns volunteer as owner via the Transfer Ownership UI

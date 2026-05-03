@@ -23,6 +23,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 from email_service import (
     is_email_configured,
+    STUB_EMAIL,
     send_password_reset_email,
     send_admin_invite_email,
     send_welcome_email,
@@ -3338,8 +3339,8 @@ def invite_admin(data: AdminInviteCreate, admin: Dict = Depends(require_admin)) 
         "expires_at": expires_at
     }
 
-    # In dev mode (no email configured), include token for manual sharing
-    if not is_email_configured():
+    # In dev/test mode (no real email API or stub mode), include token for manual sharing
+    if STUB_EMAIL or not is_email_configured():
         result["_dev_invite_token"] = invite_token
         result["_dev_invite_url"] = f"/static/accept-invite.html?token={invite_token}"
         result["_dev_note"] = "Email not configured. Share link manually."

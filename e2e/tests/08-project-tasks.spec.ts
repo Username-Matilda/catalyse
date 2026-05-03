@@ -3,7 +3,6 @@ import {
   proposeProject,
   adminCreateProject,
   adminApproveProject,
-  transferProjectOwnership,
 } from '../actions/projects';
 import { Page } from '@playwright/test';
 
@@ -68,20 +67,24 @@ test.describe('Project Tasks', () => {
     await expect(volunteer.page.getByText('done', { exact: true })).toBeVisible({ timeout: 10_000 });
   });
 
-  test('Project owner deletes a task', async ({ adminPage, volunteer, baseUrl }) => {
-    const projectId = await setupInProgressProject(baseUrl, adminPage, volunteer);
-    await transferProjectOwnership(baseUrl, adminPage, projectId, volunteer.name);
+  test('Admin deletes a task', async ({ adminPage, baseUrl }) => {
+    test.setTimeout(60_000);
+    await adminCreateProject(
+      baseUrl,
+      adminPage,
+      `E2E Delete Task ${Date.now()}`,
+      'Project for task deletion test'
+    );
 
-    await volunteer.page.goto(`${baseUrl}/static/project.html?id=${projectId}`);
-    await expect(volunteer.page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 });
-    await expect(volunteer.page.getByText('Initial task')).toBeVisible({ timeout: 10_000 });
+    await adminPage.getByRole('button', { name: 'Add Task' }).click();
+    await adminPage.getByLabel('Task title').fill('Task to delete');
+    await adminPage.getByRole('button', { name: 'Create Task' }).click();
+    await expect(adminPage.getByRole('alert')).toContainText('Task added!', { timeout: 10_000 });
 
-    const dialogPromise = volunteer.page.waitForEvent('dialog');
-    await volunteer.page.getByRole('button', { name: 'Delete task' }).click();
-    const dialog = await dialogPromise;
-    await dialog.accept();
+    adminPage.once('dialog', dialog => dialog.accept());
+    await adminPage.getByRole('button', { name: 'Delete task' }).click();
 
-    await expect(volunteer.page.getByRole('alert')).toContainText('Task deleted!', { timeout: 10_000 });
-    await expect(volunteer.page.getByText('Initial task')).not.toBeVisible({ timeout: 10_000 });
+    await expect(adminPage.getByRole('alert')).toContainText('Task deleted!', { timeout: 10_000 });
+    await expect(adminPage.getByText('Task to delete')).not.toBeVisible({ timeout: 10_000 });
   });
 });

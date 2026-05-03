@@ -128,6 +128,9 @@ test.describe('Admin: Admin Team Management', () => {
     await adminPage.goto(`${baseUrl}/static/admin/team.html`);
     const token = await createAdminInvite(adminPage, volunteer.email);
 
+    // Navigate to a real page first so the volunteer's localStorage is accessible
+    await volunteer.page.goto(`${baseUrl}/static/dashboard.html`);
+
     // Accept invite as the volunteer directly via API
     await volunteer.page.evaluate(async (inviteToken: string) => {
       const authToken = localStorage.getItem('authToken');

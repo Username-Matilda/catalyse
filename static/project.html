@@ -685,6 +685,7 @@
             const isAdmin = currentUser && currentUser.is_admin;
 
             if (!project.tasks || project.tasks.length === 0) {
+                document.getElementById('tasksList').innerHTML = '';
                 // Only show empty section to owner/admin (they can add tasks)
                 if (isOwner || isAdmin) {
                     document.getElementById('tasksSection').style.display = 'block';

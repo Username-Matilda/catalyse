@@ -11,17 +11,16 @@ export async function proposeProject(baseUrl: string, page: Page, title: string,
   }
   await page.getByLabel('Task title').first().fill('Initial task');
 
-  await page.getByRole('button', { name: 'Submit Project Proposal' }).click();
-  await expect(page.getByRole('alert')).toBeVisible({ timeout: 10_000 });
-
+  // Ideally we'd extract the project ID from the dashboard UI after redirect, but that
+  // races against the async render. Intercepting the API response is more reliable for now.
+  const [response] = await Promise.all([
+    page.waitForResponse(resp => resp.url().includes('/api/projects') && resp.request().method() === 'POST'),
+    page.getByRole('button', { name: 'Submit Project Proposal' }).click(),
+  ]);
+  if (!response.ok()) throw new Error(`Project creation failed: ${await response.text()}`);
+  const { id } = await response.json();
   await page.waitForURL(`${baseUrl}/static/dashboard.html`, { timeout: 15_000 });
-  await page.getByRole('button', { name: 'Proposed' }).click();
-  const link = page.getByRole('link', { name: title, exact: true });
-  await expect(link).toBeVisible({ timeout: 10_000 });
-  const href = await link.getAttribute('href');
-  const match = href?.match(/\?id=(\d+)/);
-  if (!match) throw new Error(`Could not extract project ID from href: ${href}`);
-  return parseInt(match[1]);
+  return id;
 }
 
 export async function adminCreateProject(baseUrl: string, adminPage: Page, title: string, description: string): Promise<number> {
@@ -33,6 +32,9 @@ export async function adminCreateProject(baseUrl: string, adminPage: Page, title
   await adminPage.getByRole('button', { name: 'Create Project' }).click();
 
   await adminPage.waitForURL(/\/static\/project\.html\?id=/, { timeout: 15_000 });
+  // Wait for project content to render — this ensures auth has completed before we return,
+  // so callers don't interrupt the in-flight /api/auth/me fetch and accidentally clear the token.
+  await expect(adminPage.locator('#projectContent')).toBeVisible({ timeout: 10_000 });
   const match = adminPage.url().match(/\?id=(\d+)/);
   if (!match) throw new Error(`Could not extract project ID from URL: ${adminPage.url()}`);
   return parseInt(match[1]);
@@ -63,8 +65,12 @@ export async function adminRecordOutcome(baseUrl: string, adminPage: Page, proje
 }
 
 export async function transferProjectOwnership(baseUrl: string, adminPage: Page, projectId: number, volunteerName: string): Promise<void> {
-  await adminPage.goto(`${baseUrl}/static/project.html?id=${projectId}`);
-  await expect(adminPage.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 });
+  // Avoid reloading if already on the project page — a reload re-triggers auth
+  // checks that can flakily redirect to login under parallel test load.
+  if (!adminPage.url().includes(`/static/project.html?id=${projectId}`)) {
+    await adminPage.goto(`${baseUrl}/static/project.html?id=${projectId}`);
+  }
+  await expect(adminPage.getByRole('heading', { level: 3, name: 'Transfer Ownership' })).toBeVisible({ timeout: 10_000 });
   await expect(adminPage.getByLabel('Transfer to').locator(`option:has-text("${volunteerName}")`)).toBeAttached({ timeout: 10_000 });
   await adminPage.getByLabel('Transfer to').selectOption({ label: volunteerName });
   adminPage.once('dialog', dialog => dialog.accept());

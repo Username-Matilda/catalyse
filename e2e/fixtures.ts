@@ -1,6 +1,5 @@
 import { test as base, Browser, Page, WorkerInfo } from '@playwright/test';
 import crypto from 'crypto';
-import { signup } from './actions/auth';
 import { workerAuthFile, workerBaseUrl, parallelIndexFromBaseUrl } from './config';
 
 interface Volunteer {
@@ -39,9 +38,24 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
       email: `vol_${id}@test.com`,
       password: 'testpassword1',
     };
+    const resp = await fetch(`${baseUrl}/api/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: credentials.name,
+        email: credentials.email,
+        password: credentials.password,
+        consent_profile_visible: true,
+        consent_contact_by_owners: true,
+      }),
+    });
+    if (!resp.ok) throw new Error(`Volunteer signup failed: ${await resp.text()}`);
+    const { auth_token } = await resp.json();
     const context = await browser.newContext();
+    await context.addInitScript((token: string) => {
+      localStorage.setItem('authToken', token);
+    }, auth_token);
     const page = await context.newPage();
-    await signup(baseUrl, page, credentials.name, credentials.email, credentials.password);
     await use({ page, ...credentials });
     await context.close();
   },

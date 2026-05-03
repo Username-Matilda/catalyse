@@ -22,7 +22,7 @@ export async function fillAndSubmitBugReport(
 ): Promise<void> {
   const dialog = page.getByRole('dialog', { name: 'Report an Issue' });
   if (opts.category) {
-    await dialog.getByRole('radio', { name: opts.category }).click();
+    await dialog.locator('.category-btn', { hasText: opts.category }).click();
   }
   await dialog.getByLabel('Title').fill(opts.title);
   await dialog.getByLabel('Details').fill(opts.description);

@@ -1,7 +1,6 @@
 import crypto from 'crypto';
 import { readFileSync } from 'fs';
 import { test, expect } from '../fixtures';
-import { signup } from '../actions/auth';
 
 test.describe('GDPR & Privacy', () => {
   test('Volunteer exports their personal data', async ({ volunteer, baseUrl }) => {
@@ -38,12 +37,21 @@ test.describe('GDPR & Privacy', () => {
     const signalNumber = `+4400${id.slice(0, 6)}`;
     const whatsappNumber = `+4500${id.slice(0, 6)}`;
 
+    const signupResp = await fetch(`${baseUrl}/api/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: vol2Name, email: `privvol_${id}@test.com`, password: 'testpassword1',
+        consent_profile_visible: true, consent_contact_by_owners: true,
+      }),
+    });
+    if (!signupResp.ok) throw new Error(`vol2 signup failed: ${await signupResp.text()}`);
+    const { auth_token: vol2Token } = await signupResp.json();
     const ctx2 = await browser.newContext();
+    await ctx2.addInitScript((token: string) => { localStorage.setItem('authToken', token); }, vol2Token);
     const page2 = await ctx2.newPage();
 
     try {
-      await signup(baseUrl, page2, vol2Name, `privvol_${id}@test.com`, 'testpassword1');
-
       await page2.goto(`${baseUrl}/static/profile.html`);
       await expect(page2.getByLabel('Discord Handle')).toBeVisible({ timeout: 10_000 });
 

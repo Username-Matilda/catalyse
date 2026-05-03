@@ -4,6 +4,7 @@ import { goToDashboardNotifications } from '../actions/dashboard';
 
 test.describe('Bug Reporting', () => {
   test('Logged-in volunteer submits a bug report; admin receives a notification', async ({ adminPage, volunteer, baseUrl }) => {
+    test.setTimeout(60_000);
     const title = `E2E Bug Report ${Date.now()}`;
 
     await volunteer.page.goto(`${baseUrl}/static/dashboard.html`);

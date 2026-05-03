@@ -113,7 +113,7 @@ test.describe('Project Interests and Assignment', () => {
     const projectId = await setupSeekingProject(baseUrl, adminPage);
 
     await adminPage.goto(`${baseUrl}/static/project.html?id=${projectId}`);
-    await expect(adminPage.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 });
+    await expect(adminPage.getByRole('heading', { name: 'Interested Volunteers' })).toBeVisible({ timeout: 10_000 });
     await expect(adminPage.getByLabel('Volunteer to assign').locator(`option:has-text("${volunteer.name}")`)).toBeAttached({ timeout: 10_000 });
     await adminPage.getByLabel('Volunteer to assign').selectOption({ label: volunteer.name });
     await adminPage.getByRole('button', { name: 'Assign' }).click();

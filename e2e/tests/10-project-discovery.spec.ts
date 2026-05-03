@@ -14,7 +14,7 @@ test.describe('Project Discovery', () => {
     await adminCreateProject(baseUrl, adminPage, title, 'A searchable project for discovery tests');
 
     await volunteer.page.goto(`${baseUrl}/static/index.html`);
-    await expect(volunteer.page.getByRole('heading', { name: 'Projects' })).toBeVisible({ timeout: 10_000 });
+    await expect(volunteer.page.getByRole('heading', { name: 'Projects', exact: true })).toBeVisible({ timeout: 10_000 });
 
     await volunteer.page.getByLabel('Search').fill(keyword);
     // Debounce is 300 ms; wait for the result to arrive

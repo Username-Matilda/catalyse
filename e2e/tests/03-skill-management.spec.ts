@@ -121,7 +121,7 @@ test.describe('Admin: Skill Management', () => {
 
     // Skill no longer appears in profile skill picker
     await adminPage.goto(`${baseUrl}/static/profile.html`);
-    await expect(adminPage.locator('.skill-option').filter({ hasText: 'Writing' })).toBeVisible({ timeout: 10_000 });
+    await expect(adminPage.locator('.skill-option').first()).toBeVisible({ timeout: 10_000 });
     await expect(adminPage.locator('.skill-option').filter({ hasText: skillName })).not.toBeVisible();
   });
 
