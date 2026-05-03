@@ -1,8 +1,9 @@
-catalyse.db
+*.db
 backups/
 __pycache__/
 *.pyc
-.env
+.env*
+!.env*.example
 venv/
 .playwright-mcp
 dist/
