@@ -132,7 +132,7 @@
 
         async function loadStarterTasks() {
             try {
-                const tasks = await apiRequest('/api/my/starter-tasks');
+                const tasks = await apiRequest(`${STARTER_TASKS_BASE_URL}/api/my/starter-tasks`);
                 const visibleTasks = tasks.filter(t => ['assigned', 'submitted', 'reviewed', 'completed'].includes(t.status));
 
                 if (visibleTasks.length > 0) {
@@ -200,7 +200,7 @@
 
         async function submitTask(taskId) {
             try {
-                await apiRequest('/api/starter-tasks/' + taskId + '/submit', { method: 'PUT' });
+                await apiRequest(`${STARTER_TASKS_BASE_URL}/api/starter-tasks/${taskId}/submit`, { method: 'PUT' });
                 showMessage('Task submitted for review!', 'success');
                 await loadStarterTasks();
             } catch (error) {

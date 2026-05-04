@@ -57,7 +57,7 @@
 
         async function loadTasks() {
             try {
-                const tasks = await apiRequest('/api/starter-tasks/available');
+                const tasks = await apiRequest(`${STARTER_TASKS_BASE_URL}/api/starter-tasks/available`);
                 const container = document.getElementById('tasksList');
                 const emptyState = document.getElementById('emptyState');
 

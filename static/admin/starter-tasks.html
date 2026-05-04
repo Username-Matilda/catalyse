@@ -176,7 +176,7 @@
             const params = status ? `?status=${status}` : '';
 
             try {
-                tasks = await apiRequest(`/api/starter-tasks${params}`);
+                tasks = await apiRequest(`${STARTER_TASKS_BASE_URL}/api/starter-tasks${params}`);
                 renderTasks();
             } catch (error) {
                 showMessage(error.message, 'error');
@@ -284,7 +284,7 @@
         document.getElementById('createForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             try {
-                await apiRequest('/api/starter-tasks', {
+                await apiRequest(`${STARTER_TASKS_BASE_URL}/api/starter-tasks`, {
                     method: 'POST',
                     body: JSON.stringify({
                         title: document.getElementById('taskTitle').value.trim(),
@@ -312,7 +312,7 @@
             e.preventDefault();
             const taskId = document.getElementById('assignTaskId').value;
             try {
-                await apiRequest(`/api/starter-tasks/${taskId}/assign`, {
+                await apiRequest(`${STARTER_TASKS_BASE_URL}/api/starter-tasks/${taskId}/assign`, {
                     method: 'POST',
                     body: JSON.stringify({
                         volunteer_id: parseInt(document.getElementById('assignVolunteer').value)
@@ -339,7 +339,7 @@
             e.preventDefault();
             const taskId = document.getElementById('reviewTaskId').value;
             try {
-                await apiRequest(`/api/starter-tasks/${taskId}/review`, {
+                await apiRequest(`${STARTER_TASKS_BASE_URL}/api/starter-tasks/${taskId}/review`, {
                     method: 'POST',
                     body: JSON.stringify({
                         review_rating: document.querySelector('input[name="rating"]:checked').value,

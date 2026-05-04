@@ -184,7 +184,7 @@
             document.getElementById('cancelLink').href = `/static/project.html?id=${projectId}`;
 
             try {
-                project = await apiRequest(`/api/projects/${projectId}`);
+                project = await apiRequest(`${PROJECTS_BASE_URL}/api/projects/${projectId}`);
                 populateForm();
                 document.getElementById('loadingState').style.display = 'none';
                 document.getElementById('editForm').style.display = 'block';
@@ -311,7 +311,7 @@
                     skill_required_map: skillRequiredMap
                 };
 
-                await apiRequest(`/api/projects/${project.id}`, {
+                await apiRequest(`${PROJECTS_BASE_URL}/api/projects/${project.id}`, {
                     method: 'PUT',
                     body: JSON.stringify(data)
                 });
@@ -335,7 +335,7 @@
             if (!confirm(`Are you sure you want to ${action} this project?`)) return;
 
             try {
-                await apiRequest(`/api/projects/${project.id}`, {
+                await apiRequest(`${PROJECTS_BASE_URL}/api/projects/${project.id}`, {
                     method: 'PUT',
                     body: JSON.stringify({ status: newStatus })
                 });
@@ -348,7 +348,7 @@
 
         async function deleteProject() {
             try {
-                await apiRequest(`/api/projects/${project.id}`, { method: 'DELETE' });
+                await apiRequest(`${PROJECTS_BASE_URL}/api/projects/${project.id}`, { method: 'DELETE' });
                 closeModal('deleteProjectModal');
                 showMessage('Project deleted.', 'success');
                 setTimeout(() => window.location.href = '/', 1500);

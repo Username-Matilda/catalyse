@@ -181,7 +181,7 @@
                     is_seeking_owner: form.is_seeking_owner.checked
                 };
 
-                const result = await apiRequest('/api/admin/projects', {
+                const result = await apiRequest(`${PROJECTS_BASE_URL}/api/admin/projects`, {
                     method: 'POST',
                     body: JSON.stringify(data)
                 });

@@ -12,6 +12,8 @@ const AUTH_BASE_URL = (() => {
     return '';
 })();
 const SKILLS_BASE_URL = AUTH_BASE_URL;
+const PROJECTS_BASE_URL = AUTH_BASE_URL;
+const STARTER_TASKS_BASE_URL = AUTH_BASE_URL;
 
 // Apply dark mode immediately to prevent flash
 (function() {

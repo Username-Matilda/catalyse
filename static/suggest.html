@@ -288,7 +288,7 @@
                     tasks
                 };
 
-                const result = await apiRequest('/api/projects', {
+                const result = await apiRequest(`${PROJECTS_BASE_URL}/api/projects`, {
                     method: 'POST',
                     body: JSON.stringify(data)
                 });
