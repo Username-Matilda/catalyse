@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
 
   const inviteToken = request.nextUrl.searchParams.get('invite_token')
   if (!inviteToken) {
-    return Response.json({ detail: 'invite_token is required' }, { status: 400 })
+    return Response.json({ detail: 'invite_token is required' }, { status: 422 })
   }
 
   const now = new Date()

@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { generateAuthToken } from '@/lib/auth'
-import { sendPasswordResetEmail, isEmailConfigured } from '@/lib/email'
+import { sendPasswordResetEmail, isRealEmailSending } from '@/lib/email'
 
 export async function POST(request: NextRequest) {
   let body: Record<string, unknown>
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
 
   const result: Record<string, unknown> = { message: successMsg }
 
-  if (!isEmailConfigured()) {
+  if (!isRealEmailSending()) {
     result._dev_reset_token = resetToken
     result._dev_reset_url = `/static/reset-password.html?token=${resetToken}`
     result._dev_note = 'Email not configured. Set RESEND_API_KEY to enable.'

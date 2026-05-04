@@ -35,7 +35,7 @@ export async function POST(
     return Response.json({ detail: 'Invalid JSON' }, { status: 400 })
   }
 
-  if (!body.content || typeof body.content !== 'string' || body.content.trim().length === 0) {
+  if (!body.content || typeof body.content !== 'string' || body.content.length === 0) {
     return Response.json({ detail: 'Content is required' }, { status: 400 })
   }
 

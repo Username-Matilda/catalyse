@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
   return Response.json({
     exported_at: new Date().toISOString(),
     profile: serializedProfile,
+    skills: profile.skills.map(serializeSkill),
     projects: projects.map(p => ({
       id: p.id,
       title: p.title,

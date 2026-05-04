@@ -6,7 +6,7 @@ import path from 'path';
 import {
   IS_LOCAL, WORKER_COUNT,
   ADMIN_EMAIL, ADMIN_PASSWORD,
-  BASE_PORT, NEXT_BASE_PORT,
+  NEXT_BASE_PORT,
   workerBaseUrl, workerDbDir, workerAuthFile,
   SERVER_PIDS_FILE,
 } from './config';
@@ -14,8 +14,7 @@ import {
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const WEB_DIR = path.join(PROJECT_ROOT, 'web');
 const NEXT_BINARY = path.join(WEB_DIR, 'node_modules', '.bin', 'next');
-const VENV_PYTHON = path.join(PROJECT_ROOT, 'venv', 'bin', 'python3');
-const PYTHON = fs.existsSync(VENV_PYTHON) ? VENV_PYTHON : 'python3';
+const PRISMA_BINARY = path.join(WEB_DIR, 'node_modules', '.bin', 'prisma');
 
 function killServerOnPort(port: number): void {
   try {
@@ -25,28 +24,18 @@ function killServerOnPort(port: number): void {
   }
 }
 
-function startWorkerServer(parallelIndex: number): number {
-  const port = BASE_PORT + parallelIndex;
+function buildNextJs(): void {
+  execSync(`${NEXT_BINARY} build`, { cwd: WEB_DIR, stdio: 'inherit' });
+}
+
+function migrateWorkerDb(parallelIndex: number): void {
   const dbDir = workerDbDir(parallelIndex);
-
-  killServerOnPort(port);
-  fs.rmSync(dbDir, { recursive: true, force: true });
-  fs.mkdirSync(dbDir, { recursive: true });
-
-  const server = spawn(PYTHON, ['api.py'], {
-    env: {
-      ...process.env,
-      PORT: String(port),
-      RAILWAY_VOLUME_MOUNT_PATH: dbDir,
-      ADMIN_EMAILS: ADMIN_EMAIL,
-      RESEND_API_KEY: '',
-      STUB_EMAIL: 'true',
-    },
-    cwd: PROJECT_ROOT,
-    detached: false,
+  const dbUrl = `file:${path.join(dbDir, 'catalyse.db')}`;
+  execSync(`${PRISMA_BINARY} migrate deploy`, {
+    cwd: WEB_DIR,
+    env: { ...process.env, DATABASE_URL: dbUrl },
+    stdio: 'pipe',
   });
-
-  return server.pid!;
 }
 
 function startWorkerNextJs(parallelIndex: number): number {
@@ -54,12 +43,16 @@ function startWorkerNextJs(parallelIndex: number): number {
   const dbDir = workerDbDir(parallelIndex);
 
   killServerOnPort(nextPort);
+  fs.rmSync(dbDir, { recursive: true, force: true });
+  fs.mkdirSync(dbDir, { recursive: true });
+  migrateWorkerDb(parallelIndex);
 
-  const server = spawn(NEXT_BINARY, ['dev', '-p', String(nextPort)], {
+  const server = spawn(NEXT_BINARY, ['start', '-p', String(nextPort)], {
     env: {
       ...process.env,
       PORT: String(nextPort),
       RAILWAY_VOLUME_MOUNT_PATH: dbDir,
+      ADMIN_EMAILS: ADMIN_EMAIL,
       RESEND_API_KEY: '',
       STUB_EMAIL: 'true',
     },
@@ -123,20 +116,19 @@ async function setupAdminAuth(parallelIndex: number): Promise<void> {
 
 async function globalSetup(): Promise<void> {
   if (IS_LOCAL) {
-    const pids: Record<number, number> = {};
+    buildNextJs();
+
+    const pids: Record<string, number> = {};
     for (let i = 0; i < WORKER_COUNT; i++) {
-      pids[i] = startWorkerServer(i);
-      pids[`next_${i}`] = startWorkerNextJs(i);
+      pids[i] = startWorkerNextJs(i);
     }
     fs.writeFileSync(SERVER_PIDS_FILE, JSON.stringify(pids));
 
-    // Wait for FastAPI and Next.js workers to be ready in parallel
-    await Promise.all([
-      ...Array.from({ length: WORKER_COUNT }, (_, i) => waitForServer(workerBaseUrl(i))),
-      ...Array.from({ length: WORKER_COUNT }, (_, i) =>
-        waitForServer(`http://localhost:${NEXT_BASE_PORT + i}`, '/api/health', 60_000)
-      ),
-    ]);
+    await Promise.all(
+      Array.from({ length: WORKER_COUNT }, (_, i) =>
+        waitForServer(workerBaseUrl(i), '/api/health', 30_000)
+      )
+    );
 
     await Promise.all(
       Array.from({ length: WORKER_COUNT }, (_, i) => setupAdminAuth(i))

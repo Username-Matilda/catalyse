@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 // Add CORS headers to all /api/ routes to allow cross-origin requests during
 // the strangler fig migration (HTML is served by FastAPI on a different port).
 // In production Next.js serves everything, so this is a no-op.
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   if (request.method === 'OPTIONS') {
     return new NextResponse(null, {
       status: 204,

@@ -1,6 +1,6 @@
 import { execSync } from 'child_process';
 import fs from 'fs';
-import { IS_LOCAL, WORKER_COUNT, BASE_PORT, NEXT_BASE_PORT, SERVER_PIDS_FILE } from './config';
+import { IS_LOCAL, WORKER_COUNT, NEXT_BASE_PORT, SERVER_PIDS_FILE } from './config';
 
 function killServerOnPort(port: number): void {
   try {
@@ -22,7 +22,6 @@ async function globalTeardown(): Promise<void> {
   }
 
   for (let i = 0; i < WORKER_COUNT; i++) {
-    killServerOnPort(BASE_PORT + i);
     killServerOnPort(NEXT_BASE_PORT + i);
   }
 }

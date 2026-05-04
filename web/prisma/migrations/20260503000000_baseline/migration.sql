@@ -1,5 +1,3 @@
-Loaded Prisma config from prisma.config.ts.
-
 -- CreateTable
 CREATE TABLE "admin_invites" (
     "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
