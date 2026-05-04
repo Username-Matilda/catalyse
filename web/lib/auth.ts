@@ -111,6 +111,19 @@ export function serializeEndorsement(se: {
   return { skill_id: se.skillId, rating: se.rating, skill_name: se.skill.name }
 }
 
+export async function requireAdmin(
+  authorization: string | null | undefined
+): Promise<{ volunteer: NonNullable<Awaited<ReturnType<typeof getCurrentVolunteer>>>; error: null } | { volunteer: null; error: Response }> {
+  const volunteer = await getCurrentVolunteer(authorization)
+  if (!volunteer) {
+    return { volunteer: null, error: Response.json({ detail: 'Authentication required' }, { status: 401 }) }
+  }
+  if (!volunteer.isAdmin) {
+    return { volunteer: null, error: Response.json({ detail: 'Admin access required' }, { status: 403 }) }
+  }
+  return { volunteer, error: null }
+}
+
 // Promote volunteer to admin if their email is in ADMIN_EMAILS env var
 export async function checkAdminBootstrap(email: string, volunteerId: number): Promise<boolean> {
   const adminEmails = process.env.ADMIN_EMAILS || ''
