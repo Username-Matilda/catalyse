@@ -156,7 +156,7 @@
             btn.disabled = true;
 
             try {
-                await apiRequest('/api/auth/change-email', {
+                await apiRequest(`${AUTH_BASE_URL}/api/auth/change-email`, {
                     method: 'POST',
                     body: JSON.stringify({
                         new_email: form.new_email.value.trim(),
@@ -199,7 +199,7 @@
             btn.disabled = true;
 
             try {
-                await apiRequest('/api/auth/change-password', {
+                await apiRequest(`${AUTH_BASE_URL}/api/auth/change-password`, {
                     method: 'POST',
                     body: JSON.stringify({
                         current_password: form.current_password.value,
@@ -235,7 +235,7 @@
             btn.textContent = 'Deleting...';
 
             try {
-                await apiRequest('/api/auth/delete-account', {
+                await apiRequest(`${AUTH_BASE_URL}/api/auth/delete-account`, {
                     method: 'POST',
                     body: JSON.stringify({ password: form.password.value })
                 });

@@ -210,7 +210,7 @@
 
         async function initGoogleSignIn() {
             try {
-                const config = await fetch('/api/auth/google-client-id').then(r => r.json());
+                const config = await fetch(`${AUTH_BASE_URL}/api/auth/google-client-id`).then(r => r.json());
                 if (config.client_id) {
                     document.getElementById('googleSignIn').style.display = 'block';
                     if (window.google?.accounts?.id) {
@@ -229,7 +229,7 @@
 
         async function handleGoogleSignIn(response) {
             try {
-                const result = await fetch('/api/auth/google', {
+                const result = await fetch(`${AUTH_BASE_URL}/api/auth/google`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ credential: response.credential })
@@ -299,7 +299,7 @@
                     email_digest: form.email_digest.value
                 };
 
-                const response = await fetch('/api/auth/signup', {
+                const response = await fetch(`${AUTH_BASE_URL}/api/auth/signup`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)

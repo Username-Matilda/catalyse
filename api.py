@@ -545,7 +545,7 @@ def get_current_volunteer(authorization: Optional[str] = Header(None)) -> Option
            WHERE auth_token = ?
            AND (auth_token_expires_at IS NULL OR auth_token_expires_at > ?)
            AND deleted_at IS NULL""",
-        (token, datetime.now().isoformat())
+        (token, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
     ).fetchone()
     conn.close()
 
@@ -754,7 +754,7 @@ def signup(data: VolunteerSignup) -> Dict:
             "location": data.location, "share_contact_directly": data.share_contact_directly,
             "other_skills": data.other_skills, "consent_profile_visible": data.consent_profile_visible,
             "consent_contact_by_owners": data.consent_contact_by_owners,
-            "consent_given_at": datetime.now().isoformat(),
+            "consent_given_at": datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
             "auth_token": auth_token, "password_hash": password_hash
         }
         # Add optional columns only if they exist in the DB
@@ -792,7 +792,7 @@ def signup(data: VolunteerSignup) -> Dict:
             pending_invite = conn.execute(
                 """SELECT * FROM admin_invites
                    WHERE LOWER(email) = LOWER(?) AND status = 'pending' AND expires_at > ?""",
-                (data.email, datetime.now().isoformat())
+                (data.email, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
             ).fetchone()
             print(f"[ADMIN_INVITE] Signup check for {data.email}: pending_invite={'found id=' + str(pending_invite['id']) if pending_invite else 'none'}")
             if pending_invite:
@@ -804,7 +804,7 @@ def signup(data: VolunteerSignup) -> Dict:
                     """UPDATE admin_invites
                        SET status = 'accepted', accepted_by_id = ?, accepted_at = ?
                        WHERE id = ?""",
-                    (volunteer_id, datetime.now().isoformat(), pending_invite["id"])
+                    (volunteer_id, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), pending_invite["id"])
                 )
                 print(f"[ADMIN_INVITE] Auto-accepted invite for {data.email} on signup")
         except AppError:
@@ -882,7 +882,7 @@ def login(data: LoginRequest) -> Dict:
         pending_invite = conn.execute(
             """SELECT * FROM admin_invites
                WHERE LOWER(email) = LOWER(?) AND status = 'pending' AND expires_at > ?""",
-            (data.email, datetime.now().isoformat())
+            (data.email, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
         ).fetchone()
         print(f"[ADMIN_INVITE] Login check for {data.email}: pending_invite={'found id=' + str(pending_invite['id']) if pending_invite else 'none'}")
         if pending_invite:
@@ -894,7 +894,7 @@ def login(data: LoginRequest) -> Dict:
                 """UPDATE admin_invites
                    SET status = 'accepted', accepted_by_id = ?, accepted_at = ?
                    WHERE id = ?""",
-                (volunteer["id"], datetime.now().isoformat(), pending_invite["id"])
+                (volunteer["id"], datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), pending_invite["id"])
             )
             was_promoted = True
             print(f"[ADMIN_INVITE] Auto-accepted invite for {data.email} on login")
@@ -905,7 +905,7 @@ def login(data: LoginRequest) -> Dict:
     with db_transaction() as conn:
         conn.execute(
             "UPDATE volunteers SET auth_token = ?, updated_at = ? WHERE id = ?",
-            (auth_token, datetime.now().isoformat(), volunteer["id"])
+            (auth_token, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), volunteer["id"])
         )
 
     result = {
@@ -995,7 +995,7 @@ def google_auth(data: GoogleAuthRequest) -> Dict:
         with db_transaction() as conn:
             conn.execute(
                 "UPDATE volunteers SET auth_token = ?, updated_at = ? WHERE id = ?",
-                (auth_token, datetime.now().isoformat(), existing["id"])
+                (auth_token, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), existing["id"])
             )
 
         # Check for admin bootstrap
@@ -1006,13 +1006,13 @@ def google_auth(data: GoogleAuthRequest) -> Dict:
             pending_invite = conn.execute(
                 """SELECT * FROM admin_invites
                    WHERE LOWER(email) = LOWER(?) AND status = 'pending' AND expires_at > ?""",
-                (email, datetime.now().isoformat())
+                (email, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
             ).fetchone()
             if pending_invite:
                 conn.execute("UPDATE volunteers SET is_admin = 1 WHERE id = ?", (existing["id"],))
                 conn.execute(
                     """UPDATE admin_invites SET status = 'accepted', accepted_by_id = ?, accepted_at = ? WHERE id = ?""",
-                    (existing["id"], datetime.now().isoformat(), pending_invite["id"])
+                    (existing["id"], datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), pending_invite["id"])
                 )
                 was_promoted = True
 
@@ -1031,7 +1031,7 @@ def google_auth(data: GoogleAuthRequest) -> Dict:
                     name, email, auth_token,
                     consent_profile_visible, consent_contact_by_owners, consent_given_at
                 ) VALUES (?, ?, ?, ?, ?, ?)""",
-                (name, email, auth_token, True, True, datetime.now().isoformat())
+                (name, email, auth_token, True, True, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
             )
             volunteer_id = cursor.lastrowid
 
@@ -1047,13 +1047,13 @@ def google_auth(data: GoogleAuthRequest) -> Dict:
                 pending_invite = conn.execute(
                     """SELECT * FROM admin_invites
                        WHERE LOWER(email) = LOWER(?) AND status = 'pending' AND expires_at > ?""",
-                    (email, datetime.now().isoformat())
+                    (email, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
                 ).fetchone()
                 if pending_invite:
                     conn.execute("UPDATE volunteers SET is_admin = 1 WHERE id = ?", (volunteer_id,))
                     conn.execute(
                         """UPDATE admin_invites SET status = 'accepted', accepted_by_id = ?, accepted_at = ? WHERE id = ?""",
-                        (volunteer_id, datetime.now().isoformat(), pending_invite["id"])
+                        (volunteer_id, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), pending_invite["id"])
                     )
             except AppError:
                 raise
@@ -1098,13 +1098,13 @@ def forgot_password(data: ForgotPasswordRequest) -> Dict:
 
     # Generate reset token
     reset_token = secrets.token_urlsafe(32)
-    expires_at = (datetime.now() + timedelta(hours=1)).isoformat()
+    expires_at = (datetime.utcnow() + timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
     with db_transaction() as conn:
         # Invalidate any existing tokens
         conn.execute(
             "UPDATE password_reset_tokens SET used_at = ? WHERE volunteer_id = ? AND used_at IS NULL",
-            (datetime.now().isoformat(), volunteer["id"])
+            (datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), volunteer["id"])
         )
 
         # Create new token
@@ -1144,7 +1144,7 @@ def reset_password(data: ResetPasswordRequest) -> Dict:
              AND prt.used_at IS NULL
              AND prt.expires_at > ?
              AND v.deleted_at IS NULL""",
-        (data.token, datetime.now().isoformat())
+        (data.token, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
     ).fetchone()
     conn.close()
 
@@ -1158,13 +1158,13 @@ def reset_password(data: ResetPasswordRequest) -> Dict:
         # Update password
         conn.execute(
             "UPDATE volunteers SET password_hash = ?, auth_token = NULL, updated_at = ? WHERE id = ?",
-            (password_hash, datetime.now().isoformat(), token_record["volunteer_id"])
+            (password_hash, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), token_record["volunteer_id"])
         )
 
         # Mark token as used
         conn.execute(
             "UPDATE password_reset_tokens SET used_at = ? WHERE id = ?",
-            (datetime.now().isoformat(), token_record["id"])
+            (datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), token_record["id"])
         )
 
     return {"message": "Password reset successful. Please log in with your new password."}
@@ -1193,7 +1193,7 @@ def change_password(
     with db_transaction() as conn:
         conn.execute(
             "UPDATE volunteers SET password_hash = ?, updated_at = ? WHERE id = ?",
-            (new_hash, datetime.now().isoformat(), volunteer["id"])
+            (new_hash, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), volunteer["id"])
         )
 
     return {"message": "Password changed successfully"}
@@ -1229,7 +1229,7 @@ def change_email(
             raise HTTPException(status_code=400, detail="This email is already registered to another account")
         conn.execute(
             "UPDATE volunteers SET email = ?, updated_at = ? WHERE id = ?",
-            (data.new_email, datetime.now().isoformat(), volunteer["id"])
+            (data.new_email, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), volunteer["id"])
         )
 
     return {"message": "Email changed successfully"}
@@ -1392,7 +1392,7 @@ def delete_account(
                 deleted_at = ?,
                 updated_at = ?
                WHERE id = ?""",
-            (datetime.now().isoformat(), datetime.now().isoformat(), volunteer["id"])
+            (datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), volunteer["id"])
         )
 
         conn.execute(
@@ -1843,7 +1843,7 @@ def update_me(data: VolunteerUpdate, volunteer: Dict = Depends(require_auth)) ->
 
         if updates:
             updates.append("updated_at = ?")
-            params.append(datetime.now().isoformat())
+            params.append(datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
             params.append(volunteer["id"])
 
             conn.execute(
@@ -2243,7 +2243,7 @@ def update_project(
 
         if updates:
             updates.append("updated_at = ?")
-            params.append(datetime.now().isoformat())
+            params.append(datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
             params.append(project_id)
 
             conn.execute(
@@ -2472,7 +2472,7 @@ def update_project_task(
             params.append(data.status)
             if data.status == "done":
                 updates.append("completed_at = ?")
-                params.append(datetime.now().isoformat())
+                params.append(datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
             elif data.status == "open":
                 updates.append("assigned_to_id = NULL")
                 updates.append("completed_at = NULL")
@@ -2482,7 +2482,7 @@ def update_project_task(
 
         if updates:
             updates.append("updated_at = ?")
-            params.append(datetime.now().isoformat())
+            params.append(datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
             params.append(task_id)
             conn.execute(
                 f"UPDATE project_tasks SET {', '.join(updates)} WHERE id = ?",
@@ -2582,7 +2582,7 @@ def review_project(
                        WHERE id = ?""",
                     (new_status, is_seeking_help, is_seeking_owner,
                      data.review_notes, admin["id"],
-                     datetime.now().isoformat(), datetime.now().isoformat(), project_id)
+                     datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), project_id)
                 )
             else:
                 conn.execute(
@@ -2590,7 +2590,7 @@ def review_project(
                        status = ?, review_notes = ?, reviewed_by_id = ?, reviewed_at = ?, updated_at = ?
                        WHERE id = ?""",
                     (target, data.review_notes, admin["id"],
-                     datetime.now().isoformat(), datetime.now().isoformat(), project_id)
+                     datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), project_id)
                 )
 
             # Notify proposer
@@ -2633,7 +2633,7 @@ def review_project(
                    reviewed_by_id = ?, reviewed_at = ?, updated_at = ?
                    WHERE id = ?""",
                 (data.review_notes, data.feedback_to_proposer, admin["id"],
-                 datetime.now().isoformat(), datetime.now().isoformat(), project_id)
+                 datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), project_id)
             )
 
             # Notify proposer
@@ -2879,7 +2879,7 @@ def update_admin_note(
 
         if updates:
             updates.append("updated_at = ?")
-            params.append(datetime.now().isoformat())
+            params.append(datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
             params.append(note_id)
             conn.execute(f"UPDATE admin_notes SET {', '.join(updates)} WHERE id = ?", params)
 
@@ -3009,7 +3009,7 @@ def assign_starter_task(
             """UPDATE starter_tasks
                SET assigned_to_id = ?, assigned_by_id = ?, status = 'assigned', updated_at = ?
                WHERE id = ?""",
-            (data.volunteer_id, admin["id"], datetime.now().isoformat(), task_id)
+            (data.volunteer_id, admin["id"], datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), task_id)
         )
 
         # Notify the volunteer
@@ -3039,7 +3039,7 @@ def submit_starter_task(
 
         conn.execute(
             "UPDATE starter_tasks SET status = 'submitted', updated_at = ? WHERE id = ?",
-            (datetime.now().isoformat(), task_id)
+            (datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), task_id)
         )
 
         # Notify assigning admin
@@ -3078,7 +3078,7 @@ def review_starter_task(
                WHERE id = ?""",
             (new_status, data.review_rating, data.review_notes,
              data.feedback_to_volunteer, admin["id"],
-             datetime.now().isoformat(), datetime.now().isoformat(), task_id)
+             datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), task_id)
         )
 
         # Auto-create admin note based on outcome
@@ -3180,14 +3180,14 @@ def set_project_outcome(
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
 
-        completed_at = datetime.now().isoformat() if outcome in ("successful", "partial", "not_completed") else None
+        completed_at = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ') if outcome in ("successful", "partial", "not_completed") else None
 
         conn.execute(
             """UPDATE projects SET outcome = ?, outcome_notes = ?, completed_at = ?,
                status = CASE WHEN ? IN ('successful', 'partial', 'not_completed') THEN 'completed' ELSE status END,
                updated_at = ?
                WHERE id = ?""",
-            (outcome, outcome_notes, completed_at, outcome, datetime.now().isoformat(), project_id)
+            (outcome, outcome_notes, completed_at, outcome, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), project_id)
         )
 
         # Auto-create admin notes for volunteers involved
@@ -3308,7 +3308,7 @@ def list_admins(admin: Dict = Depends(require_admin)) -> List[Dict]:
 def invite_admin(data: AdminInviteCreate, admin: Dict = Depends(require_admin)) -> Dict:
     """Send an admin invite to an email address."""
     invite_token = secrets.token_urlsafe(32)
-    expires_at = (datetime.now() + timedelta(days=7)).isoformat()
+    expires_at = (datetime.utcnow() + timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
     with db_transaction() as conn:
         # Check if already admin
@@ -3322,7 +3322,7 @@ def invite_admin(data: AdminInviteCreate, admin: Dict = Depends(require_admin)) 
         # Check for pending invite
         pending = conn.execute(
             "SELECT * FROM admin_invites WHERE email = ? AND status = 'pending' AND expires_at > ?",
-            (data.email, datetime.now().isoformat())
+            (data.email, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
         ).fetchone()
         if pending:
             raise HTTPException(status_code=400, detail="An invite is already pending for this email")
@@ -3364,7 +3364,7 @@ def accept_admin_invite(
     invite = conn.execute(
         """SELECT * FROM admin_invites
            WHERE invite_token = ? AND status = 'pending' AND expires_at > ?""",
-        (invite_token, datetime.now().isoformat())
+        (invite_token, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
     ).fetchone()
     conn.close()
 
@@ -3387,7 +3387,7 @@ def accept_admin_invite(
             """UPDATE admin_invites
                SET status = 'accepted', accepted_by_id = ?, accepted_at = ?
                WHERE id = ?""",
-            (volunteer["id"], datetime.now().isoformat(), invite["id"])
+            (volunteer["id"], datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), invite["id"])
         )
 
     return {"message": "You are now an admin!"}
@@ -3533,7 +3533,7 @@ def update_bug_report(
                 updates.append("resolved_by_id = ?")
                 params.append(admin["id"])
                 updates.append("resolved_at = ?")
-                params.append(datetime.now().isoformat())
+                params.append(datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
 
         if data.resolution_notes is not None:
             updates.append("resolution_notes = ?")
@@ -3589,7 +3589,7 @@ def assign_volunteer_to_project(
                 # Auto-accept existing pending interest
                 conn.execute(
                     "UPDATE project_interests SET status = 'accepted', responded_at = ? WHERE id = ?",
-                    (datetime.now().isoformat(), existing["id"])
+                    (datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), existing["id"])
                 )
             elif existing["status"] == "accepted":
                 return {"message": "This volunteer is already assigned to this project"}
@@ -3598,7 +3598,7 @@ def assign_volunteer_to_project(
             conn.execute(
                 """INSERT INTO project_interests (volunteer_id, project_id, interest_type, message, status, responded_at)
                    VALUES (?, ?, ?, 'Assigned by admin/owner', 'accepted', ?)""",
-                (data.volunteer_id, project_id, data.interest_type, datetime.now().isoformat())
+                (data.volunteer_id, project_id, data.interest_type, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
             )
 
         # Notify the volunteer
@@ -3770,7 +3770,7 @@ def respond_to_interest(
             """UPDATE project_interests
                SET status = ?, response_message = ?, responded_at = ?
                WHERE id = ?""",
-            (data.status, data.response_message, datetime.now().isoformat(), interest_id)
+            (data.status, data.response_message, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), interest_id)
         )
 
         # Notify the interested volunteer
@@ -3946,7 +3946,7 @@ def mark_message_read(
         result = conn.execute(
             """UPDATE contact_messages SET read_at = ?
                WHERE id = ? AND to_volunteer_id = ?""",
-            (datetime.now().isoformat(), message_id, volunteer["id"])
+            (datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), message_id, volunteer["id"])
         )
         if result.rowcount == 0:
             raise HTTPException(status_code=404, detail="Message not found")
@@ -3984,7 +3984,7 @@ def mark_all_read(volunteer: Dict = Depends(require_auth)) -> Dict:
     with db_transaction() as conn:
         conn.execute(
             "UPDATE notifications SET read_at = ? WHERE volunteer_id = ? AND read_at IS NULL",
-            (datetime.now().isoformat(), volunteer["id"])
+            (datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), volunteer["id"])
         )
         return {"message": "All marked as read"}
 
@@ -4062,7 +4062,7 @@ def export_my_data(volunteer: Dict = Depends(require_auth)) -> Dict:
     conn.close()
 
     return {
-        "exported_at": datetime.now().isoformat(),
+        "exported_at": datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
         "profile": profile,
         "skills": skills,
         "projects": rows_to_list(projects),

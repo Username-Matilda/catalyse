@@ -6,12 +6,14 @@ import path from 'path';
 import {
   IS_LOCAL, WORKER_COUNT,
   ADMIN_EMAIL, ADMIN_PASSWORD,
-  BASE_PORT,
+  BASE_PORT, NEXT_BASE_PORT,
   workerBaseUrl, workerDbDir, workerAuthFile,
   SERVER_PIDS_FILE,
 } from './config';
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
+const WEB_DIR = path.join(PROJECT_ROOT, 'web');
+const NEXT_BINARY = path.join(WEB_DIR, 'node_modules', '.bin', 'next');
 const VENV_PYTHON = path.join(PROJECT_ROOT, 'venv', 'bin', 'python3');
 const PYTHON = fs.existsSync(VENV_PYTHON) ? VENV_PYTHON : 'python3';
 
@@ -47,18 +49,39 @@ function startWorkerServer(parallelIndex: number): number {
   return server.pid!;
 }
 
-async function waitForServer(baseUrl: string): Promise<void> {
-  const deadline = Date.now() + 30_000;
+function startWorkerNextJs(parallelIndex: number): number {
+  const nextPort = NEXT_BASE_PORT + parallelIndex;
+  const dbDir = workerDbDir(parallelIndex);
+
+  killServerOnPort(nextPort);
+
+  const server = spawn(NEXT_BINARY, ['dev', '-p', String(nextPort)], {
+    env: {
+      ...process.env,
+      PORT: String(nextPort),
+      RAILWAY_VOLUME_MOUNT_PATH: dbDir,
+      RESEND_API_KEY: '',
+      STUB_EMAIL: 'true',
+    },
+    cwd: WEB_DIR,
+    detached: false,
+  });
+
+  return server.pid!;
+}
+
+async function waitForServer(baseUrl: string, path = '/api/skills', timeoutMs = 30_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {
-      const r = await fetch(`${baseUrl}/api/skills`);
+      const r = await fetch(`${baseUrl}${path}`);
       if (r.ok) return;
     } catch {
       // not ready yet
     }
     await new Promise(r => setTimeout(r, 500));
   }
-  throw new Error(`Server at ${baseUrl} did not become ready within 30 seconds`);
+  throw new Error(`Server at ${baseUrl}${path} did not become ready within ${timeoutMs / 1000}s`);
 }
 
 async function setupAdminAuth(parallelIndex: number): Promise<void> {
@@ -103,12 +126,17 @@ async function globalSetup(): Promise<void> {
     const pids: Record<number, number> = {};
     for (let i = 0; i < WORKER_COUNT; i++) {
       pids[i] = startWorkerServer(i);
+      pids[`next_${i}`] = startWorkerNextJs(i);
     }
     fs.writeFileSync(SERVER_PIDS_FILE, JSON.stringify(pids));
 
-    await Promise.all(
-      Array.from({ length: WORKER_COUNT }, (_, i) => waitForServer(workerBaseUrl(i)))
-    );
+    // Wait for FastAPI and Next.js workers to be ready in parallel
+    await Promise.all([
+      ...Array.from({ length: WORKER_COUNT }, (_, i) => waitForServer(workerBaseUrl(i))),
+      ...Array.from({ length: WORKER_COUNT }, (_, i) =>
+        waitForServer(`http://localhost:${NEXT_BASE_PORT + i}`, '/api/health', 60_000)
+      ),
+    ]);
 
     await Promise.all(
       Array.from({ length: WORKER_COUNT }, (_, i) => setupAdminAuth(i))

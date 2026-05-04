@@ -8,6 +8,8 @@ export const ADMIN_EMAIL = 'admin@e2e-test.com';
 export const ADMIN_PASSWORD = 'adminpassword1';
 
 export const BASE_PORT = 8002;
+// Next.js workers run at BASE_PORT - 4000 (e.g. 8002 → 4002)
+export const NEXT_BASE_PORT = BASE_PORT - 4000;
 export const WORKER_COUNT = 4;
 
 export function workerBaseUrl(parallelIndex: number): string {

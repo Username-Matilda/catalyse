@@ -41,6 +41,13 @@ def _api(method, path, json=None, token=None):
 
 # ── Server lifecycle ──────────────────────────────────────────────────────────
 
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+WEB_DIR = os.path.join(PROJECT_ROOT, "web")
+# FastAPI test port 8002 maps to Next.js test port 4002 (port - 4000)
+NEXT_PORT = 4002
+NEXT_BASE_URL = f"http://localhost:{NEXT_PORT}"
+
+
 @pytest.fixture(scope="session")
 def _tmp_db_dir():
     tmp = tempfile.mkdtemp(prefix="catalyse_test_")
@@ -50,28 +57,32 @@ def _tmp_db_dir():
 
 @pytest.fixture(scope="session", autouse=True)
 def live_server(_tmp_db_dir):
-    """Start the API on port 8002 with an isolated test database (local only)."""
+    """Start FastAPI (port 8002) and Next.js (port 4002) with a shared isolated test database."""
     if IS_PRODUCTION:
         yield
         return
 
-    env = {
+    base_env = {
         **os.environ,
-        "PORT": "8002",
         "RAILWAY_VOLUME_MOUNT_PATH": _tmp_db_dir,
-        # Don't use ADMIN_EMAILS: it triggers a nested db_transaction inside signup
-        # which causes SQLite lock contention. Promote via direct DB write instead.
-        "ADMIN_EMAILS": "",
         "RESEND_API_KEY": "",
+        "STUB_EMAIL": "true",
     }
 
-    proc = subprocess.Popen(
+    fastapi_proc = subprocess.Popen(
         ["python", "api.py"],
-        env=env,
-        cwd=str(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
+        env={**base_env, "PORT": "8002", "ADMIN_EMAILS": ""},
+        cwd=PROJECT_ROOT,
     )
 
-    # Poll until ready (skills endpoint requires a fully-initialised DB)
+    next_binary = os.path.join(WEB_DIR, "node_modules", ".bin", "next")
+    next_proc = subprocess.Popen(
+        [next_binary, "dev", "-p", str(NEXT_PORT)],
+        env={**base_env, "PORT": str(NEXT_PORT)},
+        cwd=WEB_DIR,
+    )
+
+    # Wait for FastAPI (skills endpoint requires a fully-initialised DB)
     deadline = time.time() + 30
     while time.time() < deadline:
         try:
@@ -81,16 +92,35 @@ def live_server(_tmp_db_dir):
             pass
         time.sleep(0.5)
     else:
-        proc.terminate()
-        raise RuntimeError("Test server did not become ready within 30 seconds")
+        fastapi_proc.terminate()
+        next_proc.terminate()
+        raise RuntimeError("FastAPI test server did not become ready within 30 seconds")
+
+    # Wait for Next.js (health endpoint)
+    # Use a longer per-request timeout: Turbopack compiles routes lazily, and the
+    # health route runs a Prisma query — the first request can take 10+ seconds.
+    deadline = time.time() + 120
+    while time.time() < deadline:
+        try:
+            if requests.get(f"{NEXT_BASE_URL}/api/health", timeout=15).status_code == 200:
+                break
+        except (requests.ConnectionError, requests.ReadTimeout):
+            pass
+        time.sleep(1)
+    else:
+        fastapi_proc.terminate()
+        next_proc.terminate()
+        raise RuntimeError("Next.js test server did not become ready within 120 seconds")
 
     yield
 
-    proc.terminate()
-    try:
-        proc.wait(timeout=10)
-    except subprocess.TimeoutExpired:
-        proc.kill()
+    fastapi_proc.terminate()
+    next_proc.terminate()
+    for proc in (fastapi_proc, next_proc):
+        try:
+            proc.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            proc.kill()
 
 
 # ── User fixtures ─────────────────────────────────────────────────────────────

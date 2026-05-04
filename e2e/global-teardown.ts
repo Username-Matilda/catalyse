@@ -1,6 +1,6 @@
 import { execSync } from 'child_process';
 import fs from 'fs';
-import { IS_LOCAL, WORKER_COUNT, BASE_PORT, SERVER_PIDS_FILE } from './config';
+import { IS_LOCAL, WORKER_COUNT, BASE_PORT, NEXT_BASE_PORT, SERVER_PIDS_FILE } from './config';
 
 function killServerOnPort(port: number): void {
   try {
@@ -14,7 +14,7 @@ async function globalTeardown(): Promise<void> {
   if (!IS_LOCAL) return;
 
   if (fs.existsSync(SERVER_PIDS_FILE)) {
-    const pids: Record<number, number> = JSON.parse(fs.readFileSync(SERVER_PIDS_FILE, 'utf8'));
+    const pids: Record<string, number> = JSON.parse(fs.readFileSync(SERVER_PIDS_FILE, 'utf8'));
     for (const pid of Object.values(pids)) {
       try { process.kill(pid, 'SIGTERM'); } catch { /* already exited */ }
     }
@@ -23,6 +23,7 @@ async function globalTeardown(): Promise<void> {
 
   for (let i = 0; i < WORKER_COUNT; i++) {
     killServerOnPort(BASE_PORT + i);
+    killServerOnPort(NEXT_BASE_PORT + i);
   }
 }
 
