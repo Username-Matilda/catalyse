@@ -3873,34 +3873,31 @@ def send_contact_message(
         if project:
             project_title = project["title"]
 
-    # TODO: The message/notification is only created if email succeeds, meaning it
-    # fails entirely in environments without RESEND_API_KEY configured (e.g. local
-    # dev and the e2e test suite). Consider saving to contact_messages and creating
-    # the notification unconditionally, then treating email as best-effort delivery.
-
-    # Send via email relay
-    email_sent = send_relay_message(
-        to=recipient["email"],
-        to_name=recipient["name"],
-        from_name=sender["name"],
-        from_email=sender["email"],
-        subject=data.subject,
-        message=data.message,
-        project_title=project_title
-    )
-
-    if not email_sent:
-        if not is_email_configured():
-            raise HTTPException(status_code=503, detail="Email service is not configured. Contact an admin for help.")
-        raise HTTPException(status_code=500, detail="Failed to send message. Please try again later.")
-
-    # Create notification for recipient
+    # Save message and create notification unconditionally; treat email as best-effort delivery.
     with db_transaction() as conn:
+        conn.execute(
+            """INSERT INTO contact_messages
+               (from_volunteer_id, to_volunteer_id, subject, message, related_project_id)
+               VALUES (?, ?, ?, ?, ?)""",
+            (sender["id"], volunteer_id, data.subject, data.message, data.related_project_id)
+        )
         create_notification(
             conn, volunteer_id, "message_received",
             f"Message from {sender['name']}",
             data.subject,
             "/static/dashboard.html"
+        )
+
+    # Send via email relay (best-effort; message already saved above)
+    if is_email_configured():
+        send_relay_message(
+            to=recipient["email"],
+            to_name=recipient["name"],
+            from_name=sender["name"],
+            from_email=sender["email"],
+            subject=data.subject,
+            message=data.message,
+            project_title=project_title
         )
 
     return {"message": "Message sent! They'll receive it by email and can reply directly to you."}
