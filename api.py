@@ -465,6 +465,14 @@ class StarterTaskCreate(BaseModel):
     estimated_hours: Optional[float] = None
 
 
+class StarterTaskUpdate(BaseModel):
+    title: Optional[str] = Field(None, min_length=1, max_length=300)
+    description: Optional[str] = Field(None, min_length=1)
+    skill_id: Optional[int] = None
+    project_id: Optional[int] = None
+    estimated_hours: Optional[float] = None
+
+
 class StarterTaskAssign(BaseModel):
     volunteer_id: int
 
@@ -2991,6 +2999,107 @@ def create_starter_task(
             (data.title, data.description, data.skill_id, data.project_id, data.estimated_hours)
         )
         return {"id": cursor.lastrowid, "message": "Starter task created"}
+
+
+@app.get("/api/starter-tasks/{task_id}")
+def get_starter_task(
+    task_id: int,
+    current_volunteer: Optional[Dict] = Depends(get_current_volunteer)
+) -> Dict:
+    """Get a single starter task by ID. Open tasks are public; non-open tasks require admin or assignee."""
+    conn = get_db()
+    task = conn.execute(
+        """SELECT st.*, s.name as skill_name, sc.name as skill_category,
+                  p.title as project_title,
+                  v_assigned.name as assigned_to_name,
+                  v_reviewer.name as reviewed_by_name
+           FROM starter_tasks st
+           LEFT JOIN skills s ON st.skill_id = s.id
+           LEFT JOIN skill_categories sc ON s.category_id = sc.id
+           LEFT JOIN projects p ON st.project_id = p.id
+           LEFT JOIN volunteers v_assigned ON st.assigned_to_id = v_assigned.id
+           LEFT JOIN volunteers v_reviewer ON st.reviewed_by_id = v_reviewer.id
+           WHERE st.id = ?""",
+        (task_id,)
+    ).fetchone()
+    conn.close()
+
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    task_dict = dict(task)
+    if task_dict["status"] != "open":
+        is_admin = bool(current_volunteer and current_volunteer.get("is_admin"))
+        is_assignee = bool(
+            current_volunteer and task_dict.get("assigned_to_id") == current_volunteer["id"]
+        )
+        if not (is_admin or is_assignee):
+            raise HTTPException(status_code=404, detail="Task not found")
+
+    return task_dict
+
+
+@app.put("/api/starter-tasks/{task_id}")
+def update_starter_task(
+    task_id: int,
+    data: StarterTaskUpdate,
+    admin: Dict = Depends(require_admin)
+) -> Dict:
+    """Edit a starter task (admin only)."""
+    with db_transaction() as conn:
+        task = conn.execute("SELECT * FROM starter_tasks WHERE id = ?", (task_id,)).fetchone()
+        if not task:
+            raise HTTPException(status_code=404, detail="Task not found")
+
+        updates = []
+        params: List = []
+
+        if data.title is not None:
+            updates.append("title = ?")
+            params.append(data.title)
+        if data.description is not None:
+            updates.append("description = ?")
+            params.append(data.description)
+        if data.skill_id is not None:
+            updates.append("skill_id = ?")
+            params.append(data.skill_id)
+        if data.project_id is not None:
+            updates.append("project_id = ?")
+            params.append(data.project_id)
+        if data.estimated_hours is not None:
+            updates.append("estimated_hours = ?")
+            params.append(data.estimated_hours)
+
+        if updates:
+            updates.append("updated_at = ?")
+            params.append(datetime.now().isoformat())
+            params.append(task_id)
+            conn.execute(
+                f"UPDATE starter_tasks SET {', '.join(updates)} WHERE id = ?",
+                params
+            )
+
+        return {"message": "Starter task updated"}
+
+
+@app.delete("/api/starter-tasks/{task_id}")
+def delete_starter_task(
+    task_id: int,
+    admin: Dict = Depends(require_admin)
+) -> Dict:
+    """Delete a starter task (admin only)."""
+    with db_transaction() as conn:
+        task = conn.execute("SELECT * FROM starter_tasks WHERE id = ?", (task_id,)).fetchone()
+        if not task:
+            raise HTTPException(status_code=404, detail="Task not found")
+
+        conn.execute(
+            "DELETE FROM skill_endorsements WHERE source = 'starter_task' AND source_id = ?",
+            (task_id,)
+        )
+        conn.execute("DELETE FROM starter_tasks WHERE id = ?", (task_id,))
+
+        return {"message": "Starter task deleted"}
 
 
 @app.post("/api/starter-tasks/{task_id}/assign")

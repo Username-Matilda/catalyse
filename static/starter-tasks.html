@@ -55,45 +55,80 @@
             await loadTasks();
         }
 
+        function renderTaskCard(task) {
+            return `
+                <div class="card" id="task-${task.id}" style="margin-bottom: 16px;">
+                    <div class="card-header" style="cursor: pointer;" onclick="toggleTask(${task.id})">
+                        <h3 class="card-title" style="display: flex; align-items: center; gap: 8px;">
+                            <span id="st-toggle-${task.id}" style="transition: transform 0.2s; display: inline-block;">&#9654;</span>
+                            ${escapeHtml(task.title)}
+                        </h3>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            ${task.skill_name ? `<span class="skill-tag">${escapeHtml(task.skill_name)}</span>` : ''}
+                            ${task.estimated_hours ? `<span style="color: var(--text-light); font-size: 0.875rem;">~${task.estimated_hours}h</span>` : ''}
+                        </div>
+                    </div>
+                    <div id="st-details-${task.id}" style="display: none;">
+                        <p style="white-space: pre-wrap; margin: 12px 0;">${escapeHtml(task.description)}</p>
+                        <div class="card-meta">
+                            ${task.project_title ? `<span style="color: var(--text-light);">Related project: ${escapeHtml(task.project_title)}</span>` : ''}
+                        </div>
+                        <p style="margin-top: 12px; font-size: 0.875rem; color: var(--text-light);">
+                            Interested? Reach out to the team and let them know you'd like to take this on.
+                        </p>
+                        <div style="margin-top: 12px;">
+                            <button class="btn btn-small btn-secondary" onclick="event.stopPropagation(); copyTaskLink(${task.id})">Copy link to this task</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
         async function loadTasks() {
+            const container = document.getElementById('tasksList');
+            const emptyState = document.getElementById('emptyState');
+            const focusedId = parseInt(new URLSearchParams(window.location.search).get('id'), 10);
+
             try {
                 const tasks = await apiRequest('/api/starter-tasks/available');
-                const container = document.getElementById('tasksList');
-                const emptyState = document.getElementById('emptyState');
 
-                if (tasks.length === 0) {
+                if (tasks.length === 0 && !focusedId) {
                     container.innerHTML = '';
                     emptyState.style.display = 'block';
                     return;
                 }
 
                 emptyState.style.display = 'none';
-                container.innerHTML = tasks.map(task => `
-                    <div class="card" style="margin-bottom: 16px;">
-                        <div class="card-header" style="cursor: pointer;" onclick="toggleTask(${task.id})">
-                            <h3 class="card-title" style="display: flex; align-items: center; gap: 8px;">
-                                <span id="st-toggle-${task.id}" style="transition: transform 0.2s; display: inline-block;">&#9654;</span>
-                                ${escapeHtml(task.title)}
-                            </h3>
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                ${task.skill_name ? `<span class="skill-tag">${escapeHtml(task.skill_name)}</span>` : ''}
-                                ${task.estimated_hours ? `<span style="color: var(--text-light); font-size: 0.875rem;">~${task.estimated_hours}h</span>` : ''}
-                            </div>
-                        </div>
-                        <div id="st-details-${task.id}" style="display: none;">
-                            <p style="white-space: pre-wrap; margin: 12px 0;">${escapeHtml(task.description)}</p>
-                            <div class="card-meta">
-                                ${task.project_title ? `<span style="color: var(--text-light);">Related project: ${escapeHtml(task.project_title)}</span>` : ''}
-                            </div>
-                            <p style="margin-top: 12px; font-size: 0.875rem; color: var(--text-light);">
-                                Interested? Reach out to the team and let them know you'd like to take this on.
-                            </p>
-                        </div>
-                    </div>
-                `).join('');
+                let renderTasks = tasks;
+
+                // If linked to a specific task that isn't in the public available list,
+                // fetch it directly so the link still resolves.
+                if (focusedId && !tasks.some(t => t.id === focusedId)) {
+                    try {
+                        const single = await apiRequest(`/api/starter-tasks/${focusedId}`);
+                        renderTasks = [single, ...tasks];
+                    } catch (e) {
+                        showMessage('That starter task is not available.', 'error');
+                    }
+                }
+
+                container.innerHTML = renderTasks.map(renderTaskCard).join('');
+
+                if (focusedId && document.getElementById(`task-${focusedId}`)) {
+                    toggleTask(focusedId);
+                    document.getElementById(`task-${focusedId}`).scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
             } catch (error) {
                 showMessage('Failed to load starter tasks', 'error');
             }
+        }
+
+        function copyTaskLink(taskId) {
+            const url = `${window.location.origin}/static/starter-tasks.html?id=${taskId}`;
+            navigator.clipboard.writeText(url).then(
+                () => showMessage('Link copied to clipboard', 'success'),
+                () => showMessage(url, 'info')
+            );
         }
 
         function toggleTask(taskId) {
