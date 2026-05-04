@@ -1123,8 +1123,8 @@ def forgot_password(data: ForgotPasswordRequest) -> Dict:
 
     result = {"message": "If an account exists with this email, you'll receive a reset link."}
 
-    # In dev mode (no email configured), include token for testing
-    if not is_email_configured():
+    # In dev/test mode (no real email sending), include token for testing
+    if not is_real_email_sending():
         result["_dev_reset_token"] = reset_token
         result["_dev_reset_url"] = f"/static/reset-password.html?token={reset_token}"
         result["_dev_note"] = "Email not configured. Set RESEND_API_KEY to enable."
