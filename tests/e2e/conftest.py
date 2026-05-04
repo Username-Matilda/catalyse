@@ -23,7 +23,7 @@ import uuid
 import requests
 import pytest
 
-from tests.e2e.helpers import BASE_URL, IS_PRODUCTION, inject_auth_token  # noqa: F401
+from tests.e2e.helpers import BASE_URL, NEXT_BASE_URL, IS_PRODUCTION, inject_auth_token  # noqa: F401
 
 ADMIN_EMAIL = "admin@test.com"
 ADMIN_PASSWORD = "adminpassword1"
@@ -45,7 +45,6 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 WEB_DIR = os.path.join(PROJECT_ROOT, "web")
 # FastAPI test port 8002 maps to Next.js test port 4002 (port - 4000)
 NEXT_PORT = 4002
-NEXT_BASE_URL = f"http://localhost:{NEXT_PORT}"
 
 
 @pytest.fixture(scope="session")
@@ -196,6 +195,16 @@ def published_project(live_server, admin_token):
         "urgency": "medium",
     }, token=admin_token)
     return data["id"]
+
+
+# ── API target fixture ────────────────────────────────────────────────────────
+
+@pytest.fixture(params=["fastapi", "nextjs"])
+def api_url(request, live_server):
+    """Base URL for API tests — parameterised to run each test against both backends."""
+    if request.param == "fastapi":
+        return BASE_URL
+    return NEXT_BASE_URL
 
 
 # ── Test label overlay ────────────────────────────────────────────────────────
