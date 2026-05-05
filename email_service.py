@@ -18,7 +18,7 @@ from typing import Optional
 
 # Configuration
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
-FROM_EMAIL = os.environ.get("FROM_EMAIL", "Catalyse <noreply@catalyse.pauseai.uk>")
+FROM_EMAIL = os.environ.get("FROM_EMAIL", "Catalyse <noreply@pauseai.uk>")
 APP_URL = os.environ.get("APP_URL", "http://localhost:8000")
 # When STUB_EMAIL=true the service reports itself as configured and silently
 # accepts all send calls without making HTTP requests. For testing only.
