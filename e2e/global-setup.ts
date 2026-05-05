@@ -1,10 +1,10 @@
-import { chromium } from '@playwright/test';
+import { chromium, FullConfig } from '@playwright/test';
 import { execSync } from 'child_process';
 import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import {
-  IS_LOCAL, WORKER_COUNT,
+  IS_LOCAL,
   ADMIN_EMAIL, ADMIN_PASSWORD,
   NEXT_BASE_PORT,
   workerBaseUrl, workerDbDir, workerAuthFile,
@@ -115,29 +115,31 @@ async function setupAdminAuth(parallelIndex: number): Promise<void> {
   await browser.close();
 }
 
-async function globalSetup(): Promise<void> {
+async function globalSetup(config: FullConfig): Promise<void> {
+  const workerCount = config.workers;
+
   if (IS_LOCAL) {
     buildNextJs();
 
     const pids: Record<string, number> = {};
-    for (let i = 0; i < WORKER_COUNT; i++) {
+    for (let i = 0; i < workerCount; i++) {
       pids[i] = startWorkerNextJs(i);
     }
     fs.writeFileSync(SERVER_PIDS_FILE, JSON.stringify(pids));
 
     await Promise.all(
-      Array.from({ length: WORKER_COUNT }, (_, i) =>
+      Array.from({ length: workerCount }, (_, i) =>
         waitForServer(workerBaseUrl(i), '/api/health', 30_000)
       )
     );
 
     await Promise.all(
-      Array.from({ length: WORKER_COUNT }, (_, i) => setupAdminAuth(i))
+      Array.from({ length: workerCount }, (_, i) => setupAdminAuth(i))
     );
   } else {
     await setupAdminAuth(0);
     const src = workerAuthFile(0);
-    for (let i = 1; i < WORKER_COUNT; i++) {
+    for (let i = 1; i < workerCount; i++) {
       fs.copyFileSync(src, workerAuthFile(i));
     }
   }

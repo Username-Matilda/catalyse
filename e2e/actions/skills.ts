@@ -1,5 +1,6 @@
 import { Page, expect } from '@playwright/test';
 import { getAlert } from '../fixtures';
+import { fake } from '../fake';
 
 export interface SkillInfo {
   name: string;
@@ -7,9 +8,8 @@ export interface SkillInfo {
 }
 
 export async function createSkill(baseUrl: string, adminPage: Page): Promise<SkillInfo> {
-  const ts = Date.now();
-  const categoryName = `E2E Cat ${ts}`;
-  const skillName = `E2E Skill ${ts}`;
+  const categoryName = fake.skillCategory();
+  const skillName = fake.skillName();
 
   await adminPage.goto(`${baseUrl}/admin/skills`);
   await expect(adminPage.getByRole('button', { name: '+ Add Category' })).toBeVisible({ timeout: 10_000 });

@@ -1,9 +1,10 @@
 import { test, expect } from '../fixtures';
 import { proposeProject, adminApproveProject, transferProjectOwnership } from '../actions/projects';
 import { Page } from '@playwright/test';
+import { fake } from '../fake';
 
 async function setupOwnedProject(baseUrl: string, adminPage: Page, volunteer: { page: Page; name: string }): Promise<number> {
-  const title = `E2E Owner ${Date.now()}`;
+  const title = fake.projectTitle();
   const projectId = await proposeProject(baseUrl, volunteer.page, title, 'Setup description for owner management');
   await adminApproveProject(baseUrl, adminPage, title);
   await transferProjectOwnership(baseUrl, adminPage, projectId, volunteer.name);
@@ -14,7 +15,7 @@ test.describe('Project Management (Owner)', () => {
   test('Project owner edits project details', async ({ adminPage, volunteer, baseUrl }) => {
     const projectId = await setupOwnedProject(baseUrl, adminPage, volunteer);
 
-    const newTitle = `E2E Owner Edited ${Date.now()}`;
+    const newTitle = fake.projectTitle();
     const newDescription = 'Updated project description set by the owner';
     const collaborationLink = 'https://docs.example.com/e2e-project';
 
@@ -47,7 +48,7 @@ test.describe('Project Management (Owner)', () => {
 
   test('Project owner posts a progress update', async ({ adminPage, volunteer, baseUrl }) => {
     const projectId = await setupOwnedProject(baseUrl, adminPage, volunteer);
-    const updateText = `Owner progress update ${Date.now()}: Making great progress!`;
+    const updateText = fake.progressUpdate();
 
     await volunteer.page.goto(`${baseUrl}/projects/${projectId}`);
     await expect(volunteer.page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 });

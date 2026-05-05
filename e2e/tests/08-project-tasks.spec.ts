@@ -1,4 +1,5 @@
 import { test, expect, getAlert } from '../fixtures';
+import { fake } from '../fake';
 import {
   proposeProject,
   adminCreateProject,
@@ -12,7 +13,7 @@ async function setupInProgressProject(
   adminPage: Page,
   volunteer: { page: Page; name: string }
 ): Promise<number> {
-  const title = `E2E Tasks ${Date.now()}`;
+  const title = fake.projectTitle();
   const id = await proposeProject(baseUrl, volunteer.page, title, 'Setup for task scenarios');
   await adminApproveProject(baseUrl, adminPage, title);
   return id;
@@ -23,7 +24,7 @@ test.describe('Project Tasks', () => {
     await adminCreateProject(
       baseUrl,
       adminPage,
-      `E2E Task Promote ${Date.now()}`,
+      fake.projectTitle(),
       'Project for auto-promotion test'
     );
 
@@ -72,7 +73,7 @@ test.describe('Project Tasks', () => {
     await adminCreateProject(
       baseUrl,
       adminPage,
-      `E2E Delete Task ${Date.now()}`,
+      fake.projectTitle(),
       'Project for task deletion test'
     );
 

@@ -1,6 +1,7 @@
 import { test, expect, getAlert } from '../fixtures';
 import type { Page } from '@playwright/test';
 import { createSkill } from '../actions/skills';
+import { fake } from '../fake';
 
 async function navigateToAdminVolunteerDetail(baseUrl: string, adminPage: Page, volunteerName: string): Promise<void> {
   await adminPage.goto(`${baseUrl}/volunteers`);
@@ -59,7 +60,7 @@ test.describe('Volunteer Management', () => {
   });
 
   test('Admin adds an admin note (skill_feedback category)', async ({ adminPage, volunteer, baseUrl }) => {
-    const noteContent = `E2E skill feedback note ${Date.now()}`;
+    const noteContent = fake.note();
 
     await navigateToAdminVolunteerDetail(baseUrl, adminPage, volunteer.name);
 
@@ -75,8 +76,8 @@ test.describe('Volunteer Management', () => {
   });
 
   test('Admin adds an admin note (reliability category); both notes visible', async ({ adminPage, volunteer, baseUrl }) => {
-    const noteContent1 = `E2E skill feedback note ${Date.now()}`;
-    const noteContent2 = `E2E reliability note ${Date.now()}`;
+    const noteContent1 = fake.note();
+    const noteContent2 = fake.note();
 
     await navigateToAdminVolunteerDetail(baseUrl, adminPage, volunteer.name);
 
@@ -100,8 +101,8 @@ test.describe('Volunteer Management', () => {
   });
 
   test('Admin edits an admin note', async ({ adminPage, volunteer, baseUrl }) => {
-    const originalContent = `E2E note to edit ${Date.now()}`;
-    const updatedContent = `E2E updated note ${Date.now()}`;
+    const originalContent = fake.note();
+    const updatedContent = fake.note();
 
     await navigateToAdminVolunteerDetail(baseUrl, adminPage, volunteer.name);
 
@@ -122,7 +123,7 @@ test.describe('Volunteer Management', () => {
   });
 
   test('Admin deletes an admin note', async ({ adminPage, volunteer, baseUrl }) => {
-    const noteContent = `E2E note to delete ${Date.now()}`;
+    const noteContent = fake.note();
 
     await navigateToAdminVolunteerDetail(baseUrl, adminPage, volunteer.name);
 

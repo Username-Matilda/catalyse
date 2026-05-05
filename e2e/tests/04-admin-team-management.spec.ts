@@ -1,5 +1,5 @@
-import crypto from 'crypto';
 import { test, expect, getAlert } from '../fixtures';
+import { fake } from '../fake';
 import { ADMIN_EMAIL } from '../config';
 import { signup } from '../actions/auth';
 import { Page } from '@playwright/test';
@@ -40,8 +40,7 @@ test.describe('Admin: Admin Team Management', () => {
   });
 
   test('Admin invites a new admin by email', async ({ adminPage, baseUrl }) => {
-    const id = crypto.randomBytes(4).toString('hex');
-    const inviteEmail = `invite_${id}@test.com`;
+    const inviteEmail = fake.uniqueEmail();
 
     await adminPage.goto(`${baseUrl}/admin/team`);
     await expect(adminPage.getByRole('button', { name: 'Invite Admin' })).toBeVisible({ timeout: 10_000 });
@@ -56,8 +55,7 @@ test.describe('Admin: Admin Team Management', () => {
   });
 
   test('Admin views pending invites', async ({ adminPage, baseUrl }) => {
-    const id = crypto.randomBytes(4).toString('hex');
-    const inviteEmail = `invite_${id}@test.com`;
+    const inviteEmail = fake.uniqueEmail();
 
     await adminPage.goto(`${baseUrl}/admin/team`);
     await createAdminInvite(adminPage, inviteEmail);
@@ -69,8 +67,7 @@ test.describe('Admin: Admin Team Management', () => {
   });
 
   test('Admin revokes a pending invite', async ({ adminPage, baseUrl }) => {
-    const id = crypto.randomBytes(4).toString('hex');
-    const inviteEmail = `invite_${id}@test.com`;
+    const inviteEmail = fake.uniqueEmail();
 
     await adminPage.goto(`${baseUrl}/admin/team`);
     await createAdminInvite(adminPage, inviteEmail);
@@ -87,11 +84,10 @@ test.describe('Admin: Admin Team Management', () => {
   });
 
   test('New user accepts an admin invite link', async ({ adminPage, browser, baseUrl }) => {
-    const id = crypto.randomBytes(4).toString('hex');
-    const inviteEmail = `new_admin_${id}@test.com`;
+    const person = fake.person();
 
     await adminPage.goto(`${baseUrl}/admin/team`);
-    const token = await createAdminInvite(adminPage, inviteEmail);
+    const token = await createAdminInvite(adminPage, person.email);
 
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
@@ -104,7 +100,7 @@ test.describe('Admin: Admin Team Management', () => {
       await page.evaluate(() => localStorage.removeItem('pendingAdminInvite'));
 
       // Signing up with the invited email auto-accepts the invite server-side
-      await signup(baseUrl, page, `New Admin ${id}`, inviteEmail, 'testpassword1');
+      await signup(baseUrl, page, person.name, person.email, 'testpassword1');
 
       const me = await getMe(page);
       expect(me.is_admin).toBeTruthy();

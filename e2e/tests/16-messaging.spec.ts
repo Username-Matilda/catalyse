@@ -1,21 +1,19 @@
 import { test, expect, getAlert } from '../fixtures';
-import crypto from 'crypto';
 import { adminCreateProject, transferProjectOwnership } from '../actions/projects';
+import { fake } from '../fake';
 
 test.describe('Messaging', () => {
   test('Volunteer sends a contact message to another volunteer', async ({ adminPage, volunteer, browser, baseUrl }) => {
-    const ts = Date.now();
-    const subject = `E2E Subject ${ts}`;
-    const body = `E2E message body ${ts}`;
+    const subject = fake.messageSubject();
+    const body = fake.messageBody();
 
-    const projectId = await adminCreateProject(baseUrl, adminPage, `E2E Contact ${ts}`, 'Project for contact test');
+    const projectId = await adminCreateProject(baseUrl, adminPage, fake.projectTitle(), 'Project for contact test');
     await transferProjectOwnership(baseUrl, adminPage, projectId, volunteer.name);
 
-    const sid = crypto.randomBytes(4).toString('hex');
     const senderSignupResp = await fetch(`${baseUrl}/api/auth/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: `Msg Sender ${sid}`, email: `msgsender_${sid}@test.com`, password: 'testpassword1', consent_profile_visible: true, consent_contact_by_owners: true }),
+      body: JSON.stringify({ ...fake.person(), password: 'testpassword1', consent_profile_visible: true, consent_contact_by_owners: true }),
     });
     if (!senderSignupResp.ok) throw new Error(`Sender signup failed: ${await senderSignupResp.text()}`);
     const { auth_token: senderToken } = await senderSignupResp.json();
@@ -46,10 +44,9 @@ test.describe('Messaging', () => {
 
   test('Recipient sees a message notification', async ({ adminPage, volunteer, browser, baseUrl }) => {
     test.setTimeout(60_000);
-    const ts = Date.now();
-    const subject = `E2E Notify Subject ${ts}`;
+    const subject = fake.messageSubject();
 
-    const projectId = await adminCreateProject(baseUrl, adminPage, `E2E Notify ${ts}`, 'Project for notification test');
+    const projectId = await adminCreateProject(baseUrl, adminPage, fake.projectTitle(), 'Project for notification test');
     await transferProjectOwnership(baseUrl, adminPage, projectId, volunteer.name);
 
     // Confirm the recipient starts with no unread notifications.
@@ -59,11 +56,10 @@ test.describe('Messaging', () => {
     await expect(notifTab.locator('.notification-badge')).not.toBeVisible();
 
     // Sender sends the message.
-    const sid = crypto.randomBytes(4).toString('hex');
     const senderSignupResp = await fetch(`${baseUrl}/api/auth/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: `Notif Sender ${sid}`, email: `notifsender_${sid}@test.com`, password: 'testpassword1', consent_profile_visible: true, consent_contact_by_owners: true }),
+      body: JSON.stringify({ ...fake.person(), password: 'testpassword1', consent_profile_visible: true, consent_contact_by_owners: true }),
     });
     if (!senderSignupResp.ok) throw new Error(`Sender signup failed: ${await senderSignupResp.text()}`);
     const { auth_token: senderToken } = await senderSignupResp.json();

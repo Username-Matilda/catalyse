@@ -1,5 +1,6 @@
 import { test, expect, getAlert } from '../fixtures';
 import { goToDashboardNotifications } from '../actions/dashboard';
+import { fake } from '../fake';
 import {
   proposeProject,
   adminApproveProject,
@@ -10,7 +11,7 @@ import { Page } from '@playwright/test';
 
 // Creates an org project that immediately accepts interest (is_seeking_help = true by default)
 async function setupSeekingProject(baseUrl: string, adminPage: Page): Promise<number> {
-  return adminCreateProject(baseUrl, adminPage, `E2E Interests ${Date.now()}`, 'Project seeking volunteers');
+  return adminCreateProject(baseUrl, adminPage, fake.projectTitle(), 'Project seeking volunteers');
 }
 
 test.describe('Project Interests and Assignment', () => {
@@ -69,7 +70,7 @@ test.describe('Project Interests and Assignment', () => {
 
   test('Project owner declines a pending interest', async ({ adminPage, volunteer, baseUrl }) => {
     const projectId = await setupSeekingProject(baseUrl, adminPage);
-    const declineMessage = `Not the right fit ${Date.now()}`;
+    const declineMessage = fake.feedbackText();
 
     // Volunteer expresses interest
     await volunteer.page.goto(`${baseUrl}/projects/${projectId}`);
@@ -128,7 +129,7 @@ test.describe('Project Interests and Assignment', () => {
   });
 
   test('Volunteer cannot express interest in their own project', async ({ adminPage, volunteer, baseUrl }) => {
-    const title = `E2E Own Project ${Date.now()}`;
+    const title = fake.projectTitle();
     const projectId = await proposeProject(baseUrl, volunteer.page, title, 'Project owned by the volunteer');
     await adminApproveProject(baseUrl, adminPage, title);
     await transferProjectOwnership(baseUrl, adminPage, projectId, volunteer.name);

@@ -3,9 +3,10 @@ import type { Page } from '@playwright/test';
 import { createSkill } from '../actions/skills';
 import type { SkillInfo } from '../actions/skills';
 import { goToDashboardNotifications } from '../actions/dashboard';
+import { fake } from '../fake';
 
 async function createOpenStarterTask(baseUrl: string, adminPage: Page, skill: SkillInfo): Promise<string> {
-  const taskTitle = `E2E Task ${Date.now()}`;
+  const taskTitle = fake.starterTaskTitle();
 
   await adminPage.goto(`${baseUrl}/admin/starter-tasks`);
   await expect(adminPage.getByRole('heading', { name: 'Starter Tasks', level: 1 })).toBeVisible({ timeout: 10_000 });
@@ -57,7 +58,7 @@ async function submitStarterTask(baseUrl: string, volunteerPage: Page, taskTitle
 test.describe('Starter Tasks', () => {
   test('Admin creates a starter task', async ({ adminPage, baseUrl }) => {
     const skill = await createSkill(baseUrl, adminPage);
-    const taskTitle = `E2E Task ${Date.now()}`;
+    const taskTitle = fake.starterTaskTitle();
 
     await adminPage.goto(`${baseUrl}/admin/starter-tasks`);
     await expect(adminPage.getByRole('heading', { name: 'Starter Tasks', level: 1 })).toBeVisible({ timeout: 10_000 });

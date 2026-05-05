@@ -1,5 +1,6 @@
 import { test, expect, getAlert } from '../fixtures';
 import { goToDashboardNotifications } from '../actions/dashboard';
+import { fake } from '../fake';
 import {
   proposeProject,
   adminCreateProject,
@@ -11,7 +12,7 @@ import {
 
 test.describe('Project Lifecycle', () => {
   test('Volunteer proposes a project with tasks; admin approves; project moves to In Progress', async ({ adminPage, volunteer, baseUrl }) => {
-    const title = `E2E Propose Approve ${Date.now()}`;
+    const title = fake.projectTitle();
     const projectId = await proposeProject(baseUrl, volunteer.page, title, 'Test proposal description');
     await adminApproveProject(baseUrl, adminPage, title);
 
@@ -21,8 +22,8 @@ test.describe('Project Lifecycle', () => {
   });
 
   test('Admin sends a proposed project back for discussion', async ({ adminPage, volunteer, baseUrl }) => {
-    const title = `E2E Discussion ${Date.now()}`;
-    const feedbackText = `Please clarify the scope of this project ${Date.now()}`;
+    const title = fake.projectTitle();
+    const feedbackText = fake.feedbackText();
     await proposeProject(baseUrl, volunteer.page, title, 'Test proposal for discussion');
 
     await adminPage.goto(`${baseUrl}/admin/triage`);
@@ -47,7 +48,7 @@ test.describe('Project Lifecycle', () => {
   });
 
   test('Admin creates an org-proposed project', async ({ adminPage, baseUrl }) => {
-    const title = `E2E Org Project ${Date.now()}`;
+    const title = fake.projectTitle();
     await adminCreateProject(baseUrl, adminPage, title, 'Admin-created project description');
 
     // Project starts in needs_tasks status
@@ -59,7 +60,7 @@ test.describe('Project Lifecycle', () => {
   });
 
   test('Owner moves an `in_progress` project to completed', async ({ adminPage, volunteer, baseUrl }) => {
-    const title = `E2E Owner Complete ${Date.now()}`;
+    const title = fake.projectTitle();
     const projectId = await proposeProject(baseUrl, volunteer.page, title, 'Project to be completed by owner');
     await adminApproveProject(baseUrl, adminPage, title);
 
@@ -78,8 +79,8 @@ test.describe('Project Lifecycle', () => {
   });
 
   test('Admin records a successful project outcome', async ({ adminPage, volunteer, baseUrl }) => {
-    const title = `E2E Outcome ${Date.now()}`;
-    const outcomeNotes = `Great work on this project ${Date.now()}`;
+    const title = fake.projectTitle();
+    const outcomeNotes = fake.outcomeNotes();
 
     // Create project with a required skill
     const projectId = await proposeProject(baseUrl, volunteer.page, title, 'Project for outcome recording', 'Fundraising');

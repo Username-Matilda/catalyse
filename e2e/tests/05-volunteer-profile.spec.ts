@@ -1,6 +1,6 @@
-import crypto from 'crypto';
 import { test, expect, getAlert } from '../fixtures';
 import { Page } from '@playwright/test';
+import { fake } from '../fake';
 
 async function getVolunteerId(page: Page): Promise<number> {
   return page.evaluate(async () => {
@@ -14,7 +14,7 @@ async function getVolunteerId(page: Page): Promise<number> {
 
 test.describe('Volunteer Profile', () => {
   test('Volunteer updates their profile', async ({ volunteer, baseUrl }) => {
-    const uniqueName = `Profile Test ${Date.now()}`;
+    const uniqueName = fake.personName();
 
     await volunteer.page.goto(`${baseUrl}/profile`);
     await expect(volunteer.page.getByLabel('Your Name')).toBeVisible({ timeout: 10_000 });
@@ -53,7 +53,7 @@ test.describe('Volunteer Profile', () => {
   });
 
   test('Volunteer sets profile visibility to hidden', async ({ volunteer, baseUrl }) => {
-    const uniqueName = `Hidden Vol ${Date.now()}`;
+    const uniqueName = fake.personName();
 
     // First make the volunteer visible so we can confirm the transition
     await volunteer.page.goto(`${baseUrl}/profile`);
@@ -86,7 +86,7 @@ test.describe('Volunteer Profile', () => {
   });
 
   test('Volunteer sets profile visibility to visible', async ({ volunteer, baseUrl }) => {
-    const uniqueName = `Visible Vol ${Date.now()}`;
+    const uniqueName = fake.personName();
 
     // First hide the volunteer so we can confirm the transition
     await volunteer.page.goto(`${baseUrl}/profile`);
@@ -133,14 +133,12 @@ test.describe('Volunteer Profile', () => {
   });
 
   test("Volunteer views another volunteer's public profile", async ({ browser, volunteer, baseUrl }) => {
-    const id = crypto.randomBytes(4).toString('hex');
-    const vol2Name = `Second Vol ${id}`;
-    const vol2Email = `vol2_${id}@test.com`;
+    const vol2 = fake.person();
 
     const signupResp = await fetch(`${baseUrl}/api/auth/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: vol2Name, email: vol2Email, password: 'testpassword1', consent_profile_visible: true, consent_contact_by_owners: true }),
+      body: JSON.stringify({ name: vol2.name, email: vol2.email, password: 'testpassword1', consent_profile_visible: true, consent_contact_by_owners: true }),
     });
     if (!signupResp.ok) throw new Error(`Second volunteer signup failed: ${await signupResp.text()}`);
     const { auth_token: vol2Token } = await signupResp.json();
@@ -165,7 +163,7 @@ test.describe('Volunteer Profile', () => {
       await volunteer.page.goto(`${baseUrl}/volunteers/${vol2Id}`);
       await expect(volunteer.page.locator('#profileContent')).toBeVisible({ timeout: 10_000 });
 
-      await expect(volunteer.page.locator('#volunteerName')).toContainText(vol2Name);
+      await expect(volunteer.page.locator('#volunteerName')).toContainText(vol2.name);
       await expect(volunteer.page.locator('#volunteerSkills')).toContainText('Fundraising');
       // Endorsements section only appears if there are endorsements; not present for fresh volunteer
       await expect(volunteer.page.locator('#endorsementsSection')).not.toBeVisible();

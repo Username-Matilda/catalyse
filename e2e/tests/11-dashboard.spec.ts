@@ -1,6 +1,7 @@
 import { test, expect } from '../fixtures';
 import type { Page } from '@playwright/test';
 import { proposeProject, adminApproveProject } from '../actions/projects';
+import { fake } from '../fake';
 
 async function createNotificationForVolunteer(
   baseUrl: string,
@@ -36,7 +37,7 @@ test.describe('Dashboard', () => {
   });
 
   test('Dashboard shows unread notification badge', async ({ adminPage, volunteer, baseUrl }) => {
-    const title = `Notification Test Project ${Date.now()}`;
+    const title = fake.projectTitle();
     await createNotificationForVolunteer(baseUrl, volunteer.page, adminPage, title);
 
     await volunteer.page.goto(`${baseUrl}/dashboard`);
@@ -47,7 +48,7 @@ test.describe('Dashboard', () => {
   });
 
   test('Volunteer marks all notifications as read', async ({ adminPage, volunteer, baseUrl }) => {
-    const title = `Notification Test Project ${Date.now()}`;
+    const title = fake.projectTitle();
     await createNotificationForVolunteer(baseUrl, volunteer.page, adminPage, title);
 
     await volunteer.page.goto(`${baseUrl}/dashboard`);

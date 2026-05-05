@@ -1,14 +1,14 @@
-import crypto from 'crypto';
 import { test, expect, getAlert } from '../fixtures';
 import { signup, login } from '../actions/auth';
+import { fake } from '../fake';
 
 test.describe('Authentication: Signup & Login', () => {
   test('Visitor signs up successfully', async ({ browser, baseUrl }) => {
-    const id = crypto.randomBytes(4).toString('hex');
     const context = await browser.newContext();
     const page = await context.newPage();
     try {
-      await signup(baseUrl, page, `New User ${id}`, `new_${id}@test.com`, 'testpassword1');
+      const person = fake.person();
+      await signup(baseUrl, page, person.name, person.email, 'testpassword1');
       await expect(page).toHaveURL(`${baseUrl}/dashboard`);
     } finally {
       await context.close();
@@ -42,12 +42,11 @@ test.describe('Authentication: Signup & Login', () => {
   });
 
   test('Login fails with unknown email', async ({ browser, baseUrl }) => {
-    const id = crypto.randomBytes(4).toString('hex');
     const context = await browser.newContext();
     const page = await context.newPage();
     try {
       await page.goto(`${baseUrl}/login`);
-      await page.getByLabel('Email', { exact: true }).fill(`unknown_${id}@test.com`);
+      await page.getByLabel('Email', { exact: true }).fill(fake.uniqueEmail());
       await page.getByLabel('Password').fill('testpassword1');
       await page.getByRole('button', { name: 'Login' }).click();
       await expect(getAlert(page)).toBeVisible({ timeout: 10_000 });
@@ -73,13 +72,13 @@ test.describe('Authentication: Signup & Login', () => {
   });
 
   test('Signup fails with a short password', async ({ browser, baseUrl }) => {
-    const id = crypto.randomBytes(4).toString('hex');
     const context = await browser.newContext();
     const page = await context.newPage();
     try {
       await page.goto(`${baseUrl}/signup`);
-      await page.getByLabel('Your Name').fill(`Short Pwd ${id}`);
-      await page.getByLabel('Email', { exact: true }).fill(`short_${id}@test.com`);
+      const person = fake.person();
+      await page.getByLabel('Your Name').fill(person.name);
+      await page.getByLabel('Email', { exact: true }).fill(person.email);
       // Remove HTML minlength so the browser doesn't intercept before the JS handler runs
       await page.evaluate(() => {
         document.querySelector('#password')?.removeAttribute('minlength');

@@ -1,6 +1,7 @@
+import { FullConfig } from '@playwright/test';
 import { execSync } from 'child_process';
 import fs from 'fs';
-import { IS_LOCAL, WORKER_COUNT, NEXT_BASE_PORT, SERVER_PIDS_FILE } from './config';
+import { IS_LOCAL, NEXT_BASE_PORT, SERVER_PIDS_FILE } from './config';
 
 function killServerOnPort(port: number): void {
   try {
@@ -10,7 +11,7 @@ function killServerOnPort(port: number): void {
   }
 }
 
-async function globalTeardown(): Promise<void> {
+async function globalTeardown(config: FullConfig): Promise<void> {
   if (!IS_LOCAL) return;
 
   if (fs.existsSync(SERVER_PIDS_FILE)) {
@@ -21,7 +22,7 @@ async function globalTeardown(): Promise<void> {
     fs.unlinkSync(SERVER_PIDS_FILE);
   }
 
-  for (let i = 0; i < WORKER_COUNT; i++) {
+  for (let i = 0; i < config.workers; i++) {
     killServerOnPort(NEXT_BASE_PORT + i);
   }
 }

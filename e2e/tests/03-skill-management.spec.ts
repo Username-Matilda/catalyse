@@ -1,8 +1,9 @@
 import { test, expect, getAlert } from '../fixtures';
+import { fake } from '../fake';
 
 test.describe('Admin: Skill Management', () => {
   test('Admin creates a skill category', async ({ adminPage, baseUrl }) => {
-    const categoryName = `E2E Category ${Date.now()}`;
+    const categoryName = fake.skillCategory();
 
     await adminPage.goto(`${baseUrl}/admin/skills`);
     await expect(adminPage.getByRole('button', { name: '+ Add Category' })).toBeVisible({ timeout: 10_000 });
@@ -19,9 +20,8 @@ test.describe('Admin: Skill Management', () => {
   });
 
   test('Admin creates a skill within a category', async ({ adminPage, baseUrl }) => {
-    const ts = Date.now();
-    const categoryName = `E2E Category ${ts}`;
-    const skillName = `E2E Skill ${ts}`;
+    const categoryName = fake.skillCategory();
+    const skillName = fake.skillName();
 
     await adminPage.goto(`${baseUrl}/admin/skills`);
     await expect(adminPage.getByRole('button', { name: '+ Add Category' })).toBeVisible({ timeout: 10_000 });
@@ -51,10 +51,9 @@ test.describe('Admin: Skill Management', () => {
   });
 
   test('Admin edits a skill name', async ({ adminPage, baseUrl }) => {
-    const ts = Date.now();
-    const categoryName = `E2E Category ${ts}`;
-    const skillName = `E2E Skill A ${ts}`;
-    const updatedSkillName = `E2E Skill B ${ts}`;
+    const categoryName = fake.skillCategory();
+    const skillName = fake.skillName();
+    const updatedSkillName = fake.skillName();
 
     await adminPage.goto(`${baseUrl}/admin/skills`);
     await expect(adminPage.getByRole('button', { name: '+ Add Category' })).toBeVisible({ timeout: 10_000 });
@@ -90,9 +89,8 @@ test.describe('Admin: Skill Management', () => {
   });
 
   test('Admin deletes an unused skill', async ({ adminPage, baseUrl }) => {
-    const ts = Date.now();
-    const categoryName = `E2E Category ${ts}`;
-    const skillName = `E2E Skill ${ts}`;
+    const categoryName = fake.skillCategory();
+    const skillName = fake.skillName();
 
     await adminPage.goto(`${baseUrl}/admin/skills`);
     await expect(adminPage.getByRole('button', { name: '+ Add Category' })).toBeVisible({ timeout: 10_000 });
@@ -126,7 +124,7 @@ test.describe('Admin: Skill Management', () => {
   });
 
   test('Admin deletes a skill category', async ({ adminPage, baseUrl }) => {
-    const categoryName = `E2E Category ${Date.now()}`;
+    const categoryName = fake.skillCategory();
 
     await adminPage.goto(`${baseUrl}/admin/skills`);
     await expect(adminPage.getByRole('button', { name: '+ Add Category' })).toBeVisible({ timeout: 10_000 });

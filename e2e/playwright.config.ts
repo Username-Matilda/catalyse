@@ -12,6 +12,7 @@ export default defineConfig({
   use: {
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
+    launchOptions: { slowMo: parseInt(process.env.SLOW_MO ?? '0', 10) },
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },

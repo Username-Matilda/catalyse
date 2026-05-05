@@ -1,11 +1,12 @@
 import { test, expect } from '../fixtures';
 import { openBugReportForm, fillAndSubmitBugReport } from '../actions/bugs';
 import { goToDashboardNotifications } from '../actions/dashboard';
+import { fake } from '../fake';
 
 test.describe('Bug Reporting', () => {
   test('Logged-in volunteer submits a bug report; admin receives a notification', async ({ adminPage, volunteer, baseUrl }) => {
     test.setTimeout(60_000);
-    const title = `E2E Bug Report ${Date.now()}`;
+    const title = fake.bugTitle();
 
     await volunteer.page.goto(`${baseUrl}/dashboard`);
     await expect(volunteer.page.getByRole('heading', { name: /Welcome back/ })).toBeVisible({ timeout: 10_000 });
@@ -35,7 +36,7 @@ test.describe('Bug Reporting', () => {
 
       await openBugReportForm(page);
       await fillAndSubmitBugReport(page, {
-        title: `E2E Anon Bug ${Date.now()}`,
+        title: fake.bugTitle(),
         description: 'Anonymous bug report with an email address provided',
         email: 'anon-reporter@example.com',
       });
@@ -55,7 +56,7 @@ test.describe('Bug Reporting', () => {
 
       await openBugReportForm(page);
       await fillAndSubmitBugReport(page, {
-        title: `E2E Anon No Email ${Date.now()}`,
+        title: fake.bugTitle(),
         description: 'Anonymous bug report without an email address',
       });
 

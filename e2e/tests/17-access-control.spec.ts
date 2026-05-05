@@ -1,5 +1,6 @@
 import { test, expect, getAlert } from '../fixtures';
 import { proposeProject, adminCreateProject, adminApproveProject } from '../actions/projects';
+import { fake } from '../fake';
 
 test.describe('Access Control', () => {
   test('Unauthenticated user cannot access the dashboard', async ({ browser, baseUrl }) => {
@@ -20,7 +21,7 @@ test.describe('Access Control', () => {
   });
 
   test('Non-owner cannot update another volunteer\'s project', async ({ adminPage, volunteer, baseUrl }) => {
-    const projectId = await adminCreateProject(baseUrl, adminPage, `Access Control Update Test ${Date.now()}`, 'Test project for access control');
+    const projectId = await adminCreateProject(baseUrl, adminPage, fake.projectTitle(), 'Test project for access control');
 
     await volunteer.page.goto(`${baseUrl}/projects/${projectId}/edit`);
     await expect(getAlert(volunteer.page)).toContainText('You do not have permission to edit this project.', { timeout: 10_000 });
@@ -28,7 +29,7 @@ test.describe('Access Control', () => {
   });
 
   test('Non-owner cannot delete another volunteer\'s project', async ({ adminPage, volunteer, baseUrl }) => {
-    const projectId = await adminCreateProject(baseUrl, adminPage, `Access Control Delete Test ${Date.now()}`, 'Test project for delete access control');
+    const projectId = await adminCreateProject(baseUrl, adminPage, fake.projectTitle(), 'Test project for delete access control');
 
     await volunteer.page.goto(`${baseUrl}/projects/${projectId}/edit`);
     await expect(getAlert(volunteer.page)).toContainText('You do not have permission to edit this project.', { timeout: 10_000 });
@@ -36,11 +37,11 @@ test.describe('Access Control', () => {
   });
 
   test('Admin can update any project', async ({ adminPage, volunteer, baseUrl }) => {
-    const originalTitle = `Admin Update Test ${Date.now()}`;
+    const originalTitle = fake.projectTitle();
     const projectId = await proposeProject(baseUrl, volunteer.page, originalTitle, 'Project for admin update access control test');
     await adminApproveProject(baseUrl, adminPage, originalTitle);
 
-    const newTitle = `Admin Updated ${Date.now()}`;
+    const newTitle = fake.projectTitle();
     await adminPage.goto(`${baseUrl}/projects/${projectId}/edit`);
     await expect(adminPage.getByRole('heading', { name: 'Edit Project' })).toBeVisible({ timeout: 10_000 });
 

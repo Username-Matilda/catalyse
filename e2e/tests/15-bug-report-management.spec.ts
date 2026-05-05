@@ -1,6 +1,7 @@
 import { test, expect, getAlert } from '../fixtures';
 import type { Page } from '@playwright/test';
 import { submitBugReport } from '../actions/bugs';
+import { fake } from '../fake';
 
 async function navigateToBugsPage(baseUrl: string, adminPage: Page): Promise<void> {
   await adminPage.goto(`${baseUrl}/admin/bugs`);
@@ -29,7 +30,7 @@ async function updateReportStatus(
 
 test.describe('Bug Report Management', () => {
   test('Admin views the bug reports list', async ({ adminPage, volunteer, baseUrl }) => {
-    const title = `E2E Bug Management ${Date.now()}`;
+    const title = fake.bugTitle();
 
     await submitBugReport(baseUrl, volunteer.page, title, 'A test bug report for admin management e2e tests');
 
@@ -40,7 +41,7 @@ test.describe('Bug Report Management', () => {
   });
 
   test('Admin filters bug reports by status', async ({ adminPage, volunteer, baseUrl }) => {
-    const title = `E2E Filter Bug ${Date.now()}`;
+    const title = fake.bugTitle();
 
     await submitBugReport(baseUrl, volunteer.page, title, 'A bug report used for filter testing in e2e');
 
@@ -53,7 +54,7 @@ test.describe('Bug Report Management', () => {
   });
 
   test('Admin moves a bug report to in_progress', async ({ adminPage, volunteer, baseUrl }) => {
-    const title = `E2E In Progress Bug ${Date.now()}`;
+    const title = fake.bugTitle();
 
     await submitBugReport(baseUrl, volunteer.page, title, 'A bug report that will be moved to in_progress status');
 
@@ -67,8 +68,8 @@ test.describe('Bug Report Management', () => {
   });
 
   test('Admin resolves a bug report with resolution notes', async ({ adminPage, volunteer, baseUrl }) => {
-    const title = `E2E Resolved Bug ${Date.now()}`;
-    const notes = `Fixed in e2e test run ${Date.now()}`;
+    const title = fake.bugTitle();
+    const notes = fake.resolutionNotes();
 
     await submitBugReport(baseUrl, volunteer.page, title, 'A bug report that will be resolved with resolution notes');
 
@@ -87,7 +88,7 @@ test.describe('Bug Report Management', () => {
   });
 
   test("Admin marks a bug report as wont_fix", async ({ adminPage, volunteer, baseUrl }) => {
-    const title = `E2E Wont Fix Bug ${Date.now()}`;
+    const title = fake.bugTitle();
 
     await submitBugReport(baseUrl, volunteer.page, title, "A bug report that will be marked as wont_fix by admin");
 

@@ -1,6 +1,6 @@
-import crypto from 'crypto';
 import { readFileSync } from 'fs';
 import { test, expect, getAlert } from '../fixtures';
+import { fake } from '../fake';
 
 test.describe('GDPR & Privacy', () => {
   test('Volunteer exports their personal data', async ({ volunteer, baseUrl }) => {
@@ -31,17 +31,16 @@ test.describe('GDPR & Privacy', () => {
   });
 
   test('Volunteer with contact sharing disabled does not expose contact handles', async ({ volunteer, browser, baseUrl }) => {
-    const id = crypto.randomBytes(4).toString('hex');
-    const vol2Name = `Private Vol ${id}`;
-    const discordHandle = `privdiscord_${id}`;
-    const signalNumber = `+4400${id.slice(0, 6)}`;
-    const whatsappNumber = `+4500${id.slice(0, 6)}`;
+    const vol2 = fake.person();
+    const discordHandle = fake.username();
+    const signalNumber = fake.phoneNumber();
+    const whatsappNumber = fake.phoneNumber();
 
     const signupResp = await fetch(`${baseUrl}/api/auth/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        name: vol2Name, email: `privvol_${id}@test.com`, password: 'testpassword1',
+        name: vol2.name, email: vol2.email, password: 'testpassword1',
         consent_profile_visible: true, consent_contact_by_owners: true,
       }),
     });
@@ -68,11 +67,11 @@ test.describe('GDPR & Privacy', () => {
       await expect(getAlert(page2)).toContainText('Profile updated!', { timeout: 10_000 });
 
       await volunteer.page.goto(`${baseUrl}/volunteers`);
-      await volunteer.page.getByLabel('Search').fill(vol2Name);
-      await volunteer.page.getByRole('link', { name: vol2Name }).click();
+      await volunteer.page.getByLabel('Search').fill(vol2.name);
+      await volunteer.page.getByRole('link', { name: vol2.name }).click();
 
       await expect(
-        volunteer.page.getByRole('heading', { name: vol2Name, level: 1 })
+        volunteer.page.getByRole('heading', { name: vol2.name, level: 1 })
       ).toBeVisible({ timeout: 10_000 });
 
       await expect(volunteer.page.getByText(discordHandle)).not.toBeVisible();
