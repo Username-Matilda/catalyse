@@ -47,7 +47,7 @@ export async function POST(
     volunteerId, 'starter_task_assigned',
     `You've been assigned a starter task: ${task.title}`,
     task.description.slice(0, 200),
-    '/static/dashboard.html'
+    '/dashboard'
   ).catch(e => console.error('[NOTIFY ERROR]', e))
 
   return Response.json({ message: 'Task assigned' })

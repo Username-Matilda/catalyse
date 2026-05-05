@@ -59,7 +59,7 @@ export async function PUT(
     interest.volunteerId, `interest_${statusText}`,
     `Your interest in '${project.title}' was ${statusText}`,
     responseMessage,
-    `/static/project.html?id=${projectId}`
+    `/projects/${projectId}`
   ).catch(e => console.error('[NOTIFY ERROR]', e))
 
   if (newStatus === 'accepted' && interest.interestType === 'want_to_own') {

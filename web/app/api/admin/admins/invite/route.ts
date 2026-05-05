@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
 
   if (!isRealEmailSending()) {
     result._dev_invite_token = inviteToken
-    result._dev_invite_url = `${APP_URL}/static/accept-invite.html?token=${inviteToken}`
+    result._dev_invite_url = `${APP_URL}/accept-invite?token=${inviteToken}`
     result._dev_note = 'Email not configured. Share link manually.'
   }
 

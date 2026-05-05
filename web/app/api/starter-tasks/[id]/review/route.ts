@@ -92,7 +92,7 @@ export async function POST(
       task.assignedToId, 'starter_task_reviewed',
       `Your starter task was reviewed: ${reviewRating}`,
       feedbackToVolunteer || 'Check your dashboard for details.',
-      '/static/dashboard.html'
+      '/dashboard'
     ).catch(e => console.error('[NOTIFY ERROR]', e))
   }
 

@@ -80,7 +80,7 @@ export async function POST(
       volunteerId, 'assigned_to_project',
       `You've been assigned to '${project.title}'`,
       `Assigned by ${volunteer.name}`,
-      `/static/project.html?id=${projectId}`
+      `/projects/${projectId}`
     ).catch(e => console.error('[NOTIFY ERROR]', e))
 
     if (assignee.email) {

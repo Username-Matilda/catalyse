@@ -171,7 +171,7 @@ export async function POST(request: NextRequest) {
       admin.id, 'new_project_proposal',
       `New project proposal: ${project.title}`,
       `Proposed by ${volunteer.name}`,
-      '/static/admin/triage.html'
+      '/admin/triage'
     ).catch(e => console.error('[NOTIFY ERROR]', e))
 
     if (admin.email) {

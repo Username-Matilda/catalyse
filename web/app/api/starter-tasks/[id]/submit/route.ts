@@ -35,7 +35,7 @@ export async function PUT(
       task.assignedById, 'starter_task_submitted',
       `${volunteer.name} submitted: ${task.title}`,
       'Ready for review',
-      '/static/admin/starter-tasks.html'
+      '/admin/starter-tasks'
     ).catch(e => console.error('[NOTIFY ERROR]', e))
   }
 

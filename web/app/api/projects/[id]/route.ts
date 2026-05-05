@@ -288,7 +288,7 @@ export async function PUT(
         vid, 'project_status_changed',
         `'${project.title}' is now ${statusLabel}`,
         `Status changed by ${volunteer.name}`,
-        `/static/project.html?id=${projectId}`
+        `/projects/${projectId}`
       ).catch(e => console.error('[NOTIFY ERROR]', e))
 
       const vol = await prisma.volunteer.findFirst({

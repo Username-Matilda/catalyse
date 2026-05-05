@@ -76,7 +76,7 @@ export async function POST(
         project.ownerId, 'new_interest',
         `Someone's interested in '${project.title}'!`,
         `${volunteer.name} wants to ${interestLabel}`,
-        `/static/project.html?id=${projectId}`
+        `/projects/${projectId}`
       )
       const owner = await prisma.volunteer.findFirst({
         where: { id: project.ownerId },
@@ -109,7 +109,7 @@ export async function POST(
         admin.id, 'new_interest',
         `New interest in '${project.title}'`,
         `${volunteer.name} wants to ${interestLabel}`,
-        `/static/project.html?id=${projectId}`
+        `/projects/${projectId}`
       ).catch(e => console.error('[NOTIFY ERROR]', e))
       if (admin.email) {
         sendProjectNotificationEmail(

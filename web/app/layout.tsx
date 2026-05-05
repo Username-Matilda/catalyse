@@ -36,6 +36,7 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${montserrat.variable} ${robotoSlab.variable} ${sairaCondensed.variable}`}
+      suppressHydrationWarning
     >
       <body className="min-h-screen flex flex-col">
         <ThemeProvider>

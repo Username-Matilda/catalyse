@@ -65,7 +65,7 @@ export async function POST(
         project.proposedById, 'project_approved',
         `Your project '${project.title}' has been approved!`,
         "It's now visible to other volunteers.",
-        `/static/project.html?id=${projectId}`
+        `/projects/${projectId}`
       ).catch(e => console.error('[NOTIFY ERROR]', e))
 
       const proposer = await prisma.volunteer.findFirst({
@@ -100,7 +100,7 @@ export async function POST(
         project.proposedById, 'project_needs_discussion',
         `Let's discuss your project '${project.title}'`,
         feedback,
-        `/static/project.html?id=${projectId}`
+        `/projects/${projectId}`
       ).catch(e => console.error('[NOTIFY ERROR]', e))
 
       const proposer = await prisma.volunteer.findFirst({

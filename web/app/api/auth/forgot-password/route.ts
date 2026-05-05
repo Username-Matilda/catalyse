@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
 
   if (!isRealEmailSending()) {
     result._dev_reset_token = resetToken
-    result._dev_reset_url = `/static/reset-password.html?token=${resetToken}`
+    result._dev_reset_url = `/reset-password?token=${resetToken}`
     result._dev_note = 'Email not configured. Set RESEND_API_KEY to enable.'
   }
 

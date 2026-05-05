@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
         'new_bug_report',
         `New ${(body.category as string) || 'bug'}: ${(body.title as string).trim()}`,
         `Severity: ${(body.severity as string) || 'medium'}`,
-        '/static/admin/bugs.html'
+        '/admin/bugs'
       ).catch(e => console.error('[NOTIFY ERROR]', e))
     )
   )

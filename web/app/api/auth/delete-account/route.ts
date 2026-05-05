@@ -76,7 +76,7 @@ async function sendAccountDeletionNotifications(
             volunteerId: rid, type: 'account_deleted_impact',
             title: `${deletedName} has deleted their account`,
             body: `${p.taskCount} ${word} in '${p.projectTitle}' assigned to ${deletedName} need a new assignee.`,
-            link: `/static/project.html?id=${p.projectId}`,
+            link: `/projects/${p.projectId}`,
           },
         })
       } catch (e) {
@@ -90,7 +90,7 @@ async function sendAccountDeletionNotifications(
             volunteerId: rid, type: 'account_deleted_impact',
             title: `${deletedName} has deleted their account`,
             body: `'${p.projectTitle}' needs a new owner.`,
-            link: `/static/project.html?id=${p.projectId}`,
+            link: `/projects/${p.projectId}`,
           },
         })
       } catch (e) {
