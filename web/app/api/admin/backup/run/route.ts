@@ -1,21 +1,18 @@
 import { NextRequest } from 'next/server'
-import { existsSync, copyFileSync, mkdirSync } from 'node:fs'
-import path from 'node:path'
 import { requireAdmin } from '@/lib/auth'
 
-function getDatabasePath(): string | null {
-  const mountPath = process.env.RAILWAY_VOLUME_MOUNT_PATH
-  if (mountPath) return path.join(mountPath, 'catalyse.db')
-  const dbUrl = process.env.DATABASE_URL
-  if (dbUrl?.startsWith('file:')) return dbUrl.slice(5)
-  return null
-}
-
 export async function POST(request: NextRequest) {
+  const { existsSync, copyFileSync, mkdirSync } = await import('node:fs')
+  const path = await import('node:path')
+
   const { error } = await requireAdmin(request.headers.get('authorization'))
   if (error) return error
 
-  const dbPath = getDatabasePath()
+  const mountPath = process.env.RAILWAY_VOLUME_MOUNT_PATH
+  const dbUrl = process.env.DATABASE_URL
+  const dbPath = mountPath
+    ? path.join(mountPath, 'catalyse.db')
+    : dbUrl?.startsWith('file:') ? dbUrl.slice(5) : null
   if (!dbPath || !existsSync(dbPath)) {
     return Response.json({ detail: 'Database not found' }, { status: 404 })
   }

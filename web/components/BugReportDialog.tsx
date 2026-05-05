@@ -150,7 +150,7 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
               <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
                 <button type="button" className="btn btn-ghost" onClick={handleClose}>Cancel</button>
                 <button type="submit" className="btn btn-primary" disabled={submitting}>
-                  {submitting ? 'Sending…' : 'Submit'}
+                  {submitting ? 'Sending…' : 'Submit Report'}
                 </button>
               </div>
             </form>

@@ -1,4 +1,4 @@
-import { test, expect } from '../fixtures';
+import { test, expect, getAlert } from '../fixtures';
 import type { Page } from '@playwright/test';
 import { submitBugReport } from '../actions/bugs';
 
@@ -24,7 +24,7 @@ async function updateReportStatus(
     await modal.getByLabel('Resolution Notes').fill(resolutionNotes);
   }
   await modal.getByRole('button', { name: 'Update' }).click();
-  await expect(adminPage.getByRole('alert')).toContainText('Report updated!', { timeout: 10_000 });
+  await expect(getAlert(adminPage)).toContainText('Report updated!', { timeout: 10_000 });
 }
 
 test.describe('Bug Report Management', () => {

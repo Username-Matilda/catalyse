@@ -36,7 +36,26 @@ interface VolunteerDetail {
   project_history: ProjectHistory[]
 }
 
-const NOTE_CATEGORIES = ['general', 'skill_feedback', 'reliability', 'fit']
+const NOTE_CATEGORIES = [
+  { value: 'general', label: 'General' },
+  { value: 'skill_feedback', label: 'Skill Feedback' },
+  { value: 'reliability', label: 'Reliability' },
+  { value: 'fit', label: 'Fit' },
+]
+
+const RATING_OPTIONS = [
+  { value: 'verified', label: 'Verified - Can deliver' },
+  { value: 'strong', label: 'Strong - Highly skilled' },
+]
+
+const BASED_ON_OPTIONS = [
+  { value: 'direct_observation', label: 'Direct Observation' },
+  { value: 'project_work', label: 'Project Work' },
+  { value: 'interview', label: 'Interview' },
+  { value: 'reference', label: 'Reference' },
+]
+
+type Tab = 'admin_notes' | 'starter_tasks' | 'project_history' | 'endorse_skill'
 
 export default function AdminVolunteerDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -47,15 +66,20 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
   const [flatSkills, setFlatSkills] = useState<Skill[]>([])
   const [alert, setAlert] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [activeTab, setActiveTab] = useState<Tab>('admin_notes')
 
-  // Note form
+  // Note add form
   const [noteContent, setNoteContent] = useState('')
   const [noteCategory, setNoteCategory] = useState('general')
-  const [editingNote, setEditingNote] = useState<AdminNote | null>(null)
+
+  // Note inline edit
+  const [editingNoteId, setEditingNoteId] = useState<number | null>(null)
+  const [editingNoteContent, setEditingNoteContent] = useState('')
 
   // Endorsement form
   const [endorseSkillId, setEndorseSkillId] = useState('')
   const [endorseRating, setEndorseRating] = useState('verified')
+  const [endorseBasedOn, setEndorseBasedOn] = useState('direct_observation')
 
   useEffect(() => {
     if (!loading && !user) router.push('/login')
@@ -74,29 +98,44 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
     }).catch(() => setLoadingData(false))
   }, [user, id])
 
+  function showAlert(text: string, type: 'success' | 'error') {
+    setAlert({ text, type })
+  }
+
   async function addNote(e: React.FormEvent) {
     e.preventDefault()
     setSubmitting(true)
     try {
-      if (editingNote) {
-        await apiRequest(`/api/admin/notes/${editingNote.id}`, {
-          method: 'PUT',
-          body: JSON.stringify({ content: noteContent, category: noteCategory }),
-        })
-        setAlert({ text: 'Note updated', type: 'success' })
-        setEditingNote(null)
-      } else {
-        await apiRequest(`/api/admin/volunteers/${id}/notes`, {
-          method: 'POST',
-          body: JSON.stringify({ content: noteContent, category: noteCategory }),
-        })
-        setAlert({ text: 'Note added', type: 'success' })
-      }
-      setNoteContent(''); setNoteCategory('general')
+      await apiRequest(`/api/admin/volunteers/${id}/notes`, {
+        method: 'POST',
+        body: JSON.stringify({ content: noteContent, category: noteCategory }),
+      })
+      showAlert('Note added.', 'success')
+      setNoteContent('')
+      setNoteCategory('general')
       const updated = await apiRequest<VolunteerDetail>(`/api/admin/volunteers/${id}`)
       setVol(updated)
     } catch (err: unknown) {
-      setAlert({ text: err instanceof Error ? err.message : 'Failed', type: 'error' })
+      showAlert(err instanceof Error ? err.message : 'Failed', 'error')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function saveEditedNote(noteId: number) {
+    setSubmitting(true)
+    try {
+      await apiRequest(`/api/admin/notes/${noteId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ content: editingNoteContent }),
+      })
+      showAlert('Note updated.', 'success')
+      setEditingNoteId(null)
+      setEditingNoteContent('')
+      const updated = await apiRequest<VolunteerDetail>(`/api/admin/volunteers/${id}`)
+      setVol(updated)
+    } catch (err: unknown) {
+      showAlert(err instanceof Error ? err.message : 'Failed', 'error')
     } finally {
       setSubmitting(false)
     }
@@ -106,10 +145,10 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
     if (!confirm('Delete this note?')) return
     try {
       await apiRequest(`/api/admin/notes/${noteId}`, { method: 'DELETE' })
-      setAlert({ text: 'Note deleted', type: 'success' })
+      showAlert('Note deleted.', 'success')
       setVol(prev => prev ? { ...prev, admin_notes: prev.admin_notes.filter(n => n.id !== noteId) } : prev)
     } catch (err: unknown) {
-      setAlert({ text: err instanceof Error ? err.message : 'Failed', type: 'error' })
+      showAlert(err instanceof Error ? err.message : 'Failed', 'error')
     }
   }
 
@@ -119,14 +158,20 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
     try {
       await apiRequest(`/api/admin/volunteers/${id}/endorsements`, {
         method: 'POST',
-        body: JSON.stringify({ skill_id: parseInt(endorseSkillId), rating: endorseRating }),
+        body: JSON.stringify({
+          skill_id: parseInt(endorseSkillId),
+          rating: endorseRating,
+          source: endorseBasedOn,
+        }),
       })
-      setAlert({ text: 'Endorsement added', type: 'success' })
-      setEndorseSkillId(''); setEndorseRating('verified')
+      showAlert('Skill endorsed!', 'success')
+      setEndorseSkillId('')
+      setEndorseRating('verified')
+      setEndorseBasedOn('direct_observation')
       const updated = await apiRequest<VolunteerDetail>(`/api/admin/volunteers/${id}`)
       setVol(updated)
     } catch (err: unknown) {
-      setAlert({ text: err instanceof Error ? err.message : 'Failed', type: 'error' })
+      showAlert(err instanceof Error ? err.message : 'Failed', 'error')
     } finally {
       setSubmitting(false)
     }
@@ -169,7 +214,7 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
           </div>
         )}
 
-        {/* Profile */}
+        {/* Profile header */}
         <div className="card" style={{ marginBottom: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
             <div>
@@ -181,136 +226,208 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
               {!vol.profile_visible && <span style={{ padding: '2px 8px', borderRadius: 12, background: 'var(--warning-bg, #fffbeb)', fontSize: '0.8rem' }}>Profile Hidden</span>}
             </div>
           </div>
+          {vol.bio && <p style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{vol.bio}</p>}
+        </div>
 
-          {vol.bio && <p style={{ marginBottom: 12, whiteSpace: 'pre-wrap' }}>{vol.bio}</p>}
-
-          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', fontSize: '0.875rem', color: 'var(--text-light)', marginBottom: 12 }}>
-            {vol.location && <span>📍 {vol.location}</span>}
-            {vol.local_group && <span>👥 {vol.local_group}</span>}
-            {vol.availability_hours_per_week && <span>⏱ {vol.availability_hours_per_week}h/week</span>}
-            {vol.discord_handle && <span>Discord: {vol.discord_handle}</span>}
-          </div>
-
-          {vol.skills.length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {/* Skills and contact info */}
+        <div className="card" style={{ marginBottom: 24 }}>
+          <h3>Skills (Self-Assessed)</h3>
+          {vol.skills.length > 0 ? (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
               {vol.skills.map(s => <span key={s.id} className="skill-tag">{s.name}</span>)}
             </div>
-          )}
-        </div>
-
-        {/* Endorsements */}
-        <div className="card" style={{ marginBottom: 24 }}>
-          <h2>Skill Endorsements</h2>
-          {vol.endorsements.length > 0 ? (
-            <div style={{ marginBottom: 16 }}>
-              {vol.endorsements.map(e => (
-                <div key={e.id} style={{ padding: '8px 0', borderBottom: '1px solid var(--border)', fontSize: '0.875rem' }}>
-                  <strong>{e.skill_name}</strong> — {e.rating} · by {e.endorsed_by_name}
-                  {e.notes && <p style={{ margin: '2px 0 0', color: 'var(--text-light)', fontStyle: 'italic' }}>{e.notes}</p>}
-                </div>
-              ))}
-            </div>
           ) : (
-            <p style={{ color: 'var(--text-light)', marginBottom: 16 }}>No endorsements yet.</p>
+            <p style={{ color: 'var(--text-light)', marginBottom: 16 }}>No skills listed.</p>
           )}
-          <form onSubmit={addEndorsement} style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-            <div className="form-group" style={{ flex: 1, margin: 0, minWidth: 180 }}>
-              <label htmlFor="endorse-skill">Skill</label>
-              <select id="endorse-skill" value={endorseSkillId} onChange={e => setEndorseSkillId(e.target.value)} required style={{ width: '100%' }}>
-                <option value="">Select skill…</option>
-                {flatSkills.map(s => <option key={s.id} value={s.id}>{s.name} ({s.category_name})</option>)}
-              </select>
-            </div>
-            <div className="form-group" style={{ margin: 0 }}>
-              <label htmlFor="endorse-rating">Rating</label>
-              <select id="endorse-rating" value={endorseRating} onChange={e => setEndorseRating(e.target.value)} style={{ width: 140 }}>
-                <option value="verified">Verified</option>
-                <option value="strong">Strong</option>
-              </select>
-            </div>
-            <button type="submit" className="btn btn-secondary" disabled={submitting}>Add Endorsement</button>
-          </form>
+
+          <h3>Verified Skills (Endorsed)</h3>
+          <div id="endorsements" style={{ marginBottom: 16 }}>
+            {vol.endorsements.length > 0 ? vol.endorsements.map(e => (
+              <div key={e.id} style={{ padding: '6px 0', borderBottom: '1px solid var(--border)', fontSize: '0.875rem' }}>
+                <strong>{e.skill_name}</strong> — {e.rating} · by {e.endorsed_by_name}
+              </div>
+            )) : (
+              <p style={{ color: 'var(--text-light)' }}>No endorsements yet.</p>
+            )}
+          </div>
+
+          <h3>Contact Info</h3>
+          <div id="contactInfo" style={{ fontSize: '0.875rem' }}>
+            <p style={{ margin: '4px 0' }}><strong>Email:</strong> {vol.email}</p>
+            {vol.location && <p style={{ margin: '4px 0' }}><strong>Location:</strong> {vol.location}</p>}
+            {vol.local_group && <p style={{ margin: '4px 0' }}><strong>Local Group:</strong> {vol.local_group}</p>}
+            {vol.availability_hours_per_week && <p style={{ margin: '4px 0' }}><strong>Availability:</strong> {vol.availability_hours_per_week}h/week</p>}
+            {vol.discord_handle && <p style={{ margin: '4px 0' }}><strong>Discord:</strong> {vol.discord_handle}</p>}
+            {vol.signal_number && <p style={{ margin: '4px 0' }}><strong>Signal:</strong> {vol.signal_number}</p>}
+            {vol.whatsapp_number && <p style={{ margin: '4px 0' }}><strong>WhatsApp:</strong> {vol.whatsapp_number}</p>}
+          </div>
         </div>
 
-        {/* Admin Notes */}
-        <div className="card" style={{ marginBottom: 24 }}>
-          <h2>Admin Notes</h2>
-          {vol.admin_notes.length > 0 ? (
-            <div style={{ marginBottom: 16 }}>
-              {vol.admin_notes.map(n => (
-                <div key={n.id} style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div>
-                      <span style={{ fontSize: '0.8rem', background: 'var(--bg-secondary, #f8fafc)', padding: '1px 6px', borderRadius: 8 }}>{n.category}</span>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-light)', marginLeft: 8 }}>by {n.author_name}</span>
-                    </div>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button className="btn btn-small btn-secondary" onClick={() => { setEditingNote(n); setNoteContent(n.content); setNoteCategory(n.category) }}>Edit</button>
-                      <button className="btn btn-small" style={{ color: 'var(--error)' }} onClick={() => deleteNote(n.id)}>Delete</button>
+        {/* Tabs */}
+        <div className="card">
+          <div role="tablist" style={{ display: 'flex', gap: 0, borderBottom: '2px solid var(--border)', marginBottom: 20 }}>
+            {([
+              { key: 'admin_notes', label: 'Admin Notes' },
+              { key: 'starter_tasks', label: 'Starter Tasks' },
+              { key: 'project_history', label: 'Project History' },
+              { key: 'endorse_skill', label: 'Endorse Skill' },
+            ] as { key: Tab; label: string }[]).map(tab => (
+              <button
+                key={tab.key}
+                role="tab"
+                aria-selected={activeTab === tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                style={{
+                  padding: '8px 16px',
+                  border: 'none',
+                  background: 'none',
+                  cursor: 'pointer',
+                  borderBottom: activeTab === tab.key ? '2px solid var(--primary)' : '2px solid transparent',
+                  marginBottom: -2,
+                  fontWeight: activeTab === tab.key ? 600 : 400,
+                  color: activeTab === tab.key ? 'var(--primary)' : 'var(--text-light)',
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Admin Notes tab */}
+          {activeTab === 'admin_notes' && (
+            <div>
+              <div id="notesList">
+                {vol.admin_notes.length === 0 && (
+                  <p style={{ color: 'var(--text-light)', marginBottom: 16 }}>No notes yet.</p>
+                )}
+                {vol.admin_notes.map(n => (
+                  <div key={n.id} style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+                    {editingNoteId === n.id ? (
+                      <div>
+                        <label htmlFor={`edit-note-${n.id}`} style={{ display: 'block', marginBottom: 4, fontSize: '0.875rem' }}>Edit note</label>
+                        <textarea
+                          id={`edit-note-${n.id}`}
+                          rows={3}
+                          value={editingNoteContent}
+                          onChange={e => setEditingNoteContent(e.target.value)}
+                          style={{ width: '100%', marginBottom: 8 }}
+                        />
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button className="btn btn-small btn-secondary" onClick={() => saveEditedNote(n.id)} disabled={submitting}>Save</button>
+                          <button className="btn btn-small" onClick={() => { setEditingNoteId(null); setEditingNoteContent('') }}>Cancel</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <div>
+                            <span style={{ fontSize: '0.8rem', background: 'var(--bg-secondary, #f8fafc)', padding: '1px 6px', borderRadius: 8 }}>{n.category.replace(/_/g, ' ')}</span>
+                            <span style={{ fontSize: '0.8rem', color: 'var(--text-light)', marginLeft: 8 }}>by {n.author_name}</span>
+                          </div>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button
+                              className="btn btn-small btn-secondary"
+                              onClick={() => { setEditingNoteId(n.id); setEditingNoteContent(n.content) }}
+                            >Edit</button>
+                            <button
+                              className="btn btn-small"
+                              style={{ color: 'var(--error)' }}
+                              onClick={() => deleteNote(n.id)}
+                            >Delete</button>
+                          </div>
+                        </div>
+                        <p style={{ margin: '8px 0 0', whiteSpace: 'pre-wrap' }}>{n.content}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <form onSubmit={addNote} style={{ marginTop: 16 }}>
+                <div style={{ display: 'flex', gap: 12, marginBottom: 8, flexWrap: 'wrap' }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label htmlFor="note-category">Category</label>
+                    <select id="note-category" value={noteCategory} onChange={e => setNoteCategory(e.target.value)} style={{ width: 160 }}>
+                      {NOTE_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="note-content">Note</label>
+                  <textarea id="note-content" rows={3} value={noteContent} onChange={e => setNoteContent(e.target.value)} required placeholder="Add an admin note…" style={{ width: '100%' }} />
+                </div>
+                <button type="submit" className="btn btn-secondary" disabled={submitting}>Add Note</button>
+              </form>
+            </div>
+          )}
+
+          {/* Starter Tasks tab */}
+          {activeTab === 'starter_tasks' && (
+            <div>
+              {vol.starter_tasks.length === 0 ? (
+                <p style={{ color: 'var(--text-light)' }}>No starter tasks assigned yet.</p>
+              ) : (
+                vol.starter_tasks.map(t => (
+                  <div key={t.id} style={{ padding: '8px 0', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+                    <span>{t.title}{t.skill_name && ` (${t.skill_name})`}</span>
+                    <span style={{ color: 'var(--text-light)' }}>
+                      {t.status}{t.review_rating && ` · ${t.review_rating}`}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {/* Project History tab */}
+          {activeTab === 'project_history' && (
+            <div>
+              {vol.project_history.length === 0 ? (
+                <p style={{ color: 'var(--text-light)' }}>No project history.</p>
+              ) : (
+                vol.project_history.map(p => (
+                  <div key={p.id} style={{ padding: '8px 0', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between' }}>
+                    <Link href={`/projects/${p.id}`} style={{ fontWeight: 500 }}>{p.title}</Link>
+                    <div style={{ fontSize: '0.875rem', color: 'var(--text-light)' }}>
+                      {p.owner_id === vol.id ? 'owner' : 'proposer'} · {p.status.replace(/_/g, ' ')}
                     </div>
                   </div>
-                  <p style={{ margin: '8px 0 0', whiteSpace: 'pre-wrap' }}>{n.content}</p>
-                </div>
-              ))}
+                ))
+              )}
             </div>
-          ) : (
-            <p style={{ color: 'var(--text-light)', marginBottom: 16 }}>No notes yet.</p>
           )}
 
-          <form onSubmit={addNote}>
-            {editingNote && (
-              <p style={{ fontSize: '0.875rem', color: 'var(--text-light)', marginBottom: 8 }}>
-                Editing note from {editingNote.author_name}{' '}
-                <button type="button" onClick={() => { setEditingNote(null); setNoteContent(''); setNoteCategory('general') }} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', textDecoration: 'underline' }}>Cancel</button>
-              </p>
-            )}
-            <div style={{ display: 'flex', gap: 12, marginBottom: 8, flexWrap: 'wrap' }}>
-              <div className="form-group" style={{ margin: 0 }}>
-                <label htmlFor="note-category">Category</label>
-                <select id="note-category" value={noteCategory} onChange={e => setNoteCategory(e.target.value)} style={{ width: 160 }}>
-                  {NOTE_CATEGORIES.map(c => <option key={c} value={c}>{c.replace(/_/g, ' ')}</option>)}
-                </select>
-              </div>
-            </div>
-            <div className="form-group">
-              <label htmlFor="note-content">Note</label>
-              <textarea id="note-content" rows={3} value={noteContent} onChange={e => setNoteContent(e.target.value)} required placeholder="Add an admin note…" style={{ width: '100%' }} />
-            </div>
-            <button type="submit" className="btn btn-secondary" disabled={submitting}>
-              {editingNote ? 'Update Note' : 'Add Note'}
-            </button>
-          </form>
-        </div>
-
-        {/* Starter Tasks */}
-        {vol.starter_tasks.length > 0 && (
-          <div className="card" style={{ marginBottom: 24 }}>
-            <h2>Starter Tasks</h2>
-            {vol.starter_tasks.map(t => (
-              <div key={t.id} style={{ padding: '8px 0', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
-                <span>{t.title}{t.skill_name && ` (${t.skill_name})`}</span>
-                <span style={{ color: 'var(--text-light)' }}>
-                  {t.status}{t.review_rating && ` · ${t.review_rating}`}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Project History */}
-        {vol.project_history.length > 0 && (
-          <div className="card" style={{ marginBottom: 24 }}>
-            <h2>Project History</h2>
-            {vol.project_history.map(p => (
-              <div key={p.id} style={{ padding: '8px 0', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between' }}>
-                <Link href={`/projects/${p.id}`} style={{ fontWeight: 500 }}>{p.title}</Link>
-                <div style={{ fontSize: '0.875rem', color: 'var(--text-light)' }}>
-                  {p.owner_id === vol.id ? 'owner' : 'proposer'} · {p.status.replace(/_/g, ' ')}
+          {/* Endorse Skill tab */}
+          {activeTab === 'endorse_skill' && (
+            <div>
+              <h3>Endorse a Skill</h3>
+              <form onSubmit={addEndorsement} style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 480 }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label htmlFor="endorse-skill">Skill</label>
+                  <select id="endorse-skill" value={endorseSkillId} onChange={e => setEndorseSkillId(e.target.value)} required style={{ width: '100%' }}>
+                    <option value="">Select skill…</option>
+                    {flatSkills.map(s => <option key={s.id} value={s.id}>{s.name} ({s.category_name})</option>)}
+                  </select>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label htmlFor="endorse-rating">Rating</label>
+                  <select id="endorse-rating" value={endorseRating} onChange={e => setEndorseRating(e.target.value)} style={{ width: '100%' }}>
+                    {RATING_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                  </select>
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label htmlFor="endorse-based-on">Based On</label>
+                  <select id="endorse-based-on" value={endorseBasedOn} onChange={e => setEndorseBasedOn(e.target.value)} style={{ width: '100%' }}>
+                    {BASED_ON_OPTIONS.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <button type="submit" className="btn btn-secondary" disabled={submitting}>Endorse Skill</button>
+                </div>
+              </form>
+            </div>
+          )}
+        </div>
       </main>
     </>
   )

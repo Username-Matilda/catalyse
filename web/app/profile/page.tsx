@@ -21,6 +21,10 @@ interface ProfileData {
   email_digest: string
   other_skills: string | null
   skills: Array<{ id: number; proficiency_level: string | null }>
+  discord_handle: string | null
+  signal_number: string | null
+  whatsapp_number: string | null
+  share_contact_directly: boolean | null
 }
 
 export default function ProfilePage() {
@@ -31,6 +35,10 @@ export default function ProfilePage() {
   const [location, setLocation] = useState('')
   const [hours, setHours] = useState('')
   const [profileVisible, setProfileVisible] = useState(false)
+  const [shareContactDirectly, setShareContactDirectly] = useState(false)
+  const [discordHandle, setDiscordHandle] = useState('')
+  const [signalNumber, setSignalNumber] = useState('')
+  const [whatsappNumber, setWhatsappNumber] = useState('')
   const [emailDigest, setEmailDigest] = useState('none')
   const [skills, setSkills] = useState<SelectedSkill[]>([])
   const [otherSkills, setOtherSkills] = useState('')
@@ -51,6 +59,10 @@ export default function ProfilePage() {
         setLocation(d.location ?? '')
         setHours(d.availability_hours_per_week != null ? String(d.availability_hours_per_week) : '')
         setProfileVisible(!!d.profile_visible)
+        setShareContactDirectly(!!d.share_contact_directly)
+        setDiscordHandle(d.discord_handle ?? '')
+        setSignalNumber(d.signal_number ?? '')
+        setWhatsappNumber(d.whatsapp_number ?? '')
         setEmailDigest(d.email_digest ?? 'none')
         setOtherSkills(d.other_skills ?? '')
         setSkills(
@@ -77,6 +89,10 @@ export default function ProfilePage() {
           location: location.trim() || null,
           availability_hours_per_week: hours ? Number(hours) : null,
           profile_visible: profileVisible,
+          share_contact_directly: shareContactDirectly,
+          discord_handle: discordHandle.trim() || null,
+          signal_number: signalNumber.trim() || null,
+          whatsapp_number: whatsappNumber.trim() || null,
           email_digest: emailDigest,
           other_skills: otherSkills.trim() || null,
           skill_ids: skills.map(s => s.skillId),
@@ -159,6 +175,39 @@ export default function ProfilePage() {
           </div>
 
           <div className="form-group">
+            <label htmlFor="discord_handle">Discord Handle</label>
+            <input
+              type="text"
+              id="discord_handle"
+              value={discordHandle}
+              onChange={e => setDiscordHandle(e.target.value)}
+              placeholder="e.g. username#1234"
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="signal_number">Signal</label>
+            <input
+              type="text"
+              id="signal_number"
+              value={signalNumber}
+              onChange={e => setSignalNumber(e.target.value)}
+              placeholder="e.g. +44…"
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="whatsapp_number">WhatsApp</label>
+            <input
+              type="text"
+              id="whatsapp_number"
+              value={whatsappNumber}
+              onChange={e => setWhatsappNumber(e.target.value)}
+              placeholder="e.g. +44…"
+            />
+          </div>
+
+          <div className="form-group">
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
               <input
                 type="checkbox"
@@ -166,7 +215,19 @@ export default function ProfilePage() {
                 checked={profileVisible}
                 onChange={e => setProfileVisible(e.target.checked)}
               />
-              Show my profile in the volunteer directory
+              Make my profile visible to other volunteers
+            </label>
+          </div>
+
+          <div className="form-group">
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                id="share_contact_directly"
+                checked={shareContactDirectly}
+                onChange={e => setShareContactDirectly(e.target.checked)}
+              />
+              Share my contact info directly with project owners
             </label>
           </div>
 

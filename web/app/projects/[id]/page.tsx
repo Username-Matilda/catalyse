@@ -153,6 +153,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const [reviewSubmitting, setReviewSubmitting] = useState(false)
   const [reviewDone, setReviewDone] = useState(false)
 
+  // Contact owner
+  const [showContactModal, setShowContactModal] = useState(false)
+  const [contactSubject, setContactSubject] = useState('')
+  const [contactBody, setContactBody] = useState('')
+  const [contactSubmitting, setContactSubmitting] = useState(false)
+
   useEffect(() => {
     if (!loading && !user) router.replace('/login')
   }, [user, loading, router])
@@ -186,6 +192,26 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   function showAlert(msg: string) {
     setAlert(msg)
     setTimeout(() => setAlert(null), 4000)
+  }
+
+  async function handleContactOwner(e: React.FormEvent) {
+    e.preventDefault()
+    if (!project?.owner_id) return
+    setContactSubmitting(true)
+    try {
+      await apiRequest(`/api/contact/${project.owner_id}`, {
+        method: 'POST',
+        body: JSON.stringify({ subject: contactSubject.trim(), message: contactBody.trim(), related_project_id: project.id }),
+      })
+      setShowContactModal(false)
+      setContactSubject('')
+      setContactBody('')
+      showAlert("Message sent! They'll receive it by email and can reply directly to you.")
+    } catch (err: unknown) {
+      showAlert(err instanceof Error ? err.message : 'Failed to send message')
+    } finally {
+      setContactSubmitting(false)
+    }
   }
 
   if (loading || !user) return null
@@ -514,6 +540,16 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               <p style={{ marginTop: 8, color: 'var(--text-light)' }}>
                 Owner: <Link href={`/volunteers/${project.owner.id}`}>{project.owner.name}</Link>
               </p>
+            )}
+
+            {project.owner_id && !isOwner && !isAdmin && (
+              <button
+                className="btn btn-secondary btn-small"
+                style={{ marginTop: 8 }}
+                onClick={() => setShowContactModal(true)}
+              >
+                Contact Owner
+              </button>
             )}
 
             {project.collaboration_link && (
@@ -909,6 +945,50 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           </div>
         </div>
       </main>
+
+      {showContactModal && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+          onClick={e => { if (e.target === e.currentTarget) setShowContactModal(false) }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Contact Owner"
+            style={{ background: 'var(--card-bg, white)', borderRadius: 12, padding: 32, maxWidth: 480, width: '90%' }}
+          >
+            <h2 style={{ marginBottom: 16 }}>Contact Owner</h2>
+            <form onSubmit={handleContactOwner}>
+              <div className="form-group">
+                <label htmlFor="contact-subject">Subject</label>
+                <input
+                  id="contact-subject"
+                  type="text"
+                  value={contactSubject}
+                  onChange={e => setContactSubject(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="contact-message">Message</label>
+                <textarea
+                  id="contact-message"
+                  rows={4}
+                  value={contactBody}
+                  onChange={e => setContactBody(e.target.value)}
+                  required
+                />
+              </div>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowContactModal(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={contactSubmitting}>
+                  Send Message
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   )
 }

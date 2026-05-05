@@ -85,7 +85,7 @@ export async function POST(
         type: 'message_received',
         title: `Message from ${sender.name}`,
         body: subject,
-        link: '/static/dashboard.html',
+        link: '/dashboard',
       },
     })
   })

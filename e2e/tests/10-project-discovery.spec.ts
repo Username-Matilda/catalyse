@@ -4,8 +4,10 @@ import { adminCreateProject } from '../actions/projects';
 // Both the project list (index.html) and individual project pages redirect unauthenticated
 // visitors to /login via `if (!currentUser) { window.location.href = ... }`.
 // There is no public / unauthenticated view of projects.
-test.skip('Visitor browses the project list unauthenticated', async () => {});
-test.skip('Visitor views a project detail page unauthenticated', async () => {});
+test.describe('Unauthenticated Project Access', () => {
+  test.skip('Visitor browses the project list unauthenticated', async () => {});
+  test.skip('Visitor views a project detail page unauthenticated', async () => {});
+});
 
 test.describe('Project Discovery', () => {
   test('Volunteer searches projects by keyword', async ({ adminPage, volunteer, baseUrl }) => {

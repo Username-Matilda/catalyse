@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import Header from '@/components/Header'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
@@ -42,6 +43,7 @@ export default function AdminStarterTasksPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [alert, setAlert] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set())
 
   // Create form
   const [createTitle, setCreateTitle] = useState('')
@@ -88,6 +90,15 @@ export default function AdminStarterTasksPage() {
     } finally {
       setLoadingData(false)
     }
+  }
+
+  function toggleCard(id: number) {
+    setExpandedCards(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
   }
 
   async function createTask(e: React.FormEvent) {
@@ -146,7 +157,7 @@ export default function AdminStarterTasksPage() {
           review_notes: reviewNotes || null,
         }),
       })
-      setAlert({ text: `Task reviewed as ${reviewRating}!`, type: 'success' })
+      setAlert({ text: 'Task reviewed!', type: 'success' })
       setReviewModal(null)
       await loadAll()
     } catch (err: unknown) {
@@ -160,6 +171,12 @@ export default function AdminStarterTasksPage() {
 
   const STATUS_OPTS = ['', 'open', 'assigned', 'submitted', 'completed', 'reviewed']
 
+  const RATING_LABELS: Record<string, string> = {
+    excellent: 'Excellent',
+    good: 'Good',
+    needs_improvement: 'Needs improvement',
+  }
+
   return (
     <>
       <Header />
@@ -167,7 +184,7 @@ export default function AdminStarterTasksPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <h1>Starter Tasks</h1>
           <button className="btn btn-primary" onClick={() => setShowCreate(s => !s)}>
-            {showCreate ? 'Cancel' : '+ Create Task'}
+            {showCreate ? 'Cancel' : 'Create Task'}
           </button>
         </div>
 
@@ -178,8 +195,8 @@ export default function AdminStarterTasksPage() {
         )}
 
         {showCreate && (
-          <div className="card" style={{ marginBottom: 24 }}>
-            <h2>Create Starter Task</h2>
+          <div role="dialog" aria-labelledby="create-dialog-title" className="card" style={{ marginBottom: 24 }}>
+            <h2 id="create-dialog-title">Create Starter Task</h2>
             <form onSubmit={createTask}>
               <div className="form-group">
                 <label htmlFor="ct-title">Title</label>
@@ -191,7 +208,7 @@ export default function AdminStarterTasksPage() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div className="form-group">
-                  <label htmlFor="ct-skill">Skill</label>
+                  <label htmlFor="ct-skill">Skill Being Tested</label>
                   <select id="ct-skill" value={createSkillId} onChange={e => setCreateSkillId(e.target.value)} style={{ width: '100%' }}>
                     <option value="">No skill</option>
                     {skills.map(s => (
@@ -230,46 +247,58 @@ export default function AdminStarterTasksPage() {
         ) : (
           tasks.map(task => (
             <div key={task.id} className="card" style={{ marginBottom: 16 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+              <div
+                className="card-header"
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8, cursor: 'pointer' }}
+                onClick={() => toggleCard(task.id)}
+              >
                 <div>
                   <h3 style={{ margin: '0 0 4px' }}>{task.title}</h3>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: '0.8rem', color: 'var(--text-light)' }}>
                     {task.skill_name && <span>{task.skill_name}</span>}
                     {task.estimated_hours && <span>~{task.estimated_hours}h</span>}
-                    {task.assigned_to_name && <span>Assigned to: {task.assigned_to_name}</span>}
+                    {task.assigned_to_id && task.assigned_to_name && (
+                      <span>Assigned to: <Link href={`/admin/volunteers/${task.assigned_to_id}`}>{task.assigned_to_name}</Link></span>
+                    )}
                   </div>
                 </div>
-                <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: '0.8rem', background: 'var(--bg-secondary, #f8fafc)', whiteSpace: 'nowrap' }}>
+                <span className="status-badge" style={{ padding: '2px 8px', borderRadius: 12, fontSize: '0.8rem', background: 'var(--bg-secondary, #f8fafc)', whiteSpace: 'nowrap' }}>
                   {task.status}
                 </span>
               </div>
 
-              <p style={{ margin: '0 0 12px', color: 'var(--text-light)', fontSize: '0.875rem' }}>
-                {task.description.length > 120 ? task.description.slice(0, 120) + '…' : task.description}
-              </p>
+              {expandedCards.has(task.id) && (
+                <>
+                  <p style={{ margin: '0 0 12px', color: 'var(--text-light)', fontSize: '0.875rem' }}>
+                    {task.description}
+                  </p>
 
-              <div style={{ display: 'flex', gap: 8 }}>
-                {(task.status === 'open' || !task.assigned_to_id) && (
-                  <button className="btn btn-small btn-secondary" onClick={() => { setAssignModal(task); setAssignVolunteerId('') }}>
-                    Assign
-                  </button>
-                )}
-                {task.status === 'submitted' && (
-                  <button className="btn btn-small btn-primary" onClick={() => { setReviewModal(task); setReviewRating('good'); setReviewFeedback(''); setReviewNotes('') }}>
-                    Review
-                  </button>
-                )}
-              </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {(task.status === 'open' || !task.assigned_to_id) && (
+                      <button className="btn btn-small btn-secondary" onClick={() => { setAssignModal(task); setAssignVolunteerId('') }}>
+                        Assign
+                      </button>
+                    )}
+                    {task.status === 'submitted' && (
+                      <button className="btn btn-small btn-primary" onClick={() => { setReviewModal(task); setReviewRating('good'); setReviewFeedback(''); setReviewNotes('') }}>
+                        Review
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           ))
         )}
       </main>
 
       {assignModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
-          onClick={e => { if (e.target === e.currentTarget) setAssignModal(null) }}>
-          <div style={{ background: 'var(--card-bg, white)', borderRadius: 12, padding: 32, maxWidth: 480, width: '90%' }}>
-            <h2 style={{ marginBottom: 16 }}>Assign Task</h2>
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+          onClick={e => { if (e.target === e.currentTarget) setAssignModal(null) }}
+        >
+          <div role="dialog" aria-labelledby="assign-dialog-title" style={{ background: 'var(--card-bg, white)', borderRadius: 12, padding: 32, maxWidth: 480, width: '90%' }}>
+            <h2 id="assign-dialog-title" style={{ marginBottom: 16 }}>Assign Task</h2>
             <p style={{ color: 'var(--text-light)', marginBottom: 16 }}>{assignModal.title}</p>
             <form onSubmit={assignTask}>
               <div className="form-group">
@@ -291,10 +320,12 @@ export default function AdminStarterTasksPage() {
       )}
 
       {reviewModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
-          onClick={e => { if (e.target === e.currentTarget) setReviewModal(null) }}>
-          <div style={{ background: 'var(--card-bg, white)', borderRadius: 12, padding: 32, maxWidth: 480, width: '90%' }}>
-            <h2 style={{ marginBottom: 8 }}>Review Task</h2>
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+          onClick={e => { if (e.target === e.currentTarget) setReviewModal(null) }}
+        >
+          <div role="dialog" aria-labelledby="review-dialog-title" style={{ background: 'var(--card-bg, white)', borderRadius: 12, padding: 32, maxWidth: 480, width: '90%' }}>
+            <h2 id="review-dialog-title" style={{ marginBottom: 8 }}>Review Task</h2>
             <p style={{ color: 'var(--text-light)', marginBottom: 16 }}>{reviewModal.title}</p>
             <form onSubmit={reviewTask}>
               <div className="form-group">
@@ -303,13 +334,13 @@ export default function AdminStarterTasksPage() {
                   {(['excellent', 'good', 'needs_improvement'] as const).map(r => (
                     <label key={r} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                       <input type="radio" value={r} checked={reviewRating === r} onChange={() => setReviewRating(r)} />
-                      {r.replace(/_/g, ' ')}
+                      {RATING_LABELS[r]}
                     </label>
                   ))}
                 </div>
               </div>
               <div className="form-group">
-                <label htmlFor="rv-feedback">Feedback to Volunteer</label>
+                <label htmlFor="rv-feedback">{"Feedback to Volunteer (they'll see this)"}</label>
                 <textarea id="rv-feedback" rows={3} value={reviewFeedback} onChange={e => setReviewFeedback(e.target.value)} style={{ width: '100%' }} />
               </div>
               <div className="form-group">

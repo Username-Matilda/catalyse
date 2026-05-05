@@ -1,4 +1,4 @@
-import { test, expect } from '../fixtures';
+import { test, expect, getAlert } from '../fixtures';
 import type { Page } from '@playwright/test';
 import { createSkill } from '../actions/skills';
 
@@ -67,7 +67,7 @@ test.describe('Volunteer Management', () => {
     await adminPage.getByLabel('Note', { exact: true }).fill(noteContent);
     await adminPage.getByRole('button', { name: 'Add Note' }).click();
 
-    await expect(adminPage.getByRole('alert')).toContainText('Note added.', { timeout: 10_000 });
+    await expect(getAlert(adminPage)).toContainText('Note added.', { timeout: 10_000 });
 
     const notesList = adminPage.locator('#notesList');
     await expect(notesList).toContainText(noteContent, { timeout: 10_000 });
@@ -84,13 +84,13 @@ test.describe('Volunteer Management', () => {
     await adminPage.getByLabel('Category').selectOption({ label: 'Skill Feedback' });
     await adminPage.getByLabel('Note', { exact: true }).fill(noteContent1);
     await adminPage.getByRole('button', { name: 'Add Note' }).click();
-    await expect(adminPage.getByRole('alert')).toContainText('Note added.', { timeout: 10_000 });
+    await expect(getAlert(adminPage)).toContainText('Note added.', { timeout: 10_000 });
 
     // Second note: reliability
     await adminPage.getByLabel('Category').selectOption({ label: 'Reliability' });
     await adminPage.getByLabel('Note', { exact: true }).fill(noteContent2);
     await adminPage.getByRole('button', { name: 'Add Note' }).click();
-    await expect(adminPage.getByRole('alert')).toContainText('Note added.', { timeout: 10_000 });
+    await expect(getAlert(adminPage)).toContainText('Note added.', { timeout: 10_000 });
 
     const notesList = adminPage.locator('#notesList');
     await expect(notesList).toContainText(noteContent1, { timeout: 10_000 });
@@ -107,7 +107,7 @@ test.describe('Volunteer Management', () => {
 
     await adminPage.getByLabel('Note', { exact: true }).fill(originalContent);
     await adminPage.getByRole('button', { name: 'Add Note' }).click();
-    await expect(adminPage.getByRole('alert')).toContainText('Note added.', { timeout: 10_000 });
+    await expect(getAlert(adminPage)).toContainText('Note added.', { timeout: 10_000 });
 
     const notesList = adminPage.locator('#notesList');
     await expect(notesList).toContainText(originalContent, { timeout: 10_000 });
@@ -116,7 +116,7 @@ test.describe('Volunteer Management', () => {
     await adminPage.getByLabel('Edit note').fill(updatedContent);
     await notesList.getByRole('button', { name: 'Save' }).click();
 
-    await expect(adminPage.getByRole('alert')).toContainText('Note updated.', { timeout: 10_000 });
+    await expect(getAlert(adminPage)).toContainText('Note updated.', { timeout: 10_000 });
     await expect(notesList).toContainText(updatedContent, { timeout: 10_000 });
     await expect(notesList).not.toContainText(originalContent, { timeout: 10_000 });
   });
@@ -128,7 +128,7 @@ test.describe('Volunteer Management', () => {
 
     await adminPage.getByLabel('Note', { exact: true }).fill(noteContent);
     await adminPage.getByRole('button', { name: 'Add Note' }).click();
-    await expect(adminPage.getByRole('alert')).toContainText('Note added.', { timeout: 10_000 });
+    await expect(getAlert(adminPage)).toContainText('Note added.', { timeout: 10_000 });
 
     const notesList = adminPage.locator('#notesList');
     await expect(notesList).toContainText(noteContent, { timeout: 10_000 });
@@ -136,7 +136,7 @@ test.describe('Volunteer Management', () => {
     adminPage.once('dialog', dialog => dialog.accept());
     await notesList.getByRole('button', { name: 'Delete' }).click();
 
-    await expect(adminPage.getByRole('alert')).toContainText('Note deleted.', { timeout: 10_000 });
+    await expect(getAlert(adminPage)).toContainText('Note deleted.', { timeout: 10_000 });
     await expect(notesList).not.toContainText(noteContent, { timeout: 10_000 });
   });
 
@@ -153,7 +153,7 @@ test.describe('Volunteer Management', () => {
     await adminPage.getByLabel('Based On').selectOption({ label: 'Direct Observation' });
     await adminPage.getByRole('button', { name: 'Endorse Skill' }).click();
 
-    await expect(adminPage.getByRole('alert')).toContainText('Skill endorsed!', { timeout: 10_000 });
+    await expect(getAlert(adminPage)).toContainText('Skill endorsed!', { timeout: 10_000 });
 
     // Endorsement appears in Verified Skills section on the admin detail page
     await expect(adminPage.locator('#endorsements')).toContainText(skill.name, { timeout: 10_000 });

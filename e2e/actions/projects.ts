@@ -1,4 +1,5 @@
 import { Page, expect } from '@playwright/test';
+import { getAlert } from '../fixtures';
 
 export async function proposeProject(baseUrl: string, page: Page, title: string, description: string, skillName?: string): Promise<number> {
   await page.goto(`${baseUrl}/suggest`);
@@ -50,7 +51,7 @@ export async function adminApproveProject(baseUrl: string, adminPage: Page, proj
   await expect(adminPage.getByRole('heading', { name: 'Review Project' })).toBeVisible({ timeout: 10_000 });
   await adminPage.getByRole('button', { name: 'Submit Review' }).click();
 
-  await expect(adminPage.getByRole('alert')).toBeVisible({ timeout: 10_000 });
+  await expect(getAlert(adminPage)).toBeVisible({ timeout: 10_000 });
   await expect(adminPage.getByRole('heading', { name: 'Review Project' })).not.toBeVisible({ timeout: 10_000 });
 }
 
@@ -61,7 +62,7 @@ export async function adminRecordOutcome(baseUrl: string, adminPage: Page, proje
   await adminPage.getByLabel('Outcome', { exact: true }).selectOption(outcome);
   await adminPage.getByLabel('Outcome Notes').fill(notes);
   await adminPage.getByRole('button', { name: 'Record Outcome' }).click();
-  await expect(adminPage.getByRole('alert')).toBeVisible({ timeout: 10_000 });
+  await expect(getAlert(adminPage)).toBeVisible({ timeout: 10_000 });
 }
 
 export async function transferProjectOwnership(baseUrl: string, adminPage: Page, projectId: number, volunteerName: string): Promise<void> {
@@ -75,7 +76,7 @@ export async function transferProjectOwnership(baseUrl: string, adminPage: Page,
   await adminPage.getByLabel('Transfer to').selectOption({ label: volunteerName });
   adminPage.once('dialog', dialog => dialog.accept());
   await adminPage.getByRole('button', { name: 'Transfer' }).click();
-  await expect(adminPage.getByRole('alert')).toBeVisible({ timeout: 10_000 });
+  await expect(getAlert(adminPage)).toBeVisible({ timeout: 10_000 });
 }
 
 export async function setProjectStatus(baseUrl: string, page: Page, projectId: number, status: string): Promise<void> {
@@ -84,5 +85,5 @@ export async function setProjectStatus(baseUrl: string, page: Page, projectId: n
 
   await page.getByLabel('Change Status').selectOption(status);
   await page.getByRole('button', { name: 'Update Status' }).click();
-  await expect(page.getByRole('alert')).toBeVisible({ timeout: 10_000 });
+  await expect(getAlert(page)).toBeVisible({ timeout: 10_000 });
 }

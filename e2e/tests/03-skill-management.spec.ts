@@ -1,4 +1,4 @@
-import { test, expect } from '../fixtures';
+import { test, expect, getAlert } from '../fixtures';
 
 test.describe('Admin: Skill Management', () => {
   test('Admin creates a skill category', async ({ adminPage, baseUrl }) => {
@@ -13,8 +13,8 @@ test.describe('Admin: Skill Management', () => {
     await adminPage.getByLabel('Category Name').fill(categoryName);
     await adminPage.getByRole('button', { name: 'Save Category' }).click();
 
-    await expect(adminPage.getByRole('alert')).toBeVisible({ timeout: 10_000 });
-    await expect(adminPage.getByRole('alert')).toContainText('Category created!');
+    await expect(getAlert(adminPage)).toBeVisible({ timeout: 10_000 });
+    await expect(getAlert(adminPage)).toContainText('Category created!');
     await expect(adminPage.getByRole('heading', { name: categoryName, level: 3 })).toBeVisible({ timeout: 10_000 });
   });
 
@@ -30,8 +30,8 @@ test.describe('Admin: Skill Management', () => {
     await adminPage.getByRole('button', { name: '+ Add Category' }).click();
     await adminPage.getByLabel('Category Name').fill(categoryName);
     await adminPage.getByRole('button', { name: 'Save Category' }).click();
-    await expect(adminPage.getByRole('alert')).toBeVisible({ timeout: 10_000 });
-    await expect(adminPage.getByRole('alert')).toContainText('Category created!');
+    await expect(getAlert(adminPage)).toBeVisible({ timeout: 10_000 });
+    await expect(getAlert(adminPage)).toContainText('Category created!');
 
     // Add a skill under that category
     const categoryCard = adminPage.locator('.category-card').filter({ hasText: categoryName });
@@ -41,8 +41,8 @@ test.describe('Admin: Skill Management', () => {
     await adminPage.getByLabel('Skill Name').fill(skillName);
     await adminPage.getByRole('button', { name: 'Save Skill' }).click();
 
-    await expect(adminPage.getByRole('alert')).toBeVisible({ timeout: 10_000 });
-    await expect(adminPage.getByRole('alert')).toContainText('Skill created!');
+    await expect(getAlert(adminPage)).toBeVisible({ timeout: 10_000 });
+    await expect(getAlert(adminPage)).toContainText('Skill created!');
     await expect(categoryCard.getByRole('heading', { name: skillName, level: 4 })).toBeVisible({ timeout: 10_000 });
 
     // Skill appears in profile skill picker
@@ -63,14 +63,14 @@ test.describe('Admin: Skill Management', () => {
     await adminPage.getByRole('button', { name: '+ Add Category' }).click();
     await adminPage.getByLabel('Category Name').fill(categoryName);
     await adminPage.getByRole('button', { name: 'Save Category' }).click();
-    await expect(adminPage.getByRole('alert')).toBeVisible({ timeout: 10_000 });
+    await expect(getAlert(adminPage)).toBeVisible({ timeout: 10_000 });
 
     const categoryCard = adminPage.locator('.category-card').filter({ hasText: categoryName });
     await categoryCard.getByRole('button', { name: '+ Add Skill' }).click();
     await adminPage.getByLabel('Skill Name').fill(skillName);
     await adminPage.getByRole('button', { name: 'Save Skill' }).click();
-    await expect(adminPage.getByRole('alert')).toBeVisible({ timeout: 10_000 });
-    await expect(adminPage.getByRole('alert')).toContainText('Skill created!');
+    await expect(getAlert(adminPage)).toBeVisible({ timeout: 10_000 });
+    await expect(getAlert(adminPage)).toContainText('Skill created!');
 
     // Edit the skill name
     const skillItem = categoryCard.locator('.skill-item').filter({ hasText: skillName });
@@ -80,8 +80,8 @@ test.describe('Admin: Skill Management', () => {
     await adminPage.getByLabel('Skill Name').fill(updatedSkillName);
     await adminPage.getByRole('button', { name: 'Save Skill' }).click();
 
-    await expect(adminPage.getByRole('alert')).toBeVisible({ timeout: 10_000 });
-    await expect(adminPage.getByRole('alert')).toContainText('Skill updated!');
+    await expect(getAlert(adminPage)).toBeVisible({ timeout: 10_000 });
+    await expect(getAlert(adminPage)).toContainText('Skill updated!');
 
     // Updated name appears in skill picker; old name is gone
     await adminPage.goto(`${baseUrl}/profile`);
@@ -101,14 +101,14 @@ test.describe('Admin: Skill Management', () => {
     await adminPage.getByRole('button', { name: '+ Add Category' }).click();
     await adminPage.getByLabel('Category Name').fill(categoryName);
     await adminPage.getByRole('button', { name: 'Save Category' }).click();
-    await expect(adminPage.getByRole('alert')).toBeVisible({ timeout: 10_000 });
+    await expect(getAlert(adminPage)).toBeVisible({ timeout: 10_000 });
 
     const categoryCard = adminPage.locator('.category-card').filter({ hasText: categoryName });
     await categoryCard.getByRole('button', { name: '+ Add Skill' }).click();
     await adminPage.getByLabel('Skill Name').fill(skillName);
     await adminPage.getByRole('button', { name: 'Save Skill' }).click();
-    await expect(adminPage.getByRole('alert')).toBeVisible({ timeout: 10_000 });
-    await expect(adminPage.getByRole('alert')).toContainText('Skill created!');
+    await expect(getAlert(adminPage)).toBeVisible({ timeout: 10_000 });
+    await expect(getAlert(adminPage)).toContainText('Skill created!');
 
     // Delete the skill and confirm
     const skillItem = categoryCard.locator('.skill-item').filter({ hasText: skillName });
@@ -116,8 +116,8 @@ test.describe('Admin: Skill Management', () => {
     await expect(adminPage.getByRole('heading', { name: 'Confirm Delete', level: 2 })).toBeVisible({ timeout: 5_000 });
     await adminPage.locator('#deleteModal').getByRole('button', { name: 'Delete' }).click();
 
-    await expect(adminPage.getByRole('alert')).toBeVisible({ timeout: 10_000 });
-    await expect(adminPage.getByRole('alert')).toContainText('Skill deleted!');
+    await expect(getAlert(adminPage)).toBeVisible({ timeout: 10_000 });
+    await expect(getAlert(adminPage)).toContainText('Skill deleted!');
 
     // Skill no longer appears in profile skill picker
     await adminPage.goto(`${baseUrl}/profile`);
@@ -135,8 +135,8 @@ test.describe('Admin: Skill Management', () => {
     await adminPage.getByRole('button', { name: '+ Add Category' }).click();
     await adminPage.getByLabel('Category Name').fill(categoryName);
     await adminPage.getByRole('button', { name: 'Save Category' }).click();
-    await expect(adminPage.getByRole('alert')).toBeVisible({ timeout: 10_000 });
-    await expect(adminPage.getByRole('alert')).toContainText('Category created!');
+    await expect(getAlert(adminPage)).toBeVisible({ timeout: 10_000 });
+    await expect(getAlert(adminPage)).toContainText('Category created!');
     await expect(adminPage.getByRole('heading', { name: categoryName, level: 3 })).toBeVisible({ timeout: 10_000 });
 
     // Delete the category and confirm

@@ -80,8 +80,8 @@ export default function ProjectsPage() {
       const params = new URLSearchParams()
       if (search) params.set('search', search)
       if (statusFilter) params.set('status', statusFilter)
-      if (needsFilter === 'seeking_help') params.set('status', 'seeking_help')
-      else if (needsFilter === 'seeking_owner') params.set('status', 'seeking_owner')
+      if (needsFilter === 'seeking_help') params.set('is_seeking_help', 'true')
+      else if (needsFilter === 'seeking_owner') params.set('is_seeking_owner', 'true')
       const data = await apiRequest<ProjectsResponse>(`/api/projects?${params}`)
       setProjects(data.projects)
     } catch {

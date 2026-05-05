@@ -58,6 +58,7 @@ function startWorkerNextJs(parallelIndex: number): number {
     },
     cwd: WEB_DIR,
     detached: false,
+    stdio: 'ignore',
   });
 
   return server.pid!;

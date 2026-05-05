@@ -9,3 +9,4 @@ venv/
 .playwright-mcp
 dist/
 tests/scenarios/results/
+test-results/

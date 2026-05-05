@@ -1,4 +1,4 @@
-import { test, expect } from '../fixtures';
+import { test, expect, getAlert } from '../fixtures';
 import { login } from '../actions/auth';
 
 test.describe('Account Management', () => {
@@ -13,8 +13,8 @@ test.describe('Account Management', () => {
     await volunteer.page.getByLabel('Confirm New Password').fill(newPassword);
     await volunteer.page.getByRole('button', { name: 'Change Password' }).click();
 
-    await expect(volunteer.page.getByRole('alert')).toBeVisible({ timeout: 10_000 });
-    await expect(volunteer.page.getByRole('alert')).toContainText('successfully');
+    await expect(getAlert(volunteer.page)).toBeVisible({ timeout: 10_000 });
+    await expect(getAlert(volunteer.page)).toContainText('successfully');
 
     const ctx2 = await browser.newContext();
     const page2 = await ctx2.newPage();
@@ -35,8 +35,8 @@ test.describe('Account Management', () => {
     await volunteer.page.getByLabel('Confirm New Password').fill('newpassword1');
     await volunteer.page.getByRole('button', { name: 'Change Password' }).click();
 
-    await expect(volunteer.page.getByRole('alert')).toBeVisible({ timeout: 10_000 });
-    await expect(volunteer.page.getByRole('alert')).not.toContainText('successfully');
+    await expect(getAlert(volunteer.page)).toBeVisible({ timeout: 10_000 });
+    await expect(getAlert(volunteer.page)).not.toContainText('successfully');
   });
 
   test('Volunteer deletes their account', async ({ browser, volunteer, baseUrl }) => {
@@ -50,7 +50,7 @@ test.describe('Account Management', () => {
     await volunteer.page.getByLabel('Confirm your password').fill(volunteer.password);
     await volunteer.page.getByRole('button', { name: 'Permanently Delete Account' }).click();
 
-    await expect(volunteer.page.getByRole('alert')).toBeVisible({ timeout: 10_000 });
+    await expect(getAlert(volunteer.page)).toBeVisible({ timeout: 10_000 });
 
     const ctx2 = await browser.newContext();
     const page2 = await ctx2.newPage();
@@ -59,7 +59,7 @@ test.describe('Account Management', () => {
       await page2.getByLabel('Email', { exact: true }).fill(volunteer.email);
       await page2.getByLabel('Password').fill(volunteer.password);
       await page2.getByRole('button', { name: 'Login' }).click();
-      await expect(page2.getByRole('alert')).toBeVisible({ timeout: 10_000 });
+      await expect(getAlert(page2)).toBeVisible({ timeout: 10_000 });
     } finally {
       await ctx2.close();
     }

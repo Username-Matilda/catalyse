@@ -28,8 +28,9 @@ export default function AdminBugsPage() {
   const [reports, setReports] = useState<BugReport[]>([])
   const [loadingData, setLoadingData] = useState(true)
   const [statusFilter, setStatusFilter] = useState('open')
-  const [resolveModal, setResolveModal] = useState<BugReport | null>(null)
-  const [resolutionNotes, setResolutionNotes] = useState('')
+  const [editModal, setEditModal] = useState<BugReport | null>(null)
+  const [editStatus, setEditStatus] = useState('')
+  const [editNotes, setEditNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [alert, setAlert] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
 
@@ -57,16 +58,22 @@ export default function AdminBugsPage() {
     }
   }
 
-  async function updateStatus(id: number, status: string, notes?: string) {
+  function openEdit(report: BugReport) {
+    setEditModal(report)
+    setEditStatus(report.status)
+    setEditNotes(report.resolution_notes ?? '')
+  }
+
+  async function handleUpdate() {
+    if (!editModal) return
     setSubmitting(true)
     try {
-      await apiRequest(`/api/admin/bug-reports/${id}`, {
+      await apiRequest(`/api/admin/bug-reports/${editModal.id}`, {
         method: 'PUT',
-        body: JSON.stringify({ status, resolution_notes: notes ?? null }),
+        body: JSON.stringify({ status: editStatus, resolution_notes: editNotes || null }),
       })
-      setAlert({ text: `Report marked as ${status}`, type: 'success' })
-      setResolveModal(null)
-      setResolutionNotes('')
+      setAlert({ text: 'Report updated!', type: 'success' })
+      setEditModal(null)
       await loadReports()
     } catch (err: unknown) {
       setAlert({ text: err instanceof Error ? err.message : 'Failed to update', type: 'error' })
@@ -81,7 +88,7 @@ export default function AdminBugsPage() {
     <>
       <Header />
       <main className="container page">
-        <h1>Bug Reports</h1>
+        <h1>Bug Reports &amp; Feedback</h1>
 
         {alert && (
           <div role="alert" className={`message ${alert.type}`} style={{ marginBottom: 16 }}>
@@ -89,16 +96,19 @@ export default function AdminBugsPage() {
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
-          {STATUS_OPTIONS.map(s => (
-            <button
-              key={s}
-              className={`btn ${statusFilter === s ? 'btn-primary' : 'btn-secondary'} btn-small`}
-              onClick={() => setStatusFilter(s)}
-            >
-              {s.replace(/_/g, ' ')}
-            </button>
-          ))}
+        <div style={{ marginBottom: 24 }}>
+          <label htmlFor="status-filter">Filter by status</label>
+          <select
+            id="status-filter"
+            aria-label="Filter by status"
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+            style={{ marginLeft: 8 }}
+          >
+            {STATUS_OPTIONS.map(s => (
+              <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
+            ))}
+          </select>
         </div>
 
         {loadingData ? (
@@ -107,7 +117,12 @@ export default function AdminBugsPage() {
           <p>No bug reports found.</p>
         ) : (
           reports.map(r => (
-            <div key={r.id} className="card" style={{ marginBottom: 16 }}>
+            <div
+              key={r.id}
+              className="card"
+              style={{ marginBottom: 16, cursor: 'pointer' }}
+              onClick={() => openEdit(r)}
+            >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                 <div>
                   <h3 style={{ margin: '0 0 4px' }}>{r.title}</h3>
@@ -132,54 +147,59 @@ export default function AdminBugsPage() {
               {r.resolution_notes && (
                 <p style={{ margin: '0 0 12px', fontSize: '0.875rem', fontStyle: 'italic' }}>Resolution: {r.resolution_notes}</p>
               )}
-
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {r.status === 'open' && (
-                  <button className="btn btn-small btn-secondary" onClick={() => updateStatus(r.id, 'in_progress')}>
-                    Start
-                  </button>
-                )}
-                {(r.status === 'open' || r.status === 'in_progress') && (
-                  <>
-                    <button className="btn btn-small btn-primary" onClick={() => { setResolveModal(r); setResolutionNotes('') }}>
-                      Resolve
-                    </button>
-                    <button className="btn btn-small" style={{ color: 'var(--text-light)' }} onClick={() => updateStatus(r.id, 'wont_fix')}>
-                      Won&apos;t Fix
-                    </button>
-                  </>
-                )}
-              </div>
             </div>
           ))
         )}
       </main>
 
-      {resolveModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
-          onClick={e => { if (e.target === e.currentTarget) setResolveModal(null) }}>
-          <div style={{ background: 'var(--card-bg, white)', borderRadius: 12, padding: 32, maxWidth: 480, width: '90%' }}>
-            <h2 style={{ marginBottom: 8 }}>Resolve Report</h2>
-            <p style={{ color: 'var(--text-light)', marginBottom: 16 }}>{resolveModal.title}</p>
+      {editModal && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+          onClick={e => { if (e.target === e.currentTarget) setEditModal(null) }}
+        >
+          <div
+            role="dialog"
+            aria-label={editModal.title}
+            aria-modal="true"
+            style={{ background: 'var(--card-bg, white)', borderRadius: 12, padding: 32, maxWidth: 520, width: '90%' }}
+          >
+            <h2 style={{ marginBottom: 4 }}>{editModal.title}</h2>
+            <p style={{ color: 'var(--text-light)', marginBottom: 16, fontSize: '0.875rem' }}>{editModal.description}</p>
+
             <div className="form-group">
-              <label htmlFor="resolution-notes">Resolution Notes</label>
+              <label htmlFor="edit-status">Status</label>
+              <select
+                id="edit-status"
+                value={editStatus}
+                onChange={e => setEditStatus(e.target.value)}
+                style={{ width: '100%' }}
+              >
+                {STATUS_OPTIONS.filter(s => s !== 'all').map(s => (
+                  <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="edit-notes">Resolution Notes</label>
               <textarea
-                id="resolution-notes"
+                id="edit-notes"
                 rows={3}
-                value={resolutionNotes}
-                onChange={e => setResolutionNotes(e.target.value)}
+                value={editNotes}
+                onChange={e => setEditNotes(e.target.value)}
                 placeholder="Describe what was fixed…"
                 style={{ width: '100%' }}
               />
             </div>
+
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button className="btn btn-secondary" onClick={() => setResolveModal(null)}>Cancel</button>
+              <button className="btn btn-secondary" onClick={() => setEditModal(null)}>Cancel</button>
               <button
                 className="btn btn-primary"
                 disabled={submitting}
-                onClick={() => updateStatus(resolveModal.id, 'resolved', resolutionNotes)}
+                onClick={handleUpdate}
               >
-                Mark Resolved
+                Update
               </button>
             </div>
           </div>

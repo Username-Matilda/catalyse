@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { test, expect } from '../fixtures';
+import { test, expect, getAlert } from '../fixtures';
 import { Page } from '@playwright/test';
 
 async function getVolunteerId(page: Page): Promise<number> {
@@ -25,8 +25,8 @@ test.describe('Volunteer Profile', () => {
     await volunteer.page.getByLabel('Hours per Week').fill('10');
     await volunteer.page.getByRole('button', { name: 'Save Changes' }).click();
 
-    await expect(volunteer.page.getByRole('alert')).toBeVisible({ timeout: 10_000 });
-    await expect(volunteer.page.getByRole('alert')).toContainText('Profile updated!');
+    await expect(getAlert(volunteer.page)).toBeVisible({ timeout: 10_000 });
+    await expect(getAlert(volunteer.page)).toContainText('Profile updated!');
 
     const volunteerId = await getVolunteerId(volunteer.page);
     await volunteer.page.goto(`${baseUrl}/volunteers/${volunteerId}`);
@@ -43,8 +43,8 @@ test.describe('Volunteer Profile', () => {
     await skillOption.click();
 
     await volunteer.page.getByRole('button', { name: 'Save Changes' }).click();
-    await expect(volunteer.page.getByRole('alert')).toBeVisible({ timeout: 10_000 });
-    await expect(volunteer.page.getByRole('alert')).toContainText('Profile updated!');
+    await expect(getAlert(volunteer.page)).toBeVisible({ timeout: 10_000 });
+    await expect(getAlert(volunteer.page)).toContainText('Profile updated!');
 
     const volunteerId = await getVolunteerId(volunteer.page);
     await volunteer.page.goto(`${baseUrl}/volunteers/${volunteerId}`);
@@ -61,7 +61,7 @@ test.describe('Volunteer Profile', () => {
     await volunteer.page.getByLabel('Your Name').fill(uniqueName);
     await volunteer.page.locator('#profile_visible').check();
     await volunteer.page.getByRole('button', { name: 'Save Changes' }).click();
-    await expect(volunteer.page.getByRole('alert')).toBeVisible({ timeout: 10_000 });
+    await expect(getAlert(volunteer.page)).toBeVisible({ timeout: 10_000 });
 
     await volunteer.page.goto(`${baseUrl}/volunteers`);
     await expect(volunteer.page.locator('#volunteersList .loading')).not.toBeVisible({ timeout: 10_000 });
@@ -75,7 +75,7 @@ test.describe('Volunteer Profile', () => {
     await expect(volunteer.page.getByLabel('Your Name')).toBeVisible({ timeout: 10_000 });
     await volunteer.page.locator('#profile_visible').uncheck();
     await volunteer.page.getByRole('button', { name: 'Save Changes' }).click();
-    await expect(volunteer.page.getByRole('alert')).toBeVisible({ timeout: 10_000 });
+    await expect(getAlert(volunteer.page)).toBeVisible({ timeout: 10_000 });
 
     await volunteer.page.goto(`${baseUrl}/volunteers`);
     await expect(volunteer.page.locator('#volunteersList .loading')).not.toBeVisible({ timeout: 10_000 });
@@ -94,7 +94,7 @@ test.describe('Volunteer Profile', () => {
     await volunteer.page.getByLabel('Your Name').fill(uniqueName);
     await volunteer.page.locator('#profile_visible').uncheck();
     await volunteer.page.getByRole('button', { name: 'Save Changes' }).click();
-    await expect(volunteer.page.getByRole('alert')).toBeVisible({ timeout: 10_000 });
+    await expect(getAlert(volunteer.page)).toBeVisible({ timeout: 10_000 });
 
     await volunteer.page.goto(`${baseUrl}/volunteers`);
     await expect(volunteer.page.locator('#volunteersList .loading')).not.toBeVisible({ timeout: 10_000 });
@@ -108,7 +108,7 @@ test.describe('Volunteer Profile', () => {
     await expect(volunteer.page.getByLabel('Your Name')).toBeVisible({ timeout: 10_000 });
     await volunteer.page.locator('#profile_visible').check();
     await volunteer.page.getByRole('button', { name: 'Save Changes' }).click();
-    await expect(volunteer.page.getByRole('alert')).toBeVisible({ timeout: 10_000 });
+    await expect(getAlert(volunteer.page)).toBeVisible({ timeout: 10_000 });
 
     await volunteer.page.goto(`${baseUrl}/volunteers`);
     await expect(volunteer.page.locator('#volunteersList .loading')).not.toBeVisible({ timeout: 10_000 });
@@ -124,8 +124,8 @@ test.describe('Volunteer Profile', () => {
 
     await volunteer.page.selectOption('#email_digest', 'fortnightly');
     await volunteer.page.getByRole('button', { name: 'Save Changes' }).click();
-    await expect(volunteer.page.getByRole('alert')).toBeVisible({ timeout: 10_000 });
-    await expect(volunteer.page.getByRole('alert')).toContainText('Profile updated!');
+    await expect(getAlert(volunteer.page)).toBeVisible({ timeout: 10_000 });
+    await expect(getAlert(volunteer.page)).toContainText('Profile updated!');
 
     await volunteer.page.reload();
     await expect(volunteer.page.locator('#email_digest')).toBeVisible({ timeout: 10_000 });
@@ -157,7 +157,7 @@ test.describe('Volunteer Profile', () => {
       await skillOption.click();
       await page2.locator('#profile_visible').check();
       await page2.getByRole('button', { name: 'Save Changes' }).click();
-      await expect(page2.getByRole('alert')).toBeVisible({ timeout: 10_000 });
+      await expect(getAlert(page2)).toBeVisible({ timeout: 10_000 });
 
       const vol2Id = await getVolunteerId(page2);
 

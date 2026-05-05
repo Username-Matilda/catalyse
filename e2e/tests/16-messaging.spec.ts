@@ -1,4 +1,4 @@
-import { test, expect } from '../fixtures';
+import { test, expect, getAlert } from '../fixtures';
 import crypto from 'crypto';
 import { adminCreateProject, transferProjectOwnership } from '../actions/projects';
 
@@ -38,7 +38,7 @@ test.describe('Messaging', () => {
       await dialog.getByLabel('Message').fill(body);
       await dialog.getByRole('button', { name: 'Send Message' }).click();
 
-      await expect(senderPage.getByRole('alert')).toContainText('Message sent', { timeout: 10_000 });
+      await expect(getAlert(senderPage)).toContainText('Message sent', { timeout: 10_000 });
     } finally {
       await senderCtx.close();
     }
@@ -80,7 +80,7 @@ test.describe('Messaging', () => {
       await dialog.getByLabel('Subject').fill(subject);
       await dialog.getByLabel('Message').fill('Notification test body');
       await dialog.getByRole('button', { name: 'Send Message' }).click();
-      await expect(senderPage.getByRole('alert')).toContainText('Message sent', { timeout: 10_000 });
+      await expect(getAlert(senderPage)).toContainText('Message sent', { timeout: 10_000 });
     } finally {
       await senderCtx.close();
     }

@@ -39,6 +39,16 @@ interface DashboardData {
   unread_notification_count: number
 }
 
+interface StarterTask {
+  id: number
+  title: string
+  description: string
+  skill_name: string | null
+  estimated_hours: number | null
+  status: string
+  feedback_to_volunteer: string | null
+}
+
 type TabKey = 'owned' | 'interests' | 'proposed' | 'suggested' | 'notifications'
 
 export default function DashboardPage() {
@@ -49,6 +59,10 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<TabKey>('owned')
   const [unreadCount, setUnreadCount] = useState(0)
   const [loadingData, setLoadingData] = useState(true)
+  const [starterTasks, setStarterTasks] = useState<StarterTask[]>([])
+  const [expandedTasks, setExpandedTasks] = useState<Set<number>>(new Set())
+  const [taskAlert, setTaskAlert] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
+  const [submittingTask, setSubmittingTask] = useState(false)
 
   useEffect(() => {
     if (!loading && !user) router.replace('/login')
@@ -63,7 +77,32 @@ export default function DashboardPage() {
       })
       .catch(() => {})
       .finally(() => setLoadingData(false))
+    apiRequest<StarterTask[]>('/api/my/starter-tasks')
+      .then(t => setStarterTasks(t.filter(t => t.status === 'assigned' || t.status === 'submitted')))
+      .catch(() => {})
   }, [user])
+
+  function toggleTask(id: number) {
+    setExpandedTasks(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  async function submitTask(taskId: number) {
+    setSubmittingTask(true)
+    try {
+      await apiRequest(`/api/starter-tasks/${taskId}/submit`, { method: 'PUT' })
+      setTaskAlert({ text: 'Task submitted for review!', type: 'success' })
+      setStarterTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'submitted' } : t))
+    } catch (err: unknown) {
+      setTaskAlert({ text: err instanceof Error ? err.message : 'Failed to submit task', type: 'error' })
+    } finally {
+      setSubmittingTask(false)
+    }
+  }
 
   async function handleTabClick(tab: TabKey) {
     setActiveTab(tab)
@@ -108,6 +147,51 @@ export default function DashboardPage() {
       <Header />
       <main className="container page">
         <h1 role="heading">Welcome back, {user.name}!</h1>
+
+        {starterTasks.length > 0 && (
+          <section aria-label="Starter Tasks" style={{ marginBottom: 32 }}>
+            <h2>Starter Tasks</h2>
+            {taskAlert && (
+              <div role="alert" className={`message ${taskAlert.type}`} style={{ marginBottom: 16 }}>
+                {taskAlert.text}
+              </div>
+            )}
+            {starterTasks.map(task => (
+              <div key={task.id} className="card" style={{ marginBottom: 16 }}>
+                <div
+                  className="card-header"
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+                  onClick={() => toggleTask(task.id)}
+                >
+                  <div>
+                    <strong>{task.title}</strong>
+                    {task.skill_name && <span style={{ marginLeft: 8, fontSize: '0.875rem', color: 'var(--text-light)' }}>{task.skill_name}</span>}
+                  </div>
+                  <span className="status-badge" style={{ padding: '2px 8px', borderRadius: 12, fontSize: '0.8rem', background: 'var(--bg-secondary, #f8fafc)' }}>
+                    {task.status}
+                  </span>
+                </div>
+                {expandedTasks.has(task.id) && (
+                  <div style={{ marginTop: 12 }}>
+                    <p style={{ margin: '0 0 12px', color: 'var(--text-light)', fontSize: '0.875rem' }}>{task.description}</p>
+                    {task.feedback_to_volunteer && (
+                      <p style={{ margin: '0 0 12px', fontSize: '0.875rem' }}><strong>Feedback:</strong> {task.feedback_to_volunteer}</p>
+                    )}
+                    {task.status === 'assigned' && (
+                      <button
+                        className="btn btn-primary btn-small"
+                        disabled={submittingTask}
+                        onClick={() => submitTask(task.id)}
+                      >
+                        Mark as Complete
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </section>
+        )}
 
         <div className="grid grid-3 stats-grid" style={{ marginBottom: 32 }}>
           <div className="card" style={{ textAlign: 'center' }}>

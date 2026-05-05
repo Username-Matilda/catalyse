@@ -178,7 +178,7 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
               <p style={{ color: 'var(--text-light)', marginBottom: 12 }}>
                 Skills verified through completed work on the platform.
               </p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              <div id="endorsementsList" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {volunteer.endorsements.map(e => (
                   <span
                     key={e.id}

@@ -14,6 +14,8 @@ export async function GET(request: NextRequest) {
   const country = searchParams.get('country')
   const localGroup = searchParams.get('local_group')
   const isOrgProposedParam = searchParams.get('is_org_proposed')
+  const isSeekingHelpParam = searchParams.get('is_seeking_help')
+  const isSeekingOwnerParam = searchParams.get('is_seeking_owner')
   const sortBy = searchParams.get('sort_by') ?? 'created_at'
   const limit = Math.min(parseInt(searchParams.get('limit') ?? '50', 10), 100)
   const offset = parseInt(searchParams.get('offset') ?? '0', 10)
@@ -46,6 +48,12 @@ export async function GET(request: NextRequest) {
   if (localGroup) where.localGroup = localGroup
   if (isOrgProposedParam !== null) {
     where.isOrgProposed = isOrgProposedParam === 'true' || isOrgProposedParam === '1'
+  }
+  if (isSeekingHelpParam !== null) {
+    where.isSeekingHelp = isSeekingHelpParam === 'true' || isSeekingHelpParam === '1'
+  }
+  if (isSeekingOwnerParam !== null) {
+    where.isSeekingOwner = isSeekingOwnerParam === 'true' || isSeekingOwnerParam === '1'
   }
 
   const volunteer = await getCurrentVolunteer(request.headers.get('authorization'))

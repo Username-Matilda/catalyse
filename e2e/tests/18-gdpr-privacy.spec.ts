@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { readFileSync } from 'fs';
-import { test, expect } from '../fixtures';
+import { test, expect, getAlert } from '../fixtures';
 
 test.describe('GDPR & Privacy', () => {
   test('Volunteer exports their personal data', async ({ volunteer, baseUrl }) => {
@@ -14,7 +14,7 @@ test.describe('GDPR & Privacy', () => {
       volunteer.page.getByRole('button', { name: 'Download My Data' }).click(),
     ]);
 
-    await expect(volunteer.page.getByRole('alert')).toContainText(
+    await expect(getAlert(volunteer.page)).toContainText(
       'Data exported successfully!',
       { timeout: 10_000 }
     );
@@ -65,7 +65,7 @@ test.describe('GDPR & Privacy', () => {
       await expect(page2.getByLabel(/Share my contact info directly/)).not.toBeChecked();
 
       await page2.getByRole('button', { name: 'Save Changes' }).click();
-      await expect(page2.getByRole('alert')).toContainText('Profile updated!', { timeout: 10_000 });
+      await expect(getAlert(page2)).toContainText('Profile updated!', { timeout: 10_000 });
 
       await volunteer.page.goto(`${baseUrl}/volunteers`);
       await volunteer.page.getByLabel('Search').fill(vol2Name);

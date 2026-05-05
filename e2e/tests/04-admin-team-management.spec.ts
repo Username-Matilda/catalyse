@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { test, expect } from '../fixtures';
+import { test, expect, getAlert } from '../fixtures';
 import { ADMIN_EMAIL } from '../config';
 import { signup } from '../actions/auth';
 import { Page } from '@playwright/test';
@@ -82,7 +82,7 @@ test.describe('Admin: Admin Team Management', () => {
     await expect(inviteCard).toBeVisible({ timeout: 10_000 });
     await inviteCard.getByRole('button', { name: 'Cancel' }).click();
 
-    await expect(adminPage.getByRole('alert')).toContainText('Invite cancelled', { timeout: 10_000 });
+    await expect(getAlert(adminPage)).toContainText('Invite cancelled', { timeout: 10_000 });
     await expect(inviteCard).not.toBeVisible({ timeout: 10_000 });
   });
 
@@ -149,7 +149,7 @@ test.describe('Admin: Admin Team Management', () => {
     adminPage.once('dialog', dialog => dialog.accept());
     await adminCard.getByRole('button', { name: 'Revoke Access' }).click();
 
-    await expect(adminPage.getByRole('alert')).toContainText('Admin access revoked', { timeout: 10_000 });
+    await expect(getAlert(adminPage)).toContainText('Admin access revoked', { timeout: 10_000 });
     await expect(adminCard).not.toBeVisible({ timeout: 10_000 });
 
     // Volunteer should no longer have admin access

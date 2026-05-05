@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { test, expect } from '../fixtures';
+import { test, expect, getAlert } from '../fixtures';
 import { signup, login } from '../actions/auth';
 
 test.describe('Authentication: Signup & Login', () => {
@@ -34,7 +34,7 @@ test.describe('Authentication: Signup & Login', () => {
       await page.getByLabel('Email', { exact: true }).fill(volunteer.email);
       await page.getByLabel('Password').fill('wrongpassword');
       await page.getByRole('button', { name: 'Login' }).click();
-      await expect(page.getByRole('alert')).toBeVisible({ timeout: 10_000 });
+      await expect(getAlert(page)).toBeVisible({ timeout: 10_000 });
       await expect(page).toHaveURL(`${baseUrl}/login`);
     } finally {
       await context.close();
@@ -50,7 +50,7 @@ test.describe('Authentication: Signup & Login', () => {
       await page.getByLabel('Email', { exact: true }).fill(`unknown_${id}@test.com`);
       await page.getByLabel('Password').fill('testpassword1');
       await page.getByRole('button', { name: 'Login' }).click();
-      await expect(page.getByRole('alert')).toBeVisible({ timeout: 10_000 });
+      await expect(getAlert(page)).toBeVisible({ timeout: 10_000 });
     } finally {
       await context.close();
     }
@@ -66,7 +66,7 @@ test.describe('Authentication: Signup & Login', () => {
       await page.getByLabel('Password', { exact: true }).fill('testpassword1');
       await page.getByLabel('Confirm Password').fill('testpassword1');
       await page.getByRole('button', { name: 'Create Account' }).click();
-      await expect(page.getByRole('alert').first()).toBeVisible({ timeout: 10_000 });
+      await expect(getAlert(page)).toBeVisible({ timeout: 10_000 });
     } finally {
       await context.close();
     }
@@ -88,7 +88,7 @@ test.describe('Authentication: Signup & Login', () => {
       await page.getByLabel('Password', { exact: true }).fill('abc');
       await page.getByLabel('Confirm Password').fill('abc');
       await page.getByRole('button', { name: 'Create Account' }).click();
-      await expect(page.getByRole('alert').first()).toBeVisible({ timeout: 10_000 });
+      await expect(getAlert(page)).toBeVisible({ timeout: 10_000 });
     } finally {
       await context.close();
     }

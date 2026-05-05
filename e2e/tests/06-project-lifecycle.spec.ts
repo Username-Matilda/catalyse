@@ -1,4 +1,4 @@
-import { test, expect } from '../fixtures';
+import { test, expect, getAlert } from '../fixtures';
 import { goToDashboardNotifications } from '../actions/dashboard';
 import {
   proposeProject,
@@ -34,7 +34,7 @@ test.describe('Project Lifecycle', () => {
     await adminPage.getByRole('radio', { name: /Needs Discussion/ }).click();
     await adminPage.getByLabel('Message to Proposer').fill(feedbackText);
     await adminPage.getByRole('button', { name: 'Submit Review' }).click();
-    await expect(adminPage.getByRole('alert')).toBeVisible({ timeout: 10_000 });
+    await expect(getAlert(adminPage)).toBeVisible({ timeout: 10_000 });
 
     // Project status becomes needs_discussion — visible in the triage "Needs Discussion" tab
     await adminPage.goto(`${baseUrl}/admin/triage`);

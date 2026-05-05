@@ -1,4 +1,4 @@
-import { test, expect } from '../fixtures';
+import { test, expect, getAlert } from '../fixtures';
 import { proposeProject, adminCreateProject, adminApproveProject } from '../actions/projects';
 
 test.describe('Access Control', () => {
@@ -23,7 +23,7 @@ test.describe('Access Control', () => {
     const projectId = await adminCreateProject(baseUrl, adminPage, `Access Control Update Test ${Date.now()}`, 'Test project for access control');
 
     await volunteer.page.goto(`${baseUrl}/projects/${projectId}/edit`);
-    await expect(volunteer.page.getByRole('alert')).toContainText('You do not have permission to edit this project.', { timeout: 10_000 });
+    await expect(getAlert(volunteer.page)).toContainText('You do not have permission to edit this project.', { timeout: 10_000 });
     await expect(volunteer.page.getByRole('button', { name: 'Save Changes' })).toBeDisabled();
   });
 
@@ -31,7 +31,7 @@ test.describe('Access Control', () => {
     const projectId = await adminCreateProject(baseUrl, adminPage, `Access Control Delete Test ${Date.now()}`, 'Test project for delete access control');
 
     await volunteer.page.goto(`${baseUrl}/projects/${projectId}/edit`);
-    await expect(volunteer.page.getByRole('alert')).toContainText('You do not have permission to edit this project.', { timeout: 10_000 });
+    await expect(getAlert(volunteer.page)).toContainText('You do not have permission to edit this project.', { timeout: 10_000 });
     await expect(volunteer.page.getByRole('button', { name: 'Delete Project' })).not.toBeVisible();
   });
 
