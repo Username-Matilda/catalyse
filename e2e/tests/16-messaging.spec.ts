@@ -24,7 +24,7 @@ test.describe('Messaging', () => {
     const senderPage = await senderCtx.newPage();
 
     try {
-      await senderPage.goto(`${baseUrl}/static/project.html?id=${projectId}`);
+      await senderPage.goto(`${baseUrl}/projects/${projectId}`);
       await expect(senderPage.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 });
 
       await senderPage.getByRole('button', { name: 'Contact Owner' }).click();
@@ -53,7 +53,7 @@ test.describe('Messaging', () => {
     await transferProjectOwnership(baseUrl, adminPage, projectId, volunteer.name);
 
     // Confirm the recipient starts with no unread notifications.
-    await volunteer.page.goto(`${baseUrl}/static/dashboard.html`);
+    await volunteer.page.goto(`${baseUrl}/dashboard`);
     await expect(volunteer.page.getByRole('heading', { name: /Welcome back/ })).toBeVisible({ timeout: 10_000 });
     const notifTab = volunteer.page.getByRole('button', { name: /^Notifications/ });
     await expect(notifTab.locator('.notification-badge')).not.toBeVisible();
@@ -72,7 +72,7 @@ test.describe('Messaging', () => {
     const senderPage = await senderCtx.newPage();
 
     try {
-      await senderPage.goto(`${baseUrl}/static/project.html?id=${projectId}`);
+      await senderPage.goto(`${baseUrl}/projects/${projectId}`);
       await expect(senderPage.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 });
       await senderPage.getByRole('button', { name: 'Contact Owner' }).click();
       const dialog = senderPage.getByRole('dialog');
@@ -86,7 +86,7 @@ test.describe('Messaging', () => {
     }
 
     // Recipient refreshes the dashboard — the notification badge now shows 1.
-    await volunteer.page.goto(`${baseUrl}/static/dashboard.html`);
+    await volunteer.page.goto(`${baseUrl}/dashboard`);
     await expect(volunteer.page.getByRole('heading', { name: /Welcome back/ })).toBeVisible({ timeout: 10_000 });
     const notifTabAfter = volunteer.page.getByRole('button', { name: /^Notifications/ });
     await expect(notifTabAfter.locator('.notification-badge')).toBeVisible({ timeout: 10_000 });
@@ -96,7 +96,7 @@ test.describe('Messaging', () => {
     await expect(volunteer.page.getByText(/Message from /)).toBeVisible({ timeout: 10_000 });
     await expect(volunteer.page.getByText(subject)).toBeVisible({ timeout: 10_000 });
     const viewLink = volunteer.page.getByRole('link', { name: 'View' }).first();
-    await expect(viewLink).toHaveAttribute('href', '/static/dashboard.html');
+    await expect(viewLink).toHaveAttribute('href', '/dashboard');
   });
 
   test.skip('Both parties see the message in their history', async () => {

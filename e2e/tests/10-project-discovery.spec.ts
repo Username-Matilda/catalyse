@@ -2,7 +2,7 @@ import { test, expect } from '../fixtures';
 import { adminCreateProject } from '../actions/projects';
 
 // Both the project list (index.html) and individual project pages redirect unauthenticated
-// visitors to /static/login.html via `if (!currentUser) { window.location.href = ... }`.
+// visitors to /login via `if (!currentUser) { window.location.href = ... }`.
 // There is no public / unauthenticated view of projects.
 test.skip('Visitor browses the project list unauthenticated', async () => {});
 test.skip('Visitor views a project detail page unauthenticated', async () => {});
@@ -13,7 +13,7 @@ test.describe('Project Discovery', () => {
     const title = `${keyword} Project`;
     await adminCreateProject(baseUrl, adminPage, title, 'A searchable project for discovery tests');
 
-    await volunteer.page.goto(`${baseUrl}/static/index.html`);
+    await volunteer.page.goto(`${baseUrl}/`);
     await expect(volunteer.page.getByRole('heading', { name: 'Projects', exact: true })).toBeVisible({ timeout: 10_000 });
 
     await volunteer.page.getByLabel('Search').fill(keyword);
@@ -26,7 +26,7 @@ test.describe('Project Discovery', () => {
     // Admin-created projects have is_seeking_help = true by default
     await adminCreateProject(baseUrl, adminPage, title, 'Project for seeking-filter discovery test');
 
-    await volunteer.page.goto(`${baseUrl}/static/index.html`);
+    await volunteer.page.goto(`${baseUrl}/`);
     await expect(volunteer.page.getByRole('heading', { name: 'Projects', exact: true })).toBeVisible({ timeout: 10_000 });
 
     await volunteer.page.getByRole('button', { name: 'Needs filter' }).click();

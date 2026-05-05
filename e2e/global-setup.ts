@@ -101,11 +101,11 @@ async function setupAdminAuth(parallelIndex: number): Promise<void> {
   const context = await browser.newContext();
   const page = await context.newPage();
 
-  await page.goto(`${baseUrl}/static/login.html`);
+  await page.goto(`${baseUrl}/login`);
   await page.getByLabel('Email', { exact: true }).fill(ADMIN_EMAIL);
   await page.getByLabel('Password').fill(ADMIN_PASSWORD);
   await page.getByRole('button', { name: 'Login' }).click();
-  await page.waitForURL(`${baseUrl}/static/dashboard.html`);
+  await page.waitForURL(`${baseUrl}/dashboard`);
 
   const authFile = workerAuthFile(parallelIndex);
   fs.mkdirSync(path.dirname(authFile), { recursive: true });

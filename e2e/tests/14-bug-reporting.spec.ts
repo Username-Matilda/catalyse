@@ -7,7 +7,7 @@ test.describe('Bug Reporting', () => {
     test.setTimeout(60_000);
     const title = `E2E Bug Report ${Date.now()}`;
 
-    await volunteer.page.goto(`${baseUrl}/static/dashboard.html`);
+    await volunteer.page.goto(`${baseUrl}/dashboard`);
     await expect(volunteer.page.getByRole('heading', { name: /Welcome back/ })).toBeVisible({ timeout: 10_000 });
 
     await openBugReportForm(volunteer.page);
@@ -31,7 +31,7 @@ test.describe('Bug Reporting', () => {
     const context = await browser.newContext();
     const page = await context.newPage();
     try {
-      await page.goto(`${baseUrl}/static/index.html`);
+      await page.goto(`${baseUrl}/`);
 
       await openBugReportForm(page);
       await fillAndSubmitBugReport(page, {
@@ -51,7 +51,7 @@ test.describe('Bug Reporting', () => {
     const context = await browser.newContext();
     const page = await context.newPage();
     try {
-      await page.goto(`${baseUrl}/static/index.html`);
+      await page.goto(`${baseUrl}/`);
 
       await openBugReportForm(page);
       await fillAndSubmitBugReport(page, {
@@ -67,7 +67,7 @@ test.describe('Bug Reporting', () => {
   });
 
   test('Bug report submission fails with a too-short description', async ({ volunteer, baseUrl }) => {
-    await volunteer.page.goto(`${baseUrl}/static/dashboard.html`);
+    await volunteer.page.goto(`${baseUrl}/dashboard`);
     await expect(volunteer.page.getByRole('heading', { name: /Welcome back/ })).toBeVisible({ timeout: 10_000 });
 
     await openBugReportForm(volunteer.page);

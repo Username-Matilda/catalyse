@@ -4,7 +4,7 @@ import { test, expect } from '../fixtures';
 
 test.describe('GDPR & Privacy', () => {
   test('Volunteer exports their personal data', async ({ volunteer, baseUrl }) => {
-    await volunteer.page.goto(`${baseUrl}/static/privacy.html`);
+    await volunteer.page.goto(`${baseUrl}/privacy`);
     await expect(
       volunteer.page.getByRole('heading', { name: 'Export Your Data' })
     ).toBeVisible({ timeout: 10_000 });
@@ -52,7 +52,7 @@ test.describe('GDPR & Privacy', () => {
     const page2 = await ctx2.newPage();
 
     try {
-      await page2.goto(`${baseUrl}/static/profile.html`);
+      await page2.goto(`${baseUrl}/profile`);
       await expect(page2.getByLabel('Discord Handle')).toBeVisible({ timeout: 10_000 });
 
       await page2.getByLabel('Discord Handle').fill(discordHandle);
@@ -67,7 +67,7 @@ test.describe('GDPR & Privacy', () => {
       await page2.getByRole('button', { name: 'Save Changes' }).click();
       await expect(page2.getByRole('alert')).toContainText('Profile updated!', { timeout: 10_000 });
 
-      await volunteer.page.goto(`${baseUrl}/static/volunteers.html`);
+      await volunteer.page.goto(`${baseUrl}/volunteers`);
       await volunteer.page.getByLabel('Search').fill(vol2Name);
       await volunteer.page.getByRole('link', { name: vol2Name }).click();
 

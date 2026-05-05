@@ -9,7 +9,7 @@ test.describe('Authentication: Signup & Login', () => {
     const page = await context.newPage();
     try {
       await signup(baseUrl, page, `New User ${id}`, `new_${id}@test.com`, 'testpassword1');
-      await expect(page).toHaveURL(`${baseUrl}/static/dashboard.html`);
+      await expect(page).toHaveURL(`${baseUrl}/dashboard`);
     } finally {
       await context.close();
     }
@@ -20,7 +20,7 @@ test.describe('Authentication: Signup & Login', () => {
     const page = await context.newPage();
     try {
       await login(baseUrl, page, volunteer.email, volunteer.password);
-      await expect(page).toHaveURL(`${baseUrl}/static/dashboard.html`);
+      await expect(page).toHaveURL(`${baseUrl}/dashboard`);
     } finally {
       await context.close();
     }
@@ -30,12 +30,12 @@ test.describe('Authentication: Signup & Login', () => {
     const context = await browser.newContext();
     const page = await context.newPage();
     try {
-      await page.goto(`${baseUrl}/static/login.html`);
+      await page.goto(`${baseUrl}/login`);
       await page.getByLabel('Email', { exact: true }).fill(volunteer.email);
       await page.getByLabel('Password').fill('wrongpassword');
       await page.getByRole('button', { name: 'Login' }).click();
       await expect(page.getByRole('alert')).toBeVisible({ timeout: 10_000 });
-      await expect(page).toHaveURL(`${baseUrl}/static/login.html`);
+      await expect(page).toHaveURL(`${baseUrl}/login`);
     } finally {
       await context.close();
     }
@@ -46,7 +46,7 @@ test.describe('Authentication: Signup & Login', () => {
     const context = await browser.newContext();
     const page = await context.newPage();
     try {
-      await page.goto(`${baseUrl}/static/login.html`);
+      await page.goto(`${baseUrl}/login`);
       await page.getByLabel('Email', { exact: true }).fill(`unknown_${id}@test.com`);
       await page.getByLabel('Password').fill('testpassword1');
       await page.getByRole('button', { name: 'Login' }).click();
@@ -60,7 +60,7 @@ test.describe('Authentication: Signup & Login', () => {
     const context = await browser.newContext();
     const page = await context.newPage();
     try {
-      await page.goto(`${baseUrl}/static/signup.html`);
+      await page.goto(`${baseUrl}/signup`);
       await page.getByLabel('Your Name').fill('Duplicate User');
       await page.getByLabel('Email', { exact: true }).fill(volunteer.email);
       await page.getByLabel('Password', { exact: true }).fill('testpassword1');
@@ -77,7 +77,7 @@ test.describe('Authentication: Signup & Login', () => {
     const context = await browser.newContext();
     const page = await context.newPage();
     try {
-      await page.goto(`${baseUrl}/static/signup.html`);
+      await page.goto(`${baseUrl}/signup`);
       await page.getByLabel('Your Name').fill(`Short Pwd ${id}`);
       await page.getByLabel('Email', { exact: true }).fill(`short_${id}@test.com`);
       // Remove HTML minlength so the browser doesn't intercept before the JS handler runs
@@ -95,7 +95,7 @@ test.describe('Authentication: Signup & Login', () => {
   });
 
   test('Logged-in user visiting login page is redirected to dashboard', async ({ volunteer, baseUrl }) => {
-    await volunteer.page.goto(`${baseUrl}/static/login.html`);
-    await expect(volunteer.page).toHaveURL(`${baseUrl}/static/dashboard.html`, { timeout: 10_000 });
+    await volunteer.page.goto(`${baseUrl}/login`);
+    await expect(volunteer.page).toHaveURL(`${baseUrl}/dashboard`, { timeout: 10_000 });
   });
 });

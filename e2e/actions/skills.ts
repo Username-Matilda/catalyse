@@ -10,7 +10,7 @@ export async function createSkill(baseUrl: string, adminPage: Page): Promise<Ski
   const categoryName = `E2E Cat ${ts}`;
   const skillName = `E2E Skill ${ts}`;
 
-  await adminPage.goto(`${baseUrl}/static/admin/skills.html`);
+  await adminPage.goto(`${baseUrl}/admin/skills`);
   await expect(adminPage.getByRole('button', { name: '+ Add Category' })).toBeVisible({ timeout: 10_000 });
 
   await adminPage.getByRole('button', { name: '+ Add Category' }).click();

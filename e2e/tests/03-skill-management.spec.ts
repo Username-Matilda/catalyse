@@ -4,7 +4,7 @@ test.describe('Admin: Skill Management', () => {
   test('Admin creates a skill category', async ({ adminPage, baseUrl }) => {
     const categoryName = `E2E Category ${Date.now()}`;
 
-    await adminPage.goto(`${baseUrl}/static/admin/skills.html`);
+    await adminPage.goto(`${baseUrl}/admin/skills`);
     await expect(adminPage.getByRole('button', { name: '+ Add Category' })).toBeVisible({ timeout: 10_000 });
 
     await adminPage.getByRole('button', { name: '+ Add Category' }).click();
@@ -23,7 +23,7 @@ test.describe('Admin: Skill Management', () => {
     const categoryName = `E2E Category ${ts}`;
     const skillName = `E2E Skill ${ts}`;
 
-    await adminPage.goto(`${baseUrl}/static/admin/skills.html`);
+    await adminPage.goto(`${baseUrl}/admin/skills`);
     await expect(adminPage.getByRole('button', { name: '+ Add Category' })).toBeVisible({ timeout: 10_000 });
 
     // Create a fresh category to add the skill into
@@ -46,7 +46,7 @@ test.describe('Admin: Skill Management', () => {
     await expect(categoryCard.getByRole('heading', { name: skillName, level: 4 })).toBeVisible({ timeout: 10_000 });
 
     // Skill appears in profile skill picker
-    await adminPage.goto(`${baseUrl}/static/profile.html`);
+    await adminPage.goto(`${baseUrl}/profile`);
     await expect(adminPage.locator('.skill-option').filter({ hasText: skillName })).toBeVisible({ timeout: 10_000 });
   });
 
@@ -56,7 +56,7 @@ test.describe('Admin: Skill Management', () => {
     const skillName = `E2E Skill A ${ts}`;
     const updatedSkillName = `E2E Skill B ${ts}`;
 
-    await adminPage.goto(`${baseUrl}/static/admin/skills.html`);
+    await adminPage.goto(`${baseUrl}/admin/skills`);
     await expect(adminPage.getByRole('button', { name: '+ Add Category' })).toBeVisible({ timeout: 10_000 });
 
     // Create category and skill
@@ -84,7 +84,7 @@ test.describe('Admin: Skill Management', () => {
     await expect(adminPage.getByRole('alert')).toContainText('Skill updated!');
 
     // Updated name appears in skill picker; old name is gone
-    await adminPage.goto(`${baseUrl}/static/profile.html`);
+    await adminPage.goto(`${baseUrl}/profile`);
     await expect(adminPage.locator('.skill-option').filter({ hasText: updatedSkillName })).toBeVisible({ timeout: 10_000 });
     await expect(adminPage.locator('.skill-option').filter({ hasText: skillName })).not.toBeVisible();
   });
@@ -94,7 +94,7 @@ test.describe('Admin: Skill Management', () => {
     const categoryName = `E2E Category ${ts}`;
     const skillName = `E2E Skill ${ts}`;
 
-    await adminPage.goto(`${baseUrl}/static/admin/skills.html`);
+    await adminPage.goto(`${baseUrl}/admin/skills`);
     await expect(adminPage.getByRole('button', { name: '+ Add Category' })).toBeVisible({ timeout: 10_000 });
 
     // Create category and skill
@@ -120,7 +120,7 @@ test.describe('Admin: Skill Management', () => {
     await expect(adminPage.getByRole('alert')).toContainText('Skill deleted!');
 
     // Skill no longer appears in profile skill picker
-    await adminPage.goto(`${baseUrl}/static/profile.html`);
+    await adminPage.goto(`${baseUrl}/profile`);
     await expect(adminPage.locator('.skill-option').first()).toBeVisible({ timeout: 10_000 });
     await expect(adminPage.locator('.skill-option').filter({ hasText: skillName })).not.toBeVisible();
   });
@@ -128,7 +128,7 @@ test.describe('Admin: Skill Management', () => {
   test('Admin deletes a skill category', async ({ adminPage, baseUrl }) => {
     const categoryName = `E2E Category ${Date.now()}`;
 
-    await adminPage.goto(`${baseUrl}/static/admin/skills.html`);
+    await adminPage.goto(`${baseUrl}/admin/skills`);
     await expect(adminPage.getByRole('button', { name: '+ Add Category' })).toBeVisible({ timeout: 10_000 });
 
     // Create an empty category

@@ -16,7 +16,7 @@ test.describe('Volunteer Profile', () => {
   test('Volunteer updates their profile', async ({ volunteer, baseUrl }) => {
     const uniqueName = `Profile Test ${Date.now()}`;
 
-    await volunteer.page.goto(`${baseUrl}/static/profile.html`);
+    await volunteer.page.goto(`${baseUrl}/profile`);
     await expect(volunteer.page.getByLabel('Your Name')).toBeVisible({ timeout: 10_000 });
 
     await volunteer.page.getByLabel('Your Name').fill(uniqueName);
@@ -29,7 +29,7 @@ test.describe('Volunteer Profile', () => {
     await expect(volunteer.page.getByRole('alert')).toContainText('Profile updated!');
 
     const volunteerId = await getVolunteerId(volunteer.page);
-    await volunteer.page.goto(`${baseUrl}/static/volunteer.html?id=${volunteerId}`);
+    await volunteer.page.goto(`${baseUrl}/volunteers/${volunteerId}`);
     await expect(volunteer.page.locator('#profileContent')).toBeVisible({ timeout: 10_000 });
     await expect(volunteer.page.locator('#volunteerName')).toContainText(uniqueName);
     await expect(volunteer.page.locator('#volunteerBio')).toContainText('Bio text for e2e test');
@@ -37,7 +37,7 @@ test.describe('Volunteer Profile', () => {
   });
 
   test('Volunteer adds skills to their profile', async ({ volunteer, baseUrl }) => {
-    await volunteer.page.goto(`${baseUrl}/static/profile.html`);
+    await volunteer.page.goto(`${baseUrl}/profile`);
     const skillOption = volunteer.page.locator('.skill-option').filter({ hasText: 'Fundraising' });
     await expect(skillOption).toBeVisible({ timeout: 10_000 });
     await skillOption.click();
@@ -47,7 +47,7 @@ test.describe('Volunteer Profile', () => {
     await expect(volunteer.page.getByRole('alert')).toContainText('Profile updated!');
 
     const volunteerId = await getVolunteerId(volunteer.page);
-    await volunteer.page.goto(`${baseUrl}/static/volunteer.html?id=${volunteerId}`);
+    await volunteer.page.goto(`${baseUrl}/volunteers/${volunteerId}`);
     await expect(volunteer.page.locator('#profileContent')).toBeVisible({ timeout: 10_000 });
     await expect(volunteer.page.locator('#volunteerSkills')).toContainText('Fundraising');
   });
@@ -56,14 +56,14 @@ test.describe('Volunteer Profile', () => {
     const uniqueName = `Hidden Vol ${Date.now()}`;
 
     // First make the volunteer visible so we can confirm the transition
-    await volunteer.page.goto(`${baseUrl}/static/profile.html`);
+    await volunteer.page.goto(`${baseUrl}/profile`);
     await expect(volunteer.page.getByLabel('Your Name')).toBeVisible({ timeout: 10_000 });
     await volunteer.page.getByLabel('Your Name').fill(uniqueName);
     await volunteer.page.locator('#profile_visible').check();
     await volunteer.page.getByRole('button', { name: 'Save Changes' }).click();
     await expect(volunteer.page.getByRole('alert')).toBeVisible({ timeout: 10_000 });
 
-    await volunteer.page.goto(`${baseUrl}/static/volunteers.html`);
+    await volunteer.page.goto(`${baseUrl}/volunteers`);
     await expect(volunteer.page.locator('#volunteersList .loading')).not.toBeVisible({ timeout: 10_000 });
     await volunteer.page.getByLabel('Search').fill(uniqueName);
     await expect(
@@ -71,13 +71,13 @@ test.describe('Volunteer Profile', () => {
     ).toBeVisible({ timeout: 10_000 });
 
     // Now hide the profile
-    await volunteer.page.goto(`${baseUrl}/static/profile.html`);
+    await volunteer.page.goto(`${baseUrl}/profile`);
     await expect(volunteer.page.getByLabel('Your Name')).toBeVisible({ timeout: 10_000 });
     await volunteer.page.locator('#profile_visible').uncheck();
     await volunteer.page.getByRole('button', { name: 'Save Changes' }).click();
     await expect(volunteer.page.getByRole('alert')).toBeVisible({ timeout: 10_000 });
 
-    await volunteer.page.goto(`${baseUrl}/static/volunteers.html`);
+    await volunteer.page.goto(`${baseUrl}/volunteers`);
     await expect(volunteer.page.locator('#volunteersList .loading')).not.toBeVisible({ timeout: 10_000 });
     await volunteer.page.getByLabel('Search').fill(uniqueName);
     await expect(
@@ -89,14 +89,14 @@ test.describe('Volunteer Profile', () => {
     const uniqueName = `Visible Vol ${Date.now()}`;
 
     // First hide the volunteer so we can confirm the transition
-    await volunteer.page.goto(`${baseUrl}/static/profile.html`);
+    await volunteer.page.goto(`${baseUrl}/profile`);
     await expect(volunteer.page.getByLabel('Your Name')).toBeVisible({ timeout: 10_000 });
     await volunteer.page.getByLabel('Your Name').fill(uniqueName);
     await volunteer.page.locator('#profile_visible').uncheck();
     await volunteer.page.getByRole('button', { name: 'Save Changes' }).click();
     await expect(volunteer.page.getByRole('alert')).toBeVisible({ timeout: 10_000 });
 
-    await volunteer.page.goto(`${baseUrl}/static/volunteers.html`);
+    await volunteer.page.goto(`${baseUrl}/volunteers`);
     await expect(volunteer.page.locator('#volunteersList .loading')).not.toBeVisible({ timeout: 10_000 });
     await volunteer.page.getByLabel('Search').fill(uniqueName);
     await expect(
@@ -104,13 +104,13 @@ test.describe('Volunteer Profile', () => {
     ).not.toBeVisible({ timeout: 10_000 });
 
     // Now make the profile visible
-    await volunteer.page.goto(`${baseUrl}/static/profile.html`);
+    await volunteer.page.goto(`${baseUrl}/profile`);
     await expect(volunteer.page.getByLabel('Your Name')).toBeVisible({ timeout: 10_000 });
     await volunteer.page.locator('#profile_visible').check();
     await volunteer.page.getByRole('button', { name: 'Save Changes' }).click();
     await expect(volunteer.page.getByRole('alert')).toBeVisible({ timeout: 10_000 });
 
-    await volunteer.page.goto(`${baseUrl}/static/volunteers.html`);
+    await volunteer.page.goto(`${baseUrl}/volunteers`);
     await expect(volunteer.page.locator('#volunteersList .loading')).not.toBeVisible({ timeout: 10_000 });
     await volunteer.page.getByLabel('Search').fill(uniqueName);
     await expect(
@@ -119,7 +119,7 @@ test.describe('Volunteer Profile', () => {
   });
 
   test('Volunteer updates email digest preference', async ({ volunteer, baseUrl }) => {
-    await volunteer.page.goto(`${baseUrl}/static/profile.html`);
+    await volunteer.page.goto(`${baseUrl}/profile`);
     await expect(volunteer.page.locator('#email_digest')).toBeVisible({ timeout: 10_000 });
 
     await volunteer.page.selectOption('#email_digest', 'fortnightly');
@@ -151,7 +151,7 @@ test.describe('Volunteer Profile', () => {
 
     try {
       // Set up profile with a skill and profile_visible=true
-      await page2.goto(`${baseUrl}/static/profile.html`);
+      await page2.goto(`${baseUrl}/profile`);
       const skillOption = page2.locator('.skill-option').filter({ hasText: 'Fundraising' });
       await expect(skillOption).toBeVisible({ timeout: 10_000 });
       await skillOption.click();
@@ -162,7 +162,7 @@ test.describe('Volunteer Profile', () => {
       const vol2Id = await getVolunteerId(page2);
 
       // View the second volunteer's profile as the first volunteer
-      await volunteer.page.goto(`${baseUrl}/static/volunteer.html?id=${vol2Id}`);
+      await volunteer.page.goto(`${baseUrl}/volunteers/${vol2Id}`);
       await expect(volunteer.page.locator('#profileContent')).toBeVisible({ timeout: 10_000 });
 
       await expect(volunteer.page.locator('#volunteerName')).toContainText(vol2Name);

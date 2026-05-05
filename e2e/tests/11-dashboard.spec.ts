@@ -20,7 +20,7 @@ const unreadNotificationCount = (page: Page) =>
 
 test.describe('Dashboard', () => {
   test('Volunteer views their dashboard', async ({ volunteer, baseUrl }) => {
-    await volunteer.page.goto(`${baseUrl}/static/dashboard.html`);
+    await volunteer.page.goto(`${baseUrl}/dashboard`);
     await expect(volunteer.page.getByRole('heading', { name: /Welcome back/ })).toBeVisible({ timeout: 10_000 });
 
     // My Projects tab is active by default
@@ -39,7 +39,7 @@ test.describe('Dashboard', () => {
     const title = `Notification Test Project ${Date.now()}`;
     await createNotificationForVolunteer(baseUrl, volunteer.page, adminPage, title);
 
-    await volunteer.page.goto(`${baseUrl}/static/dashboard.html`);
+    await volunteer.page.goto(`${baseUrl}/dashboard`);
     await expect(volunteer.page.getByRole('heading', { name: /Welcome back/ })).toBeVisible({ timeout: 10_000 });
 
     await expect(notificationBadge(volunteer.page)).toBeVisible({ timeout: 10_000 });
@@ -50,7 +50,7 @@ test.describe('Dashboard', () => {
     const title = `Notification Test Project ${Date.now()}`;
     await createNotificationForVolunteer(baseUrl, volunteer.page, adminPage, title);
 
-    await volunteer.page.goto(`${baseUrl}/static/dashboard.html`);
+    await volunteer.page.goto(`${baseUrl}/dashboard`);
     await expect(volunteer.page.getByRole('heading', { name: /Welcome back/ })).toBeVisible({ timeout: 10_000 });
     await expect(notificationBadge(volunteer.page)).toBeVisible({ timeout: 10_000 });
 

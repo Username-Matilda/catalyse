@@ -36,7 +36,7 @@ export async function fillAndSubmitBugReport(
 }
 
 export async function submitBugReport(baseUrl: string, page: Page, title: string, description: string): Promise<void> {
-  await page.goto(`${baseUrl}/static/dashboard.html`);
+  await page.goto(`${baseUrl}/dashboard`);
   await expect(page.getByRole('heading', { name: /Welcome back/ })).toBeVisible({ timeout: 10_000 });
   await openBugReportForm(page);
   await fillAndSubmitBugReport(page, { title, description });

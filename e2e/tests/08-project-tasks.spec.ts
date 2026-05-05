@@ -40,7 +40,7 @@ test.describe('Project Tasks', () => {
   test('A volunteer can claim an open task', async ({ adminPage, volunteer, baseUrl }) => {
     const projectId = await setupInProgressProject(baseUrl, adminPage, volunteer);
 
-    await volunteer.page.goto(`${baseUrl}/static/project.html?id=${projectId}`);
+    await volunteer.page.goto(`${baseUrl}/projects/${projectId}`);
     await expect(volunteer.page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 });
 
     await expect(volunteer.page.getByRole('button', { name: 'Claim' })).toBeVisible({ timeout: 10_000 });
@@ -54,7 +54,7 @@ test.describe('Project Tasks', () => {
   test('A volunteer can mark their claimed task as done', async ({ adminPage, volunteer, baseUrl }) => {
     const projectId = await setupInProgressProject(baseUrl, adminPage, volunteer);
 
-    await volunteer.page.goto(`${baseUrl}/static/project.html?id=${projectId}`);
+    await volunteer.page.goto(`${baseUrl}/projects/${projectId}`);
     await expect(volunteer.page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 });
 
     await volunteer.page.getByRole('button', { name: 'Claim' }).click();

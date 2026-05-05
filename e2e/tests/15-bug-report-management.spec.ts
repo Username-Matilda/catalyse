@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test';
 import { submitBugReport } from '../actions/bugs';
 
 async function navigateToBugsPage(baseUrl: string, adminPage: Page): Promise<void> {
-  await adminPage.goto(`${baseUrl}/static/admin/bugs.html`);
+  await adminPage.goto(`${baseUrl}/admin/bugs`);
   await expect(adminPage.getByRole('heading', { name: 'Bug Reports & Feedback', level: 1 })).toBeVisible({ timeout: 10_000 });
   await expect(adminPage.getByText('Loading...')).not.toBeVisible({ timeout: 10_000 });
 }

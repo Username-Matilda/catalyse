@@ -7,7 +7,7 @@ import { goToDashboardNotifications } from '../actions/dashboard';
 async function createOpenStarterTask(baseUrl: string, adminPage: Page, skill: SkillInfo): Promise<string> {
   const taskTitle = `E2E Task ${Date.now()}`;
 
-  await adminPage.goto(`${baseUrl}/static/admin/starter-tasks.html`);
+  await adminPage.goto(`${baseUrl}/admin/starter-tasks`);
   await expect(adminPage.getByRole('heading', { name: 'Starter Tasks', level: 1 })).toBeVisible({ timeout: 10_000 });
 
   await adminPage.getByRole('button', { name: 'Create Task' }).click();
@@ -25,7 +25,7 @@ async function createOpenStarterTask(baseUrl: string, adminPage: Page, skill: Sk
 }
 
 async function assignStarterTask(baseUrl: string, adminPage: Page, taskTitle: string, volunteerName: string): Promise<void> {
-  await adminPage.goto(`${baseUrl}/static/admin/starter-tasks.html`);
+  await adminPage.goto(`${baseUrl}/admin/starter-tasks`);
   await expect(adminPage.getByRole('heading', { name: 'Starter Tasks', level: 1 })).toBeVisible({ timeout: 10_000 });
 
   const taskCard = adminPage.locator('.card').filter({ hasText: taskTitle });
@@ -42,7 +42,7 @@ async function assignStarterTask(baseUrl: string, adminPage: Page, taskTitle: st
 }
 
 async function submitStarterTask(baseUrl: string, volunteerPage: Page, taskTitle: string): Promise<void> {
-  await volunteerPage.goto(`${baseUrl}/static/dashboard.html`);
+  await volunteerPage.goto(`${baseUrl}/dashboard`);
   await expect(volunteerPage.getByRole('heading', { name: /Welcome back/ })).toBeVisible({ timeout: 10_000 });
 
   const banner = volunteerPage.getByRole('region', { name: 'Starter Tasks' });
@@ -59,7 +59,7 @@ test.describe('Starter Tasks', () => {
     const skill = await createSkill(baseUrl, adminPage);
     const taskTitle = `E2E Task ${Date.now()}`;
 
-    await adminPage.goto(`${baseUrl}/static/admin/starter-tasks.html`);
+    await adminPage.goto(`${baseUrl}/admin/starter-tasks`);
     await expect(adminPage.getByRole('heading', { name: 'Starter Tasks', level: 1 })).toBeVisible({ timeout: 10_000 });
 
     await adminPage.getByRole('button', { name: 'Create Task' }).click();
@@ -111,7 +111,7 @@ test.describe('Starter Tasks', () => {
     const taskTitle = await createOpenStarterTask(baseUrl, adminPage, skill);
     await assignStarterTask(baseUrl, adminPage, taskTitle, volunteer.name);
 
-    await volunteer.page.goto(`${baseUrl}/static/dashboard.html`);
+    await volunteer.page.goto(`${baseUrl}/dashboard`);
     await expect(volunteer.page.getByRole('heading', { name: /Welcome back/ })).toBeVisible({ timeout: 10_000 });
 
     // Starter task banner shows the assigned task with its details
@@ -127,7 +127,7 @@ test.describe('Starter Tasks', () => {
     await assignStarterTask(baseUrl, adminPage, taskTitle, volunteer.name);
 
     // Volunteer expands the task card and submits it
-    await volunteer.page.goto(`${baseUrl}/static/dashboard.html`);
+    await volunteer.page.goto(`${baseUrl}/dashboard`);
     await expect(volunteer.page.getByRole('heading', { name: /Welcome back/ })).toBeVisible({ timeout: 10_000 });
 
     const banner = volunteer.page.getByRole('region', { name: 'Starter Tasks' });
@@ -139,7 +139,7 @@ test.describe('Starter Tasks', () => {
     await expect(volunteer.page.getByRole('alert')).toContainText('Task submitted for review!', { timeout: 10_000 });
 
     // Task status changes to 'submitted' on the admin page
-    await adminPage.goto(`${baseUrl}/static/admin/starter-tasks.html`);
+    await adminPage.goto(`${baseUrl}/admin/starter-tasks`);
     await expect(adminPage.getByRole('heading', { name: 'Starter Tasks', level: 1 })).toBeVisible({ timeout: 10_000 });
     const adminTaskCard = adminPage.locator('.card').filter({ hasText: taskTitle });
     await expect(adminTaskCard.locator('.status-badge')).toContainText('submitted', { timeout: 10_000 });
@@ -158,7 +158,7 @@ test.describe('Starter Tasks', () => {
     await submitStarterTask(baseUrl, volunteer.page, taskTitle);
 
     // Admin opens the review modal
-    await adminPage.goto(`${baseUrl}/static/admin/starter-tasks.html`);
+    await adminPage.goto(`${baseUrl}/admin/starter-tasks`);
     await expect(adminPage.getByRole('heading', { name: 'Starter Tasks', level: 1 })).toBeVisible({ timeout: 10_000 });
 
     const taskCard = adminPage.locator('.card').filter({ hasText: taskTitle });
@@ -197,7 +197,7 @@ test.describe('Starter Tasks', () => {
     await submitStarterTask(baseUrl, volunteer.page, taskTitle);
 
     // Admin opens the review modal
-    await adminPage.goto(`${baseUrl}/static/admin/starter-tasks.html`);
+    await adminPage.goto(`${baseUrl}/admin/starter-tasks`);
     await expect(adminPage.getByRole('heading', { name: 'Starter Tasks', level: 1 })).toBeVisible({ timeout: 10_000 });
 
     const taskCard = adminPage.locator('.card').filter({ hasText: taskTitle });

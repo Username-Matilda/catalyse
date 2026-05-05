@@ -17,7 +17,7 @@ test.describe('Project Interests and Assignment', () => {
   test('Volunteer expresses interest to contribute', async ({ adminPage, volunteer, baseUrl }) => {
     const projectId = await setupSeekingProject(baseUrl, adminPage);
 
-    await volunteer.page.goto(`${baseUrl}/static/project.html?id=${projectId}`);
+    await volunteer.page.goto(`${baseUrl}/projects/${projectId}`);
     await expect(volunteer.page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 });
 
     // want_to_contribute is selected by default; submit directly
@@ -32,7 +32,7 @@ test.describe('Project Interests and Assignment', () => {
   test('Volunteer expresses interest to own / lead', async ({ adminPage, volunteer, baseUrl }) => {
     const projectId = await setupSeekingProject(baseUrl, adminPage);
 
-    await volunteer.page.goto(`${baseUrl}/static/project.html?id=${projectId}`);
+    await volunteer.page.goto(`${baseUrl}/projects/${projectId}`);
     await expect(volunteer.page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 });
 
     await volunteer.page.getByRole('radio', { name: /I want to own/ }).click();
@@ -46,13 +46,13 @@ test.describe('Project Interests and Assignment', () => {
     const projectId = await setupSeekingProject(baseUrl, adminPage);
 
     // Volunteer expresses interest
-    await volunteer.page.goto(`${baseUrl}/static/project.html?id=${projectId}`);
+    await volunteer.page.goto(`${baseUrl}/projects/${projectId}`);
     await expect(volunteer.page.getByRole('button', { name: 'Express Interest' })).toBeVisible({ timeout: 10_000 });
     await volunteer.page.getByRole('button', { name: 'Express Interest' }).click();
     await expect(volunteer.page.getByRole('alert')).toContainText('Interest expressed!', { timeout: 10_000 });
 
     // Admin (managing the project) accepts the interest
-    await adminPage.goto(`${baseUrl}/static/project.html?id=${projectId}`);
+    await adminPage.goto(`${baseUrl}/projects/${projectId}`);
     await expect(adminPage.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 });
     const interestCard = adminPage.locator('.interest-card').filter({ hasText: volunteer.name });
     await expect(interestCard).toBeVisible({ timeout: 10_000 });
@@ -72,13 +72,13 @@ test.describe('Project Interests and Assignment', () => {
     const declineMessage = `Not the right fit ${Date.now()}`;
 
     // Volunteer expresses interest
-    await volunteer.page.goto(`${baseUrl}/static/project.html?id=${projectId}`);
+    await volunteer.page.goto(`${baseUrl}/projects/${projectId}`);
     await expect(volunteer.page.getByRole('button', { name: 'Express Interest' })).toBeVisible({ timeout: 10_000 });
     await volunteer.page.getByRole('button', { name: 'Express Interest' }).click();
     await expect(volunteer.page.getByRole('alert')).toContainText('Interest expressed!', { timeout: 10_000 });
 
     // Admin declines with a response message via browser prompt
-    await adminPage.goto(`${baseUrl}/static/project.html?id=${projectId}`);
+    await adminPage.goto(`${baseUrl}/projects/${projectId}`);
     await expect(adminPage.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 });
     const interestCard = adminPage.locator('.interest-card').filter({ hasText: volunteer.name });
     await expect(interestCard).toBeVisible({ timeout: 10_000 });
@@ -95,7 +95,7 @@ test.describe('Project Interests and Assignment', () => {
     const projectId = await setupSeekingProject(baseUrl, adminPage);
 
     // Express interest first
-    await volunteer.page.goto(`${baseUrl}/static/project.html?id=${projectId}`);
+    await volunteer.page.goto(`${baseUrl}/projects/${projectId}`);
     await expect(volunteer.page.getByRole('button', { name: 'Express Interest' })).toBeVisible({ timeout: 10_000 });
     await volunteer.page.getByRole('button', { name: 'Express Interest' }).click();
     await expect(volunteer.page.getByRole('alert')).toContainText('Interest expressed!', { timeout: 10_000 });
@@ -112,7 +112,7 @@ test.describe('Project Interests and Assignment', () => {
   test('Admin directly assigns a volunteer to a project', async ({ adminPage, volunteer, baseUrl }) => {
     const projectId = await setupSeekingProject(baseUrl, adminPage);
 
-    await adminPage.goto(`${baseUrl}/static/project.html?id=${projectId}`);
+    await adminPage.goto(`${baseUrl}/projects/${projectId}`);
     await expect(adminPage.getByRole('heading', { name: 'Interested Volunteers' })).toBeVisible({ timeout: 10_000 });
     await expect(adminPage.getByLabel('Volunteer to assign').locator(`option:has-text("${volunteer.name}")`)).toBeAttached({ timeout: 10_000 });
     await adminPage.getByLabel('Volunteer to assign').selectOption({ label: volunteer.name });
@@ -133,7 +133,7 @@ test.describe('Project Interests and Assignment', () => {
     await adminApproveProject(baseUrl, adminPage, title);
     await transferProjectOwnership(baseUrl, adminPage, projectId, volunteer.name);
 
-    await volunteer.page.goto(`${baseUrl}/static/project.html?id=${projectId}`);
+    await volunteer.page.goto(`${baseUrl}/projects/${projectId}`);
     await expect(volunteer.page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 });
 
     // Interest form is hidden for the project owner
