@@ -15,9 +15,17 @@ export function isRealEmailSending(): boolean {
   return Boolean(RESEND_API_KEY) && !STUB_EMAIL
 }
 
+const STUB_EMAIL_DIR = '/tmp/catalyse-emails'
+
 async function sendEmail(to: string, subject: string, html: string, replyTo?: string): Promise<boolean> {
   if (STUB_EMAIL) {
-    console.log(`[EMAIL STUB] Would send to ${to}: ${subject}`)
+    const fs = await import('fs/promises')
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+    const slug = subject.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 60)
+    const file = `${STUB_EMAIL_DIR}/${timestamp}_${slug}.html`
+    await fs.mkdir(STUB_EMAIL_DIR, { recursive: true })
+    await fs.writeFile(file, html)
+    console.log(`[EMAIL STUB] To: ${to} | Subject: ${subject}\n[EMAIL STUB] Preview: ${file}`)
     return true
   }
   if (!resend) {
@@ -52,7 +60,7 @@ const baseStyle = `
 `
 
 export async function sendPasswordResetEmail(to: string, resetToken: string, name = 'there'): Promise<boolean> {
-  const resetUrl = `${APP_URL}/static/reset-password.html?token=${resetToken}`
+  const resetUrl = `${APP_URL}/reset-password?token=${resetToken}`
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
 <body><div class="container">
   <h2>Reset Your Password</h2>
@@ -70,7 +78,7 @@ export async function sendPasswordResetEmail(to: string, resetToken: string, nam
 }
 
 export async function sendAdminInviteEmail(to: string, inviteToken: string, invitedBy: string): Promise<boolean> {
-  const inviteUrl = `${APP_URL}/static/accept-invite.html?token=${inviteToken}`
+  const inviteUrl = `${APP_URL}/accept-invite?token=${inviteToken}`
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
 <body><div class="container">
   <h2>You're Invited to be a Catalyse Admin</h2>
@@ -122,11 +130,11 @@ export async function sendProjectNotificationEmail(
   <p>${message}</p>
   ${extraHtml}
   <p style="text-align: center; margin: 32px 0;">
-    <a href="${APP_URL}/static/project.html?id=${projectId}" class="button">View Project</a>
+    <a href="${APP_URL}/projects/${projectId}" class="button">View Project</a>
   </p>
   <div class="footer">
     <p>Catalyse - PauseAI Volunteer Platform</p>
-    <p style="font-size: 12px;"><a href="${APP_URL}/static/profile.html">Manage notification preferences</a></p>
+    <p style="font-size: 12px;"><a href="${APP_URL}/profile">Manage notification preferences</a></p>
   </div>
 </div></body></html>`
   return sendEmail(to, subject, html)
@@ -153,7 +161,7 @@ export async function sendRelayMessage(
   <div class="footer">
     <p>Catalyse - PauseAI UK Volunteer Platform</p>
     <p style="font-size: 12px;">This message was sent via the Catalyse platform. If you no longer wish to receive messages,
-    update your contact preferences in your <a href="${APP_URL}/static/profile.html">profile settings</a>.</p>
+    update your contact preferences in your <a href="${APP_URL}/profile">profile settings</a>.</p>
   </div>
 </div></body></html>`
   return sendEmail(to, `[Catalyse] ${subject}`, html, fromEmail)
@@ -173,7 +181,7 @@ export async function sendDigestEmail(
       : ''
     const desc = p.description || ''
     return `<div style="padding: 16px; margin-bottom: 12px; background: #f7fafc; border-radius: 8px; border-left: 4px solid #FF9416;">
-      <a href="${APP_URL}/static/project.html?id=${p.id}" style="font-weight: bold; color: #1A202C; text-decoration: none; font-size: 16px;">${p.title}</a>${matchBadge}
+      <a href="${APP_URL}/projects/${p.id}" style="font-weight: bold; color: #1A202C; text-decoration: none; font-size: 16px;">${p.title}</a>${matchBadge}
       <p style="color: #4A5568; margin: 8px 0 4px 0; font-size: 14px;">${desc.slice(0, 150)}${desc.length > 150 ? '...' : ''}</p>
       ${skillsHtml ? `<p style="font-size: 12px; color: #718096;">Skills: ${skillsHtml}</p>` : ''}
     </div>`
@@ -193,7 +201,7 @@ export async function sendDigestEmail(
   <div class="footer">
     <p>Catalyse - PauseAI Volunteer Platform</p>
     <p style="font-size: 12px;">You're receiving this because you opted in to project notifications.
-    <a href="${APP_URL}/static/profile.html">Change your preferences</a> at any time.</p>
+    <a href="${APP_URL}/profile">Change your preferences</a> at any time.</p>
   </div>
 </div></body></html>`
   const subject = isMatch ? 'New projects matching your skills' : "What's new on Catalyse"
