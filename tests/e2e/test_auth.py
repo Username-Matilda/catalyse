@@ -100,7 +100,7 @@ class TestLogout:
         page.click("#loginForm button[type=submit]")
         expect(page).to_have_url(f"{BASE_URL}/static/dashboard.html", timeout=10000)
         page.locator(".user-button").click()
-        page.get_by_role("link", name="Logout").click()
+        page.get_by_role("link", name="Sign Out").click()
         # logout() redirects to login; wait for that to confirm the full logout flow ran
         expect(page).to_have_url(f"{BASE_URL}/static/login.html", timeout=10000)
         stored = page.evaluate("localStorage.getItem('authToken')")
