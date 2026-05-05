@@ -9,6 +9,9 @@
     "test:ui": "SLOW_MO=800 playwright test --ui --headed --workers=1",
     "install:browsers": "playwright install chromium"
   },
+  "engines": {
+    "node": ">=24"
+  },
   "devDependencies": {
     "@faker-js/faker": "^10.4.0",
     "@playwright/test": "^1.44.0",
