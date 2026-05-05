@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
 import BugReportDialog from './BugReportDialog'
+import { ThemeToggle } from './ThemeToggle'
 
 export default function Header() {
   const { user, loading, logout } = useAuth()
@@ -62,6 +63,7 @@ export default function Header() {
           </nav>
 
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <ThemeToggle />
             <button
               role="button"
               onClick={() => setBugDialogOpen(true)}

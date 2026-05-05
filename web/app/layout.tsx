@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Montserrat, Roboto_Slab, Saira_Condensed } from 'next/font/google'
 import { AuthProvider } from '@/lib/auth-context'
+import { ThemeProvider } from '@/components/ThemeProvider'
 import './globals.css'
 
 const montserrat = Montserrat({
@@ -37,7 +38,9 @@ export default function RootLayout({
       className={`${montserrat.variable} ${robotoSlab.variable} ${sairaCondensed.variable}`}
     >
       <body className="min-h-screen flex flex-col">
-        <AuthProvider>{children}</AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   )
