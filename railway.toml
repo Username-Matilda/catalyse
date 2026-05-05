@@ -1,13 +1,16 @@
 [build]
 builder = "NIXPACKS"
 buildCommand = "python build.py"
+# will remove buildCommand
 
 [deploy]
 startCommand = "uvicorn api:app --host 0.0.0.0 --port ${PORT:-8001}"
+# startCommand = "npm start"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
 
 [deploy.healthcheck]
 path = "/api/skills"
+# path = "/api/health"
 interval = 300
 timeout = 5
