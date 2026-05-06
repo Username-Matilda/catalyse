@@ -1,5 +1,9 @@
 import { FilterOption } from '@/components/FilterDropdown'
 
+export const LOCAL_GROUPS: Record<string, string[]> = {
+  UK: ['Oxfordshire', 'London', 'Scotland', 'West of England', 'Leicester', 'Manchester'],
+}
+
 export const LOCATION_OPTIONS: FilterOption[] = [
   { value: '', label: 'Any country' },
   { value: 'Remote', label: 'Remote' },
@@ -29,12 +33,17 @@ export const LOCATION_OPTIONS: FilterOption[] = [
   { value: 'Sweden', label: 'Sweden' },
   { value: 'Switzerland', label: 'Switzerland' },
   { value: 'UK', label: 'UK' },
-  { value: 'UK:Oxfordshire', label: 'Oxfordshire', indent: true },
-  { value: 'UK:London', label: 'London', indent: true },
-  { value: 'UK:Scotland', label: 'Scotland', indent: true },
-  { value: 'UK:West of England', label: 'West of England', indent: true },
-  { value: 'UK:Leicester', label: 'Leicester', indent: true },
-  { value: 'UK:Manchester', label: 'Manchester', indent: true },
+  { value: 'UK:Oxfordshire', label: 'UK - Oxfordshire', indent: true },
+  { value: 'UK:London', label: 'UK - London', indent: true },
+  { value: 'UK:Scotland', label: 'UK - Scotland', indent: true },
+  { value: 'UK:West of England', label: 'UK - West of England', indent: true },
+  { value: 'UK:Leicester', label: 'UK - Leicester', indent: true },
+  { value: 'UK:Manchester', label: 'UK - Manchester', indent: true },
   { value: 'US', label: 'US' },
   { value: 'Other', label: 'Other' },
+]
+
+export const COUNTRY_OPTIONS: FilterOption[] = [
+  { value: '', label: 'Select…' },
+  ...LOCATION_OPTIONS.filter(o => o.value !== '' && !o.indent),
 ]
