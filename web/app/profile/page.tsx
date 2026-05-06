@@ -4,6 +4,7 @@ import { useEffect, useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/Header'
 import Button from '@/components/Button'
+import Checkbox from '@/components/Checkbox'
 import SkillPicker from '@/components/SkillPicker'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
@@ -27,6 +28,8 @@ interface ProfileData {
   discord_handle: string | null
   signal_number: string | null
   whatsapp_number: string | null
+  contact_preference: string | null
+  contact_notes: string | null
 }
 
 export default function ProfilePage() {
@@ -42,6 +45,8 @@ export default function ProfilePage() {
   const [discordHandle, setDiscordHandle] = useState('')
   const [signalNumber, setSignalNumber] = useState('')
   const [whatsappNumber, setWhatsappNumber] = useState('')
+  const [contactPreference, setContactPreference] = useState('')
+  const [contactNotes, setContactNotes] = useState('')
   const [emailDigest, setEmailDigest] = useState('none')
   const [skills, setSkills] = useState<SelectedSkill[]>([])
   const [otherSkills, setOtherSkills] = useState('')
@@ -67,6 +72,8 @@ export default function ProfilePage() {
         setDiscordHandle(d.discord_handle ?? '')
         setSignalNumber(d.signal_number ?? '')
         setWhatsappNumber(d.whatsapp_number ?? '')
+        setContactPreference(d.contact_preference ?? '')
+        setContactNotes(d.contact_notes ?? '')
         setEmailDigest(d.email_digest ?? 'none')
         setOtherSkills(d.other_skills ?? '')
         setSkills(
@@ -98,6 +105,8 @@ export default function ProfilePage() {
           discord_handle: discordHandle.trim() || null,
           signal_number: signalNumber.trim() || null,
           whatsapp_number: whatsappNumber.trim() || null,
+          contact_preference: contactPreference || null,
+          contact_notes: contactNotes.trim() || null,
           email_digest: emailDigest,
           other_skills: otherSkills.trim() || null,
           skill_ids: skills.map(s => s.skillId),
@@ -118,7 +127,7 @@ export default function ProfilePage() {
     return (
       <>
         <Header />
-        <main className="max-w-350 mx-auto px-6 py-5 pb-15">
+        <main className="max-w-4xl mx-auto px-6 py-5 pb-15">
           <div className="text-center py-10 text-text-light">Loading profile…</div>
         </main>
       </>
@@ -128,7 +137,7 @@ export default function ProfilePage() {
   return (
     <>
       <Header />
-      <main className="max-w-350 mx-auto px-6 py-5 pb-15">
+      <main className="max-w-4xl mx-auto px-6 py-5 pb-15">
         <h1>Your Profile</h1>
 
         {alert && (
@@ -138,16 +147,18 @@ export default function ProfilePage() {
         )}
 
         <form className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word" onSubmit={handleSubmit}>
+
+          {/* Basic info */}
           <div className="mb-5">
-            <label htmlFor="name">Your Name</label>
+            <label htmlFor="name" className="required">Your Name</label>
             <input
               type="text"
               id="name"
               value={name}
               onChange={e => setName(e.target.value)}
+              required
             />
           </div>
-
           <div className="mb-5">
             <label htmlFor="bio">About You</label>
             <textarea
@@ -158,115 +169,96 @@ export default function ProfilePage() {
             />
           </div>
 
-          <div className="mb-5">
-            <label htmlFor="location">Location</label>
-            <input
-              type="text"
-              id="location"
-              value={location}
-              onChange={e => setLocation(e.target.value)}
-            />
-          </div>
-
-          <div className="mb-5">
-            <label htmlFor="hours">Hours per Week</label>
-            <input
-              type="number"
-              id="hours"
-              min={0}
-              max={168}
-              value={hours}
-              onChange={e => setHours(e.target.value)}
-            />
-          </div>
-
-          <div className="mb-5">
-            <label htmlFor="discord_handle">Discord Handle</label>
-            <input
-              type="text"
-              id="discord_handle"
-              value={discordHandle}
-              onChange={e => setDiscordHandle(e.target.value)}
-              placeholder="e.g. username#1234"
-            />
-          </div>
-
-          <div className="mb-5">
-            <label htmlFor="signal_number">Signal</label>
-            <input
-              type="text"
-              id="signal_number"
-              value={signalNumber}
-              onChange={e => setSignalNumber(e.target.value)}
-              placeholder="e.g. +44…"
-            />
-          </div>
-
-          <div className="mb-5">
-            <label htmlFor="whatsapp_number">WhatsApp</label>
-            <input
-              type="text"
-              id="whatsapp_number"
-              value={whatsappNumber}
-              onChange={e => setWhatsappNumber(e.target.value)}
-              placeholder="e.g. +44…"
-            />
-          </div>
-
-          <div className="mb-5">
-            <label className="flex items-center gap-2 cursor-pointer">
+          {/* Contact Information */}
+          <h3 className="mt-6 mb-4">Contact Information</h3>
+          <div className="grid grid-cols-2 gap-5 mb-5 max-sm:grid-cols-1">
+            <div>
+              <label htmlFor="discord_handle">Discord Handle</label>
               <input
-                type="checkbox"
-                id="consent_make_profile_visible_in_directory"
-                checked={consentMakeProfileVisibleInDirectory}
-                onChange={e => setConsentMakeProfileVisibleInDirectory(e.target.checked)}
+                type="text"
+                id="discord_handle"
+                value={discordHandle}
+                onChange={e => setDiscordHandle(e.target.value)}
+                placeholder="e.g. username#1234"
               />
-              Make my profile visible in the volunteer directory
-            </label>
+            </div>
+            <div>
+              <label htmlFor="signal_number">Signal</label>
+              <input
+                type="text"
+                id="signal_number"
+                value={signalNumber}
+                onChange={e => setSignalNumber(e.target.value)}
+                placeholder="e.g. +44…"
+              />
+            </div>
+            <div>
+              <label htmlFor="whatsapp_number">WhatsApp</label>
+              <input
+                type="text"
+                id="whatsapp_number"
+                value={whatsappNumber}
+                onChange={e => setWhatsappNumber(e.target.value)}
+                placeholder="e.g. +44…"
+              />
+            </div>
+            <div>
+              <label htmlFor="contact_preference">Preferred Contact Method</label>
+              <select
+                id="contact_preference"
+                value={contactPreference}
+                onChange={e => setContactPreference(e.target.value)}
+              >
+                <option value="">Select…</option>
+                <option value="email">Email</option>
+                <option value="discord">Discord</option>
+                <option value="signal">Signal</option>
+                <option value="whatsapp">WhatsApp</option>
+              </select>
+            </div>
+          </div>
+          <div className="mb-5">
+            <label htmlFor="contact_notes">Contact Notes</label>
+            <input
+              type="text"
+              id="contact_notes"
+              value={contactNotes}
+              onChange={e => setContactNotes(e.target.value)}
+              placeholder="e.g. Best to DM me on Discord first"
+            />
           </div>
 
-          <div className="mb-5">
-            <label className="flex items-center gap-2 cursor-pointer">
+          {/* Availability */}
+          <h3 className="mt-6 mb-4">Availability</h3>
+          <div className="grid grid-cols-2 gap-5 mb-5 max-sm:grid-cols-1">
+            <div>
+              <label htmlFor="hours">Hours per Week</label>
               <input
-                type="checkbox"
-                id="consent_contactable_by_project_owners"
-                checked={consentContactableByProjectOwners}
-                onChange={e => setConsentContactableByProjectOwners(e.target.checked)}
+                type="number"
+                id="hours"
+                min={0}
+                max={168}
+                value={hours}
+                onChange={e => setHours(e.target.value)}
               />
-              Allow project owners to contact me about opportunities
-            </label>
-            <div className="ml-6 mt-2">
-              <label className={`flex items-center gap-2 ${consentContactableByProjectOwners ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}>
-                <input
-                  type="checkbox"
-                  id="consent_share_contact_info_with_project_owner"
-                  checked={consentShareContactInfoWithProjectOwner}
-                  disabled={!consentContactableByProjectOwners}
-                  onChange={e => setConsentShareContactInfoWithProjectOwner(e.target.checked)}
-                />
-                Share my contact info directly with project owners
-              </label>
+            </div>
+            <div>
+              <label htmlFor="location">Location</label>
+              <input
+                type="text"
+                id="location"
+                value={location}
+                onChange={e => setLocation(e.target.value)}
+                placeholder="e.g. London, UK"
+              />
             </div>
           </div>
 
+          {/* Skills */}
+          <h3 className="mt-6 mb-4">Your Skills</h3>
           <div className="mb-5">
-            <label htmlFor="email_digest">Email Digest</label>
-            <select
-              id="email_digest"
-              value={emailDigest}
-              onChange={e => setEmailDigest(e.target.value)}
-            >
-              <option value="none">No email digest</option>
-              <option value="match">Email me when a project matches my skills</option>
-              <option value="fortnightly">Fortnightly digest</option>
-            </select>
-          </div>
-
-          <div className="mb-5">
-            <label>Skills</label>
             <SkillPicker value={skills} onChange={setSkills} />
           </div>
-
           <div className="mb-5">
             <label htmlFor="other_skills">Other Skills</label>
             <input
@@ -278,10 +270,62 @@ export default function ProfilePage() {
             />
           </div>
 
+          {/* Privacy Settings */}
+          <h3 className="mt-6 mb-4">Privacy Settings</h3>
+          <div className="mb-5 flex flex-col gap-3">
+            <Checkbox
+              id="consent_make_profile_visible_in_directory"
+              checked={consentMakeProfileVisibleInDirectory}
+              onChange={e => setConsentMakeProfileVisibleInDirectory(e.target.checked)}
+            >
+              Make my profile visible in the volunteer directory
+            </Checkbox>
+            <Checkbox
+              id="consent_contactable_by_project_owners"
+              checked={consentContactableByProjectOwners}
+              onChange={e => setConsentContactableByProjectOwners(e.target.checked)}
+            >
+              Allow project owners to contact me about opportunities
+            </Checkbox>
+            <div className="ml-7">
+              <Checkbox
+                id="consent_share_contact_info_with_project_owner"
+                checked={consentShareContactInfoWithProjectOwner}
+                disabled={!consentContactableByProjectOwners}
+                onChange={e => setConsentShareContactInfoWithProjectOwner(e.target.checked)}
+              >
+                <span className={consentContactableByProjectOwners ? '' : 'opacity-50'}>
+                  Share my contact info directly with project owners (otherwise they use the contact form)
+                </span>
+              </Checkbox>
+            </div>
+          </div>
+
+          {/* Email Notifications */}
+          <h3 className="mt-6 mb-4">Email Notifications</h3>
+          <div className="mb-5">
+            <label htmlFor="email_digest">Keep me in the loop about new projects</label>
+            <select
+              id="email_digest"
+              value={emailDigest}
+              onChange={e => setEmailDigest(e.target.value)}
+            >
+              <option value="none">Don&apos;t email me</option>
+              <option value="match">Email me when a project matches my skills</option>
+              <option value="fortnightly">Send me a fortnightly digest</option>
+            </select>
+          </div>
+
           <Button type="submit" disabled={submitting}>
             {submitting ? 'Saving…' : 'Save Changes'}
           </Button>
         </form>
+
+        <div className="bg-surface rounded-xl shadow p-6 mb-4 border-2 border-brand-border">
+          <h3>Data &amp; Privacy</h3>
+          <p className="text-text-light mb-4">Manage your data or delete your account.</p>
+          <Button href="/privacy" variant="outline">Privacy Settings</Button>
+        </div>
       </main>
     </>
   )

@@ -129,7 +129,7 @@ export default function SignupPage() {
     <>
       {googleClientId && <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />}
       <Header />
-      <main className="max-w-350 mx-auto px-6 py-5 pb-15">
+      <main className="max-w-4xl mx-auto px-6 py-5 pb-15">
         <div style={{ maxWidth: 600, margin: '0 auto' }}>
           <h1>Join Catalyse</h1>
           <p className="text-text-light mb-6">
