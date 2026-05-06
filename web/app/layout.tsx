@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Montserrat, Roboto_Slab, Saira_Condensed } from 'next/font/google'
 import { AuthProvider } from '@/lib/auth-context'
 import { ThemeProvider } from '@/components/ThemeProvider'
+import { ToastProvider } from '@/lib/toast'
 import FloatingActions from '@/components/FloatingActions'
 import './globals.css'
 
@@ -42,8 +43,10 @@ export default function RootLayout({
       <body className="min-h-screen flex flex-col">
         <ThemeProvider>
           <AuthProvider>
-            {children}
-            <FloatingActions />
+            <ToastProvider>
+              {children}
+              <FloatingActions />
+            </ToastProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>
