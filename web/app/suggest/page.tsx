@@ -356,10 +356,9 @@ export default function SuggestPage() {
                   />
                 </div>
                 <div className="mb-2">
-                  <label htmlFor={`task-desc-${i}`} className="text-sm">Description (optional)</label>
+                  <label htmlFor={`task-desc-${i}`} className="text-sm">Details (optional)</label>
                   <textarea
                     id={`task-desc-${i}`}
-                    aria-label="Task description"
                     placeholder="More detail about what needs doing…"
                     value={task.description}
                     onChange={e => updateTask(i, 'description', e.target.value)}
