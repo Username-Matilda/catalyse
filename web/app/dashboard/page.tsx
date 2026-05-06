@@ -12,6 +12,11 @@ interface Project {
   id: number
   title: string
   status: string
+  description: string
+  updated_at: string
+  pending_interest_count: number
+  skills?: { name: string }[]
+  match?: { required_match_percent: number }
 }
 
 interface Interest {
@@ -21,6 +26,8 @@ interface Interest {
   project_status: string
   interest_type: string
   status: string
+  created_at: string
+  message: string | null
 }
 
 interface Notification {
@@ -53,12 +60,36 @@ interface StarterTask {
 type TabKey = 'owned' | 'interests' | 'proposed' | 'suggested' | 'notifications'
 
 
+function formatDate(dateStr: string) {
+  const date = new Date(dateStr)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  if (diffDays === 0) return 'today'
+  if (diffDays === 1) return 'yesterday'
+  if (diffDays < 30) return `${diffDays} days ago`
+  if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`
+  return `${Math.floor(diffDays / 365)} years ago`
+}
+
+function formatStatus(status: string) {
+  return status.replace(/_/g, ' ')
+}
+
+function formatInterestType(type: string) {
+  return type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
+
+function truncate(str: string, max: number) {
+  return str.length > max ? str.slice(0, max) + '…' : str
+}
+
 function statusBadgeClasses(status: string) {
   const map: Record<string, string> = {
-    seeking_owner: 'bg-[#FEF3C7] text-[#92400E] dark:bg-[#78350F] dark:text-[#FDE68A]',
-    seeking_help: 'bg-[#DBEAFE] text-[#1E40AF] dark:bg-[#1E3A5F] dark:text-[#93C5FD]',
+    seeking_owner: 'bg-[#FED7AA] text-[#92400E] dark:bg-[#78350F] dark:text-[#FED7AA]',
+    seeking_help: 'bg-[#FED7AA] text-[#92400E] dark:bg-[#78350F] dark:text-[#FED7AA]',
     needs_tasks: 'bg-[#FEF9C3] text-[#713F12] dark:bg-[#78350F] dark:text-[#FDE68A]',
-    in_progress: 'bg-[#D1FAE5] text-[#065F46] dark:bg-[#064E3B] dark:text-[#6EE7B7]',
+    in_progress: 'bg-[#DBEAFE] text-[#1E40AF] dark:bg-[#1E3A5F] dark:text-[#93C5FD]',
     on_hold: 'bg-[#F3F4F6] text-[#374151] dark:bg-[#374151] dark:text-[#9CA3AF]',
     completed: 'bg-[#D1FAE5] text-[#065F46] dark:bg-[#064E3B] dark:text-[#6EE7B7]',
     pending_review: 'bg-[#FEF3C7] text-[#92400E] dark:bg-[#78350F] dark:text-[#FDE68A]',
@@ -68,6 +99,43 @@ function statusBadgeClasses(status: string) {
   }
   // [test hook] status-badge class used as test selector
   return `status-badge inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${map[status] ?? 'bg-[#F3F4F6] text-[#374151]'}`
+}
+
+function ProjectCard({ project: p, showMatch }: { project: Project; showMatch?: boolean }) {
+  return (
+    <div className="card bg-surface rounded-xl shadow p-5 mb-3 wrap-break-word">
+      <div className="card-header flex justify-between items-start gap-3 mb-2">
+        <h3 className="text-base font-semibold m-0">
+          <Link href={`/projects/${p.id}`} className="no-underline hover:underline">{p.title}</Link>
+        </h3>
+        <div className="flex items-center gap-2 shrink-0">
+          {showMatch && p.match && (
+            <span className="text-xs font-semibold text-primary">{p.match.required_match_percent}% match</span>
+          )}
+          <span className={statusBadgeClasses(p.status)}>{formatStatus(p.status)}</span>
+        </div>
+      </div>
+      {p.description && (
+        <p className="text-sm text-text-light mb-2">{truncate(p.description, 150)}</p>
+      )}
+      {p.skills && p.skills.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-2">
+          {p.skills.map(s => (
+            <span key={s.name} className="skill-tag bg-[#DBEAFE] text-[#1E40AF] dark:bg-[#1E3A5F] dark:text-[#93C5FD] text-xs px-2 py-0.5 rounded-full">{s.name}</span>
+          ))}
+        </div>
+      )}
+      {p.pending_interest_count > 0 && (
+        <div className="flex items-center gap-2 p-3 rounded-lg mb-2 bg-[#DBEAFE] text-[#1E40AF] dark:bg-[#1E3A5F] dark:text-[#93C5FD] text-sm">
+          {p.pending_interest_count} volunteer{p.pending_interest_count > 1 ? 's' : ''} interested!
+        </div>
+      )}
+      <div className="flex justify-between items-center mt-3">
+        <span className="text-xs text-text-light">Updated {formatDate(p.updated_at)}</span>
+        <Link href={`/projects/${p.id}`}><Button variant="outline" size="sm">View</Button></Link>
+      </div>
+    </div>
+  )
 }
 
 export default function DashboardPage() {
@@ -284,10 +352,7 @@ export default function DashboardPage() {
               <p className="text-text-light">You don&apos;t own any projects yet.</p>
             ) : (
               data.owned_projects.map(p => (
-                <div key={p.id} className="bg-surface rounded-xl shadow p-5 mb-3 flex justify-between items-center wrap-break-word">
-                  <Link href={`/projects/${p.id}`} className="font-medium no-underline hover:underline">{p.title}</Link>
-                  <span className={statusBadgeClasses(p.status)}>{p.status.replace(/_/g, ' ')}</span>
-                </div>
+                <ProjectCard key={p.id} project={p} />
               ))
             )}
           </div>
@@ -299,9 +364,23 @@ export default function DashboardPage() {
               <p className="text-text-light">You haven&apos;t expressed interest in any projects yet.</p>
             ) : (
               data.my_interests.map(i => (
-                <div key={i.id} className="bg-surface rounded-xl shadow p-5 mb-3 flex justify-between items-center wrap-break-word">
-                  <Link href={`/projects/${i.project_id}`} className="font-medium no-underline hover:underline">{i.project_title}</Link>
-                  <span className={statusBadgeClasses(i.status)}>{i.status}</span>
+                <div key={i.id} className="card bg-surface rounded-xl shadow p-5 mb-3 wrap-break-word">
+                  <div className="card-header flex justify-between items-start gap-3 mb-2">
+                    <h3 className="text-base font-semibold m-0">
+                      <Link href={`/projects/${i.project_id}`} className="no-underline hover:underline">{i.project_title}</Link>
+                    </h3>
+                    <span className={statusBadgeClasses(i.status)}>{i.status}</span>
+                  </div>
+                  <p className="text-sm text-text-light mb-2">
+                    {formatInterestType(i.interest_type)} · Submitted {formatDate(i.created_at)}
+                  </p>
+                  {i.message && (
+                    <p className="text-sm italic mb-2">&ldquo;{i.message}&rdquo;</p>
+                  )}
+                  <div className="flex justify-between items-center mt-3">
+                    <span className="text-sm">Project: <span className={statusBadgeClasses(i.project_status)}>{formatStatus(i.project_status)}</span></span>
+                    <Link href={`/projects/${i.project_id}`}><Button variant="outline" size="sm">View Project</Button></Link>
+                  </div>
                 </div>
               ))
             )}
@@ -314,10 +393,7 @@ export default function DashboardPage() {
               <p className="text-text-light">You haven&apos;t proposed any projects yet.</p>
             ) : (
               data.proposed_projects.map(p => (
-                <div key={p.id} className="bg-surface rounded-xl shadow p-5 mb-3 flex justify-between items-center wrap-break-word">
-                  <Link href={`/projects/${p.id}`} className="font-medium no-underline hover:underline">{p.title}</Link>
-                  <span className={statusBadgeClasses(p.status)}>{p.status.replace(/_/g, ' ')}</span>
-                </div>
+                <ProjectCard key={p.id} project={p} />
               ))
             )}
           </div>
@@ -328,12 +404,12 @@ export default function DashboardPage() {
             {!data?.suggested_projects.length ? (
               <p className="text-text-light">No suggested projects matching your skills right now.</p>
             ) : (
-              data.suggested_projects.map(p => (
-                <div key={p.id} className="bg-surface rounded-xl shadow p-5 mb-3 flex justify-between items-center wrap-break-word">
-                  <Link href={`/projects/${p.id}`} className="font-medium no-underline hover:underline">{p.title}</Link>
-                  <span className={statusBadgeClasses(p.status)}>{p.status.replace(/_/g, ' ')}</span>
-                </div>
-              ))
+              <>
+                <p className="mb-4 text-text-light">Based on your skills, these projects might be a good fit:</p>
+                {data.suggested_projects.map(p => (
+                  <ProjectCard key={p.id} project={p} showMatch />
+                ))}
+              </>
             )}
           </div>
         )}

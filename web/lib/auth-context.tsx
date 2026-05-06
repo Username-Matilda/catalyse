@@ -10,6 +10,7 @@ interface User {
   is_admin: boolean
   volunteer_id?: number
   email_digest: string | null
+  skills: Array<{ id: number; name: string }>
 }
 
 interface AuthContextValue {
