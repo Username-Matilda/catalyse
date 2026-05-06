@@ -4,6 +4,7 @@ import { use, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/components/Header'
+import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
 
@@ -86,8 +87,8 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
     return (
       <>
         <Header />
-        <main className="container page">
-          <div className="loading">Loading profile…</div>
+        <main className="max-w-350 mx-auto px-6 py-5 pb-15">
+          <div className="text-center py-10 text-text-light">Loading profile…</div>
         </main>
       </>
     )
@@ -97,9 +98,9 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
     return (
       <>
         <Header />
-        <main className="container page">
-          <p style={{ color: 'var(--error)' }}>Volunteer not found.</p>
-          <Link href="/volunteers" className="btn btn-secondary" style={{ marginTop: 16 }}>Back to Volunteers</Link>
+        <main className="max-w-350 mx-auto px-6 py-5 pb-15">
+          <p className="text-[color:var(--error)]">Volunteer not found.</p>
+          <Button href="/volunteers" variant="secondary" className="mt-4">Back to Volunteers</Button>
         </main>
       </>
     )
@@ -111,56 +112,56 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
   return (
     <>
       <Header />
-      <main className="container page">
-        <div style={{ marginBottom: 20 }}>
-          <Link href="/volunteers" style={{ color: 'var(--text-light)' }}>&larr; Back to Volunteers</Link>
+      <main className="max-w-350 mx-auto px-6 py-5 pb-15">
+        <div className="mb-5">
+          <Link href="/volunteers" className="text-text-light">&larr; Back to Volunteers</Link>
         </div>
 
         <div id="profileContent">
-          <div className="card">
-            <h1 id="volunteerName" style={{ margin: '0 0 8px' }}>{volunteer.name}</h1>
+          <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word">
+            <h1 id="volunteerName" className="m-0 mb-2">{volunteer.name}</h1>
 
             {(volunteer.location || volunteer.local_group) && (
-              <p style={{ color: 'var(--text-light)', marginBottom: 16, fontSize: '0.875rem' }}>
+              <p className="text-text-light mb-4 text-sm">
                 {[volunteer.location, volunteer.local_group].filter(Boolean).join(' · ')}
               </p>
             )}
 
-            <div id="volunteerBio" style={{ whiteSpace: 'pre-wrap', marginBottom: 20 }}>
-              {volunteer.bio || <em style={{ color: 'var(--text-light)' }}>No bio provided</em>}
+            <div id="volunteerBio" className="whitespace-pre-wrap mb-5">
+              {volunteer.bio || <em className="text-text-light">No bio provided</em>}
             </div>
 
             <h3>Skills</h3>
-            <div id="volunteerSkills" style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 20 }}>
+            <div id="volunteerSkills" className="flex flex-wrap gap-1.5 mb-5">
               {volunteer.skills.length > 0 ? volunteer.skills.map(s => (
                 <span
                   key={s.id}
-                  className={`skill-tag${endorsedSkillIds.has(s.id) ? ' matched' : ''}`}
+                  className={`inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-[#374151] dark:text-[#D1D5DB]${endorsedSkillIds.has(s.id) ? ' matched' : ''}`}
                 >
                   {s.name}{endorsedSkillIds.has(s.id) ? ' ✓' : ''}
                 </span>
               )) : (
-                <em style={{ color: 'var(--text-light)' }}>No skills listed</em>
+                <em className="text-text-light">No skills listed</em>
               )}
             </div>
 
             {volunteer.other_skills && (
-              <div style={{ marginBottom: 20 }}>
-                <h4 style={{ color: 'var(--text-light)' }}>Other Skills</h4>
+              <div className="mb-5">
+                <h4 className="text-text-light">Other Skills</h4>
                 <p>{volunteer.other_skills}</p>
               </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 20 }}>
+            <div className="grid grid-cols-2 gap-4 mt-5">
               {volunteer.availability_hours_per_week && (
                 <div>
-                  <h4 style={{ color: 'var(--text-light)' }}>Availability</h4>
+                  <h4 className="text-text-light">Availability</h4>
                   <p id="availabilityText">{volunteer.availability_hours_per_week} hours/week</p>
                 </div>
               )}
 
               <div id="contactInfo" style={{ display: hasContact ? 'block' : 'none' }}>
-                <h4 style={{ color: 'var(--text-light)' }}>Contact</h4>
+                <h4 className="text-text-light">Contact</h4>
                 <div>
                   {volunteer.email && <div>Email: {volunteer.email}</div>}
                   {volunteer.discord_handle && <div>Discord: {volunteer.discord_handle}</div>}
@@ -173,16 +174,16 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
           </div>
 
           {volunteer.endorsements.length > 0 && (
-            <div id="endorsementsSection" className="card">
+            <div id="endorsementsSection" className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word">
               <h2>Verified Skills</h2>
-              <p style={{ color: 'var(--text-light)', marginBottom: 12 }}>
+              <p className="text-text-light mb-3">
                 Skills verified through completed work on the platform.
               </p>
-              <div id="endorsementsList" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              <div id="endorsementsList" className="flex flex-wrap gap-1.5">
                 {volunteer.endorsements.map(e => (
                   <span
                     key={e.id}
-                    className="skill-tag"
+                    className="inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-[#374151] dark:text-[#D1D5DB]"
                     style={{ borderLeft: `3px solid ${e.rating === 'strong' ? 'var(--success)' : 'var(--secondary)'}` }}
                   >
                     {e.skill_name} <small style={{ color: e.rating === 'strong' ? 'var(--success)' : 'var(--secondary)' }}>{e.rating}</small>
@@ -193,19 +194,19 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
           )}
 
           {volunteer.completed_tasks.length > 0 && (
-            <div className="card">
+            <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word">
               <h2>Completed Starter Tasks</h2>
               {volunteer.completed_tasks.map((t, i) => (
-                <div key={i} style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div key={i} className="py-3 border-b border-brand-border">
+                  <div className="flex justify-between items-center">
                     <strong>{t.title}</strong>
-                    <span style={{ fontSize: '0.875rem', fontWeight: 500, color: t.review_rating === 'excellent' ? 'var(--success)' : 'var(--secondary)' }}>
+                    <span className={`text-sm font-medium ${t.review_rating === 'excellent' ? 'text-[color:var(--success)]' : 'text-secondary'}`}>
                       {t.review_rating}
                     </span>
                   </div>
-                  {t.skill_name && <span className="skill-tag" style={{ marginTop: 4 }}>{t.skill_name}</span>}
+                  {t.skill_name && <span className="inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-[#374151] dark:text-[#D1D5DB] mt-1">{t.skill_name}</span>}
                   {t.feedback_to_volunteer && (
-                    <p style={{ marginTop: 8, fontSize: '0.875rem', color: 'var(--text-light)', fontStyle: 'italic' }}>
+                    <p className="mt-2 text-sm text-text-light italic">
                       &ldquo;{t.feedback_to_volunteer}&rdquo;
                     </p>
                   )}
@@ -215,19 +216,19 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
           )}
 
           {volunteer.projects.length > 0 && (
-            <div className="card">
+            <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word">
               <h2>Project History</h2>
               {volunteer.projects.map(p => (
-                <div key={p.id} style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Link href={`/projects/${p.id}`} style={{ fontWeight: 600, color: 'var(--primary-dark)' }}>
+                <div key={p.id} className="py-3 border-b border-brand-border">
+                  <div className="flex justify-between items-center">
+                    <Link href={`/projects/${p.id}`} className="font-semibold text-primary-dark">
                       {p.title}
                     </Link>
-                    <span className={`status-badge status-${p.status}`}>
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${p.status === 'in_progress' || p.status === 'completed' ? 'bg-[#D1FAE5] text-[#065F46] dark:bg-[#064E3B] dark:text-[#6EE7B7]' : p.status === 'on_hold' ? 'bg-[#F3F4F6] text-[#374151] dark:bg-[#374151] dark:text-[#9CA3AF]' : p.status === 'open' ? 'bg-[#E0E7FF] text-[#3730A3] dark:bg-[#312E81] dark:text-[#A5B4FC]' : p.status === 'assigned' || p.status === 'seeking_help' ? 'bg-[#DBEAFE] text-[#1E40AF] dark:bg-[#1E3A5F] dark:text-[#93C5FD]' : 'bg-[#FEF3C7] text-[#92400E] dark:bg-[#78350F] dark:text-[#FDE68A]'}`}>
                       {p.status.replace(/_/g, ' ')}
                     </span>
                   </div>
-                  <p style={{ fontSize: '0.875rem', color: 'var(--text-light)', marginTop: 4 }}>
+                  <p className="text-sm text-text-light mt-1">
                     {p.role === 'owner' ? 'Project owner' : 'Proposer'}
                   </p>
                 </div>

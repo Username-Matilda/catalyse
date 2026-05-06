@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/Header'
+import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
 
@@ -91,12 +92,12 @@ export default function AdminCreateProjectPage() {
           </div>
 
           <div style={{ display: 'flex', gap: 8 }}>
-            <button type="submit" className="btn btn-primary" disabled={submitting}>
+            <Button type="submit" disabled={submitting}>
               {submitting ? 'Creating…' : 'Create Project'}
-            </button>
-            <button type="button" className="btn btn-secondary" onClick={() => router.back()}>
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => router.back()}>
               Cancel
-            </button>
+            </Button>
           </div>
         </form>
       </main>

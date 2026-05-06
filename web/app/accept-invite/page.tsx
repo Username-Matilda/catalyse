@@ -3,10 +3,10 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSearchParams } from 'next/navigation'
-import Link from 'next/link'
 import Header from '@/components/Header'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
+import Button from '@/components/Button'
 
 function AcceptInviteContent() {
   const router = useRouter()
@@ -49,7 +49,7 @@ function AcceptInviteContent() {
 
   if (status === 'loading') {
     return (
-      <div className="loading">
+      <div className="text-center py-10 text-text-light">
         <div className="spinner" />
         Processing invite…
       </div>
@@ -59,37 +59,37 @@ function AcceptInviteContent() {
   if (status === 'needs-login') {
     const redirectUrl = typeof window !== 'undefined' ? encodeURIComponent(window.location.href) : ''
     return (
-      <div className="card" style={{ textAlign: 'center' }}>
+      <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word text-center">
         <h2>Admin Invite</h2>
-        <p style={{ margin: '16px 0', color: 'var(--text-light)' }}>
+        <p className="text-text-light" style={{ margin: '16px 0' }}>
           You&apos;ve been invited to become an admin on Catalyse.
         </p>
         <p style={{ marginBottom: 24 }}>
           Please log in or sign up with the invited email address to accept.
         </p>
-        <Link href={`/login?redirect=${redirectUrl}`} className="btn btn-primary">Log In</Link>
-        <Link href={`/signup?redirect=${redirectUrl}`} className="btn btn-outline" style={{ marginLeft: 8 }}>Sign Up</Link>
+        <Button href={`/login?redirect=${redirectUrl}`}>Log In</Button>
+        <Button href={`/signup?redirect=${redirectUrl}`} variant="outline" className="ml-2">Sign Up</Button>
       </div>
     )
   }
 
   if (status === 'success') {
     return (
-      <div className="card" style={{ textAlign: 'center' }}>
+      <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word text-center">
         <h2>Welcome to the Team!</h2>
-        <p style={{ margin: '16px 0', color: 'var(--text-light)' }}>
+        <p className="text-text-light" style={{ margin: '16px 0' }}>
           You now have admin access to Catalyse. Redirecting…
         </p>
-        <Link href="/admin/triage" className="btn btn-primary">Go to Admin Dashboard</Link>
+        <Button href="/admin/triage">Go to Admin Dashboard</Button>
       </div>
     )
   }
 
   return (
-    <div className="card" style={{ textAlign: 'center' }}>
+    <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word text-center">
       <h2>Invite Error</h2>
       <p style={{ margin: '16px 0', color: 'var(--error)' }}>{errorMsg}</p>
-      <Link href="/" className="btn btn-outline">Back to Home</Link>
+      <Button href="/" variant="outline">Back to Home</Button>
     </div>
   )
 }
@@ -98,9 +98,9 @@ export default function AcceptInvitePage() {
   return (
     <>
       <Header />
-      <main className="container page">
+      <main className="max-w-350 mx-auto px-6 py-5 pb-15">
         <div style={{ maxWidth: 500, margin: '60px auto', textAlign: 'center' }}>
-          <Suspense fallback={<div className="loading">Loading…</div>}>
+          <Suspense fallback={<div className="text-center py-10 text-text-light">Loading…</div>}>
             <AcceptInviteContent />
           </Suspense>
         </div>

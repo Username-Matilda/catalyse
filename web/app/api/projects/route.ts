@@ -1,8 +1,9 @@
 import { NextRequest } from 'next/server'
+import { Prisma } from '@/app/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
 import { getCurrentVolunteer } from '@/lib/auth'
 import { sendProjectNotificationEmail } from '@/lib/email'
-import { serializeProject, projectInclude, EnrichedProject, sortProjects, createNotification } from '@/lib/project'
+import { serializeProject, projectInclude, EnrichedProject, createNotification } from '@/lib/project'
 import { fieldError, validationError } from '@/lib/errors'
 
 export async function GET(request: NextRequest) {
@@ -16,6 +17,9 @@ export async function GET(request: NextRequest) {
   const isOrgProposedParam = searchParams.get('is_org_proposed')
   const isSeekingHelpParam = searchParams.get('is_seeking_help')
   const isSeekingOwnerParam = searchParams.get('is_seeking_owner')
+  // TODO: refactor — is_seeking_any and not_seeking are not in the Python API; added for the Needs filter
+  const isSeekingAnyParam = searchParams.get('is_seeking_any')
+  const notSeekingParam = searchParams.get('not_seeking')
   const sortBy = searchParams.get('sort_by') ?? 'created_at'
   const limit = Math.min(parseInt(searchParams.get('limit') ?? '50', 10), 100)
   const offset = parseInt(searchParams.get('offset') ?? '0', 10)
@@ -24,37 +28,49 @@ export async function GET(request: NextRequest) {
     ? skillIdsParam.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n))
     : null
 
-  const where: Record<string, unknown> = {}
+  // Build WHERE as raw SQL so we can use CASE WHEN in ORDER BY (Prisma orderBy can't express OR across two fields)
+  const conditions: Prisma.Sql[] = []
 
   if (status) {
-    where.status = status
+    conditions.push(Prisma.sql`status = ${status}`)
   } else {
-    where.status = { notIn: ['archived', 'pending_review', 'needs_discussion'] }
+    conditions.push(Prisma.raw(`status NOT IN ('archived', 'pending_review', 'needs_discussion')`))
   }
 
   if (skillIds && skillIds.length > 0) {
-    where.skills = { some: { skillId: { in: skillIds } } }
+    conditions.push(Prisma.sql`id IN (SELECT project_id FROM project_skills WHERE skill_id IN (${Prisma.join(skillIds)}))`)
   }
 
   if (search) {
-    where.OR = [
-      { title: { contains: search } },
-      { description: { contains: search } },
-    ]
+    const like = `%${search}%`
+    conditions.push(Prisma.sql`(title LIKE ${like} OR description LIKE ${like})`)
   }
 
-  if (urgency) where.urgency = urgency
-  if (country) where.country = country
-  if (localGroup) where.localGroup = localGroup
+  if (urgency) conditions.push(Prisma.sql`urgency = ${urgency}`)
+  if (country) conditions.push(Prisma.sql`country = ${country}`)
+  if (localGroup) conditions.push(Prisma.sql`local_group = ${localGroup}`)
+
   if (isOrgProposedParam !== null) {
-    where.isOrgProposed = isOrgProposedParam === 'true' || isOrgProposedParam === '1'
+    conditions.push(Prisma.sql`is_org_proposed = ${isOrgProposedParam === 'true' || isOrgProposedParam === '1' ? 1 : 0}`)
   }
   if (isSeekingHelpParam !== null) {
-    where.isSeekingHelp = isSeekingHelpParam === 'true' || isSeekingHelpParam === '1'
+    conditions.push(Prisma.sql`is_seeking_help = ${isSeekingHelpParam === 'true' || isSeekingHelpParam === '1' ? 1 : 0}`)
   }
   if (isSeekingOwnerParam !== null) {
-    where.isSeekingOwner = isSeekingOwnerParam === 'true' || isSeekingOwnerParam === '1'
+    conditions.push(Prisma.sql`is_seeking_owner = ${isSeekingOwnerParam === 'true' || isSeekingOwnerParam === '1' ? 1 : 0}`)
   }
+  if (isSeekingAnyParam === 'true') {
+    conditions.push(Prisma.raw(`(is_seeking_help = 1 OR is_seeking_owner = 1)`))
+  }
+  if (notSeekingParam === 'true') {
+    conditions.push(Prisma.raw(`is_seeking_help = 0 AND is_seeking_owner = 0`))
+  }
+
+  const whereClause = Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`
+  const orderClause = Prisma.raw(`ORDER BY
+    CASE WHEN is_seeking_help = 1 OR is_seeking_owner = 1 THEN 0 ELSE 1 END,
+    CASE urgency WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
+    created_at DESC`)
 
   const volunteer = await getCurrentVolunteer(request.headers.get('authorization'))
 
@@ -67,22 +83,35 @@ export async function GET(request: NextRequest) {
     volunteerSkillIds = new Set((v?.skills ?? []).map(s => s.skillId))
   }
 
-  const [total, rawProjects] = await Promise.all([
-    prisma.project.count({ where }),
-    prisma.project.findMany({ where, include: projectInclude, orderBy: { createdAt: 'desc' } }),
+  // For match sort, fetch all IDs ordered; otherwise paginate in SQL
+  const [countResult, idRows] = await Promise.all([
+    prisma.$queryRaw<[{ count: bigint }]>`SELECT COUNT(*) as count FROM projects ${whereClause}`,
+    sortBy === 'match'
+      ? prisma.$queryRaw<{ id: number }[]>`SELECT id FROM projects ${whereClause} ${orderClause}`
+      : prisma.$queryRaw<{ id: number }[]>`SELECT id FROM projects ${whereClause} ${orderClause} LIMIT ${limit} OFFSET ${offset}`,
   ])
 
-  let projects = rawProjects.map(p => serializeProject(p as EnrichedProject, volunteerSkillIds))
+  const total = Number(countResult[0].count)
+  const ids = idRows.map(r => r.id)
 
-  projects = sortProjects(projects)
+  const rawProjects = await prisma.project.findMany({
+    where: { id: { in: ids } },
+    include: projectInclude,
+  })
+
+  // Reorder to match SQL sort (findMany doesn't preserve IN order)
+  const projectMap = new Map(rawProjects.map(p => [p.id, p]))
+  const projects = ids
+    .map(id => projectMap.get(id))
+    .filter((p): p is NonNullable<typeof p> => p !== undefined)
+    .map(p => serializeProject(p as EnrichedProject, volunteerSkillIds))
 
   if (sortBy === 'match' && volunteerSkillIds && volunteerSkillIds.size > 0) {
     projects.sort((a, b) => (b.match?.overall_score ?? 0) - (a.match?.overall_score ?? 0))
+    return Response.json({ projects: projects.slice(offset, offset + limit), total })
   }
 
-  const paged = projects.slice(offset, offset + limit)
-
-  return Response.json({ projects: paged, total })
+  return Response.json({ projects, total })
 }
 
 export async function POST(request: NextRequest) {

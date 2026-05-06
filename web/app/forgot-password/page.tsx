@@ -4,6 +4,7 @@ import { useState, FormEvent } from 'react'
 import Link from 'next/link'
 import Header from '@/components/Header'
 import { apiRequest } from '@/lib/api'
+import Button from '@/components/Button'
 
 interface ForgotResponse {
   message: string
@@ -37,22 +38,22 @@ export default function ForgotPasswordPage() {
   return (
     <>
       <Header />
-      <main className="container page">
+      <main className="max-w-350 mx-auto px-6 py-5 pb-15">
         <div style={{ maxWidth: 400, margin: '60px auto' }}>
-          <h1 style={{ textAlign: 'center' }}>Reset Password</h1>
-          <p style={{ textAlign: 'center', color: 'var(--text-light)', marginBottom: 32 }}>
+          <h1 className="text-center">Reset Password</h1>
+          <p className="text-center text-text-light" style={{ marginBottom: 32 }}>
             Enter your email and we&apos;ll send you a reset link.
           </p>
 
           {error && (
-            <div role="alert" className="message error" style={{ marginBottom: 16 }}>
+            <div role="alert" className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]">
               {error}
             </div>
           )}
 
           {!submitted ? (
-            <form className="card" onSubmit={handleSubmit}>
-              <div className="form-group">
+            <form className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word" onSubmit={handleSubmit}>
+              <div className="mb-5">
                 <label htmlFor="email" className="required">Email</label>
                 <input
                   type="email"
@@ -66,23 +67,23 @@ export default function ForgotPasswordPage() {
                 />
               </div>
 
-              <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={submitting}>
+              <Button type="submit" className="w-full" disabled={submitting}>
                 {submitting ? 'Sending…' : 'Send Reset Link'}
-              </button>
+              </Button>
 
-              <p style={{ textAlign: 'center', marginTop: 20, color: 'var(--text-light)' }}>
+              <p className="text-center text-text-light" style={{ marginTop: 20 }}>
                 Remember your password? <Link href="/login">Login</Link>
               </p>
             </form>
           ) : (
-            <div className="card">
-              <div style={{ textAlign: 'center' }}>
+            <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word">
+              <div className="text-center">
                 <h3 style={{ color: 'var(--success)' }}>Check Your Email</h3>
-                <p style={{ margin: '16px 0', color: 'var(--text-light)' }}>
+                <p className="text-text-light" style={{ margin: '16px 0' }}>
                   If an account exists with that email, you&apos;ll receive a password reset link shortly.
                 </p>
-                <Link href="/login" className="btn btn-outline">Back to Login</Link>
-                <p style={{ marginTop: 16, fontSize: '0.875rem', color: 'var(--text-light)' }}>
+                <Button href="/login" variant="outline">Back to Login</Button>
+                <p className="text-sm text-text-light" style={{ marginTop: 16 }}>
                   Not receiving the email? Check your spam folder, or{' '}
                   <a href="mailto:matilda@pauseai.info">contact support</a>.
                 </p>

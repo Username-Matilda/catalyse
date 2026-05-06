@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
 import BugReportDialog from './BugReportDialog'
 import { ThemeToggle } from './ThemeToggle'
+import Button from '@/components/Button'
 
 export default function Header() {
   const { user, loading, logout } = useAuth()
@@ -37,83 +38,75 @@ export default function Header() {
 
   return (
     <>
-      <header style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)', padding: '16px 0', position: 'sticky', top: 0, zIndex: 100 }}>
-        <div className="container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
-          <Link href="/" className="logo" style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 900, color: 'var(--primary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
+      <header className="bg-surface border-b border-brand-border py-4 sticky top-0 z-[100]">
+        <div className="container flex justify-between items-center flex-wrap gap-4">
+          <Link href="/" className="font-[var(--font-display)] text-2xl font-black text-primary no-underline flex items-center gap-2">
             Catalyse
           </Link>
 
-          <nav style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <nav className="flex gap-2 flex-wrap">
             {navLinks.map(({ href, label }) => (
-              <Link
+              <Button
                 key={href}
                 href={href}
-                style={{
-                  padding: '8px 10px',
-                  color: pathname === href ? '#111827' : 'var(--text)',
-                  textDecoration: 'none',
-                  borderRadius: 'var(--radius)',
-                  fontWeight: 500,
-                  background: pathname === href ? 'var(--primary)' : undefined,
-                } as React.CSSProperties}
+                variant={pathname === href ? 'primary' : 'ghost'}
+                size="sm"
               >
                 {label}
-              </Link>
+              </Button>
             ))}
           </nav>
 
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div className="flex gap-2 items-center">
             <ThemeToggle />
-            <button
-              role="button"
-              onClick={() => setBugDialogOpen(true)}
-              className="btn btn-ghost btn-small"
-            >
+            <Button variant="ghost" size="sm" onClick={() => setBugDialogOpen(true)}>
               Report a bug or give feedback
-            </button>
+            </Button>
 
             {!loading && (
               user ? (
-                <div style={{ position: 'relative' }}>
-                  <button
-                    className="btn btn-ghost btn-small"
+                <div className="relative">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="bg-accent border border-brand-border"
                     onClick={() => setUserMenuOpen(o => !o)}
-                    style={{ background: 'var(--accent)', border: '1px solid var(--border)' }}
                   >
                     {user.name}
                     {unreadCount > 0 && (
-                      <span className="notification-badge">{unreadCount}</span>
+                      <span className="bg-primary text-secondary-dark text-xs px-2 py-0.5 rounded-full ml-1">{unreadCount}</span>
                     )}
-                  </button>
+                  </Button>
                   {userMenuOpen && (
                     <div
-                      style={{ position: 'absolute', top: '100%', right: 0, marginTop: 8, background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)', minWidth: 180, zIndex: 101 }}
+                      className="absolute top-full right-0 mt-2 bg-surface rounded-[var(--radius)] border border-brand-border shadow-lg min-w-[180px] z-[101]"
                       onClick={() => setUserMenuOpen(false)}
                     >
-                      <Link href="/dashboard" style={{ display: 'block', padding: '12px 16px', color: 'var(--text)', textDecoration: 'none' }}>
+                      <Link href="/dashboard" className="block px-4 py-3 text-[var(--text)] no-underline">
                         Dashboard
                         {unreadCount > 0 && (
-                          <span data-tab="notifications" className="notification-badge">{unreadCount}</span>
+                          <span data-tab="notifications" className="bg-primary text-secondary-dark text-xs px-2 py-0.5 rounded-full ml-1">{unreadCount}</span>
                         )}
                       </Link>
-                      <Link href="/profile" style={{ display: 'block', padding: '12px 16px', color: 'var(--text)', textDecoration: 'none' }}>Profile</Link>
-                      <Link href="/settings" style={{ display: 'block', padding: '12px 16px', color: 'var(--text)', textDecoration: 'none' }}>Settings</Link>
+                      <Link href="/profile" className="block px-4 py-3 text-[var(--text)] no-underline">Profile</Link>
+                      <Link href="/settings" className="block px-4 py-3 text-[var(--text)] no-underline">Settings</Link>
                       {user.is_admin && (
-                        <Link href="/admin/triage" style={{ display: 'block', padding: '12px 16px', color: 'var(--text)', textDecoration: 'none' }}>Admin</Link>
+                        <Link href="/admin/triage" className="block px-4 py-3 text-[var(--text)] no-underline">Admin</Link>
                       )}
-                      <button
+                      <Button
+                        variant="ghost"
                         onClick={logout}
-                        style={{ display: 'block', width: '100%', textAlign: 'left', padding: '12px 16px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--error)', fontFamily: 'var(--font-body)' }}
+                        className="w-full justify-start px-4 py-3"
                       >
                         Logout
-                      </button>
+                      </Button>
                     </div>
                   )}
                 </div>
               ) : (
                 <>
-                  <Link href="/login" className="btn btn-ghost btn-small">Login</Link>
-                  <Link href="/signup" className="btn btn-primary btn-small">Sign Up</Link>
+                  <Button href="/login" variant="ghost" size="sm">Login</Button>
+                  <Button href="/signup" size="sm">Sign Up</Button>
                 </>
               )
             )}

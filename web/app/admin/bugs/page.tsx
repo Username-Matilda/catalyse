@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/Header'
+import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
 
@@ -87,16 +88,18 @@ export default function AdminBugsPage() {
   return (
     <>
       <Header />
-      <main className="container page">
+      <main className="max-w-350 mx-auto px-6 py-5 pb-15">
         <h1>Bug Reports &amp; Feedback</h1>
 
         {alert && (
-          <div role="alert" className={`message ${alert.type}`} style={{ marginBottom: 16 }}>
+          <div role="alert" className={alert.type === 'success'
+            ? 'flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#D1FAE5] text-[#065F46] border border-[#6EE7B7] dark:bg-[#064E3B] dark:text-[#6EE7B7] dark:border-[#059669]'
+            : 'flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]'}>
             {alert.text}
           </div>
         )}
 
-        <div style={{ marginBottom: 24 }}>
+        <div className="mb-6">
           <label htmlFor="status-filter">Filter by status</label>
           <select
             id="status-filter"
@@ -112,21 +115,22 @@ export default function AdminBugsPage() {
         </div>
 
         {loadingData ? (
-          <div className="loading">Loading…</div>
+          <div className="text-center py-10 text-text-light">Loading…</div>
         ) : reports.length === 0 ? (
           <p>No bug reports found.</p>
         ) : (
+          /* [test hook] card class used as test selector */
           reports.map(r => (
             <div
               key={r.id}
-              className="card"
-              style={{ marginBottom: 16, cursor: 'pointer' }}
+              className="card bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
+              style={{ cursor: 'pointer' }}
               onClick={() => openEdit(r)}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                 <div>
                   <h3 style={{ margin: '0 0 4px' }}>{r.title}</h3>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: '0.8rem', color: 'var(--text-light)' }}>
+                  <div className="text-text-light" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: '0.8rem' }}>
                     {r.category && <span>{r.category}</span>}
                     {r.severity && <span>· {r.severity}</span>}
                     {r.reporter_name && <span>· {r.reporter_name}</span>}
@@ -138,10 +142,10 @@ export default function AdminBugsPage() {
                 </span>
               </div>
 
-              <p style={{ margin: '0 0 12px', whiteSpace: 'pre-wrap', color: 'var(--text-light)' }}>{r.description}</p>
+              <p className="text-text-light" style={{ margin: '0 0 12px', whiteSpace: 'pre-wrap' }}>{r.description}</p>
 
               {r.page_url && (
-                <p style={{ margin: '0 0 12px', fontSize: '0.875rem', color: 'var(--text-light)' }}>Page: {r.page_url}</p>
+                <p className="text-sm text-text-light" style={{ margin: '0 0 12px' }}>Page: {r.page_url}</p>
               )}
 
               {r.resolution_notes && (
@@ -154,53 +158,53 @@ export default function AdminBugsPage() {
 
       {editModal && (
         <div
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+          className="fixed inset-0 bg-[rgba(29,53,87,0.5)] flex items-center justify-center z-1000 p-5"
           onClick={e => { if (e.target === e.currentTarget) setEditModal(null) }}
         >
           <div
             role="dialog"
             aria-label={editModal.title}
             aria-modal="true"
-            style={{ background: 'var(--card-bg, white)', borderRadius: 12, padding: 32, maxWidth: 520, width: '90%' }}
+            className="bg-surface rounded-xl shadow-lg max-w-125 w-full max-h-[90vh] overflow-y-auto"
           >
-            <h2 style={{ marginBottom: 4 }}>{editModal.title}</h2>
-            <p style={{ color: 'var(--text-light)', marginBottom: 16, fontSize: '0.875rem' }}>{editModal.description}</p>
-
-            <div className="form-group">
-              <label htmlFor="edit-status">Status</label>
-              <select
-                id="edit-status"
-                value={editStatus}
-                onChange={e => setEditStatus(e.target.value)}
-                style={{ width: '100%' }}
-              >
-                {STATUS_OPTIONS.filter(s => s !== 'all').map(s => (
-                  <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
-                ))}
-              </select>
+            <div className="px-6 py-5 border-b border-brand-border flex justify-between items-center">
+              <h2 style={{ marginBottom: 4 }}>{editModal.title}</h2>
             </div>
+            <div className="p-6">
+              <p className="text-text-light mb-4 text-sm">{editModal.description}</p>
 
-            <div className="form-group">
-              <label htmlFor="edit-notes">Resolution Notes</label>
-              <textarea
-                id="edit-notes"
-                rows={3}
-                value={editNotes}
-                onChange={e => setEditNotes(e.target.value)}
-                placeholder="Describe what was fixed…"
-                style={{ width: '100%' }}
-              />
-            </div>
+              <div className="mb-5">
+                <label htmlFor="edit-status">Status</label>
+                <select
+                  id="edit-status"
+                  value={editStatus}
+                  onChange={e => setEditStatus(e.target.value)}
+                  style={{ width: '100%' }}
+                >
+                  {STATUS_OPTIONS.filter(s => s !== 'all').map(s => (
+                    <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
+                  ))}
+                </select>
+              </div>
 
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button className="btn btn-secondary" onClick={() => setEditModal(null)}>Cancel</button>
-              <button
-                className="btn btn-primary"
-                disabled={submitting}
-                onClick={handleUpdate}
-              >
-                Update
-              </button>
+              <div className="mb-5">
+                <label htmlFor="edit-notes">Resolution Notes</label>
+                <textarea
+                  id="edit-notes"
+                  rows={3}
+                  value={editNotes}
+                  onChange={e => setEditNotes(e.target.value)}
+                  placeholder="Describe what was fixed…"
+                  style={{ width: '100%' }}
+                />
+              </div>
+
+              <div className="px-0 py-4 border-t border-brand-border flex gap-3 justify-end">
+                <Button variant="secondary" onClick={() => setEditModal(null)}>Cancel</Button>
+                <Button disabled={submitting} onClick={handleUpdate}>
+                  Update
+                </Button>
+              </div>
             </div>
           </div>
         </div>

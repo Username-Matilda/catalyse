@@ -41,24 +41,24 @@ export default function AdminStatsPage() {
   return (
     <>
       <Header />
-      <main className="container page">
+      <main className="max-w-350 mx-auto px-6 py-5 pb-15">
         <h1>Platform Statistics</h1>
 
         {loadingData ? (
-          <div className="loading">Loading…</div>
+          <div className="text-center py-10 text-text-light">Loading…</div>
         ) : !stats ? (
           <p>Failed to load statistics.</p>
         ) : (
           <>
             <h2>Volunteers</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 16, marginBottom: 32 }}>
-              <div className="card" style={{ textAlign: 'center' }}>
-                <div className="stat-number" style={{ fontSize: '2rem', fontWeight: 700 }}>{stats.volunteers.total}</div>
-                <div style={{ color: 'var(--text-light)' }}>Total Volunteers</div>
+              <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word text-center">
+                <div className="text-4xl font-bold text-primary mb-1">{stats.volunteers.total}</div>
+                <div className="text-text-light">Total Volunteers</div>
               </div>
-              <div className="card" style={{ textAlign: 'center' }}>
-                <div className="stat-number" style={{ fontSize: '2rem', fontWeight: 700 }}>{stats.volunteers.this_month}</div>
-                <div style={{ color: 'var(--text-light)' }}>Joined This Month</div>
+              <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word text-center">
+                <div className="text-4xl font-bold text-primary mb-1">{stats.volunteers.this_month}</div>
+                <div className="text-text-light">Joined This Month</div>
               </div>
             </div>
 
@@ -71,22 +71,22 @@ export default function AdminStatsPage() {
                 { label: 'Seeking Help', value: stats.projects.seeking_help },
                 { label: 'Completed', value: stats.projects.completed },
               ].map(s => (
-                <div key={s.label} className="card" style={{ textAlign: 'center' }}>
-                  <div className="stat-number" style={{ fontSize: '2rem', fontWeight: 700 }}>{s.value}</div>
-                  <div style={{ color: 'var(--text-light)' }}>{s.label}</div>
+                <div key={s.label} className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word text-center">
+                  <div className="text-4xl font-bold text-primary mb-1">{s.value}</div>
+                  <div className="text-text-light">{s.label}</div>
                 </div>
               ))}
             </div>
 
             <h2>Interests</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 16 }}>
-              <div className="card" style={{ textAlign: 'center' }}>
-                <div className="stat-number" style={{ fontSize: '2rem', fontWeight: 700 }}>{stats.interests.total}</div>
-                <div style={{ color: 'var(--text-light)' }}>Total Interests</div>
+              <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word text-center">
+                <div className="text-4xl font-bold text-primary mb-1">{stats.interests.total}</div>
+                <div className="text-text-light">Total Interests</div>
               </div>
-              <div className="card" style={{ textAlign: 'center' }}>
-                <div className="stat-number" style={{ fontSize: '2rem', fontWeight: 700 }}>{stats.interests.pending}</div>
-                <div style={{ color: 'var(--text-light)' }}>Pending Review</div>
+              <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word text-center">
+                <div className="text-4xl font-bold text-primary mb-1">{stats.interests.pending}</div>
+                <div className="text-text-light">Pending Review</div>
               </div>
             </div>
           </>

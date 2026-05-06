@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/Header'
+import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
 
@@ -67,69 +68,61 @@ export default function StarterTasksPage() {
   return (
     <>
       <Header />
-      <main className="container page">
+      <main className="max-w-350 mx-auto px-6 py-5 pb-15">
         <h1>My Starter Tasks</h1>
-        <p style={{ color: 'var(--text-light)', marginBottom: 24 }}>
+        <p className="text-text-light mb-6">
           Small, self-contained tasks to help you get started and demonstrate your skills.
         </p>
 
         {message && (
-          <div role="alert" className={`message ${message.type}`} style={{ marginBottom: 16 }}>
+          <div role="alert" className={message.type === 'success' ? 'flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#D1FAE5] text-[#065F46] border border-[#6EE7B7] dark:bg-[#064E3B] dark:text-[#6EE7B7] dark:border-[#059669]' : 'flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]'}>
             {message.text}
           </div>
         )}
 
         {loadingTasks ? (
-          <div className="loading">Loading tasks…</div>
+          <div className="text-center py-10 text-text-light">Loading tasks…</div>
         ) : tasks.length === 0 ? (
-          <div className="card" style={{ textAlign: 'center' }}>
+          <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word text-center">
             <h3>No tasks assigned yet</h3>
-            <p style={{ color: 'var(--text-light)' }}>
+            <p className="text-text-light">
               Check back soon, or browse <a href="/">projects</a> to find other ways to contribute.
             </p>
           </div>
         ) : (
           tasks.map(task => (
-            <div key={task.id} className="card" style={{ marginBottom: 16 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                <h3 style={{ margin: 0 }}>{task.title}</h3>
+            <div key={task.id} className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word">
+              <div className="flex justify-between items-start mb-2">
+                <h3 className="m-0">{task.title}</h3>
                 <span
-                  className="status-badge"
-                  style={{
-                    background: task.status === 'completed' || task.status === 'reviewed' ? 'var(--success-bg, #d1fae5)' : 'var(--warning-bg, #fffbeb)',
-                    color: task.status === 'completed' || task.status === 'reviewed' ? 'var(--success)' : 'var(--warning)',
-                    padding: '2px 8px',
-                    borderRadius: 12,
-                    fontSize: '0.8rem',
-                    whiteSpace: 'nowrap',
-                  }}
+                  className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${task.status === 'completed' || task.status === 'reviewed' ? 'bg-[#D1FAE5] text-[#065F46] dark:bg-[#064E3B] dark:text-[#6EE7B7]' : 'bg-[#FEF3C7] text-[#92400E] dark:bg-[#78350F] dark:text-[#FDE68A]'}`}
                 >
                   {STATUS_LABELS[task.status] ?? task.status}
                 </span>
               </div>
 
-              <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-                {task.skill_name && <span className="skill-tag">{task.skill_name}</span>}
+              <div className="flex gap-2 mb-3 flex-wrap">
+                {task.skill_name && <span className="inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-[#374151] dark:text-[#D1D5DB]">{task.skill_name}</span>}
                 {task.estimated_hours && (
-                  <span style={{ color: 'var(--text-light)', fontSize: '0.875rem' }}>~{task.estimated_hours}h</span>
+                  <span className="text-text-light text-sm">~{task.estimated_hours}h</span>
                 )}
                 {task.project_title && (
-                  <span style={{ color: 'var(--text-light)', fontSize: '0.875rem' }}>
+                  <span className="text-text-light text-sm">
                     Related: {task.project_title}
                   </span>
                 )}
               </div>
 
-              <p style={{ whiteSpace: 'pre-wrap', marginBottom: 16 }}>{task.description}</p>
+              <p className="whitespace-pre-wrap mb-4">{task.description}</p>
 
               {task.feedback_to_volunteer && (
-                <div style={{ background: 'var(--bg-secondary, #f8fafc)', borderRadius: 8, padding: 12, marginBottom: 12 }}>
-                  <strong style={{ fontSize: '0.875rem' }}>Feedback:</strong>
-                  <p style={{ margin: '4px 0 0', fontStyle: 'italic', color: 'var(--text-light)' }}>
+                <div className="bg-surface rounded-lg p-3 mb-3">
+                  <strong className="text-sm">Feedback:</strong>
+                  <p className="mt-1 italic text-text-light">
                     &ldquo;{task.feedback_to_volunteer}&rdquo;
                   </p>
                   {task.review_rating && (
-                    <p style={{ margin: '4px 0 0', fontSize: '0.875rem', color: 'var(--text-light)' }}>
+                    <p className="mt-1 text-sm text-text-light">
                       Rating: <strong>{task.review_rating}</strong>
                     </p>
                   )}
@@ -137,13 +130,12 @@ export default function StarterTasksPage() {
               )}
 
               {task.status === 'assigned' && (
-                <button
-                  className="btn btn-primary"
+                <Button
                   onClick={() => submitTask(task.id)}
                   disabled={submitting === task.id}
                 >
                   {submitting === task.id ? 'Submitting…' : 'Mark as Complete'}
-                </button>
+                </Button>
               )}
             </div>
           ))

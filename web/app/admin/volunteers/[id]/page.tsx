@@ -4,6 +4,7 @@ import { use, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/components/Header'
+import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
 
@@ -183,7 +184,7 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
     return (
       <>
         <Header />
-        <main className="container page"><div className="loading">Loading…</div></main>
+        <main className="max-w-350 mx-auto px-6 py-5 pb-15"><div className="text-center py-10 text-text-light">Loading…</div></main>
       </>
     )
   }
@@ -192,9 +193,9 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
     return (
       <>
         <Header />
-        <main className="container page">
+        <main className="max-w-350 mx-auto px-6 py-5 pb-15">
           <p style={{ color: 'var(--error)' }}>Volunteer not found.</p>
-          <Link href="/volunteers" className="btn btn-secondary" style={{ marginTop: 16 }}>Back</Link>
+          <Button href="/volunteers" variant="secondary" style={{ marginTop: 16 }}>Back</Button>
         </main>
       </>
     )
@@ -203,25 +204,27 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
   return (
     <>
       <Header />
-      <main className="container page">
-        <div style={{ marginBottom: 16 }}>
-          <Link href="/volunteers" style={{ color: 'var(--text-light)' }}>&larr; Back to Volunteers</Link>
+      <main className="max-w-350 mx-auto px-6 py-5 pb-15">
+        <div className="mb-4">
+          <Link href="/volunteers" className="text-text-light">&larr; Back to Volunteers</Link>
         </div>
 
         {alert && (
-          <div role="alert" className={`message ${alert.type}`} style={{ marginBottom: 16 }}>
+          <div role="alert" className={alert.type === 'success'
+            ? 'flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#D1FAE5] text-[#065F46] border border-[#6EE7B7] dark:bg-[#064E3B] dark:text-[#6EE7B7] dark:border-[#059669]'
+            : 'flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]'}>
             {alert.text}
           </div>
         )}
 
         {/* Profile header */}
-        <div className="card" style={{ marginBottom: 24 }}>
+        <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word" style={{ marginBottom: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
             <div>
               <h1 style={{ margin: '0 0 4px' }}>{vol.name}</h1>
-              <p style={{ margin: 0, color: 'var(--text-light)' }}>{vol.email}</p>
+              <p className="text-text-light" style={{ margin: 0 }}>{vol.email}</p>
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div className="flex gap-2">
               {vol.is_admin && <span style={{ padding: '2px 8px', borderRadius: 12, background: 'var(--primary-light, #e0f2fe)', fontSize: '0.8rem' }}>Admin</span>}
               {!vol.profile_visible && <span style={{ padding: '2px 8px', borderRadius: 12, background: 'var(--warning-bg, #fffbeb)', fontSize: '0.8rem' }}>Profile Hidden</span>}
             </div>
@@ -230,14 +233,14 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
         </div>
 
         {/* Skills and contact info */}
-        <div className="card" style={{ marginBottom: 24 }}>
+        <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word" style={{ marginBottom: 24 }}>
           <h3>Skills (Self-Assessed)</h3>
           {vol.skills.length > 0 ? (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
-              {vol.skills.map(s => <span key={s.id} className="skill-tag">{s.name}</span>)}
+              {vol.skills.map(s => <span key={s.id} className="inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-[#374151] dark:text-[#D1D5DB]">{s.name}</span>)}
             </div>
           ) : (
-            <p style={{ color: 'var(--text-light)', marginBottom: 16 }}>No skills listed.</p>
+            <p className="text-text-light" style={{ marginBottom: 16 }}>No skills listed.</p>
           )}
 
           <h3>Verified Skills (Endorsed)</h3>
@@ -247,12 +250,12 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
                 <strong>{e.skill_name}</strong> — {e.rating} · by {e.endorsed_by_name}
               </div>
             )) : (
-              <p style={{ color: 'var(--text-light)' }}>No endorsements yet.</p>
+              <p className="text-text-light">No endorsements yet.</p>
             )}
           </div>
 
           <h3>Contact Info</h3>
-          <div id="contactInfo" style={{ fontSize: '0.875rem' }}>
+          <div id="contactInfo" className="text-sm">
             <p style={{ margin: '4px 0' }}><strong>Email:</strong> {vol.email}</p>
             {vol.location && <p style={{ margin: '4px 0' }}><strong>Location:</strong> {vol.location}</p>}
             {vol.local_group && <p style={{ margin: '4px 0' }}><strong>Local Group:</strong> {vol.local_group}</p>}
@@ -264,8 +267,8 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
         </div>
 
         {/* Tabs */}
-        <div className="card">
-          <div role="tablist" style={{ display: 'flex', gap: 0, borderBottom: '2px solid var(--border)', marginBottom: 20 }}>
+        <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word">
+          <div role="tablist" className="flex border-b border-brand-border mb-6">
             {([
               { key: 'admin_notes', label: 'Admin Notes' },
               { key: 'starter_tasks', label: 'Starter Tasks' },
@@ -277,16 +280,9 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
                 role="tab"
                 aria-selected={activeTab === tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                style={{
-                  padding: '8px 16px',
-                  border: 'none',
-                  background: 'none',
-                  cursor: 'pointer',
-                  borderBottom: activeTab === tab.key ? '2px solid var(--primary)' : '2px solid transparent',
-                  marginBottom: -2,
-                  fontWeight: activeTab === tab.key ? 600 : 400,
-                  color: activeTab === tab.key ? 'var(--primary)' : 'var(--text-light)',
-                }}
+                className={activeTab === tab.key
+                  ? 'px-4 py-2 font-medium text-primary border-b-2 border-primary -mb-px cursor-pointer'
+                  : 'px-4 py-2 font-medium text-text-light border-b-2 border-transparent -mb-px cursor-pointer transition-colors hover:text-brand-text'}
               >
                 {tab.label}
               </button>
@@ -298,13 +294,13 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
             <div>
               <div id="notesList">
                 {vol.admin_notes.length === 0 && (
-                  <p style={{ color: 'var(--text-light)', marginBottom: 16 }}>No notes yet.</p>
+                  <p className="text-text-light" style={{ marginBottom: 16 }}>No notes yet.</p>
                 )}
                 {vol.admin_notes.map(n => (
                   <div key={n.id} style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
                     {editingNoteId === n.id ? (
                       <div>
-                        <label htmlFor={`edit-note-${n.id}`} style={{ display: 'block', marginBottom: 4, fontSize: '0.875rem' }}>Edit note</label>
+                        <label htmlFor={`edit-note-${n.id}`} className="text-sm" style={{ display: 'block', marginBottom: 4 }}>Edit note</label>
                         <textarea
                           id={`edit-note-${n.id}`}
                           rows={3}
@@ -312,9 +308,9 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
                           onChange={e => setEditingNoteContent(e.target.value)}
                           style={{ width: '100%', marginBottom: 8 }}
                         />
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <button className="btn btn-small btn-secondary" onClick={() => saveEditedNote(n.id)} disabled={submitting}>Save</button>
-                          <button className="btn btn-small" onClick={() => { setEditingNoteId(null); setEditingNoteContent('') }}>Cancel</button>
+                        <div className="flex gap-2">
+                          <Button variant="secondary" size="sm" onClick={() => saveEditedNote(n.id)} disabled={submitting}>Save</Button>
+                          <Button variant="ghost" size="sm" onClick={() => { setEditingNoteId(null); setEditingNoteContent('') }}>Cancel</Button>
                         </div>
                       </div>
                     ) : (
@@ -322,18 +318,11 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                           <div>
                             <span style={{ fontSize: '0.8rem', background: 'var(--bg-secondary, #f8fafc)', padding: '1px 6px', borderRadius: 8 }}>{n.category.replace(/_/g, ' ')}</span>
-                            <span style={{ fontSize: '0.8rem', color: 'var(--text-light)', marginLeft: 8 }}>by {n.author_name}</span>
+                            <span className="text-text-light" style={{ fontSize: '0.8rem', marginLeft: 8 }}>by {n.author_name}</span>
                           </div>
-                          <div style={{ display: 'flex', gap: 8 }}>
-                            <button
-                              className="btn btn-small btn-secondary"
-                              onClick={() => { setEditingNoteId(n.id); setEditingNoteContent(n.content) }}
-                            >Edit</button>
-                            <button
-                              className="btn btn-small"
-                              style={{ color: 'var(--error)' }}
-                              onClick={() => deleteNote(n.id)}
-                            >Delete</button>
+                          <div className="flex gap-2">
+                            <Button variant="secondary" size="sm" onClick={() => { setEditingNoteId(n.id); setEditingNoteContent(n.content) }}>Edit</Button>
+                            <Button variant="danger" size="sm" onClick={() => deleteNote(n.id)}>Delete</Button>
                           </div>
                         </div>
                         <p style={{ margin: '8px 0 0', whiteSpace: 'pre-wrap' }}>{n.content}</p>
@@ -345,18 +334,18 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
 
               <form onSubmit={addNote} style={{ marginTop: 16 }}>
                 <div style={{ display: 'flex', gap: 12, marginBottom: 8, flexWrap: 'wrap' }}>
-                  <div className="form-group" style={{ margin: 0 }}>
+                  <div className="mb-5" style={{ margin: 0 }}>
                     <label htmlFor="note-category">Category</label>
                     <select id="note-category" value={noteCategory} onChange={e => setNoteCategory(e.target.value)} style={{ width: 160 }}>
                       {NOTE_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                     </select>
                   </div>
                 </div>
-                <div className="form-group">
+                <div className="mb-5">
                   <label htmlFor="note-content">Note</label>
                   <textarea id="note-content" rows={3} value={noteContent} onChange={e => setNoteContent(e.target.value)} required placeholder="Add an admin note…" style={{ width: '100%' }} />
                 </div>
-                <button type="submit" className="btn btn-secondary" disabled={submitting}>Add Note</button>
+                <Button type="submit" variant="secondary" disabled={submitting}>Add Note</Button>
               </form>
             </div>
           )}
@@ -365,12 +354,12 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
           {activeTab === 'starter_tasks' && (
             <div>
               {vol.starter_tasks.length === 0 ? (
-                <p style={{ color: 'var(--text-light)' }}>No starter tasks assigned yet.</p>
+                <p className="text-text-light">No starter tasks assigned yet.</p>
               ) : (
                 vol.starter_tasks.map(t => (
-                  <div key={t.id} style={{ padding: '8px 0', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+                  <div key={t.id} className="text-sm" style={{ padding: '8px 0', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between' }}>
                     <span>{t.title}{t.skill_name && ` (${t.skill_name})`}</span>
-                    <span style={{ color: 'var(--text-light)' }}>
+                    <span className="text-text-light">
                       {t.status}{t.review_rating && ` · ${t.review_rating}`}
                     </span>
                   </div>
@@ -383,12 +372,12 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
           {activeTab === 'project_history' && (
             <div>
               {vol.project_history.length === 0 ? (
-                <p style={{ color: 'var(--text-light)' }}>No project history.</p>
+                <p className="text-text-light">No project history.</p>
               ) : (
                 vol.project_history.map(p => (
                   <div key={p.id} style={{ padding: '8px 0', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between' }}>
                     <Link href={`/projects/${p.id}`} style={{ fontWeight: 500 }}>{p.title}</Link>
-                    <div style={{ fontSize: '0.875rem', color: 'var(--text-light)' }}>
+                    <div className="text-sm text-text-light">
                       {p.owner_id === vol.id ? 'owner' : 'proposer'} · {p.status.replace(/_/g, ' ')}
                     </div>
                   </div>
@@ -402,27 +391,27 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
             <div>
               <h3>Endorse a Skill</h3>
               <form onSubmit={addEndorsement} style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 480 }}>
-                <div className="form-group" style={{ margin: 0 }}>
+                <div className="mb-5" style={{ margin: 0 }}>
                   <label htmlFor="endorse-skill">Skill</label>
                   <select id="endorse-skill" value={endorseSkillId} onChange={e => setEndorseSkillId(e.target.value)} required style={{ width: '100%' }}>
                     <option value="">Select skill…</option>
                     {flatSkills.map(s => <option key={s.id} value={s.id}>{s.name} ({s.category_name})</option>)}
                   </select>
                 </div>
-                <div className="form-group" style={{ margin: 0 }}>
+                <div className="mb-5" style={{ margin: 0 }}>
                   <label htmlFor="endorse-rating">Rating</label>
                   <select id="endorse-rating" value={endorseRating} onChange={e => setEndorseRating(e.target.value)} style={{ width: '100%' }}>
                     {RATING_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                   </select>
                 </div>
-                <div className="form-group" style={{ margin: 0 }}>
+                <div className="mb-5" style={{ margin: 0 }}>
                   <label htmlFor="endorse-based-on">Based On</label>
                   <select id="endorse-based-on" value={endorseBasedOn} onChange={e => setEndorseBasedOn(e.target.value)} style={{ width: '100%' }}>
                     {BASED_ON_OPTIONS.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <button type="submit" className="btn btn-secondary" disabled={submitting}>Endorse Skill</button>
+                  <Button type="submit" variant="secondary" disabled={submitting}>Endorse Skill</Button>
                 </div>
               </form>
             </div>

@@ -3,9 +3,9 @@
 import { useState, FormEvent, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSearchParams } from 'next/navigation'
-import Link from 'next/link'
 import Header from '@/components/Header'
 import { apiRequest } from '@/lib/api'
+import Button from '@/components/Button'
 
 function ResetPasswordForm() {
   const router = useRouter()
@@ -19,12 +19,12 @@ function ResetPasswordForm() {
 
   if (!token) {
     return (
-      <div className="card" style={{ textAlign: 'center' }}>
+      <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word text-center">
         <h3 style={{ color: 'var(--error)' }}>Invalid Link</h3>
-        <p style={{ margin: '16px 0', color: 'var(--text-light)' }}>
+        <p className="text-text-light" style={{ margin: '16px 0' }}>
           This reset link is invalid or has expired. Please request a new one.
         </p>
-        <Link href="/forgot-password" className="btn btn-outline">Request New Link</Link>
+        <Button href="/forgot-password" variant="outline">Request New Link</Button>
       </div>
     )
   }
@@ -56,14 +56,14 @@ function ResetPasswordForm() {
   }
 
   return (
-    <form className="card" onSubmit={handleSubmit}>
+    <form className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word" onSubmit={handleSubmit}>
       {error && (
-        <div role="alert" className="message error" style={{ marginBottom: 16 }}>
+        <div role="alert" className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]">
           {error}
         </div>
       )}
 
-      <div className="form-group">
+      <div className="mb-5">
         <label htmlFor="password" className="required">New Password</label>
         <input
           type="password"
@@ -78,7 +78,7 @@ function ResetPasswordForm() {
         />
       </div>
 
-      <div className="form-group">
+      <div className="mb-5">
         <label htmlFor="password_confirm" className="required">Confirm Password</label>
         <input
           type="password"
@@ -92,9 +92,9 @@ function ResetPasswordForm() {
         />
       </div>
 
-      <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={submitting}>
+      <Button type="submit" className="w-full" disabled={submitting}>
         {submitting ? 'Resetting…' : 'Reset Password'}
-      </button>
+      </Button>
     </form>
   )
 }
@@ -103,13 +103,10 @@ export default function ResetPasswordPage() {
   return (
     <>
       <Header />
-      <main className="container page">
+      <main className="max-w-350 mx-auto px-6 py-5 pb-15">
         <div style={{ maxWidth: 400, margin: '60px auto' }}>
-          <h1 style={{ textAlign: 'center' }}>Set New Password</h1>
-          <p style={{ textAlign: 'center', color: 'var(--text-light)', marginBottom: 32 }}>
-            Choose a new password for your account.
-          </p>
-          <Suspense fallback={<div className="loading">Loading…</div>}>
+          <h1 className="text-center">Set New Password</h1>
+          <Suspense fallback={<div className="text-center py-10 text-text-light">Loading…</div>}>
             <ResetPasswordForm />
           </Suspense>
         </div>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/Header'
+import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
 
@@ -90,44 +91,43 @@ export default function TriagePage() {
   return (
     <>
       <Header />
-      <main className="container page">
+      <main className="max-w-350 mx-auto px-6 py-5 pb-15">
         <h1>Project Triage</h1>
 
         {alert && (
-          <div role="alert" className="message success" style={{ marginBottom: 16 }}>
+          <div role="alert" className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#D1FAE5] text-[#065F46] border border-[#6EE7B7] dark:bg-[#064E3B] dark:text-[#6EE7B7] dark:border-[#059669]">
             {alert}
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
-          <button
-            role="button"
-            className={`btn ${tab === 'pending_review' ? 'btn-primary' : 'btn-secondary'}`}
+        <div className="flex gap-2 mb-6">
+          <Button
+            variant={tab === 'pending_review' ? 'primary' : 'secondary'}
             onClick={() => setTab('pending_review')}
           >
             Pending Review {pending.length > 0 && `(${pending.length})`}
-          </button>
-          <button
-            role="button"
-            className={`btn ${tab === 'needs_discussion' ? 'btn-primary' : 'btn-secondary'}`}
+          </Button>
+          <Button
+            variant={tab === 'needs_discussion' ? 'primary' : 'secondary'}
             onClick={() => setTab('needs_discussion')}
           >
             Needs Discussion {discussion.length > 0 && `(${discussion.length})`}
-          </button>
+          </Button>
         </div>
 
         {loadingProjects ? (
-          <div className="loading">Loading…</div>
+          <div className="text-center py-10 text-text-light">Loading…</div>
         ) : visible.length === 0 ? (
           <p>No projects awaiting {tab === 'pending_review' ? 'review' : 'discussion'}.</p>
         ) : (
+          /* [test hook] card class used as test selector */
           visible.map(p => (
-            <div key={p.id} className="card" style={{ marginBottom: 16 }}>
+            <div key={p.id} className="card bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div style={{ flex: 1 }}>
                   <h3 style={{ margin: '0 0 8px' }}>{p.title}</h3>
                   {p.proposed_by_name && (
-                    <p style={{ color: 'var(--text-light)', fontSize: '0.875rem', margin: '0 0 8px' }}>
+                    <p className="text-text-light text-sm" style={{ margin: '0 0 8px' }}>
                       Proposed by {p.proposed_by_name}
                     </p>
                   )}
@@ -135,14 +135,12 @@ export default function TriagePage() {
                     {p.description}
                   </p>
                 </div>
-                <button
-                  role="button"
-                  className="btn btn-primary"
+                <Button
                   style={{ marginLeft: 16, whiteSpace: 'nowrap' }}
                   onClick={() => openReview(p)}
                 >
                   Review
-                </button>
+                </Button>
               </div>
             </div>
           ))
@@ -151,81 +149,83 @@ export default function TriagePage() {
 
       {modal && (
         <div
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+          className="fixed inset-0 bg-[rgba(29,53,87,0.5)] flex items-center justify-center z-1000 p-5"
           onClick={e => { if (e.target === e.currentTarget) closeModal() }}
         >
-          <div style={{ background: 'var(--card-bg, white)', borderRadius: 12, padding: 32, maxWidth: 600, width: '90%', maxHeight: '90vh', overflow: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div className="bg-surface rounded-xl shadow-lg max-w-125 w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-5 border-b border-brand-border flex justify-between items-center">
               <h2 role="heading">Review Project</h2>
-              <button onClick={closeModal} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer' }}>&times;</button>
+              <Button variant="ghost" icon onClick={closeModal} aria-label="Close">×</Button>
             </div>
 
-            <h3 style={{ marginBottom: 8 }}>{modal.project.title}</h3>
-            <p style={{ whiteSpace: 'pre-wrap', marginBottom: 16, maxHeight: 200, overflow: 'auto', color: 'var(--text-light)' }}>
-              {modal.project.description}
-            </p>
+            <div className="p-6">
+              <h3 style={{ marginBottom: 8 }}>{modal.project.title}</h3>
+              <p className="text-text-light" style={{ whiteSpace: 'pre-wrap', marginBottom: 16, maxHeight: 200, overflow: 'auto' }}>
+                {modal.project.description}
+              </p>
 
-            <form onSubmit={submitReview}>
-              <div className="form-group">
-                <label>Decision</label>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                    <input
-                      type="radio"
-                      name="decision"
-                      value="approved"
-                      checked={decision === 'approved'}
-                      onChange={() => setDecision('approved')}
-                    />
-                    <span><strong>Approve</strong> — Make visible to volunteers</span>
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                    <input
-                      type="radio"
-                      name="decision"
-                      value="needs_discussion"
-                      checked={decision === 'needs_discussion'}
-                      onChange={() => setDecision('needs_discussion')}
-                    />
-                    <span><strong>Needs Discussion</strong> — Reach out to proposer</span>
-                  </label>
+              <form onSubmit={submitReview}>
+                <div className="mb-5">
+                  <label>Decision</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                      <input
+                        type="radio"
+                        name="decision"
+                        value="approved"
+                        checked={decision === 'approved'}
+                        onChange={() => setDecision('approved')}
+                      />
+                      <span><strong>Approve</strong> — Make visible to volunteers</span>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                      <input
+                        type="radio"
+                        name="decision"
+                        value="needs_discussion"
+                        checked={decision === 'needs_discussion'}
+                        onChange={() => setDecision('needs_discussion')}
+                      />
+                      <span><strong>Needs Discussion</strong> — Reach out to proposer</span>
+                    </label>
+                  </div>
                 </div>
-              </div>
 
-              {decision === 'needs_discussion' && (
-                <div className="form-group">
-                  <label htmlFor="feedback-proposer">Message to Proposer</label>
+                {decision === 'needs_discussion' && (
+                  <div className="mb-5">
+                    <label htmlFor="feedback-proposer">Message to Proposer</label>
+                    <textarea
+                      id="feedback-proposer"
+                      aria-label="Message to Proposer"
+                      rows={3}
+                      value={feedback}
+                      onChange={e => setFeedback(e.target.value)}
+                      placeholder="Explain what you'd like to discuss…"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                )}
+
+                <div className="mb-5">
+                  <label htmlFor="review-notes">Internal Notes (not shared)</label>
                   <textarea
-                    id="feedback-proposer"
-                    aria-label="Message to Proposer"
-                    rows={3}
-                    value={feedback}
-                    onChange={e => setFeedback(e.target.value)}
-                    placeholder="Explain what you'd like to discuss…"
+                    id="review-notes"
+                    rows={2}
+                    value={reviewNotes}
+                    onChange={e => setReviewNotes(e.target.value)}
+                    placeholder="Notes for other admins…"
                     style={{ width: '100%' }}
                   />
                 </div>
-              )}
 
-              <div className="form-group">
-                <label htmlFor="review-notes">Internal Notes (not shared)</label>
-                <textarea
-                  id="review-notes"
-                  rows={2}
-                  value={reviewNotes}
-                  onChange={e => setReviewNotes(e.target.value)}
-                  placeholder="Notes for other admins…"
-                  style={{ width: '100%' }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                <button type="button" className="btn btn-secondary" onClick={closeModal}>Cancel</button>
-                <button type="submit" className="btn btn-primary" disabled={submitting}>
-                  {submitting ? 'Submitting…' : 'Submit Review'}
-                </button>
-              </div>
-            </form>
+                <div className="px-6 py-4 border-t border-brand-border flex gap-3 justify-end">
+                  <Button type="button" variant="secondary" onClick={closeModal}>Cancel</Button>
+                  <Button type="submit" disabled={submitting}>
+                    {submitting ? 'Submitting…' : 'Submit Review'}
+                  </Button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}

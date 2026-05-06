@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Script from 'next/script'
 import Header from '@/components/Header'
+import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
 
@@ -16,6 +17,7 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [googleClientId, setGoogleClientId] = useState('')
+
 
   useEffect(() => {
     if (!loading && user) router.replace('/dashboard')
@@ -71,32 +73,32 @@ export default function LoginPage() {
     <>
       {googleClientId && <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />}
       <Header />
-      <main className="container page">
+      <main className="max-w-350 mx-auto px-6 py-5 pb-15">
         <div style={{ maxWidth: 400, margin: '60px auto' }}>
-          <h1 style={{ textAlign: 'center' }}>Welcome Back</h1>
-          <p style={{ textAlign: 'center', color: 'var(--text-light)', marginBottom: 32 }}>
+          <h1 className="text-center">Welcome Back</h1>
+          <p className="text-center text-text-light" style={{ marginBottom: 32 }}>
             Login to access your dashboard and projects.
           </p>
 
           {error && (
-            <div role="alert" className="message error" style={{ marginBottom: 16 }}>
+            <div role="alert" className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]">
               {error}
             </div>
           )}
 
           {googleClientId && (
-            <div className="card" style={{ textAlign: 'center', marginBottom: 16 }}>
+            <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word text-center">
               <div id="g_signin_btn" />
               <div style={{ display: 'flex', alignItems: 'center', margin: '20px 0', gap: 16 }}>
                 <hr style={{ flex: 1, border: 'none', borderTop: '1px solid var(--border)' }} />
-                <span style={{ color: 'var(--text-light)', fontSize: '0.875rem' }}>or use email</span>
+                <span className="text-text-light text-sm">or use email</span>
                 <hr style={{ flex: 1, border: 'none', borderTop: '1px solid var(--border)' }} />
               </div>
             </div>
           )}
 
-          <form className="card" onSubmit={handleSubmit}>
-            <div className="form-group">
+          <form className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word" onSubmit={handleSubmit}>
+            <div className="mb-5">
               <label htmlFor="email" className="required">Email</label>
               <input
                 type="email"
@@ -110,7 +112,7 @@ export default function LoginPage() {
               />
             </div>
 
-            <div className="form-group">
+            <div className="mb-5">
               <label htmlFor="password" className="required">Password</label>
               <input
                 type="password"
@@ -123,22 +125,22 @@ export default function LoginPage() {
               />
             </div>
 
-            <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={submitting}>
+            <Button type="submit" className="w-full" disabled={submitting}>
               {submitting ? 'Logging in…' : 'Login'}
-            </button>
+            </Button>
 
-            <p style={{ textAlign: 'center', marginTop: 16 }}>
+            <p className="text-center" style={{ marginTop: 16 }}>
               <Link href="/forgot-password">Forgot your password?</Link>
             </p>
-            <p style={{ textAlign: 'center', marginTop: 12, color: 'var(--text-light)' }}>
+            <p className="text-center text-text-light" style={{ marginTop: 12 }}>
               Don&apos;t have an account? <Link href="/signup">Sign up</Link>
             </p>
           </form>
 
-          <p style={{ textAlign: 'center', marginTop: 24, fontSize: '0.875rem', color: 'var(--text-light)' }}>
-            <Link href="/privacy" style={{ color: 'var(--text-light)' }}>Privacy Policy</Link>
+          <p className="text-center text-sm text-text-light" style={{ marginTop: 24 }}>
+            <Link href="/privacy" className="text-text-light">Privacy Policy</Link>
             {' · '}
-            <a href="mailto:matilda@pauseai.info" style={{ color: 'var(--text-light)' }}>Contact Support</a>
+            <a href="mailto:matilda@pauseai.info" className="text-text-light">Contact Support</a>
           </p>
         </div>
       </main>

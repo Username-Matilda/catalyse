@@ -54,18 +54,20 @@ export default function SkillPicker({ value, onChange, showProficiency = false }
   return (
     <div>
       {categories.map(cat => (
-        <div key={cat.id} style={{ marginBottom: 16 }}>
+        <div key={cat.id} className="mb-4">
           <div style={{ fontWeight: 600, marginBottom: 8, color: 'var(--secondary-dark)' }}>{cat.name}</div>
-          <div className="skill-options">
+          <div className="flex flex-wrap gap-2">
             {cat.skills.map(skill => {
               const selected = value.find(s => s.skillId === skill.id)
               return (
-                <div key={skill.id} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <label className={`skill-option${selected ? ' selected' : ''}`}>
+                <div key={skill.id} className="flex flex-col gap-1">
+                  {/* [test hook] skill-option class used as test selector */}
+                  <label className={`skill-option relative inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-bg border-2 border-transparent rounded-full cursor-pointer transition-all text-sm select-none hover:bg-accent${selected ? ' bg-secondary! text-white! border-secondary-dark!' : ''}`}>
                     <input
                       type="checkbox"
                       checked={!!selected}
                       onChange={() => toggle(skill.id)}
+                      className="absolute opacity-0 w-0 h-0 pointer-events-none"
                     />
                     {skill.name}
                   </label>

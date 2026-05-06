@@ -9,6 +9,7 @@ interface User {
   name: string
   is_admin: boolean
   volunteer_id?: number
+  email_digest: string | null
 }
 
 interface AuthContextValue {

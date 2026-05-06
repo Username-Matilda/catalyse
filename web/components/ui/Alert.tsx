@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import Button from '@/components/Button'
 
 interface AlertProps {
   message: string
@@ -23,13 +24,7 @@ export default function Alert({ message, type, onDismiss }: AlertProps) {
     <div role="alert" className={`toast ${toastClass}`}>
       <span>{message}</span>
       {onDismiss && (
-        <button
-          onClick={onDismiss}
-          aria-label="Dismiss"
-          style={{ background: 'none', border: 'none', cursor: 'pointer', marginLeft: 8, fontWeight: 700 }}
-        >
-          ×
-        </button>
+        <Button variant="ghost" icon onClick={onDismiss} aria-label="Dismiss">×</Button>
       )}
     </div>
   )

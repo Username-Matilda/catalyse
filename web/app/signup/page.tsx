@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Script from 'next/script'
 import Header from '@/components/Header'
+import Button from '@/components/Button'
 import SkillPicker from '@/components/SkillPicker'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
@@ -21,6 +22,7 @@ export default function SignupPage() {
   const [submitting, setSubmitting] = useState(false)
   const [googleClientId, setGoogleClientId] = useState('')
   const [skills, setSkills] = useState<SelectedSkill[]>([])
+
 
   // Form fields
   const [name, setName] = useState('')
@@ -127,75 +129,75 @@ export default function SignupPage() {
     <>
       {googleClientId && <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />}
       <Header />
-      <main className="container page">
+      <main className="max-w-350 mx-auto px-6 py-5 pb-15">
         <div style={{ maxWidth: 600, margin: '0 auto' }}>
           <h1>Join Catalyse</h1>
-          <p style={{ color: 'var(--text-light)', marginBottom: 24 }}>
+          <p className="text-text-light mb-6">
             Connect with PauseAI UK projects and fellow volunteers.
           </p>
 
           {error && (
-            <div role="alert" className="message error" style={{ marginBottom: 16 }}>
+            <div role="alert" className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]">
               {error}
             </div>
           )}
 
           {googleClientId && (
-            <div className="card" style={{ textAlign: 'center', marginBottom: 16 }}>
-              <p style={{ color: 'var(--text-light)', marginBottom: 16 }}>Quick sign up with your Google account:</p>
+            <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word text-center">
+              <p className="text-text-light mb-4">Quick sign up with your Google account:</p>
               <div id="g_signup_btn" />
               <div style={{ display: 'flex', alignItems: 'center', margin: '20px 0', gap: 16 }}>
                 <hr style={{ flex: 1, border: 'none', borderTop: '1px solid var(--border)' }} />
-                <span style={{ color: 'var(--text-light)', fontSize: '0.875rem' }}>or sign up with email</span>
+                <span className="text-text-light text-sm">or sign up with email</span>
                 <hr style={{ flex: 1, border: 'none', borderTop: '1px solid var(--border)' }} />
               </div>
             </div>
           )}
 
-          <form className="card" onSubmit={handleSubmit}>
-            <div className="form-group">
+          <form className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word" onSubmit={handleSubmit}>
+            <div className="mb-5">
               <label htmlFor="name" className="required">Your Name</label>
               <input type="text" id="name" name="name" required placeholder="How should we call you?" value={name} onChange={e => setName(e.target.value)} />
             </div>
 
-            <div className="form-group">
+            <div className="mb-5">
               <label htmlFor="email" className="required">Email</label>
               <input type="email" id="email" name="email" required placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} />
-              <p className="form-hint">Used for login and notifications. Never shared publicly.</p>
+              <p className="text-sm text-text-light mt-1">Used for login and notifications. Never shared publicly.</p>
             </div>
 
-            <div className="form-group">
+            <div className="mb-5">
               <label htmlFor="password" className="required">Password</label>
               <input type="password" id="password" name="password" required minLength={8} placeholder="At least 8 characters" value={password} onChange={e => setPassword(e.target.value)} />
             </div>
 
-            <div className="form-group">
+            <div className="mb-5">
               <label htmlFor="password_confirm" className="required">Confirm Password</label>
               <input type="password" id="password_confirm" name="password_confirm" required minLength={8} placeholder="Type your password again" value={passwordConfirm} onChange={e => setPasswordConfirm(e.target.value)} />
             </div>
 
-            <div className="form-group">
+            <div className="mb-5">
               <label htmlFor="bio">About You</label>
               <textarea id="bio" name="bio" placeholder="Tell us a bit about yourself, your background, and what brings you to PauseAI…" value={bio} onChange={e => setBio(e.target.value)} />
             </div>
 
             <h3 style={{ marginTop: 24 }}>Contact Preferences</h3>
-            <p className="form-hint" style={{ marginBottom: 16 }}>Add ways for project owners to reach you. All optional.</p>
+            <p className="text-sm text-text-light mt-1 mb-4">Add ways for project owners to reach you. All optional.</p>
 
-            <div className="grid grid-2">
-              <div className="form-group">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-5">
+              <div className="mb-5">
                 <label htmlFor="discord">Discord Handle</label>
                 <input type="text" id="discord" name="discord_handle" placeholder="username#1234" value={discord} onChange={e => setDiscord(e.target.value)} />
               </div>
-              <div className="form-group">
+              <div className="mb-5">
                 <label htmlFor="signal">Signal</label>
                 <input type="text" id="signal" name="signal_number" placeholder="+44…" value={signal} onChange={e => setSignal(e.target.value)} />
               </div>
-              <div className="form-group">
+              <div className="mb-5">
                 <label htmlFor="whatsapp">WhatsApp</label>
                 <input type="text" id="whatsapp" name="whatsapp_number" placeholder="+44…" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} />
               </div>
-              <div className="form-group">
+              <div className="mb-5">
                 <label htmlFor="contact_preference">Preferred Contact Method</label>
                 <select id="contact_preference" name="contact_preference" value={contactPref} onChange={e => setContactPref(e.target.value)}>
                   <option value="">Select…</option>
@@ -207,43 +209,43 @@ export default function SignupPage() {
               </div>
             </div>
 
-            <div className="form-group">
+            <div className="mb-5">
               <label htmlFor="contact_notes">Contact Notes</label>
               <input type="text" id="contact_notes" name="contact_notes" placeholder="e.g., Best to DM me on Discord first" value={contactNotes} onChange={e => setContactNotes(e.target.value)} />
             </div>
 
             <h3 style={{ marginTop: 24 }}>Availability</h3>
-            <div className="grid grid-2">
-              <div className="form-group">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-5">
+              <div className="mb-5">
                 <label htmlFor="availability">Hours per Week</label>
                 <input type="number" id="availability" name="availability_hours_per_week" min={1} max={40} placeholder="e.g., 5" value={availability} onChange={e => setAvailability(e.target.value)} />
               </div>
-              <div className="form-group">
+              <div className="mb-5">
                 <label htmlFor="location">Location</label>
                 <input type="text" id="location" name="location" placeholder="e.g., London, UK" value={location} onChange={e => setLocation(e.target.value)} />
               </div>
-              <div className="form-group">
+              <div className="mb-5">
                 <label htmlFor="country">Country</label>
                 <input type="text" id="country" name="country" placeholder="e.g., United Kingdom" value={country} onChange={e => setCountry(e.target.value)} />
               </div>
-              <div className="form-group">
+              <div className="mb-5">
                 <label htmlFor="local_group">Local Group</label>
                 <input type="text" id="local_group" name="local_group" placeholder="e.g., London" value={localGroup} onChange={e => setLocalGroup(e.target.value)} />
               </div>
             </div>
 
             <h3 style={{ marginTop: 24 }}>Your Skills</h3>
-            <p className="form-hint" style={{ marginBottom: 12 }}>Select skills you can contribute. This helps match you with projects.</p>
+            <p className="text-sm text-text-light mt-1" style={{ marginBottom: 12 }}>Select skills you can contribute. This helps match you with projects.</p>
             <SkillPicker value={skills} onChange={setSkills} />
 
-            <div className="form-group" style={{ marginTop: 16 }}>
+            <div className="mb-5" style={{ marginTop: 16 }}>
               <label htmlFor="other_skills">Other Skills</label>
               <input type="text" id="other_skills" name="other_skills" placeholder="Any skills not listed above…" value={otherSkills} onChange={e => setOtherSkills(e.target.value)} />
             </div>
 
             <div style={{ marginTop: 24 }}>
               <h3>Privacy &amp; Consent</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div className="flex flex-col gap-2">
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400 }}>
                   <input type="checkbox" checked={consentVisible} onChange={e => setConsentVisible(e.target.checked)} />
                   Make my profile visible to other volunteers
@@ -257,14 +259,14 @@ export default function SignupPage() {
                   Share my contact info directly (otherwise use contact form)
                 </label>
               </div>
-              <p className="form-hint" style={{ marginTop: 12 }}>
+              <p className="text-sm text-text-light mt-1" style={{ marginTop: 12 }}>
                 You can change these settings or delete your account at any time.{' '}
                 <Link href="/privacy" target="_blank">Read our privacy policy</Link>
               </p>
             </div>
 
             <h3 style={{ marginTop: 24 }}>Email Notifications</h3>
-            <div className="form-group">
+            <div className="mb-5">
               <label htmlFor="email_digest">Keep me in the loop about new projects</label>
               <select id="email_digest" name="email_digest" value={emailDigest} onChange={e => setEmailDigest(e.target.value)}>
                 <option value="none">Don&apos;t email me</option>
@@ -274,20 +276,20 @@ export default function SignupPage() {
             </div>
 
             <div style={{ marginTop: 12 }}>
-              <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={submitting}>
+              <Button type="submit" className="w-full" disabled={submitting}>
                 {submitting ? 'Creating account…' : 'Create Account'}
-              </button>
+              </Button>
             </div>
 
-            <p style={{ textAlign: 'center', marginTop: 16, color: 'var(--text-light)' }}>
+            <p className="text-center text-text-light" style={{ marginTop: 16 }}>
               Already have an account? <Link href="/login">Login</Link>
             </p>
           </form>
 
-          <p style={{ textAlign: 'center', marginTop: 24, fontSize: '0.875rem', color: 'var(--text-light)' }}>
-            <Link href="/privacy" style={{ color: 'var(--text-light)' }}>Privacy Policy</Link>
+          <p className="text-center text-sm text-text-light" style={{ marginTop: 24 }}>
+            <Link href="/privacy" className="text-text-light">Privacy Policy</Link>
             {' · '}
-            <a href="mailto:matilda@pauseai.info" style={{ color: 'var(--text-light)' }}>Contact Support</a>
+            <a href="mailto:matilda@pauseai.info" className="text-text-light">Contact Support</a>
           </p>
         </div>
       </main>

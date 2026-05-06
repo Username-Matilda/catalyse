@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import Button from '@/components/Button'
 
 interface ModalProps {
   id: string
@@ -25,7 +26,7 @@ export default function Modal({ id, title, children, isOpen, onClose }: ModalPro
       <div id={id} className="modal" role="dialog" aria-modal="true" aria-labelledby={`${id}-title`} onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h2 id={`${id}-title`}>{title}</h2>
-          <button className="modal-close" onClick={onClose} aria-label="Close">×</button>
+          <Button variant="ghost" icon onClick={onClose} aria-label="Close">×</Button>
         </div>
         <div className="modal-body">{children}</div>
       </div>

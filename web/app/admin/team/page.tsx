@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/Header'
+import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
 
@@ -119,27 +120,33 @@ export default function AdminTeamPage() {
   return (
     <>
       <Header />
-      <main className="container page">
+      <main className="max-w-350 mx-auto px-6 py-5 pb-15">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <h1>Team Management</h1>
-          <button className="btn btn-primary" onClick={openInviteDialog}>Invite Admin</button>
+          <Button onClick={openInviteDialog}>Invite Admin</Button>
         </div>
 
         {alert && (
-          <div role="alert" className={`message ${alert.type}`} style={{ marginBottom: 16 }}>
+          <div role="alert" className={alert.type === 'success'
+            ? 'flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#D1FAE5] text-[#065F46] border border-[#6EE7B7] dark:bg-[#064E3B] dark:text-[#6EE7B7] dark:border-[#059669]'
+            : 'flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]'}>
             {alert.text}
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <div className="flex border-b border-brand-border mb-6">
           <button
-            className={`btn btn-small${activeTab === 'admins' ? ' btn-primary' : ' btn-secondary'}`}
+            className={activeTab === 'admins'
+              ? 'px-4 py-2 font-medium text-primary border-b-2 border-primary -mb-px cursor-pointer'
+              : 'px-4 py-2 font-medium text-text-light border-b-2 border-transparent -mb-px cursor-pointer transition-colors hover:text-brand-text'}
             onClick={() => setActiveTab('admins')}
           >
             Current Admins
           </button>
           <button
-            className={`btn btn-small${activeTab === 'invites' ? ' btn-primary' : ' btn-secondary'}`}
+            className={activeTab === 'invites'
+              ? 'px-4 py-2 font-medium text-primary border-b-2 border-primary -mb-px cursor-pointer'
+              : 'px-4 py-2 font-medium text-text-light border-b-2 border-transparent -mb-px cursor-pointer transition-colors hover:text-brand-text'}
             onClick={() => setActiveTab('invites')}
           >
             Pending Invites
@@ -147,29 +154,26 @@ export default function AdminTeamPage() {
         </div>
 
         {loadingData ? (
-          <div className="loading">Loading…</div>
+          <div className="text-center py-10 text-text-light">Loading…</div>
         ) : (
           <>
             {activeTab === 'admins' && (
               <div id="adminList">
                 {admins.length === 0 ? (
-                  <p style={{ color: 'var(--text-light)' }}>No admins found.</p>
+                  <p className="text-text-light">No admins found.</p>
                 ) : (
+                  /* [test hook] card class used as test selector */
                   admins.map(a => (
-                    <div key={a.id} className="card" style={{ marginBottom: 12 }}>
+                    <div key={a.id} className="card bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word" style={{ marginBottom: 12 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
                           <strong>{a.name}</strong>
-                          <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-light)' }}>{a.email}</p>
+                          <p className="text-text-light text-sm" style={{ margin: 0 }}>{a.email}</p>
                         </div>
                         {a.id !== user.id && (
-                          <button
-                            className="btn btn-small"
-                            style={{ color: 'var(--error)', borderColor: 'var(--error)' }}
-                            onClick={() => revokeAdmin(a.id, a.name)}
-                          >
+                          <Button variant="danger" size="sm" onClick={() => revokeAdmin(a.id, a.name)}>
                             Revoke Access
-                          </button>
+                          </Button>
                         )}
                       </div>
                     </div>
@@ -181,23 +185,21 @@ export default function AdminTeamPage() {
             {activeTab === 'invites' && (
               <div id="inviteList">
                 {invites.length === 0 ? (
-                  <p style={{ color: 'var(--text-light)' }}>No pending invites.</p>
+                  <p className="text-text-light">No pending invites.</p>
                 ) : (
+                  /* [test hook] card class used as test selector */
                   invites.map(inv => (
-                    <div key={inv.id} className="card" style={{ marginBottom: 12 }}>
+                    <div key={inv.id} className="card bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word" style={{ marginBottom: 12 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
                           <strong>{inv.email}</strong>
-                          <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-light)' }}>
+                          <p className="text-text-light text-sm" style={{ margin: 0 }}>
                             Invited by {inv.invited_by_name} · Expires {new Date(inv.expires_at).toLocaleDateString()}
                           </p>
                         </div>
-                        <button
-                          className="btn btn-small btn-secondary"
-                          onClick={() => cancelInvite(inv.id)}
-                        >
+                        <Button variant="secondary" size="sm" onClick={() => cancelInvite(inv.id)}>
                           Cancel
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   ))
@@ -209,10 +211,7 @@ export default function AdminTeamPage() {
 
         {showInviteDialog && (
           <div
-            style={{
-              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
-            }}
+            className="fixed inset-0 bg-[rgba(29,53,87,0.5)] flex items-center justify-center z-1000 p-5"
             onClick={e => { if (e.target === e.currentTarget) closeInviteDialog() }}
           >
             <div
@@ -220,37 +219,39 @@ export default function AdminTeamPage() {
               role="dialog"
               aria-modal="true"
               aria-label="Invite Admin"
-              className="card"
-              style={{ width: '100%', maxWidth: 480, padding: 24 }}
+              className="bg-surface rounded-xl shadow-lg max-w-125 w-full max-h-[90vh] overflow-y-auto"
             >
-              <h2 style={{ marginTop: 0 }}>Invite Admin</h2>
-
-              {inviteSuccess ? (
-                <p role="status" style={{ color: 'var(--success)' }}>{inviteSuccess}</p>
-              ) : (
-                <form onSubmit={sendInvite}>
-                  <div className="form-group">
-                    <label htmlFor="invite-email">Email Address</label>
-                    <input
-                      id="invite-email"
-                      type="email"
-                      value={inviteEmail}
-                      onChange={e => setInviteEmail(e.target.value)}
-                      placeholder="admin@example.com"
-                      required
-                      autoFocus
-                    />
-                  </div>
-                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                    <button type="button" className="btn btn-secondary" onClick={closeInviteDialog}>
-                      Cancel
-                    </button>
-                    <button type="submit" className="btn btn-primary" disabled={submitting}>
-                      {submitting ? 'Sending…' : 'Send Invite'}
-                    </button>
-                  </div>
-                </form>
-              )}
+              <div className="px-6 py-5 border-b border-brand-border flex justify-between items-center">
+                <h2 style={{ marginTop: 0 }}>Invite Admin</h2>
+              </div>
+              <div className="p-6">
+                {inviteSuccess ? (
+                  <p role="status" style={{ color: 'var(--success)' }}>{inviteSuccess}</p>
+                ) : (
+                  <form onSubmit={sendInvite}>
+                    <div className="mb-5">
+                      <label htmlFor="invite-email">Email Address</label>
+                      <input
+                        id="invite-email"
+                        type="email"
+                        value={inviteEmail}
+                        onChange={e => setInviteEmail(e.target.value)}
+                        placeholder="admin@example.com"
+                        required
+                        autoFocus
+                      />
+                    </div>
+                    <div className="px-0 py-4 border-t border-brand-border flex gap-3 justify-end">
+                      <Button type="button" variant="secondary" onClick={closeInviteDialog}>
+                        Cancel
+                      </Button>
+                      <Button type="submit" disabled={submitting}>
+                        {submitting ? 'Sending…' : 'Send Invite'}
+                      </Button>
+                    </div>
+                  </form>
+                )}
+              </div>
             </div>
           </div>
         )}

@@ -3,6 +3,7 @@
 import { useEffect, useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/Header'
+import Button from '@/components/Button'
 import SkillPicker from '@/components/SkillPicker'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
@@ -112,8 +113,8 @@ export default function ProfilePage() {
     return (
       <>
         <Header />
-        <main className="container page">
-          <div className="loading">Loading profile…</div>
+        <main className="max-w-350 mx-auto px-6 py-5 pb-15">
+          <div className="text-center py-10 text-text-light">Loading profile…</div>
         </main>
       </>
     )
@@ -122,17 +123,17 @@ export default function ProfilePage() {
   return (
     <>
       <Header />
-      <main className="container page">
+      <main className="max-w-350 mx-auto px-6 py-5 pb-15">
         <h1>Your Profile</h1>
 
         {alert && (
-          <div role="alert" className={`message ${alert.type === 'success' ? 'success' : 'error'}`} style={{ marginBottom: 16 }}>
+          <div role="alert" className={alert.type === 'success' ? 'flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#D1FAE5] text-[#065F46] border border-[#6EE7B7] dark:bg-[#064E3B] dark:text-[#6EE7B7] dark:border-[#059669]' : 'flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]'}>
             {alert.message}
           </div>
         )}
 
-        <form className="card" onSubmit={handleSubmit}>
-          <div className="form-group">
+        <form className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word" onSubmit={handleSubmit}>
+          <div className="mb-5">
             <label htmlFor="name">Your Name</label>
             <input
               type="text"
@@ -142,7 +143,7 @@ export default function ProfilePage() {
             />
           </div>
 
-          <div className="form-group">
+          <div className="mb-5">
             <label htmlFor="bio">About You</label>
             <textarea
               id="bio"
@@ -152,7 +153,7 @@ export default function ProfilePage() {
             />
           </div>
 
-          <div className="form-group">
+          <div className="mb-5">
             <label htmlFor="location">Location</label>
             <input
               type="text"
@@ -162,7 +163,7 @@ export default function ProfilePage() {
             />
           </div>
 
-          <div className="form-group">
+          <div className="mb-5">
             <label htmlFor="hours">Hours per Week</label>
             <input
               type="number"
@@ -174,7 +175,7 @@ export default function ProfilePage() {
             />
           </div>
 
-          <div className="form-group">
+          <div className="mb-5">
             <label htmlFor="discord_handle">Discord Handle</label>
             <input
               type="text"
@@ -185,7 +186,7 @@ export default function ProfilePage() {
             />
           </div>
 
-          <div className="form-group">
+          <div className="mb-5">
             <label htmlFor="signal_number">Signal</label>
             <input
               type="text"
@@ -196,7 +197,7 @@ export default function ProfilePage() {
             />
           </div>
 
-          <div className="form-group">
+          <div className="mb-5">
             <label htmlFor="whatsapp_number">WhatsApp</label>
             <input
               type="text"
@@ -207,8 +208,8 @@ export default function ProfilePage() {
             />
           </div>
 
-          <div className="form-group">
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+          <div className="mb-5">
+            <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 id="profile_visible"
@@ -219,8 +220,8 @@ export default function ProfilePage() {
             </label>
           </div>
 
-          <div className="form-group">
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+          <div className="mb-5">
+            <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 id="share_contact_directly"
@@ -231,7 +232,7 @@ export default function ProfilePage() {
             </label>
           </div>
 
-          <div className="form-group">
+          <div className="mb-5">
             <label htmlFor="email_digest">Email Digest</label>
             <select
               id="email_digest"
@@ -244,12 +245,12 @@ export default function ProfilePage() {
             </select>
           </div>
 
-          <div className="form-group">
+          <div className="mb-5">
             <label>Skills</label>
             <SkillPicker value={skills} onChange={setSkills} />
           </div>
 
-          <div className="form-group">
+          <div className="mb-5">
             <label htmlFor="other_skills">Other Skills</label>
             <input
               type="text"
@@ -260,9 +261,9 @@ export default function ProfilePage() {
             />
           </div>
 
-          <button type="submit" className="btn btn-primary" disabled={submitting}>
+          <Button type="submit" disabled={submitting}>
             {submitting ? 'Saving…' : 'Save Changes'}
-          </button>
+          </Button>
         </form>
       </main>
     </>

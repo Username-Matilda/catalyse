@@ -127,23 +127,3 @@ export async function createNotification(
   })
 }
 
-const URGENCY_ORDER: Record<string, number> = { high: 1, medium: 2, low: 3 }
-
-export function sortProjects<T extends {
-  is_seeking_help: boolean | null
-  is_seeking_owner: boolean | null
-  urgency: string | null
-  created_at: Date | null | string
-}>(projects: T[]): T[] {
-  return [...projects].sort((a, b) => {
-    const seekA = a.is_seeking_help || a.is_seeking_owner ? 0 : 1
-    const seekB = b.is_seeking_help || b.is_seeking_owner ? 0 : 1
-    if (seekA !== seekB) return seekA - seekB
-    const uA = URGENCY_ORDER[a.urgency ?? ''] ?? 3
-    const uB = URGENCY_ORDER[b.urgency ?? ''] ?? 3
-    if (uA !== uB) return uA - uB
-    const tA = a.created_at instanceof Date ? a.created_at.getTime() : new Date(a.created_at ?? 0).getTime()
-    const tB = b.created_at instanceof Date ? b.created_at.getTime() : new Date(b.created_at ?? 0).getTime()
-    return tB - tA
-  })
-}

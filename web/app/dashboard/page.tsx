@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/components/Header'
+import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
 
@@ -51,6 +52,24 @@ interface StarterTask {
 
 type TabKey = 'owned' | 'interests' | 'proposed' | 'suggested' | 'notifications'
 
+
+function statusBadgeClasses(status: string) {
+  const map: Record<string, string> = {
+    seeking_owner: 'bg-[#FEF3C7] text-[#92400E] dark:bg-[#78350F] dark:text-[#FDE68A]',
+    seeking_help: 'bg-[#DBEAFE] text-[#1E40AF] dark:bg-[#1E3A5F] dark:text-[#93C5FD]',
+    needs_tasks: 'bg-[#FEF9C3] text-[#713F12] dark:bg-[#78350F] dark:text-[#FDE68A]',
+    in_progress: 'bg-[#D1FAE5] text-[#065F46] dark:bg-[#064E3B] dark:text-[#6EE7B7]',
+    on_hold: 'bg-[#F3F4F6] text-[#374151] dark:bg-[#374151] dark:text-[#9CA3AF]',
+    completed: 'bg-[#D1FAE5] text-[#065F46] dark:bg-[#064E3B] dark:text-[#6EE7B7]',
+    pending_review: 'bg-[#FEF3C7] text-[#92400E] dark:bg-[#78350F] dark:text-[#FDE68A]',
+    accepted: 'bg-[#D1FAE5] text-[#065F46] dark:bg-[#064E3B] dark:text-[#6EE7B7]',
+    declined: 'bg-[#F3F4F6] text-[#374151] dark:bg-[#374151] dark:text-[#9CA3AF]',
+    withdrawn: 'bg-[#F3F4F6] text-[#374151] dark:bg-[#374151] dark:text-[#9CA3AF]',
+  }
+  // [test hook] status-badge class used as test selector
+  return `status-badge inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${map[status] ?? 'bg-[#F3F4F6] text-[#374151]'}`
+}
+
 export default function DashboardPage() {
   const router = useRouter()
   const { user, loading } = useAuth()
@@ -63,6 +82,7 @@ export default function DashboardPage() {
   const [expandedTasks, setExpandedTasks] = useState<Set<number>>(new Set())
   const [taskAlert, setTaskAlert] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
   const [submittingTask, setSubmittingTask] = useState(false)
+  const [emailBannerDismissed, setEmailBannerDismissed] = useState(false)
 
   useEffect(() => {
     if (!loading && !user) router.replace('/login')
@@ -128,12 +148,14 @@ export default function DashboardPage() {
     return (
       <>
         <Header />
-        <main className="container page">
-          <div className="loading">Loading dashboard…</div>
+        <main className="max-w-350 mx-auto px-6 py-5 pb-15">
+          <div className="text-center py-10 text-text-light">Loading dashboard…</div>
         </main>
       </>
     )
   }
+
+  const showEmailBanner = !user.email_digest && !emailBannerDismissed
 
   const tabs: { key: TabKey; label: string }[] = [
     { key: 'owned', label: 'My Projects' },
@@ -145,46 +167,57 @@ export default function DashboardPage() {
   return (
     <>
       <Header />
-      <main className="container page">
+      <main className="max-w-350 mx-auto px-6 py-5 pb-15">
         <h1 role="heading">Welcome back, {user.name}!</h1>
 
+        {/* Email notification preference banner */}
+        {showEmailBanner && (
+          <div className="flex items-center justify-between gap-3 p-4 rounded-lg mb-5 bg-[#DBEAFE] text-[#1E40AF] border border-[#93C5FD] dark:bg-[#1E3A5F] dark:text-[#93C5FD] dark:border-[#2563EB]">
+            <span>Stay in the loop — set your email notification preference in your <Link href="/profile" className="underline font-semibold">profile</Link>.</span>
+            <Button variant="ghost" icon onClick={() => setEmailBannerDismissed(true)} aria-label="Dismiss">×</Button>
+          </div>
+        )}
+
+        {/* Starter tasks */}
         {starterTasks.length > 0 && (
-          <section aria-label="Starter Tasks" style={{ marginBottom: 32 }}>
+          <section aria-label="Starter Tasks" className="mb-8">
             <h2>Starter Tasks</h2>
             {taskAlert && (
-              <div role="alert" className={`message ${taskAlert.type}`} style={{ marginBottom: 16 }}>
+              <div role="alert" className={`flex items-center gap-3 p-4 rounded-lg mb-4 ${
+                taskAlert.type === 'success'
+                  ? 'bg-[#D1FAE5] text-[#065F46] border border-[#6EE7B7] dark:bg-[#064E3B] dark:text-[#6EE7B7] dark:border-[#059669]'
+                  : 'bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]'
+              }`}>
                 {taskAlert.text}
               </div>
             )}
+            {/* [test hook] card, card-header classes used as test selectors */}
             {starterTasks.map(task => (
-              <div key={task.id} className="card" style={{ marginBottom: 16 }}>
+              <div key={task.id} className="card bg-surface rounded-xl shadow p-6 mb-3 overflow-hidden wrap-break-word">
                 <div
-                  className="card-header"
-                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+                  className="card-header flex justify-between items-center cursor-pointer"
                   onClick={() => toggleTask(task.id)}
                 >
                   <div>
                     <strong>{task.title}</strong>
-                    {task.skill_name && <span style={{ marginLeft: 8, fontSize: '0.875rem', color: 'var(--text-light)' }}>{task.skill_name}</span>}
+                    {task.skill_name && (
+                      <span className="ml-2 text-sm text-text-light">{task.skill_name}</span>
+                    )}
                   </div>
-                  <span className="status-badge" style={{ padding: '2px 8px', borderRadius: 12, fontSize: '0.8rem', background: 'var(--bg-secondary, #f8fafc)' }}>
+                  <span className={statusBadgeClasses(task.status)}>
                     {task.status}
                   </span>
                 </div>
                 {expandedTasks.has(task.id) && (
-                  <div style={{ marginTop: 12 }}>
-                    <p style={{ margin: '0 0 12px', color: 'var(--text-light)', fontSize: '0.875rem' }}>{task.description}</p>
+                  <div className="mt-3">
+                    <p className="text-text-light text-sm mb-3">{task.description}</p>
                     {task.feedback_to_volunteer && (
-                      <p style={{ margin: '0 0 12px', fontSize: '0.875rem' }}><strong>Feedback:</strong> {task.feedback_to_volunteer}</p>
+                      <p className="text-sm mb-3"><strong>Feedback:</strong> {task.feedback_to_volunteer}</p>
                     )}
                     {task.status === 'assigned' && (
-                      <button
-                        className="btn btn-primary btn-small"
-                        disabled={submittingTask}
-                        onClick={() => submitTask(task.id)}
-                      >
+                      <Button size="sm" disabled={submittingTask} onClick={() => submitTask(task.id)}>
                         Mark as Complete
-                      </button>
+                      </Button>
                     )}
                   </div>
                 )}
@@ -193,125 +226,138 @@ export default function DashboardPage() {
           </section>
         )}
 
-        <div className="grid grid-3 stats-grid" style={{ marginBottom: 32 }}>
-          <div className="card" style={{ textAlign: 'center' }}>
-            <div className="stat-number">{data?.owned_projects.length ?? 0}</div>
-            <div>Owned projects</div>
+        {/* Quick stats */}
+        <div className="grid grid-cols-3 gap-5 mb-8 max-[600px]:grid-cols-1">
+          {/* [test hook] card, stat-number classes used as test selectors */}
+          <div className="card bg-surface rounded-xl shadow p-6 text-center">
+            <div className="stat-number text-4xl font-bold text-primary mb-1">{data?.owned_projects.length ?? 0}</div>
+            <div className="text-text-light text-sm">Owned Projects</div>
           </div>
-          <div className="card" style={{ textAlign: 'center' }}>
-            <div className="stat-number">{data?.my_interests.length ?? 0}</div>
-            <div>Active Interests</div>
+          <div className="card bg-surface rounded-xl shadow p-6 text-center">
+            <div className="stat-number text-4xl font-bold text-primary mb-1">{data?.my_interests.length ?? 0}</div>
+            <div className="text-text-light text-sm">Active Interests</div>
           </div>
-          <div className="card" style={{ textAlign: 'center' }}>
-            <div className="stat-number">{unreadCount}</div>
-            <div>Unread Notifications</div>
+          <div className="card bg-surface rounded-xl shadow p-6 text-center">
+            <div className="stat-number text-4xl font-bold text-primary mb-1">{unreadCount}</div>
+            <div className="text-text-light text-sm">Unread Notifications</div>
           </div>
         </div>
 
-        <div className="tabs-wrapper">
-          <div className="tabs">
-            {tabs.map(tab => (
-              <button
-                key={tab.key}
-                className={`tab${activeTab === tab.key ? ' active' : ''}`}
-                onClick={() => handleTabClick(tab.key)}
-              >
-                {tab.label}
-              </button>
-            ))}
+        {/* Tabs */}
+        {/* [test hook] active class added to active tab; notification-badge class used as test selector */}
+        <div className="flex border-b border-brand-border mb-6">
+          {tabs.map(tab => (
             <button
-              data-tab="notifications"
-              className={`tab${activeTab === 'notifications' ? ' active' : ''}`}
-              onClick={() => handleTabClick('notifications')}
+              key={tab.key}
+              className={`px-4 py-2 font-medium border-b-2 -mb-px cursor-pointer transition-colors ${
+                activeTab === tab.key
+                  ? 'active text-primary border-primary'
+                  : 'text-text-light border-transparent hover:text-brand-text'
+              }`}
+              onClick={() => handleTabClick(tab.key)}
             >
-              Notifications
-              {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
+              {tab.label}
             </button>
+          ))}
+          <button
+            data-tab="notifications"
+            className={`px-4 py-2 font-medium border-b-2 -mb-px cursor-pointer transition-colors ${
+              activeTab === 'notifications'
+                ? 'active text-primary border-primary'
+                : 'text-text-light border-transparent hover:text-brand-text'
+            }`}
+            onClick={() => handleTabClick('notifications')}
+          >
+            Notifications
+            {unreadCount > 0 && (
+              <span className="notification-badge bg-primary text-secondary-dark text-xs px-2 py-0.5 rounded-full ml-1">
+                {unreadCount}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Tab content */}
+        {activeTab === 'owned' && (
+          <div>
+            {!data?.owned_projects.length ? (
+              <p className="text-text-light">You don&apos;t own any projects yet.</p>
+            ) : (
+              data.owned_projects.map(p => (
+                <div key={p.id} className="bg-surface rounded-xl shadow p-5 mb-3 flex justify-between items-center wrap-break-word">
+                  <Link href={`/projects/${p.id}`} className="font-medium no-underline hover:underline">{p.title}</Link>
+                  <span className={statusBadgeClasses(p.status)}>{p.status.replace(/_/g, ' ')}</span>
+                </div>
+              ))
+            )}
           </div>
-        </div>
+        )}
 
-        <div className="tab-content">
-          {activeTab === 'owned' && (
-            <div>
-              {!data?.owned_projects.length ? (
-                <p>You don&apos;t own any projects yet.</p>
-              ) : (
-                data.owned_projects.map(p => (
-                  <div key={p.id} className="card">
-                    <Link href={`/projects/${p.id}`}>{p.title}</Link>
-                    <span style={{ marginLeft: 8, color: 'var(--text-light)' }}>{p.status}</span>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
+        {activeTab === 'interests' && (
+          <div>
+            {!data?.my_interests.length ? (
+              <p className="text-text-light">You haven&apos;t expressed interest in any projects yet.</p>
+            ) : (
+              data.my_interests.map(i => (
+                <div key={i.id} className="bg-surface rounded-xl shadow p-5 mb-3 flex justify-between items-center wrap-break-word">
+                  <Link href={`/projects/${i.project_id}`} className="font-medium no-underline hover:underline">{i.project_title}</Link>
+                  <span className={statusBadgeClasses(i.status)}>{i.status}</span>
+                </div>
+              ))
+            )}
+          </div>
+        )}
 
-          {activeTab === 'interests' && (
-            <div>
-              {!data?.my_interests.length ? (
-                <p>You haven&apos;t expressed interest in any projects yet.</p>
-              ) : (
-                data.my_interests.map(i => (
-                  <div key={i.id} className="card">
-                    <Link href={`/projects/${i.project_id}`}>{i.project_title}</Link>
-                    <span style={{ marginLeft: 8, color: 'var(--text-light)' }}>{i.status}</span>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
+        {activeTab === 'proposed' && (
+          <div>
+            {!data?.proposed_projects.length ? (
+              <p className="text-text-light">You haven&apos;t proposed any projects yet.</p>
+            ) : (
+              data.proposed_projects.map(p => (
+                <div key={p.id} className="bg-surface rounded-xl shadow p-5 mb-3 flex justify-between items-center wrap-break-word">
+                  <Link href={`/projects/${p.id}`} className="font-medium no-underline hover:underline">{p.title}</Link>
+                  <span className={statusBadgeClasses(p.status)}>{p.status.replace(/_/g, ' ')}</span>
+                </div>
+              ))
+            )}
+          </div>
+        )}
 
-          {activeTab === 'proposed' && (
-            <div>
-              {!data?.proposed_projects.length ? (
-                <p>You haven&apos;t proposed any projects yet.</p>
-              ) : (
-                data.proposed_projects.map(p => (
-                  <div key={p.id} className="card">
-                    <Link href={`/projects/${p.id}`}>{p.title}</Link>
-                    <span style={{ marginLeft: 8, color: 'var(--text-light)' }}>{p.status}</span>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
+        {activeTab === 'suggested' && (
+          <div>
+            {!data?.suggested_projects.length ? (
+              <p className="text-text-light">No suggested projects matching your skills right now.</p>
+            ) : (
+              data.suggested_projects.map(p => (
+                <div key={p.id} className="bg-surface rounded-xl shadow p-5 mb-3 flex justify-between items-center wrap-break-word">
+                  <Link href={`/projects/${p.id}`} className="font-medium no-underline hover:underline">{p.title}</Link>
+                  <span className={statusBadgeClasses(p.status)}>{p.status.replace(/_/g, ' ')}</span>
+                </div>
+              ))
+            )}
+          </div>
+        )}
 
-          {activeTab === 'suggested' && (
-            <div>
-              {!data?.suggested_projects.length ? (
-                <p>No suggested projects right now.</p>
-              ) : (
-                data.suggested_projects.map(p => (
-                  <div key={p.id} className="card">
-                    <Link href={`/projects/${p.id}`}>{p.title}</Link>
-                    <span style={{ marginLeft: 8, color: 'var(--text-light)' }}>{p.status}</span>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-
-          {activeTab === 'notifications' && (
-            <div>
-              {unreadCount > 0 && (
-                <button className="btn btn-primary" onClick={markAllRead} style={{ marginBottom: 16 }}>
-                  Mark all as read
-                </button>
-              )}
-              {!notifications.length ? (
-                <p>No notifications.</p>
-              ) : (
-                notifications.map(n => (
-                  <div key={n.id} className="card">
-                    <strong>{n.title}</strong>
-                    <p style={{ margin: '4px 0 0' }}>{n.body}</p>
-                    {n.link && <Link href={n.link} style={{ fontSize: '0.875rem' }}>View</Link>}
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-        </div>
+        {activeTab === 'notifications' && (
+          <div>
+            {unreadCount > 0 && (
+              <Button className="mb-4" onClick={markAllRead}>
+                Mark all as read
+              </Button>
+            )}
+            {!notifications.length ? (
+              <p className="text-text-light">No notifications yet.</p>
+            ) : (
+              notifications.map(n => (
+                <div key={n.id} className={`bg-surface rounded-xl shadow p-5 mb-3 wrap-break-word ${!n.read_at ? 'border-l-4 border-primary' : ''}`}>
+                  <strong className={!n.read_at ? 'text-brand-text' : 'text-text-light'}>{n.title}</strong>
+                  <p className="text-sm mt-1 mb-0">{n.body}</p>
+                  {n.link && <Link href={n.link} className="text-sm underline mt-1 inline-block">View</Link>}
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </main>
     </>
   )
