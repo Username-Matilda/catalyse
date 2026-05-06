@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
@@ -9,12 +9,32 @@ import BugReportDialog from './BugReportDialog'
 import { ThemeToggle } from './ThemeToggle'
 import Button from '@/components/Button'
 
+function MobileNavLink({ href, children, active }: { href: string; children: React.ReactNode; active?: boolean }) {
+  return (
+    <Link
+      href={href}
+      className={`block px-5 py-4 text-[var(--text)] no-underline font-medium text-base border-b border-brand-border transition-colors hover:bg-[var(--background)] ${active ? 'text-primary bg-accent' : ''}`}
+    >
+      {children}
+    </Link>
+  )
+}
+
+function MobileNavSection({ children, admin }: { children: React.ReactNode; admin?: boolean }) {
+  return (
+    <div className={`px-5 py-2 text-[0.65rem] font-bold uppercase tracking-widest bg-[var(--background)] border-b border-brand-border ${admin ? 'text-primary' : 'text-[var(--text-light)]'}`}>
+      {children}
+    </div>
+  )
+}
+
 export default function Header() {
   const { user, loading, logout } = useAuth()
   const pathname = usePathname()
   const [unreadCount, setUnreadCount] = useState(0)
   const [bugDialogOpen, setBugDialogOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const fetchNotifications = useCallback(async () => {
     if (!user) return
@@ -29,6 +49,20 @@ export default function Header() {
     fetchNotifications()
   }, [fetchNotifications, pathname])
 
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => { document.body.style.overflow = '' }
+  }, [mobileMenuOpen])
+
+  // Close mobile menu on navigation
+  useEffect(() => {
+    setMobileMenuOpen(false)
+  }, [pathname])
+
   const navLinks = [
     { href: '/', label: 'Projects' },
     { href: '/volunteers', label: 'Volunteers' },
@@ -36,15 +70,17 @@ export default function Header() {
     { href: '/starter-tasks', label: 'Starter Tasks' },
   ]
 
+  const isAdminPage = pathname.startsWith('/admin')
+
   return (
     <>
       <header className="bg-surface border-b border-brand-border py-4 sticky top-0 z-[100]">
-        <div className="container flex justify-between items-center flex-wrap gap-4">
+        <div className="container flex justify-between items-center gap-2 flex-nowrap xl:gap-4">
           <Link href="/" className="font-[var(--font-display)] text-2xl font-black text-primary no-underline flex items-center gap-2">
             Catalyse
           </Link>
 
-          <nav className="flex gap-2 flex-wrap">
+          <nav className="hidden xl:flex gap-2 flex-wrap">
             {navLinks.map(({ href, label }) => (
               <Button
                 key={href}
@@ -57,7 +93,7 @@ export default function Header() {
             ))}
           </nav>
 
-          <div className="flex gap-2 items-center">
+          <div className="hidden xl:flex gap-2 items-center">
             <ThemeToggle />
             <Button variant="ghost" size="sm" onClick={() => setBugDialogOpen(true)}>
               Report a bug or give feedback
@@ -111,8 +147,101 @@ export default function Header() {
               )
             )}
           </div>
+
+          {/* Hamburger — visible below xl breakpoint */}
+          <Button
+            variant="ghost"
+            size="md"
+            icon
+            className="xl:hidden border border-brand-border shrink-0"
+            aria-label="Open menu"
+            onClick={() => setMobileMenuOpen(true)}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="3" y1="6" x2="21" y2="6"/>
+              <line x1="3" y1="12" x2="21" y2="12"/>
+              <line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </Button>
         </div>
       </header>
+
+      {/* Mobile nav panel — full-screen overlay */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 bg-surface z-[1500] flex flex-col overflow-y-auto">
+          {/* Panel header */}
+          <div className="border-b border-brand-border sticky top-0 bg-surface z-[1]">
+          <div className="container flex items-center justify-between py-4">
+            <Link href="/" className="font-[var(--font-display)] text-2xl font-black text-primary no-underline">
+              Catalyse
+            </Link>
+            <Button
+              variant="ghost"
+              size="md"
+              icon
+              className="border border-brand-border"
+              aria-label="Close menu"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </Button>
+          </div>
+          </div>
+
+          {/* Nav links */}
+          <div>
+            {navLinks.map(({ href, label }) => (
+              <MobileNavLink key={href} href={href} active={pathname === href}>{label}</MobileNavLink>
+            ))}
+
+            {!loading && (
+              user ? (
+                <>
+                  <MobileNavSection>Account</MobileNavSection>
+                  <MobileNavLink href="/dashboard">
+                    Dashboard
+                    {unreadCount > 0 && (
+                      <span className="bg-primary text-secondary-dark text-xs px-2 py-0.5 rounded-full ml-1">{unreadCount}</span>
+                    )}
+                  </MobileNavLink>
+                  <MobileNavLink href="/profile">My Profile</MobileNavLink>
+                  <MobileNavLink href="/settings">Account Settings</MobileNavLink>
+
+                  {user.is_admin && !isAdminPage && (
+                    <>
+                      <MobileNavSection admin>Admin</MobileNavSection>
+                      <MobileNavLink href="/admin/triage">Triage Queue</MobileNavLink>
+                      <MobileNavLink href="/admin/projects/new">Create Org Project</MobileNavLink>
+                      <MobileNavLink href="/admin/starter-tasks">Manage Starter Tasks</MobileNavLink>
+                      <MobileNavLink href="/admin/skills">Manage Skills</MobileNavLink>
+                      <MobileNavLink href="/admin/bugs">Bug Reports</MobileNavLink>
+                      <MobileNavLink href="/admin/team">Admin Team</MobileNavLink>
+                      <MobileNavLink href="/admin/stats">Platform Stats</MobileNavLink>
+                    </>
+                  )}
+
+                  <MobileNavSection>Session</MobileNavSection>
+                  <button
+                    onClick={() => { logout(); setMobileMenuOpen(false) }}
+                    className="block w-full text-left px-5 py-4 text-[var(--text)] font-medium text-base border-b border-brand-border hover:bg-[var(--background)] cursor-pointer bg-transparent"
+                  >
+                    Sign Out
+                  </button>
+                </>
+              ) : (
+                <>
+                  <MobileNavSection>Account</MobileNavSection>
+                  <MobileNavLink href="/login">Login</MobileNavLink>
+                  <MobileNavLink href="/signup">Sign Up</MobileNavLink>
+                </>
+              )
+            )}
+          </div>
+        </div>
+      )}
 
       <BugReportDialog isOpen={bugDialogOpen} onClose={() => setBugDialogOpen(false)} />
     </>
