@@ -234,6 +234,7 @@ export default function ProjectsPage() {
               value={locationFilter}
               options={LOCATION_OPTIONS}
               onChange={setLocationFilter}
+              searchable
             />
 
             <FilterDropdown
@@ -246,7 +247,7 @@ export default function ProjectsPage() {
             />
 
             {hasFilters && (
-              <Button variant="outline" size="sm" onClick={clearFilters} style={{ marginBottom: 0 }}>Clear filters</Button>
+              <Button variant="outline" size="lg" onClick={clearFilters}>Clear filters</Button>
             )}
           </div>
         </div>

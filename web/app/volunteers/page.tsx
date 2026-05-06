@@ -122,6 +122,7 @@ export default function VolunteersPage() {
               value={skillFilter}
               options={[{ value: '', label: 'All skills' }, ...allSkills.map(s => ({ value: String(s.id), label: s.name }))]}
               onChange={setSkillFilter}
+              searchable
             />
 
             <FilterDropdown
@@ -131,12 +132,11 @@ export default function VolunteersPage() {
               value={locationFilter}
               options={LOCATION_OPTIONS}
               onChange={setLocationFilter}
+              searchable
             />
 
             {hasFilters && (
-              <Button variant="outline" size="sm" onClick={clearFilters} style={{ marginBottom: 0 }}>
-                Clear filters
-              </Button>
+              <Button variant="outline" size="lg" onClick={clearFilters}>Clear filters</Button>
             )}
           </div>
         </div>
