@@ -293,11 +293,11 @@ class VolunteerSignup(BaseModel):
     location: Optional[str] = None
     country: Optional[str] = None
     local_group: Optional[str] = None
-    share_contact_directly: bool = False
+    consent_make_profile_visible_in_directory: bool = True
+    consent_contactable_by_project_owners: bool = True
+    consent_share_contact_info_with_project_owner: bool = False
     other_skills: Optional[str] = None
     skill_ids: List[int] = []
-    consent_profile_visible: bool = True
-    consent_contact_by_owners: bool = True
     email_digest: Optional[str] = "none"  # 'none', 'match', 'fortnightly'
 
 
@@ -313,10 +313,11 @@ class VolunteerUpdate(BaseModel):
     location: Optional[str] = None
     country: Optional[str] = None
     local_group: Optional[str] = None
-    share_contact_directly: Optional[bool] = None
+    consent_make_profile_visible_in_directory: Optional[bool] = None
+    consent_contactable_by_project_owners: Optional[bool] = None
+    consent_share_contact_info_with_project_owner: Optional[bool] = None
     other_skills: Optional[str] = None
     skill_ids: Optional[List[int]] = None
-    profile_visible: Optional[bool] = None
     email_digest: Optional[str] = None  # 'none', 'match', 'fortnightly'
 
 
@@ -751,9 +752,11 @@ def signup(data: VolunteerSignup) -> Dict:
             "discord_handle": data.discord_handle, "signal_number": data.signal_number,
             "whatsapp_number": data.whatsapp_number, "contact_preference": data.contact_preference,
             "contact_notes": data.contact_notes, "availability_hours_per_week": data.availability_hours_per_week,
-            "location": data.location, "share_contact_directly": data.share_contact_directly,
-            "other_skills": data.other_skills, "consent_profile_visible": data.consent_profile_visible,
-            "consent_contact_by_owners": data.consent_contact_by_owners,
+            "location": data.location,
+            "other_skills": data.other_skills,
+            "consent_make_profile_visible_in_directory": data.consent_make_profile_visible_in_directory,
+            "consent_contactable_by_project_owners": data.consent_contactable_by_project_owners,
+            "consent_share_contact_info_with_project_owner": data.consent_share_contact_info_with_project_owner,
             "consent_given_at": datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
             "auth_token": auth_token, "password_hash": password_hash
         }
@@ -1029,9 +1032,9 @@ def google_auth(data: GoogleAuthRequest) -> Dict:
             cursor = conn.execute(
                 """INSERT INTO volunteers (
                     name, email, auth_token,
-                    consent_profile_visible, consent_contact_by_owners, consent_given_at
-                ) VALUES (?, ?, ?, ?, ?, ?)""",
-                (name, email, auth_token, True, True, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
+                    consent_make_profile_visible_in_directory, consent_contactable_by_project_owners, consent_share_contact_info_with_project_owner, consent_given_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (name, email, auth_token, True, True, False, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
             )
             volunteer_id = cursor.lastrowid
 
@@ -1699,8 +1702,7 @@ def list_volunteers(
                v.location, v.other_skills, v.local_group, v.created_at
         FROM volunteers v
         WHERE v.deleted_at IS NULL
-        AND v.profile_visible = 1
-        AND v.consent_profile_visible = 1
+        AND v.consent_make_profile_visible_in_directory = 1
     """
     params = []
 
@@ -1766,7 +1768,7 @@ def get_volunteer(
     volunteer = conn.execute(
         """SELECT * FROM volunteers
            WHERE id = ? AND deleted_at IS NULL
-           AND profile_visible = 1""",
+           AND consent_make_profile_visible_in_directory = 1""",
         (volunteer_id,)
     ).fetchone()
 
@@ -1784,7 +1786,7 @@ def get_volunteer(
         elif current_volunteer.get("is_admin"):
             show_contact = True
         # Show contact if they've opted to share directly AND consent to being contacted
-        elif volunteer["share_contact_directly"] and volunteer["consent_contact_by_owners"]:
+        elif volunteer["consent_contactable_by_project_owners"] and volunteer["consent_share_contact_info_with_project_owner"]:
             show_contact = True
 
     result = enrich_volunteer(conn, dict(volunteer), show_contact=show_contact)
@@ -1833,13 +1835,22 @@ def update_me(data: VolunteerUpdate, volunteer: Dict = Depends(require_auth)) ->
         for field in ["name", "bio", "discord_handle", "signal_number",
                       "whatsapp_number", "contact_preference", "contact_notes",
                       "availability_hours_per_week", "location", "country", "local_group",
-                      "share_contact_directly", "other_skills", "profile_visible", "email_digest"]:
+                      "consent_make_profile_visible_in_directory",
+                      "consent_contactable_by_project_owners",
+                      "consent_share_contact_info_with_project_owner",
+                      "other_skills", "email_digest"]:
             if field not in existing_columns:
                 continue
             value = getattr(data, field, None)
             if value is not None or (field == "local_group" and field in data.model_fields_set):
                 updates.append(f"{field} = ?")
                 params.append(value)
+
+        # Re-affirm consent timestamp when either consent flag is being set to true
+        consent_fields = {"consent_make_profile_visible_in_directory", "consent_contactable_by_project_owners", "consent_share_contact_info_with_project_owner"}
+        if any(getattr(data, f) is True for f in consent_fields):
+            updates.append("consent_given_at = ?")
+            params.append(datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
 
         if updates:
             updates.append("updated_at = ?")
@@ -3851,7 +3862,7 @@ def send_contact_message(
     recipient = conn.execute(
         """SELECT * FROM volunteers
            WHERE id = ? AND deleted_at IS NULL
-           AND consent_contact_by_owners = 1""",
+           AND consent_contactable_by_project_owners = 1""",
         (volunteer_id,)
     ).fetchone()
     conn.close()

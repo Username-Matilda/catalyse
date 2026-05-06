@@ -109,11 +109,15 @@
 
                 <div class="checkbox-group">
                     <label class="checkbox-label">
-                        <input type="checkbox" id="profile_visible" name="profile_visible">
+                        <input type="checkbox" id="consent_make_profile_visible_in_directory" name="consent_make_profile_visible_in_directory">
                         <span>Make my profile visible in the volunteer directory</span>
                     </label>
                     <label class="checkbox-label">
-                        <input type="checkbox" id="share_directly" name="share_contact_directly">
+                        <input type="checkbox" id="consent_contactable_by_project_owners" name="consent_contactable_by_project_owners">
+                        <span>Allow project owners to contact me about opportunities</span>
+                    </label>
+                    <label class="checkbox-label" style="margin-left: 24px;">
+                        <input type="checkbox" id="consent_share_contact_info_with_project_owner" name="consent_share_contact_info_with_project_owner">
                         <span>Share my contact info directly with project owners (otherwise they use the contact form)</span>
                     </label>
                 </div>
@@ -178,14 +182,26 @@
             renderCountrySelect('country', currentUser.country || '');
             renderLocalGroupSelect('local_group', currentUser.country || '', currentUser.local_group || '');
             form.other_skills.value = currentUser.other_skills || '';
-            form.profile_visible.checked = currentUser.profile_visible !== false;
-            form.share_contact_directly.checked = currentUser.share_contact_directly || false;
+            form.consent_make_profile_visible_in_directory.checked = currentUser.consent_make_profile_visible_in_directory !== false;
+            form.consent_contactable_by_project_owners.checked = currentUser.consent_contactable_by_project_owners !== false;
+            form.consent_share_contact_info_with_project_owner.checked = currentUser.consent_share_contact_info_with_project_owner || false;
+            syncShareDirectly();
             form.email_digest.value = currentUser.email_digest || 'none';
 
             // Skills
             const selectedSkillIds = currentUser.skills?.map(s => s.id) || [];
             renderSkillSelector('skillSelector', selectedSkillIds);
         }
+
+        // Keep share-directly sub-checkbox in sync with its parent
+        const contactableCheckbox = document.getElementById('consent_contactable_by_project_owners');
+        const shareDirectlyCheckbox = document.getElementById('consent_share_contact_info_with_project_owner');
+        function syncShareDirectly() {
+            shareDirectlyCheckbox.disabled = !contactableCheckbox.checked;
+            if (!contactableCheckbox.checked) shareDirectlyCheckbox.checked = false;
+        }
+        contactableCheckbox.addEventListener('change', syncShareDirectly);
+        syncShareDirectly();
 
         document.getElementById('country').addEventListener('change', (e) => {
             renderLocalGroupSelect('local_group', e.target.value);
@@ -213,8 +229,9 @@
                     country: form.country.value || null,
                     local_group: form.local_group.value || null,
                     other_skills: form.other_skills.value.trim() || null,
-                    profile_visible: form.profile_visible.checked,
-                    share_contact_directly: form.share_contact_directly.checked,
+                    consent_make_profile_visible_in_directory: form.consent_make_profile_visible_in_directory.checked,
+                    consent_contactable_by_project_owners: form.consent_contactable_by_project_owners.checked,
+                    consent_share_contact_info_with_project_owner: form.consent_share_contact_info_with_project_owner.checked,
                     email_digest: form.email_digest.value,
                     skill_ids: getSelectedSkills('skillSelector')
                 };

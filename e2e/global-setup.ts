@@ -72,8 +72,8 @@ async function setupAdminAuth(parallelIndex: number): Promise<void> {
         name: 'Test Admin',
         email: ADMIN_EMAIL,
         password: ADMIN_PASSWORD,
-        consent_profile_visible: true,
-        consent_contact_by_owners: true,
+        consent_make_profile_visible_in_directory: true,
+        consent_contactable_by_project_owners: true,
       }),
     });
     if (!resp.ok) {

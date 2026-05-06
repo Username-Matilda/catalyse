@@ -109,8 +109,8 @@ def admin_token(live_server, _tmp_db_dir):
         "name": "Test Admin",
         "email": ADMIN_EMAIL,
         "password": ADMIN_PASSWORD,
-        "consent_profile_visible": True,
-        "consent_contact_by_owners": True,
+        "consent_make_profile_visible_in_directory": True,
+        "consent_contactable_by_project_owners": True,
     })
     db_path = os.path.join(_tmp_db_dir, "catalyse.db")
     conn = _sqlite3.connect(db_path)
@@ -129,8 +129,8 @@ def new_user(live_server):
         "name": "Test User",
         "email": email,
         "password": password,
-        "consent_profile_visible": True,
-        "consent_contact_by_owners": True,
+        "consent_make_profile_visible_in_directory": True,
+        "consent_contactable_by_project_owners": True,
     })
     return {"email": email, "password": password, "token": data["auth_token"], "id": data["id"]}
 
@@ -241,8 +241,8 @@ def user_credentials(live_server):
             "name": "Session Test User",
             "email": email,
             "password": password,
-            "consent_profile_visible": True,
-            "consent_contact_by_owners": True,
+            "consent_make_profile_visible_in_directory": True,
+            "consent_contactable_by_project_owners": True,
         })
         return {"email": email, "password": password, "token": data["auth_token"]}
 

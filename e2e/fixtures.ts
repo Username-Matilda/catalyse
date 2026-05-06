@@ -45,8 +45,8 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
         name: credentials.name,
         email: credentials.email,
         password: credentials.password,
-        consent_profile_visible: true,
-        consent_contact_by_owners: true,
+        consent_make_profile_visible_in_directory: true,
+        consent_contactable_by_project_owners: true,
       }),
     });
     if (!resp.ok) throw new Error(`Volunteer signup failed: ${await resp.text()}`);
