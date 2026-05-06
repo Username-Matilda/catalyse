@@ -48,16 +48,13 @@ CREATE TABLE volunteers (
     availability_hours_per_week INTEGER,
     location TEXT,
 
-    -- Privacy settings
-    share_contact_directly BOOLEAN DEFAULT FALSE,  -- If false, use contact form only
-    profile_visible BOOLEAN DEFAULT TRUE,
-
     -- Other skills not in taxonomy
     other_skills TEXT,
 
-    -- Consent tracking (GDPR)
-    consent_profile_visible BOOLEAN DEFAULT FALSE,
-    consent_contact_by_owners BOOLEAN DEFAULT FALSE,
+    -- Consent (GDPR) — set at signup and re-affirmed when toggled on the profile page
+    consent_make_profile_visible_in_directory BOOLEAN DEFAULT FALSE,
+    consent_contactable_by_project_owners BOOLEAN DEFAULT FALSE,
+    consent_share_contact_info_with_project_owner BOOLEAN DEFAULT FALSE,
     consent_given_at TIMESTAMP,
 
     -- Auth (simple token-based for lightweight auth)
