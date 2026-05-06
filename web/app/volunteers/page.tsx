@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/components/Header'
 import Button from '@/components/Button'
+import FilterDropdown from '@/components/FilterDropdown'
+import { LOCATION_OPTIONS } from '@/lib/filter-options'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
 
@@ -25,6 +27,7 @@ interface Volunteer {
   name: string
   bio: string | null
   location: string | null
+  country: string | null
   local_group: string | null
   availability_hours_per_week: number | null
   created_at: string
@@ -69,7 +72,11 @@ export default function VolunteersPage() {
       const params = new URLSearchParams()
       if (search) params.set('search', search)
       if (skillFilter) params.set('skill_ids', skillFilter)
-      if (locationFilter) params.set('country', locationFilter)
+      if (locationFilter) {
+        const [country, localGroup] = locationFilter.split(':')
+        params.set('country', country)
+        if (localGroup) params.set('local_group', localGroup)
+      }
       const data = await apiRequest<{ volunteers: Volunteer[]; total: number }>(`/api/volunteers?${params}`)
       setVolunteers(data.volunteers)
     } catch {
@@ -95,9 +102,9 @@ export default function VolunteersPage() {
       <main className="max-w-350 mx-auto px-6 py-5 pb-15">
         <h1>Volunteer Directory</h1>
 
-        <div className="flex gap-3 mb-6 flex-wrap items-end">
-          <div className="flex-1" style={{ minWidth: 180 }}>
-            <label htmlFor="search-volunteers" className="text-sm font-medium mb-1 block">Search by name</label>
+        <div className="mb-5">
+          <div className="mb-3">
+            <label htmlFor="search-volunteers">Search</label>
             <input
               id="search-volunteers"
               type="search"
@@ -107,37 +114,31 @@ export default function VolunteersPage() {
               onChange={e => setSearch(e.target.value)}
             />
           </div>
-
-          <div style={{ minWidth: 160 }}>
-            <label htmlFor="skill-filter" className="text-sm font-medium mb-1 block">Filter by skill</label>
-            <select
+          <div className="flex gap-3 flex-wrap items-end">
+            <FilterDropdown
               id="skill-filter"
+              label="Skill"
+              ariaLabel="Skill filter"
               value={skillFilter}
-              onChange={e => setSkillFilter(e.target.value)}
-            >
-              <option value="">All skills</option>
-              {allSkills.map(s => (
-                <option key={s.id} value={String(s.id)}>{s.name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div style={{ minWidth: 160 }}>
-            <label htmlFor="location-filter" className="text-sm font-medium mb-1 block">Filter by country</label>
-            <input
-              id="location-filter"
-              type="text"
-              placeholder="e.g. United Kingdom"
-              value={locationFilter}
-              onChange={e => setLocationFilter(e.target.value)}
+              options={[{ value: '', label: 'All skills' }, ...allSkills.map(s => ({ value: String(s.id), label: s.name }))]}
+              onChange={setSkillFilter}
             />
-          </div>
 
-          {hasFilters && (
-            <Button variant="outline" size="sm" onClick={clearFilters}>
-              Clear filters
-            </Button>
-          )}
+            <FilterDropdown
+              id="location-filter"
+              label="Country"
+              ariaLabel="Country filter"
+              value={locationFilter}
+              options={LOCATION_OPTIONS}
+              onChange={setLocationFilter}
+            />
+
+            {hasFilters && (
+              <Button variant="outline" size="sm" onClick={clearFilters} style={{ marginBottom: 0 }}>
+                Clear filters
+              </Button>
+            )}
+          </div>
         </div>
 
         <div id="volunteersList">
@@ -157,10 +158,10 @@ export default function VolunteersPage() {
                   <h3 className="m-0 mb-2">
                     <Link href={`/volunteers/${v.id}`} className="text-primary-dark no-underline hover:underline">{v.name}</Link>
                   </h3>
-                  {(v.location || v.local_group || v.availability_hours_per_week) && (
+                  {(v.location || v.country || v.local_group || v.availability_hours_per_week) && (
                     <div className="flex items-center gap-3 flex-wrap text-xs text-text-light mb-2">
-                      {(v.location || v.local_group) && (
-                        <span>📍 {[v.location, v.local_group].filter(Boolean).join(' · ')}</span>
+                      {(v.location || v.country || v.local_group) && (
+                        <span>📍 {[v.local_group, v.country ?? v.location].filter(Boolean).join(' · ')}</span>
                       )}
                       {v.availability_hours_per_week && (
                         <span>🕐 {v.availability_hours_per_week}h/week</span>
