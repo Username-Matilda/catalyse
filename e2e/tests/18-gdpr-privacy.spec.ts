@@ -41,7 +41,7 @@ test.describe('GDPR & Privacy', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name: vol2.name, email: vol2.email, password: 'testpassword1',
-        consent_profile_visible: true, consent_contact_by_owners: true,
+        consent_make_profile_visible_in_directory: true, consent_contactable_by_project_owners: true,
       }),
     });
     if (!signupResp.ok) throw new Error(`vol2 signup failed: ${await signupResp.text()}`);
@@ -60,7 +60,7 @@ test.describe('GDPR & Privacy', () => {
 
       // Ensure profile is publicly visible
       await page2.getByLabel(/Make my profile visible/).check();
-      // Keep share_contact_directly unchecked (contact sharing disabled — this is the default)
+      // Keep consent_share_contact_info_with_project_owner unchecked (contact sharing disabled — this is the default)
       await expect(page2.getByLabel(/Share my contact info directly/)).not.toBeChecked();
 
       await page2.getByRole('button', { name: 'Save Changes' }).click();

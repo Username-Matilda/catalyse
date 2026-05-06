@@ -13,7 +13,7 @@ test.describe('Messaging', () => {
     const senderSignupResp = await fetch(`${baseUrl}/api/auth/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...fake.person(), password: 'testpassword1', consent_profile_visible: true, consent_contact_by_owners: true }),
+      body: JSON.stringify({ name: `Msg Sender ${sid}`, email: `msgsender_${sid}@test.com`, password: 'testpassword1', consent_make_profile_visible_in_directory: true, consent_contactable_by_project_owners: true }),
     });
     if (!senderSignupResp.ok) throw new Error(`Sender signup failed: ${await senderSignupResp.text()}`);
     const { auth_token: senderToken } = await senderSignupResp.json();
@@ -27,7 +27,7 @@ test.describe('Messaging', () => {
 
       await senderPage.getByRole('button', { name: 'Contact Owner' }).click();
 
-      // The recipient uses the default share_contact_directly = false, so the relay
+      // The recipient has consent_share_contact_info_with_project_owner = false (default), so the relay
       // form appears instead of direct contact details.
       const dialog = senderPage.getByRole('dialog');
       await expect(dialog.getByLabel('Subject')).toBeVisible({ timeout: 10_000 });
@@ -59,7 +59,7 @@ test.describe('Messaging', () => {
     const senderSignupResp = await fetch(`${baseUrl}/api/auth/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...fake.person(), password: 'testpassword1', consent_profile_visible: true, consent_contact_by_owners: true }),
+      body: JSON.stringify({ ...fake.person(), password: 'testpassword1', consent_make_profile_visible_in_directory: true, consent_contactable_by_project_owners: true }),
     });
     if (!senderSignupResp.ok) throw new Error(`Sender signup failed: ${await senderSignupResp.text()}`);
     const { auth_token: senderToken } = await senderSignupResp.json();

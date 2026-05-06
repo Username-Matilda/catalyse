@@ -59,7 +59,7 @@ test.describe('Volunteer Profile', () => {
     await volunteer.page.goto(`${baseUrl}/profile`);
     await expect(volunteer.page.getByLabel('Your Name')).toBeVisible({ timeout: 10_000 });
     await volunteer.page.getByLabel('Your Name').fill(uniqueName);
-    await volunteer.page.locator('#profile_visible').check();
+    await volunteer.page.locator('#consent_make_profile_visible_in_directory').check();
     await volunteer.page.getByRole('button', { name: 'Save Changes' }).click();
     await expect(getAlert(volunteer.page)).toBeVisible({ timeout: 10_000 });
 
@@ -73,7 +73,7 @@ test.describe('Volunteer Profile', () => {
     // Now hide the profile
     await volunteer.page.goto(`${baseUrl}/profile`);
     await expect(volunteer.page.getByLabel('Your Name')).toBeVisible({ timeout: 10_000 });
-    await volunteer.page.locator('#profile_visible').uncheck();
+    await volunteer.page.locator('#consent_make_profile_visible_in_directory').uncheck();
     await volunteer.page.getByRole('button', { name: 'Save Changes' }).click();
     await expect(getAlert(volunteer.page)).toBeVisible({ timeout: 10_000 });
 
@@ -92,7 +92,7 @@ test.describe('Volunteer Profile', () => {
     await volunteer.page.goto(`${baseUrl}/profile`);
     await expect(volunteer.page.getByLabel('Your Name')).toBeVisible({ timeout: 10_000 });
     await volunteer.page.getByLabel('Your Name').fill(uniqueName);
-    await volunteer.page.locator('#profile_visible').uncheck();
+    await volunteer.page.locator('#consent_make_profile_visible_in_directory').uncheck();
     await volunteer.page.getByRole('button', { name: 'Save Changes' }).click();
     await expect(getAlert(volunteer.page)).toBeVisible({ timeout: 10_000 });
 
@@ -106,7 +106,7 @@ test.describe('Volunteer Profile', () => {
     // Now make the profile visible
     await volunteer.page.goto(`${baseUrl}/profile`);
     await expect(volunteer.page.getByLabel('Your Name')).toBeVisible({ timeout: 10_000 });
-    await volunteer.page.locator('#profile_visible').check();
+    await volunteer.page.locator('#consent_make_profile_visible_in_directory').check();
     await volunteer.page.getByRole('button', { name: 'Save Changes' }).click();
     await expect(getAlert(volunteer.page)).toBeVisible({ timeout: 10_000 });
 
@@ -138,7 +138,7 @@ test.describe('Volunteer Profile', () => {
     const signupResp = await fetch(`${baseUrl}/api/auth/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: vol2.name, email: vol2.email, password: 'testpassword1', consent_profile_visible: true, consent_contact_by_owners: true }),
+      body: JSON.stringify({ name: vol2.name, email: vol2.email, password: 'testpassword1', consent_make_profile_visible_in_directory: true, consent_contactable_by_project_owners: true }),
     });
     if (!signupResp.ok) throw new Error(`Second volunteer signup failed: ${await signupResp.text()}`);
     const { auth_token: vol2Token } = await signupResp.json();
@@ -148,12 +148,12 @@ test.describe('Volunteer Profile', () => {
     const page2 = await ctx2.newPage();
 
     try {
-      // Set up profile with a skill and profile_visible=true
+      // Set up profile with a skill and consent_make_profile_visible_in_directory=true
       await page2.goto(`${baseUrl}/profile`);
       const skillOption = page2.locator('.skill-option').filter({ hasText: 'Fundraising' });
       await expect(skillOption).toBeVisible({ timeout: 10_000 });
       await skillOption.click();
-      await page2.locator('#profile_visible').check();
+      await page2.locator('#consent_make_profile_visible_in_directory').check();
       await page2.getByRole('button', { name: 'Save Changes' }).click();
       await expect(getAlert(page2)).toBeVisible({ timeout: 10_000 });
 
@@ -167,7 +167,7 @@ test.describe('Volunteer Profile', () => {
       await expect(volunteer.page.locator('#volunteerSkills')).toContainText('Fundraising');
       // Endorsements section only appears if there are endorsements; not present for fresh volunteer
       await expect(volunteer.page.locator('#endorsementsSection')).not.toBeVisible();
-      // Contact info not shown because share_contact_directly defaults to false
+      // Contact info not shown because consent_share_contact_info_with_project_owner defaults to false
       await expect(volunteer.page.locator('#contactInfo')).not.toBeVisible();
     } finally {
       await ctx2.close();
