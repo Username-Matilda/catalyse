@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/components/Header'
 import Button from '@/components/Button'
@@ -143,7 +143,8 @@ export default function DashboardPage() {
   const { user, loading } = useAuth()
   const [data, setData] = useState<DashboardData | null>(null)
   const [notifications, setNotifications] = useState<Notification[]>([])
-  const [activeTab, setActiveTab] = useState<TabKey>('owned')
+  const searchParams = useSearchParams()
+  const [activeTab, setActiveTab] = useState<TabKey>((searchParams.get('tab') as TabKey) || 'owned')
   const [unreadCount, setUnreadCount] = useState(0)
   const [loadingData, setLoadingData] = useState(true)
   const [starterTasks, setStarterTasks] = useState<StarterTask[]>([])
