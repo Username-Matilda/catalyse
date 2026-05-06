@@ -5,8 +5,11 @@ import { useRouter } from 'next/navigation'
 import Header from '@/components/Header'
 import Button from '@/components/Button'
 import SkillPicker from '@/components/SkillPicker'
+import FilterDropdown from '@/components/FilterDropdown'
+import { COUNTRY_OPTIONS, LOCAL_GROUPS } from '@/lib/filter-options'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
+import { useToast } from '@/lib/toast'
+import { apiRequest, ApiError } from '@/lib/api'
 
 interface SelectedSkill {
   skillId: number
@@ -18,19 +21,25 @@ interface Task {
   description: string
 }
 
+const URGENCY_OPTIONS = [
+  { value: 'low',    label: 'Low - Nice to have' },
+  { value: 'medium', label: 'Medium - Should do soon' },
+  { value: 'high',   label: 'High - Urgent / time-sensitive' },
+]
+
 const PROJECT_TYPES = [
-  { value: '', label: 'Select type…' },
-  { value: 'research', label: 'Research' },
-  { value: 'software', label: 'Software' },
-  { value: 'campaign', label: 'Campaign' },
-  { value: 'advocacy', label: 'Advocacy' },
-  { value: 'other', label: 'Other' },
+  { value: '', label: 'Select a project type…' },
+  { value: 'sprint', label: 'Sprint (1-2 weeks) - Focused burst of work with clear deliverable' },
+  { value: 'container', label: 'Time-boxed (1-3 months) - Defined scope with end date' },
+  { value: 'ongoing', label: 'Ongoing - Continuous work without fixed end date' },
+  { value: 'one_off', label: 'One-off task - Single deliverable, minimal coordination' },
 ]
 
 
 export default function SuggestPage() {
   const router = useRouter()
   const { user, loading } = useAuth()
+  const toast = useToast()
 
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -46,7 +55,19 @@ export default function SuggestPage() {
   const [skills, setSkills] = useState<SelectedSkill[]>([])
   const [tasks, setTasks] = useState<Task[]>([{ title: '', description: '' }])
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+
+  function clearFieldError(field: string) {
+    setFieldErrors(prev => {
+      if (!prev[field]) return prev
+      const { [field]: _, ...rest } = prev
+      return rest
+    })
+  }
+
+  function fe(field: string) {
+    return fieldErrors[field]
+  }
 
   useEffect(() => {
     if (!loading && !user) router.replace('/login')
@@ -64,12 +85,11 @@ export default function SuggestPage() {
     if (tasks.length > 1) setTasks(prev => prev.filter((_, i) => i !== index))
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    setError(null)
     const validTasks = tasks.filter(t => t.title.trim())
     if (!validTasks.length) {
-      setError('At least one task is required')
+      toast('At least one task with a title is required.', 'error')
       return
     }
     setSubmitting(true)
@@ -82,19 +102,27 @@ export default function SuggestPage() {
           project_type: projectType || null,
           time_commitment_hours_per_week: hoursPerWeek ? Number(hoursPerWeek) : null,
           urgency,
-          country: country.trim() || null,
-          local_group: localGroup.trim() || null,
+          country: country || null,
+          local_group: localGroup || null,
           estimated_duration: duration.trim() || null,
           collaboration_link: collaborationLink.trim() || null,
           is_seeking_help: seekingHelp,
           want_to_own: wantToOwn,
+          is_seeking_owner: !wantToOwn,
           skill_ids: skills.map(s => s.skillId),
+          skill_required_map: Object.fromEntries(skills.map(s => [s.skillId, true])),
           tasks: validTasks.map(t => ({ title: t.title.trim(), description: t.description.trim() || undefined })),
         }),
       })
-      router.push('/dashboard')
+      toast('Project submitted for review! We\'ll be in touch.', 'success')
+      setTimeout(() => router.push('/dashboard?tab=proposed'), 2000)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to submit proposal')
+      if (err instanceof ApiError && err.fieldErrors) {
+        setFieldErrors(err.fieldErrors)
+        toast('Please fix the errors below.', 'error')
+      } else {
+        toast(err instanceof Error ? err.message : 'Failed to submit proposal', 'error')
+      }
       setSubmitting(false)
     }
   }
@@ -106,39 +134,71 @@ export default function SuggestPage() {
       <Header />
       <main className="max-w-350 mx-auto px-6 py-5 pb-15">
         <h1 role="heading">Suggest a Project</h1>
-
-        {error && (
-          <div role="alert" className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]">
-            {error}
-          </div>
-        )}
+        <p>Have an idea for something PauseAI UK should do? Propose it here! Our team will review it and, if approved, it'll be visible to all volunteers.</p>
 
         <form className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word" onSubmit={handleSubmit}>
           <div className="mb-5">
             <label htmlFor="project-title" className="required">Project Title</label>
-            <input id="project-title" type="text" value={title} onChange={e => setTitle(e.target.value)} required />
+            <input
+              id="project-title"
+              type="text"
+              value={title}
+              onChange={e => { setTitle(e.target.value); clearFieldError('title') }}
+              required
+              placeholder="A clear, descriptive name for the project"
+              aria-invalid={!!fe('title') || undefined}
+            />
+            {fe('title') && <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>{fe('title')}</p>}
           </div>
 
           <div className="mb-5">
             <label htmlFor="project-description" className="required">Description</label>
+            <aside className="bg-brand-bg border border-brand-border rounded-lg px-4 py-3 mb-2 text-sm">
+              <dl className="m-0 columns-2 max-sm:columns-1 gap-x-6">
+                <dt className="font-semibold text-brand-text break-after-avoid mt-2 first:mt-0">Goal &amp; Impact</dt>
+                <dd className="m-0 mb-1.5 text-text-light leading-snug break-inside-avoid">What problem does this solve? What does success look like and how would you measure it?</dd>
+                <dt className="font-semibold text-brand-text break-after-avoid mt-2">Approach &amp; Activities</dt>
+                <dd className="m-0 mb-1.5 text-text-light leading-snug break-inside-avoid">What are the key steps? Do you have a rough sense of how this would work?</dd>
+                <dt className="font-semibold text-brand-text break-after-avoid mt-2">Feasibility</dt>
+                <dd className="m-0 mb-1.5 text-text-light leading-snug break-inside-avoid">Main uncertainties or risks? Resources or dependencies needed? Existing work to build on?</dd>
+                <dt className="font-semibold text-brand-text break-after-avoid mt-2">Team &amp; Collaboration</dt>
+                <dd className="m-0 mb-1.5 text-text-light leading-snug break-inside-avoid">What skills and availability are ideal? How do you imagine the team working together?</dd>
+                <dt className="font-semibold text-brand-text break-after-avoid mt-2">Challenge Your Idea</dt>
+                <dd className="m-0 text-text-light leading-snug break-inside-avoid">What&apos;s the best argument against doing this? What&apos;s your Theory of Change?</dd>
+              </dl>
+            </aside>
             <textarea
               id="project-description"
               rows={6}
               value={description}
-              onChange={e => setDescription(e.target.value)}
-              placeholder="Describe the goal and impact, your approach, feasibility, the team needed, and why this matters…"
+              onChange={e => { setDescription(e.target.value); clearFieldError('description') }}
+              placeholder="Describe your project idea…"
               required
+              minLength={10}
+              aria-invalid={!!fe('description') || undefined}
             />
+            {fe('description')
+              ? <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>{fe('description')}</p>
+              : <p className="text-sm text-text-light mt-1">The more detail you provide, the easier it is to find the right contributors and get started.</p>
+            }
           </div>
 
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-5 mb-5">
-            <div>
-              <label htmlFor="project-type">Project Type</label>
-              <select id="project-type" value={projectType} onChange={e => setProjectType(e.target.value)}>
-                {PROJECT_TYPES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </div>
+          <div className="mb-5">
+            <FilterDropdown
+              id="project-type"
+              label="Project Type"
+              ariaLabel="Select project type"
+              value={projectType}
+              options={PROJECT_TYPES}
+              onChange={v => { setProjectType(v); clearFieldError('project_type') }}
+            />
+            {fe('project_type')
+              ? <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>{fe('project_type')}</p>
+              : <p className="text-sm text-text-light mt-1">This helps contributors understand the commitment involved</p>
+            }
+          </div>
 
+          <div className="grid grid-cols-2 gap-5 mb-5">
             <div>
               <label htmlFor="hours-per-week">Hours per Week</label>
               <input
@@ -146,82 +206,128 @@ export default function SuggestPage() {
                 type="number"
                 min={1}
                 max={40}
-                placeholder="e.g. 5"
+                placeholder="e.g., 5"
                 value={hoursPerWeek}
-                onChange={e => setHoursPerWeek(e.target.value)}
+                onChange={e => { setHoursPerWeek(e.target.value); clearFieldError('time_commitment_hours_per_week') }}
+                aria-invalid={!!fe('time_commitment_hours_per_week') || undefined}
               />
+              {fe('time_commitment_hours_per_week')
+                ? <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>{fe('time_commitment_hours_per_week')}</p>
+                : <p className="text-sm text-text-light mt-1">Estimated weekly time from each contributor</p>
+              }
             </div>
 
             <div>
-              <label htmlFor="urgency">Urgency</label>
-              <select id="urgency" value={urgency} onChange={e => setUrgency(e.target.value)}>
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-              </select>
+              <FilterDropdown
+                id="urgency"
+                label="Urgency"
+                ariaLabel="Select urgency"
+                value={urgency}
+                options={URGENCY_OPTIONS}
+                onChange={v => { setUrgency(v); clearFieldError('urgency') }}
+              />
+              {fe('urgency') && <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>{fe('urgency')}</p>}
             </div>
+          </div>
 
-            <div>
+          {['sprint', 'container'].includes(projectType) && (
+            <div className="mb-5">
               <label htmlFor="duration">Estimated Duration</label>
               <input
                 id="duration"
                 type="text"
-                placeholder="e.g. 3 months"
+                placeholder="e.g., 6 weeks, 2 months"
                 value={duration}
-                onChange={e => setDuration(e.target.value)}
+                onChange={e => { setDuration(e.target.value); clearFieldError('estimated_duration') }}
+                aria-invalid={!!fe('estimated_duration') || undefined}
               />
+              {fe('estimated_duration')
+                ? <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>{fe('estimated_duration')}</p>
+                : <p className="text-sm text-text-light mt-1">Roughly how long do you expect this to take?</p>
+              }
             </div>
-
-            <div>
-              <label htmlFor="country">Country</label>
-              <input
-                id="country"
-                type="text"
-                placeholder="e.g. United Kingdom"
-                value={country}
-                onChange={e => setCountry(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="local-group">Local Group</label>
-              <input
-                id="local-group"
-                type="text"
-                placeholder="e.g. London"
-                value={localGroup}
-                onChange={e => setLocalGroup(e.target.value)}
-              />
-            </div>
-          </div>
+          )}
 
           <div className="mb-5">
-            <label htmlFor="collaboration-link">Collaboration Document Link</label>
+            <FilterDropdown
+              id="country"
+              label="Country / Region"
+              ariaLabel="Select country"
+              value={country}
+              options={COUNTRY_OPTIONS}
+              onChange={v => { setCountry(v); setLocalGroup(''); clearFieldError('country') }}
+              searchable
+            />
+            {fe('country')
+              ? <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>{fe('country')}</p>
+              : <p className="text-sm text-text-light mt-1">Where is this project based? Select &quot;Remote&quot; if location-independent.</p>
+            }
+          </div>
+
+          {(LOCAL_GROUPS[country]?.length ?? 0) > 0 && (
+            <div className="mb-5">
+              <FilterDropdown
+                id="local-group"
+                label="Local Group"
+                ariaLabel="Select local group"
+                value={localGroup}
+                options={[
+                  { value: '', label: 'Not specific to a local group' },
+                  ...LOCAL_GROUPS[country].map(g => ({ value: g, label: `${country} - ${g}` })),
+                ]}
+                onChange={v => { setLocalGroup(v); clearFieldError('local_group') }}
+              />
+              {fe('local_group')
+                ? <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>{fe('local_group')}</p>
+                : <p className="text-sm text-text-light mt-1">Is this project relevant to a particular local group?</p>
+              }
+            </div>
+          )}
+
+          <div className="mb-5">
+            <label htmlFor="collaboration-link">Collaboration Doc / Link (optional)</label>
             <input
               id="collaboration-link"
-              type="url"
-              placeholder="https://docs.google.com/…"
+              type="text"
+              placeholder="e.g., https://docs.google.com/… or 'Will create a shared doc once team forms'"
               value={collaborationLink}
-              onChange={e => setCollaborationLink(e.target.value)}
+              onChange={e => { setCollaborationLink(e.target.value); clearFieldError('collaboration_link') }}
+              aria-invalid={!!fe('collaboration_link') || undefined}
             />
-            <p className="text-sm text-text-light mt-1">Optional link to a planning doc, brief, or shared workspace.</p>
+            {fe('collaboration_link')
+              ? <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>{fe('collaboration_link')}</p>
+              : <p className="text-sm text-text-light mt-1">A URL to a planning doc or workspace, or just describe your plans for collaboration</p>
+            }
           </div>
 
           <div className="mb-5">
             <label>Skills Needed</label>
+            <p className="text-sm text-text-light mt-0 mb-2">What skills would be helpful for this project?</p>
             <SkillPicker value={skills} onChange={setSkills} />
           </div>
 
           <div className="mb-5">
-            <h3 style={{ marginTop: 0 }}>Ownership &amp; Help</h3>
-            <div className="flex flex-col gap-2">
+            <p className="font-medium mb-2">This project needs:</p>
+            <div className="flex flex-col gap-2 mb-4">
               <label className="flex items-center gap-2" style={{ fontWeight: 400 }}>
                 <input
                   type="checkbox"
                   checked={seekingHelp}
                   onChange={e => setSeekingHelp(e.target.checked)}
                 />
-                This project is seeking volunteer help
+                Help / contributors
+              </label>
+            </div>
+            <p className="font-medium mb-2">Project ownership:</p>
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center gap-2" style={{ fontWeight: 400 }}>
+                <input
+                  type="radio"
+                  name="ownership"
+                  checked={!wantToOwn}
+                  onChange={() => setWantToOwn(false)}
+                />
+                This project needs an owner / lead
               </label>
               <label className="flex items-center gap-2" style={{ fontWeight: 400 }}>
                 <input
@@ -230,16 +336,7 @@ export default function SuggestPage() {
                   checked={wantToOwn}
                   onChange={() => setWantToOwn(true)}
                 />
-                I want to own and lead this project
-              </label>
-              <label className="flex items-center gap-2" style={{ fontWeight: 400 }}>
-                <input
-                  type="radio"
-                  name="ownership"
-                  checked={!wantToOwn}
-                  onChange={() => setWantToOwn(false)}
-                />
-                I&apos;m looking for someone else to own this project
+                <span><strong>I want to lead this project</strong> &mdash; I&apos;ll be the owner and coordinate the work</span>
               </label>
             </div>
           </div>
@@ -247,27 +344,27 @@ export default function SuggestPage() {
           <div className="mb-5">
             <label>Initial Tasks</label>
             <p className="text-sm text-text-light mt-0 mb-2">
-              Break your project into concrete tasks. At least one is required.
+              Break the project into at least one concrete task. This helps reviewers understand the scope and gives volunteers something to pick up.
             </p>
             {tasks.map((task, i) => (
               <div key={i} className="bg-brand-bg rounded-lg p-4 mb-3 border border-brand-border">
                 <div className="mb-3">
-                  <label htmlFor={`task-title-${i}`} className="text-sm">Task title</label>
+                  <label htmlFor={`task-title-${i}`} className="text-sm required">Task title</label>
                   <input
                     id={`task-title-${i}`}
                     type="text"
                     aria-label="Task title"
-                    placeholder="e.g. Set up project repository"
+                    placeholder="e.g. Draft copy for homepage"
                     value={task.title}
                     onChange={e => updateTask(i, 'title', e.target.value)}
                   />
                 </div>
                 <div className="mb-2">
-                  <label htmlFor={`task-desc-${i}`} className="text-sm">Details (optional)</label>
+                  <label htmlFor={`task-desc-${i}`} className="text-sm">Description (optional)</label>
                   <textarea
                     id={`task-desc-${i}`}
-                    aria-label="Task details"
-                    placeholder="Any additional detail…"
+                    aria-label="Task description"
+                    placeholder="More detail about what needs doing…"
                     value={task.description}
                     onChange={e => updateTask(i, 'description', e.target.value)}
                     style={{ minHeight: 60 }}
@@ -290,10 +387,10 @@ export default function SuggestPage() {
           </div>
 
           <div className="flex items-center gap-3 p-4 rounded-lg mb-5 bg-[#DBEAFE] text-[#1E40AF] border border-[#93C5FD] dark:bg-[#1E3A5F] dark:text-[#93C5FD] dark:border-[#2563EB]">
-            Your proposal will be reviewed by an admin before being published.
+            Your project will be reviewed by PauseAI UK team leads before being published. We&apos;ll reach out if we have questions or suggestions.
           </div>
 
-          <Button type="submit" disabled={submitting}>
+          <Button type="submit" className="w-full" disabled={submitting}>
             {submitting ? 'Submitting…' : 'Submit Project Proposal'}
           </Button>
         </form>
