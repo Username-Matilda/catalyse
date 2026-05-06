@@ -20,7 +20,7 @@ export async function proposeProject(baseUrl: string, page: Page, title: string,
   ]);
   if (!response.ok()) throw new Error(`Project creation failed: ${await response.text()}`);
   const { id } = await response.json();
-  await page.waitForURL(`${baseUrl}/dashboard`, { timeout: 15_000 });
+  await page.waitForURL(`${baseUrl}/dashboard**`, { timeout: 15_000 });
   return id;
 }
 

@@ -13,7 +13,7 @@ test.describe('Messaging', () => {
     const senderSignupResp = await fetch(`${baseUrl}/api/auth/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: `Msg Sender ${sid}`, email: `msgsender_${sid}@test.com`, password: 'testpassword1', consent_make_profile_visible_in_directory: true, consent_contactable_by_project_owners: true }),
+      body: JSON.stringify({ ...fake.person(), password: 'testpassword1', consent_make_profile_visible_in_directory: true, consent_contactable_by_project_owners: true }),
     });
     if (!senderSignupResp.ok) throw new Error(`Sender signup failed: ${await senderSignupResp.text()}`);
     const { auth_token: senderToken } = await senderSignupResp.json();
