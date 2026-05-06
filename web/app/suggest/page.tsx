@@ -4,6 +4,8 @@ import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/Header'
 import Button from '@/components/Button'
+import Checkbox from '@/components/Checkbox'
+import Radio from '@/components/Radio'
 import SkillPicker from '@/components/SkillPicker'
 import FilterDropdown from '@/components/FilterDropdown'
 import { COUNTRY_OPTIONS, LOCAL_GROUPS } from '@/lib/filter-options'
@@ -309,35 +311,29 @@ export default function SuggestPage() {
           <div className="mb-5">
             <p className="font-medium mb-2">This project needs:</p>
             <div className="flex flex-col gap-2 mb-4">
-              <label className="flex items-center gap-2" style={{ fontWeight: 400 }}>
-                <input
-                  type="checkbox"
-                  checked={seekingHelp}
-                  onChange={e => setSeekingHelp(e.target.checked)}
-                />
+              <Checkbox
+                checked={seekingHelp}
+                onChange={e => setSeekingHelp(e.target.checked)}
+              >
                 Help / contributors
-              </label>
+              </Checkbox>
             </div>
             <p className="font-medium mb-2">Project ownership:</p>
             <div className="flex flex-col gap-2">
-              <label className="flex items-center gap-2" style={{ fontWeight: 400 }}>
-                <input
-                  type="radio"
-                  name="ownership"
-                  checked={!wantToOwn}
-                  onChange={() => setWantToOwn(false)}
-                />
+              <Radio
+                name="ownership"
+                checked={!wantToOwn}
+                onChange={() => setWantToOwn(false)}
+              >
                 This project needs an owner / lead
-              </label>
-              <label className="flex items-center gap-2" style={{ fontWeight: 400 }}>
-                <input
-                  type="radio"
-                  name="ownership"
-                  checked={wantToOwn}
-                  onChange={() => setWantToOwn(true)}
-                />
+              </Radio>
+              <Radio
+                name="ownership"
+                checked={wantToOwn}
+                onChange={() => setWantToOwn(true)}
+              >
                 <span><strong>I want to lead this project</strong> &mdash; I&apos;ll be the owner and coordinate the work</span>
-              </label>
+              </Radio>
             </div>
           </div>
 
