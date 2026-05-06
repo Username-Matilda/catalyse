@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/components/Header'
@@ -138,7 +138,7 @@ function ProjectCard({ project: p, showMatch }: { project: Project; showMatch?: 
   )
 }
 
-export default function DashboardPage() {
+function DashboardPageInner() {
   const router = useRouter()
   const { user, loading } = useAuth()
   const [data, setData] = useState<DashboardData | null>(null)
@@ -437,5 +437,13 @@ export default function DashboardPage() {
         )}
       </main>
     </>
+  )
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense>
+      <DashboardPageInner />
+    </Suspense>
   )
 }
