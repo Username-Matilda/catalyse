@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Montserrat, Roboto_Slab, Saira_Condensed } from 'next/font/google'
 import { AuthProvider } from '@/lib/auth-context'
 import { ThemeProvider } from '@/components/ThemeProvider'
+import FloatingActions from '@/components/FloatingActions'
 import './globals.css'
 
 const montserrat = Montserrat({
@@ -40,7 +41,10 @@ export default function RootLayout({
     >
       <body className="min-h-screen flex flex-col">
         <ThemeProvider>
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider>
+            {children}
+            <FloatingActions />
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

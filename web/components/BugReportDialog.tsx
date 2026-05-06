@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { apiRequest, ApiError } from '@/lib/api'
 import Button from '@/components/Button'
+import { useAuth } from '@/lib/auth-context'
 
 interface BugReportDialogProps {
   isOpen: boolean
@@ -13,6 +14,7 @@ const CATEGORIES = ['Bug', 'Feature', 'UX Issue'] as const
 type Category = typeof CATEGORIES[number]
 
 export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProps) {
+  const { user } = useAuth()
   const [category, setCategory] = useState<Category>('Bug')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -44,7 +46,7 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
     try {
       await apiRequest('/api/bug-reports', {
         method: 'POST',
-        body: JSON.stringify({ category, title, description, email: email || undefined, severity }),
+        body: JSON.stringify({ category, title, description, email: user?.email ?? (email || undefined), severity }),
       })
       setSuccess(true)
     } catch (err) {
@@ -66,14 +68,14 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
         onClick={e => e.stopPropagation()}
       >
         <div className="px-6 py-5 border-b border-brand-border flex justify-between items-center">
-          <h2>Report an Issue</h2>
+          <h2 className="mb-0">Report an Issue</h2>
           <Button variant="ghost" icon onClick={handleClose} aria-label="Close">×</Button>
         </div>
         <div className="p-6">
           {success ? (
             <div style={{ textAlign: 'center', padding: '20px 0' }}>
               <h3 role="heading">Thank you!</h3>
-              <p>Your report has been submitted.</p>
+              <p>Your feedback has been submitted.</p>
               <Button onClick={handleClose}>Close</Button>
             </div>
           ) : (
@@ -82,25 +84,20 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
               {error && <div className="toast-error flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]">{error}</div>}
 
               <div className="mb-5">
-                <label>Category</label>
+                <label>What type of feedback?</label>
                 <div className="flex gap-2 flex-wrap">
+                  {/* [test hook] category-btn class used as test selector */}
                   {CATEGORIES.map(cat => (
-                    <label key={cat} style={{ flex: 1, minWidth: 100 }}>
-                      <input
-                        type="radio"
-                        name="category"
-                        value={cat}
-                        checked={category === cat}
-                        onChange={() => setCategory(cat)}
-                        style={{ display: 'none' }}
-                      />
-                      {/* [test hook] category-btn class used as test selector */}
-                      <span
-                        className={`category-btn block p-3 text-center border-2 border-brand-border rounded-lg cursor-pointer transition-all hover:border-primary hover:bg-accent${category === cat ? ' border-primary! bg-accent!' : ''}`}
-                      >
-                        {cat}
-                      </span>
-                    </label>
+                    <Button
+                      key={cat}
+                      type="button"
+                      variant="ghost"
+                      active={category === cat}
+                      className="category-btn flex-1"
+                      onClick={() => setCategory(cat)}
+                    >
+                      {cat}
+                    </Button>
                   ))}
                 </div>
               </div>
@@ -124,20 +121,26 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
                   value={description}
                   onChange={e => setDescription(e.target.value)}
                   required
-                  placeholder="Describe the issue or feature request"
+                  placeholder={{
+                    Bug: 'What happened? What did you expect?',
+                    Feature: 'What would you like to be able to do?',
+                    'UX Issue': 'What felt confusing or frustrating?',
+                  }[category]}
                 />
               </div>
 
-              <div className="mb-5">
-                <label htmlFor="bug-email">Your Email (optional)</label>
-                <input
-                  id="bug-email"
-                  type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="so we can follow up"
-                />
-              </div>
+              {!user && (
+                <div className="mb-5">
+                  <label htmlFor="bug-email">Your Email (optional)</label>
+                  <input
+                    id="bug-email"
+                    type="email"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    placeholder="In case we need to follow up"
+                  />
+                </div>
+              )}
 
               <div className="mb-5">
                 <label htmlFor="bug-severity">How urgent is this?</label>
@@ -145,6 +148,7 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
                   <option value="low">Low — minor inconvenience</option>
                   <option value="medium">Medium — affects workflow</option>
                   <option value="high">High — blocking</option>
+                  <option value="critical">Critical — site is broken</option>
                 </select>
               </div>
 

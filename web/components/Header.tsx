@@ -5,9 +5,9 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
-import BugReportDialog from './BugReportDialog'
-import { ThemeToggle } from './ThemeToggle'
 import Button from '@/components/Button'
+import { ThemeToggle } from './ThemeToggle'
+import BugReportDialog from './BugReportDialog'
 
 function MobileNavLink({ href, children, active }: { href: string; children: React.ReactNode; active?: boolean }) {
   return (
@@ -32,9 +32,9 @@ export default function Header() {
   const { user, loading, logout } = useAuth()
   const pathname = usePathname()
   const [unreadCount, setUnreadCount] = useState(0)
-  const [bugDialogOpen, setBugDialogOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [bugDialogOpen, setBugDialogOpen] = useState(false)
 
   const fetchNotifications = useCallback(async () => {
     if (!user) return
@@ -91,14 +91,30 @@ export default function Header() {
                 {label}
               </Button>
             ))}
+            {!loading && user && (
+              <>
+                <Button
+                  href="/dashboard"
+                  variant={pathname === '/dashboard' ? 'primary' : 'ghost'}
+                  size="sm"
+                >
+                  My Projects
+                </Button>
+                <Button
+                  href="/dashboard?tab=notifications"
+                  variant="ghost"
+                  size="sm"
+                >
+                  Notifications
+                  {unreadCount > 0 && (
+                    <span className="bg-primary text-secondary-dark text-xs px-2 py-0.5 rounded-full ml-1">{unreadCount}</span>
+                  )}
+                </Button>
+              </>
+            )}
           </nav>
 
           <div className="hidden xl:flex gap-2 items-center">
-            <ThemeToggle />
-            <Button variant="ghost" size="sm" onClick={() => setBugDialogOpen(true)}>
-              Report a bug or give feedback
-            </Button>
-
             {!loading && (
               user ? (
                 <div className="relative">
@@ -148,21 +164,37 @@ export default function Header() {
             )}
           </div>
 
-          {/* Hamburger — visible below xl breakpoint */}
-          <Button
-            variant="ghost"
-            size="md"
-            icon
-            className="xl:hidden border border-brand-border shrink-0"
-            aria-label="Open menu"
-            onClick={() => setMobileMenuOpen(true)}
-          >
+          {/* Mobile action buttons + hamburger — visible below xl breakpoint */}
+          <div className="xl:hidden flex items-center gap-2 shrink-0">
+            <ThemeToggle invertedStyle size="md" />
+            <Button
+              variant="ghost"
+              size="md"
+              icon
+              className="border border-brand-border"
+              aria-label="Report a bug or give feedback"
+              onClick={() => setBugDialogOpen(true)}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+                <line x1="4" y1="22" x2="4" y2="15"/>
+              </svg>
+            </Button>
+            <Button
+              variant="ghost"
+              size="md"
+              icon
+              className="border border-brand-border"
+              aria-label="Open menu"
+              onClick={() => setMobileMenuOpen(true)}
+            >
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="3" y1="6" x2="21" y2="6"/>
               <line x1="3" y1="12" x2="21" y2="12"/>
               <line x1="3" y1="18" x2="21" y2="18"/>
             </svg>
-          </Button>
+            </Button>
+          </div>
         </div>
       </header>
 
