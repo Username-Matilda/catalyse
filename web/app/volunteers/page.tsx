@@ -153,35 +153,47 @@ export default function VolunteersPage() {
             <div className="grid grid-cols-3 gap-5 max-[1200px]:grid-cols-2 max-[600px]:grid-cols-1">
               {/* [test hook] card class used as test selector */}
               {volunteers.map(v => (
-                <div key={v.id} className="card bg-surface rounded-xl shadow p-6 overflow-hidden wrap-break-word">
+                <div key={v.id} className="card bg-surface rounded-xl shadow p-6 overflow-hidden wrap-break-word flex flex-col">
                   <h3 className="m-0 mb-2">
                     <Link href={`/volunteers/${v.id}`} className="text-primary-dark no-underline hover:underline">{v.name}</Link>
                   </h3>
-                  {(v.location || v.local_group) && (
-                    <p className="text-text-light text-sm m-0 mb-2">
-                      {[v.location, v.local_group].filter(Boolean).join(' · ')}
-                    </p>
+                  {(v.location || v.local_group || v.availability_hours_per_week) && (
+                    <div className="flex items-center gap-3 flex-wrap text-xs text-text-light mb-2">
+                      {(v.location || v.local_group) && (
+                        <span>📍 {[v.location, v.local_group].filter(Boolean).join(' · ')}</span>
+                      )}
+                      {v.availability_hours_per_week && (
+                        <span>🕐 {v.availability_hours_per_week}h/week</span>
+                      )}
+                    </div>
                   )}
                   {v.bio && (
                     <p className="m-0 mb-3">
                       {v.bio.length > 100 ? v.bio.slice(0, 100) + '…' : v.bio}
                     </p>
                   )}
-                  {v.skills.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mb-3">
-                      {v.skills.map(s => (
-                        <span key={s.id} className="inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-[#374151] dark:text-[#D1D5DB]">
-                          {s.name}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  <div className="flex justify-between items-center">
-                    {v.availability_hours_per_week ? (
-                      <span className="text-sm text-text-light">
-                        {v.availability_hours_per_week}h/week available
-                      </span>
-                    ) : <span />}
+                  {v.skills.length > 0 && (() => {
+                    const shown = v.skills.slice(0, 6)
+                    const overflow = v.skills.length - 6
+                    return (
+                      <div className="flex flex-wrap gap-1.5 mb-3">
+                        {shown.map(s => (
+                          <span key={s.id} className="inline-flex items-center px-2 py-0.5 bg-accent text-secondary-dark rounded-full text-xs font-medium dark:bg-[#374151] dark:text-[#D1D5DB]">
+                            {s.name}
+                          </span>
+                        ))}
+                        {overflow > 0 && (
+                          <span className="inline-flex items-center px-2 py-0.5 bg-[#F3F4F6] text-text-light rounded-full text-xs font-medium dark:bg-[#374151] dark:text-[#9CA3AF]">
+                            and {overflow} more
+                          </span>
+                        )}
+                      </div>
+                    )
+                  })()}
+                  <div className="flex justify-between items-center mt-auto pt-4 border-t border-brand-border">
+                    <span className="text-sm text-text-light">
+                      Joined {new Date(v.created_at).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}
+                    </span>
                     <Button href={`/volunteers/${v.id}`} variant="secondary" size="sm">
                       View Profile
                     </Button>

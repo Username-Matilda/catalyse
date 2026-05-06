@@ -15,7 +15,7 @@ export async function GET(
   const currentVolunteer = await getCurrentVolunteer(request.headers.get('authorization'))
 
   const vol = await prisma.volunteer.findFirst({
-    where: { id: volunteerId, deletedAt: null, profileVisible: true },
+    where: { id: volunteerId, deletedAt: null, consentMakeProfileVisibleInDirectory: true },
     include: {
       skills: {
         include: { skill: { include: { category: true } } },
@@ -40,7 +40,7 @@ export async function GET(
       showContact = true
     } else if (currentVolunteer.isAdmin) {
       showContact = true
-    } else if (vol.shareContactDirectly && vol.consentContactByOwners) {
+    } else if (vol.consentContactableByProjectOwners && vol.consentShareContactInfoWithProjectOwner) {
       showContact = true
     }
   }

@@ -19,6 +19,7 @@ interface AuthContextValue {
   loading: boolean
   setToken: (token: string) => Promise<void>
   logout: () => Promise<void>
+  refreshUser: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -87,8 +88,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push('/login')
   }, [router])
 
+  const refreshUser = useCallback(async () => {
+    const t = localStorage.getItem('authToken')
+    if (t) await fetchMe(t)
+  }, [fetchMe])
+
   return (
-    <AuthContext.Provider value={{ user, token, loading, setToken, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, setToken, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )

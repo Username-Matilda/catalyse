@@ -109,9 +109,9 @@ export default function SignupPage() {
           local_group: localGroup || undefined,
           other_skills: otherSkills || undefined,
           skill_ids: skills.map(s => s.skillId),
-          consent_profile_visible: consentVisible,
-          consent_contact_by_owners: consentContact,
-          share_contact_directly: shareDirectly,
+          consent_make_profile_visible_in_directory: consentVisible,
+          consent_contactable_by_project_owners: consentContact,
+          consent_share_contact_info_with_project_owner: shareDirectly,
           email_digest: emailDigest,
         }),
       })
@@ -248,15 +248,15 @@ export default function SignupPage() {
               <div className="flex flex-col gap-2">
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400 }}>
                   <input type="checkbox" checked={consentVisible} onChange={e => setConsentVisible(e.target.checked)} />
-                  Make my profile visible to other volunteers
+                  Make my profile visible in the volunteer directory
                 </label>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400 }}>
                   <input type="checkbox" checked={consentContact} onChange={e => setConsentContact(e.target.checked)} />
                   Allow project owners to contact me about opportunities
                 </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400 }}>
-                  <input type="checkbox" checked={shareDirectly} onChange={e => setShareDirectly(e.target.checked)} />
-                  Share my contact info directly (otherwise use contact form)
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400, marginLeft: 24, opacity: consentContact ? 1 : 0.5 }}>
+                  <input type="checkbox" checked={shareDirectly} disabled={!consentContact} onChange={e => setShareDirectly(e.target.checked)} />
+                  Share my contact info directly with project owners
                 </label>
               </div>
               <p className="text-sm text-text-light mt-1" style={{ marginTop: 12 }}>

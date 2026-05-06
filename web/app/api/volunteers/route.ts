@@ -17,15 +17,24 @@ export async function GET(request: NextRequest) {
 
   const where: Record<string, unknown> = {
     deletedAt: null,
-    profileVisible: true,
-    consentProfileVisible: true,
+    consentMakeProfileVisibleInDirectory: true,
     ...(skillIds && skillIds.length > 0
       ? { skills: { some: { skillId: { in: skillIds } } } }
       : {}),
     ...(search
       ? { OR: [{ name: { contains: search } }, { bio: { contains: search } }] }
       : {}),
-    ...(country ? { country } : {}),
+    // TODO: volunteers have two overlapping location fields — `location` (freeform, older) and
+    // `country` (structured, added later). Volunteers who filled in `location` before `country`
+    // existed have no `country` value, so we fall back to a LIKE match on `location`. These
+    // fields should be rationalised: ideally migrate existing `location` data into `country`
+    // (and a separate city/region field), then drop the fallback and filter on `country` alone.
+    ...(country ? {
+      OR: [
+        { country },
+        { country: null, location: { contains: country } },
+      ],
+    } : {}),
     ...(localGroup ? { localGroup } : {}),
   }
 
@@ -38,6 +47,7 @@ export async function GET(request: NextRequest) {
         bio: true,
         availabilityHoursPerWeek: true,
         location: true,
+        country: true,
         otherSkills: true,
         localGroup: true,
         createdAt: true,
@@ -63,6 +73,7 @@ export async function GET(request: NextRequest) {
       bio: v.bio,
       availability_hours_per_week: v.availabilityHoursPerWeek,
       location: v.location,
+      country: v.country,
       other_skills: v.otherSkills,
       local_group: v.localGroup,
       created_at: v.createdAt,

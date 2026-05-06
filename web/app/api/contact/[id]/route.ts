@@ -47,7 +47,7 @@ export async function POST(
   const relatedProjectId = typeof body.related_project_id === 'number' ? body.related_project_id : null
 
   const recipient = await prisma.volunteer.findFirst({
-    where: { id: recipientId, deletedAt: null, consentContactByOwners: true },
+    where: { id: recipientId, deletedAt: null, consentContactableByProjectOwners: true },
     select: { id: true, name: true, email: true },
   })
 

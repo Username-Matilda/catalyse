@@ -28,7 +28,7 @@ interface VolunteerDetail {
   location: string | null; local_group: string | null
   availability_hours_per_week: number | null
   discord_handle: string | null; signal_number: string | null; whatsapp_number: string | null
-  profile_visible: boolean; consent_profile_visible: boolean
+  consent_make_profile_visible_in_directory: boolean
   is_admin: boolean; created_at: string
   skills: Skill[]
   endorsements: Endorsement[]
@@ -226,7 +226,7 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
             </div>
             <div className="flex gap-2">
               {vol.is_admin && <span style={{ padding: '2px 8px', borderRadius: 12, background: 'var(--primary-light, #e0f2fe)', fontSize: '0.8rem' }}>Admin</span>}
-              {!vol.profile_visible && <span style={{ padding: '2px 8px', borderRadius: 12, background: 'var(--warning-bg, #fffbeb)', fontSize: '0.8rem' }}>Profile Hidden</span>}
+              {!vol.consent_make_profile_visible_in_directory && <span style={{ padding: '2px 8px', borderRadius: 12, background: 'var(--warning-bg, #fffbeb)', fontSize: '0.8rem' }}>Profile Hidden</span>}
             </div>
           </div>
           {vol.bio && <p style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{vol.bio}</p>}

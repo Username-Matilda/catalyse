@@ -79,8 +79,8 @@ export async function POST(request: NextRequest) {
   const volunteer = await prisma.volunteer.create({
     data: {
       name, email, authToken,
-      consentProfileVisible: true,
-      consentContactByOwners: true,
+      consentMakeProfileVisibleInDirectory: true,
+      consentContactableByProjectOwners: true,
       consentGivenAt: new Date(),
     },
   })

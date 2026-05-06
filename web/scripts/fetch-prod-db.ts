@@ -178,7 +178,7 @@ function anonymise(dbPath: string): void {
 function seedDevAccounts(dbPath: string): void {
   const db = new DatabaseSync(dbPath)
   const insert = db.prepare(`
-    INSERT OR REPLACE INTO volunteers (name, email, password_hash, is_admin, profile_visible)
+    INSERT OR REPLACE INTO volunteers (name, email, password_hash, is_admin, consent_make_profile_visible_in_directory)
     VALUES (?, ?, ?, ?, 0)
   `)
   insert.run('Dev Volunteer', 'volunteer@example.com', makePasswordHash('volunteer1'), 0)

@@ -95,16 +95,16 @@ model DeletionRequest {
 }
 
 model Notification {
-  id          Int        @id @default(autoincrement())
-  volunteerId Int        @map("volunteer_id")
+  id          Int       @id @default(autoincrement())
+  volunteerId Int       @map("volunteer_id")
   type        String
   title       String
   body        String?
   link        String?
-  readAt      DateTime?  @map("read_at")
-  emailedAt   DateTime?  @map("emailed_at")
-  createdAt   DateTime?  @default(now()) @map("created_at")
-  volunteer   Volunteer  @relation(fields: [volunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  readAt      DateTime? @map("read_at")
+  emailedAt   DateTime? @map("emailed_at")
+  createdAt   DateTime? @default(now()) @map("created_at")
+  volunteer   Volunteer @relation(fields: [volunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([volunteerId, readAt], map: "idx_notifications_unread")
   @@index([volunteerId], map: "idx_notifications_volunteer")
@@ -126,17 +126,17 @@ model PasswordResetToken {
 }
 
 model ProjectInterest {
-  id              Int        @id @default(autoincrement())
-  volunteerId     Int        @map("volunteer_id")
-  projectId       Int        @map("project_id")
-  interestType    String     @map("interest_type")
+  id              Int       @id @default(autoincrement())
+  volunteerId     Int       @map("volunteer_id")
+  projectId       Int       @map("project_id")
+  interestType    String    @map("interest_type")
   message         String?
-  status          String     @default("pending")
-  responseMessage String?    @map("response_message")
-  createdAt       DateTime?  @default(now()) @map("created_at")
-  respondedAt     DateTime?  @map("responded_at")
-  project         Project    @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  volunteer       Volunteer  @relation(fields: [volunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  status          String    @default("pending")
+  responseMessage String?   @map("response_message")
+  createdAt       DateTime? @default(now()) @map("created_at")
+  respondedAt     DateTime? @map("responded_at")
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  volunteer       Volunteer @relation(fields: [volunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([volunteerId, projectId], map: "sqlite_autoindex_project_interests_1")
   @@index([volunteerId], map: "idx_project_interests_volunteer")
@@ -240,8 +240,8 @@ model SchemaMigration {
   filename  String?   @id
   appliedAt DateTime? @default(now()) @map("applied_at")
 
-  @@ignore
   @@map("schema_migrations")
+  @@ignore
 }
 
 model SkillCategory {
@@ -256,18 +256,18 @@ model SkillCategory {
 }
 
 model SkillEndorsement {
-  id           Int        @id @default(autoincrement())
-  volunteerId  Int        @map("volunteer_id")
-  skillId      Int        @map("skill_id")
-  endorsedById Int        @map("endorsed_by_id")
-  source       String?    @default("direct_observation")
-  sourceId     Int?       @map("source_id")
-  rating       String?    @default("verified")
+  id           Int       @id @default(autoincrement())
+  volunteerId  Int       @map("volunteer_id")
+  skillId      Int       @map("skill_id")
+  endorsedById Int       @map("endorsed_by_id")
+  source       String?   @default("direct_observation")
+  sourceId     Int?      @map("source_id")
+  rating       String?   @default("verified")
   notes        String?
-  createdAt    DateTime?  @default(now()) @map("created_at")
-  endorsedBy   Volunteer  @relation("SkillEndorsementEndorsedBy", fields: [endorsedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  skill        Skill      @relation(fields: [skillId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  volunteer    Volunteer  @relation("SkillEndorsementVolunteer", fields: [volunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  createdAt    DateTime? @default(now()) @map("created_at")
+  endorsedBy   Volunteer @relation("SkillEndorsementEndorsedBy", fields: [endorsedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  skill        Skill     @relation(fields: [skillId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  volunteer    Volunteer @relation("SkillEndorsementVolunteer", fields: [volunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([volunteerId, skillId, endorsedById], map: "sqlite_autoindex_skill_endorsements_1")
   @@index([volunteerId], map: "idx_skill_endorsements_volunteer")
@@ -335,56 +335,55 @@ model VolunteerSkill {
 }
 
 model Volunteer {
-  id                        Int                  @id @default(autoincrement())
-  name                      String
-  email                     String?              @unique(map: "sqlite_autoindex_volunteers_1")
-  bio                       String?
-  discordHandle             String?              @map("discord_handle")
-  signalNumber              String?              @map("signal_number")
-  whatsappNumber            String?              @map("whatsapp_number")
-  contactPreference         String?              @map("contact_preference")
-  contactNotes              String?              @map("contact_notes")
-  availabilityHoursPerWeek  Int?                 @map("availability_hours_per_week")
-  location                  String?
-  shareContactDirectly      Boolean?             @default(false) @map("share_contact_directly")
-  profileVisible            Boolean?             @default(true) @map("profile_visible")
-  otherSkills               String?              @map("other_skills")
-  consentProfileVisible     Boolean?             @default(false) @map("consent_profile_visible")
-  consentContactByOwners    Boolean?             @default(false) @map("consent_contact_by_owners")
-  consentGivenAt            DateTime?            @map("consent_given_at")
-  authToken                 String?              @unique(map: "sqlite_autoindex_volunteers_2") @map("auth_token")
-  authTokenExpiresAt        DateTime?            @map("auth_token_expires_at")
-  passwordHash              String?              @map("password_hash")
-  isAdmin                   Boolean?             @default(false) @map("is_admin")
-  createdAt                 DateTime?            @default(now()) @map("created_at")
-  updatedAt                 DateTime?            @default(now()) @map("updated_at")
-  deletedAt                 DateTime?            @map("deleted_at")
-  country                   String?
-  emailDigest               String?              @default("none") @map("email_digest")
-  localGroup                String?              @map("local_group")
-  invitesAccepted           AdminInvite[]        @relation("AdminInviteAcceptedBy")
-  invitesSent               AdminInvite[]        @relation("AdminInviteInvitedBy")
-  adminNotesAuthored        AdminNote[]          @relation("AdminNoteAuthor")
-  adminNotesAbout           AdminNote[]          @relation("AdminNoteVolunteer")
-  bugReportsResolved        BugReport[]          @relation("BugReportResolvedBy")
-  bugReportsReported        BugReport[]          @relation("BugReportReporter")
-  messagesSent              Message[]            @relation("MessageFrom")
-  messagesReceived          Message[]            @relation("MessageTo")
-  notifications             Notification[]
-  passwordResetTokens       PasswordResetToken[]
-  projectInterests          ProjectInterest[]
-  projectTasksCreated       ProjectTask[]        @relation("ProjectTaskCreatedBy")
-  projectTasksAssigned      ProjectTask[]        @relation("ProjectTaskAssignedTo")
-  projectUpdates            ProjectUpdate[]
-  projectsReviewed          Project[]            @relation("ProjectReviewedBy")
-  projectsProposed          Project[]            @relation("ProjectProposedBy")
-  projectsOwned             Project[]            @relation("ProjectOwner")
-  skillEndorsementsGiven    SkillEndorsement[]   @relation("SkillEndorsementEndorsedBy")
-  skillEndorsementsReceived SkillEndorsement[]   @relation("SkillEndorsementVolunteer")
-  starterTasksReviewed      StarterTask[]        @relation("StarterTaskReviewedBy")
-  starterTasksAssignedBy    StarterTask[]        @relation("StarterTaskAssignedBy")
-  starterTasksAssigned      StarterTask[]        @relation("StarterTaskAssignedTo")
-  skills                    VolunteerSkill[]
+  id                                      Int                  @id @default(autoincrement())
+  name                                    String
+  email                                   String?              @unique(map: "sqlite_autoindex_volunteers_1")
+  bio                                     String?
+  discordHandle                           String?              @map("discord_handle")
+  signalNumber                            String?              @map("signal_number")
+  whatsappNumber                          String?              @map("whatsapp_number")
+  contactPreference                       String?              @map("contact_preference")
+  contactNotes                            String?              @map("contact_notes")
+  availabilityHoursPerWeek                Int?                 @map("availability_hours_per_week")
+  location                                String?
+  otherSkills                             String?              @map("other_skills")
+  consentMakeProfileVisibleInDirectory    Boolean?             @default(false) @map("consent_make_profile_visible_in_directory")
+  consentContactableByProjectOwners       Boolean?             @default(false) @map("consent_contactable_by_project_owners")
+  consentShareContactInfoWithProjectOwner Boolean?             @default(false) @map("consent_share_contact_info_with_project_owner")
+  consentGivenAt                          DateTime?            @map("consent_given_at")
+  authToken                               String?              @unique(map: "sqlite_autoindex_volunteers_2") @map("auth_token")
+  authTokenExpiresAt                      DateTime?            @map("auth_token_expires_at")
+  passwordHash                            String?              @map("password_hash")
+  isAdmin                                 Boolean?             @default(false) @map("is_admin")
+  createdAt                               DateTime?            @default(now()) @map("created_at")
+  updatedAt                               DateTime?            @default(now()) @map("updated_at")
+  deletedAt                               DateTime?            @map("deleted_at")
+  country                                 String?
+  emailDigest                             String?              @default("none") @map("email_digest")
+  localGroup                              String?              @map("local_group")
+  invitesAccepted                         AdminInvite[]        @relation("AdminInviteAcceptedBy")
+  invitesSent                             AdminInvite[]        @relation("AdminInviteInvitedBy")
+  adminNotesAuthored                      AdminNote[]          @relation("AdminNoteAuthor")
+  adminNotesAbout                         AdminNote[]          @relation("AdminNoteVolunteer")
+  bugReportsResolved                      BugReport[]          @relation("BugReportResolvedBy")
+  bugReportsReported                      BugReport[]          @relation("BugReportReporter")
+  messagesSent                            Message[]            @relation("MessageFrom")
+  messagesReceived                        Message[]            @relation("MessageTo")
+  notifications                           Notification[]
+  passwordResetTokens                     PasswordResetToken[]
+  projectInterests                        ProjectInterest[]
+  projectTasksCreated                     ProjectTask[]        @relation("ProjectTaskCreatedBy")
+  projectTasksAssigned                    ProjectTask[]        @relation("ProjectTaskAssignedTo")
+  projectUpdates                          ProjectUpdate[]
+  projectsReviewed                        Project[]            @relation("ProjectReviewedBy")
+  projectsProposed                        Project[]            @relation("ProjectProposedBy")
+  projectsOwned                           Project[]            @relation("ProjectOwner")
+  skillEndorsementsGiven                  SkillEndorsement[]   @relation("SkillEndorsementEndorsedBy")
+  skillEndorsementsReceived               SkillEndorsement[]   @relation("SkillEndorsementVolunteer")
+  starterTasksReviewed                    StarterTask[]        @relation("StarterTaskReviewedBy")
+  starterTasksAssignedBy                  StarterTask[]        @relation("StarterTaskAssignedBy")
+  starterTasksAssigned                    StarterTask[]        @relation("StarterTaskAssignedTo")
+  skills                                  VolunteerSkill[]
 
   @@index([localGroup], map: "idx_volunteers_local_group")
   @@index([country], map: "idx_volunteers_country")

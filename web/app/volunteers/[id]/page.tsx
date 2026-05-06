@@ -44,7 +44,7 @@ interface VolunteerDetail {
   local_group: string | null
   availability_hours_per_week: number | null
   other_skills: string | null
-  share_contact_directly: boolean
+  consent_share_contact_info_with_project_owner: boolean
   email: string | null
   discord_handle: string | null
   signal_number: string | null

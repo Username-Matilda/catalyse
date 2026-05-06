@@ -18,25 +18,27 @@ interface ProfileData {
   bio: string | null
   location: string | null
   availability_hours_per_week: number | null
-  profile_visible: boolean
+  consent_make_profile_visible_in_directory: boolean
+  consent_contactable_by_project_owners: boolean
+  consent_share_contact_info_with_project_owner: boolean
   email_digest: string
   other_skills: string | null
   skills: Array<{ id: number; proficiency_level: string | null }>
   discord_handle: string | null
   signal_number: string | null
   whatsapp_number: string | null
-  share_contact_directly: boolean | null
 }
 
 export default function ProfilePage() {
   const router = useRouter()
-  const { user, loading } = useAuth()
+  const { user, loading, refreshUser } = useAuth()
   const [name, setName] = useState('')
   const [bio, setBio] = useState('')
   const [location, setLocation] = useState('')
   const [hours, setHours] = useState('')
-  const [profileVisible, setProfileVisible] = useState(false)
-  const [shareContactDirectly, setShareContactDirectly] = useState(false)
+  const [consentMakeProfileVisibleInDirectory, setConsentMakeProfileVisibleInDirectory] = useState(true)
+  const [consentContactableByProjectOwners, setConsentContactableByProjectOwners] = useState(true)
+  const [consentShareContactInfoWithProjectOwner, setConsentShareContactInfoWithProjectOwner] = useState(false)
   const [discordHandle, setDiscordHandle] = useState('')
   const [signalNumber, setSignalNumber] = useState('')
   const [whatsappNumber, setWhatsappNumber] = useState('')
@@ -59,8 +61,9 @@ export default function ProfilePage() {
         setBio(d.bio ?? '')
         setLocation(d.location ?? '')
         setHours(d.availability_hours_per_week != null ? String(d.availability_hours_per_week) : '')
-        setProfileVisible(!!d.profile_visible)
-        setShareContactDirectly(!!d.share_contact_directly)
+        setConsentMakeProfileVisibleInDirectory(!!d.consent_make_profile_visible_in_directory)
+        setConsentContactableByProjectOwners(!!d.consent_contactable_by_project_owners)
+        setConsentShareContactInfoWithProjectOwner(!!d.consent_share_contact_info_with_project_owner)
         setDiscordHandle(d.discord_handle ?? '')
         setSignalNumber(d.signal_number ?? '')
         setWhatsappNumber(d.whatsapp_number ?? '')
@@ -89,8 +92,9 @@ export default function ProfilePage() {
           bio: bio.trim() || null,
           location: location.trim() || null,
           availability_hours_per_week: hours ? Number(hours) : null,
-          profile_visible: profileVisible,
-          share_contact_directly: shareContactDirectly,
+          consent_make_profile_visible_in_directory: consentMakeProfileVisibleInDirectory,
+          consent_contactable_by_project_owners: consentContactableByProjectOwners,
+          consent_share_contact_info_with_project_owner: consentShareContactInfoWithProjectOwner,
           discord_handle: discordHandle.trim() || null,
           signal_number: signalNumber.trim() || null,
           whatsapp_number: whatsappNumber.trim() || null,
@@ -99,6 +103,7 @@ export default function ProfilePage() {
           skill_ids: skills.map(s => s.skillId),
         }),
       })
+      await refreshUser()
       setAlert({ type: 'success', message: 'Profile updated!' })
     } catch (err: unknown) {
       setAlert({ type: 'error', message: err instanceof Error ? err.message : 'Failed to save profile' })
@@ -212,11 +217,11 @@ export default function ProfilePage() {
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                id="profile_visible"
-                checked={profileVisible}
-                onChange={e => setProfileVisible(e.target.checked)}
+                id="consent_make_profile_visible_in_directory"
+                checked={consentMakeProfileVisibleInDirectory}
+                onChange={e => setConsentMakeProfileVisibleInDirectory(e.target.checked)}
               />
-              Make my profile visible to other volunteers
+              Make my profile visible in the volunteer directory
             </label>
           </div>
 
@@ -224,12 +229,24 @@ export default function ProfilePage() {
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                id="share_contact_directly"
-                checked={shareContactDirectly}
-                onChange={e => setShareContactDirectly(e.target.checked)}
+                id="consent_contactable_by_project_owners"
+                checked={consentContactableByProjectOwners}
+                onChange={e => setConsentContactableByProjectOwners(e.target.checked)}
               />
-              Share my contact info directly with project owners
+              Allow project owners to contact me about opportunities
             </label>
+            <div className="ml-6 mt-2">
+              <label className={`flex items-center gap-2 ${consentContactableByProjectOwners ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}>
+                <input
+                  type="checkbox"
+                  id="consent_share_contact_info_with_project_owner"
+                  checked={consentShareContactInfoWithProjectOwner}
+                  disabled={!consentContactableByProjectOwners}
+                  onChange={e => setConsentShareContactInfoWithProjectOwner(e.target.checked)}
+                />
+                Share my contact info directly with project owners
+              </label>
+            </div>
           </div>
 
           <div className="mb-5">

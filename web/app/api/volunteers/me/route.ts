@@ -18,8 +18,8 @@ export async function PUT(request: NextRequest) {
   const updatable = [
     'name', 'bio', 'discord_handle', 'signal_number', 'whatsapp_number',
     'contact_preference', 'contact_notes', 'availability_hours_per_week',
-    'location', 'country', 'local_group', 'share_contact_directly',
-    'other_skills', 'profile_visible', 'email_digest',
+    'location', 'country', 'local_group',
+    'other_skills', 'email_digest',
   ] as const
 
   const prismaFieldMap: Record<string, string> = {
@@ -30,9 +30,7 @@ export async function PUT(request: NextRequest) {
     contact_notes: 'contactNotes',
     availability_hours_per_week: 'availabilityHoursPerWeek',
     local_group: 'localGroup',
-    share_contact_directly: 'shareContactDirectly',
     other_skills: 'otherSkills',
-    profile_visible: 'profileVisible',
     email_digest: 'emailDigest',
   }
 
@@ -42,6 +40,21 @@ export async function PUT(request: NextRequest) {
       const prismaKey = prismaFieldMap[field] ?? field
       data[prismaKey] = body[field]
     }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, 'consent_make_profile_visible_in_directory')) {
+    data.consentMakeProfileVisibleInDirectory = !!body.consent_make_profile_visible_in_directory
+    if (body.consent_make_profile_visible_in_directory) data.consentGivenAt = new Date()
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, 'consent_contactable_by_project_owners')) {
+    data.consentContactableByProjectOwners = !!body.consent_contactable_by_project_owners
+    if (body.consent_contactable_by_project_owners) data.consentGivenAt = new Date()
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, 'consent_share_contact_info_with_project_owner')) {
+    data.consentShareContactInfoWithProjectOwner = !!body.consent_share_contact_info_with_project_owner
+    if (body.consent_share_contact_info_with_project_owner) data.consentGivenAt = new Date()
   }
 
   const skillIds: number[] | undefined =
