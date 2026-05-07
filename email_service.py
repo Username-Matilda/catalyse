@@ -12,13 +12,14 @@ Setup:
 import os
 import json
 from urllib.request import Request, urlopen
-from urllib.error import URLError
+from urllib.error import URLError, HTTPError
 from typing import Optional
 
 
 # Configuration
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
-FROM_EMAIL = os.environ.get("FROM_EMAIL", "Catalyse <noreply@catalyse.pauseai.uk>")
+FROM_EMAIL = os.environ.get("FROM_EMAIL", "Catalyse <noreply@pauseai.uk>")
+REPLY_TO_EMAIL = os.environ.get("REPLY_TO_EMAIL")
 APP_URL = os.environ.get("APP_URL", "http://localhost:8000")
 # When STUB_EMAIL=true the service reports itself as configured and silently
 # accepts all send calls without making HTTP requests. For testing only.
@@ -49,12 +50,15 @@ def send_email(to: str, subject: str, html: str) -> bool:
         return False
 
     try:
-        data = json.dumps({
+        payload = {
             "from": FROM_EMAIL,
             "to": [to],
             "subject": subject,
             "html": html
-        }).encode('utf-8')
+        }
+        if REPLY_TO_EMAIL:
+            payload["reply_to"] = REPLY_TO_EMAIL
+        data = json.dumps(payload).encode('utf-8')
 
         request = Request(
             "https://api.resend.com/emails",
@@ -72,12 +76,23 @@ def send_email(to: str, subject: str, html: str) -> bool:
             print(f"[EMAIL ERROR] Status {response.status}")
             return False
 
+    except HTTPError as e:
+        print(f"[EMAIL ERROR] Status {e.code} {e.reason}: {_read_error_body(e)}")
+        return False
     except URLError as e:
         print(f"[EMAIL ERROR] {e}")
         return False
     except Exception as e:
         print(f"[EMAIL ERROR] Unexpected: {e}")
         return False
+
+
+def _read_error_body(e: HTTPError) -> str:
+    """Best-effort read of an HTTPError response body for logging."""
+    try:
+        return e.read().decode("utf-8", errors="replace")[:500]
+    except Exception:
+        return "<unreadable>"
 
 
 # ============================================
@@ -387,6 +402,9 @@ def send_email_with_reply_to(to: str, subject: str, html: str, reply_to: str = N
             print(f"[EMAIL ERROR] Status {response.status}")
             return False
 
+    except HTTPError as e:
+        print(f"[EMAIL ERROR] Status {e.code} {e.reason}: {_read_error_body(e)}")
+        return False
     except URLError as e:
         print(f"[EMAIL ERROR] {e}")
         return False
