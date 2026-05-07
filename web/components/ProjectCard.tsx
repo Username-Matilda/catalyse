@@ -13,11 +13,12 @@ export interface Project {
   is_seeking_owner?: boolean | null
   is_org_proposed?: boolean | null
   project_type?: string | null
+  country?: string | null
   local_group?: string | null
   time_commitment_hours_per_week?: number | null
   urgency?: string | null
   owner?: { name: string } | null
-  proposed_by?: string | null
+  proposed_by?: { id?: number; name: string } | string | null
   skills?: Array<{ id: number; name: string; is_required: boolean }>
   match?: { required_match_percent: number } | null
 }
@@ -84,15 +85,12 @@ export function ProjectCard({ project: p, userSkillIds = new Set(), action }: { 
         {p.is_seeking_owner && (
           <span className={statusBadgeClasses('seeking_owner')}>Seeking Owner</span>
         )}
-        {p.local_group && (
-          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-secondary text-white">{p.local_group}</span>
-        )}
       </div>
       <div className="row-start-3 flex items-center gap-3 flex-wrap text-xs text-text-light">
-        {p.proposed_by
-          ? <span>👤 Proposed by: {p.proposed_by}</span>
-          : <span>👤 {p.owner ? p.owner.name : 'No owner yet'}</span>
-        }
+        <span>👤 {p.owner ? p.owner.name : 'No owner yet'}</span>
+        {(p.local_group || p.country) && (
+          <span>📍 {[p.country, p.local_group].filter(Boolean).join(' · ')}</span>
+        )}
         {p.project_type && (
           <span>📋 {PROJECT_TYPE_LABELS[p.project_type] ?? p.project_type}</span>
         )}

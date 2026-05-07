@@ -114,10 +114,11 @@ export default function TriagePage() {
           <p>No projects awaiting {tab === 'pending_review' ? 'review' : 'discussion'}.</p>
         ) : (
           <div className="flex flex-col gap-4">
+            {/* TODO: for needs_discussion projects, show the feedback message sent to the volunteer and allow admins to send follow-up messages */}
             {visible.map(p => (
               <ProjectCard
                 key={p.id}
-                project={{ ...p, proposed_by: (p.proposed_by as { name: string } | null)?.name ?? null }}
+                project={{ ...p, owner: p.proposed_by ? { name: `Proposed by: ${typeof p.proposed_by === 'string' ? p.proposed_by : p.proposed_by.name}` } : null }}
                 action={<Button size="sm" onClick={() => openReview(p)}>Review</Button>}
               />
             ))}
