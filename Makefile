@@ -4,11 +4,11 @@
 dev:
 	. venv/bin/activate && python api.py
 
-# Start the Next.js development server on http://localhost:3001
+# Start the Next.js development server on http://localhost:3000
 # Run alongside 'make dev' during the strangler fig migration (Phases 2-7).
 # Auth routes (and later, other routes) are served from Next.js.
 dev-next:
-	cd web && PORT=3001 npm run dev
+	cd web && npm run dev
 
 # Build dist/ from static/, injecting content-hash query params into HTML files
 build:

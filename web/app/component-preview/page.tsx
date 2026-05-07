@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Button from '@/components/Button'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import Tabs from '@/components/Tabs'
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -115,23 +116,20 @@ export default function ComponentPreviewPage() {
       </Section>
 
       {/* ── Other button patterns ─────────────────────────────────── */}
-      <Section title="Tab buttons — underline style (dashboard, admin/team, admin/volunteers/[id])">
+      <Section title="Tabs — underline style">
         <p className="text-text-light text-sm mb-3">
           Navigation tabs — different visual system, not action buttons.
         </p>
-        <div className="flex border-b border-brand-border mb-4">
-          {['Overview', 'Details', 'History'].map(tab => (
-            <button
-              key={tab}
-              className={activeTab === tab
-                ? 'px-4 py-2 font-medium text-primary border-b-2 border-primary -mb-px cursor-pointer'
-                : 'px-4 py-2 font-medium text-text-light border-b-2 border-transparent -mb-px cursor-pointer transition-colors hover:text-brand-text'}
-              onClick={() => setActiveTab(tab)}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
+        <Tabs
+          tabs={[
+            { key: 'Overview', label: 'Overview' },
+            { key: 'Details', label: 'Details' },
+            { key: 'History', label: 'History' },
+          ]}
+          activeTab={activeTab}
+          onChange={setActiveTab}
+          className="mb-4"
+        />
         <p className="text-sm text-text-light">Active: <strong>{activeTab}</strong></p>
       </Section>
 

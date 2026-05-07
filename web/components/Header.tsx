@@ -134,23 +134,26 @@ export default function Header() {
                       className="absolute top-full right-0 mt-2 bg-surface rounded-[var(--radius)] border border-brand-border shadow-lg min-w-[180px] z-[101]"
                       onClick={() => setUserMenuOpen(false)}
                     >
-                      <Link href="/dashboard" className="block px-4 py-3 text-[var(--text)] no-underline">
-                        Dashboard
-                        {unreadCount > 0 && (
-                          <span data-tab="notifications" className="bg-primary text-secondary-dark text-xs px-2 py-0.5 rounded-full ml-1">{unreadCount}</span>
-                        )}
-                      </Link>
-                      <Link href="/profile" className="block px-4 py-3 text-[var(--text)] no-underline">Profile</Link>
-                      <Link href="/settings" className="block px-4 py-3 text-[var(--text)] no-underline">Settings</Link>
-                      {user.is_admin && (
-                        <Link href="/admin/triage" className="block px-4 py-3 text-[var(--text)] no-underline">Admin</Link>
-                      )}
+                      <Link href="/profile" className="block px-4 py-3 text-[var(--text)] no-underline">My Profile</Link>
+                      <Link href="/settings" className="block px-4 py-3 text-[var(--text)] no-underline">Account Settings</Link>
+                      <Link href="/privacy" className="block px-4 py-3 text-[var(--text)] no-underline">Privacy &amp; Data</Link>
+                      {user.is_admin && (<>
+                        <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-light)] border-t border-brand-border mt-1">Admin</div>
+                        <Link href="/admin/triage" className="block px-4 py-3 text-[var(--text)] no-underline">Triage Queue</Link>
+                        <Link href="/admin/projects/new" className="block px-4 py-3 text-[var(--text)] no-underline">Create Org Project</Link>
+                        <Link href="/admin/starter-tasks" className="block px-4 py-3 text-[var(--text)] no-underline">Manage Starter Tasks</Link>
+                        <Link href="/admin/skills" className="block px-4 py-3 text-[var(--text)] no-underline">Manage Skills</Link>
+                        <Link href="/admin/bugs" className="block px-4 py-3 text-[var(--text)] no-underline">Bug Reports</Link>
+                        <Link href="/admin/team" className="block px-4 py-3 text-[var(--text)] no-underline">Admin Team</Link>
+                        <Link href="/admin/stats" className="block px-4 py-3 text-[var(--text)] no-underline">Platform Stats</Link>
+                      </>)}
+                      <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-light)] border-t border-brand-border mt-1">Session</div>
                       <Button
                         variant="ghost"
                         onClick={logout}
                         className="w-full justify-start px-4 py-3"
                       >
-                        Logout
+                        Sign Out
                       </Button>
                     </div>
                   )}

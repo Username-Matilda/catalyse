@@ -4,15 +4,14 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/Header'
 import Button from '@/components/Button'
+import { ProjectCard, type Project as CardProject } from '@/components/ProjectCard'
+import Tabs from '@/components/Tabs'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
 
-interface Project {
-  id: number
-  title: string
-  description: string
-  status: string
-  proposed_by_name: string | null
+interface Project extends CardProject {
+  proposed_by_name?: string | null
+  proposed_by_id?: number | null
   owner_id: number | null
   review_notes: string | null
 }
@@ -100,50 +99,29 @@ export default function TriagePage() {
           </div>
         )}
 
-        <div className="flex gap-2 mb-6">
-          <Button
-            variant={tab === 'pending_review' ? 'primary' : 'secondary'}
-            onClick={() => setTab('pending_review')}
-          >
-            Pending Review {pending.length > 0 && `(${pending.length})`}
-          </Button>
-          <Button
-            variant={tab === 'needs_discussion' ? 'primary' : 'secondary'}
-            onClick={() => setTab('needs_discussion')}
-          >
-            Needs Discussion {discussion.length > 0 && `(${discussion.length})`}
-          </Button>
-        </div>
+        <Tabs
+          tabs={[
+            { key: 'pending_review', label: `Pending Review${pending.length > 0 ? ` (${pending.length})` : ''}` },
+            { key: 'needs_discussion', label: `Needs Discussion${discussion.length > 0 ? ` (${discussion.length})` : ''}` },
+          ]}
+          activeTab={tab}
+          onChange={setTab}
+        />
 
         {loadingProjects ? (
           <div className="text-center py-10 text-text-light">Loading…</div>
         ) : visible.length === 0 ? (
           <p>No projects awaiting {tab === 'pending_review' ? 'review' : 'discussion'}.</p>
         ) : (
-          /* [test hook] card class used as test selector */
-          visible.map(p => (
-            <div key={p.id} className="card bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div style={{ flex: 1 }}>
-                  <h3 style={{ margin: '0 0 8px' }}>{p.title}</h3>
-                  {p.proposed_by_name && (
-                    <p className="text-text-light text-sm" style={{ margin: '0 0 8px' }}>
-                      Proposed by {p.proposed_by_name}
-                    </p>
-                  )}
-                  <p style={{ margin: 0, whiteSpace: 'pre-wrap', maxHeight: 100, overflow: 'hidden' }}>
-                    {p.description}
-                  </p>
-                </div>
-                <Button
-                  style={{ marginLeft: 16, whiteSpace: 'nowrap' }}
-                  onClick={() => openReview(p)}
-                >
-                  Review
-                </Button>
-              </div>
-            </div>
-          ))
+          <div className="flex flex-col gap-4">
+            {visible.map(p => (
+              <ProjectCard
+                key={p.id}
+                project={{ ...p, proposed_by: (p.proposed_by as { name: string } | null)?.name ?? null }}
+                action={<Button size="sm" onClick={() => openReview(p)}>Review</Button>}
+              />
+            ))}
+          </div>
         )}
       </main>
 

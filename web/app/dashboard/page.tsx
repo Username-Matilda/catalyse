@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import React, { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/components/Header'
@@ -8,6 +8,7 @@ import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
 import { type Project, ProjectList, statusBadgeClasses } from '@/components/ProjectCard'
+import Tabs from '@/components/Tabs'
 
 interface Interest extends Project {
   interest_id: number
@@ -138,11 +139,23 @@ function DashboardPageInner() {
 
   const showEmailBanner = !user.email_digest && !emailBannerDismissed
 
-  const tabs: { key: TabKey; label: string }[] = [
+  const tabs: { key: TabKey; label: React.ReactNode; 'data-tab'?: string }[] = [
     { key: 'owned', label: 'My Projects' },
     { key: 'interests', label: 'My Interests' },
     { key: 'proposed', label: 'Proposed Projects' },
     { key: 'suggested', label: 'Suggested for You' },
+    {
+      key: 'notifications',
+      'data-tab': 'notifications',
+      label: (<>
+        Notifications
+        {unreadCount > 0 && (
+          <span className="notification-badge bg-primary text-secondary-dark text-xs px-2 py-0.5 rounded-full ml-1">
+            {unreadCount}
+          </span>
+        )}
+      </>),
+    },
   ]
 
   return (
@@ -226,37 +239,7 @@ function DashboardPageInner() {
 
         {/* Tabs */}
         {/* [test hook] active class added to active tab; notification-badge class used as test selector */}
-        <div className="flex border-b border-brand-border mb-6">
-          {tabs.map(tab => (
-            <button
-              key={tab.key}
-              className={`px-4 py-2 font-medium border-b-2 -mb-px cursor-pointer transition-colors ${
-                activeTab === tab.key
-                  ? 'active text-primary border-primary'
-                  : 'text-text-light border-transparent hover:text-brand-text'
-              }`}
-              onClick={() => handleTabClick(tab.key)}
-            >
-              {tab.label}
-            </button>
-          ))}
-          <button
-            data-tab="notifications"
-            className={`px-4 py-2 font-medium border-b-2 -mb-px cursor-pointer transition-colors ${
-              activeTab === 'notifications'
-                ? 'active text-primary border-primary'
-                : 'text-text-light border-transparent hover:text-brand-text'
-            }`}
-            onClick={() => handleTabClick('notifications')}
-          >
-            Notifications
-            {unreadCount > 0 && (
-              <span className="notification-badge bg-primary text-secondary-dark text-xs px-2 py-0.5 rounded-full ml-1">
-                {unreadCount}
-              </span>
-            )}
-          </button>
-        </div>
+        <Tabs tabs={tabs} activeTab={activeTab} onChange={handleTabClick} />
 
         {/* Tab content */}
         {activeTab === 'owned' && (

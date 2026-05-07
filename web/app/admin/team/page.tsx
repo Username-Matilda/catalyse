@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/Header'
 import Button from '@/components/Button'
+import Tabs from '@/components/Tabs'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
 
@@ -134,24 +135,14 @@ export default function AdminTeamPage() {
           </div>
         )}
 
-        <div className="flex border-b border-brand-border mb-6">
-          <button
-            className={activeTab === 'admins'
-              ? 'px-4 py-2 font-medium text-primary border-b-2 border-primary -mb-px cursor-pointer'
-              : 'px-4 py-2 font-medium text-text-light border-b-2 border-transparent -mb-px cursor-pointer transition-colors hover:text-brand-text'}
-            onClick={() => setActiveTab('admins')}
-          >
-            Current Admins
-          </button>
-          <button
-            className={activeTab === 'invites'
-              ? 'px-4 py-2 font-medium text-primary border-b-2 border-primary -mb-px cursor-pointer'
-              : 'px-4 py-2 font-medium text-text-light border-b-2 border-transparent -mb-px cursor-pointer transition-colors hover:text-brand-text'}
-            onClick={() => setActiveTab('invites')}
-          >
-            Pending Invites
-          </button>
-        </div>
+        <Tabs
+          tabs={[
+            { key: 'admins', label: 'Current Admins' },
+            { key: 'invites', label: 'Pending Invites' },
+          ]}
+          activeTab={activeTab}
+          onChange={setActiveTab}
+        />
 
         {loadingData ? (
           <div className="text-center py-10 text-text-light">Loading…</div>

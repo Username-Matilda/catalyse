@@ -1,3 +1,4 @@
+import React from 'react'
 import Link from 'next/link'
 import Button from '@/components/Button'
 
@@ -16,6 +17,7 @@ export interface Project {
   time_commitment_hours_per_week?: number | null
   urgency?: string | null
   owner?: { name: string } | null
+  proposed_by?: string | null
   skills?: Array<{ id: number; name: string; is_required: boolean }>
   match?: { required_match_percent: number } | null
 }
@@ -57,7 +59,7 @@ export function statusBadgeClasses(status: string) {
   return `status-badge inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${map[status] ?? 'bg-[#F3F4F6] text-[#374151]'}`
 }
 
-export function ProjectCard({ project: p, userSkillIds = new Set() }: { project: Project; userSkillIds?: Set<number> }) {
+export function ProjectCard({ project: p, userSkillIds = new Set(), action }: { project: Project; userSkillIds?: Set<number>; action?: React.ReactNode }) {
   return (
     <div className="card bg-surface rounded-xl shadow px-5 pt-5 pb-4 overflow-hidden wrap-break-word grid grid-rows-subgrid row-span-6 gap-y-2 relative">
       <div className={`card-header row-start-1${p.is_org_proposed ? ' pr-[80px]' : ''}`}>
@@ -87,10 +89,13 @@ export function ProjectCard({ project: p, userSkillIds = new Set() }: { project:
         )}
       </div>
       <div className="row-start-3 flex items-center gap-3 flex-wrap text-xs text-text-light">
+        {p.proposed_by
+          ? <span>👤 Proposed by: {p.proposed_by}</span>
+          : <span>👤 {p.owner ? p.owner.name : 'No owner yet'}</span>
+        }
         {p.project_type && (
           <span>📋 {PROJECT_TYPE_LABELS[p.project_type] ?? p.project_type}</span>
         )}
-        <span>👤 {p.owner ? p.owner.name : 'No owner yet'}</span>
         {p.time_commitment_hours_per_week && (
           <span>🕐 {p.time_commitment_hours_per_week}h/week</span>
         )}
@@ -127,7 +132,7 @@ export function ProjectCard({ project: p, userSkillIds = new Set() }: { project:
           ? <span className="text-xs font-semibold text-primary">{p.match.required_match_percent}% match</span>
           : <div />
         }
-        <Link href={`/projects/${p.id}`}><Button variant="secondary" size="sm">View Details</Button></Link>
+        {action ?? <Link href={`/projects/${p.id}`}><Button variant="secondary" size="sm">View Details</Button></Link>}
       </div>
     </div>
   )

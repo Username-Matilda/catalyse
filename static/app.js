@@ -7,7 +7,6 @@
 // In production Next.js serves everything, so relative URLs work (BASE = '').
 const AUTH_BASE_URL = (() => {
     const p = parseInt(location.port || '0');
-    if (p === 8001) return 'http://localhost:3001';
     if (p >= 8002 && p <= 8099) return `http://localhost:${p - 4000}`;
     return '';
 })();

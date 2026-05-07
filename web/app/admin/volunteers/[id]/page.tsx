@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/components/Header'
 import Button from '@/components/Button'
+import Tabs from '@/components/Tabs'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
 
@@ -268,26 +269,17 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
 
         {/* Tabs */}
         <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word">
-          <div role="tablist" className="flex border-b border-brand-border mb-6">
-            {([
+          <Tabs
+            role="tablist"
+            tabs={([
               { key: 'admin_notes', label: 'Admin Notes' },
               { key: 'starter_tasks', label: 'Starter Tasks' },
               { key: 'project_history', label: 'Project History' },
               { key: 'endorse_skill', label: 'Endorse Skill' },
-            ] as { key: Tab; label: string }[]).map(tab => (
-              <button
-                key={tab.key}
-                role="tab"
-                aria-selected={activeTab === tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={activeTab === tab.key
-                  ? 'px-4 py-2 font-medium text-primary border-b-2 border-primary -mb-px cursor-pointer'
-                  : 'px-4 py-2 font-medium text-text-light border-b-2 border-transparent -mb-px cursor-pointer transition-colors hover:text-brand-text'}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+            ] as { key: Tab; label: string }[])}
+            activeTab={activeTab}
+            onChange={setActiveTab}
+          />
 
           {/* Admin Notes tab */}
           {activeTab === 'admin_notes' && (
