@@ -108,7 +108,7 @@ export function ProjectCard({ project: p, userSkillIds = new Set(), action }: { 
       </p>
       {(() => {
         const allSkills = p.skills ?? []
-        const matched = userSkillIds.size > 0 ? allSkills.filter(s => userSkillIds.has(s.id)) : []
+        const matched = userSkillIds.size > 0 ? allSkills.filter(s => userSkillIds.has(s.id)) : allSkills
         if (matched.length === 0) return null
         const shown = matched.slice(0, 4)
         const overflow = matched.length - 4
