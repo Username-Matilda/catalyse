@@ -40,6 +40,9 @@ export default function RootLayout({
       className={`${montserrat.variable} ${robotoSlab.variable} ${sairaCondensed.variable}`}
       suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: `try{var t=localStorage.getItem('theme');document.documentElement.setAttribute('data-theme',t==='dark'?'dark':t==='light'?'light':window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')}catch(e){}` }} />
+      </head>
       <body className="min-h-screen flex flex-col">
         <ThemeProvider>
           <AuthProvider>

@@ -1,5 +1,5 @@
 'use client'
-import { useTheme } from 'next-themes'
+import { useTheme } from '@/components/ThemeProvider'
 import Button from '@/components/Button'
 
 export function ThemeToggle({ showLabel, invertedStyle, size = 'sm', className }: { showLabel?: boolean; invertedStyle?: boolean; size?: 'sm' | 'md' | 'lg'; className?: string }) {
