@@ -12,7 +12,7 @@ Setup:
 import os
 import json
 from urllib.request import Request, urlopen
-from urllib.error import URLError
+from urllib.error import URLError, HTTPError
 from typing import Optional
 
 
@@ -76,12 +76,23 @@ def send_email(to: str, subject: str, html: str) -> bool:
             print(f"[EMAIL ERROR] Status {response.status}")
             return False
 
+    except HTTPError as e:
+        print(f"[EMAIL ERROR] Status {e.code} {e.reason}: {_read_error_body(e)}")
+        return False
     except URLError as e:
         print(f"[EMAIL ERROR] {e}")
         return False
     except Exception as e:
         print(f"[EMAIL ERROR] Unexpected: {e}")
         return False
+
+
+def _read_error_body(e: HTTPError) -> str:
+    """Best-effort read of an HTTPError response body for logging."""
+    try:
+        return e.read().decode("utf-8", errors="replace")[:500]
+    except Exception:
+        return "<unreadable>"
 
 
 # ============================================
@@ -391,6 +402,9 @@ def send_email_with_reply_to(to: str, subject: str, html: str, reply_to: str = N
             print(f"[EMAIL ERROR] Status {response.status}")
             return False
 
+    except HTTPError as e:
+        print(f"[EMAIL ERROR] Status {e.code} {e.reason}: {_read_error_body(e)}")
+        return False
     except URLError as e:
         print(f"[EMAIL ERROR] {e}")
         return False
