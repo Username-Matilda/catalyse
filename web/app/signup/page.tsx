@@ -8,7 +8,7 @@ import Header from '@/components/Header'
 import Button from '@/components/Button'
 import SkillPicker from '@/components/SkillPicker'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
+import { apiRequest, ApiError } from '@/lib/api'
 
 interface SelectedSkill {
   skillId: number
@@ -19,6 +19,7 @@ export default function SignupPage() {
   const router = useRouter()
   const { user, loading, setToken } = useAuth()
   const [error, setError] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
   const [googleClientId, setGoogleClientId] = useState('')
   const [skills, setSkills] = useState<SelectedSkill[]>([])
@@ -79,6 +80,7 @@ export default function SignupPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError('')
+    setFieldErrors({})
 
     if (password !== passwordConfirm) {
       setError('Passwords do not match')
@@ -118,7 +120,11 @@ export default function SignupPage() {
       await setToken(data.auth_token)
       router.push('/dashboard')
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Signup failed')
+      if (err instanceof ApiError && err.fieldErrors && Object.keys(err.fieldErrors).length > 0) {
+        setFieldErrors(err.fieldErrors)
+      } else {
+        setError(err instanceof Error ? err.message : 'Signup failed')
+      }
       setSubmitting(false)
     }
   }
@@ -157,18 +163,20 @@ export default function SignupPage() {
           <form className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word" onSubmit={handleSubmit}>
             <div className="mb-5">
               <label htmlFor="name" className="required">Your Name</label>
-              <input type="text" id="name" name="name" required placeholder="How should we call you?" value={name} onChange={e => setName(e.target.value)} />
+              <input type="text" id="name" name="name" required placeholder="How should we call you?" value={name} onChange={e => { setName(e.target.value); if (fieldErrors.name) setFieldErrors(f => ({ ...f, name: '' })) }} aria-invalid={fieldErrors.name ? true : undefined} />
+              {fieldErrors.name && <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>{fieldErrors.name}</p>}
             </div>
 
             <div className="mb-5">
               <label htmlFor="email" className="required">Email</label>
-              <input type="email" id="email" name="email" required placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} />
-              <p className="text-sm text-text-light mt-1">Used for login and notifications. Never shared publicly.</p>
+              <input type="email" id="email" name="email" required placeholder="you@example.com" value={email} onChange={e => { setEmail(e.target.value); if (fieldErrors.email) setFieldErrors(f => ({ ...f, email: '' })) }} aria-invalid={fieldErrors.email ? true : undefined} />
+              {fieldErrors.email ? <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>{fieldErrors.email}</p> : <p className="text-sm text-text-light mt-1">Used for login and notifications. Never shared publicly.</p>}
             </div>
 
             <div className="mb-5">
               <label htmlFor="password" className="required">Password</label>
-              <input type="password" id="password" name="password" required minLength={8} placeholder="At least 8 characters" value={password} onChange={e => setPassword(e.target.value)} />
+              <input type="password" id="password" name="password" required minLength={8} placeholder="At least 8 characters" value={password} onChange={e => { setPassword(e.target.value); if (fieldErrors.password) setFieldErrors(f => ({ ...f, password: '' })) }} aria-invalid={fieldErrors.password ? true : undefined} />
+              {fieldErrors.password && <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>{fieldErrors.password}</p>}
             </div>
 
             <div className="mb-5">

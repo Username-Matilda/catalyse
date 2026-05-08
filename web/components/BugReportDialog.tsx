@@ -27,15 +27,17 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   function reset() {
-    setCategory('Bug')
+    setCategory('bug')
     setTitle('')
     setDescription('')
     setEmail('')
     setSeverity('medium')
     setSuccess(false)
     setError('')
+    setFieldErrors({})
   }
 
   function handleClose() {
@@ -47,6 +49,7 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
     e.preventDefault()
     setSubmitting(true)
     setError('')
+    setFieldErrors({})
     try {
       await apiRequest('/api/bug-reports', {
         method: 'POST',
@@ -54,7 +57,11 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
       })
       setSuccess(true)
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Something went wrong')
+      if (err instanceof ApiError && err.fieldErrors && Object.keys(err.fieldErrors).length > 0) {
+        setFieldErrors(err.fieldErrors)
+      } else {
+        setError(err instanceof ApiError ? err.message : 'Something went wrong')
+      }
     } finally {
       setSubmitting(false)
     }
@@ -112,10 +119,12 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
                   id="bug-title"
                   type="text"
                   value={title}
-                  onChange={e => setTitle(e.target.value)}
+                  onChange={e => { setTitle(e.target.value); if (fieldErrors.title) setFieldErrors(f => ({ ...f, title: '' })) }}
+                  aria-invalid={fieldErrors.title ? true : undefined}
                   required
                   placeholder="Brief summary"
                 />
+                {fieldErrors.title && <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>{fieldErrors.title}</p>}
               </div>
 
               <div className="mb-5">
@@ -123,7 +132,8 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
                 <textarea
                   id="bug-description"
                   value={description}
-                  onChange={e => setDescription(e.target.value)}
+                  onChange={e => { setDescription(e.target.value); if (fieldErrors.description) setFieldErrors(f => ({ ...f, description: '' })) }}
+                  aria-invalid={fieldErrors.description ? true : undefined}
                   required
                   placeholder={{
                     bug:     'What happened? What did you expect?',
@@ -131,6 +141,7 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
                     ux:      'What felt confusing or frustrating?',
                   }[category]}
                 />
+                {fieldErrors.description && <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>{fieldErrors.description}</p>}
               </div>
 
               {!user && (

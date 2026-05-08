@@ -127,7 +127,7 @@ export default function ProjectForm({
     } catch (err: unknown) {
       if (err instanceof ApiError && err.fieldErrors) {
         setFieldErrors(err.fieldErrors)
-        toast('Please fix the errors below.', 'error')
+        toast('Please correct the highlighted fields.', 'error')
       } else {
         toast(err instanceof Error ? err.message : 'Failed to submit', 'error')
       }
@@ -160,7 +160,7 @@ export default function ProjectForm({
           value={description}
           onChange={e => { setDescription(e.target.value); clearFieldError('description') }}
           required
-          minLength={10}
+
           placeholder="Describe the project: goals, approach, what success looks like, and what kind of help is needed."
           aria-invalid={!!fe('description') || undefined}
         />
@@ -340,7 +340,9 @@ export default function ProjectForm({
               />
             </div>
             {tasks.length > 1 && (
-              <Button type="button" variant="ghost" icon onClick={() => removeTask(i)} aria-label="Remove task">×</Button>
+              <div className="flex justify-end mt-2">
+                <Button type="button" variant="danger" size="sm" onClick={() => removeTask(i)}>Delete task</Button>
+              </div>
             )}
           </div>
         ))}
