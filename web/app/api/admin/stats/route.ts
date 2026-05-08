@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
 
   const [
     totalVolunteers,
-    volunteersThisMonth,
+    [{ count: volunteersThisMonthRaw }],
     totalProjects,
     pendingReviewProjects,
     seekingProjects,
@@ -18,12 +18,12 @@ export async function GET(request: NextRequest) {
     pendingInterests,
   ] = await Promise.all([
     prisma.volunteer.count({ where: { deletedAt: null } }),
-    prisma.volunteer.count({
-      where: {
-        deletedAt: null,
-        createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
-      },
-    }),
+    // Use raw query to match SQLite's space-separated date format; Prisma passes
+    // ISO timestamps with "T" which compares incorrectly against stored dates.
+    prisma.$queryRaw<[{ count: bigint }]>`
+      SELECT COUNT(*) as count FROM volunteers
+      WHERE deleted_at IS NULL AND created_at >= date('now', '-30 days')
+    `,
     prisma.project.count(),
     prisma.project.count({ where: { status: 'pending_review' } }),
     prisma.project.count({
@@ -34,6 +34,8 @@ export async function GET(request: NextRequest) {
     prisma.projectInterest.count(),
     prisma.projectInterest.count({ where: { status: 'pending' } }),
   ])
+
+  const volunteersThisMonth = Number(volunteersThisMonthRaw)
 
   return Response.json({
     volunteers: { total: totalVolunteers, this_month: volunteersThisMonth },

@@ -1,4 +1,6 @@
-import "dotenv/config";
+import { config } from "dotenv";
+config(); // loads .env
+config({ path: ".env.local", override: true }); // .env.local takes priority, matching Next.js behaviour
 import path from "node:path";
 import { defineConfig } from "prisma/config";
 
