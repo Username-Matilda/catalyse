@@ -15,7 +15,6 @@ interface StarterTask {
   skill_name: string | null
   project_title: string | null
   status: string
-  review_rating: string | null
   review_notes: string | null
   feedback_to_volunteer: string | null
   estimated_hours: number | null
@@ -115,11 +114,6 @@ export default function StarterTasksPage() {
                   <p className="mt-1 italic text-text-light">
                     &ldquo;{task.feedback_to_volunteer}&rdquo;
                   </p>
-                  {task.review_rating && (
-                    <p className="mt-1 text-sm text-text-light">
-                      Rating: <strong>{task.review_rating}</strong>
-                    </p>
-                  )}
                 </div>
               )}
 

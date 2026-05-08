@@ -1,3 +1,6 @@
+// TODO: review the full starter tasks workflow end-to-end — how tasks are created/assigned by admins,
+// how volunteers see and submit them (app/starter-tasks/page.tsx), and how admins review submissions
+// here. Check the rating/notes fields, status transitions, and what feedback is shown to volunteers.
 'use client'
 
 import { useEffect, useState } from 'react'

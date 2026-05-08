@@ -7,6 +7,7 @@ import Header from '@/components/Header'
 import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
+import { useToast } from '@/lib/toast'
 import { type Project, ProjectList, statusBadgeClasses } from '@/components/ProjectCard'
 import Tabs from '@/components/Tabs'
 
@@ -62,7 +63,7 @@ function DashboardPageInner() {
   const [loadingData, setLoadingData] = useState(true)
   const [starterTasks, setStarterTasks] = useState<StarterTask[]>([])
   const [expandedTasks, setExpandedTasks] = useState<Set<number>>(new Set())
-  const [taskAlert, setTaskAlert] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
+  const showToast = useToast()
   const [submittingTask, setSubmittingTask] = useState(false)
   const [emailBannerDismissed, setEmailBannerDismissed] = useState(false)
 
@@ -97,10 +98,10 @@ function DashboardPageInner() {
     setSubmittingTask(true)
     try {
       await apiRequest(`/api/starter-tasks/${taskId}/submit`, { method: 'PUT' })
-      setTaskAlert({ text: 'Task submitted for review!', type: 'success' })
+      showToast('Task submitted for review!', 'success')
       setStarterTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'submitted' } : t))
     } catch (err: unknown) {
-      setTaskAlert({ text: err instanceof Error ? err.message : 'Failed to submit task', type: 'error' })
+      showToast(err instanceof Error ? err.message : 'Failed to submit task', 'error')
     } finally {
       setSubmittingTask(false)
     }
@@ -176,15 +177,6 @@ function DashboardPageInner() {
         {starterTasks.length > 0 && (
           <section aria-label="Starter Tasks" className="mb-8">
             <h2>Starter Tasks</h2>
-            {taskAlert && (
-              <div role="alert" className={`flex items-center gap-3 p-4 rounded-lg mb-4 ${
-                taskAlert.type === 'success'
-                  ? 'bg-[#D1FAE5] text-[#065F46] border border-[#6EE7B7] dark:bg-[#064E3B] dark:text-[#6EE7B7] dark:border-[#059669]'
-                  : 'bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]'
-              }`}>
-                {taskAlert.text}
-              </div>
-            )}
             {/* [test hook] card, card-header classes used as test selectors */}
             {starterTasks.map(task => (
               <div key={task.id} className="card bg-surface rounded-xl shadow p-6 mb-3 overflow-hidden wrap-break-word">
