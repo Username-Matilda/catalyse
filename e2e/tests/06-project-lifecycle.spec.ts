@@ -39,7 +39,7 @@ test.describe('Project Lifecycle', () => {
 
     // Project status becomes needs_discussion — visible in the triage "Needs Discussion" tab
     await adminPage.goto(`${baseUrl}/admin/triage`);
-    await adminPage.getByRole('button', { name: 'Needs Discussion' }).click();
+    await adminPage.getByRole('tab', { name: 'Needs Discussion' }).click();
     await expect(adminPage.locator('.card').filter({ hasText: title })).toBeVisible({ timeout: 10_000 });
 
     // Proposer receives a notification containing the feedback message
@@ -72,7 +72,7 @@ test.describe('Project Lifecycle', () => {
 
     // Project appears in the completed tab on the projects index
     await volunteer.page.goto(`${baseUrl}/`);
-    await expect(volunteer.page.getByRole('heading', { name: 'Projects' })).toBeVisible({ timeout: 10_000 });
+    await expect(volunteer.page.getByRole('heading', { name: 'Projects', exact: true })).toBeVisible({ timeout: 10_000 });
     await volunteer.page.getByRole('button', { name: 'Status filter' }).click();
     await volunteer.page.getByRole('option', { name: 'Completed' }).click();
     await expect(volunteer.page.getByRole('link', { name: title })).toBeVisible({ timeout: 10_000 });

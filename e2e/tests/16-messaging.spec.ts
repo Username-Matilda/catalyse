@@ -52,7 +52,7 @@ test.describe('Messaging', () => {
     // Confirm the recipient starts with no unread notifications.
     await volunteer.page.goto(`${baseUrl}/dashboard`);
     await expect(volunteer.page.getByRole('heading', { name: /Welcome back/ })).toBeVisible({ timeout: 10_000 });
-    const notifTab = volunteer.page.getByRole('button', { name: /^Notifications/ });
+    const notifTab = volunteer.page.getByRole('tab', { name: /^Notifications/ });
     await expect(notifTab.locator('.notification-badge')).not.toBeVisible();
 
     // Sender sends the message.
@@ -84,7 +84,7 @@ test.describe('Messaging', () => {
     // Recipient refreshes the dashboard — the notification badge now shows 1.
     await volunteer.page.goto(`${baseUrl}/dashboard`);
     await expect(volunteer.page.getByRole('heading', { name: /Welcome back/ })).toBeVisible({ timeout: 10_000 });
-    const notifTabAfter = volunteer.page.getByRole('button', { name: /^Notifications/ });
+    const notifTabAfter = volunteer.page.getByRole('tab', { name: /^Notifications/ });
     await expect(notifTabAfter.locator('.notification-badge')).toBeVisible({ timeout: 10_000 });
     await expect(notifTabAfter.locator('.notification-badge')).toContainText('1');
 

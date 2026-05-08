@@ -1,6 +1,7 @@
 import { test, expect, getAlert } from '../fixtures';
 import type { Page } from '@playwright/test';
 import { submitBugReport } from '../actions/bugs';
+import { selectFilterDropdown } from '../actions/ui';
 import { fake } from '../fake';
 
 async function navigateToBugsPage(baseUrl: string, adminPage: Page): Promise<void> {
@@ -46,10 +47,10 @@ test.describe('Bug Report Management', () => {
     await submitBugReport(baseUrl, volunteer.page, title, 'A bug report used for filter testing in e2e');
 
     await navigateToBugsPage(baseUrl, adminPage);
-    await adminPage.getByLabel('Filter by status').selectOption('in_progress');
+    await selectFilterDropdown(adminPage, 'Filter by status', 'In Progress');
     await expect(adminPage.locator('.card').filter({ hasText: title })).not.toBeVisible({ timeout: 10_000 });
 
-    await adminPage.getByLabel('Filter by status').selectOption('open');
+    await selectFilterDropdown(adminPage, 'Filter by status', 'Open');
     await expect(adminPage.locator('.card').filter({ hasText: title })).toBeVisible({ timeout: 10_000 });
   });
 
@@ -61,10 +62,10 @@ test.describe('Bug Report Management', () => {
     await navigateToBugsPage(baseUrl, adminPage);
     await updateReportStatus(adminPage, title, 'in_progress');
 
-    await adminPage.getByLabel('Filter by status').selectOption('in_progress');
+    await selectFilterDropdown(adminPage, 'Filter by status', 'In Progress');
     const card = adminPage.locator('.card').filter({ hasText: title });
     await expect(card).toBeVisible({ timeout: 10_000 });
-    await expect(card).toContainText('in progress');
+    await expect(card).toContainText('In Progress');
   });
 
   test('Admin resolves a bug report with resolution notes', async ({ adminPage, volunteer, baseUrl }) => {
@@ -76,7 +77,7 @@ test.describe('Bug Report Management', () => {
     await navigateToBugsPage(baseUrl, adminPage);
     await updateReportStatus(adminPage, title, 'resolved', notes);
 
-    await adminPage.getByLabel('Filter by status').selectOption('resolved');
+    await selectFilterDropdown(adminPage, 'Filter by status', 'Resolved');
     const card = adminPage.locator('.card').filter({ hasText: title });
     await expect(card).toBeVisible({ timeout: 10_000 });
     await expect(card).toContainText('resolved');
@@ -95,9 +96,9 @@ test.describe('Bug Report Management', () => {
     await navigateToBugsPage(baseUrl, adminPage);
     await updateReportStatus(adminPage, title, 'wont_fix');
 
-    await adminPage.getByLabel('Filter by status').selectOption('wont_fix');
+    await selectFilterDropdown(adminPage, 'Filter by status', "Won't Fix");
     const card = adminPage.locator('.card').filter({ hasText: title });
     await expect(card).toBeVisible({ timeout: 10_000 });
-    await expect(card).toContainText('wont fix');
+    await expect(card).toContainText("Won't Fix");
   });
 });

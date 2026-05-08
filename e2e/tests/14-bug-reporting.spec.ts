@@ -77,6 +77,7 @@ test.describe('Bug Reporting', () => {
       description: 'too short', // 9 characters — below the API minimum of 10
     });
 
-    await expect(volunteer.page.locator('.toast-error')).toBeVisible({ timeout: 10_000 });
+    const dialog = volunteer.page.getByRole('dialog', { name: 'Report an Issue' });
+    await expect(dialog.locator('[aria-invalid="true"]')).toBeVisible({ timeout: 10_000 });
   });
 });

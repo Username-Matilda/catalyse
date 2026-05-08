@@ -61,7 +61,7 @@ test.describe('Admin: Admin Team Management', () => {
     await createAdminInvite(adminPage, inviteEmail);
 
     await adminPage.goto(`${baseUrl}/admin/team`);
-    await adminPage.getByRole('button', { name: 'Pending Invites' }).click();
+    await adminPage.getByRole('tab', { name: 'Pending Invites' }).click();
 
     await expect(adminPage.locator('#inviteList')).toContainText(inviteEmail, { timeout: 10_000 });
   });
@@ -73,7 +73,7 @@ test.describe('Admin: Admin Team Management', () => {
     await createAdminInvite(adminPage, inviteEmail);
 
     await adminPage.goto(`${baseUrl}/admin/team`);
-    await adminPage.getByRole('button', { name: 'Pending Invites' }).click();
+    await adminPage.getByRole('tab', { name: 'Pending Invites' }).click();
 
     const inviteCard = adminPage.locator('#inviteList .card').filter({ hasText: inviteEmail });
     await expect(inviteCard).toBeVisible({ timeout: 10_000 });

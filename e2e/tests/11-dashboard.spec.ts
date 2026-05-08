@@ -25,15 +25,15 @@ test.describe('Dashboard', () => {
     await expect(volunteer.page.getByRole('heading', { name: /Welcome back/ })).toBeVisible({ timeout: 10_000 });
 
     // My Projects tab is active by default
-    await expect(volunteer.page.getByRole('button', { name: 'My Projects' })).toHaveClass(/\bactive\b/);
+    await expect(volunteer.page.getByRole('tab', { name: 'My Projects' })).toHaveClass(/\bactive\b/);
 
     // My Interests tab
-    await volunteer.page.getByRole('button', { name: 'My Interests' }).click();
-    await expect(volunteer.page.getByRole('button', { name: 'My Interests' })).toHaveClass(/\bactive\b/);
+    await volunteer.page.getByRole('tab', { name: 'My Interests' }).click();
+    await expect(volunteer.page.getByRole('tab', { name: 'My Interests' })).toHaveClass(/\bactive\b/);
 
     // Suggested for You tab
-    await volunteer.page.getByRole('button', { name: 'Suggested for You' }).click();
-    await expect(volunteer.page.getByRole('button', { name: 'Suggested for You' })).toHaveClass(/\bactive\b/);
+    await volunteer.page.getByRole('tab', { name: 'Suggested for You' }).click();
+    await expect(volunteer.page.getByRole('tab', { name: 'Suggested for You' })).toHaveClass(/\bactive\b/);
   });
 
   test('Dashboard shows unread notification badge', async ({ adminPage, volunteer, baseUrl }) => {
@@ -55,8 +55,8 @@ test.describe('Dashboard', () => {
     await expect(volunteer.page.getByRole('heading', { name: /Welcome back/ })).toBeVisible({ timeout: 10_000 });
     await expect(notificationBadge(volunteer.page)).toBeVisible({ timeout: 10_000 });
 
-    await volunteer.page.getByRole('button', { name: /^Notifications/ }).click();
-    await expect(volunteer.page.getByRole('button', { name: /^Notifications/ })).toHaveClass(/\bactive\b/);
+    await volunteer.page.getByRole('tab', { name: /^Notifications/ }).click();
+    await expect(volunteer.page.getByRole('tab', { name: /^Notifications/ })).toHaveClass(/\bactive\b/);
     await expect(volunteer.page.getByRole('button', { name: 'Mark all as read' })).toBeVisible({ timeout: 10_000 });
 
     await volunteer.page.getByRole('button', { name: 'Mark all as read' }).click();

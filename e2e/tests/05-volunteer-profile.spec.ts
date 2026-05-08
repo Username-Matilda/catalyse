@@ -59,7 +59,7 @@ test.describe('Volunteer Profile', () => {
     await volunteer.page.goto(`${baseUrl}/profile`);
     await expect(volunteer.page.getByLabel('Your Name')).toBeVisible({ timeout: 10_000 });
     await volunteer.page.getByLabel('Your Name').fill(uniqueName);
-    await volunteer.page.locator('#consent_make_profile_visible_in_directory').check();
+    await volunteer.page.locator('#consent_make_profile_visible_in_directory').check({ force: true });
     await volunteer.page.getByRole('button', { name: 'Save Changes' }).click();
     await expect(getAlert(volunteer.page)).toBeVisible({ timeout: 10_000 });
 
@@ -73,7 +73,7 @@ test.describe('Volunteer Profile', () => {
     // Now hide the profile
     await volunteer.page.goto(`${baseUrl}/profile`);
     await expect(volunteer.page.getByLabel('Your Name')).toBeVisible({ timeout: 10_000 });
-    await volunteer.page.locator('#consent_make_profile_visible_in_directory').uncheck();
+    await volunteer.page.locator('#consent_make_profile_visible_in_directory').uncheck({ force: true });
     await volunteer.page.getByRole('button', { name: 'Save Changes' }).click();
     await expect(getAlert(volunteer.page)).toBeVisible({ timeout: 10_000 });
 
@@ -92,7 +92,7 @@ test.describe('Volunteer Profile', () => {
     await volunteer.page.goto(`${baseUrl}/profile`);
     await expect(volunteer.page.getByLabel('Your Name')).toBeVisible({ timeout: 10_000 });
     await volunteer.page.getByLabel('Your Name').fill(uniqueName);
-    await volunteer.page.locator('#consent_make_profile_visible_in_directory').uncheck();
+    await volunteer.page.locator('#consent_make_profile_visible_in_directory').uncheck({ force: true });
     await volunteer.page.getByRole('button', { name: 'Save Changes' }).click();
     await expect(getAlert(volunteer.page)).toBeVisible({ timeout: 10_000 });
 
@@ -106,7 +106,7 @@ test.describe('Volunteer Profile', () => {
     // Now make the profile visible
     await volunteer.page.goto(`${baseUrl}/profile`);
     await expect(volunteer.page.getByLabel('Your Name')).toBeVisible({ timeout: 10_000 });
-    await volunteer.page.locator('#consent_make_profile_visible_in_directory').check();
+    await volunteer.page.locator('#consent_make_profile_visible_in_directory').check({ force: true });
     await volunteer.page.getByRole('button', { name: 'Save Changes' }).click();
     await expect(getAlert(volunteer.page)).toBeVisible({ timeout: 10_000 });
 
@@ -153,7 +153,7 @@ test.describe('Volunteer Profile', () => {
       const skillOption = page2.locator('.skill-option').filter({ hasText: 'Fundraising' });
       await expect(skillOption).toBeVisible({ timeout: 10_000 });
       await skillOption.click();
-      await page2.locator('#consent_make_profile_visible_in_directory').check();
+      await page2.locator('#consent_make_profile_visible_in_directory').check({ force: true });
       await page2.getByRole('button', { name: 'Save Changes' }).click();
       await expect(getAlert(page2)).toBeVisible({ timeout: 10_000 });
 
