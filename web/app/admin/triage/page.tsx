@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import Header from '@/components/Header'
 import Button from '@/components/Button'
-import { ProjectCard, type Project as CardProject } from '@/components/ProjectCard'
+import { ProjectCard, type Project as CardProject, statusBadgeClasses, STATUS_LABELS, CARD_GRID_CLASSES } from '@/components/ProjectCard'
 import Tabs from '@/components/Tabs'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
@@ -16,6 +17,22 @@ interface Project extends CardProject {
   review_notes: string | null
 }
 
+interface Interest {
+  id: number
+  volunteer_id: number
+  project_id: number
+  interest_type: string
+  message: string | null
+  status: string
+  response_message: string | null
+  created_at: string
+  project_title: string
+  project_status: string
+  volunteer_name: string
+  owner_name: string | null
+  volunteer_skills: Array<{ id: number; name: string }>
+}
+
 interface ReviewModal {
   project: Project
 }
@@ -25,13 +42,18 @@ export default function TriagePage() {
   const { user, loading } = useAuth()
   const [projects, setProjects] = useState<Project[]>([])
   const [loadingProjects, setLoadingProjects] = useState(true)
-  const [tab, setTab] = useState<'pending_review' | 'needs_discussion'>('pending_review')
+  const [tab, setTab] = useState<'pending_review' | 'needs_discussion' | 'interests'>('pending_review')
   const [modal, setModal] = useState<ReviewModal | null>(null)
   const [decision, setDecision] = useState<'approved' | 'needs_discussion'>('approved')
   const [feedback, setFeedback] = useState('')
   const [reviewNotes, setReviewNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [alert, setAlert] = useState<string | null>(null)
+
+  const [interests, setInterests] = useState<Interest[]>([])
+  const [loadingInterests, setLoadingInterests] = useState(true)
+  const [interestStatusFilter, setInterestStatusFilter] = useState('pending')
+  const [respondingId, setRespondingId] = useState<number | null>(null)
 
   useEffect(() => {
     if (!loading && !user) router.push('/login')
@@ -44,6 +66,15 @@ export default function TriagePage() {
       .then(data => { setProjects(data); setLoadingProjects(false) })
       .catch(() => setLoadingProjects(false))
   }, [user])
+
+  useEffect(() => {
+    if (!user?.is_admin) return
+    setLoadingInterests(true)
+    const params = interestStatusFilter ? `?status=${interestStatusFilter}` : ''
+    apiRequest<Interest[]>(`/api/admin/interests${params}`)
+      .then(data => { setInterests(data); setLoadingInterests(false) })
+      .catch(() => setLoadingInterests(false))
+  }, [user, interestStatusFilter])
 
   function openReview(project: Project) {
     setModal({ project })
@@ -81,10 +112,26 @@ export default function TriagePage() {
     }
   }
 
+  async function respondInterest(interest: Interest, status: 'accepted' | 'declined') {
+    setRespondingId(interest.id)
+    try {
+      await apiRequest(`/api/projects/${interest.project_id}/interest/${interest.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ status }),
+      })
+      setInterests(prev => prev.map(i => i.id === interest.id ? { ...i, status } : i))
+    } catch (err: unknown) {
+      setAlert(err instanceof Error ? err.message : 'Failed to respond to interest')
+    } finally {
+      setRespondingId(null)
+    }
+  }
+
   if (loading || !user) return null
 
   const pending = projects.filter(p => p.status === 'pending_review')
   const discussion = projects.filter(p => p.status === 'needs_discussion')
+  const pendingInterests = interests.filter(i => i.status === 'pending')
   const visible = tab === 'pending_review' ? pending : discussion
 
   return (
@@ -101,28 +148,113 @@ export default function TriagePage() {
 
         <Tabs
           tabs={[
-            { key: 'pending_review', label: `Pending Review${pending.length > 0 ? ` (${pending.length})` : ''}` },
-            { key: 'needs_discussion', label: `Needs Discussion${discussion.length > 0 ? ` (${discussion.length})` : ''}` },
+            { key: 'pending_review', label: <>{`Pending Review`}{pending.length > 0 && <span className="bg-primary text-secondary-dark text-xs px-2 py-0.5 rounded-full ml-2">{pending.length}</span>}</> },
+            { key: 'needs_discussion', label: <>{`Needs Discussion`}{discussion.length > 0 && <span className="bg-primary text-secondary-dark text-xs px-2 py-0.5 rounded-full ml-2">{discussion.length}</span>}</> },
+            {
+              key: 'interests',
+              label: <>
+                Volunteer Interests
+                {pendingInterests.length > 0 && (
+                  <span className="bg-primary text-secondary-dark text-xs px-2 py-0.5 rounded-full ml-2">{pendingInterests.length}</span>
+                )}
+              </>,
+            },
           ]}
           activeTab={tab}
           onChange={setTab}
         />
 
-        {loadingProjects ? (
-          <div className="text-center py-10 text-text-light">Loading…</div>
-        ) : visible.length === 0 ? (
-          <p>No projects awaiting {tab === 'pending_review' ? 'review' : 'discussion'}.</p>
+        {tab === 'interests' ? (
+          <>
+            {/* TODO: add typeahead volunteer filtering so admins can search interests by volunteer name */}
+            <div className="mb-5 flex items-end gap-3">
+              <div>
+                <label htmlFor="interest-status-filter">Status</label>
+                <select
+                  id="interest-status-filter"
+                  value={interestStatusFilter}
+                  onChange={e => setInterestStatusFilter(e.target.value)}
+                >
+                  <option value="pending">Pending</option>
+                  <option value="accepted">Accepted</option>
+                  <option value="declined">Declined</option>
+                  <option value="withdrawn">Withdrawn</option>
+                  <option value="">All</option>
+                </select>
+              </div>
+            </div>
+
+            {loadingInterests ? (
+              <div className="text-center py-10 text-text-light">Loading…</div>
+            ) : interests.length === 0 ? (
+              <p>No {interestStatusFilter || ''} interests found.</p>
+            ) : (
+              <div className={CARD_GRID_CLASSES}>
+                {interests.map(i => (
+                  <div key={i.id} className="card bg-surface rounded-xl shadow px-5 py-4 overflow-hidden wrap-break-word">
+                    <div className="flex justify-between items-start gap-4 mb-2">
+                      <div>
+                        <p className="font-semibold m-0">
+                          <Link href={`/admin/volunteers/${i.volunteer_id}`} className="text-secondary-dark no-underline hover:text-primary">{i.volunteer_name}</Link>
+                          <span className="font-normal text-sm text-text-light"> wants to {i.interest_type === 'want_to_own' ? 'own' : 'contribute to'} </span>
+                          <Link href={`/projects/${i.project_id}`} className="text-primary no-underline hover:underline">{i.project_title}</Link>
+                        </p>
+                        <p className="text-xs text-text-light m-0 mt-1">
+                          {new Date(i.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          {' · '}Owner: {i.owner_name ?? 'None'}
+                          {' · '}Project: <span className={statusBadgeClasses(i.project_status)}>{STATUS_LABELS[i.project_status] ?? i.project_status}</span>
+                        </p>
+                      </div>
+                      <span className={statusBadgeClasses(i.status === 'pending' ? 'seeking_help' : i.status === 'accepted' ? 'completed' : 'on_hold')}>
+                        {i.status}
+                      </span>
+                    </div>
+
+                    {i.message && (
+                      <p className="text-sm text-text-light italic my-2">&ldquo;{i.message}&rdquo;</p>
+                    )}
+
+                    {i.volunteer_skills.length > 0 && (
+                      <div className="flex flex-wrap gap-1 my-2">
+                        {i.volunteer_skills.map(s => (
+                          <span key={s.id} className="inline-flex items-center px-2 py-0.5 bg-accent text-secondary-dark rounded-full text-xs font-medium dark:bg-[#374151] dark:text-[#D1D5DB]">
+                            {s.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {i.status === 'pending' && (
+                      <div className="flex gap-2 mt-3">
+                        <Button size="sm" onClick={() => respondInterest(i, 'accepted')} disabled={respondingId === i.id}>Accept</Button>
+                        <Button size="sm" variant="secondary" onClick={() => respondInterest(i, 'declined')} disabled={respondingId === i.id}>Decline</Button>
+                        <Button size="sm" variant="ghost" href={`/projects/${i.project_id}`}>View Project</Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         ) : (
-          <div className="flex flex-col gap-4">
-            {/* TODO: for needs_discussion projects, show the feedback message sent to the volunteer and allow admins to send follow-up messages */}
-            {visible.map(p => (
-              <ProjectCard
-                key={p.id}
-                project={{ ...p, owner: p.proposed_by ? { name: `Proposed by: ${typeof p.proposed_by === 'string' ? p.proposed_by : p.proposed_by.name}` } : null }}
-                action={<Button size="sm" onClick={() => openReview(p)}>Review</Button>}
-              />
-            ))}
-          </div>
+          <>
+            {loadingProjects ? (
+              <div className="text-center py-10 text-text-light">Loading…</div>
+            ) : visible.length === 0 ? (
+              <p>No projects awaiting {tab === 'pending_review' ? 'review' : 'discussion'}.</p>
+            ) : (
+              <div className={CARD_GRID_CLASSES}>
+                {/* TODO: for needs_discussion projects, show the feedback message sent to the volunteer and allow admins to send follow-up messages */}
+                {visible.map(p => (
+                  <ProjectCard
+                    key={p.id}
+                    project={{ ...p, owner: p.proposed_by ? { name: `Proposed by: ${typeof p.proposed_by === 'string' ? p.proposed_by : p.proposed_by.name}` } : null }}
+                    action={<Button size="sm" onClick={() => openReview(p)}>Review</Button>}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </main>
 

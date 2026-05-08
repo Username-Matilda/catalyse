@@ -60,6 +60,8 @@ export async function POST(
       },
     })
 
+    // TODO: send skill-match notification emails to volunteers whose skills match this project's required skills (mirrors Python's send_skill_match_notifications async thread)
+
     if (project.proposedById) {
       createNotification(
         project.proposedById, 'project_approved',

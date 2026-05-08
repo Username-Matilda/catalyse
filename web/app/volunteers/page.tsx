@@ -9,6 +9,7 @@ import FilterDropdown from '@/components/FilterDropdown'
 import { LOCATION_OPTIONS } from '@/lib/filter-options'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
+import { CARD_GRID_CLASSES } from '@/components/ProjectCard'
 
 interface FlatSkill {
   id: number
@@ -151,7 +152,7 @@ export default function VolunteersPage() {
               <p>Try adjusting your filters.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-3 gap-5 max-[1200px]:grid-cols-2 max-[600px]:grid-cols-1">
+            <div className={CARD_GRID_CLASSES}>
               {/* [test hook] card class used as test selector */}
               {volunteers.map(v => (
                 <div key={v.id} className="card bg-surface rounded-xl shadow p-6 overflow-hidden wrap-break-word flex flex-col">

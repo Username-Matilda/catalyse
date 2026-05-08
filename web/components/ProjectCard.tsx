@@ -23,7 +23,7 @@ export interface Project {
   match?: { required_match_percent: number } | null
 }
 
-const STATUS_LABELS: Record<string, string> = {
+export const STATUS_LABELS: Record<string, string> = {
   seeking_owner: 'Seeking Owner',
   seeking_help: 'Seeking Help',
   needs_tasks: 'Needs Tasks',
@@ -136,9 +136,12 @@ export function ProjectCard({ project: p, userSkillIds = new Set(), action }: { 
   )
 }
 
-export function ProjectList({ projects, userSkillIds = new Set() }: { projects: Project[]; userSkillIds?: Set<number> }) {
+export const CARD_GRID_CLASSES = 'grid grid-cols-3 gap-x-5 gap-y-5 max-[1200px]:grid-cols-2 max-[600px]:grid-cols-1'
+export const CARD_GRID_SINGLE_CLASSES = 'flex flex-col gap-5'
+
+export function ProjectList({ projects, userSkillIds = new Set(), single = false }: { projects: Project[]; userSkillIds?: Set<number>; single?: boolean }) {
   return (
-    <div className="grid grid-cols-3 gap-x-5 gap-y-5 max-[1200px]:grid-cols-2 max-[600px]:grid-cols-1">
+    <div className={single ? CARD_GRID_SINGLE_CLASSES : CARD_GRID_CLASSES}>
       {projects.map(p => (
         <ProjectCard key={p.id} project={p} userSkillIds={userSkillIds} />
       ))}
