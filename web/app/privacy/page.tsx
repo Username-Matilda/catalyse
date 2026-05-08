@@ -79,7 +79,7 @@ export default function PrivacyPage() {
             <h2>Our Data Practices</h2>
 
             <h4>What we collect</h4>
-            <ul className="text-text-light mb-4" style={{ paddingLeft: 20 }}>
+            <ul className="list-disc text-text-light mb-4" style={{ paddingLeft: 20 }}>
               <li>Information you provide (name, email, bio, contact details)</li>
               <li>Skills and availability you share</li>
               <li>Projects you propose or express interest in</li>
@@ -88,51 +88,64 @@ export default function PrivacyPage() {
             </ul>
 
             <h4>Legal basis for processing</h4>
-            <ul className="text-text-light mb-4" style={{ paddingLeft: 20 }}>
+            <p className="text-text-light">We process your data based on:</p>
+            <ul className="list-disc text-text-light mb-4" style={{ paddingLeft: 20 }}>
               <li><strong>Consent</strong> — for sharing your profile with other volunteers and allowing project owners to contact you (you can withdraw consent at any time via your profile settings)</li>
               <li><strong>Legitimate interest</strong> — for operating the platform, matching volunteers with projects, and platform administration</li>
               <li><strong>Contract performance</strong> — for providing you the service you signed up for</li>
             </ul>
 
             <h4>How we use it</h4>
-            <ul className="text-text-light mb-4" style={{ paddingLeft: 20 }}>
+            <ul className="list-disc text-text-light mb-4" style={{ paddingLeft: 20 }}>
               <li>To match you with relevant projects based on your skills</li>
               <li>To enable project owners to contact you (with your consent)</li>
               <li>To send you transactional emails (password resets, admin invites, welcome emails)</li>
-              <li>To relay messages between volunteers via email</li>
+              <li>To relay messages between volunteers via email (the sender&apos;s email is included as reply-to so you can respond directly)</li>
               <li>To send you notifications about your projects and interests</li>
-              <li>To send automated inactivity reminders and manage task assignments to keep projects moving</li>
+              <li>To send automated inactivity reminders if you are assigned to a task and have not posted an update for a period of time, and to automatically unassign you from the task after continued inactivity so that other volunteers can take it on. Project owners and admins are notified when a volunteer is unassigned due to inactivity (legitimate interest basis — keeping projects moving)</li>
+              <li>To notify project owners and admins when task updates are posted, so they can stay informed about progress</li>
               <li>For platform administration and volunteer coordination</li>
             </ul>
 
             <h4>What we don&apos;t do</h4>
-            <ul className="text-text-light mb-4" style={{ paddingLeft: 20 }}>
+            <ul className="list-disc text-text-light mb-4" style={{ paddingLeft: 20 }}>
               <li>We never sell your data</li>
               <li>We don&apos;t share your contact info without your consent</li>
-              <li>We don&apos;t use your data for profiling or to make decisions that have legal or significant effects on you</li>
+              <li>We don&apos;t use your data for profiling or to make decisions that have legal or significant effects on you. Automated task unassignment due to inactivity is a minor operational measure to keep projects moving — it does not affect your account, profile, or ability to claim other tasks</li>
             </ul>
 
             <h4>Third-party data processors</h4>
-            <ul className="text-text-light mb-4" style={{ paddingLeft: 20 }}>
-              <li><strong>Railway</strong> (hosting) — our application and database are hosted on Railway&apos;s cloud infrastructure. Data may be processed in the United States.</li>
-              <li><strong>Resend</strong> (email delivery) — used to send transactional emails and relay messages between volunteers.</li>
-              <li><strong>Backblaze B2</strong> (encrypted backups) — daily encrypted backups retained for 30 days in an EU data centre.</li>
-              <li><strong>Google Analytics</strong> (usage analytics) — anonymised page view data. Only loaded with your consent via the cookie banner.</li>
-              <li><strong>Google Sign-In</strong> (authentication) — if you choose to sign in with Google, Google shares your name and email with us.</li>
+            <p className="text-text-light">The following services process data on our behalf (as data processors under GDPR Article 28). We have assessed each for adequate data protection safeguards:</p>
+            <ul className="list-disc text-text-light mb-4" style={{ paddingLeft: 20 }}>
+              <li><strong>Railway</strong> (hosting) — our application and database are hosted on Railway&apos;s cloud infrastructure. Data may be processed in the United States. We rely on Railway&apos;s standard contractual safeguards for international transfers.</li>
+              <li><strong>Resend</strong> (email delivery) — used to send transactional emails (password resets, welcome emails, admin invites) and relay messages between volunteers. Resend processes your email address and name for delivery purposes only. Data may be processed in the United States.</li>
+              <li><strong>Backblaze B2</strong> (encrypted backups) — daily encrypted backups of the database are stored in Backblaze&apos;s EU data centre (Amsterdam). Backups are retained for 30 days and then automatically deleted. Backups are used solely for disaster recovery and are never accessed for any other purpose.</li>
+              <li><strong>Google Analytics</strong> (usage analytics) — used to understand how the platform is used so we can improve it. Collects anonymised page view and interaction data via cookies. IP addresses are anonymised. Only loaded if you accept cookies via the consent banner. You can withdraw consent at any time by clearing your browser cookies or using browser privacy settings. Data may be processed in the United States.</li>
+              <li><strong>Google Sign-In</strong> (authentication) — if you choose to sign in with Google, Google verifies your identity and shares your name and email with us to create or log into your account. No other Google data is accessed.</li>
             </ul>
+            <p className="text-text-light mb-4">Where data is processed outside the UK/EEA, we rely on the service provider&apos;s standard contractual clauses and data processing agreements as safeguards for international transfers.</p>
 
             <h4>Data retention</h4>
-            <ul className="text-text-light mb-4" style={{ paddingLeft: 20 }}>
+            <ul className="list-disc text-text-light mb-4" style={{ paddingLeft: 20 }}>
               <li>Active accounts: data is kept as long as your account is active</li>
-              <li>Deleted accounts: personal data is anonymised immediately upon deletion</li>
-              <li>Database backups: retained for 30 days, then automatically deleted</li>
-              <li>Password reset tokens expire after 1 hour; admin invite tokens after 7 days</li>
+              <li>Deleted accounts: personal data is anonymised immediately upon deletion. Anonymised records (e.g. &ldquo;[Deleted User]&rdquo; on project history) are retained for platform integrity</li>
+              <li>Database backups: retained for 30 days, then automatically deleted. When you delete your account, your data is anonymised in the live database immediately; backup copies containing pre-deletion data will be overwritten within 30 days</li>
+              <li>Password reset tokens expire after 1 hour</li>
+              <li>Admin invite tokens expire after 7 days</li>
+            </ul>
+
+            <h4>Cookies</h4>
+            <ul className="list-disc text-text-light mb-4" style={{ paddingLeft: 20 }}>
+              <li><strong>Essential cookies</strong> — we use localStorage (not cookies) to store your login session and preferences (dark mode, cookie consent choice). These are necessary for the site to function.</li>
+              <li><strong>Analytics cookies</strong> — Google Analytics uses cookies to collect anonymised usage data. These are only loaded after you accept the cookie consent banner. You can decline or withdraw consent at any time.</li>
             </ul>
 
             <h4>Security</h4>
             <p className="text-text-light">
-              Passwords are hashed using PBKDF2-SHA256 with random salts. All data is transmitted over HTTPS.
-              Database backups are encrypted at rest.
+              Passwords are hashed using PBKDF2-SHA256 with random salts and are never stored in plain text.
+              All data is transmitted over HTTPS. Authentication uses secure random tokens.
+              Database backups are encrypted at rest by Backblaze and transmitted over HTTPS.
+              Access to backups requires API credentials that are stored securely as environment variables.
             </p>
           </div>
 
@@ -141,7 +154,7 @@ export default function PrivacyPage() {
             <p className="text-text-light mb-4">
               Under GDPR and the UK Data Protection Act 2018, you have the right to:
             </p>
-            <ul className="text-text-light" style={{ paddingLeft: 20 }}>
+            <ul className="list-disc text-text-light" style={{ paddingLeft: 20 }}>
               <li><strong>Access</strong> (Article 15) — Download all your data using the export feature above</li>
               <li><strong>Rectification</strong> (Article 16) — Update your profile at any time</li>
               <li><strong>Erasure</strong> (Article 17) — Delete your account and all personal data</li>

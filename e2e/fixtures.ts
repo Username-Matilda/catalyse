@@ -64,5 +64,5 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
 export { expect } from '@playwright/test';
 
 export function getAlert(page: Page) {
-  return page.locator('[role="alert"]:not(#__next-route-announcer__)');
+  return page.locator('[role="alert"]:not(#__next-route-announcer__)').last();
 }

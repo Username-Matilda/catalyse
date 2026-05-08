@@ -1,8 +1,8 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { Suspense, useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
 import Button from '@/components/Button'
@@ -25,6 +25,33 @@ function MobileNavSection({ children, admin }: { children: React.ReactNode; admi
     <div className={`px-5 py-2 text-[0.65rem] font-bold uppercase tracking-widest bg-[var(--background)] border-b border-brand-border ${admin ? 'text-primary' : 'text-[var(--text-light)]'}`}>
       {children}
     </div>
+  )
+}
+
+function DashboardNavButtons({ unreadCount }: { unreadCount: number }) {
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const dashboardTab = pathname === '/dashboard' ? (searchParams.get('tab') ?? '') : ''
+  return (
+    <>
+      <Button
+        href="/dashboard"
+        variant={pathname === '/dashboard' && dashboardTab !== 'notifications' ? 'primary' : 'ghost'}
+        size="sm"
+      >
+        My Projects
+      </Button>
+      <Button
+        href="/dashboard?tab=notifications"
+        variant={dashboardTab === 'notifications' ? 'primary' : 'ghost'}
+        size="sm"
+      >
+        Notifications
+        {unreadCount > 0 && (
+          <span className="bg-primary text-secondary-dark text-xs px-2 py-0.5 rounded-full ml-1">{unreadCount}</span>
+        )}
+      </Button>
+    </>
   )
 }
 
@@ -92,25 +119,14 @@ export default function Header() {
               </Button>
             ))}
             {!loading && user && (
-              <>
-                <Button
-                  href="/dashboard"
-                  variant={pathname === '/dashboard' ? 'primary' : 'ghost'}
-                  size="sm"
-                >
-                  My Projects
-                </Button>
-                <Button
-                  href="/dashboard?tab=notifications"
-                  variant="ghost"
-                  size="sm"
-                >
-                  Notifications
-                  {unreadCount > 0 && (
-                    <span className="bg-primary text-secondary-dark text-xs px-2 py-0.5 rounded-full ml-1">{unreadCount}</span>
-                  )}
-                </Button>
-              </>
+              <Suspense fallback={
+                <>
+                  <Button href="/dashboard" variant="ghost" size="sm">My Projects</Button>
+                  <Button href="/dashboard?tab=notifications" variant="ghost" size="sm">Notifications</Button>
+                </>
+              }>
+                <DashboardNavButtons unreadCount={unreadCount} />
+              </Suspense>
             )}
           </nav>
 

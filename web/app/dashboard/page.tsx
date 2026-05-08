@@ -109,6 +109,8 @@ function DashboardPageInner() {
 
   async function handleTabClick(tab: TabKey) {
     setActiveTab(tab)
+    const url = tab === 'owned' ? '/dashboard' : `/dashboard?tab=${tab}`
+    router.replace(url, { scroll: false })
     if (tab === 'notifications') {
       try {
         const notifs = await apiRequest<Notification[]>('/api/notifications')

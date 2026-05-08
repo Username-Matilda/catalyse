@@ -21,6 +21,8 @@ export default function Tabs<T extends string = string>({ tabs, activeTab, onCha
       {tabs.map(({ key, label, 'data-tab': dataTab }) => (
         <button
           key={key}
+          role="tab"
+          aria-selected={activeTab === key}
           data-tab={dataTab}
           className={`px-5 py-3 font-medium border-b-2 -mb-px cursor-pointer transition-colors ${
             activeTab === key

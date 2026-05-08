@@ -90,7 +90,7 @@ export async function POST(
 
     createNotification(
       task.assignedToId, 'starter_task_reviewed',
-      `Your starter task was reviewed: ${reviewRating}`,
+      `Your starter task was reviewed: ${task.title}`,
       feedbackToVolunteer || 'Check your dashboard for details.',
       '/dashboard'
     ).catch(e => console.error('[NOTIFY ERROR]', e))
