@@ -4,8 +4,10 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/Header'
 import Button from '@/components/Button'
+import FilterDropdown from '@/components/FilterDropdown'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
+import { useToast } from '@/lib/toast'
 
 interface BugReport {
   id: number
@@ -21,19 +23,43 @@ interface BugReport {
   created_at: string
 }
 
-const STATUS_OPTIONS = ['all', 'open', 'in_progress', 'resolved', 'wont_fix']
+const STATUS_OPTIONS = [
+  { value: 'all',         label: 'All' },
+  { value: 'open',        label: 'Open' },
+  { value: 'in_progress', label: 'In Progress' },
+  { value: 'resolved',    label: 'Resolved' },
+  { value: 'wont_fix',    label: "Won't Fix" },
+]
+const CATEGORY_OPTIONS = [
+  { value: 'all',     label: 'All' },
+  { value: 'bug',     label: 'Bug' },
+  { value: 'feature', label: 'Feature' },
+  { value: 'ux',      label: 'UX Issue' },
+]
+
+const BUG_STATUS_CLASSES: Record<string, string> = {
+  open:        'bg-[#FED7AA] text-[#92400E] dark:bg-[#78350F] dark:text-[#FED7AA]',
+  in_progress: 'bg-[#DBEAFE] text-[#1E40AF] dark:bg-[#1E3A5F] dark:text-[#93C5FD]',
+  resolved:    'bg-[#D1FAE5] text-[#065F46] dark:bg-[#064E3B] dark:text-[#6EE7B7]',
+  wont_fix:    'bg-[#F3F4F6] text-[#374151] dark:bg-[#374151] dark:text-[#9CA3AF]',
+}
+
+function bugStatusClasses(status: string) {
+  return `inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${BUG_STATUS_CLASSES[status] ?? 'bg-[#F3F4F6] text-[#374151]'}`
+}
 
 export default function AdminBugsPage() {
   const router = useRouter()
   const { user, loading } = useAuth()
+  const showToast = useToast()
   const [reports, setReports] = useState<BugReport[]>([])
   const [loadingData, setLoadingData] = useState(true)
   const [statusFilter, setStatusFilter] = useState('open')
+  const [categoryFilter, setCategoryFilter] = useState('all')
   const [editModal, setEditModal] = useState<BugReport | null>(null)
   const [editStatus, setEditStatus] = useState('')
   const [editNotes, setEditNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [alert, setAlert] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
 
   useEffect(() => {
     if (!loading && !user) router.push('/login')
@@ -44,16 +70,19 @@ export default function AdminBugsPage() {
     if (!user?.is_admin) return
     loadReports()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, statusFilter])
+  }, [user, statusFilter, categoryFilter])
 
   async function loadReports() {
     setLoadingData(true)
     try {
-      const params = statusFilter !== 'all' ? `?status=${statusFilter}` : ''
-      const data = await apiRequest<BugReport[]>(`/api/admin/bug-reports${params}`)
+      const params = new URLSearchParams()
+      if (statusFilter !== 'all') params.set('status', statusFilter)
+      if (categoryFilter !== 'all') params.set('category', categoryFilter)
+      const query = params.toString() ? `?${params.toString()}` : ''
+      const data = await apiRequest<BugReport[]>(`/api/admin/bug-reports${query}`)
       setReports(data)
     } catch {
-      setAlert({ text: 'Failed to load reports', type: 'error' })
+      showToast('Failed to load reports', 'error')
     } finally {
       setLoadingData(false)
     }
@@ -73,11 +102,11 @@ export default function AdminBugsPage() {
         method: 'PUT',
         body: JSON.stringify({ status: editStatus, resolution_notes: editNotes || null }),
       })
-      setAlert({ text: 'Report updated!', type: 'success' })
+      showToast('Report updated!', 'success')
       setEditModal(null)
       await loadReports()
     } catch (err: unknown) {
-      setAlert({ text: err instanceof Error ? err.message : 'Failed to update', type: 'error' })
+      showToast(err instanceof Error ? err.message : 'Failed to update', 'error')
     } finally {
       setSubmitting(false)
     }
@@ -88,30 +117,26 @@ export default function AdminBugsPage() {
   return (
     <>
       <Header />
-      <main className="max-w-350 mx-auto px-6 py-5 pb-15">
+      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
         <h1>Bug Reports &amp; Feedback</h1>
 
-        {alert && (
-          <div role="alert" className={alert.type === 'success'
-            ? 'flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#D1FAE5] text-[#065F46] border border-[#6EE7B7] dark:bg-[#064E3B] dark:text-[#6EE7B7] dark:border-[#059669]'
-            : 'flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]'}>
-            {alert.text}
-          </div>
-        )}
-
-        <div className="mb-6">
-          <label htmlFor="status-filter">Filter by status</label>
-          <select
+        <div className="mb-6 flex gap-4 flex-wrap">
+          <FilterDropdown
             id="status-filter"
-            aria-label="Filter by status"
+            label="Status"
+            ariaLabel="Filter by status"
             value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value)}
-            style={{ marginLeft: 8 }}
-          >
-            {STATUS_OPTIONS.map(s => (
-              <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
-            ))}
-          </select>
+            options={STATUS_OPTIONS}
+            onChange={setStatusFilter}
+          />
+          <FilterDropdown
+            id="category-filter"
+            label="Type"
+            ariaLabel="Filter by type"
+            value={categoryFilter}
+            options={CATEGORY_OPTIONS}
+            onChange={setCategoryFilter}
+          />
         </div>
 
         {loadingData ? (
@@ -123,7 +148,7 @@ export default function AdminBugsPage() {
           reports.map(r => (
             <div
               key={r.id}
-              className="card bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
+              className="card bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word w-full"
               style={{ cursor: 'pointer' }}
               onClick={() => openEdit(r)}
             >
@@ -135,18 +160,31 @@ export default function AdminBugsPage() {
                     {r.severity && <span>· {r.severity}</span>}
                     {r.reporter_name && <span>· {r.reporter_name}</span>}
                     <span>· {new Date(r.created_at).toLocaleDateString()}</span>
+                    {r.page_url && (() => {
+                      let path: string
+                      try { path = new URL(r.page_url).pathname + new URL(r.page_url).search } catch { path = r.page_url }
+                      return (
+                        <span>·{' '}
+                          <a
+                            href={path}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={e => e.stopPropagation()}
+                            className="underline hover:text-text"
+                          >
+                            {path}
+                          </a>
+                        </span>
+                      )
+                    })()}
                   </div>
                 </div>
-                <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: '0.8rem', background: 'var(--bg-secondary, #f8fafc)', whiteSpace: 'nowrap' }}>
-                  {r.status.replace(/_/g, ' ')}
+                <span className={bugStatusClasses(r.status)}>
+                  {STATUS_OPTIONS.find(s => s.value === r.status)?.label ?? r.status}
                 </span>
               </div>
 
               <p className="text-text-light" style={{ margin: '0 0 12px', whiteSpace: 'pre-wrap' }}>{r.description}</p>
-
-              {r.page_url && (
-                <p className="text-sm text-text-light" style={{ margin: '0 0 12px' }}>Page: {r.page_url}</p>
-              )}
 
               {r.resolution_notes && (
                 <p style={{ margin: '0 0 12px', fontSize: '0.875rem', fontStyle: 'italic' }}>Resolution: {r.resolution_notes}</p>
@@ -173,6 +211,7 @@ export default function AdminBugsPage() {
             <div className="p-6">
               <p className="text-text-light mb-4 text-sm">{editModal.description}</p>
 
+              {/* TODO: add quick-action buttons to mark as in_progress with an assignee, without opening the full edit form */}
               <div className="mb-5">
                 <label htmlFor="edit-status">Status</label>
                 <select
@@ -181,8 +220,8 @@ export default function AdminBugsPage() {
                   onChange={e => setEditStatus(e.target.value)}
                   style={{ width: '100%' }}
                 >
-                  {STATUS_OPTIONS.filter(s => s !== 'all').map(s => (
-                    <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
+                  {STATUS_OPTIONS.filter(s => s.value !== 'all').map(s => (
+                    <option key={s.value} value={s.value}>{s.label}</option>
                   ))}
                 </select>
               </div>

@@ -7,9 +7,13 @@ export async function GET(request: NextRequest) {
   if (error) return error
 
   const status = request.nextUrl.searchParams.get('status') ?? undefined
+  const category = request.nextUrl.searchParams.get('category') ?? undefined
 
   const reports = await prisma.bugReport.findMany({
-    where: status ? { status } : {},
+    where: {
+      ...(status ? { status } : {}),
+      ...(category ? { category } : {}),
+    },
     include: { reporter: { select: { name: true } } },
     orderBy: { createdAt: 'desc' },
   })

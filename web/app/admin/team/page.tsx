@@ -7,6 +7,7 @@ import Button from '@/components/Button'
 import Tabs from '@/components/Tabs'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
+import { useToast } from '@/lib/toast'
 
 interface Admin {
   id: number
@@ -27,6 +28,7 @@ interface Invite {
 export default function AdminTeamPage() {
   const router = useRouter()
   const { user, loading } = useAuth()
+  const showToast = useToast()
   const [admins, setAdmins] = useState<Admin[]>([])
   const [invites, setInvites] = useState<Invite[]>([])
   const [loadingData, setLoadingData] = useState(true)
@@ -35,7 +37,6 @@ export default function AdminTeamPage() {
   const [inviteEmail, setInviteEmail] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [inviteSuccess, setInviteSuccess] = useState('')
-  const [alert, setAlert] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
   const dialogRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -58,7 +59,7 @@ export default function AdminTeamPage() {
       setAdmins(a)
       setInvites(i.filter(i => i.status === 'pending'))
     } catch {
-      setAlert({ text: 'Failed to load team data', type: 'error' })
+      showToast('Failed to load team data', 'error')
     } finally {
       setLoadingData(false)
     }
@@ -88,7 +89,7 @@ export default function AdminTeamPage() {
       setInviteEmail('')
       await loadData()
     } catch (err: unknown) {
-      setAlert({ text: err instanceof Error ? err.message : 'Failed to send invite', type: 'error' })
+      showToast(err instanceof Error ? err.message : 'Failed to send invite', 'error')
       closeInviteDialog()
     } finally {
       setSubmitting(false)
@@ -98,10 +99,10 @@ export default function AdminTeamPage() {
   async function cancelInvite(id: number) {
     try {
       await apiRequest(`/api/admin/invites/${id}`, { method: 'DELETE' })
-      setAlert({ text: 'Invite cancelled', type: 'success' })
+      showToast('Invite cancelled', 'success')
       setInvites(prev => prev.filter(i => i.id !== id))
     } catch (err: unknown) {
-      setAlert({ text: err instanceof Error ? err.message : 'Failed to cancel invite', type: 'error' })
+      showToast(err instanceof Error ? err.message : 'Failed to cancel invite', 'error')
     }
   }
 
@@ -109,10 +110,10 @@ export default function AdminTeamPage() {
     if (!confirm(`Revoke admin access for ${name}?`)) return
     try {
       await apiRequest(`/api/admin/admins/${id}`, { method: 'DELETE' })
-      setAlert({ text: 'Admin access revoked', type: 'success' })
+      showToast('Admin access revoked', 'success')
       setAdmins(prev => prev.filter(a => a.id !== id))
     } catch (err: unknown) {
-      setAlert({ text: err instanceof Error ? err.message : 'Failed to revoke admin', type: 'error' })
+      showToast(err instanceof Error ? err.message : 'Failed to revoke admin', 'error')
     }
   }
 
@@ -126,14 +127,6 @@ export default function AdminTeamPage() {
           <h1>Team Management</h1>
           <Button onClick={openInviteDialog}>Invite Admin</Button>
         </div>
-
-        {alert && (
-          <div role="alert" className={alert.type === 'success'
-            ? 'flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#D1FAE5] text-[#065F46] border border-[#6EE7B7] dark:bg-[#064E3B] dark:text-[#6EE7B7] dark:border-[#059669]'
-            : 'flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]'}>
-            {alert.text}
-          </div>
-        )}
 
         <Tabs
           tabs={[

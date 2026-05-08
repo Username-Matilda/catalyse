@@ -8,6 +8,7 @@ import Checkbox from '@/components/Checkbox'
 import SkillPicker from '@/components/SkillPicker'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
+import { useToast } from '@/lib/toast'
 
 interface SelectedSkill {
   skillId: number
@@ -35,6 +36,7 @@ interface ProfileData {
 export default function ProfilePage() {
   const router = useRouter()
   const { user, loading, refreshUser } = useAuth()
+  const showToast = useToast()
   const [name, setName] = useState('')
   const [bio, setBio] = useState('')
   const [location, setLocation] = useState('')
@@ -52,7 +54,6 @@ export default function ProfilePage() {
   const [otherSkills, setOtherSkills] = useState('')
   const [loadingProfile, setLoadingProfile] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
   useEffect(() => {
     if (!loading && !user) router.replace('/login')
@@ -89,7 +90,6 @@ export default function ProfilePage() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    setAlert(null)
     setSubmitting(true)
     try {
       await apiRequest('/api/volunteers/me', {
@@ -113,9 +113,9 @@ export default function ProfilePage() {
         }),
       })
       await refreshUser()
-      setAlert({ type: 'success', message: 'Profile updated!' })
+      showToast('Profile updated!', 'success')
     } catch (err: unknown) {
-      setAlert({ type: 'error', message: err instanceof Error ? err.message : 'Failed to save profile' })
+      showToast(err instanceof Error ? err.message : 'Failed to save profile', 'error')
     } finally {
       setSubmitting(false)
     }
@@ -139,12 +139,6 @@ export default function ProfilePage() {
       <Header />
       <main className="max-w-4xl mx-auto px-6 py-5 pb-15">
         <h1>Your Profile</h1>
-
-        {alert && (
-          <div role="alert" className={alert.type === 'success' ? 'flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#D1FAE5] text-[#065F46] border border-[#6EE7B7] dark:bg-[#064E3B] dark:text-[#6EE7B7] dark:border-[#059669]' : 'flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]'}>
-            {alert.message}
-          </div>
-        )}
 
         <form className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word" onSubmit={handleSubmit}>
 

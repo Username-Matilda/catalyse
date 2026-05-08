@@ -10,12 +10,16 @@ interface BugReportDialogProps {
   onClose: () => void
 }
 
-const CATEGORIES = ['Bug', 'Feature', 'UX Issue'] as const
-type Category = typeof CATEGORIES[number]
+const CATEGORIES = [
+  { value: 'bug',     label: 'Bug' },
+  { value: 'feature', label: 'Feature' },
+  { value: 'ux',      label: 'UX Issue' },
+] as const
+type Category = typeof CATEGORIES[number]['value']
 
 export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProps) {
   const { user } = useAuth()
-  const [category, setCategory] = useState<Category>('Bug')
+  const [category, setCategory] = useState<Category>('bug')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [email, setEmail] = useState('')
@@ -89,14 +93,14 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
                   {/* [test hook] category-btn class used as test selector */}
                   {CATEGORIES.map(cat => (
                     <Button
-                      key={cat}
+                      key={cat.value}
                       type="button"
                       variant="ghost"
-                      active={category === cat}
+                      active={category === cat.value}
                       className="category-btn flex-1"
-                      onClick={() => setCategory(cat)}
+                      onClick={() => setCategory(cat.value)}
                     >
-                      {cat}
+                      {cat.label}
                     </Button>
                   ))}
                 </div>
@@ -122,9 +126,9 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
                   onChange={e => setDescription(e.target.value)}
                   required
                   placeholder={{
-                    Bug: 'What happened? What did you expect?',
-                    Feature: 'What would you like to be able to do?',
-                    'UX Issue': 'What felt confusing or frustrating?',
+                    bug:     'What happened? What did you expect?',
+                    feature: 'What would you like to be able to do?',
+                    ux:      'What felt confusing or frustrating?',
                   }[category]}
                 />
               </div>

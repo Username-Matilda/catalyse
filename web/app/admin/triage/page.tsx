@@ -9,6 +9,7 @@ import { ProjectCard, type Project as CardProject, statusBadgeClasses, STATUS_LA
 import Tabs from '@/components/Tabs'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
+import { useToast } from '@/lib/toast'
 
 interface Project extends CardProject {
   proposed_by_name?: string | null
@@ -40,6 +41,7 @@ interface ReviewModal {
 export default function TriagePage() {
   const router = useRouter()
   const { user, loading } = useAuth()
+  const showToast = useToast()
   const [projects, setProjects] = useState<Project[]>([])
   const [loadingProjects, setLoadingProjects] = useState(true)
   const [tab, setTab] = useState<'pending_review' | 'needs_discussion' | 'interests'>('pending_review')
@@ -48,7 +50,6 @@ export default function TriagePage() {
   const [feedback, setFeedback] = useState('')
   const [reviewNotes, setReviewNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [alert, setAlert] = useState<string | null>(null)
 
   const [interests, setInterests] = useState<Interest[]>([])
   const [loadingInterests, setLoadingInterests] = useState(true)
@@ -81,7 +82,6 @@ export default function TriagePage() {
     setDecision('approved')
     setFeedback('')
     setReviewNotes(project.review_notes || '')
-    setAlert(null)
   }
 
   function closeModal() {
@@ -103,10 +103,10 @@ export default function TriagePage() {
         }),
       })
       setProjects(prev => prev.filter(p => p.id !== modal.project.id))
-      setAlert(`Project ${decision === 'approved' ? 'approved' : 'moved to discussion'}!`)
+      showToast(`Project ${decision === 'approved' ? 'approved' : 'moved to discussion'}!`, 'success')
       setModal(null)
     } catch (err: unknown) {
-      setAlert(err instanceof Error ? err.message : 'Failed to submit review')
+      showToast(err instanceof Error ? err.message : 'Failed to submit review', 'error')
     } finally {
       setSubmitting(false)
     }
@@ -121,7 +121,7 @@ export default function TriagePage() {
       })
       setInterests(prev => prev.map(i => i.id === interest.id ? { ...i, status } : i))
     } catch (err: unknown) {
-      setAlert(err instanceof Error ? err.message : 'Failed to respond to interest')
+      showToast(err instanceof Error ? err.message : 'Failed to respond to interest', 'error')
     } finally {
       setRespondingId(null)
     }
@@ -139,12 +139,6 @@ export default function TriagePage() {
       <Header />
       <main className="max-w-350 mx-auto px-6 py-5 pb-15">
         <h1>Project Triage</h1>
-
-        {alert && (
-          <div role="alert" className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#D1FAE5] text-[#065F46] border border-[#6EE7B7] dark:bg-[#064E3B] dark:text-[#6EE7B7] dark:border-[#059669]">
-            {alert}
-          </div>
-        )}
 
         <Tabs
           tabs={[

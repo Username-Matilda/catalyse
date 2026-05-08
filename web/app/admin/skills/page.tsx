@@ -21,6 +21,7 @@ import Header from '@/components/Header'
 import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
+import { useToast } from '@/lib/toast'
 
 interface Skill {
   id: number
@@ -174,13 +175,13 @@ function SortableCategory({
 export default function AdminSkillsPage() {
   const router = useRouter()
   const { user, loading } = useAuth()
+  const showToast = useToast()
   const [categories, setCategories] = useState<Category[]>([])
   const [loadingData, setLoadingData] = useState(true)
   const [modal, setModal] = useState<ModalType | null>(null)
   const [inputName, setInputName] = useState('')
   const [inputDescription, setInputDescription] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [alert, setAlert] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
@@ -207,7 +208,7 @@ export default function AdminSkillsPage() {
       }
       setCategories(Array.from(catMap.values()))
     } catch {
-      setAlert({ text: 'Failed to load data', type: 'error' })
+      showToast('Failed to load data', 'error')
     } finally {
       setLoadingData(false)
     }
@@ -217,7 +218,6 @@ export default function AdminSkillsPage() {
     setModal(m)
     setInputName(m.type === 'edit-skill' ? m.skill.name : m.type === 'edit-category' ? m.category.name : '')
     setInputDescription(m.type === 'edit-skill' ? (m.skill.description ?? '') : m.type === 'edit-category' ? (m.category.description ?? '') : '')
-    setAlert(null)
   }
 
   function closeModal() {
@@ -259,18 +259,18 @@ export default function AdminSkillsPage() {
           method: 'PUT',
           body: JSON.stringify(body),
         })
-        setAlert({ text: 'Category updated!', type: 'success' })
+        showToast('Category updated!', 'success')
       } else {
         await apiRequest('/api/admin/skill-categories', {
           method: 'POST',
           body: JSON.stringify(body),
         })
-        setAlert({ text: 'Category created!', type: 'success' })
+        showToast('Category created!', 'success')
       }
       closeModal()
       await loadData()
     } catch (err: unknown) {
-      setAlert({ text: err instanceof Error ? err.message : 'Failed to save category', type: 'error' })
+      showToast(err instanceof Error ? err.message : 'Failed to save category', 'error')
     } finally {
       setSubmitting(false)
     }
@@ -286,18 +286,18 @@ export default function AdminSkillsPage() {
           method: 'POST',
           body: JSON.stringify({ name: inputName.trim(), description: inputDescription.trim() || null, category_id: modal.categoryId }),
         })
-        setAlert({ text: 'Skill created!', type: 'success' })
+        showToast('Skill created!', 'success')
       } else if (modal.type === 'edit-skill') {
         await apiRequest(`/api/admin/skills/${modal.skill.id}`, {
           method: 'PUT',
           body: JSON.stringify({ name: inputName.trim(), description: inputDescription.trim() || null }),
         })
-        setAlert({ text: 'Skill updated!', type: 'success' })
+        showToast('Skill updated!', 'success')
       }
       closeModal()
       await loadData()
     } catch (err: unknown) {
-      setAlert({ text: err instanceof Error ? err.message : 'Failed to save skill', type: 'error' })
+      showToast(err instanceof Error ? err.message : 'Failed to save skill', 'error')
     } finally {
       setSubmitting(false)
     }
@@ -309,15 +309,15 @@ export default function AdminSkillsPage() {
     try {
       if (modal.type === 'delete-category') {
         await apiRequest(`/api/admin/skill-categories/${modal.id}`, { method: 'DELETE' })
-        setAlert({ text: 'Category deleted!', type: 'success' })
+        showToast('Category deleted!', 'success')
       } else if (modal.type === 'delete-skill') {
         await apiRequest(`/api/admin/skills/${modal.id}`, { method: 'DELETE' })
-        setAlert({ text: 'Skill deleted!', type: 'success' })
+        showToast('Skill deleted!', 'success')
       }
       closeModal()
       await loadData()
     } catch (err: unknown) {
-      setAlert({ text: err instanceof Error ? err.message : 'Failed to delete', type: 'error' })
+      showToast(err instanceof Error ? err.message : 'Failed to delete', 'error')
     } finally {
       setSubmitting(false)
     }
@@ -339,14 +339,6 @@ export default function AdminSkillsPage() {
         <p className="text-text-light mb-6">
           Manage skill categories and individual skills. These are used for volunteer profiles and project requirements.
         </p>
-
-        {alert && (
-          <div role="alert" className={alert.type === 'success'
-            ? 'flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#D1FAE5] text-[#065F46] border border-[#6EE7B7] dark:bg-[#064E3B] dark:text-[#6EE7B7] dark:border-[#059669]'
-            : 'flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]'}>
-            {alert.text}
-          </div>
-        )}
 
         {loadingData ? (
           <div className="text-center py-10 text-text-light">Loading…</div>

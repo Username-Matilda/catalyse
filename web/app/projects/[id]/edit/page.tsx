@@ -7,6 +7,7 @@ import Button from '@/components/Button'
 import SkillPicker from '@/components/SkillPicker'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
+import { useToast } from '@/lib/toast'
 
 interface SelectedSkill {
   skillId: number
@@ -35,9 +36,9 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
   const [skills, setSkills] = useState<SelectedSkill[]>([])
   const [canEdit, setCanEdit] = useState(false)
   const [permissionChecked, setPermissionChecked] = useState(false)
+  const showToast = useToast()
   const [submitting, setSubmitting] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
   useEffect(() => {
     if (!loading && !user) router.replace('/login')
@@ -68,7 +69,6 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!canEdit) return
-    setAlert(null)
     setSubmitting(true)
     try {
       await apiRequest(`/api/projects/${idParam}`, {
@@ -82,7 +82,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
       })
       router.push(`/projects/${idParam}`)
     } catch (err: unknown) {
-      setAlert({ type: 'error', message: err instanceof Error ? err.message : 'Failed to save changes' })
+      showToast(err instanceof Error ? err.message : 'Failed to save changes', 'error')
       setSubmitting(false)
     }
   }
@@ -94,7 +94,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
       await apiRequest(`/api/projects/${idParam}`, { method: 'DELETE' })
       router.push('/')
     } catch (err: unknown) {
-      setAlert({ type: 'error', message: err instanceof Error ? err.message : 'Failed to delete project' })
+      showToast(err instanceof Error ? err.message : 'Failed to delete project', 'error')
       setDeleting(false)
     }
   }
@@ -121,12 +121,6 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
         {permissionChecked && !canEdit && (
           <div role="alert" className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]">
             You do not have permission to edit this project.
-          </div>
-        )}
-
-        {alert && (
-          <div role="alert" className={alert.type === 'success' ? 'flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#D1FAE5] text-[#065F46] border border-[#6EE7B7] dark:bg-[#064E3B] dark:text-[#6EE7B7] dark:border-[#059669]' : 'flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]'}>
-            {alert.message}
           </div>
         )}
 

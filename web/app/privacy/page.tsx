@@ -6,11 +6,12 @@ import Header from '@/components/Header'
 import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
+import { useToast } from '@/lib/toast'
 
 export default function PrivacyPage() {
   const { user, loading } = useAuth()
+  const showToast = useToast()
   const [exporting, setExporting] = useState(false)
-  const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
 
 
   useEffect(() => {
@@ -19,7 +20,6 @@ export default function PrivacyPage() {
 
   async function handleExport() {
     setExporting(true)
-    setMessage(null)
     try {
       const data = await apiRequest<unknown>('/api/privacy/export')
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
@@ -31,9 +31,9 @@ export default function PrivacyPage() {
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
-      setMessage({ text: 'Data exported successfully!', type: 'success' })
+      showToast('Data exported successfully!', 'success')
     } catch (err: unknown) {
-      setMessage({ text: err instanceof Error ? err.message : 'Export failed', type: 'error' })
+      showToast(err instanceof Error ? err.message : 'Export failed', 'error')
     } finally {
       setExporting(false)
     }
@@ -51,22 +51,9 @@ export default function PrivacyPage() {
             Manage your data and privacy settings. We&apos;re committed to respecting your rights under GDPR.
           </p>
 
-          {message && (
-            <div
-              role="alert"
-              className={`flex items-center gap-3 p-4 rounded-lg mb-4 ${
-                message.type === 'success'
-                  ? 'bg-[#D1FAE5] text-[#065F46] border border-[#6EE7B7] dark:bg-[#064E3B] dark:text-[#6EE7B7] dark:border-[#059669]'
-                  : 'bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]'
-              }`}
-            >
-              {message.text}
-            </div>
-          )}
-
           {user && (
             <>
-              <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word mb-6">
+              <div className="bg-surface rounded-xl shadow p-6 overflow-hidden wrap-break-word mb-6">
                 <h2>Export Your Data</h2>
                 <p className="text-text-light mb-4">
                   Download all your data in JSON format. This includes your profile, skills, project interests, and messages.
@@ -76,7 +63,7 @@ export default function PrivacyPage() {
                 </Button>
               </div>
 
-              <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word mb-6" style={{ borderColor: 'var(--warning)' }}>
+              <div className="bg-surface rounded-xl shadow p-6 overflow-hidden wrap-break-word mb-6" style={{ borderColor: 'var(--warning)' }}>
                 <h2>Delete Your Account</h2>
                 <p className="text-text-light mb-4">
                   Permanently delete your account and all associated data. This action cannot be undone.
@@ -88,7 +75,7 @@ export default function PrivacyPage() {
             </>
           )}
 
-          <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word mb-6">
+          <div className="bg-surface rounded-xl shadow p-6 overflow-hidden wrap-break-word mb-6">
             <h2>Our Data Practices</h2>
 
             <h4>What we collect</h4>
@@ -149,7 +136,7 @@ export default function PrivacyPage() {
             </p>
           </div>
 
-          <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word mb-6">
+          <div className="bg-surface rounded-xl shadow p-6 overflow-hidden wrap-break-word mb-6">
             <h2>Your GDPR Rights</h2>
             <p className="text-text-light mb-4">
               Under GDPR and the UK Data Protection Act 2018, you have the right to:

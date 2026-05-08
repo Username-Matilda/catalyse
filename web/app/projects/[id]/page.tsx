@@ -7,6 +7,7 @@ import Header from '@/components/Header'
 import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
+import { useToast } from '@/lib/toast'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -146,9 +147,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const router = useRouter()
   const { user, loading } = useAuth()
 
+  const showToast = useToast()
   const [project, setProject] = useState<ProjectDetail | null>(null)
   const [loadingProject, setLoadingProject] = useState(true)
-  const [alert, setAlert] = useState<string | null>(null)
 
   // Task section
   const [showTaskForm, setShowTaskForm] = useState(false)
@@ -233,11 +234,6 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       .catch(() => setOwnerContact(null))
   }, [showContactModal, project?.owner_id])
 
-  function showAlertMsg(msg: string) {
-    setAlert(msg)
-    setTimeout(() => setAlert(null), 4000)
-  }
-
   async function handleContactOwner(e: React.FormEvent) {
     e.preventDefault()
     if (!project?.owner_id) return
@@ -250,9 +246,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       setShowContactModal(false)
       setContactSubject('')
       setContactBody('')
-      showAlertMsg("Message sent! They'll receive it by email and can reply directly to you.")
+      showToast("Message sent! They'll receive it by email and can reply directly to you.", 'success')
     } catch (err: unknown) {
-      showAlertMsg(err instanceof Error ? err.message : 'Failed to send message')
+      showToast(err instanceof Error ? err.message : 'Failed to send message', 'error')
     } finally {
       setContactSubmitting(false)
     }
@@ -298,9 +294,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       setNewTaskTitle('')
       setShowTaskForm(false)
       await loadProject()
-      showAlertMsg('Task added!')
+      showToast('Task added!', 'success')
     } catch (err: unknown) {
-      showAlertMsg(err instanceof Error ? err.message : 'Failed to add task')
+      showToast(err instanceof Error ? err.message : 'Failed to add task', 'error')
     } finally {
       setTaskSubmitting(false)
     }
@@ -313,9 +309,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         body: JSON.stringify({ status: 'assigned', assigned_to_id: user!.id }),
       })
       await loadProject()
-      showAlertMsg('Task claimed!')
+      showToast('Task claimed!', 'success')
     } catch (err: unknown) {
-      showAlertMsg(err instanceof Error ? err.message : 'Failed to claim task')
+      showToast(err instanceof Error ? err.message : 'Failed to claim task', 'error')
     }
   }
 
@@ -326,9 +322,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         body: JSON.stringify({ status: 'done' }),
       })
       await loadProject()
-      showAlertMsg('Task completed!')
+      showToast('Task completed!', 'success')
     } catch (err: unknown) {
-      showAlertMsg(err instanceof Error ? err.message : 'Failed to complete task')
+      showToast(err instanceof Error ? err.message : 'Failed to complete task', 'error')
     }
   }
 
@@ -337,9 +333,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     try {
       await apiRequest(`/api/projects/${idParam}/tasks/${taskId}`, { method: 'DELETE' })
       await loadProject()
-      showAlertMsg('Task deleted!')
+      showToast('Task deleted!', 'success')
     } catch (err: unknown) {
-      showAlertMsg(err instanceof Error ? err.message : 'Failed to delete task')
+      showToast(err instanceof Error ? err.message : 'Failed to delete task', 'error')
     }
   }
 
@@ -352,9 +348,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         body: JSON.stringify({ status: newStatus }),
       })
       await loadProject()
-      showAlertMsg('Status updated!')
+      showToast('Status updated!', 'success')
     } catch (err: unknown) {
-      showAlertMsg(err instanceof Error ? err.message : 'Failed to update status')
+      showToast(err instanceof Error ? err.message : 'Failed to update status', 'error')
     } finally {
       setStatusSubmitting(false)
     }
@@ -369,9 +365,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         body: JSON.stringify({ interest_type: interestType, message: interestMessage.trim() || null }),
       })
       await loadProject()
-      showAlertMsg('Interest expressed!')
+      showToast('Interest expressed!', 'success')
     } catch (err: unknown) {
-      showAlertMsg(err instanceof Error ? err.message : 'Failed to express interest')
+      showToast(err instanceof Error ? err.message : 'Failed to express interest', 'error')
     } finally {
       setInterestSubmitting(false)
     }
@@ -382,9 +378,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     try {
       await apiRequest(`/api/projects/${idParam}/interest`, { method: 'DELETE' })
       await loadProject()
-      showAlertMsg('Interest withdrawn')
+      showToast('Interest withdrawn', 'success')
     } catch (err: unknown) {
-      showAlertMsg(err instanceof Error ? err.message : 'Failed to withdraw interest')
+      showToast(err instanceof Error ? err.message : 'Failed to withdraw interest', 'error')
     }
   }
 
@@ -395,9 +391,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         body: JSON.stringify({ status: 'accepted' }),
       })
       await loadProject()
-      showAlertMsg('Interest accepted')
+      showToast('Interest accepted', 'success')
     } catch (err: unknown) {
-      showAlertMsg(err instanceof Error ? err.message : 'Failed to accept interest')
+      showToast(err instanceof Error ? err.message : 'Failed to accept interest', 'error')
     }
   }
 
@@ -409,9 +405,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         body: JSON.stringify({ status: 'declined', response_message: msg || null }),
       })
       await loadProject()
-      showAlertMsg('Interest declined')
+      showToast('Interest declined', 'success')
     } catch (err: unknown) {
-      showAlertMsg(err instanceof Error ? err.message : 'Failed to decline interest')
+      showToast(err instanceof Error ? err.message : 'Failed to decline interest', 'error')
     }
   }
 
@@ -425,9 +421,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         body: JSON.stringify({ volunteer_id: parseInt(assignTo, 10) }),
       })
       await loadProject()
-      showAlertMsg('Volunteer assigned!')
+      showToast('Volunteer assigned!', 'success')
     } catch (err: unknown) {
-      showAlertMsg(err instanceof Error ? err.message : 'Failed to assign volunteer')
+      showToast(err instanceof Error ? err.message : 'Failed to assign volunteer', 'error')
     } finally {
       setAssignSubmitting(false)
     }
@@ -444,9 +440,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         body: JSON.stringify({ owner_id: parseInt(transferTo, 10) }),
       })
       await loadProject()
-      showAlertMsg('Ownership transferred!')
+      showToast('Ownership transferred!', 'success')
     } catch (err: unknown) {
-      showAlertMsg(err instanceof Error ? err.message : 'Failed to transfer ownership')
+      showToast(err instanceof Error ? err.message : 'Failed to transfer ownership', 'error')
     } finally {
       setTransferSubmitting(false)
     }
@@ -461,9 +457,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         body: JSON.stringify({ outcome: outcomeValue, outcome_notes: outcomeNotes.trim() || null }),
       })
       await loadProject()
-      showAlertMsg('Outcome recorded!')
+      showToast('Outcome recorded!', 'success')
     } catch (err: unknown) {
-      showAlertMsg(err instanceof Error ? err.message : 'Failed to record outcome')
+      showToast(err instanceof Error ? err.message : 'Failed to record outcome', 'error')
     } finally {
       setOutcomeSubmitting(false)
     }
@@ -481,7 +477,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       setUpdateContent('')
       await loadProject()
     } catch (err: unknown) {
-      showAlertMsg(err instanceof Error ? err.message : 'Failed to post update')
+      showToast(err instanceof Error ? err.message : 'Failed to post update', 'error')
     } finally {
       setUpdateSubmitting(false)
     }
@@ -500,10 +496,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         }),
       })
       await loadProject()
-      showAlertMsg(reviewStatus === 'approved' ? 'Project approved!' : 'Project sent for discussion.')
+      showToast(reviewStatus === 'approved' ? 'Project approved!' : 'Project sent for discussion.', 'success')
       setReviewDone(true)
     } catch (err: unknown) {
-      showAlertMsg(err instanceof Error ? err.message : 'Failed to submit review')
+      showToast(err instanceof Error ? err.message : 'Failed to submit review', 'error')
     } finally {
       setReviewSubmitting(false)
     }
@@ -517,12 +513,6 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     <>
       <Header />
       <main className="max-w-350 mx-auto px-6 py-5 pb-15">
-        {alert && (
-          <div role="alert" className="sticky top-2 z-20 flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#D1FAE5] text-[#065F46] border border-[#6EE7B7] dark:bg-[#064E3B] dark:text-[#6EE7B7] dark:border-[#059669]">
-            {alert}
-          </div>
-        )}
-
         {/* [test hook] projectContent id used by action helpers to confirm page has loaded */}
         <div id="projectContent" className="flex items-center gap-3 flex-wrap mb-2">
           <span aria-label="project status" className={statusBadge(project.status)}>

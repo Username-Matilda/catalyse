@@ -6,6 +6,7 @@ import Header from '@/components/Header'
 import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
+import { useToast } from '@/lib/toast'
 
 interface StarterTask {
   id: number
@@ -30,10 +31,10 @@ const STATUS_LABELS: Record<string, string> = {
 export default function StarterTasksPage() {
   const router = useRouter()
   const { user, loading } = useAuth()
+  const showToast = useToast()
   const [tasks, setTasks] = useState<StarterTask[]>([])
   const [loadingTasks, setLoadingTasks] = useState(true)
   const [submitting, setSubmitting] = useState<number | null>(null)
-  const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
 
   useEffect(() => {
     if (!loading && !user) router.replace('/login')
@@ -51,13 +52,12 @@ export default function StarterTasksPage() {
 
   async function submitTask(taskId: number) {
     setSubmitting(taskId)
-    setMessage(null)
     try {
       await apiRequest(`/api/starter-tasks/${taskId}/submit`, { method: 'PUT' })
       setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'submitted' } : t))
-      setMessage({ text: 'Task submitted for review!', type: 'success' })
+      showToast('Task submitted for review!', 'success')
     } catch (err: unknown) {
-      setMessage({ text: err instanceof Error ? err.message : 'Failed to submit task', type: 'error' })
+      showToast(err instanceof Error ? err.message : 'Failed to submit task', 'error')
     } finally {
       setSubmitting(null)
     }
@@ -73,12 +73,6 @@ export default function StarterTasksPage() {
         <p className="text-text-light mb-6">
           Small, self-contained tasks to help you get started and demonstrate your skills.
         </p>
-
-        {message && (
-          <div role="alert" className={message.type === 'success' ? 'flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#D1FAE5] text-[#065F46] border border-[#6EE7B7] dark:bg-[#064E3B] dark:text-[#6EE7B7] dark:border-[#059669]' : 'flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]'}>
-            {message.text}
-          </div>
-        )}
 
         {loadingTasks ? (
           <div className="text-center py-10 text-text-light">Loading tasks…</div>

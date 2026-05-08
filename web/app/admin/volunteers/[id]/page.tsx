@@ -8,6 +8,7 @@ import Button from '@/components/Button'
 import Tabs from '@/components/Tabs'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
+import { useToast } from '@/lib/toast'
 
 interface Skill { id: number; name: string; category_name: string }
 interface Endorsement {
@@ -63,10 +64,10 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
   const { id } = use(params)
   const router = useRouter()
   const { user, loading } = useAuth()
+  const showToast = useToast()
   const [vol, setVol] = useState<VolunteerDetail | null>(null)
   const [loadingData, setLoadingData] = useState(true)
   const [flatSkills, setFlatSkills] = useState<Skill[]>([])
-  const [alert, setAlert] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [activeTab, setActiveTab] = useState<Tab>('admin_notes')
 
@@ -100,10 +101,6 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
     }).catch(() => setLoadingData(false))
   }, [user, id])
 
-  function showAlert(text: string, type: 'success' | 'error') {
-    setAlert({ text, type })
-  }
-
   async function addNote(e: React.FormEvent) {
     e.preventDefault()
     setSubmitting(true)
@@ -112,13 +109,13 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
         method: 'POST',
         body: JSON.stringify({ content: noteContent, category: noteCategory }),
       })
-      showAlert('Note added.', 'success')
+      showToast('Note added.', 'success')
       setNoteContent('')
       setNoteCategory('general')
       const updated = await apiRequest<VolunteerDetail>(`/api/admin/volunteers/${id}`)
       setVol(updated)
     } catch (err: unknown) {
-      showAlert(err instanceof Error ? err.message : 'Failed', 'error')
+      showToast(err instanceof Error ? err.message : 'Failed', 'error')
     } finally {
       setSubmitting(false)
     }
@@ -131,13 +128,13 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
         method: 'PUT',
         body: JSON.stringify({ content: editingNoteContent }),
       })
-      showAlert('Note updated.', 'success')
+      showToast('Note updated.', 'success')
       setEditingNoteId(null)
       setEditingNoteContent('')
       const updated = await apiRequest<VolunteerDetail>(`/api/admin/volunteers/${id}`)
       setVol(updated)
     } catch (err: unknown) {
-      showAlert(err instanceof Error ? err.message : 'Failed', 'error')
+      showToast(err instanceof Error ? err.message : 'Failed', 'error')
     } finally {
       setSubmitting(false)
     }
@@ -147,10 +144,10 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
     if (!confirm('Delete this note?')) return
     try {
       await apiRequest(`/api/admin/notes/${noteId}`, { method: 'DELETE' })
-      showAlert('Note deleted.', 'success')
+      showToast('Note deleted.', 'success')
       setVol(prev => prev ? { ...prev, admin_notes: prev.admin_notes.filter(n => n.id !== noteId) } : prev)
     } catch (err: unknown) {
-      showAlert(err instanceof Error ? err.message : 'Failed', 'error')
+      showToast(err instanceof Error ? err.message : 'Failed', 'error')
     }
   }
 
@@ -166,14 +163,14 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
           source: endorseBasedOn,
         }),
       })
-      showAlert('Skill endorsed!', 'success')
+      showToast('Skill endorsed!', 'success')
       setEndorseSkillId('')
       setEndorseRating('verified')
       setEndorseBasedOn('direct_observation')
       const updated = await apiRequest<VolunteerDetail>(`/api/admin/volunteers/${id}`)
       setVol(updated)
     } catch (err: unknown) {
-      showAlert(err instanceof Error ? err.message : 'Failed', 'error')
+      showToast(err instanceof Error ? err.message : 'Failed', 'error')
     } finally {
       setSubmitting(false)
     }
@@ -209,14 +206,6 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
         <div className="mb-4">
           <Link href="/volunteers" className="text-text-light">&larr; Back to Volunteers</Link>
         </div>
-
-        {alert && (
-          <div role="alert" className={alert.type === 'success'
-            ? 'flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#D1FAE5] text-[#065F46] border border-[#6EE7B7] dark:bg-[#064E3B] dark:text-[#6EE7B7] dark:border-[#059669]'
-            : 'flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]'}>
-            {alert.text}
-          </div>
-        )}
 
         {/* Profile header */}
         <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word" style={{ marginBottom: 24 }}>

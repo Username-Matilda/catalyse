@@ -6,39 +6,25 @@ import Header from '@/components/Header'
 import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
-
-
-function Alert({ type, message }: { type: 'success' | 'error'; message: string }) {
-  return (
-    <div role="alert" className={`flex items-center gap-3 p-4 rounded-lg mb-4 ${
-      type === 'success'
-        ? 'bg-[#D1FAE5] text-[#065F46] border border-[#6EE7B7] dark:bg-[#064E3B] dark:text-[#6EE7B7] dark:border-[#059669]'
-        : 'bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]'
-    }`}>
-      {message}
-    </div>
-  )
-}
+import { useToast } from '@/lib/toast'
 
 export default function SettingsPage() {
   const router = useRouter()
   const { user, loading, logout } = useAuth()
+  const showToast = useToast()
 
   const [newEmail, setNewEmail] = useState('')
   const [emailPassword, setEmailPassword] = useState('')
-  const [emailAlert, setEmailAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [changingEmail, setChangingEmail] = useState(false)
 
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [passwordAlert, setPasswordAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [changingPassword, setChangingPassword] = useState(false)
 
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deletePassword, setDeletePassword] = useState('')
   const [deleteConfirmPassword, setDeleteConfirmPassword] = useState('')
-  const [deleteAlert, setDeleteAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
@@ -47,18 +33,17 @@ export default function SettingsPage() {
 
   async function handleChangeEmail(e: FormEvent) {
     e.preventDefault()
-    setEmailAlert(null)
     setChangingEmail(true)
     try {
       const data = await apiRequest<{ message: string }>('/api/auth/change-email', {
         method: 'POST',
         body: JSON.stringify({ new_email: newEmail, password: emailPassword }),
       })
-      setEmailAlert({ type: 'success', message: data.message })
+      showToast(data.message, 'success')
       setNewEmail('')
       setEmailPassword('')
     } catch (err: unknown) {
-      setEmailAlert({ type: 'error', message: err instanceof Error ? err.message : 'Email change failed' })
+      showToast(err instanceof Error ? err.message : 'Email change failed', 'error')
     } finally {
       setChangingEmail(false)
     }
@@ -66,9 +51,8 @@ export default function SettingsPage() {
 
   async function handleChangePassword(e: FormEvent) {
     e.preventDefault()
-    setPasswordAlert(null)
     if (newPassword !== confirmPassword) {
-      setPasswordAlert({ type: 'error', message: 'New passwords do not match' })
+      showToast('New passwords do not match', 'error')
       return
     }
     setChangingPassword(true)
@@ -77,12 +61,12 @@ export default function SettingsPage() {
         method: 'POST',
         body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
       })
-      setPasswordAlert({ type: 'success', message: data.message })
+      showToast(data.message, 'success')
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
     } catch (err: unknown) {
-      setPasswordAlert({ type: 'error', message: err instanceof Error ? err.message : 'Password change failed' })
+      showToast(err instanceof Error ? err.message : 'Password change failed', 'error')
     } finally {
       setChangingPassword(false)
     }
@@ -91,7 +75,7 @@ export default function SettingsPage() {
   async function handleDeleteAccount(e: FormEvent) {
     e.preventDefault()
     if (deletePassword !== deleteConfirmPassword) {
-      setDeleteAlert({ type: 'error', message: 'Passwords do not match' })
+      showToast('Passwords do not match', 'error')
       return
     }
     setDeleting(true)
@@ -100,10 +84,10 @@ export default function SettingsPage() {
         method: 'POST',
         body: JSON.stringify({ password: deletePassword }),
       })
-      setDeleteAlert({ type: 'success', message: data.message })
+      showToast(data.message, 'success')
       setTimeout(async () => { await logout() }, 1500)
     } catch (err: unknown) {
-      setDeleteAlert({ type: 'error', message: err instanceof Error ? err.message : 'Account deletion failed' })
+      showToast(err instanceof Error ? err.message : 'Account deletion failed', 'error')
       setDeleting(false)
     }
   }
@@ -122,8 +106,6 @@ export default function SettingsPage() {
           <p className="text-sm text-text-light mb-4">
             Current email: <strong>{user.email}</strong>
           </p>
-
-          {emailAlert && <Alert {...emailAlert} />}
 
           <form onSubmit={handleChangeEmail}>
             <div className="mb-5">
@@ -155,8 +137,6 @@ export default function SettingsPage() {
         {/* Change Password */}
         <div className="bg-surface rounded-xl shadow p-6 mb-6 overflow-hidden wrap-break-word">
           <h2 role="heading">Change Password</h2>
-
-          {passwordAlert && <Alert {...passwordAlert} />}
 
           <form onSubmit={handleChangePassword}>
             <div className="mb-5">
@@ -223,8 +203,6 @@ export default function SettingsPage() {
                   This action is permanent and cannot be undone. Please enter your password twice to confirm.
                 </p>
 
-                {deleteAlert && <Alert {...deleteAlert} />}
-
                 <form onSubmit={handleDeleteAccount}>
                   <div className="mb-5">
                     <label htmlFor="delete_password">Enter your password</label>
@@ -253,7 +231,7 @@ export default function SettingsPage() {
                     <Button
                       type="button"
                       variant="ghost"
-                      onClick={() => { setShowDeleteModal(false); setDeleteAlert(null); setDeletePassword(''); setDeleteConfirmPassword('') }}
+                      onClick={() => { setShowDeleteModal(false); setDeletePassword(''); setDeleteConfirmPassword('') }}
                     >
                       Cancel
                     </Button>
