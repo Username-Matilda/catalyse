@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
         country: (body.country as string | null) ?? null,
         localGroup: (body.local_group as string | null) ?? null,
         isSeekingHelp: body.is_seeking_help !== false,
-        isSeekingOwner: !wantToOwn,
+        isSeekingOwner: body.is_seeking_owner === true,
       },
     })
 
