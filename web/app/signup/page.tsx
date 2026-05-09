@@ -56,12 +56,15 @@ export default function SignupPage() {
       .catch(() => {})
   }, [])
 
-  useEffect(() => {
-    if (!googleClientId) return
+  function initGoogleButton() {
     const win = window as Window & typeof globalThis & { google?: { accounts: { id: { initialize: (c: unknown) => void; renderButton: (el: Element | null, opts: unknown) => void } } } }
-    if (!win.google?.accounts?.id) return
+    if (!win.google?.accounts?.id || !googleClientId) return
     win.google.accounts.id.initialize({ client_id: googleClientId, callback: handleGoogleResponse })
     win.google.accounts.id.renderButton(document.getElementById('g_signup_btn'), { theme: 'outline', size: 'large', width: 350, text: 'sign_up_with' })
+  }
+
+  useEffect(() => {
+    initGoogleButton()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [googleClientId])
 
@@ -133,7 +136,7 @@ export default function SignupPage() {
 
   return (
     <>
-      {googleClientId && <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />}
+      {googleClientId && <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" onLoad={initGoogleButton} />}
       <Header />
       <main className="max-w-4xl mx-auto px-6 py-5 pb-15">
         <div style={{ maxWidth: 600, margin: '0 auto' }}>
