@@ -5,7 +5,7 @@ import { sendAdminInviteEmail, isRealEmailSending } from '@/lib/email'
 import { fieldError, validationError } from '@/lib/errors'
 import { randomBytes } from 'node:crypto'
 
-const APP_URL = process.env.APP_URL || 'http://localhost:8001'
+const APP_URL = process.env.APP_URL || 'http://localhost:3000'
 
 export async function POST(request: NextRequest) {
   const { volunteer: admin, error } = await requireAdmin(request.headers.get('authorization'))

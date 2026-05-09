@@ -2,8 +2,9 @@ import { Resend } from 'resend'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const FROM_EMAIL = process.env.FROM_EMAIL || 'Catalyse <noreply@catalyse.pauseai.uk>'
-const APP_URL = process.env.APP_URL || 'http://localhost:8001'
-const STUB_EMAIL = ['1', 'true', 'yes'].includes((process.env.STUB_EMAIL || '').toLowerCase())
+const APP_URL = process.env.APP_URL || 'http://localhost:3000'
+const STUB_EMAIL_DEFAULT = process.env.NODE_ENV === 'production' ? '' : 'true'
+const STUB_EMAIL = ['1', 'true', 'yes'].includes((process.env.STUB_EMAIL || STUB_EMAIL_DEFAULT).toLowerCase())
 
 const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null
 
@@ -59,9 +60,8 @@ const baseStyle = `
   .footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 14px; color: #718096; }
 `
 
-export async function sendPasswordResetEmail(to: string, resetToken: string, name = 'there'): Promise<boolean> {
-  const resetUrl = `${APP_URL}/reset-password?token=${resetToken}`
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
+export function buildPasswordResetHtml(resetUrl: string, name: string): string {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
 <body><div class="container">
   <h2>Reset Your Password</h2>
   <p>Hi ${name},</p>
@@ -74,12 +74,15 @@ export async function sendPasswordResetEmail(to: string, resetToken: string, nam
     <p style="font-size: 12px;">If the button doesn't work, copy this link:<br>${resetUrl}</p>
   </div>
 </div></body></html>`
-  return sendEmail(to, 'Reset your Catalyse password', html)
 }
 
-export async function sendAdminInviteEmail(to: string, inviteToken: string, invitedBy: string): Promise<boolean> {
-  const inviteUrl = `${APP_URL}/accept-invite?token=${inviteToken}`
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
+export async function sendPasswordResetEmail(to: string, resetToken: string, name = 'there'): Promise<boolean> {
+  const resetUrl = `${APP_URL}/reset-password?token=${resetToken}`
+  return sendEmail(to, 'Reset your Catalyse password', buildPasswordResetHtml(resetUrl, name))
+}
+
+export function buildAdminInviteHtml(inviteUrl: string, invitedBy: string): string {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
 <body><div class="container">
   <h2>You're Invited to be a Catalyse Admin</h2>
   <p>Hi!</p>
@@ -98,11 +101,15 @@ export async function sendAdminInviteEmail(to: string, inviteToken: string, invi
     <p style="font-size: 12px;">If the button doesn't work, copy this link:<br>${inviteUrl}</p>
   </div>
 </div></body></html>`
-  return sendEmail(to, `${invitedBy} invited you to be a Catalyse admin`, html)
 }
 
-export async function sendWelcomeEmail(to: string, name: string): Promise<boolean> {
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
+export async function sendAdminInviteEmail(to: string, inviteToken: string, invitedBy: string): Promise<boolean> {
+  const inviteUrl = `${APP_URL}/accept-invite?token=${inviteToken}`
+  return sendEmail(to, `${invitedBy} invited you to be a Catalyse admin`, buildAdminInviteHtml(inviteUrl, invitedBy))
+}
+
+export function buildWelcomeHtml(name: string, appUrl: string): string {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
 <body><div class="container">
   <h2>Welcome to Catalyse!</h2>
   <p>Hi ${name},</p>
@@ -112,10 +119,33 @@ export async function sendWelcomeEmail(to: string, name: string): Promise<boolea
     <li><strong>Complete your profile</strong> - Help project owners find you</li>
     <li><strong>Express interest</strong> - Let project owners know you want to help</li>
   </ul>
-  <p style="text-align: center; margin: 32px 0;"><a href="${APP_URL}" class="button">Explore Projects</a></p>
+  <p style="text-align: center; margin: 32px 0;"><a href="${appUrl}" class="button">Explore Projects</a></p>
   <div class="footer"><p>Catalyse - PauseAI UK Volunteer Platform</p></div>
 </div></body></html>`
-  return sendEmail(to, 'Welcome to Catalyse!', html)
+}
+
+export async function sendWelcomeEmail(to: string, name: string): Promise<boolean> {
+  return sendEmail(to, 'Welcome to Catalyse!', buildWelcomeHtml(name, APP_URL))
+}
+
+export function buildProjectNotificationHtml(
+  name: string, subject: string, message: string,
+  projectId: number, appUrl: string, extraHtml = ''
+): string {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
+<body><div class="container">
+  <h2>${subject}</h2>
+  <p>Hi ${name},</p>
+  <p>${message}</p>
+  ${extraHtml}
+  <p style="text-align: center; margin: 32px 0;">
+    <a href="${appUrl}/projects/${projectId}" class="button">View Project</a>
+  </p>
+  <div class="footer">
+    <p>Catalyse - PauseAI Volunteer Platform</p>
+    <p style="font-size: 12px;"><a href="${appUrl}/profile">Manage notification preferences</a></p>
+  </div>
+</div></body></html>`
 }
 
 export async function sendProjectNotificationEmail(
@@ -123,29 +153,15 @@ export async function sendProjectNotificationEmail(
   message: string, projectTitle: string,
   projectId: number, extraHtml = ''
 ): Promise<boolean> {
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
-<body><div class="container">
-  <h2>${subject}</h2>
-  <p>Hi ${name},</p>
-  <p>${message}</p>
-  ${extraHtml}
-  <p style="text-align: center; margin: 32px 0;">
-    <a href="${APP_URL}/projects/${projectId}" class="button">View Project</a>
-  </p>
-  <div class="footer">
-    <p>Catalyse - PauseAI Volunteer Platform</p>
-    <p style="font-size: 12px;"><a href="${APP_URL}/profile">Manage notification preferences</a></p>
-  </div>
-</div></body></html>`
-  return sendEmail(to, subject, html)
+  return sendEmail(to, subject, buildProjectNotificationHtml(name, subject, message, projectId, APP_URL, extraHtml))
 }
 
-export async function sendRelayMessage(
-  to: string, toName: string, fromName: string, fromEmail: string,
-  subject: string, message: string, projectTitle?: string
-): Promise<boolean> {
+export function buildRelayMessageHtml(
+  toName: string, fromName: string, subject: string,
+  message: string, appUrl: string, projectTitle?: string
+): string {
   const projectContext = projectTitle ? ` about the project <strong>${projectTitle}</strong>` : ''
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
   ${baseStyle}
   .message-box { background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0; white-space: pre-wrap; }
   </style></head>
@@ -161,18 +177,23 @@ export async function sendRelayMessage(
   <div class="footer">
     <p>Catalyse - PauseAI UK Volunteer Platform</p>
     <p style="font-size: 12px;">This message was sent via the Catalyse platform. If you no longer wish to receive messages,
-    update your contact preferences in your <a href="${APP_URL}/profile">profile settings</a>.</p>
+    update your contact preferences in your <a href="${appUrl}/profile">profile settings</a>.</p>
   </div>
 </div></body></html>`
-  return sendEmail(to, `[Catalyse] ${subject}`, html, fromEmail)
 }
 
-export async function sendDigestEmail(
-  to: string, name: string,
+export async function sendRelayMessage(
+  to: string, toName: string, fromName: string, fromEmail: string,
+  subject: string, message: string, projectTitle?: string
+): Promise<boolean> {
+  return sendEmail(to, `[Catalyse] ${subject}`, buildRelayMessageHtml(toName, fromName, subject, message, APP_URL, projectTitle), fromEmail)
+}
+
+export function buildDigestHtml(
+  name: string, appUrl: string,
   projects: Array<{ id: number; title: string; description?: string; skill_names?: string[]; match_percent?: number }>,
   isMatch = false
-): Promise<boolean> {
-  if (!projects.length) return false
+): string {
   const matchIntro = isMatch ? 'Here are new projects that match your skills:' : "Here's what's new on Catalyse:"
   const projectHtml = projects.map(p => {
     const skillsHtml = (p.skill_names || []).slice(0, 5).join(', ')
@@ -181,12 +202,12 @@ export async function sendDigestEmail(
       : ''
     const desc = p.description || ''
     return `<div style="padding: 16px; margin-bottom: 12px; background: #f7fafc; border-radius: 8px; border-left: 4px solid #FF9416;">
-      <a href="${APP_URL}/projects/${p.id}" style="font-weight: bold; color: #1A202C; text-decoration: none; font-size: 16px;">${p.title}</a>${matchBadge}
+      <a href="${appUrl}/projects/${p.id}" style="font-weight: bold; color: #1A202C; text-decoration: none; font-size: 16px;">${p.title}</a>${matchBadge}
       <p style="color: #4A5568; margin: 8px 0 4px 0; font-size: 14px;">${desc.slice(0, 150)}${desc.length > 150 ? '...' : ''}</p>
       ${skillsHtml ? `<p style="font-size: 12px; color: #718096;">Skills: ${skillsHtml}</p>` : ''}
     </div>`
   }).join('')
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1a202c; }
   .container { max-width: 600px; margin: 0 auto; padding: 20px; }
   .button { display: inline-block; background: #FF9416; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; }
@@ -197,13 +218,22 @@ export async function sendDigestEmail(
   <p>Hi ${name},</p>
   <p>${matchIntro}</p>
   ${projectHtml}
-  <p style="text-align: center; margin: 32px 0;"><a href="${APP_URL}" class="button">Browse All Projects</a></p>
+  <p style="text-align: center; margin: 32px 0;"><a href="${appUrl}" class="button">Browse All Projects</a></p>
   <div class="footer">
     <p>Catalyse - PauseAI Volunteer Platform</p>
     <p style="font-size: 12px;">You're receiving this because you opted in to project notifications.
-    <a href="${APP_URL}/profile">Change your preferences</a> at any time.</p>
+    <a href="${appUrl}/profile">Change your preferences</a> at any time.</p>
   </div>
 </div></body></html>`
+}
+
+export async function sendDigestEmail(
+  to: string, name: string,
+  projects: Array<{ id: number; title: string; description?: string; skill_names?: string[]; match_percent?: number }>,
+  isMatch = false
+): Promise<boolean> {
+  if (!projects.length) return false
+  const html = buildDigestHtml(name, APP_URL, projects, isMatch)
   const subject = isMatch ? 'New projects matching your skills' : "What's new on Catalyse"
   return sendEmail(to, subject, html)
 }
