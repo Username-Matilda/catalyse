@@ -1,4 +1,4 @@
-.PHONY: dev install build serve test test-headed test-debug test-smoke scenario scenarios scenario-clean
+.PHONY: dev install build serve test test-headed test-debug test-smoke scenario scenarios scenario-clean preview-emails preview-emails-plaintext
 
 # Start the development server on http://localhost:8001
 dev:
@@ -61,6 +61,14 @@ scenario:
 	echo "Running scenario: $$NAME"; \
 	echo "Results will be written to: $$OUTFILE"; \
 	claude "Please run the scenario in tests/scenarios/$${NAME}.md against http://localhost:8001. Write the results to $${OUTFILE}, which already exists with YAML frontmatter. Append to the file: a '## Results' section with a markdown table (columns: Step, Result, Notes), then an '## Observations' section listing any UX issues or unexpected behaviour noticed during the run. Do not rewrite the frontmatter."
+
+# Preview all email templates in the browser at http://localhost:8765
+preview-emails:
+	. venv/bin/activate && python preview_emails.py
+
+# Print all email templates as plain markdown to stdout
+preview-emails-plaintext:
+	. venv/bin/activate && python preview_emails_plaintext.py
 
 # Remove test accounts and projects left over from scenario walkthroughs
 scenario-clean:
