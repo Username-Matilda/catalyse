@@ -91,7 +91,7 @@ export default function PrivacyPage() {
             <p className="text-text-light">We process your data based on:</p>
             <ul className="list-disc text-text-light mb-4" style={{ paddingLeft: 20 }}>
               <li><strong>Consent</strong> — for sharing your profile with other volunteers and allowing project owners to contact you (you can withdraw consent at any time via your profile settings)</li>
-              <li><strong>Legitimate interest</strong> — for operating the platform, matching volunteers with projects, and platform administration</li>
+              <li><strong>Legitimate interest</strong> — for operating the platform, matching volunteers with projects, platform administration, and sending inactivity reminders to volunteers who have claimed a task</li>
               <li><strong>Contract performance</strong> — for providing you the service you signed up for</li>
             </ul>
 
