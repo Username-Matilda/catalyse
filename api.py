@@ -15,6 +15,8 @@ from pathlib import Path
 from typing import Optional, List, Dict, Any
 from contextlib import contextmanager
 
+import httpx
+
 from fastapi import FastAPI, HTTPException, Depends, Header, Query, Response, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
@@ -4253,6 +4255,39 @@ def get_dashboard(volunteer: Dict = Depends(require_auth)) -> Dict:
         "suggested_projects": suggested,
         "unread_notification_count": unread_count
     }
+
+
+# ============================================
+# NEXT.JS PROXY
+# ============================================
+
+_NEXT_INTERNAL_PORT = 3000
+_HOP_BY_HOP = {"connection", "transfer-encoding", "upgrade", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailers"}
+
+
+@app.api_route("/next/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
+async def proxy_next(request: Request, path: str):
+    """Proxy all /next/* requests to the Next.js process on the internal port."""
+    url = f"http://localhost:{_NEXT_INTERNAL_PORT}/next/{path}"
+    if request.url.query:
+        url += f"?{request.url.query}"
+
+    req_headers = {k: v for k, v in request.headers.items() if k.lower() not in _HOP_BY_HOP}
+
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.request(
+                method=request.method,
+                url=url,
+                headers=req_headers,
+                content=await request.body(),
+                timeout=30.0,
+            )
+    except httpx.ConnectError:
+        return Response(content="Next.js is starting up, please retry shortly.", status_code=503)
+
+    resp_headers = {k: v for k, v in resp.headers.items() if k.lower() not in _HOP_BY_HOP}
+    return Response(content=resp.content, status_code=resp.status_code, headers=resp_headers)
 
 
 # ============================================
