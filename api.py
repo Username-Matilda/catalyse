@@ -23,6 +23,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 from email_service import (
     is_email_configured,
+    is_real_email_sending,
     send_password_reset_email,
     send_admin_invite_email,
     send_welcome_email,
@@ -165,6 +166,8 @@ def get_db():
     """Get database connection with row factory."""
     conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA busy_timeout = 5000")
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
@@ -223,7 +226,23 @@ def run_migrations():
         return
 
     conn = get_db()
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS schema_migrations (
+            filename TEXT PRIMARY KEY,
+            applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
+
     for migration_path in migration_files:
+        already_applied = conn.execute(
+            "SELECT 1 FROM schema_migrations WHERE filename = ?",
+            (migration_path.name,)
+        ).fetchone()
+        if already_applied:
+            continue
+
         with open(migration_path) as f:
             sql = f.read()
 
@@ -241,15 +260,17 @@ def run_migrations():
                 conn.execute(non_comment)
                 applied += 1
             except Exception as e:
-                # "already exists" / "duplicate column" are safe to skip
                 err = str(e).lower()
                 if "already exists" not in err and "duplicate column" not in err:
                     print(f"Migration {migration_path.name}: {e}")
 
-        if applied:
-            print(f"Migration applied: {migration_path.name} ({applied} statements)")
+        conn.execute(
+            "INSERT INTO schema_migrations (filename) VALUES (?)",
+            (migration_path.name,)
+        )
+        conn.commit()
+        print(f"Migration applied: {migration_path.name} ({applied} statements)")
 
-    conn.commit()
     conn.close()
 
 
@@ -272,11 +293,11 @@ class VolunteerSignup(BaseModel):
     location: Optional[str] = None
     country: Optional[str] = None
     local_group: Optional[str] = None
-    share_contact_directly: bool = False
+    consent_make_profile_visible_in_directory: bool = True
+    consent_contactable_by_project_owners: bool = True
+    consent_share_contact_info_with_project_owner: bool = False
     other_skills: Optional[str] = None
     skill_ids: List[int] = []
-    consent_profile_visible: bool = True
-    consent_contact_by_owners: bool = True
     email_digest: Optional[str] = "none"  # 'none', 'match', 'fortnightly'
 
 
@@ -292,10 +313,11 @@ class VolunteerUpdate(BaseModel):
     location: Optional[str] = None
     country: Optional[str] = None
     local_group: Optional[str] = None
-    share_contact_directly: Optional[bool] = None
+    consent_make_profile_visible_in_directory: Optional[bool] = None
+    consent_contactable_by_project_owners: Optional[bool] = None
+    consent_share_contact_info_with_project_owner: Optional[bool] = None
     other_skills: Optional[str] = None
     skill_ids: Optional[List[int]] = None
-    profile_visible: Optional[bool] = None
     email_digest: Optional[str] = None  # 'none', 'match', 'fortnightly'
 
 
@@ -380,6 +402,11 @@ class ProjectReview(BaseModel):
     review_notes: Optional[str] = None
     feedback_to_proposer: Optional[str] = None
     target_status: Optional[str] = None  # 'seeking_owner' or 'seeking_help' if approved
+
+
+class ProjectOutcomeUpdate(BaseModel):
+    outcome: str
+    outcome_notes: Optional[str] = None
 
 
 # --- Project Tasks ---
@@ -523,7 +550,7 @@ def get_current_volunteer(authorization: Optional[str] = Header(None)) -> Option
            WHERE auth_token = ?
            AND (auth_token_expires_at IS NULL OR auth_token_expires_at > ?)
            AND deleted_at IS NULL""",
-        (token, datetime.now().isoformat())
+        (token, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
     ).fetchone()
     conn.close()
 
@@ -729,10 +756,12 @@ def signup(data: VolunteerSignup) -> Dict:
             "discord_handle": data.discord_handle, "signal_number": data.signal_number,
             "whatsapp_number": data.whatsapp_number, "contact_preference": data.contact_preference,
             "contact_notes": data.contact_notes, "availability_hours_per_week": data.availability_hours_per_week,
-            "location": data.location, "share_contact_directly": data.share_contact_directly,
-            "other_skills": data.other_skills, "consent_profile_visible": data.consent_profile_visible,
-            "consent_contact_by_owners": data.consent_contact_by_owners,
-            "consent_given_at": datetime.now().isoformat(),
+            "location": data.location,
+            "other_skills": data.other_skills,
+            "consent_make_profile_visible_in_directory": data.consent_make_profile_visible_in_directory,
+            "consent_contactable_by_project_owners": data.consent_contactable_by_project_owners,
+            "consent_share_contact_info_with_project_owner": data.consent_share_contact_info_with_project_owner,
+            "consent_given_at": datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
             "auth_token": auth_token, "password_hash": password_hash
         }
         # Add optional columns only if they exist in the DB
@@ -770,7 +799,7 @@ def signup(data: VolunteerSignup) -> Dict:
             pending_invite = conn.execute(
                 """SELECT * FROM admin_invites
                    WHERE LOWER(email) = LOWER(?) AND status = 'pending' AND expires_at > ?""",
-                (data.email, datetime.now().isoformat())
+                (data.email, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
             ).fetchone()
             print(f"[ADMIN_INVITE] Signup check for {data.email}: pending_invite={'found id=' + str(pending_invite['id']) if pending_invite else 'none'}")
             if pending_invite:
@@ -782,7 +811,7 @@ def signup(data: VolunteerSignup) -> Dict:
                     """UPDATE admin_invites
                        SET status = 'accepted', accepted_by_id = ?, accepted_at = ?
                        WHERE id = ?""",
-                    (volunteer_id, datetime.now().isoformat(), pending_invite["id"])
+                    (volunteer_id, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), pending_invite["id"])
                 )
                 print(f"[ADMIN_INVITE] Auto-accepted invite for {data.email} on signup")
         except AppError:
@@ -860,7 +889,7 @@ def login(data: LoginRequest) -> Dict:
         pending_invite = conn.execute(
             """SELECT * FROM admin_invites
                WHERE LOWER(email) = LOWER(?) AND status = 'pending' AND expires_at > ?""",
-            (data.email, datetime.now().isoformat())
+            (data.email, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
         ).fetchone()
         print(f"[ADMIN_INVITE] Login check for {data.email}: pending_invite={'found id=' + str(pending_invite['id']) if pending_invite else 'none'}")
         if pending_invite:
@@ -872,7 +901,7 @@ def login(data: LoginRequest) -> Dict:
                 """UPDATE admin_invites
                    SET status = 'accepted', accepted_by_id = ?, accepted_at = ?
                    WHERE id = ?""",
-                (volunteer["id"], datetime.now().isoformat(), pending_invite["id"])
+                (volunteer["id"], datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), pending_invite["id"])
             )
             was_promoted = True
             print(f"[ADMIN_INVITE] Auto-accepted invite for {data.email} on login")
@@ -883,7 +912,7 @@ def login(data: LoginRequest) -> Dict:
     with db_transaction() as conn:
         conn.execute(
             "UPDATE volunteers SET auth_token = ?, updated_at = ? WHERE id = ?",
-            (auth_token, datetime.now().isoformat(), volunteer["id"])
+            (auth_token, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), volunteer["id"])
         )
 
     result = {
@@ -973,7 +1002,7 @@ def google_auth(data: GoogleAuthRequest) -> Dict:
         with db_transaction() as conn:
             conn.execute(
                 "UPDATE volunteers SET auth_token = ?, updated_at = ? WHERE id = ?",
-                (auth_token, datetime.now().isoformat(), existing["id"])
+                (auth_token, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), existing["id"])
             )
 
         # Check for admin bootstrap
@@ -984,13 +1013,13 @@ def google_auth(data: GoogleAuthRequest) -> Dict:
             pending_invite = conn.execute(
                 """SELECT * FROM admin_invites
                    WHERE LOWER(email) = LOWER(?) AND status = 'pending' AND expires_at > ?""",
-                (email, datetime.now().isoformat())
+                (email, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
             ).fetchone()
             if pending_invite:
                 conn.execute("UPDATE volunteers SET is_admin = 1 WHERE id = ?", (existing["id"],))
                 conn.execute(
                     """UPDATE admin_invites SET status = 'accepted', accepted_by_id = ?, accepted_at = ? WHERE id = ?""",
-                    (existing["id"], datetime.now().isoformat(), pending_invite["id"])
+                    (existing["id"], datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), pending_invite["id"])
                 )
                 was_promoted = True
 
@@ -1007,9 +1036,9 @@ def google_auth(data: GoogleAuthRequest) -> Dict:
             cursor = conn.execute(
                 """INSERT INTO volunteers (
                     name, email, auth_token,
-                    consent_profile_visible, consent_contact_by_owners, consent_given_at
-                ) VALUES (?, ?, ?, ?, ?, ?)""",
-                (name, email, auth_token, True, True, datetime.now().isoformat())
+                    consent_make_profile_visible_in_directory, consent_contactable_by_project_owners, consent_share_contact_info_with_project_owner, consent_given_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (name, email, auth_token, True, True, False, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
             )
             volunteer_id = cursor.lastrowid
 
@@ -1025,13 +1054,13 @@ def google_auth(data: GoogleAuthRequest) -> Dict:
                 pending_invite = conn.execute(
                     """SELECT * FROM admin_invites
                        WHERE LOWER(email) = LOWER(?) AND status = 'pending' AND expires_at > ?""",
-                    (email, datetime.now().isoformat())
+                    (email, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
                 ).fetchone()
                 if pending_invite:
                     conn.execute("UPDATE volunteers SET is_admin = 1 WHERE id = ?", (volunteer_id,))
                     conn.execute(
                         """UPDATE admin_invites SET status = 'accepted', accepted_by_id = ?, accepted_at = ? WHERE id = ?""",
-                        (volunteer_id, datetime.now().isoformat(), pending_invite["id"])
+                        (volunteer_id, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), pending_invite["id"])
                     )
             except AppError:
                 raise
@@ -1076,13 +1105,13 @@ def forgot_password(data: ForgotPasswordRequest) -> Dict:
 
     # Generate reset token
     reset_token = secrets.token_urlsafe(32)
-    expires_at = (datetime.now() + timedelta(hours=1)).isoformat()
+    expires_at = (datetime.utcnow() + timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
     with db_transaction() as conn:
         # Invalidate any existing tokens
         conn.execute(
             "UPDATE password_reset_tokens SET used_at = ? WHERE volunteer_id = ? AND used_at IS NULL",
-            (datetime.now().isoformat(), volunteer["id"])
+            (datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), volunteer["id"])
         )
 
         # Create new token
@@ -1122,7 +1151,7 @@ def reset_password(data: ResetPasswordRequest) -> Dict:
              AND prt.used_at IS NULL
              AND prt.expires_at > ?
              AND v.deleted_at IS NULL""",
-        (data.token, datetime.now().isoformat())
+        (data.token, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
     ).fetchone()
     conn.close()
 
@@ -1136,13 +1165,13 @@ def reset_password(data: ResetPasswordRequest) -> Dict:
         # Update password
         conn.execute(
             "UPDATE volunteers SET password_hash = ?, auth_token = NULL, updated_at = ? WHERE id = ?",
-            (password_hash, datetime.now().isoformat(), token_record["volunteer_id"])
+            (password_hash, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), token_record["volunteer_id"])
         )
 
         # Mark token as used
         conn.execute(
             "UPDATE password_reset_tokens SET used_at = ? WHERE id = ?",
-            (datetime.now().isoformat(), token_record["id"])
+            (datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), token_record["id"])
         )
 
     return {"message": "Password reset successful. Please log in with your new password."}
@@ -1171,7 +1200,7 @@ def change_password(
     with db_transaction() as conn:
         conn.execute(
             "UPDATE volunteers SET password_hash = ?, updated_at = ? WHERE id = ?",
-            (new_hash, datetime.now().isoformat(), volunteer["id"])
+            (new_hash, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), volunteer["id"])
         )
 
     return {"message": "Password changed successfully"}
@@ -1207,7 +1236,7 @@ def change_email(
             raise HTTPException(status_code=400, detail="This email is already registered to another account")
         conn.execute(
             "UPDATE volunteers SET email = ?, updated_at = ? WHERE id = ?",
-            (data.new_email, datetime.now().isoformat(), volunteer["id"])
+            (data.new_email, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), volunteer["id"])
         )
 
     return {"message": "Email changed successfully"}
@@ -1370,7 +1399,7 @@ def delete_account(
                 deleted_at = ?,
                 updated_at = ?
                WHERE id = ?""",
-            (datetime.now().isoformat(), datetime.now().isoformat(), volunteer["id"])
+            (datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), volunteer["id"])
         )
 
         conn.execute(
@@ -1677,8 +1706,7 @@ def list_volunteers(
                v.location, v.other_skills, v.local_group, v.created_at
         FROM volunteers v
         WHERE v.deleted_at IS NULL
-        AND v.profile_visible = 1
-        AND v.consent_profile_visible = 1
+        AND v.consent_make_profile_visible_in_directory = 1
     """
     params = []
 
@@ -1744,7 +1772,7 @@ def get_volunteer(
     volunteer = conn.execute(
         """SELECT * FROM volunteers
            WHERE id = ? AND deleted_at IS NULL
-           AND profile_visible = 1""",
+           AND consent_make_profile_visible_in_directory = 1""",
         (volunteer_id,)
     ).fetchone()
 
@@ -1762,7 +1790,7 @@ def get_volunteer(
         elif current_volunteer.get("is_admin"):
             show_contact = True
         # Show contact if they've opted to share directly AND consent to being contacted
-        elif volunteer["share_contact_directly"] and volunteer["consent_contact_by_owners"]:
+        elif volunteer["consent_contactable_by_project_owners"] and volunteer["consent_share_contact_info_with_project_owner"]:
             show_contact = True
 
     result = enrich_volunteer(conn, dict(volunteer), show_contact=show_contact)
@@ -1811,7 +1839,10 @@ def update_me(data: VolunteerUpdate, volunteer: Dict = Depends(require_auth)) ->
         for field in ["name", "bio", "discord_handle", "signal_number",
                       "whatsapp_number", "contact_preference", "contact_notes",
                       "availability_hours_per_week", "location", "country", "local_group",
-                      "share_contact_directly", "other_skills", "profile_visible", "email_digest"]:
+                      "consent_make_profile_visible_in_directory",
+                      "consent_contactable_by_project_owners",
+                      "consent_share_contact_info_with_project_owner",
+                      "other_skills", "email_digest"]:
             if field not in existing_columns:
                 continue
             value = getattr(data, field, None)
@@ -1819,9 +1850,15 @@ def update_me(data: VolunteerUpdate, volunteer: Dict = Depends(require_auth)) ->
                 updates.append(f"{field} = ?")
                 params.append(value)
 
+        # Re-affirm consent timestamp when either consent flag is being set to true
+        consent_fields = {"consent_make_profile_visible_in_directory", "consent_contactable_by_project_owners", "consent_share_contact_info_with_project_owner"}
+        if any(getattr(data, f) is True for f in consent_fields):
+            updates.append("consent_given_at = ?")
+            params.append(datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
+
         if updates:
             updates.append("updated_at = ?")
-            params.append(datetime.now().isoformat())
+            params.append(datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
             params.append(volunteer["id"])
 
             conn.execute(
@@ -2093,8 +2130,8 @@ def create_project(
         if "local_group" in proj_columns:
             proj_fields["local_group"] = data.local_group
         if "is_seeking_help" in proj_columns:
-            proj_fields["is_seeking_help"] = getattr(data, "is_seeking_help", True)
-            proj_fields["is_seeking_owner"] = getattr(data, "is_seeking_owner", not data.want_to_own)
+            proj_fields["is_seeking_help"] = data.is_seeking_help
+            proj_fields["is_seeking_owner"] = not data.want_to_own
 
         col_names = ", ".join(proj_fields.keys())
         placeholders = ", ".join("?" * len(proj_fields))
@@ -2221,7 +2258,7 @@ def update_project(
 
         if updates:
             updates.append("updated_at = ?")
-            params.append(datetime.now().isoformat())
+            params.append(datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
             params.append(project_id)
 
             conn.execute(
@@ -2396,6 +2433,11 @@ def create_project_task(
                VALUES (?, ?, ?, ?)""",
             (project_id, data.title, data.description, volunteer["id"])
         )
+        if project["status"] == "needs_tasks":
+            conn.execute(
+                "UPDATE projects SET status = 'in_progress' WHERE id = ?",
+                (project_id,)
+            )
         return {"id": cursor.lastrowid, "message": "Task created"}
 
 
@@ -2456,7 +2498,7 @@ def update_project_task(
             params.append(data.status)
             if data.status == "done":
                 updates.append("completed_at = ?")
-                params.append(datetime.now().isoformat())
+                params.append(datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
             elif data.status == "open":
                 updates.append("assigned_to_id = NULL")
                 updates.append("assigned_at = NULL")
@@ -2473,7 +2515,7 @@ def update_project_task(
 
         if updates:
             updates.append("updated_at = ?")
-            params.append(datetime.now().isoformat())
+            params.append(datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
             params.append(task_id)
             conn.execute(
                 f"UPDATE project_tasks SET {', '.join(updates)} WHERE id = ?",
@@ -2621,7 +2663,11 @@ def review_project(
         if data.status == "approved":
             # Determine lifecycle status and seeking flags
             has_owner = project["owner_id"] is not None
-            new_status = "in_progress" if has_owner else "in_progress"
+            open_task_count = conn.execute(
+                "SELECT COUNT(*) FROM project_tasks WHERE project_id = ? AND status != 'done'",
+                (project_id,)
+            ).fetchone()[0]
+            new_status = "in_progress" if open_task_count > 0 else "needs_tasks"
             target = data.target_status or "seeking_owner"
 
             # Build update with seeking flags if columns exist
@@ -2636,7 +2682,7 @@ def review_project(
                        WHERE id = ?""",
                     (new_status, is_seeking_help, is_seeking_owner,
                      data.review_notes, admin["id"],
-                     datetime.now().isoformat(), datetime.now().isoformat(), project_id)
+                     datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), project_id)
                 )
             else:
                 conn.execute(
@@ -2644,7 +2690,7 @@ def review_project(
                        status = ?, review_notes = ?, reviewed_by_id = ?, reviewed_at = ?, updated_at = ?
                        WHERE id = ?""",
                     (target, data.review_notes, admin["id"],
-                     datetime.now().isoformat(), datetime.now().isoformat(), project_id)
+                     datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), project_id)
                 )
 
             # Notify proposer
@@ -2687,7 +2733,7 @@ def review_project(
                    reviewed_by_id = ?, reviewed_at = ?, updated_at = ?
                    WHERE id = ?""",
                 (data.review_notes, data.feedback_to_proposer, admin["id"],
-                 datetime.now().isoformat(), datetime.now().isoformat(), project_id)
+                 datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), project_id)
             )
 
             # Notify proposer
@@ -2724,7 +2770,7 @@ def create_org_project(
 ) -> Dict:
     """Create an org-proposed project (skips review)."""
     with db_transaction() as conn:
-        status = "in_progress" if data.want_to_own else "in_progress"
+        status = "needs_tasks"
 
         proj_columns = {row["name"] for row in conn.execute("PRAGMA table_info(projects)").fetchall()}
         proj_fields = {
@@ -2740,8 +2786,8 @@ def create_org_project(
         if "local_group" in proj_columns:
             proj_fields["local_group"] = data.local_group
         if "is_seeking_help" in proj_columns:
-            proj_fields["is_seeking_help"] = getattr(data, "is_seeking_help", True)
-            proj_fields["is_seeking_owner"] = getattr(data, "is_seeking_owner", not data.want_to_own)
+            proj_fields["is_seeking_help"] = data.is_seeking_help
+            proj_fields["is_seeking_owner"] = not data.want_to_own
 
         col_names = ", ".join(proj_fields.keys())
         placeholders = ", ".join("?" * len(proj_fields))
@@ -2756,6 +2802,18 @@ def create_org_project(
             conn.execute(
                 "INSERT INTO project_skills (project_id, skill_id, is_required) VALUES (?, ?, ?)",
                 (project_id, skill_id, is_required)
+            )
+
+        for task in data.tasks:
+            conn.execute(
+                "INSERT INTO project_tasks (project_id, title, description, created_by_id) VALUES (?, ?, ?, ?)",
+                (project_id, task.title, task.description, admin["id"])
+            )
+
+        if data.tasks:
+            conn.execute(
+                "UPDATE projects SET status = 'in_progress' WHERE id = ?",
+                (project_id,)
             )
 
         return {"id": project_id, "message": "Org project created"}
@@ -2921,7 +2979,7 @@ def update_admin_note(
 
         if updates:
             updates.append("updated_at = ?")
-            params.append(datetime.now().isoformat())
+            params.append(datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
             params.append(note_id)
             conn.execute(f"UPDATE admin_notes SET {', '.join(updates)} WHERE id = ?", params)
 
@@ -3051,7 +3109,7 @@ def assign_starter_task(
             """UPDATE starter_tasks
                SET assigned_to_id = ?, assigned_by_id = ?, status = 'assigned', updated_at = ?
                WHERE id = ?""",
-            (data.volunteer_id, admin["id"], datetime.now().isoformat(), task_id)
+            (data.volunteer_id, admin["id"], datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), task_id)
         )
 
         # Notify the volunteer
@@ -3081,7 +3139,7 @@ def submit_starter_task(
 
         conn.execute(
             "UPDATE starter_tasks SET status = 'submitted', updated_at = ? WHERE id = ?",
-            (datetime.now().isoformat(), task_id)
+            (datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), task_id)
         )
 
         # Notify assigning admin
@@ -3120,7 +3178,7 @@ def review_starter_task(
                WHERE id = ?""",
             (new_status, data.review_rating, data.review_notes,
              data.feedback_to_volunteer, admin["id"],
-             datetime.now().isoformat(), datetime.now().isoformat(), task_id)
+             datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), task_id)
         )
 
         # Auto-create admin note based on outcome
@@ -3208,11 +3266,12 @@ def create_endorsement(
 @app.put("/api/admin/projects/{project_id}/outcome")
 def set_project_outcome(
     project_id: int,
-    outcome: str = Query(...),
-    outcome_notes: Optional[str] = Query(None),
+    data: ProjectOutcomeUpdate,
     admin: Dict = Depends(require_admin)
 ) -> Dict:
     """Record the outcome of a completed project."""
+    outcome = data.outcome
+    outcome_notes = data.outcome_notes
     if outcome not in ("successful", "partial", "not_completed", "ongoing"):
         raise HTTPException(status_code=400, detail="Invalid outcome")
 
@@ -3221,14 +3280,14 @@ def set_project_outcome(
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
 
-        completed_at = datetime.now().isoformat() if outcome in ("successful", "partial", "not_completed") else None
+        completed_at = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ') if outcome in ("successful", "partial", "not_completed") else None
 
         conn.execute(
             """UPDATE projects SET outcome = ?, outcome_notes = ?, completed_at = ?,
                status = CASE WHEN ? IN ('successful', 'partial', 'not_completed') THEN 'completed' ELSE status END,
                updated_at = ?
                WHERE id = ?""",
-            (outcome, outcome_notes, completed_at, outcome, datetime.now().isoformat(), project_id)
+            (outcome, outcome_notes, completed_at, outcome, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), project_id)
         )
 
         # Auto-create admin notes for volunteers involved
@@ -3349,7 +3408,7 @@ def list_admins(admin: Dict = Depends(require_admin)) -> List[Dict]:
 def invite_admin(data: AdminInviteCreate, admin: Dict = Depends(require_admin)) -> Dict:
     """Send an admin invite to an email address."""
     invite_token = secrets.token_urlsafe(32)
-    expires_at = (datetime.now() + timedelta(days=7)).isoformat()
+    expires_at = (datetime.utcnow() + timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
     with db_transaction() as conn:
         # Check if already admin
@@ -3363,7 +3422,7 @@ def invite_admin(data: AdminInviteCreate, admin: Dict = Depends(require_admin)) 
         # Check for pending invite
         pending = conn.execute(
             "SELECT * FROM admin_invites WHERE email = ? AND status = 'pending' AND expires_at > ?",
-            (data.email, datetime.now().isoformat())
+            (data.email, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
         ).fetchone()
         if pending:
             raise HTTPException(status_code=400, detail="An invite is already pending for this email")
@@ -3386,8 +3445,8 @@ def invite_admin(data: AdminInviteCreate, admin: Dict = Depends(require_admin)) 
         "expires_at": expires_at
     }
 
-    # In dev mode (no email configured), include token for manual sharing
-    if not is_email_configured():
+    # In dev/test mode (no real email API or stub mode), include token for manual sharing
+    if not is_real_email_sending():
         result["_dev_invite_token"] = invite_token
         result["_dev_invite_url"] = f"/static/accept-invite.html?token={invite_token}"
         result["_dev_note"] = "Email not configured. Share link manually."
@@ -3405,7 +3464,7 @@ def accept_admin_invite(
     invite = conn.execute(
         """SELECT * FROM admin_invites
            WHERE invite_token = ? AND status = 'pending' AND expires_at > ?""",
-        (invite_token, datetime.now().isoformat())
+        (invite_token, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
     ).fetchone()
     conn.close()
 
@@ -3428,7 +3487,7 @@ def accept_admin_invite(
             """UPDATE admin_invites
                SET status = 'accepted', accepted_by_id = ?, accepted_at = ?
                WHERE id = ?""",
-            (volunteer["id"], datetime.now().isoformat(), invite["id"])
+            (volunteer["id"], datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), invite["id"])
         )
 
     return {"message": "You are now an admin!"}
@@ -3574,7 +3633,7 @@ def update_bug_report(
                 updates.append("resolved_by_id = ?")
                 params.append(admin["id"])
                 updates.append("resolved_at = ?")
-                params.append(datetime.now().isoformat())
+                params.append(datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
 
         if data.resolution_notes is not None:
             updates.append("resolution_notes = ?")
@@ -3593,6 +3652,76 @@ def update_bug_report(
 # ============================================
 # INTEREST ENDPOINTS
 # ============================================
+
+class AssignVolunteer(BaseModel):
+    volunteer_id: int
+    interest_type: str = "want_to_contribute"
+
+
+@app.post("/api/projects/{project_id}/assign")
+def assign_volunteer_to_project(
+    project_id: int,
+    data: AssignVolunteer,
+    volunteer: Dict = Depends(require_auth)
+) -> Dict:
+    """Assign a volunteer directly to a project (owner or admin only)."""
+    conn = get_db()
+    project = conn.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
+    conn.close()
+
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    is_owner = project["owner_id"] == volunteer["id"]
+    is_admin = volunteer.get("is_admin")
+    if not (is_owner or is_admin):
+        raise HTTPException(status_code=403, detail="Only project owner or admin can assign volunteers")
+
+    with db_transaction() as conn:
+        # Check if already has an active interest
+        existing = conn.execute(
+            "SELECT * FROM project_interests WHERE project_id = ? AND volunteer_id = ? AND status != 'withdrawn'",
+            (project_id, data.volunteer_id)
+        ).fetchone()
+
+        if existing:
+            if existing["status"] == "pending":
+                # Auto-accept existing pending interest
+                conn.execute(
+                    "UPDATE project_interests SET status = 'accepted', responded_at = ? WHERE id = ?",
+                    (datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), existing["id"])
+                )
+            elif existing["status"] == "accepted":
+                return {"message": "This volunteer is already assigned to this project"}
+        else:
+            # Create and auto-accept interest
+            conn.execute(
+                """INSERT INTO project_interests (volunteer_id, project_id, interest_type, message, status, responded_at)
+                   VALUES (?, ?, ?, 'Assigned by admin/owner', 'accepted', ?)""",
+                (data.volunteer_id, project_id, data.interest_type, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
+            )
+
+        # Notify the volunteer
+        assignee = conn.execute("SELECT name, email FROM volunteers WHERE id = ?", (data.volunteer_id,)).fetchone()
+        if assignee:
+            create_notification(
+                conn, data.volunteer_id, "assigned_to_project",
+                f"You've been assigned to '{project['title']}'",
+                f"Assigned by {volunteer['name']}",
+                f"/static/project.html?id={project_id}"
+            )
+            try:
+                if assignee["email"]:
+                    send_project_notification_email(
+                        to=assignee["email"], name=assignee["name"],
+                        subject=f"You've been assigned to '{project['title']}'",
+                        message=f"<strong>{volunteer['name']}</strong> has assigned you to the project <strong>{project['title']}</strong>.",
+                        project_title=project["title"], project_id=project_id
+                    )
+            except Exception as e:
+                print(f"[NOTIFY ERROR] Assignment email failed: {e}")
+
+    return {"message": f"Volunteer assigned to project"}
 
 @app.post("/api/projects/{project_id}/interest")
 def express_interest(
@@ -3741,7 +3870,7 @@ def respond_to_interest(
             """UPDATE project_interests
                SET status = ?, response_message = ?, responded_at = ?
                WHERE id = ?""",
-            (data.status, data.response_message, datetime.now().isoformat(), interest_id)
+            (data.status, data.response_message, datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), interest_id)
         )
 
         # Notify the interested volunteer
@@ -3753,10 +3882,14 @@ def respond_to_interest(
             f"/static/project.html?id={project_id}"
         )
 
-        # If accepting as owner, assign them and move to needs_tasks so they can
-        # set up tasks before starting (unless the project is already in_progress)
+        # If accepting as owner, assign them. Move to in_progress if there are
+        # already open tasks, otherwise needs_tasks so the owner can add them first.
         if data.status == "accepted" and interest["interest_type"] == "want_to_own":
-            new_status = 'in_progress' if project["status"] == 'in_progress' else 'needs_tasks'
+            open_task_count = conn.execute(
+                "SELECT COUNT(*) FROM project_tasks WHERE project_id = ? AND status != 'done'",
+                (project_id,)
+            ).fetchone()[0]
+            new_status = 'in_progress' if open_task_count > 0 else 'needs_tasks'
             conn.execute(
                 "UPDATE projects SET owner_id = ?, status = ? WHERE id = ?",
                 (interest["volunteer_id"], new_status, project_id)
@@ -3818,7 +3951,7 @@ def send_contact_message(
     recipient = conn.execute(
         """SELECT * FROM volunteers
            WHERE id = ? AND deleted_at IS NULL
-           AND consent_contact_by_owners = 1""",
+           AND consent_contactable_by_project_owners = 1""",
         (volunteer_id,)
     ).fetchone()
     conn.close()
@@ -3839,6 +3972,11 @@ def send_contact_message(
         conn.close()
         if project:
             project_title = project["title"]
+
+    # TODO: The message/notification is only created if email succeeds, meaning it
+    # fails entirely in environments without RESEND_API_KEY configured (e.g. local
+    # dev and the e2e test suite). Consider saving to contact_messages and creating
+    # the notification unconditionally, then treating email as best-effort delivery.
 
     # Send via email relay
     email_sent = send_relay_message(
@@ -3908,7 +4046,7 @@ def mark_message_read(
         result = conn.execute(
             """UPDATE contact_messages SET read_at = ?
                WHERE id = ? AND to_volunteer_id = ?""",
-            (datetime.now().isoformat(), message_id, volunteer["id"])
+            (datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), message_id, volunteer["id"])
         )
         if result.rowcount == 0:
             raise HTTPException(status_code=404, detail="Message not found")
@@ -3946,7 +4084,7 @@ def mark_all_read(volunteer: Dict = Depends(require_auth)) -> Dict:
     with db_transaction() as conn:
         conn.execute(
             "UPDATE notifications SET read_at = ? WHERE volunteer_id = ? AND read_at IS NULL",
-            (datetime.now().isoformat(), volunteer["id"])
+            (datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), volunteer["id"])
         )
         return {"message": "All marked as read"}
 
@@ -4024,7 +4162,7 @@ def export_my_data(volunteer: Dict = Depends(require_auth)) -> Dict:
     conn.close()
 
     return {
-        "exported_at": datetime.now().isoformat(),
+        "exported_at": datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
         "profile": profile,
         "skills": skills,
         "projects": rows_to_list(projects),
@@ -4077,18 +4215,28 @@ def get_dashboard(volunteer: Dict = Depends(require_auth)) -> Dict:
     ).fetchall()
 
     # Suggested projects (matching my skills)
+    # Check if seeking flags exist for the query
+    try:
+        conn.execute("SELECT is_seeking_help FROM projects LIMIT 1")
+        seeking_clause = "(p.is_seeking_help = 1 OR p.is_seeking_owner = 1 OR p.status IN ('seeking_owner', 'seeking_help'))"
+    except Exception:
+        seeking_clause = "p.status IN ('seeking_owner', 'seeking_help')"
+
     suggested = conn.execute(
         """SELECT DISTINCT p.*
            FROM projects p
            JOIN project_skills ps ON p.id = ps.project_id
            WHERE ps.skill_id IN ({})
-           AND (p.is_seeking_help = 1 OR p.is_seeking_owner = 1 OR p.status IN ('seeking_owner', 'seeking_help'))
+           AND {}
            AND p.owner_id != ?
            AND p.id NOT IN (
                SELECT project_id FROM project_interests WHERE volunteer_id = ?
            )
            ORDER BY p.created_at DESC
-           LIMIT 5""".format(",".join("?" * len(volunteer_skill_ids)) if volunteer_skill_ids else "0"),
+           LIMIT 5""".format(
+               ",".join("?" * len(volunteer_skill_ids)) if volunteer_skill_ids else "0",
+               seeking_clause
+           ),
         list(volunteer_skill_ids) + [volunteer["id"], volunteer["id"]]
     ).fetchall() if volunteer_skill_ids else []
     suggested = [enrich_project(conn, dict(p), volunteer_skill_ids) for p in suggested]

@@ -63,7 +63,7 @@
             <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;"></div>
         </div>
 
-        <div id="messageDiv" class="message" style="display: none;"></div>
+        <div id="messageDiv" role="alert" class="message" style="display: none;"></div>
 
         <div id="projectsList">
             <div class="loading">
@@ -106,8 +106,8 @@
             seekingFilter = createSelectFilter('seekingFilter', [
                 { value: '', label: 'Any' },
                 { value: 'seeking', label: 'Looking for People' },
-                { value: 'seeking_help', label: 'Seeking Help' },
-                { value: 'seeking_owner', label: 'Seeking Owner' },
+                { value: 'seeking_help', label: 'Seeking Help', isSubItem: true },
+                { value: 'seeking_owner', label: 'Seeking Owner', isSubItem: true },
                 { value: 'not_seeking', label: 'Not Seeking' },
             ], () => { saveFiltersToURL(); renderProjects(); });
             urgencyFilter = createSelectFilter('urgencyFilter', [

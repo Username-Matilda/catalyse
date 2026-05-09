@@ -920,12 +920,14 @@ textarea {
 
 .location-filter-item.is-subitem {
     padding-left: 28px;
-    color: var(--text-light);
+    color: var(--text);
     font-size: 0.825rem;
+    opacity: 0.72;
 }
 
 .location-filter-item.is-subitem.selected {
-    color: #111827;
+    color: var(--text);
+    opacity: 1;
 }
 
 .subitem-arrow {
@@ -1665,4 +1667,13 @@ select.input-error {
 [data-theme="dark"] select.input-error {
     border-color: #EF4444 !important;
     box-shadow: 0 0 0 1px #EF4444;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
 }

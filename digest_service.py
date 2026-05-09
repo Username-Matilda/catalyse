@@ -43,6 +43,13 @@ def send_skill_match_notifications(project_id: int):
     Send notifications to volunteers whose skills match a newly approved project.
     Called when a project is approved via triage.
     """
+    try:
+        _send_skill_match_notifications(project_id)
+    except Exception as e:
+        print(f"[DIGEST ERROR] Skill match notifications failed for project {project_id}: {type(e).__name__}: {e}")
+
+
+def _send_skill_match_notifications(project_id: int):
     if not is_email_configured():
         print("[DIGEST] Email not configured, skipping skill match notifications")
         return
@@ -83,7 +90,7 @@ def send_skill_match_notifications(project_id: int):
                 AND v.email IS NOT NULL
                 AND v.deleted_at IS NULL
                 AND v.id != ?""",
-            list(skill_ids) + [project.get("owner_id") or 0]
+            list(skill_ids) + [(project["owner_id"] if "owner_id" in project.keys() else None) or 0]
         ).fetchall()
     finally:
         conn.close()

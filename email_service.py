@@ -12,14 +12,18 @@ Setup:
 import os
 import json
 from urllib.request import Request, urlopen
-from urllib.error import URLError
+from urllib.error import URLError, HTTPError
 from typing import Optional
 
 
 # Configuration
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
-FROM_EMAIL = os.environ.get("FROM_EMAIL", "Catalyse <noreply@catalyse.pauseai.uk>")
+FROM_EMAIL = os.environ.get("FROM_EMAIL", "Catalyse <noreply@pauseai.uk>")
+REPLY_TO_EMAIL = os.environ.get("REPLY_TO_EMAIL")
 APP_URL = os.environ.get("APP_URL", "http://localhost:8000")
+# When STUB_EMAIL=true the service reports itself as configured and silently
+# accepts all send calls without making HTTP requests. For testing only.
+STUB_EMAIL = os.environ.get("STUB_EMAIL", "").lower() in ("1", "true", "yes")
 
 _STYLES = """
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1a202c; }
@@ -31,7 +35,12 @@ _STYLES = """
 
 def is_email_configured() -> bool:
     """Check if email sending is properly configured."""
-    return bool(RESEND_API_KEY)
+    return STUB_EMAIL or bool(RESEND_API_KEY)
+
+
+def is_real_email_sending() -> bool:
+    """Return True only when real emails are being sent (not stubbed, not unconfigured)."""
+    return bool(RESEND_API_KEY) and not STUB_EMAIL
 
 
 def send_email(to: str, subject: str, html: str) -> bool:
@@ -39,17 +48,24 @@ def send_email(to: str, subject: str, html: str) -> bool:
     Send an email via Resend API.
     Returns True if sent, False if failed or not configured.
     """
+    if STUB_EMAIL:
+        print(f"[EMAIL STUB] Would send to {to}: {subject}")
+        return True
+
     if not RESEND_API_KEY:
         print(f"[EMAIL NOT CONFIGURED] Would send to {to}: {subject}")
         return False
 
     try:
-        data = json.dumps({
+        payload = {
             "from": FROM_EMAIL,
             "to": [to],
             "subject": subject,
             "html": html
-        }).encode('utf-8')
+        }
+        if REPLY_TO_EMAIL:
+            payload["reply_to"] = REPLY_TO_EMAIL
+        data = json.dumps(payload).encode('utf-8')
 
         request = Request(
             "https://api.resend.com/emails",
@@ -67,6 +83,9 @@ def send_email(to: str, subject: str, html: str) -> bool:
             print(f"[EMAIL ERROR] Status {response.status}")
             return False
 
+    except HTTPError as e:
+        print(f"[EMAIL ERROR] Status {e.code} {e.reason}: {_read_error_body(e)}")
+        return False
     except URLError as e:
         print(f"[EMAIL ERROR] {e}")
         return False
@@ -75,8 +94,22 @@ def send_email(to: str, subject: str, html: str) -> bool:
         return False
 
 
+
+def _read_error_body(e: HTTPError) -> str:
+    """Best-effort read of an HTTPError response body for logging."""
+    try:
+        return e.read().decode("utf-8", errors="replace")[:500]
+    except Exception:
+        return "<unreadable>"
+
+
+
 def send_email_with_reply_to(to: str, subject: str, html: str, reply_to: str = None) -> bool:
     """Send an email via Resend API with optional reply-to header."""
+    if STUB_EMAIL:
+        print(f"[EMAIL STUB] Would send to {to}: {subject}")
+        return True
+
     if not RESEND_API_KEY:
         print(f"[EMAIL NOT CONFIGURED] Would send to {to}: {subject}")
         return False
@@ -109,6 +142,9 @@ def send_email_with_reply_to(to: str, subject: str, html: str, reply_to: str = N
             print(f"[EMAIL ERROR] Status {response.status}")
             return False
 
+    except HTTPError as e:
+        print(f"[EMAIL ERROR] Status {e.code} {e.reason}: {_read_error_body(e)}")
+        return False
     except URLError as e:
         print(f"[EMAIL ERROR] {e}")
         return False

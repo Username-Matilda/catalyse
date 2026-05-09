@@ -27,7 +27,7 @@
                 Manage your data and privacy settings. We're committed to respecting your rights under GDPR.
             </p>
 
-            <div id="messageDiv" class="message" style="display: none;"></div>
+            <div id="messageDiv" role="alert" class="message" style="display: none;"></div>
 
             <div id="dataManagement" class="card" style="display: none;">
                 <h2>Export Your Data</h2>
@@ -76,7 +76,8 @@
                     <li>To send you transactional emails (password resets, admin invites, welcome emails)</li>
                     <li>To relay messages between volunteers via email (the sender's email is included as reply-to so you can respond directly)</li>
                     <li>To send you notifications about your projects and interests</li>
-                    <li>To send you inactivity reminder emails if you have claimed a project task and there has been no update for a week or more — these are sent on the basis of legitimate interest and are a direct consequence of the commitment made when claiming a task</li>
+                    <li>To send automated inactivity reminders if you are assigned to a task and have not posted an update for a period of time, and to automatically unassign you from the task after continued inactivity so that other volunteers can take it on. Project owners and admins are notified when a volunteer is unassigned due to inactivity (legitimate interest basis — keeping projects moving)</li>
+                    <li>To notify project owners and admins when task updates are posted, so they can stay informed about progress</li>
                     <li>For platform administration and volunteer coordination</li>
                 </ul>
 
@@ -84,7 +85,7 @@
                 <ul style="margin-bottom: 16px; padding-left: 20px; color: var(--text-light);">
                     <li>We never sell your data</li>
                     <li>We don't share your contact info without your consent</li>
-                    <li>We don't use your data for automated decision-making or profiling</li>
+                    <li>We don't use your data for profiling or to make decisions that have legal or significant effects on you. Automated task unassignment due to inactivity is a minor operational measure to keep projects moving — it does not affect your account, profile, or ability to claim other tasks</li>
                 </ul>
 
                 <h4>Third-party data processors</h4>

@@ -34,7 +34,7 @@
                 <a href="/static/volunteers.html" style="color: var(--text-light);">&larr; Back to Volunteers</a>
             </div>
 
-            <div id="messageDiv" class="message" style="display: none;"></div>
+            <div id="messageDiv" role="alert" class="message" style="display: none;"></div>
 
             <!-- Volunteer Header -->
             <div class="card">
@@ -60,10 +60,10 @@
             <!-- Tabs -->
             <div class="tabs-wrapper">
                 <div class="tabs">
-                    <button class="tab active" data-tab="notes">Admin Notes</button>
-                    <button class="tab" data-tab="tasks">Starter Tasks</button>
-                    <button class="tab" data-tab="projects">Project History</button>
-                    <button class="tab" data-tab="endorse">Endorse Skill</button>
+                    <button class="tab active" data-tab="notes" role="tab">Admin Notes</button>
+                    <button class="tab" data-tab="tasks" role="tab">Starter Tasks</button>
+                    <button class="tab" data-tab="projects" role="tab">Project History</button>
+                    <button class="tab" data-tab="endorse" role="tab">Endorse Skill</button>
                 </div>
             </div>
 
@@ -250,12 +250,15 @@
             };
 
             container.innerHTML = notes.map(n => `
-                <div style="padding: 16px; background: var(--background); border-radius: var(--radius); margin-bottom: 12px; border-left: 4px solid ${categoryColors[n.category] || 'var(--border)'};">
+                <div id="note-${n.id}" style="padding: 16px; background: var(--background); border-radius: var(--radius); margin-bottom: 12px; border-left: 4px solid ${categoryColors[n.category] || 'var(--border)'};">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                         <span style="font-weight: 600; text-transform: uppercase; font-size: 0.75rem; color: var(--text-light);">${n.category.replace('_', ' ')}</span>
-                        <button class="btn btn-ghost btn-small" onclick="deleteNote(${n.id})" style="color: var(--error);">Delete</button>
+                        <div class="note-actions">
+                            <button class="btn btn-ghost btn-small" onclick="editNote(${n.id})">Edit</button>
+                            <button class="btn btn-ghost btn-small" onclick="deleteNote(${n.id})" style="color: var(--error);">Delete</button>
+                        </div>
                     </div>
-                    <p style="white-space: pre-wrap;">${escapeHtml(n.content)}</p>
+                    <p class="note-content" style="white-space: pre-wrap;">${escapeHtml(n.content)}</p>
                     <p style="font-size: 0.75rem; color: var(--text-light); margin-top: 8px;">
                         ${n.author_name} · ${formatDateTime(n.created_at)}
                     </p>
@@ -368,6 +371,31 @@
                 showMessage(error.message, 'error');
             }
         });
+
+        function editNote(noteId) {
+            const note = (volunteer.admin_notes || []).find(n => n.id === noteId);
+            if (!note) return;
+            const noteEl = document.getElementById(`note-${noteId}`);
+            noteEl.querySelector('.note-content').outerHTML = `<textarea aria-label="Edit note" style="width: 100%; min-height: 80px; padding: 8px; box-sizing: border-box; border: 1px solid var(--border); border-radius: var(--radius); font-family: inherit; font-size: inherit; resize: vertical;" id="edit-content-${noteId}">${escapeHtml(note.content)}</textarea>`;
+            noteEl.querySelector('.note-actions').innerHTML = `
+                <button class="btn btn-small btn-secondary" onclick="saveNote(${noteId})">Save</button>
+                <button class="btn btn-ghost btn-small" onclick="renderNotes()">Cancel</button>
+            `;
+        }
+
+        async function saveNote(noteId) {
+            const content = document.getElementById(`edit-content-${noteId}`).value.trim();
+            try {
+                await apiRequest(`/api/admin/notes/${noteId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ content })
+                });
+                showMessage('Note updated.', 'success');
+                await loadVolunteer();
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        }
 
         async function deleteNote(noteId) {
             if (!confirm('Delete this note?')) return;
