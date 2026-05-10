@@ -2,6 +2,7 @@ import { test, expect, getAlert } from '../fixtures'
 import type { Page } from '@playwright/test'
 import { createSkill } from '../actions/skills'
 import { fake } from '../fake'
+import { selectFilterDropdown } from '../actions/ui'
 
 async function navigateToAdminVolunteerDetail(
   baseUrl: string,
@@ -98,7 +99,7 @@ test.describe('Volunteer Management', () => {
 
     await navigateToAdminVolunteerDetail(baseUrl, adminPage, volunteer.name)
 
-    await adminPage.getByLabel('Category').selectOption({ label: 'Skill Feedback' })
+    await selectFilterDropdown(adminPage, 'Category', 'Skill Feedback')
     await adminPage.getByLabel('Note', { exact: true }).fill(noteContent)
     await adminPage.getByRole('button', { name: 'Add Note' }).click()
 
@@ -120,13 +121,13 @@ test.describe('Volunteer Management', () => {
     await navigateToAdminVolunteerDetail(baseUrl, adminPage, volunteer.name)
 
     // First note: skill_feedback
-    await adminPage.getByLabel('Category').selectOption({ label: 'Skill Feedback' })
+    await selectFilterDropdown(adminPage, 'Category', 'Skill Feedback')
     await adminPage.getByLabel('Note', { exact: true }).fill(noteContent1)
     await adminPage.getByRole('button', { name: 'Add Note' }).click()
     await expect(getAlert(adminPage)).toContainText('Note added.', { timeout: 10_000 })
 
     // Second note: reliability
-    await adminPage.getByLabel('Category').selectOption({ label: 'Reliability' })
+    await selectFilterDropdown(adminPage, 'Category', 'Reliability')
     await adminPage.getByLabel('Note', { exact: true }).fill(noteContent2)
     await adminPage.getByRole('button', { name: 'Add Note' }).click()
     await expect(getAlert(adminPage)).toContainText('Note added.', { timeout: 10_000 })
@@ -193,9 +194,9 @@ test.describe('Volunteer Management', () => {
       { timeout: 5_000 },
     )
 
-    await adminPage.getByLabel('Skill', { exact: true }).selectOption({ label: skill.optionLabel })
-    await adminPage.getByLabel('Rating').selectOption({ label: 'Verified - Can deliver' })
-    await adminPage.getByLabel('Based On').selectOption({ label: 'Direct Observation' })
+    await selectFilterDropdown(adminPage, 'Skill', skill.optionLabel)
+    await selectFilterDropdown(adminPage, 'Rating', 'Verified - Can deliver')
+    await selectFilterDropdown(adminPage, 'Based On', 'Direct Observation')
     await adminPage.getByRole('button', { name: 'Endorse Skill' }).click()
 
     await expect(getAlert(adminPage)).toContainText('Skill endorsed!', { timeout: 10_000 })

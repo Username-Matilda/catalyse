@@ -4,6 +4,7 @@ import { createSkill } from '../actions/skills'
 import type { SkillInfo } from '../actions/skills'
 import { goToDashboardNotifications } from '../actions/dashboard'
 import { fake } from '../fake'
+import { selectFilterDropdown } from '../actions/ui'
 
 async function createOpenStarterTask(
   baseUrl: string,
@@ -23,7 +24,7 @@ async function createOpenStarterTask(
 
   await createDialog.getByLabel('Title').fill(taskTitle)
   await createDialog.getByLabel('Description').fill('E2E test task description')
-  await createDialog.getByLabel('Skill Being Tested').selectOption({ label: skill.optionLabel })
+  await selectFilterDropdown(adminPage, 'Skill Being Tested', skill.optionLabel, createDialog)
   await createDialog.getByLabel('Estimated Hours').fill('2')
   await createDialog.getByRole('button', { name: 'Create Task' }).click()
   await expect(getAlert(adminPage)).toBeVisible({ timeout: 10_000 })
@@ -50,7 +51,7 @@ async function assignStarterTask(
 
   const assignDialog = adminPage.getByRole('dialog', { name: 'Assign Task' })
   await expect(assignDialog).toBeVisible({ timeout: 10_000 })
-  await assignDialog.getByLabel('Volunteer').selectOption({ label: volunteerName })
+  await selectFilterDropdown(adminPage, 'Volunteer', volunteerName, assignDialog)
   await assignDialog.getByRole('button', { name: 'Assign' }).click()
   await expect(getAlert(adminPage)).toBeVisible({ timeout: 10_000 })
 }
@@ -94,7 +95,7 @@ test.describe('Starter Tasks', () => {
 
     await createDialog.getByLabel('Title').fill(taskTitle)
     await createDialog.getByLabel('Description').fill('E2E test task description')
-    await createDialog.getByLabel('Skill Being Tested').selectOption({ label: skill.optionLabel })
+    await selectFilterDropdown(adminPage, 'Skill Being Tested', skill.optionLabel, createDialog)
     await createDialog.getByLabel('Estimated Hours').fill('2')
     await createDialog.getByRole('button', { name: 'Create Task' }).click()
 
@@ -123,7 +124,7 @@ test.describe('Starter Tasks', () => {
 
     const assignDialog = adminPage.getByRole('dialog', { name: 'Assign Task' })
     await expect(assignDialog).toBeVisible({ timeout: 10_000 })
-    await assignDialog.getByLabel('Volunteer').selectOption({ label: volunteer.name })
+    await selectFilterDropdown(adminPage, 'Volunteer', volunteer.name, assignDialog)
     await assignDialog.getByRole('button', { name: 'Assign' }).click()
 
     await expect(getAlert(adminPage)).toContainText('Task assigned!', { timeout: 10_000 })

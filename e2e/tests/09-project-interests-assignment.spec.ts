@@ -8,6 +8,7 @@ import {
   transferProjectOwnership,
 } from '../actions/projects'
 import { Page } from '@playwright/test'
+import { selectFilterDropdown } from '../actions/ui'
 
 // Creates an org project that immediately accepts interest (is_seeking_help = true by default)
 async function setupSeekingProject(baseUrl: string, adminPage: Page): Promise<number> {
@@ -149,11 +150,8 @@ test.describe('Project Interests and Assignment', () => {
     await expect(adminPage.getByRole('heading', { name: 'Interested Volunteers' })).toBeVisible({
       timeout: 10_000,
     })
-    await expect(
-      adminPage.getByLabel('Volunteer to assign').locator(`option:has-text("${volunteer.name}")`),
-    ).toBeAttached({ timeout: 10_000 })
-    await adminPage.getByLabel('Volunteer to assign').selectOption({ label: volunteer.name })
-    await adminPage.getByRole('button', { name: 'Assign' }).click()
+    await selectFilterDropdown(adminPage, 'Volunteer to assign', volunteer.name)
+    await adminPage.getByRole('button', { name: 'Assign', exact: true }).click()
     await expect(getAlert(adminPage)).toContainText('Volunteer assigned!', { timeout: 10_000 })
 
     // Volunteer's interest record appears as accepted

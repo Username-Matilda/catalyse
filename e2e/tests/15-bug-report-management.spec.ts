@@ -4,6 +4,13 @@ import { submitBugReport } from '../actions/bugs'
 import { selectFilterDropdown } from '../actions/ui'
 import { fake } from '../fake'
 
+const BUG_STATUS_LABELS: Record<string, string> = {
+  open: 'Open',
+  in_progress: 'In Progress',
+  resolved: 'Resolved',
+  wont_fix: "Won't Fix",
+}
+
 async function navigateToBugsPage(baseUrl: string, adminPage: Page): Promise<void> {
   await adminPage.goto(`${baseUrl}/admin/bugs`)
   await expect(
@@ -23,7 +30,7 @@ async function updateReportStatus(
   await card.click()
   const modal = adminPage.getByRole('dialog', { name: reportTitle })
   await expect(modal).toBeVisible({ timeout: 10_000 })
-  await modal.getByLabel('Status').selectOption(status)
+  await selectFilterDropdown(adminPage, 'Status', BUG_STATUS_LABELS[status] ?? status, modal)
   if (resolutionNotes) {
     await modal.getByLabel('Resolution Notes').fill(resolutionNotes)
   }

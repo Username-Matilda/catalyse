@@ -1,4 +1,12 @@
 import { Page, expect } from '@playwright/test'
+import { selectFilterDropdown } from './ui'
+
+const SEVERITY_LABELS: Record<string, string> = {
+  low: 'Low — minor inconvenience',
+  medium: 'Medium — affects workflow',
+  high: 'High — blocking',
+  critical: 'Critical — site is broken',
+}
 
 export async function openBugReportForm(page: Page): Promise<void> {
   const cookieBanner = page.locator('.cookie-banner')
@@ -32,7 +40,7 @@ export async function fillAndSubmitBugReport(
     await dialog.getByLabel('Your Email (optional)').fill(opts.email)
   }
   if (opts.severity) {
-    await dialog.getByLabel('How urgent is this?').selectOption(opts.severity)
+    await selectFilterDropdown(page, 'How urgent is this?', SEVERITY_LABELS[opts.severity] ?? opts.severity, dialog)
   }
   await dialog.getByRole('button', { name: 'Submit Report' }).click()
 }

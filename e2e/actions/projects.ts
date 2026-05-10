@@ -1,5 +1,25 @@
 import { Page, expect } from '@playwright/test'
 import { getAlert } from '../fixtures'
+import { selectFilterDropdown } from './ui'
+
+const PROJECT_STATUS_LABELS: Record<string, string> = {
+  seeking_owner: 'Seeking Owner',
+  seeking_help: 'Seeking Help',
+  needs_tasks: 'Needs Tasks',
+  in_progress: 'In Progress',
+  on_hold: 'On Hold',
+  completed: 'Completed',
+  archived: 'Archived',
+  pending_review: 'Pending Review',
+  needs_discussion: 'Needs Discussion',
+}
+
+const OUTCOME_LABELS: Record<string, string> = {
+  successful: 'Successful',
+  partial: 'Partial',
+  not_completed: 'Not Completed',
+  ongoing: 'Ongoing',
+}
 
 export async function proposeProject(
   baseUrl: string,
@@ -95,7 +115,7 @@ export async function adminRecordOutcome(
     adminPage.getByRole('heading', { level: 2, name: 'Record Project Outcome' }),
   ).toBeVisible({ timeout: 10_000 })
 
-  await adminPage.getByLabel('Outcome', { exact: true }).selectOption(outcome)
+  await selectFilterDropdown(adminPage, 'Outcome', OUTCOME_LABELS[outcome] ?? outcome)
   await adminPage.getByLabel('Outcome Notes').fill(notes)
   await adminPage.getByRole('button', { name: 'Record Outcome' }).click()
   await expect(getAlert(adminPage)).toBeVisible({ timeout: 10_000 })
@@ -115,12 +135,9 @@ export async function transferProjectOwnership(
   await expect(
     adminPage.getByRole('heading', { level: 3, name: 'Transfer Ownership' }),
   ).toBeVisible({ timeout: 10_000 })
-  await expect(
-    adminPage.getByLabel('Transfer to').locator(`option:has-text("${volunteerName}")`),
-  ).toBeAttached({ timeout: 10_000 })
-  await adminPage.getByLabel('Transfer to').selectOption({ label: volunteerName })
+  await selectFilterDropdown(adminPage, 'Transfer to', volunteerName)
   adminPage.once('dialog', (dialog) => dialog.accept())
-  await adminPage.getByRole('button', { name: 'Transfer' }).click()
+  await adminPage.getByRole('button', { name: 'Transfer', exact: true }).click()
   await expect(getAlert(adminPage)).toBeVisible({ timeout: 10_000 })
 }
 
@@ -135,7 +152,7 @@ export async function setProjectStatus(
     timeout: 10_000,
   })
 
-  await page.getByLabel('Change Status').selectOption(status)
+  await selectFilterDropdown(page, 'Change Status', PROJECT_STATUS_LABELS[status] ?? status)
   await page.getByRole('button', { name: 'Update Status' }).click()
   await expect(getAlert(page)).toBeVisible({ timeout: 10_000 })
 }

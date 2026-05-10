@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 export interface FilterOption {
   value: string
@@ -31,12 +32,18 @@ export default function FilterDropdown({
   const [query, setQuery] = useState('')
   const [focusedIndex, setFocusedIndex] = useState(-1)
   const ref = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const listboxRef = useRef<HTMLDivElement>(null)
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 })
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
+      const target = e.target as Node
+      if (
+        ref.current && !ref.current.contains(target) &&
+        listboxRef.current && !listboxRef.current.contains(target)
+      ) {
         setOpen(false)
         setQuery('')
         setFocusedIndex(-1)
@@ -45,6 +52,22 @@ export default function FilterDropdown({
     document.addEventListener('mousedown', onClickOutside)
     return () => document.removeEventListener('mousedown', onClickOutside)
   }, [])
+
+  useEffect(() => {
+    if (!open) return
+    const trigger = triggerRef.current
+    if (!trigger) return
+    function reposition() {
+      const r = trigger!.getBoundingClientRect()
+      setDropdownPos({ top: r.bottom + window.scrollY, left: r.left + window.scrollX, width: r.width })
+    }
+    window.addEventListener('scroll', reposition, true)
+    window.addEventListener('resize', reposition)
+    return () => {
+      window.removeEventListener('scroll', reposition, true)
+      window.removeEventListener('resize', reposition)
+    }
+  }, [open])
 
   useEffect(() => {
     if (open && searchable) inputRef.current?.focus()
@@ -122,12 +145,17 @@ export default function FilterDropdown({
       <label htmlFor={id}>{label}</label>
       <div className="relative">
         <button
+          ref={triggerRef}
           type="button"
           aria-label={ariaLabel}
           aria-expanded={open}
           aria-haspopup="listbox"
           aria-activedescendant={focusedIndex >= 0 ? `${id}-opt-${focusedIndex}` : undefined}
-          onClick={() => setOpen(true)}
+          onClick={() => {
+            const rect = triggerRef.current!.getBoundingClientRect()
+            setDropdownPos({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX, width: rect.width })
+            setOpen(true)
+          }}
           onKeyDown={handleKeyDown}
           className={triggerClass}
           tabIndex={searchable && open ? -1 : 0}
@@ -153,11 +181,12 @@ export default function FilterDropdown({
             className="absolute inset-0 m-0"
           />
         )}
-        {open && (
+        {open && createPortal(
           <div
             ref={listboxRef}
             role="listbox"
-            className="absolute top-full left-0 mt-1 bg-surface border border-brand-border rounded-lg shadow-lg z-10 min-w-full py-1 max-h-72 overflow-y-auto"
+            style={{ position: 'absolute', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width, zIndex: 9999 }}
+            className="mt-1 bg-surface border border-brand-border rounded-lg shadow-lg py-1 max-h-72 overflow-y-auto"
           >
             {filtered.map((opt, i) => (
               <div
@@ -175,7 +204,8 @@ export default function FilterDropdown({
             {filtered.length === 0 && (
               <div className="px-3 py-2 text-sm text-text-light">No results</div>
             )}
-          </div>
+          </div>,
+          document.body
         )}
       </div>
     </div>
