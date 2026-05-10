@@ -4,10 +4,7 @@ import { getCurrentVolunteer } from '@/lib/auth'
 import { sendProjectNotificationEmail } from '@/lib/email'
 import { createNotification } from '@/lib/project'
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = await params
   const projectId = parseInt(idParam, 10)
   if (isNaN(projectId)) {
@@ -32,7 +29,10 @@ export async function POST(
   })
 
   if (!project) {
-    return Response.json({ detail: 'This project is not currently seeking volunteers' }, { status: 404 })
+    return Response.json(
+      { detail: 'This project is not currently seeking volunteers' },
+      { status: 404 },
+    )
   }
 
   const existing = await prisma.projectInterest.findFirst({
@@ -73,10 +73,11 @@ export async function POST(
   if (project.ownerId) {
     try {
       await createNotification(
-        project.ownerId, 'new_interest',
+        project.ownerId,
+        'new_interest',
         `Someone's interested in '${project.title}'!`,
         `${volunteer.name} wants to ${interestLabel}`,
-        `/projects/${projectId}`
+        `/projects/${projectId}`,
       )
       const owner = await prisma.volunteer.findFirst({
         where: { id: project.ownerId },
@@ -87,11 +88,14 @@ export async function POST(
           ? `<div style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"><strong>Their message:</strong> ${message}</div>`
           : ''
         sendProjectNotificationEmail(
-          owner.email, owner.name,
+          owner.email,
+          owner.name,
           `${volunteer.name} wants to ${interestLabel} '${project.title}'`,
           `<strong>${volunteer.name}</strong> has expressed interest in your project <strong>${project.title}</strong>. Log in to review and accept or decline.`,
-          project.title, projectId, extra
-        ).catch(e => console.error('[EMAIL ERROR]', e))
+          project.title,
+          projectId,
+          extra,
+        ).catch((e) => console.error('[EMAIL ERROR]', e))
       }
     } catch (e) {
       console.error('[NOTIFY ERROR] Owner notification failed for interest:', e)
@@ -106,18 +110,21 @@ export async function POST(
     for (const admin of admins) {
       if (admin.id === project.ownerId) continue
       createNotification(
-        admin.id, 'new_interest',
+        admin.id,
+        'new_interest',
         `New interest in '${project.title}'`,
         `${volunteer.name} wants to ${interestLabel}`,
-        `/projects/${projectId}`
-      ).catch(e => console.error('[NOTIFY ERROR]', e))
+        `/projects/${projectId}`,
+      ).catch((e) => console.error('[NOTIFY ERROR]', e))
       if (admin.email) {
         sendProjectNotificationEmail(
-          admin.email, admin.name,
+          admin.email,
+          admin.name,
           `New interest: ${volunteer.name} → '${project.title}'`,
           `<strong>${volunteer.name}</strong> wants to ${interestLabel} the project <strong>${project.title}</strong>.`,
-          project.title, projectId
-        ).catch(e => console.error('[EMAIL ERROR]', e))
+          project.title,
+          projectId,
+        ).catch((e) => console.error('[EMAIL ERROR]', e))
       }
     }
   } catch (e) {
@@ -129,7 +136,7 @@ export async function POST(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: idParam } = await params
   const projectId = parseInt(idParam, 10)

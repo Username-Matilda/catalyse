@@ -23,16 +23,16 @@ export async function GET(request: NextRequest) {
 
   if (!profile) return Response.json({ detail: 'Volunteer not found' }, { status: 404 })
 
-  const serializedProfile = serializeVolunteer(
-    profile as unknown as Record<string, unknown>,
-    { showContact: true, skills: profile.skills.map(serializeSkill) }
-  )
+  const serializedProfile = serializeVolunteer(profile as unknown as Record<string, unknown>, {
+    showContact: true,
+    skills: profile.skills.map(serializeSkill),
+  })
 
   return Response.json({
     exported_at: new Date().toISOString(),
     profile: serializedProfile,
     skills: profile.skills.map(serializeSkill),
-    projects: projects.map(p => ({
+    projects: projects.map((p) => ({
       id: p.id,
       title: p.title,
       description: p.description,
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
       created_at: p.createdAt,
       updated_at: p.updatedAt,
     })),
-    interests: interests.map(i => ({
+    interests: interests.map((i) => ({
       id: i.id,
       project_id: i.projectId,
       interest_type: i.interestType,
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
       created_at: i.createdAt,
       responded_at: i.respondedAt,
     })),
-    messages_sent: messagesSent.map(m => ({
+    messages_sent: messagesSent.map((m) => ({
       id: m.id,
       to_volunteer_id: m.toVolunteerId,
       subject: m.subject,
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
       related_project_id: m.relatedProjectId,
       created_at: m.createdAt,
     })),
-    messages_received: messagesReceived.map(m => ({
+    messages_received: messagesReceived.map((m) => ({
       id: m.id,
       from_volunteer_id: m.fromVolunteerId,
       subject: m.subject,

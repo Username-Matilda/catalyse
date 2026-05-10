@@ -1,6 +1,11 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getCurrentVolunteer, serializeVolunteer, serializeSkill, serializeEndorsement } from '@/lib/auth'
+import {
+  getCurrentVolunteer,
+  serializeVolunteer,
+  serializeSkill,
+  serializeEndorsement,
+} from '@/lib/auth'
 
 export async function PUT(request: NextRequest) {
   const volunteer = await getCurrentVolunteer(request.headers.get('authorization'))
@@ -16,10 +21,19 @@ export async function PUT(request: NextRequest) {
   }
 
   const updatable = [
-    'name', 'bio', 'discord_handle', 'signal_number', 'whatsapp_number',
-    'contact_preference', 'contact_notes', 'availability_hours_per_week',
-    'location', 'country', 'local_group',
-    'other_skills', 'email_digest',
+    'name',
+    'bio',
+    'discord_handle',
+    'signal_number',
+    'whatsapp_number',
+    'contact_preference',
+    'contact_notes',
+    'availability_hours_per_week',
+    'location',
+    'country',
+    'local_group',
+    'other_skills',
+    'email_digest',
   ] as const
 
   const prismaFieldMap: Record<string, string> = {
@@ -53,26 +67,23 @@ export async function PUT(request: NextRequest) {
   }
 
   if (Object.prototype.hasOwnProperty.call(body, 'consent_share_contact_info_with_project_owner')) {
-    data.consentShareContactInfoWithProjectOwner = !!body.consent_share_contact_info_with_project_owner
+    data.consentShareContactInfoWithProjectOwner =
+      !!body.consent_share_contact_info_with_project_owner
     if (body.consent_share_contact_info_with_project_owner) data.consentGivenAt = new Date()
   }
 
-  const skillIds: number[] | undefined =
-    Array.isArray(body.skill_ids)
-      ? (body.skill_ids as unknown[]).map(id => Number(id)).filter(n => !isNaN(n))
-      : undefined
+  const skillIds: number[] | undefined = Array.isArray(body.skill_ids)
+    ? (body.skill_ids as unknown[]).map((id) => Number(id)).filter((n) => !isNaN(n))
+    : undefined
 
-  const [vol] = await prisma.$transaction(async tx => {
+  const [vol] = await prisma.$transaction(async (tx) => {
     const updated = await tx.volunteer.update({
       where: { id: volunteer.id },
       data,
       include: {
         skills: {
           include: { skill: { include: { category: true } } },
-          orderBy: [
-            { skill: { category: { sortOrder: 'asc' } } },
-            { skill: { sortOrder: 'asc' } },
-          ],
+          orderBy: [{ skill: { category: { sortOrder: 'asc' } } }, { skill: { sortOrder: 'asc' } }],
         },
         skillEndorsementsReceived: {
           include: { skill: true },
@@ -84,7 +95,7 @@ export async function PUT(request: NextRequest) {
       await tx.volunteerSkill.deleteMany({ where: { volunteerId: volunteer.id } })
       if (skillIds.length > 0) {
         await tx.volunteerSkill.createMany({
-          data: skillIds.map(skillId => ({ volunteerId: volunteer.id, skillId })),
+          data: skillIds.map((skillId) => ({ volunteerId: volunteer.id, skillId })),
         })
       }
       const fresh = await tx.volunteer.findUnique({
@@ -116,6 +127,6 @@ export async function PUT(request: NextRequest) {
       showContact: true,
       skills,
       endorsements,
-    })
+    }),
   )
 }

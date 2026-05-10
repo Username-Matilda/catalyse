@@ -3,10 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/auth'
 import { fieldError, validationError } from '@/lib/errors'
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = await params
   const volunteerId = parseInt(idParam, 10)
   if (isNaN(volunteerId)) {
@@ -26,7 +23,7 @@ export async function GET(
   })
 
   return Response.json(
-    endorsements.map(e => ({
+    endorsements.map((e) => ({
       id: e.id,
       volunteer_id: e.volunteerId,
       skill_id: e.skillId,
@@ -39,14 +36,11 @@ export async function GET(
       skill_name: e.skill.name,
       skill_category: e.skill.category.name,
       endorsed_by_name: e.endorsedBy.name,
-    }))
+    })),
   )
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = await params
   const volunteerId = parseInt(idParam, 10)
   if (isNaN(volunteerId)) {

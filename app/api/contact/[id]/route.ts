@@ -5,10 +5,7 @@ import { sendRelayMessage, isEmailConfigured } from '@/lib/email'
 import { createNotification } from '@/lib/project'
 import { fieldError, validationError } from '@/lib/errors'
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const sender = await getCurrentVolunteer(request.headers.get('authorization'))
   if (!sender) {
     return Response.json({ detail: 'Authentication required' }, { status: 401 })
@@ -44,7 +41,8 @@ export async function POST(
 
   const subject = (body.subject as string).trim()
   const message = body.message as string
-  const relatedProjectId = typeof body.related_project_id === 'number' ? body.related_project_id : null
+  const relatedProjectId =
+    typeof body.related_project_id === 'number' ? body.related_project_id : null
 
   const recipient = await prisma.volunteer.findFirst({
     where: { id: recipientId, deletedAt: null, consentContactableByProjectOwners: true },
@@ -52,7 +50,10 @@ export async function POST(
   })
 
   if (!recipient) {
-    return Response.json({ detail: "Volunteer not found or doesn't accept messages" }, { status: 404 })
+    return Response.json(
+      { detail: "Volunteer not found or doesn't accept messages" },
+      { status: 404 },
+    )
   }
 
   if (!recipient.email) {
@@ -69,7 +70,7 @@ export async function POST(
   }
 
   // Save message and create notification unconditionally; treat email as best-effort delivery.
-  await prisma.$transaction(async tx => {
+  await prisma.$transaction(async (tx) => {
     await tx.message.create({
       data: {
         fromVolunteerId: sender.id,
@@ -91,13 +92,22 @@ export async function POST(
   })
 
   if (!isEmailConfigured()) {
-    return Response.json({ message: "Message sent! They'll receive it by email and can reply directly to you." })
+    return Response.json({
+      message: "Message sent! They'll receive it by email and can reply directly to you.",
+    })
   }
 
   sendRelayMessage(
-    recipient.email, recipient.name, sender.name, sender.email ?? '',
-    subject, message, projectTitle ?? undefined
-  ).catch(e => console.error('[EMAIL ERROR]', e))
+    recipient.email,
+    recipient.name,
+    sender.name,
+    sender.email ?? '',
+    subject,
+    message,
+    projectTitle ?? undefined,
+  ).catch((e) => console.error('[EMAIL ERROR]', e))
 
-  return Response.json({ message: "Message sent! They'll receive it by email and can reply directly to you." })
+  return Response.json({
+    message: "Message sent! They'll receive it by email and can reply directly to you.",
+  })
 }

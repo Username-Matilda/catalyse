@@ -5,7 +5,9 @@ const FROM_EMAIL = process.env.FROM_EMAIL || 'Catalyse <noreply@pauseai.uk>'
 const REPLY_TO_EMAIL = process.env.REPLY_TO_EMAIL
 const APP_URL = process.env.APP_URL || 'http://localhost:3000'
 const STUB_EMAIL_DEFAULT = process.env.NODE_ENV === 'production' ? '' : 'true'
-const STUB_EMAIL = ['1', 'true', 'yes'].includes((process.env.STUB_EMAIL || STUB_EMAIL_DEFAULT).toLowerCase())
+const STUB_EMAIL = ['1', 'true', 'yes'].includes(
+  (process.env.STUB_EMAIL || STUB_EMAIL_DEFAULT).toLowerCase(),
+)
 
 const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null
 
@@ -19,11 +21,20 @@ export function isRealEmailSending(): boolean {
 
 const STUB_EMAIL_DIR = '/tmp/catalyse-emails'
 
-async function sendEmail(to: string, subject: string, html: string, replyTo?: string): Promise<boolean> {
+async function sendEmail(
+  to: string,
+  subject: string,
+  html: string,
+  replyTo?: string,
+): Promise<boolean> {
   if (STUB_EMAIL) {
     const fs = await import('fs/promises')
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-    const slug = subject.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 60)
+    const slug = subject
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '')
+      .slice(0, 60)
     const file = `${STUB_EMAIL_DIR}/${timestamp}_${slug}.html`
     await fs.mkdir(STUB_EMAIL_DIR, { recursive: true })
     await fs.writeFile(file, html)
@@ -63,9 +74,12 @@ const baseStyle = `
 `
 
 function footer(buttons: Array<[string, string]> = []): string {
-  const fallbacks = buttons.map(([label, url]) =>
-    `<p style="font-size: 12px;">If the "${label}" button doesn't work, copy this link: <a href="${url}" style="color: #718096; word-break: break-all;">${url}</a></p>`
-  ).join('')
+  const fallbacks = buttons
+    .map(
+      ([label, url]) =>
+        `<p style="font-size: 12px;">If the "${label}" button doesn't work, copy this link: <a href="${url}" style="color: #718096; word-break: break-all;">${url}</a></p>`,
+    )
+    .join('')
   return `<div class="footer">
     <p>Catalyse - PauseAI Volunteer Platform - This is an automated email</p>
     ${fallbacks}
@@ -86,7 +100,11 @@ export function buildPasswordResetHtml(resetUrl: string, name: string): string {
 </div></body></html>`
 }
 
-export async function sendPasswordResetEmail(to: string, resetToken: string, name = 'there'): Promise<boolean> {
+export async function sendPasswordResetEmail(
+  to: string,
+  resetToken: string,
+  name = 'there',
+): Promise<boolean> {
   const resetUrl = `${APP_URL}/reset-password?token=${resetToken}`
   return sendEmail(to, 'Reset your Catalyse password', buildPasswordResetHtml(resetUrl, name))
 }
@@ -110,9 +128,17 @@ export function buildAdminInviteHtml(inviteUrl: string, invitedBy: string): stri
 </div></body></html>`
 }
 
-export async function sendAdminInviteEmail(to: string, inviteToken: string, invitedBy: string): Promise<boolean> {
+export async function sendAdminInviteEmail(
+  to: string,
+  inviteToken: string,
+  invitedBy: string,
+): Promise<boolean> {
   const inviteUrl = `${APP_URL}/accept-invite?token=${inviteToken}`
-  return sendEmail(to, `${invitedBy} invited you to be a Catalyse admin`, buildAdminInviteHtml(inviteUrl, invitedBy))
+  return sendEmail(
+    to,
+    `${invitedBy} invited you to be a Catalyse admin`,
+    buildAdminInviteHtml(inviteUrl, invitedBy),
+  )
 }
 
 export function buildWelcomeHtml(name: string, appUrl: string): string {
@@ -136,8 +162,12 @@ export async function sendWelcomeEmail(to: string, name: string): Promise<boolea
 }
 
 export function buildProjectNotificationHtml(
-  name: string, subject: string, message: string,
-  projectId: number, appUrl: string, extraHtml = ''
+  name: string,
+  subject: string,
+  message: string,
+  projectId: number,
+  appUrl: string,
+  extraHtml = '',
 ): string {
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
 <body><div class="container">
@@ -153,11 +183,19 @@ export function buildProjectNotificationHtml(
 }
 
 export async function sendProjectNotificationEmail(
-  to: string, name: string, subject: string,
-  message: string, projectTitle: string,
-  projectId: number, extraHtml = ''
+  to: string,
+  name: string,
+  subject: string,
+  message: string,
+  projectTitle: string,
+  projectId: number,
+  extraHtml = '',
 ): Promise<boolean> {
-  return sendEmail(to, subject, buildProjectNotificationHtml(name, subject, message, projectId, APP_URL, extraHtml))
+  return sendEmail(
+    to,
+    subject,
+    buildProjectNotificationHtml(name, subject, message, projectId, APP_URL, extraHtml),
+  )
 }
 
 // TODO: Relay replies bypass the platform — once the recipient hits reply, the thread becomes a
@@ -165,8 +203,12 @@ export async function sendProjectNotificationEmail(
 // platform is needed: inbound routing (Resend webhooks + per-conversation relay addresses) would
 // fix this but requires a messages table and inbound webhook handler.
 export function buildRelayMessageHtml(
-  toName: string, fromName: string, subject: string,
-  message: string, appUrl: string, projectTitle?: string
+  toName: string,
+  fromName: string,
+  subject: string,
+  message: string,
+  appUrl: string,
+  projectTitle?: string,
 ): string {
   const projectContext = projectTitle ? ` about the project <strong>${projectTitle}</strong>` : ''
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
@@ -187,30 +229,51 @@ export function buildRelayMessageHtml(
 }
 
 export async function sendRelayMessage(
-  to: string, toName: string, fromName: string, fromEmail: string,
-  subject: string, message: string, projectTitle?: string
+  to: string,
+  toName: string,
+  fromName: string,
+  fromEmail: string,
+  subject: string,
+  message: string,
+  projectTitle?: string,
 ): Promise<boolean> {
-  return sendEmail(to, `[Catalyse] ${subject}`, buildRelayMessageHtml(toName, fromName, subject, message, APP_URL, projectTitle), fromEmail)
+  return sendEmail(
+    to,
+    `[Catalyse] ${subject}`,
+    buildRelayMessageHtml(toName, fromName, subject, message, APP_URL, projectTitle),
+    fromEmail,
+  )
 }
 
 export function buildDigestHtml(
-  name: string, appUrl: string,
-  projects: Array<{ id: number; title: string; description?: string; skill_names?: string[]; match_percent?: number }>,
-  isMatch = false
+  name: string,
+  appUrl: string,
+  projects: Array<{
+    id: number
+    title: string
+    description?: string
+    skill_names?: string[]
+    match_percent?: number
+  }>,
+  isMatch = false,
 ): string {
-  const matchIntro = isMatch ? 'Here are new projects that match your skills:' : "Here's what's new on Catalyse:"
-  const projectHtml = projects.map(p => {
-    const skillsHtml = (p.skill_names || []).slice(0, 5).join(', ')
-    const matchBadge = p.match_percent
-      ? ` <span style="background: #D1FAE5; color: #065F46; padding: 2px 8px; border-radius: 10px; font-size: 12px;">${p.match_percent}% match</span>`
-      : ''
-    const desc = p.description || ''
-    return `<div style="padding: 16px; margin-bottom: 12px; background: #f7fafc; border-radius: 8px; border-left: 4px solid #FF9416;">
+  const matchIntro = isMatch
+    ? 'Here are new projects that match your skills:'
+    : "Here's what's new on Catalyse:"
+  const projectHtml = projects
+    .map((p) => {
+      const skillsHtml = (p.skill_names || []).slice(0, 5).join(', ')
+      const matchBadge = p.match_percent
+        ? ` <span style="background: #D1FAE5; color: #065F46; padding: 2px 8px; border-radius: 10px; font-size: 12px;">${p.match_percent}% match</span>`
+        : ''
+      const desc = p.description || ''
+      return `<div style="padding: 16px; margin-bottom: 12px; background: #f7fafc; border-radius: 8px; border-left: 4px solid #FF9416;">
       <a href="${appUrl}/projects/${p.id}" style="font-weight: bold; color: #1A202C; text-decoration: none; font-size: 16px;">${p.title}</a>${matchBadge}
       <p style="color: #4A5568; margin: 8px 0 4px 0; font-size: 14px;">${desc.slice(0, 150)}${desc.length > 150 ? '...' : ''}</p>
       ${skillsHtml ? `<p style="font-size: 12px; color: #718096;">Skills: ${skillsHtml}</p>` : ''}
     </div>`
-  }).join('')
+    })
+    .join('')
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
   ${baseStyle}
   .container { max-width: 600px; }
@@ -226,9 +289,16 @@ export function buildDigestHtml(
 }
 
 export async function sendDigestEmail(
-  to: string, name: string,
-  projects: Array<{ id: number; title: string; description?: string; skill_names?: string[]; match_percent?: number }>,
-  isMatch = false
+  to: string,
+  name: string,
+  projects: Array<{
+    id: number
+    title: string
+    description?: string
+    skill_names?: string[]
+    match_percent?: number
+  }>,
+  isMatch = false,
 ): Promise<boolean> {
   if (!projects.length) return false
   const html = buildDigestHtml(name, APP_URL, projects, isMatch)
@@ -236,11 +306,15 @@ export async function sendDigestEmail(
   return sendEmail(to, subject, html)
 }
 
-
 export function buildTaskNudgeHtml(
-  name: string, taskTitle: string, projectTitle: string,
-  projectId: number, taskId: number, daysInactive: number,
-  activityPhrase: string, lastActivityDate: string
+  name: string,
+  taskTitle: string,
+  projectTitle: string,
+  projectId: number,
+  taskId: number,
+  daysInactive: number,
+  activityPhrase: string,
+  lastActivityDate: string,
 ): string {
   const taskUrl = `${APP_URL}/projects/${projectId}#task-${taskId}`
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
@@ -259,19 +333,43 @@ export function buildTaskNudgeHtml(
 }
 
 export async function sendTaskNudgeEmail(
-  to: string, name: string, taskTitle: string, projectTitle: string,
-  projectId: number, taskId: number, daysInactive: number,
-  activityPhrase: string, lastActivityDate: string
+  to: string,
+  name: string,
+  taskTitle: string,
+  projectTitle: string,
+  projectId: number,
+  taskId: number,
+  daysInactive: number,
+  activityPhrase: string,
+  lastActivityDate: string,
 ): Promise<boolean> {
   const subject = `How's it going with ${taskTitle}?`
-  return sendEmail(to, subject, buildTaskNudgeHtml(name, taskTitle, projectTitle, projectId, taskId, daysInactive, activityPhrase, lastActivityDate))
+  return sendEmail(
+    to,
+    subject,
+    buildTaskNudgeHtml(
+      name,
+      taskTitle,
+      projectTitle,
+      projectId,
+      taskId,
+      daysInactive,
+      activityPhrase,
+      lastActivityDate,
+    ),
+  )
 }
 
-
 export function buildTaskFinalWarningHtml(
-  name: string, taskTitle: string, projectTitle: string,
-  projectId: number, taskId: number, daysInactive: number,
-  activityPhrase: string, lastActivityDate: string, surrenderDate: string
+  name: string,
+  taskTitle: string,
+  projectTitle: string,
+  projectId: number,
+  taskId: number,
+  daysInactive: number,
+  activityPhrase: string,
+  lastActivityDate: string,
+  surrenderDate: string,
 ): string {
   const taskUrl = `${APP_URL}/projects/${projectId}#task-${taskId}`
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
@@ -293,18 +391,41 @@ export function buildTaskFinalWarningHtml(
 }
 
 export async function sendTaskFinalWarningEmail(
-  to: string, name: string, taskTitle: string, projectTitle: string,
-  projectId: number, taskId: number, daysInactive: number,
-  activityPhrase: string, lastActivityDate: string, surrenderDate: string
+  to: string,
+  name: string,
+  taskTitle: string,
+  projectTitle: string,
+  projectId: number,
+  taskId: number,
+  daysInactive: number,
+  activityPhrase: string,
+  lastActivityDate: string,
+  surrenderDate: string,
 ): Promise<boolean> {
   const subject = `A quick nudge about ${taskTitle}`
-  return sendEmail(to, subject, buildTaskFinalWarningHtml(name, taskTitle, projectTitle, projectId, taskId, daysInactive, activityPhrase, lastActivityDate, surrenderDate))
+  return sendEmail(
+    to,
+    subject,
+    buildTaskFinalWarningHtml(
+      name,
+      taskTitle,
+      projectTitle,
+      projectId,
+      taskId,
+      daysInactive,
+      activityPhrase,
+      lastActivityDate,
+      surrenderDate,
+    ),
+  )
 }
 
-
 export function buildTaskSurrenderedOwnerHtml(
-  ownerName: string, volunteerName: string, taskTitle: string,
-  projectTitle: string, projectId: number
+  ownerName: string,
+  volunteerName: string,
+  taskTitle: string,
+  projectTitle: string,
+  projectId: number,
 ): string {
   const projectUrl = `${APP_URL}/projects/${projectId}`
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
@@ -320,16 +441,26 @@ export function buildTaskSurrenderedOwnerHtml(
 }
 
 export async function sendTaskSurrenderedOwnerEmail(
-  to: string, ownerName: string, volunteerName: string,
-  taskTitle: string, projectTitle: string, projectId: number
+  to: string,
+  ownerName: string,
+  volunteerName: string,
+  taskTitle: string,
+  projectTitle: string,
+  projectId: number,
 ): Promise<boolean> {
   const subject = `Task unassigned due to inactivity: ${taskTitle}`
-  return sendEmail(to, subject, buildTaskSurrenderedOwnerHtml(ownerName, volunteerName, taskTitle, projectTitle, projectId))
+  return sendEmail(
+    to,
+    subject,
+    buildTaskSurrenderedOwnerHtml(ownerName, volunteerName, taskTitle, projectTitle, projectId),
+  )
 }
 
-
 export function buildTaskSurrenderedAssigneeHtml(
-  name: string, taskTitle: string, projectTitle: string, projectId: number
+  name: string,
+  taskTitle: string,
+  projectTitle: string,
+  projectId: number,
 ): string {
   const projectUrl = `${APP_URL}/projects/${projectId}`
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
@@ -345,8 +476,16 @@ export function buildTaskSurrenderedAssigneeHtml(
 }
 
 export async function sendTaskSurrenderedAssigneeEmail(
-  to: string, name: string, taskTitle: string, projectTitle: string, projectId: number
+  to: string,
+  name: string,
+  taskTitle: string,
+  projectTitle: string,
+  projectId: number,
 ): Promise<boolean> {
   const subject = `Update on your task: ${taskTitle}`
-  return sendEmail(to, subject, buildTaskSurrenderedAssigneeHtml(name, taskTitle, projectTitle, projectId))
+  return sendEmail(
+    to,
+    subject,
+    buildTaskSurrenderedAssigneeHtml(name, taskTitle, projectTitle, projectId),
+  )
 }

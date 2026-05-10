@@ -2,10 +2,7 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentVolunteer } from '@/lib/auth'
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const volunteer = await getCurrentVolunteer(request.headers.get('authorization'))
   if (!volunteer) {
     return Response.json({ detail: 'Authentication required' }, { status: 401 })

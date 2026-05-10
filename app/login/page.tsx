@@ -18,14 +18,13 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false)
   const [googleClientId, setGoogleClientId] = useState('')
 
-
   useEffect(() => {
     if (!loading && user) router.replace('/dashboard')
   }, [user, loading, router])
 
   useEffect(() => {
     apiRequest<{ client_id: string }>('/api/auth/google-client-id')
-      .then(d => setGoogleClientId(d.client_id))
+      .then((d) => setGoogleClientId(d.client_id))
       .catch(() => {})
   }, [])
 
@@ -51,30 +50,51 @@ export default function LoginPage() {
       method: 'POST',
       body: JSON.stringify({ credential: response.credential }),
     })
-      .then(async data => {
+      .then(async (data) => {
         await setToken(data.auth_token)
         router.push(data.is_new_user ? '/profile' : '/dashboard')
       })
-      .catch(err => setError(err instanceof Error ? err.message : 'Google sign-in failed'))
+      .catch((err) => setError(err instanceof Error ? err.message : 'Google sign-in failed'))
   }
 
   function initGoogleButton() {
-    const win = window as Window & typeof globalThis & { google?: { accounts: { id: { initialize: (c: unknown) => void; renderButton: (el: Element | null, opts: unknown) => void } } } }
+    const win = window as Window &
+      typeof globalThis & {
+        google?: {
+          accounts: {
+            id: {
+              initialize: (c: unknown) => void
+              renderButton: (el: Element | null, opts: unknown) => void
+            }
+          }
+        }
+      }
     if (!win.google?.accounts?.id || !googleClientId) return
     win.google.accounts.id.initialize({ client_id: googleClientId, callback: handleGoogleResponse })
-    win.google.accounts.id.renderButton(document.getElementById('g_signin_btn'), { theme: 'outline', size: 'large', width: 350, text: 'sign_in_with' })
+    win.google.accounts.id.renderButton(document.getElementById('g_signin_btn'), {
+      theme: 'outline',
+      size: 'large',
+      width: 350,
+      text: 'sign_in_with',
+    })
   }
 
   useEffect(() => {
     initGoogleButton()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [googleClientId])
 
   if (loading) return null
 
   return (
     <>
-      {googleClientId && <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" onLoad={initGoogleButton} />}
+      {googleClientId && (
+        <Script
+          src="https://accounts.google.com/gsi/client"
+          strategy="afterInteractive"
+          onLoad={initGoogleButton}
+        />
+      )}
       <Header />
       <main className="max-w-350 mx-auto px-6 py-5 pb-15">
         <div style={{ maxWidth: 400, margin: '60px auto' }}>
@@ -84,7 +104,10 @@ export default function LoginPage() {
           </p>
 
           {error && (
-            <div role="alert" className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]">
+            <div
+              role="alert"
+              className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]"
+            >
               {error}
             </div>
           )}
@@ -103,7 +126,9 @@ export default function LoginPage() {
 
             <form onSubmit={handleSubmit}>
               <div className="mb-5">
-                <label htmlFor="email" className="required">Email</label>
+                <label htmlFor="email" className="required">
+                  Email
+                </label>
                 <input
                   type="email"
                   id="email"
@@ -112,12 +137,14 @@ export default function LoginPage() {
                   autoFocus
                   placeholder="you@example.com"
                   value={email}
-                  onChange={e => setEmail(e.target.value)}
+                  onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
 
               <div className="mb-5">
-                <label htmlFor="password" className="required">Password</label>
+                <label htmlFor="password" className="required">
+                  Password
+                </label>
                 <input
                   type="password"
                   id="password"
@@ -125,7 +152,7 @@ export default function LoginPage() {
                   required
                   placeholder="Your password"
                   value={password}
-                  onChange={e => setPassword(e.target.value)}
+                  onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
 
@@ -143,9 +170,13 @@ export default function LoginPage() {
           </div>
 
           <p className="text-center text-sm text-text-light" style={{ marginTop: 24 }}>
-            <Link href="/privacy" className="text-text-light">Privacy Policy</Link>
+            <Link href="/privacy" className="text-text-light">
+              Privacy Policy
+            </Link>
             {' · '}
-            <a href="mailto:matilda@pauseai.info" className="text-text-light">Contact Support</a>
+            <a href="mailto:matilda@pauseai.info" className="text-text-light">
+              Contact Support
+            </a>
           </p>
         </div>
       </main>

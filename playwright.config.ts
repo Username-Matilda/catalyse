@@ -1,5 +1,5 @@
-import { defineConfig, devices } from '@playwright/test';
-import { WORKER_COUNT } from './e2e/config';
+import { defineConfig, devices } from '@playwright/test'
+import { WORKER_COUNT } from './e2e/config'
 
 export default defineConfig({
   testDir: './e2e/tests',
@@ -14,7 +14,5 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     launchOptions: { slowMo: parseInt(process.env.SLOW_MO ?? '0', 10) },
   },
-  projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-  ],
-});
+  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+})

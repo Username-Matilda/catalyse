@@ -2,10 +2,7 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/auth'
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { error } = await requireAdmin(request.headers.get('authorization'))
   if (error) return error
 
@@ -28,8 +25,12 @@ export async function PUT(
     data: {
       ...(body.title != null && { title: String(body.title).trim() }),
       ...(body.description != null && { description: String(body.description).trim() }),
-      ...(Object.prototype.hasOwnProperty.call(body, 'skill_id') && { skillId: body.skill_id as number | null }),
-      ...(Object.prototype.hasOwnProperty.call(body, 'estimated_hours') && { estimatedHours: body.estimated_hours as number | null }),
+      ...(Object.prototype.hasOwnProperty.call(body, 'skill_id') && {
+        skillId: body.skill_id as number | null,
+      }),
+      ...(Object.prototype.hasOwnProperty.call(body, 'estimated_hours') && {
+        estimatedHours: body.estimated_hours as number | null,
+      }),
     },
   })
 

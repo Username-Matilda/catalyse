@@ -34,7 +34,7 @@ function AcceptInviteContent() {
       method: 'POST',
     })
       .then(() => setStatus('success'))
-      .catch(err => {
+      .catch((err) => {
         setStatus('error')
         setErrorMsg(err instanceof Error ? err.message : 'Failed to accept invite')
       })
@@ -57,7 +57,8 @@ function AcceptInviteContent() {
   }
 
   if (status === 'needs-login') {
-    const redirectUrl = typeof window !== 'undefined' ? encodeURIComponent(window.location.href) : ''
+    const redirectUrl =
+      typeof window !== 'undefined' ? encodeURIComponent(window.location.href) : ''
     return (
       <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word text-center">
         <h2>Admin Invite</h2>
@@ -68,7 +69,9 @@ function AcceptInviteContent() {
           Please log in or sign up with the invited email address to accept.
         </p>
         <Button href={`/login?redirect=${redirectUrl}`}>Log In</Button>
-        <Button href={`/signup?redirect=${redirectUrl}`} variant="outline" className="ml-2">Sign Up</Button>
+        <Button href={`/signup?redirect=${redirectUrl}`} variant="outline" className="ml-2">
+          Sign Up
+        </Button>
       </div>
     )
   }
@@ -89,7 +92,9 @@ function AcceptInviteContent() {
     <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word text-center">
       <h2>Invite Error</h2>
       <p style={{ margin: '16px 0', color: 'var(--error)' }}>{errorMsg}</p>
-      <Button href="/" variant="outline">Back to Home</Button>
+      <Button href="/" variant="outline">
+        Back to Home
+      </Button>
     </div>
   )
 }

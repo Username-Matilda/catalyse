@@ -25,7 +25,9 @@ function ResetPasswordForm() {
         <p className="text-text-light" style={{ margin: '16px 0' }}>
           This reset link is invalid or has expired. Please request a new one.
         </p>
-        <Button href="/forgot-password" variant="outline">Request New Link</Button>
+        <Button href="/forgot-password" variant="outline">
+          Request New Link
+        </Button>
       </div>
     )
   }
@@ -62,15 +64,23 @@ function ResetPasswordForm() {
   }
 
   return (
-    <form className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word" onSubmit={handleSubmit}>
+    <form
+      className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
+      onSubmit={handleSubmit}
+    >
       {error && (
-        <div role="alert" className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]">
+        <div
+          role="alert"
+          className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]"
+        >
           {error}
         </div>
       )}
 
       <div className="mb-5">
-        <label htmlFor="password" className="required">New Password</label>
+        <label htmlFor="password" className="required">
+          New Password
+        </label>
         <input
           type="password"
           id="password"
@@ -80,14 +90,23 @@ function ResetPasswordForm() {
           autoFocus
           placeholder="At least 8 characters"
           value={password}
-          onChange={e => { setPassword(e.target.value); if (fieldErrors.password) setFieldErrors({}) }}
+          onChange={(e) => {
+            setPassword(e.target.value)
+            if (fieldErrors.password) setFieldErrors({})
+          }}
           aria-invalid={fieldErrors.password ? true : undefined}
         />
-        {fieldErrors.password && <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>{fieldErrors.password}</p>}
+        {fieldErrors.password && (
+          <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
+            {fieldErrors.password}
+          </p>
+        )}
       </div>
 
       <div className="mb-5">
-        <label htmlFor="password_confirm" className="required">Confirm Password</label>
+        <label htmlFor="password_confirm" className="required">
+          Confirm Password
+        </label>
         <input
           type="password"
           id="password_confirm"
@@ -96,7 +115,7 @@ function ResetPasswordForm() {
           minLength={8}
           placeholder="Type your password again"
           value={passwordConfirm}
-          onChange={e => setPasswordConfirm(e.target.value)}
+          onChange={(e) => setPasswordConfirm(e.target.value)}
         />
       </div>
 

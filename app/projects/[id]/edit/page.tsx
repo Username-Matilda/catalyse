@@ -47,13 +47,13 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
   useEffect(() => {
     if (!user) return
     apiRequest<ProjectData>(`/api/projects/${idParam}`)
-      .then(data => {
+      .then((data) => {
         setProject(data)
         setTitle(data.title)
         setDescription(data.description)
         setCollaborationLink(data.collaboration_link ?? '')
         setSkills(
-          (data.skills ?? []).map(s => ({ skillId: s.id, proficiencyLevel: 'intermediate' }))
+          (data.skills ?? []).map((s) => ({ skillId: s.id, proficiencyLevel: 'intermediate' })),
         )
         const isOwner = data.owner_id === user.id || data.proposed_by_id === user.id
         const isAdmin = user.is_admin
@@ -77,7 +77,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
           title: title.trim(),
           description: description.trim(),
           collaboration_link: collaborationLink.trim() || null,
-          skill_ids: skills.map(s => s.skillId),
+          skill_ids: skills.map((s) => s.skillId),
         }),
       })
       router.push(`/projects/${idParam}`)
@@ -88,7 +88,8 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
   }
 
   async function handleDelete() {
-    if (!window.confirm('Are you sure you want to delete this project? This cannot be undone.')) return
+    if (!window.confirm('Are you sure you want to delete this project? This cannot be undone.'))
+      return
     setDeleting(true)
     try {
       await apiRequest(`/api/projects/${idParam}`, { method: 'DELETE' })
@@ -119,12 +120,18 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
         <h1 role="heading">Edit Project</h1>
 
         {permissionChecked && !canEdit && (
-          <div role="alert" className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]">
+          <div
+            role="alert"
+            className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]"
+          >
             You do not have permission to edit this project.
           </div>
         )}
 
-        <form className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word" onSubmit={handleSubmit}>
+        <form
+          className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
+          onSubmit={handleSubmit}
+        >
           <div className="mb-5">
             <label htmlFor="edit-title">Project Title</label>
             <input
@@ -132,7 +139,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
               type="text"
               aria-label="Project Title"
               value={title}
-              onChange={e => setTitle(e.target.value)}
+              onChange={(e) => setTitle(e.target.value)}
               disabled={!canEdit}
               required
             />
@@ -145,7 +152,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
               aria-label="Description"
               rows={6}
               value={description}
-              onChange={e => setDescription(e.target.value)}
+              onChange={(e) => setDescription(e.target.value)}
               disabled={!canEdit}
             />
           </div>
@@ -158,7 +165,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
               aria-label="Collaboration Doc / Link"
               placeholder="https://…"
               value={collaborationLink}
-              onChange={e => setCollaborationLink(e.target.value)}
+              onChange={(e) => setCollaborationLink(e.target.value)}
               disabled={!canEdit}
             />
           </div>
@@ -174,12 +181,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
             </Button>
 
             {user.is_admin && project && (
-              <Button
-                type="button"
-                variant="danger"
-                onClick={handleDelete}
-                disabled={deleting}
-              >
+              <Button type="button" variant="danger" onClick={handleDelete} disabled={deleting}>
                 {deleting ? 'Deleting…' : 'Delete Project'}
               </Button>
             )}

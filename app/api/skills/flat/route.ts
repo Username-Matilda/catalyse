@@ -7,7 +7,7 @@ export async function GET() {
   })
 
   return Response.json(
-    skills.map(s => ({
+    skills.map((s) => ({
       id: s.id,
       category_id: s.categoryId,
       name: s.name,
@@ -15,6 +15,6 @@ export async function GET() {
       sort_order: s.sortOrder,
       created_at: s.createdAt,
       category_name: s.category.name,
-    }))
+    })),
   )
 }

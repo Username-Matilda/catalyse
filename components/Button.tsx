@@ -46,9 +46,18 @@ type ButtonProps = (AsLink | AsButton) & {
   active?: boolean
 }
 
-export default function Button({ variant = 'primary', size = 'md', icon = false, active = false, className, ...props }: ButtonProps) {
+export default function Button({
+  variant = 'primary',
+  size = 'md',
+  icon = false,
+  active = false,
+  className,
+  ...props
+}: ButtonProps) {
   const sizeClass = icon ? iconSizes[size] : sizes[size]
-  const classes = [base, variants[variant], active && activeVariants[variant], sizeClass, className].filter(Boolean).join(' ')
+  const classes = [base, variants[variant], active && activeVariants[variant], sizeClass, className]
+    .filter(Boolean)
+    .join(' ')
 
   if ('href' in props && props.href !== undefined) {
     const { href, ...rest } = props as AsLink

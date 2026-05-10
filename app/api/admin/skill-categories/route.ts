@@ -12,14 +12,14 @@ export async function GET(request: NextRequest) {
   })
 
   return Response.json(
-    categories.map(cat => ({
+    categories.map((cat) => ({
       id: cat.id,
       name: cat.name,
       description: cat.description,
       sort_order: cat.sortOrder,
       created_at: cat.createdAt,
       skill_count: cat._count.skills,
-    }))
+    })),
   )
 }
 
@@ -36,7 +36,10 @@ export async function POST(request: NextRequest) {
 
   const name = String(body.name || '').trim()
   if (!name || name.length > 100) {
-    return Response.json({ detail: 'Name is required and must be at most 100 characters' }, { status: 422 })
+    return Response.json(
+      { detail: 'Name is required and must be at most 100 characters' },
+      { status: 422 },
+    )
   }
 
   const description = body.description ? String(body.description) : null

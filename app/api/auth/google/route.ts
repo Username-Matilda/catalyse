@@ -1,8 +1,6 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import {
-  generateAuthToken, checkAdminBootstrap, acceptPendingInvite,
-} from '@/lib/auth'
+import { generateAuthToken, checkAdminBootstrap, acceptPendingInvite } from '@/lib/auth'
 import { sendWelcomeEmail } from '@/lib/email'
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID
@@ -10,11 +8,9 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID
 async function verifyGoogleToken(credential: string) {
   if (!GOOGLE_CLIENT_ID) return null
   try {
-    const resp = await fetch(
-      `https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`
-    )
+    const resp = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`)
     if (!resp.ok) return null
-    const data = await resp.json() as Record<string, string>
+    const data = (await resp.json()) as Record<string, string>
     if (data.aud !== GOOGLE_CLIENT_ID) {
       console.log(`[GOOGLE_AUTH] Token audience mismatch: ${data.aud}`)
       return null
@@ -78,7 +74,9 @@ export async function POST(request: NextRequest) {
   const authToken = generateAuthToken()
   const volunteer = await prisma.volunteer.create({
     data: {
-      name, email, authToken,
+      name,
+      email,
+      authToken,
       consentMakeProfileVisibleInDirectory: true,
       consentContactableByProjectOwners: true,
       consentGivenAt: new Date(),
@@ -90,8 +88,11 @@ export async function POST(request: NextRequest) {
   } catch (e) {
     console.error('[GOOGLE_SIGNUP ERROR] admin bootstrap failed:', e)
     return Response.json(
-      { detail: 'Something went wrong creating your account. Please try again or contact us. Error Code: C' },
-      { status: 500 }
+      {
+        detail:
+          'Something went wrong creating your account. Please try again or contact us. Error Code: C',
+      },
+      { status: 500 },
     )
   }
   try {
@@ -99,12 +100,21 @@ export async function POST(request: NextRequest) {
   } catch (e) {
     console.error('[GOOGLE_SIGNUP ERROR] admin invite check failed:', e)
     return Response.json(
-      { detail: 'Something went wrong creating your account. Please try again or contact us. Error Code: D' },
-      { status: 500 }
+      {
+        detail:
+          'Something went wrong creating your account. Please try again or contact us. Error Code: D',
+      },
+      { status: 500 },
     )
   }
 
-  sendWelcomeEmail(email, name).catch(e => console.error('[GOOGLE_SIGNUP] Welcome email failed:', e))
+  sendWelcomeEmail(email, name).catch((e) =>
+    console.error('[GOOGLE_SIGNUP] Welcome email failed:', e),
+  )
 
-  return Response.json({ auth_token: authToken, message: 'Welcome to Catalyse!', is_new_user: true })
+  return Response.json({
+    auth_token: authToken,
+    message: 'Welcome to Catalyse!',
+    is_new_user: true,
+  })
 }

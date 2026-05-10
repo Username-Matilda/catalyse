@@ -85,7 +85,9 @@ export default function SettingsPage() {
         body: JSON.stringify({ password: deletePassword }),
       })
       showToast(data.message, 'success')
-      setTimeout(async () => { await logout() }, 1500)
+      setTimeout(async () => {
+        await logout()
+      }, 1500)
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Account deletion failed', 'error')
       setDeleting(false)
@@ -114,7 +116,7 @@ export default function SettingsPage() {
                 type="email"
                 id="new_email"
                 value={newEmail}
-                onChange={e => setNewEmail(e.target.value)}
+                onChange={(e) => setNewEmail(e.target.value)}
                 required
               />
             </div>
@@ -124,7 +126,7 @@ export default function SettingsPage() {
                 type="password"
                 id="email_password"
                 value={emailPassword}
-                onChange={e => setEmailPassword(e.target.value)}
+                onChange={(e) => setEmailPassword(e.target.value)}
                 required
               />
             </div>
@@ -145,7 +147,7 @@ export default function SettingsPage() {
                 type="password"
                 id="current_password"
                 value={currentPassword}
-                onChange={e => setCurrentPassword(e.target.value)}
+                onChange={(e) => setCurrentPassword(e.target.value)}
                 required
               />
             </div>
@@ -155,7 +157,7 @@ export default function SettingsPage() {
                 type="password"
                 id="new_password"
                 value={newPassword}
-                onChange={e => setNewPassword(e.target.value)}
+                onChange={(e) => setNewPassword(e.target.value)}
                 required
               />
             </div>
@@ -165,7 +167,7 @@ export default function SettingsPage() {
                 type="password"
                 id="confirm_password"
                 value={confirmPassword}
-                onChange={e => setConfirmPassword(e.target.value)}
+                onChange={(e) => setConfirmPassword(e.target.value)}
                 required
               />
             </div>
@@ -200,7 +202,8 @@ export default function SettingsPage() {
               </div>
               <div className="p-6">
                 <p className="text-text-light mb-4">
-                  This action is permanent and cannot be undone. Please enter your password twice to confirm.
+                  This action is permanent and cannot be undone. Please enter your password twice to
+                  confirm.
                 </p>
 
                 <form onSubmit={handleDeleteAccount}>
@@ -210,7 +213,7 @@ export default function SettingsPage() {
                       type="password"
                       id="delete_password"
                       value={deletePassword}
-                      onChange={e => setDeletePassword(e.target.value)}
+                      onChange={(e) => setDeletePassword(e.target.value)}
                       required
                     />
                   </div>
@@ -220,7 +223,7 @@ export default function SettingsPage() {
                       type="password"
                       id="delete_confirm_password"
                       value={deleteConfirmPassword}
-                      onChange={e => setDeleteConfirmPassword(e.target.value)}
+                      onChange={(e) => setDeleteConfirmPassword(e.target.value)}
                       required
                     />
                   </div>
@@ -231,7 +234,11 @@ export default function SettingsPage() {
                     <Button
                       type="button"
                       variant="ghost"
-                      onClick={() => { setShowDeleteModal(false); setDeletePassword(''); setDeleteConfirmPassword('') }}
+                      onClick={() => {
+                        setShowDeleteModal(false)
+                        setDeletePassword('')
+                        setDeleteConfirmPassword('')
+                      }}
                     >
                       Cancel
                     </Button>

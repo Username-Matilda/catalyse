@@ -50,8 +50,6 @@ interface StarterTask {
 
 type TabKey = 'owned' | 'interests' | 'proposed' | 'suggested' | 'notifications'
 
-
-
 function DashboardPageInner() {
   const router = useRouter()
   const { user, loading } = useAuth()
@@ -74,19 +72,21 @@ function DashboardPageInner() {
   useEffect(() => {
     if (!user) return
     apiRequest<DashboardData>('/api/dashboard')
-      .then(d => {
+      .then((d) => {
         setData(d)
         setUnreadCount(d.unread_notification_count)
       })
       .catch(() => {})
       .finally(() => setLoadingData(false))
     apiRequest<StarterTask[]>('/api/my/starter-tasks')
-      .then(t => setStarterTasks(t.filter(t => t.status === 'assigned' || t.status === 'submitted')))
+      .then((t) =>
+        setStarterTasks(t.filter((t) => t.status === 'assigned' || t.status === 'submitted')),
+      )
       .catch(() => {})
   }, [user])
 
   function toggleTask(id: number) {
-    setExpandedTasks(prev => {
+    setExpandedTasks((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
@@ -99,7 +99,9 @@ function DashboardPageInner() {
     try {
       await apiRequest(`/api/starter-tasks/${taskId}/submit`, { method: 'PUT' })
       showToast('Task submitted for review!', 'success')
-      setStarterTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'submitted' } : t))
+      setStarterTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? { ...t, status: 'submitted' } : t)),
+      )
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Failed to submit task', 'error')
     } finally {
@@ -123,7 +125,7 @@ function DashboardPageInner() {
     try {
       await apiRequest('/api/notifications/read-all', { method: 'PUT' })
       setUnreadCount(0)
-      setNotifications(prev => prev.map(n => ({ ...n, read_at: new Date().toISOString() })))
+      setNotifications((prev) => prev.map((n) => ({ ...n, read_at: new Date().toISOString() })))
     } catch {}
   }
 
@@ -150,14 +152,16 @@ function DashboardPageInner() {
     {
       key: 'notifications',
       'data-tab': 'notifications',
-      label: (<>
-        Notifications
-        {unreadCount > 0 && (
-          <span className="notification-badge bg-primary text-secondary-dark text-xs px-2 py-0.5 rounded-full ml-1">
-            {unreadCount}
-          </span>
-        )}
-      </>),
+      label: (
+        <>
+          Notifications
+          {unreadCount > 0 && (
+            <span className="notification-badge bg-primary text-secondary-dark text-xs px-2 py-0.5 rounded-full ml-1">
+              {unreadCount}
+            </span>
+          )}
+        </>
+      ),
     },
   ]
 
@@ -170,8 +174,21 @@ function DashboardPageInner() {
         {/* Email notification preference banner */}
         {showEmailBanner && (
           <div className="flex items-center justify-between gap-3 p-4 rounded-lg mb-5 bg-[#DBEAFE] text-[#1E40AF] border border-[#93C5FD] dark:bg-[#1E3A5F] dark:text-[#93C5FD] dark:border-[#2563EB]">
-            <span>Stay in the loop — set your email notification preference in your <Link href="/profile" className="underline font-semibold">profile</Link>.</span>
-            <Button variant="ghost" icon onClick={() => setEmailBannerDismissed(true)} aria-label="Dismiss">×</Button>
+            <span>
+              Stay in the loop — set your email notification preference in your{' '}
+              <Link href="/profile" className="underline font-semibold">
+                profile
+              </Link>
+              .
+            </span>
+            <Button
+              variant="ghost"
+              icon
+              onClick={() => setEmailBannerDismissed(true)}
+              aria-label="Dismiss"
+            >
+              ×
+            </Button>
           </div>
         )}
 
@@ -180,8 +197,11 @@ function DashboardPageInner() {
           <section aria-label="Starter Tasks" className="mb-8">
             <h2>Starter Tasks</h2>
             {/* [test hook] card, card-header classes used as test selectors */}
-            {starterTasks.map(task => (
-              <div key={task.id} className="card bg-surface rounded-xl shadow p-6 mb-3 overflow-hidden wrap-break-word">
+            {starterTasks.map((task) => (
+              <div
+                key={task.id}
+                className="card bg-surface rounded-xl shadow p-6 mb-3 overflow-hidden wrap-break-word"
+              >
                 <div
                   className="card-header flex justify-between items-center cursor-pointer"
                   onClick={() => toggleTask(task.id)}
@@ -192,18 +212,22 @@ function DashboardPageInner() {
                       <span className="ml-2 text-sm text-text-light">{task.skill_name}</span>
                     )}
                   </div>
-                  <span className={statusBadgeClasses(task.status)}>
-                    {task.status}
-                  </span>
+                  <span className={statusBadgeClasses(task.status)}>{task.status}</span>
                 </div>
                 {expandedTasks.has(task.id) && (
                   <div className="mt-3">
                     <p className="text-text-light text-sm mb-3">{task.description}</p>
                     {task.feedback_to_volunteer && (
-                      <p className="text-sm mb-3"><strong>Feedback:</strong> {task.feedback_to_volunteer}</p>
+                      <p className="text-sm mb-3">
+                        <strong>Feedback:</strong> {task.feedback_to_volunteer}
+                      </p>
                     )}
                     {task.status === 'assigned' && (
-                      <Button size="sm" disabled={submittingTask} onClick={() => submitTask(task.id)}>
+                      <Button
+                        size="sm"
+                        disabled={submittingTask}
+                        onClick={() => submitTask(task.id)}
+                      >
                         Mark as Complete
                       </Button>
                     )}
@@ -218,11 +242,15 @@ function DashboardPageInner() {
         <div className="grid grid-cols-3 gap-5 mb-8 max-[600px]:grid-cols-1">
           {/* [test hook] card, stat-number classes used as test selectors */}
           <div className="card bg-surface rounded-xl shadow p-6 text-center">
-            <div className="stat-number text-4xl font-bold text-primary mb-1">{data?.owned_projects.length ?? 0}</div>
+            <div className="stat-number text-4xl font-bold text-primary mb-1">
+              {data?.owned_projects.length ?? 0}
+            </div>
             <div className="text-text-light text-sm">Owned Projects</div>
           </div>
           <div className="card bg-surface rounded-xl shadow p-6 text-center">
-            <div className="stat-number text-4xl font-bold text-primary mb-1">{data?.my_interests.length ?? 0}</div>
+            <div className="stat-number text-4xl font-bold text-primary mb-1">
+              {data?.my_interests.length ?? 0}
+            </div>
             <div className="text-text-light text-sm">Active Interests</div>
           </div>
           <div className="card bg-surface rounded-xl shadow p-6 text-center">
@@ -249,9 +277,14 @@ function DashboardPageInner() {
         {activeTab === 'interests' && (
           <div>
             {!data?.my_interests.length ? (
-              <p className="text-text-light">You haven&apos;t expressed interest in any projects yet.</p>
+              <p className="text-text-light">
+                You haven&apos;t expressed interest in any projects yet.
+              </p>
             ) : (
-              <ProjectList projects={data.my_interests} userSkillIds={new Set(user.skills?.map(s => s.id) ?? [])} />
+              <ProjectList
+                projects={data.my_interests}
+                userSkillIds={new Set(user.skills?.map((s) => s.id) ?? [])}
+              />
             )}
           </div>
         )}
@@ -269,11 +302,18 @@ function DashboardPageInner() {
         {activeTab === 'suggested' && (
           <div>
             {!data?.suggested_projects.length ? (
-              <p className="text-text-light">No suggested projects matching your skills right now.</p>
+              <p className="text-text-light">
+                No suggested projects matching your skills right now.
+              </p>
             ) : (
               <>
-                <p className="mb-4 text-text-light">Based on your skills, these projects might be a good fit:</p>
-                <ProjectList projects={data.suggested_projects} userSkillIds={new Set(user.skills?.map(s => s.id) ?? [])} />
+                <p className="mb-4 text-text-light">
+                  Based on your skills, these projects might be a good fit:
+                </p>
+                <ProjectList
+                  projects={data.suggested_projects}
+                  userSkillIds={new Set(user.skills?.map((s) => s.id) ?? [])}
+                />
               </>
             )}
           </div>
@@ -289,11 +329,20 @@ function DashboardPageInner() {
             {!notifications.length ? (
               <p className="text-text-light">No notifications yet.</p>
             ) : (
-              notifications.map(n => (
-                <div key={n.id} className={`bg-surface rounded-xl shadow p-5 mb-3 wrap-break-word ${!n.read_at ? 'border-l-4 border-primary' : ''}`}>
-                  <strong className={!n.read_at ? 'text-brand-text' : 'text-text-light'}>{n.title}</strong>
+              notifications.map((n) => (
+                <div
+                  key={n.id}
+                  className={`bg-surface rounded-xl shadow p-5 mb-3 wrap-break-word ${!n.read_at ? 'border-l-4 border-primary' : ''}`}
+                >
+                  <strong className={!n.read_at ? 'text-brand-text' : 'text-text-light'}>
+                    {n.title}
+                  </strong>
                   <p className="text-sm mt-1 mb-0">{n.body}</p>
-                  {n.link && <Link href={n.link} className="text-sm underline mt-1 inline-block">View</Link>}
+                  {n.link && (
+                    <Link href={n.link} className="text-sm underline mt-1 inline-block">
+                      View
+                    </Link>
+                  )}
                 </div>
               ))
             )}

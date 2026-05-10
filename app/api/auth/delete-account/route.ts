@@ -3,15 +3,18 @@ import { prisma } from '@/lib/prisma'
 import { getCurrentVolunteer, verifyPassword } from '@/lib/auth'
 import { sendProjectNotificationEmail } from '@/lib/email'
 
-async function sendAccountDeletionNotifications(
-  deletedId: number,
-  deletedName: string
-) {
+async function sendAccountDeletionNotifications(deletedId: number, deletedName: string) {
   // Projects with unfinished tasks assigned to the deleted user, grouped by project owner
-  const taskRows = await prisma.$queryRaw<Array<{
-    owner_id: number; owner_name: string; owner_email: string | null
-    project_id: number; project_title: string; task_count: number
-  }>>`
+  const taskRows = await prisma.$queryRaw<
+    Array<{
+      owner_id: number
+      owner_name: string
+      owner_email: string | null
+      project_id: number
+      project_title: string
+      task_count: number
+    }>
+  >`
     SELECT p.owner_id, v.name AS owner_name, v.email AS owner_email,
            p.id AS project_id, p.title AS project_title,
            COUNT(st.id) AS task_count
@@ -33,7 +36,8 @@ async function sendAccountDeletionNotifications(
   if (!taskRows.length && !ownedProjects.length) return
 
   type Recipient = {
-    name: string; email: string | null
+    name: string
+    email: string | null
     taskProjects: { projectId: number; projectTitle: string; taskCount: number }[]
     ownerlessProjects: { projectId: number; projectTitle: string }[]
   }
@@ -42,16 +46,20 @@ async function sendAccountDeletionNotifications(
   for (const row of taskRows) {
     if (!recipients[row.owner_id]) {
       recipients[row.owner_id] = {
-        name: row.owner_name, email: row.owner_email,
-        taskProjects: [], ownerlessProjects: [],
+        name: row.owner_name,
+        email: row.owner_email,
+        taskProjects: [],
+        ownerlessProjects: [],
       }
     }
     recipients[row.owner_id].taskProjects.push({
-      projectId: row.project_id, projectTitle: row.project_title, taskCount: Number(row.task_count),
+      projectId: row.project_id,
+      projectTitle: row.project_title,
+      taskCount: Number(row.task_count),
     })
   }
 
-  const ownerless = ownedProjects.map(p => ({ projectId: p.id, projectTitle: p.title }))
+  const ownerless = ownedProjects.map((p) => ({ projectId: p.id, projectTitle: p.title }))
 
   if (ownerless.length) {
     const admins = await prisma.volunteer.findMany({
@@ -60,7 +68,12 @@ async function sendAccountDeletionNotifications(
     })
     for (const admin of admins) {
       if (!recipients[admin.id]) {
-        recipients[admin.id] = { name: admin.name, email: admin.email, taskProjects: [], ownerlessProjects: [] }
+        recipients[admin.id] = {
+          name: admin.name,
+          email: admin.email,
+          taskProjects: [],
+          ownerlessProjects: [],
+        }
       }
       recipients[admin.id].ownerlessProjects = ownerless
     }
@@ -73,7 +86,8 @@ async function sendAccountDeletionNotifications(
       try {
         await prisma.notification.create({
           data: {
-            volunteerId: rid, type: 'account_deleted_impact',
+            volunteerId: rid,
+            type: 'account_deleted_impact',
             title: `${deletedName} has deleted their account`,
             body: `${p.taskCount} ${word} in '${p.projectTitle}' assigned to ${deletedName} need a new assignee.`,
             link: `/projects/${p.projectId}`,
@@ -87,7 +101,8 @@ async function sendAccountDeletionNotifications(
       try {
         await prisma.notification.create({
           data: {
-            volunteerId: rid, type: 'account_deleted_impact',
+            volunteerId: rid,
+            type: 'account_deleted_impact',
             title: `${deletedName} has deleted their account`,
             body: `'${p.projectTitle}' needs a new owner.`,
             link: `/projects/${p.projectId}`,
@@ -105,19 +120,23 @@ async function sendAccountDeletionNotifications(
       ]
       if (r.taskProjects.length) {
         const rows = r.taskProjects
-          .map(p => `<li>${p.taskCount} ${p.taskCount === 1 ? 'task' : 'tasks'} in <strong>${p.projectTitle}</strong></li>`)
+          .map(
+            (p) =>
+              `<li>${p.taskCount} ${p.taskCount === 1 ? 'task' : 'tasks'} in <strong>${p.projectTitle}</strong></li>`,
+          )
           .join('')
         msgParts.push(`<p>The following tasks need a new assignee:</p><ul>${rows}</ul>`)
       }
       if (r.ownerlessProjects.length) {
         const rows = r.ownerlessProjects
-          .map(p => `<li><strong>${p.projectTitle}</strong></li>`)
+          .map((p) => `<li><strong>${p.projectTitle}</strong></li>`)
           .join('')
         msgParts.push(`<p>The following projects need a new owner:</p><ul>${rows}</ul>`)
       }
       try {
         await sendProjectNotificationEmail(
-          r.email, r.name,
+          r.email,
+          r.name,
           `${deletedName} has deleted their account`,
           msgParts.join(''),
           allProjects[0].projectTitle,

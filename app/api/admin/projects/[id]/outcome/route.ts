@@ -4,10 +4,7 @@ import { requireAdmin } from '@/lib/auth'
 
 const VALID_OUTCOMES = ['successful', 'partial', 'not_completed', 'ongoing']
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = await params
   const projectId = parseInt(idParam, 10)
   if (isNaN(projectId)) {
@@ -67,7 +64,7 @@ export async function PUT(
       select: { skillId: true },
     })
     await Promise.all(
-      projectSkills.map(ps =>
+      projectSkills.map((ps) =>
         prisma.skillEndorsement.upsert({
           where: {
             volunteerId_skillId_endorsedById: {
@@ -91,8 +88,8 @@ export async function PUT(
             rating: 'verified',
             notes: `Successfully delivered: ${project.title}`,
           },
-        })
-      )
+        }),
+      ),
     )
   }
 

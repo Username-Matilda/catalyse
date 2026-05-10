@@ -17,24 +17,26 @@ export async function GET(request: NextRequest) {
     orderBy: { createdAt: 'desc' },
   })
 
-  return Response.json(tasks.map(t => ({
-    id: t.id,
-    project_id: t.projectId,
-    title: t.title,
-    description: t.description,
-    skill_id: t.skillId,
-    skill_name: t.skill?.name ?? null,
-    project_title: t.project?.title ?? null,
-    assigned_to_id: t.assignedToId,
-    assigned_by_id: t.assignedById,
-    status: t.status,
-    review_rating: t.reviewRating,
-    review_notes: t.reviewNotes,
-    feedback_to_volunteer: t.feedbackToVolunteer,
-    reviewed_by_id: t.reviewedById,
-    reviewed_at: t.reviewedAt,
-    estimated_hours: t.estimatedHours,
-    created_at: t.createdAt,
-    updated_at: t.updatedAt,
-  })))
+  return Response.json(
+    tasks.map((t) => ({
+      id: t.id,
+      project_id: t.projectId,
+      title: t.title,
+      description: t.description,
+      skill_id: t.skillId,
+      skill_name: t.skill?.name ?? null,
+      project_title: t.project?.title ?? null,
+      assigned_to_id: t.assignedToId,
+      assigned_by_id: t.assignedById,
+      status: t.status,
+      review_rating: t.reviewRating,
+      review_notes: t.reviewNotes,
+      feedback_to_volunteer: t.feedbackToVolunteer,
+      reviewed_by_id: t.reviewedById,
+      reviewed_at: t.reviewedAt,
+      estimated_hours: t.estimatedHours,
+      created_at: t.createdAt,
+      updated_at: t.updatedAt,
+    })),
+  )
 }

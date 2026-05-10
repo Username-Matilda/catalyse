@@ -7,6 +7,7 @@ Catalyse connects volunteers with projects, matching skills to needs and enablin
 ## Features
 
 ### For Volunteers
+
 - **Browse Projects** - Filter by skills, status, urgency
 - **Skill Matching** - See how well your skills match each project
 - **Express Interest** - Apply to contribute or lead projects
@@ -14,11 +15,13 @@ Catalyse connects volunteers with projects, matching skills to needs and enablin
 - **Privacy Controls** - Choose what info to share and how
 
 ### For Project Owners
+
 - **Post Projects** - Describe needs, required skills, time commitment
 - **Find Volunteers** - See interested volunteers and their skills
 - **Team Communication** - Contact volunteers through the platform
 
 ### For Admins
+
 - **Project Triage** - Review and approve volunteer proposals
 - **Create Org Projects** - Post official PauseAI initiatives
 - **Platform Stats** - Monitor volunteer and project activity
@@ -55,6 +58,7 @@ cp web/.env.local.example web/.env.local
 ```
 
 Key variables:
+
 - `DATABASE_URL` — path to SQLite file (e.g. `file:../catalyse.db`)
 - `RESEND_API_KEY` — for email sending
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — for Google OAuth

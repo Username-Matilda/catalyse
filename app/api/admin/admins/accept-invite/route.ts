@@ -25,7 +25,10 @@ export async function POST(request: NextRequest) {
   }
 
   if (invite.email.toLowerCase() !== (volunteer.email ?? '').toLowerCase()) {
-    return Response.json({ detail: 'This invite is for a different email address' }, { status: 403 })
+    return Response.json(
+      { detail: 'This invite is for a different email address' },
+      { status: 403 },
+    )
   }
 
   await prisma.$transaction([

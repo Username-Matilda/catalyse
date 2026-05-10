@@ -68,11 +68,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('auth:expired', handler)
   }, [])
 
-  const setToken = useCallback(async (t: string) => {
-    localStorage.setItem('authToken', t)
-    setTokenState(t)
-    await fetchMe(t)
-  }, [fetchMe])
+  const setToken = useCallback(
+    async (t: string) => {
+      localStorage.setItem('authToken', t)
+      setTokenState(t)
+      await fetchMe(t)
+    },
+    [fetchMe],
+  )
 
   const logout = useCallback(async () => {
     const t = localStorage.getItem('authToken')

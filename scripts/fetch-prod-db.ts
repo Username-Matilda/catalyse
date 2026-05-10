@@ -32,7 +32,10 @@ function loadEnvFile(path: string): void {
     if (!trimmed || trimmed.startsWith('#') || !trimmed.includes('=')) continue
     const eqIdx = trimmed.indexOf('=')
     const key = trimmed.slice(0, eqIdx).trim()
-    const value = trimmed.slice(eqIdx + 1).trim().replace(/^['"]|['"]$/g, '')
+    const value = trimmed
+      .slice(eqIdx + 1)
+      .trim()
+      .replace(/^['"]|['"]$/g, '')
     if (!(key in process.env)) process.env[key] = value
   }
 }
@@ -52,7 +55,7 @@ async function b2Authorize(keyId: string, appKey: string): Promise<B2Auth> {
     headers: { Authorization: `Basic ${credentials}` },
   })
   if (!res.ok) throw new Error(`B2 auth failed: ${res.status} ${await res.text()}`)
-  const data = await res.json() as Record<string, string>
+  const data = (await res.json()) as Record<string, string>
   return {
     authToken: data.authorizationToken,
     apiUrl: data.apiUrl,
@@ -68,7 +71,7 @@ async function b2GetBucketId(auth: B2Auth, bucketName: string): Promise<string> 
     body: JSON.stringify({ accountId: auth.accountId, bucketName }),
   })
   if (!res.ok) throw new Error(`b2_list_buckets failed: ${res.status} ${await res.text()}`)
-  const data = await res.json() as { buckets: { bucketId: string }[] }
+  const data = (await res.json()) as { buckets: { bucketId: string }[] }
   if (!data.buckets.length) throw new Error(`Bucket '${bucketName}' not found`)
   return data.buckets[0].bucketId
 }
@@ -86,11 +89,16 @@ async function b2ListFiles(auth: B2Auth, bucketId: string, prefix = ''): Promise
     body: JSON.stringify({ bucketId, prefix, maxFileCount: 1000 }),
   })
   if (!res.ok) throw new Error(`b2_list_file_names failed: ${res.status} ${await res.text()}`)
-  const data = await res.json() as { files: B2File[] }
+  const data = (await res.json()) as { files: B2File[] }
   return data.files
 }
 
-async function b2DownloadFile(auth: B2Auth, bucketName: string, fileName: string, destPath: string): Promise<void> {
+async function b2DownloadFile(
+  auth: B2Auth,
+  bucketName: string,
+  fileName: string,
+  destPath: string,
+): Promise<void> {
   const res = await fetch(`${auth.downloadUrl}/file/${bucketName}/${fileName}`, {
     headers: { Authorization: auth.authToken },
   })
@@ -102,7 +110,18 @@ async function b2DownloadFile(auth: B2Auth, bucketName: string, fileName: string
 // ── Anonymisation ─────────────────────────────────────────────────────────────
 
 // Seed faker with the volunteer ID so all fake fields are deterministic per volunteer.
-function fakeVolunteerData(id: number): { name: string; email: string; bio: string; discordHandle: string; signalNumber: string; whatsappNumber: string; contactNotes: string; otherSkills: string; location: string; localGroup: string } {
+function fakeVolunteerData(id: number): {
+  name: string
+  email: string
+  bio: string
+  discordHandle: string
+  signalNumber: string
+  whatsappNumber: string
+  contactNotes: string
+  otherSkills: string
+  location: string
+  localGroup: string
+} {
   faker.seed(id)
   const firstName = faker.person.firstName()
   const lastName = faker.person.lastName()
@@ -136,7 +155,21 @@ function anonymise(dbPath: string): void {
 
   const anonPasswordHash = makePasswordHash('volunteerpass1')
 
-  const volunteerRows = db.prepare('SELECT id, bio, discord_handle, signal_number, whatsapp_number, contact_notes, other_skills, location, local_group FROM volunteers').all() as { id: number; bio: string | null; discord_handle: string | null; signal_number: string | null; whatsapp_number: string | null; contact_notes: string | null; other_skills: string | null; location: string | null; local_group: string | null }[]
+  const volunteerRows = db
+    .prepare(
+      'SELECT id, bio, discord_handle, signal_number, whatsapp_number, contact_notes, other_skills, location, local_group FROM volunteers',
+    )
+    .all() as {
+    id: number
+    bio: string | null
+    discord_handle: string | null
+    signal_number: string | null
+    whatsapp_number: string | null
+    contact_notes: string | null
+    other_skills: string | null
+    location: string | null
+    local_group: string | null
+  }[]
   const updateVolunteer = db.prepare(`
     UPDATE volunteers SET
       name                  = ?,
@@ -155,7 +188,18 @@ function anonymise(dbPath: string): void {
     WHERE id = ?
   `)
   for (const row of volunteerRows) {
-    const { name, email, bio, discordHandle, signalNumber, whatsappNumber, contactNotes, otherSkills, location, localGroup } = fakeVolunteerData(row.id)
+    const {
+      name,
+      email,
+      bio,
+      discordHandle,
+      signalNumber,
+      whatsappNumber,
+      contactNotes,
+      otherSkills,
+      location,
+      localGroup,
+    } = fakeVolunteerData(row.id)
     updateVolunteer.run(
       name,
       email,
@@ -172,8 +216,13 @@ function anonymise(dbPath: string): void {
     )
   }
 
-  const adminInvites = db.prepare('SELECT id, invited_by_id FROM admin_invites').all() as { id: number; invited_by_id: number }[]
-  const updateInvite = db.prepare('UPDATE admin_invites SET email = ?, invite_token = ? WHERE id = ?')
+  const adminInvites = db.prepare('SELECT id, invited_by_id FROM admin_invites').all() as {
+    id: number
+    invited_by_id: number
+  }[]
+  const updateInvite = db.prepare(
+    'UPDATE admin_invites SET email = ?, invite_token = ? WHERE id = ?',
+  )
   for (const row of adminInvites) {
     updateInvite.run(fakeVolunteerData(row.invited_by_id).email, randomToken(), row.id)
   }
@@ -183,7 +232,9 @@ function anonymise(dbPath: string): void {
   db.exec("UPDATE bug_reports SET reporter_email = NULL, description = '[redacted]'")
   db.exec('UPDATE deletion_requests SET volunteer_email = NULL')
 
-  const resetTokenIds = (db.prepare('SELECT id FROM password_reset_tokens').all() as { id: number }[]).map(r => r.id)
+  const resetTokenIds = (
+    db.prepare('SELECT id FROM password_reset_tokens').all() as { id: number }[]
+  ).map((r) => r.id)
   const updateToken = db.prepare('UPDATE password_reset_tokens SET token = ? WHERE id = ?')
   for (const id of resetTokenIds) {
     updateToken.run(randomToken(), id)
@@ -236,7 +287,7 @@ async function main(): Promise<void> {
     process.exit(1)
   }
 
-  const latest = files.reduce((a, b) => a.uploadTimestamp > b.uploadTimestamp ? a : b)
+  const latest = files.reduce((a, b) => (a.uploadTimestamp > b.uploadTimestamp ? a : b))
   console.log(`Latest backup: ${latest.fileName} (${(latest.contentLength / 1024).toFixed(0)} KB)`)
 
   console.log('Downloading...')

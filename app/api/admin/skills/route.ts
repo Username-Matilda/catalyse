@@ -15,7 +15,10 @@ export async function POST(request: NextRequest) {
 
   const name = String(body.name || '').trim()
   if (!name || name.length > 100) {
-    return Response.json({ detail: 'Name is required and must be at most 100 characters' }, { status: 422 })
+    return Response.json(
+      { detail: 'Name is required and must be at most 100 characters' },
+      { status: 422 },
+    )
   }
 
   const categoryId = body.category_id != null ? parseInt(String(body.category_id)) : NaN

@@ -11,11 +11,11 @@ interface BugReportDialogProps {
 }
 
 const CATEGORIES = [
-  { value: 'bug',     label: 'Bug' },
+  { value: 'bug', label: 'Bug' },
   { value: 'feature', label: 'Feature' },
-  { value: 'ux',      label: 'UX Issue' },
+  { value: 'ux', label: 'UX Issue' },
 ] as const
-type Category = typeof CATEGORIES[number]['value']
+type Category = (typeof CATEGORIES)[number]['value']
 
 export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProps) {
   const { user } = useAuth()
@@ -53,7 +53,13 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
     try {
       await apiRequest('/api/bug-reports', {
         method: 'POST',
-        body: JSON.stringify({ category, title, description, email: user?.email ?? (email || undefined), severity }),
+        body: JSON.stringify({
+          category,
+          title,
+          description,
+          email: user?.email ?? (email || undefined),
+          severity,
+        }),
       })
       setSuccess(true)
     } catch (err) {
@@ -70,17 +76,22 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-[rgba(29,53,87,0.5)] flex items-center justify-center z-1000 p-5" onClick={handleClose}>
+    <div
+      className="fixed inset-0 bg-[rgba(29,53,87,0.5)] flex items-center justify-center z-1000 p-5"
+      onClick={handleClose}
+    >
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Report an Issue"
         className="bg-surface rounded-xl shadow-lg max-w-125 w-full max-h-[90vh] overflow-y-auto"
-        onClick={e => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="px-6 py-5 border-b border-brand-border flex justify-between items-center">
           <h2 className="mb-0">Report an Issue</h2>
-          <Button variant="ghost" icon onClick={handleClose} aria-label="Close">×</Button>
+          <Button variant="ghost" icon onClick={handleClose} aria-label="Close">
+            ×
+          </Button>
         </div>
         <div className="p-6">
           {success ? (
@@ -92,13 +103,17 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
           ) : (
             <form onSubmit={handleSubmit}>
               {/* [test hook] toast-error class used as test selector */}
-              {error && <div className="toast-error flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]">{error}</div>}
+              {error && (
+                <div className="toast-error flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]">
+                  {error}
+                </div>
+              )}
 
               <div className="mb-5">
                 <label>What type of feedback?</label>
                 <div className="flex gap-2 flex-wrap">
                   {/* [test hook] category-btn class used as test selector */}
-                  {CATEGORIES.map(cat => (
+                  {CATEGORIES.map((cat) => (
                     <Button
                       key={cat.value}
                       type="button"
@@ -114,34 +129,54 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
               </div>
 
               <div className="mb-5">
-                <label htmlFor="bug-title" className="required">Title</label>
+                <label htmlFor="bug-title" className="required">
+                  Title
+                </label>
                 <input
                   id="bug-title"
                   type="text"
                   value={title}
-                  onChange={e => { setTitle(e.target.value); if (fieldErrors.title) setFieldErrors(f => ({ ...f, title: '' })) }}
+                  onChange={(e) => {
+                    setTitle(e.target.value)
+                    if (fieldErrors.title) setFieldErrors((f) => ({ ...f, title: '' }))
+                  }}
                   aria-invalid={fieldErrors.title ? true : undefined}
                   required
                   placeholder="Brief summary"
                 />
-                {fieldErrors.title && <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>{fieldErrors.title}</p>}
+                {fieldErrors.title && (
+                  <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
+                    {fieldErrors.title}
+                  </p>
+                )}
               </div>
 
               <div className="mb-5">
-                <label htmlFor="bug-description" className="required">Details</label>
+                <label htmlFor="bug-description" className="required">
+                  Details
+                </label>
                 <textarea
                   id="bug-description"
                   value={description}
-                  onChange={e => { setDescription(e.target.value); if (fieldErrors.description) setFieldErrors(f => ({ ...f, description: '' })) }}
+                  onChange={(e) => {
+                    setDescription(e.target.value)
+                    if (fieldErrors.description) setFieldErrors((f) => ({ ...f, description: '' }))
+                  }}
                   aria-invalid={fieldErrors.description ? true : undefined}
                   required
-                  placeholder={{
-                    bug:     'What happened? What did you expect?',
-                    feature: 'What would you like to be able to do?',
-                    ux:      'What felt confusing or frustrating?',
-                  }[category]}
+                  placeholder={
+                    {
+                      bug: 'What happened? What did you expect?',
+                      feature: 'What would you like to be able to do?',
+                      ux: 'What felt confusing or frustrating?',
+                    }[category]
+                  }
                 />
-                {fieldErrors.description && <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>{fieldErrors.description}</p>}
+                {fieldErrors.description && (
+                  <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
+                    {fieldErrors.description}
+                  </p>
+                )}
               </div>
 
               {!user && (
@@ -151,7 +186,7 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
                     id="bug-email"
                     type="email"
                     value={email}
-                    onChange={e => setEmail(e.target.value)}
+                    onChange={(e) => setEmail(e.target.value)}
                     placeholder="In case we need to follow up"
                   />
                 </div>
@@ -159,7 +194,11 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
 
               <div className="mb-5">
                 <label htmlFor="bug-severity">How urgent is this?</label>
-                <select id="bug-severity" value={severity} onChange={e => setSeverity(e.target.value)}>
+                <select
+                  id="bug-severity"
+                  value={severity}
+                  onChange={(e) => setSeverity(e.target.value)}
+                >
                   <option value="low">Low — minor inconvenience</option>
                   <option value="medium">Medium — affects workflow</option>
                   <option value="high">High — blocking</option>
@@ -168,7 +207,9 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
               </div>
 
               <div className="flex gap-3 justify-end">
-                <Button type="button" variant="ghost" onClick={handleClose}>Cancel</Button>
+                <Button type="button" variant="ghost" onClick={handleClose}>
+                  Cancel
+                </Button>
                 <Button type="submit" disabled={submitting}>
                   {submitting ? 'Sending…' : 'Submit Report'}
                 </Button>

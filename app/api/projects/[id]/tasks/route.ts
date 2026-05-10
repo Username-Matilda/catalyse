@@ -3,10 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getCurrentVolunteer } from '@/lib/auth'
 import { fieldError, validationError } from '@/lib/errors'
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = await params
   const projectId = parseInt(idParam, 10)
   if (isNaN(projectId)) {
@@ -28,26 +25,25 @@ export async function GET(
     return (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0)
   })
 
-  return Response.json(tasks.map(t => ({
-    id: t.id,
-    project_id: t.projectId,
-    title: t.title,
-    description: t.description,
-    assigned_to_id: t.assignedToId,
-    assigned_to_name: t.assignedTo?.name ?? null,
-    created_by_id: t.createdById,
-    created_by_name: t.createdBy?.name ?? null,
-    status: t.status,
-    completed_at: t.completedAt,
-    created_at: t.createdAt,
-    updated_at: t.updatedAt,
-  })))
+  return Response.json(
+    tasks.map((t) => ({
+      id: t.id,
+      project_id: t.projectId,
+      title: t.title,
+      description: t.description,
+      assigned_to_id: t.assignedToId,
+      assigned_to_name: t.assignedTo?.name ?? null,
+      created_by_id: t.createdById,
+      created_by_name: t.createdBy?.name ?? null,
+      status: t.status,
+      completed_at: t.completedAt,
+      created_at: t.createdAt,
+      updated_at: t.updatedAt,
+    })),
+  )
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = await params
   const projectId = parseInt(idParam, 10)
   if (isNaN(projectId)) {
@@ -67,7 +63,10 @@ export async function POST(
   const isOwner = project.ownerId === volunteer.id
   const isAdmin = volunteer.isAdmin
   if (!isOwner && !isAdmin) {
-    return Response.json({ detail: 'Only project owner or admin can create tasks' }, { status: 403 })
+    return Response.json(
+      { detail: 'Only project owner or admin can create tasks' },
+      { status: 403 },
+    )
   }
 
   let body: Record<string, unknown>
@@ -83,7 +82,7 @@ export async function POST(
   }
   if (errs.length) return validationError(errs)
 
-  const task = await prisma.$transaction(async tx => {
+  const task = await prisma.$transaction(async (tx) => {
     const newTask = await tx.projectTask.create({
       data: {
         projectId,

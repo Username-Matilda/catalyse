@@ -3,10 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/auth'
 import { createNotification } from '@/lib/project'
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = await params
   const taskId = parseInt(idParam, 10)
   if (isNaN(taskId)) {
@@ -44,11 +41,12 @@ export async function POST(
   })
 
   createNotification(
-    volunteerId, 'starter_task_assigned',
+    volunteerId,
+    'starter_task_assigned',
     `You've been assigned a starter task: ${task.title}`,
     task.description.slice(0, 200),
-    '/dashboard'
-  ).catch(e => console.error('[NOTIFY ERROR]', e))
+    '/dashboard',
+  ).catch((e) => console.error('[NOTIFY ERROR]', e))
 
   return Response.json({ message: 'Task assigned' })
 }

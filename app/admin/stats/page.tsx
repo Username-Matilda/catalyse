@@ -33,7 +33,10 @@ export default function AdminStatsPage() {
   useEffect(() => {
     if (!user?.is_admin) return
     apiRequest<Stats>('/api/admin/stats')
-      .then(data => { setStats(data); setLoadingData(false) })
+      .then((data) => {
+        setStats(data)
+        setLoadingData(false)
+      })
       .catch(() => setLoadingData(false))
   }, [user])
 
@@ -53,13 +56,19 @@ export default function AdminStatsPage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-surface rounded-xl shadow p-6 overflow-hidden">
               <h2 className="mt-0">Volunteers</h2>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginTop: 16 }}>
+              <div
+                style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginTop: 16 }}
+              >
                 <div>
-                  <div className="text-4xl font-bold text-primary mb-1">{stats.volunteers.total}</div>
+                  <div className="text-4xl font-bold text-primary mb-1">
+                    {stats.volunteers.total}
+                  </div>
                   <div className="text-text-light">Total Registered</div>
                 </div>
                 <div>
-                  <div className="text-4xl font-bold text-success mb-1">{stats.volunteers.this_month}</div>
+                  <div className="text-4xl font-bold text-success mb-1">
+                    {stats.volunteers.this_month}
+                  </div>
                   <div className="text-text-light">Joined This Month</div>
                 </div>
               </div>
@@ -70,14 +79,28 @@ export default function AdminStatsPage() {
               <div style={{ marginTop: 16 }}>
                 {[
                   { label: 'Total', value: stats.projects.total, color: undefined },
-                  { label: 'Pending Review', value: stats.projects.pending_review, color: 'text-warning' },
-                  { label: 'Seeking Help', value: stats.projects.seeking_help, color: 'text-secondary' },
+                  {
+                    label: 'Pending Review',
+                    value: stats.projects.pending_review,
+                    color: 'text-warning',
+                  },
+                  {
+                    label: 'Seeking Help',
+                    value: stats.projects.seeking_help,
+                    color: 'text-secondary',
+                  },
                   { label: 'In Progress', value: stats.projects.in_progress, color: undefined },
                   { label: 'Completed', value: stats.projects.completed, color: 'text-success' },
                 ].map((row, i, arr) => (
                   <div
                     key={row.label}
-                    style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: i < arr.length - 1 ? '1px solid var(--color-border)' : undefined }}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      padding: '8px 0',
+                      borderBottom:
+                        i < arr.length - 1 ? '1px solid var(--color-border)' : undefined,
+                    }}
                   >
                     <span className={row.color}>{row.label}</span>
                     <strong>{row.value}</strong>
@@ -88,13 +111,19 @@ export default function AdminStatsPage() {
 
             <div className="bg-surface rounded-xl shadow p-6 overflow-hidden">
               <h2 className="mt-0">Volunteer Interest</h2>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginTop: 16 }}>
+              <div
+                style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginTop: 16 }}
+              >
                 <div>
-                  <div className="text-4xl font-bold text-secondary mb-1">{stats.interests.total}</div>
+                  <div className="text-4xl font-bold text-secondary mb-1">
+                    {stats.interests.total}
+                  </div>
                   <div className="text-text-light">Total Interests</div>
                 </div>
                 <div>
-                  <div className="text-4xl font-bold text-warning mb-1">{stats.interests.pending}</div>
+                  <div className="text-4xl font-bold text-warning mb-1">
+                    {stats.interests.pending}
+                  </div>
                   <div className="text-text-light">Pending Response</div>
                 </div>
               </div>

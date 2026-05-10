@@ -6,7 +6,7 @@ import { createNotification } from '@/lib/project'
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string; interest_id: string }> }
+  { params }: { params: Promise<{ id: string; interest_id: string }> },
 ) {
   const { id: idParam, interest_id: interestIdParam } = await params
   const projectId = parseInt(idParam, 10)
@@ -56,11 +56,12 @@ export async function PUT(
 
   const statusText = newStatus === 'accepted' ? 'accepted' : 'declined'
   createNotification(
-    interest.volunteerId, `interest_${statusText}`,
+    interest.volunteerId,
+    `interest_${statusText}`,
     `Your interest in '${project.title}' was ${statusText}`,
     responseMessage,
-    `/projects/${projectId}`
-  ).catch(e => console.error('[NOTIFY ERROR]', e))
+    `/projects/${projectId}`,
+  ).catch((e) => console.error('[NOTIFY ERROR]', e))
 
   if (newStatus === 'accepted' && interest.interestType === 'want_to_own') {
     const openTaskCount = await prisma.projectTask.count({
@@ -82,11 +83,14 @@ export async function PUT(
       ? `<div style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"><strong>Message:</strong> ${responseMessage}</div>`
       : ''
     sendProjectNotificationEmail(
-      vol.email, vol.name,
+      vol.email,
+      vol.name,
       `Your interest in '${project.title}' was ${statusText}`,
       `The team has <strong>${statusText}</strong> your interest in the project <strong>${project.title}</strong>.`,
-      project.title, projectId, extra
-    ).catch(e => console.error('[EMAIL ERROR]', e))
+      project.title,
+      projectId,
+      extra,
+    ).catch((e) => console.error('[EMAIL ERROR]', e))
   }
 
   return Response.json({ message: `Interest ${statusText}` })

@@ -13,11 +13,11 @@ export async function GET(request: NextRequest) {
   })
 
   return Response.json(
-    admins.map(a => ({
+    admins.map((a) => ({
       id: a.id,
       name: a.name,
       email: a.email,
       created_at: a.createdAt,
-    }))
+    })),
   )
 }

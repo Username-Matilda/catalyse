@@ -71,7 +71,7 @@ export default function ProjectForm({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   function clearFieldError(field: string) {
-    setFieldErrors(prev => {
+    setFieldErrors((prev) => {
       if (!prev[field]) return prev
       const { [field]: _, ...rest } = prev
       return rest
@@ -83,20 +83,20 @@ export default function ProjectForm({
   }
 
   function updateTask(index: number, field: keyof Task, value: string) {
-    setTasks(prev => prev.map((t, i) => i === index ? { ...t, [field]: value } : t))
+    setTasks((prev) => prev.map((t, i) => (i === index ? { ...t, [field]: value } : t)))
   }
 
   function addTask() {
-    setTasks(prev => [...prev, { title: '', description: '' }])
+    setTasks((prev) => [...prev, { title: '', description: '' }])
   }
 
   function removeTask(index: number) {
-    if (tasks.length > 1) setTasks(prev => prev.filter((_, i) => i !== index))
+    if (tasks.length > 1) setTasks((prev) => prev.filter((_, i) => i !== index))
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    const validTasks = tasks.filter(t => t.title.trim())
+    const validTasks = tasks.filter((t) => t.title.trim())
     if (requireTasks && !validTasks.length) {
       toast('At least one task with a title is required.', 'error')
       return
@@ -115,12 +115,15 @@ export default function ProjectForm({
           local_group: localGroup || null,
           estimated_duration: duration.trim() || null,
           collaboration_link: collaborationLink.trim() || null,
-          skill_ids: skills.map(s => s.skillId),
-          skill_required_map: Object.fromEntries(skills.map(s => [s.skillId, true])),
+          skill_ids: skills.map((s) => s.skillId),
+          skill_required_map: Object.fromEntries(skills.map((s) => [s.skillId, true])),
           is_seeking_help: seekingHelp,
           is_seeking_owner: !wantToOwn,
           want_to_own: wantToOwn,
-          tasks: validTasks.map(t => ({ title: t.title.trim(), description: t.description.trim() || undefined })),
+          tasks: validTasks.map((t) => ({
+            title: t.title.trim(),
+            description: t.description.trim() || undefined,
+          })),
         }),
       })
       onSuccess(result.id)
@@ -136,38 +139,60 @@ export default function ProjectForm({
   }
 
   return (
-    <form className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word" onSubmit={handleSubmit}>
+    <form
+      className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
+      onSubmit={handleSubmit}
+    >
       <div className="mb-5">
-        <label htmlFor="project-title" className="required">Project Title</label>
+        <label htmlFor="project-title" className="required">
+          Project Title
+        </label>
         <input
           id="project-title"
           type="text"
           value={title}
-          onChange={e => { setTitle(e.target.value); clearFieldError('title') }}
+          onChange={(e) => {
+            setTitle(e.target.value)
+            clearFieldError('title')
+          }}
           required
           placeholder="A clear, descriptive name for the project"
           aria-invalid={!!fe('title') || undefined}
         />
-        {fe('title') && <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>{fe('title')}</p>}
+        {fe('title') && (
+          <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
+            {fe('title')}
+          </p>
+        )}
       </div>
 
       <div className="mb-5">
-        <label htmlFor="project-description" className="required">Description</label>
+        <label htmlFor="project-description" className="required">
+          Description
+        </label>
         <DescriptionTips />
         <textarea
           id="project-description"
           rows={6}
           value={description}
-          onChange={e => { setDescription(e.target.value); clearFieldError('description') }}
+          onChange={(e) => {
+            setDescription(e.target.value)
+            clearFieldError('description')
+          }}
           required
-
           placeholder="Describe the project: goals, approach, what success looks like, and what kind of help is needed."
           aria-invalid={!!fe('description') || undefined}
         />
-        {fe('description')
-          ? <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>{fe('description')}</p>
-          : <p className="text-sm text-text-light mt-1">The more detail you provide, the easier it is to find the right contributors and get started.</p>
-        }
+        {fe('description') ? (
+          <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
+            {fe('description')}
+          </p>
+        ) : (
+          <p className="text-sm text-text-light mt-1">
+            The more detail you provide, the easier it is to find the right contributors and get
+            started.
+          </p>
+        )}
       </div>
 
       <div className="mb-5">
@@ -177,12 +202,20 @@ export default function ProjectForm({
           ariaLabel="Select project type"
           value={projectType}
           options={PROJECT_TYPES}
-          onChange={v => { setProjectType(v); clearFieldError('project_type') }}
+          onChange={(v) => {
+            setProjectType(v)
+            clearFieldError('project_type')
+          }}
         />
-        {fe('project_type')
-          ? <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>{fe('project_type')}</p>
-          : <p className="text-sm text-text-light mt-1">This helps contributors understand the commitment involved</p>
-        }
+        {fe('project_type') ? (
+          <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
+            {fe('project_type')}
+          </p>
+        ) : (
+          <p className="text-sm text-text-light mt-1">
+            This helps contributors understand the commitment involved
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-5 mb-5">
@@ -195,13 +228,21 @@ export default function ProjectForm({
             max={40}
             placeholder="e.g., 5"
             value={hoursPerWeek}
-            onChange={e => { setHoursPerWeek(e.target.value); clearFieldError('time_commitment_hours_per_week') }}
+            onChange={(e) => {
+              setHoursPerWeek(e.target.value)
+              clearFieldError('time_commitment_hours_per_week')
+            }}
             aria-invalid={!!fe('time_commitment_hours_per_week') || undefined}
           />
-          {fe('time_commitment_hours_per_week')
-            ? <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>{fe('time_commitment_hours_per_week')}</p>
-            : <p className="text-sm text-text-light mt-1">Estimated weekly time from each contributor</p>
-          }
+          {fe('time_commitment_hours_per_week') ? (
+            <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
+              {fe('time_commitment_hours_per_week')}
+            </p>
+          ) : (
+            <p className="text-sm text-text-light mt-1">
+              Estimated weekly time from each contributor
+            </p>
+          )}
         </div>
 
         <div>
@@ -211,9 +252,16 @@ export default function ProjectForm({
             ariaLabel="Select urgency"
             value={urgency}
             options={URGENCY_OPTIONS}
-            onChange={v => { setUrgency(v); clearFieldError('urgency') }}
+            onChange={(v) => {
+              setUrgency(v)
+              clearFieldError('urgency')
+            }}
           />
-          {fe('urgency') && <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>{fe('urgency')}</p>}
+          {fe('urgency') && (
+            <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
+              {fe('urgency')}
+            </p>
+          )}
         </div>
       </div>
 
@@ -225,13 +273,21 @@ export default function ProjectForm({
             type="text"
             placeholder="e.g., 6 weeks, 2 months"
             value={duration}
-            onChange={e => { setDuration(e.target.value); clearFieldError('estimated_duration') }}
+            onChange={(e) => {
+              setDuration(e.target.value)
+              clearFieldError('estimated_duration')
+            }}
             aria-invalid={!!fe('estimated_duration') || undefined}
           />
-          {fe('estimated_duration')
-            ? <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>{fe('estimated_duration')}</p>
-            : <p className="text-sm text-text-light mt-1">Roughly how long do you expect this to take?</p>
-          }
+          {fe('estimated_duration') ? (
+            <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
+              {fe('estimated_duration')}
+            </p>
+          ) : (
+            <p className="text-sm text-text-light mt-1">
+              Roughly how long do you expect this to take?
+            </p>
+          )}
         </div>
       )}
 
@@ -242,13 +298,22 @@ export default function ProjectForm({
           ariaLabel="Select country"
           value={country}
           options={COUNTRY_OPTIONS}
-          onChange={v => { setCountry(v); setLocalGroup(''); clearFieldError('country') }}
+          onChange={(v) => {
+            setCountry(v)
+            setLocalGroup('')
+            clearFieldError('country')
+          }}
           searchable
         />
-        {fe('country')
-          ? <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>{fe('country')}</p>
-          : <p className="text-sm text-text-light mt-1">Where is this project based? Select &quot;Remote&quot; if location-independent.</p>
-        }
+        {fe('country') ? (
+          <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
+            {fe('country')}
+          </p>
+        ) : (
+          <p className="text-sm text-text-light mt-1">
+            Where is this project based? Select &quot;Remote&quot; if location-independent.
+          </p>
+        )}
       </div>
 
       {(LOCAL_GROUPS[country]?.length ?? 0) > 0 && (
@@ -260,14 +325,22 @@ export default function ProjectForm({
             value={localGroup}
             options={[
               { value: '', label: 'Not specific to a local group' },
-              ...LOCAL_GROUPS[country].map(g => ({ value: g, label: `${country} - ${g}` })),
+              ...LOCAL_GROUPS[country].map((g) => ({ value: g, label: `${country} - ${g}` })),
             ]}
-            onChange={v => { setLocalGroup(v); clearFieldError('local_group') }}
+            onChange={(v) => {
+              setLocalGroup(v)
+              clearFieldError('local_group')
+            }}
           />
-          {fe('local_group')
-            ? <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>{fe('local_group')}</p>
-            : <p className="text-sm text-text-light mt-1">Is this project relevant to a particular local group?</p>
-          }
+          {fe('local_group') ? (
+            <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
+              {fe('local_group')}
+            </p>
+          ) : (
+            <p className="text-sm text-text-light mt-1">
+              Is this project relevant to a particular local group?
+            </p>
+          )}
         </div>
       )}
 
@@ -278,25 +351,35 @@ export default function ProjectForm({
           type="text"
           placeholder="e.g., https://docs.google.com/… or 'Will create a shared doc once team forms'"
           value={collaborationLink}
-          onChange={e => { setCollaborationLink(e.target.value); clearFieldError('collaboration_link') }}
+          onChange={(e) => {
+            setCollaborationLink(e.target.value)
+            clearFieldError('collaboration_link')
+          }}
           aria-invalid={!!fe('collaboration_link') || undefined}
         />
-        {fe('collaboration_link')
-          ? <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>{fe('collaboration_link')}</p>
-          : <p className="text-sm text-text-light mt-1">A URL to a planning doc or workspace, or just describe your plans for collaboration</p>
-        }
+        {fe('collaboration_link') ? (
+          <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
+            {fe('collaboration_link')}
+          </p>
+        ) : (
+          <p className="text-sm text-text-light mt-1">
+            A URL to a planning doc or workspace, or just describe your plans for collaboration
+          </p>
+        )}
       </div>
 
       <div className="mb-5">
         <label>Skills Needed</label>
-        <p className="text-sm text-text-light mt-0 mb-2">What skills would be helpful for this project?</p>
+        <p className="text-sm text-text-light mt-0 mb-2">
+          What skills would be helpful for this project?
+        </p>
         <SkillPicker value={skills} onChange={setSkills} />
       </div>
 
       <div className="mb-5">
         <p className="font-medium mb-2">This project needs:</p>
         <div className="flex flex-col gap-2 mb-4">
-          <Checkbox checked={seekingHelp} onChange={e => setSeekingHelp(e.target.checked)}>
+          <Checkbox checked={seekingHelp} onChange={(e) => setSeekingHelp(e.target.checked)}>
             Help / contributors
           </Checkbox>
         </div>
@@ -306,52 +389,71 @@ export default function ProjectForm({
             This project needs an owner / lead
           </Radio>
           <Radio name="ownership" checked={wantToOwn} onChange={() => setWantToOwn(true)}>
-            <span><strong>I want to lead this project</strong> &mdash; I&apos;ll be the owner and coordinate the work</span>
+            <span>
+              <strong>I want to lead this project</strong> &mdash; I&apos;ll be the owner and
+              coordinate the work
+            </span>
           </Radio>
         </div>
       </div>
 
       <div className="mb-5">
-        <label>Initial Tasks {!requireTasks && <span className="font-normal text-text-light">(optional)</span>}</label>
+        <label>
+          Initial Tasks{' '}
+          {!requireTasks && <span className="font-normal text-text-light">(optional)</span>}
+        </label>
         <p className="text-sm text-text-light mt-0 mb-2">
-          Break the project into concrete tasks. This helps contributors understand the scope and gives them something to pick up.
+          Break the project into concrete tasks. This helps contributors understand the scope and
+          gives them something to pick up.
         </p>
         {tasks.map((task, i) => (
           <div key={i} className="bg-brand-bg rounded-lg p-4 mb-3 border border-brand-border">
             <div className="mb-3">
-              <label htmlFor={`task-title-${i}`} className={`text-sm${requireTasks ? ' required' : ''}`}>Task title</label>
+              <label
+                htmlFor={`task-title-${i}`}
+                className={`text-sm${requireTasks ? ' required' : ''}`}
+              >
+                Task title
+              </label>
               <input
                 id={`task-title-${i}`}
                 type="text"
                 aria-label="Task title"
                 placeholder="e.g. Draft copy for homepage"
                 value={task.title}
-                onChange={e => updateTask(i, 'title', e.target.value)}
+                onChange={(e) => updateTask(i, 'title', e.target.value)}
               />
             </div>
             <div className="mb-2">
-              <label htmlFor={`task-desc-${i}`} className="text-sm">Details (optional)</label>
+              <label htmlFor={`task-desc-${i}`} className="text-sm">
+                Details (optional)
+              </label>
               <textarea
                 id={`task-desc-${i}`}
                 placeholder="More detail about what needs doing…"
                 value={task.description}
-                onChange={e => updateTask(i, 'description', e.target.value)}
+                onChange={(e) => updateTask(i, 'description', e.target.value)}
                 style={{ minHeight: 60 }}
               />
             </div>
             {tasks.length > 1 && (
               <div className="flex justify-end mt-2">
-                <Button type="button" variant="danger" size="sm" onClick={() => removeTask(i)}>Delete task</Button>
+                <Button type="button" variant="danger" size="sm" onClick={() => removeTask(i)}>
+                  Delete task
+                </Button>
               </div>
             )}
           </div>
         ))}
-        <Button type="button" variant="secondary" onClick={addTask}>+ Add another task</Button>
+        <Button type="button" variant="secondary" onClick={addTask}>
+          + Add another task
+        </Button>
       </div>
 
       {showReviewNotice && (
         <div className="flex items-center gap-3 p-4 rounded-lg mb-5 bg-[#DBEAFE] text-[#1E40AF] border border-[#93C5FD] dark:bg-[#1E3A5F] dark:text-[#93C5FD] dark:border-[#2563EB]">
-          Your project will be reviewed by PauseAI UK team leads before being published. We&apos;ll reach out if we have questions or suggestions.
+          Your project will be reviewed by PauseAI UK team leads before being published. We&apos;ll
+          reach out if we have questions or suggestions.
         </div>
       )}
 
@@ -360,7 +462,9 @@ export default function ProjectForm({
           {submitting ? 'Submitting…' : submitLabel}
         </Button>
         {onCancel && (
-          <Button type="button" variant="secondary" onClick={onCancel}>Cancel</Button>
+          <Button type="button" variant="secondary" onClick={onCancel}>
+            Cancel
+          </Button>
         )}
       </div>
     </form>

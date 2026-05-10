@@ -62,10 +62,9 @@ export type EnrichedProject = {
 }
 
 export function serializeProject(p: EnrichedProject, volunteerSkillIds?: Set<number>) {
-  const matchInput = p.skills.map(ps => ({ id: ps.skillId, isRequired: ps.isRequired }))
-  const match = volunteerSkillIds !== undefined
-    ? calculateMatchScore(volunteerSkillIds, matchInput)
-    : undefined
+  const matchInput = p.skills.map((ps) => ({ id: ps.skillId, isRequired: ps.isRequired }))
+  const match =
+    volunteerSkillIds !== undefined ? calculateMatchScore(volunteerSkillIds, matchInput) : undefined
 
   return {
     id: p.id,
@@ -120,10 +119,9 @@ export async function createNotification(
   type: string,
   title: string,
   body?: string | null,
-  link?: string | null
+  link?: string | null,
 ) {
   return prisma.notification.create({
     data: { volunteerId, type, title, body: body ?? null, link: link ?? null },
   })
 }
-

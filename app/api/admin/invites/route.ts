@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   })
 
   return Response.json(
-    invites.map(i => ({
+    invites.map((i) => ({
       id: i.id,
       email: i.email,
       invite_token: i.inviteToken,
@@ -23,6 +23,6 @@ export async function GET(request: NextRequest) {
       expires_at: i.expiresAt,
       created_at: i.createdAt,
       invited_by_name: i.invitedBy.name,
-    }))
+    })),
   )
 }

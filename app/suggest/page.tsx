@@ -23,14 +23,17 @@ export default function SuggestPage() {
       <Header />
       <main className="max-w-4xl mx-auto px-6 py-5 pb-15">
         <h1 role="heading">Suggest a Project</h1>
-        <p>Have an idea for something PauseAI UK should do? Propose it here! Our team will review it and, if approved, it&apos;ll be visible to all volunteers.</p>
+        <p>
+          Have an idea for something PauseAI UK should do? Propose it here! Our team will review it
+          and, if approved, it&apos;ll be visible to all volunteers.
+        </p>
         <ProjectForm
           action="/api/projects"
           submitLabel="Submit Project Proposal"
           showReviewNotice
           requireTasks
           onSuccess={() => {
-            toast('Project submitted for review! We\'ll be in touch.', 'success')
+            toast("Project submitted for review! We'll be in touch.", 'success')
             setTimeout(() => router.push('/dashboard?tab=proposed'), 2000)
           }}
         />

@@ -203,7 +203,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   useEffect(() => {
     if (!user) return
     loadProject()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, idParam])
 
   async function loadProject() {
@@ -222,7 +222,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   useEffect(() => {
     if (!user?.is_admin || !project) return
     apiRequest<{ volunteers: Volunteer[] }>('/api/volunteers?limit=100')
-      .then(d => setVolunteers(d.volunteers))
+      .then((d) => setVolunteers(d.volunteers))
       .catch(() => {})
   }, [user, project])
 
@@ -230,7 +230,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   useEffect(() => {
     if (!showContactModal || !project?.owner_id) return
     apiRequest<OwnerContact>(`/api/volunteers/${project.owner_id}`)
-      .then(v => setOwnerContact(v))
+      .then((v) => setOwnerContact(v))
       .catch(() => setOwnerContact(null))
   }, [showContactModal, project?.owner_id])
 
@@ -241,12 +241,19 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     try {
       await apiRequest(`/api/contact/${project.owner_id}`, {
         method: 'POST',
-        body: JSON.stringify({ subject: contactSubject.trim(), message: contactBody.trim(), related_project_id: project.id }),
+        body: JSON.stringify({
+          subject: contactSubject.trim(),
+          message: contactBody.trim(),
+          related_project_id: project.id,
+        }),
       })
       setShowContactModal(false)
       setContactSubject('')
       setContactBody('')
-      showToast("Message sent! They'll receive it by email and can reply directly to you.", 'success')
+      showToast(
+        "Message sent! They'll receive it by email and can reply directly to you.",
+        'success',
+      )
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Failed to send message', 'error')
     } finally {
@@ -276,9 +283,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     (project.is_seeking_help || project.is_seeking_owner) &&
     !['completed', 'archived'].includes(project.status)
 
-  const statusOptions = isAdmin
-    ? [...OWNER_STATUSES, ...ADMIN_EXTRA_STATUSES]
-    : OWNER_STATUSES
+  const statusOptions = isAdmin ? [...OWNER_STATUSES, ...ADMIN_EXTRA_STATUSES] : OWNER_STATUSES
 
   // ── Task handlers ────────────────────────────────────────────────────────
 
@@ -362,7 +367,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     try {
       await apiRequest(`/api/projects/${idParam}/interest`, {
         method: 'POST',
-        body: JSON.stringify({ interest_type: interestType, message: interestMessage.trim() || null }),
+        body: JSON.stringify({
+          interest_type: interestType,
+          message: interestMessage.trim() || null,
+        }),
       })
       await loadProject()
       showToast('Interest expressed!', 'success')
@@ -496,7 +504,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         }),
       })
       await loadProject()
-      showToast(reviewStatus === 'approved' ? 'Project approved!' : 'Project sent for discussion.', 'success')
+      showToast(
+        reviewStatus === 'approved' ? 'Project approved!' : 'Project sent for discussion.',
+        'success',
+      )
       setReviewDone(true)
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Failed to submit review', 'error')
@@ -507,7 +518,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  const hasDirectContact = ownerContact && (ownerContact.discord_handle || ownerContact.signal_number || ownerContact.whatsapp_number)
+  const hasDirectContact =
+    ownerContact &&
+    (ownerContact.discord_handle || ownerContact.signal_number || ownerContact.whatsapp_number)
 
   return (
     <>
@@ -525,7 +538,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           )}
         </div>
 
-        <h1 role="heading" aria-level={1}>{project.title}</h1>
+        <h1 role="heading" aria-level={1}>
+          {project.title}
+        </h1>
 
         {project.feedback_to_proposer && (
           <div className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEF3C7] text-[#92400E] border border-[#FCD34D] dark:bg-[#78350F] dark:text-[#FDE68A] dark:border-[#D97706]">
@@ -541,7 +556,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             <div className="mt-3">
               <strong>Skills needed:</strong>
               <div className="flex flex-wrap gap-1.5 mt-2">
-                {project.skills.map(s => (
+                {project.skills.map((s) => (
                   <span
                     key={s.id}
                     className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
@@ -550,7 +565,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                         : 'bg-accent text-secondary-dark dark:bg-[#374151] dark:text-[#D1D5DB]'
                     }`}
                   >
-                    {s.name}{s.is_required ? ' *' : ''}
+                    {s.name}
+                    {s.is_required ? ' *' : ''}
                   </span>
                 ))}
               </div>
@@ -570,19 +586,33 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
           {project.owner && (
             <p className="mt-2 text-text-light text-sm">
-              Owner: <Link href={`/volunteers/${project.owner.id}`} className="underline">{project.owner.name}</Link>
+              Owner:{' '}
+              <Link href={`/volunteers/${project.owner.id}`} className="underline">
+                {project.owner.name}
+              </Link>
             </p>
           )}
 
           {project.owner_id && !isOwner && !isAdmin && (
-            <Button variant="secondary" size="sm" className="mt-2" onClick={() => setShowContactModal(true)}>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="mt-2"
+              onClick={() => setShowContactModal(true)}
+            >
               Contact Owner
             </Button>
           )}
 
           {project.collaboration_link && (
             <p className="mt-2 text-sm">
-              <a href={project.collaboration_link} target="_blank" rel="noopener noreferrer" role="link" className="underline text-primary-dark">
+              <a
+                href={project.collaboration_link}
+                target="_blank"
+                rel="noopener noreferrer"
+                role="link"
+                className="underline text-primary-dark"
+              >
                 Open Project Doc →
               </a>
             </p>
@@ -591,12 +621,20 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
         {/* Outcome display */}
         {project.outcome && (
-          <div role="status" className="bg-[#D1FAE5] dark:bg-[#064E3B] border border-[#6EE7B7] dark:border-[#059669] rounded-xl p-6 mb-4">
+          <div
+            role="status"
+            className="bg-[#D1FAE5] dark:bg-[#064E3B] border border-[#6EE7B7] dark:border-[#059669] rounded-xl p-6 mb-4"
+          >
             <strong>Outcome: </strong>
-            {project.outcome === 'successful' ? 'Successful' :
-             project.outcome === 'partial' ? 'Partial' :
-             project.outcome === 'not_completed' ? 'Not Completed' :
-             project.outcome === 'ongoing' ? 'Ongoing' : project.outcome}
+            {project.outcome === 'successful'
+              ? 'Successful'
+              : project.outcome === 'partial'
+                ? 'Partial'
+                : project.outcome === 'not_completed'
+                  ? 'Not Completed'
+                  : project.outcome === 'ongoing'
+                    ? 'Ongoing'
+                    : project.outcome}
             {project.outcome_notes && <p className="mt-1 text-sm">{project.outcome_notes}</p>}
           </div>
         )}
@@ -608,22 +646,42 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             {!project.my_interest ? (
               <form onSubmit={handleExpressInterest}>
                 <div className="mb-5">
-                  <label className="flex items-center gap-2 cursor-pointer mb-2" style={{ fontWeight: 400 }}>
-                    <input type="radio" name="interest_type" value="want_to_contribute"
-                      checked={interestType === 'want_to_contribute'} onChange={() => setInterestType('want_to_contribute')} />
+                  <label
+                    className="flex items-center gap-2 cursor-pointer mb-2"
+                    style={{ fontWeight: 400 }}
+                  >
+                    <input
+                      type="radio"
+                      name="interest_type"
+                      value="want_to_contribute"
+                      checked={interestType === 'want_to_contribute'}
+                      onChange={() => setInterestType('want_to_contribute')}
+                    />
                     I want to help out / contribute to this project
                   </label>
-                  <label className="flex items-center gap-2 cursor-pointer" style={{ fontWeight: 400 }}>
-                    <input type="radio" name="interest_type" value="want_to_own"
-                      checked={interestType === 'want_to_own'} onChange={() => setInterestType('want_to_own')} />
+                  <label
+                    className="flex items-center gap-2 cursor-pointer"
+                    style={{ fontWeight: 400 }}
+                  >
+                    <input
+                      type="radio"
+                      name="interest_type"
+                      value="want_to_own"
+                      checked={interestType === 'want_to_own'}
+                      onChange={() => setInterestType('want_to_own')}
+                    />
                     I want to own / lead this project
                   </label>
                 </div>
                 <div className="mb-5">
                   <label htmlFor="interest-message">Message (optional)</label>
-                  <textarea id="interest-message" rows={3} value={interestMessage}
-                    onChange={e => setInterestMessage(e.target.value)}
-                    placeholder="Tell them why you're interested…" />
+                  <textarea
+                    id="interest-message"
+                    rows={3}
+                    value={interestMessage}
+                    onChange={(e) => setInterestMessage(e.target.value)}
+                    placeholder="Tell them why you're interested…"
+                  />
                 </div>
                 <Button type="submit" disabled={interestSubmitting}>
                   {interestSubmitting ? 'Submitting…' : 'Express Interest'}
@@ -631,8 +689,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               </form>
             ) : (
               <div>
-                <p>Your interest status:{' '}
-                  <span aria-label="interest status" className="font-semibold">{project.my_interest.status}</span>
+                <p>
+                  Your interest status:{' '}
+                  <span aria-label="interest status" className="font-semibold">
+                    {project.my_interest.status}
+                  </span>
                 </p>
                 {project.my_interest.response_message && (
                   <p className="text-text-light text-sm">{project.my_interest.response_message}</p>
@@ -652,7 +713,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           <div className="flex justify-between items-center mb-3">
             <h2 style={{ margin: 0 }}>Tasks</h2>
             {isOwnerOrAdmin && (
-              <Button variant="secondary" onClick={() => setShowTaskForm(v => !v)}>
+              <Button variant="secondary" onClick={() => setShowTaskForm((v) => !v)}>
                 Add Task
               </Button>
             )}
@@ -663,9 +724,15 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               <form onSubmit={handleAddTask}>
                 <div className="mb-3">
                   <label htmlFor="new-task-title">Task title</label>
-                  <input id="new-task-title" type="text" aria-label="Task title"
-                    value={newTaskTitle} onChange={e => setNewTaskTitle(e.target.value)}
-                    placeholder="Describe the task…" autoFocus />
+                  <input
+                    id="new-task-title"
+                    type="text"
+                    aria-label="Task title"
+                    value={newTaskTitle}
+                    onChange={(e) => setNewTaskTitle(e.target.value)}
+                    placeholder="Describe the task…"
+                    autoFocus
+                  />
                 </div>
                 <div className="flex gap-2">
                   <Button type="submit" disabled={taskSubmitting}>
@@ -683,8 +750,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             <p className="text-text-light">No tasks yet.</p>
           ) : (
             <ul className="list-none p-0 m-0">
-              {project.tasks.map(task => (
-                <li key={task.id} className="flex items-center gap-2 py-2 border-b border-brand-border last:border-0 flex-wrap">
+              {project.tasks.map((task) => (
+                <li
+                  key={task.id}
+                  className="flex items-center gap-2 py-2 border-b border-brand-border last:border-0 flex-wrap"
+                >
                   <span className="flex-1">{task.title}</span>
                   {task.status === 'done' && (
                     <span className="text-success text-sm font-semibold">done</span>
@@ -693,13 +763,19 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     <span className="text-text-light text-sm">→ {task.assigned_to_name}</span>
                   )}
                   {task.status === 'open' && (
-                    <Button variant="secondary" size="sm" onClick={() => handleClaimTask(task.id)}>Claim</Button>
+                    <Button variant="secondary" size="sm" onClick={() => handleClaimTask(task.id)}>
+                      Claim
+                    </Button>
                   )}
                   {task.status === 'assigned' && task.assigned_to_id === user.id && (
-                    <Button variant="secondary" size="sm" onClick={() => handleDoneTask(task.id)}>Done</Button>
+                    <Button variant="secondary" size="sm" onClick={() => handleDoneTask(task.id)}>
+                      Done
+                    </Button>
                   )}
                   {isOwnerOrAdmin && (
-                    <Button variant="danger" size="sm" onClick={() => handleDeleteTask(task.id)}>Delete task</Button>
+                    <Button variant="danger" size="sm" onClick={() => handleDeleteTask(task.id)}>
+                      Delete task
+                    </Button>
                   )}
                 </li>
               ))}
@@ -714,8 +790,17 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             <form onSubmit={handleUpdateStatus} className="flex gap-2 items-end flex-wrap">
               <div className="mb-0 flex-1" style={{ minWidth: 160 }}>
                 <label htmlFor="change-status">Change Status</label>
-                <select id="change-status" aria-label="Change Status" value={newStatus} onChange={e => setNewStatus(e.target.value)}>
-                  {statusOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                <select
+                  id="change-status"
+                  aria-label="Change Status"
+                  value={newStatus}
+                  onChange={(e) => setNewStatus(e.target.value)}
+                >
+                  {statusOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
                 </select>
               </div>
               <Button type="submit" disabled={statusSubmitting}>
@@ -734,24 +819,37 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               <p className="text-text-light">No interests yet.</p>
             ) : (
               <div>
-                {project.interests.map(interest => (
+                {project.interests.map((interest) => (
                   // [test hook] interest-card class used as test selector
-                  <div key={interest.id} className="interest-card bg-brand-bg rounded-lg p-3 mb-3 border border-brand-border">
+                  <div
+                    key={interest.id}
+                    className="interest-card bg-brand-bg rounded-lg p-3 mb-3 border border-brand-border"
+                  >
                     <div className="flex justify-between items-start flex-wrap gap-2">
                       <div>
                         <strong>{interest.volunteer_name}</strong>
                         <span className="ml-2 text-text-light text-sm">
-                          {interest.interest_type === 'want_to_own' ? 'wants to own' : 'wants to help'}
+                          {interest.interest_type === 'want_to_own'
+                            ? 'wants to own'
+                            : 'wants to help'}
                         </span>
-                        <span className={`ml-2 ${statusBadge(interest.status)}`}>{interest.status}</span>
-                        {interest.message && <p className="text-sm mt-1 mb-0">{interest.message}</p>}
+                        <span className={`ml-2 ${statusBadge(interest.status)}`}>
+                          {interest.status}
+                        </span>
+                        {interest.message && (
+                          <p className="text-sm mt-1 mb-0">{interest.message}</p>
+                        )}
                       </div>
                       {interest.status === 'pending' && (
                         <div className="flex gap-2">
                           <Button size="sm" onClick={() => handleAcceptInterest(interest.id)}>
                             Accept
                           </Button>
-                          <Button variant="secondary" size="sm" onClick={() => handleDeclineInterest(interest.id)}>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => handleDeclineInterest(interest.id)}
+                          >
                             Decline
                           </Button>
                         </div>
@@ -766,9 +864,18 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               <form onSubmit={handleAssign} className="flex gap-2 items-end flex-wrap mt-4">
                 <div className="flex-1" style={{ minWidth: 200 }}>
                   <label htmlFor="assign-volunteer">Assign volunteer directly</label>
-                  <select id="assign-volunteer" aria-label="Volunteer to assign" value={assignTo} onChange={e => setAssignTo(e.target.value)}>
+                  <select
+                    id="assign-volunteer"
+                    aria-label="Volunteer to assign"
+                    value={assignTo}
+                    onChange={(e) => setAssignTo(e.target.value)}
+                  >
                     <option value="">— Select volunteer —</option>
-                    {volunteers.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                    {volunteers.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <Button type="submit" disabled={!assignTo || assignSubmitting}>
@@ -786,9 +893,18 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             <form onSubmit={handleTransfer} className="flex gap-2 items-end flex-wrap">
               <div className="flex-1" style={{ minWidth: 200 }}>
                 <label htmlFor="transfer-to">Transfer to</label>
-                <select id="transfer-to" aria-label="Transfer to" value={transferTo} onChange={e => setTransferTo(e.target.value)}>
+                <select
+                  id="transfer-to"
+                  aria-label="Transfer to"
+                  value={transferTo}
+                  onChange={(e) => setTransferTo(e.target.value)}
+                >
                   <option value="">— Select volunteer —</option>
-                  {volunteers.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                  {volunteers.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.name}
+                    </option>
+                  ))}
                 </select>
               </div>
               <Button type="submit" disabled={!transferTo || transferSubmitting}>
@@ -805,7 +921,13 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             <form onSubmit={handleRecordOutcome}>
               <div className="mb-5">
                 <label htmlFor="outcome-select">Outcome</label>
-                <select id="outcome-select" aria-label="Outcome" value={outcomeValue} onChange={e => setOutcomeValue(e.target.value)} required>
+                <select
+                  id="outcome-select"
+                  aria-label="Outcome"
+                  value={outcomeValue}
+                  onChange={(e) => setOutcomeValue(e.target.value)}
+                  required
+                >
                   <option value="">— Select outcome —</option>
                   <option value="successful">Successful</option>
                   <option value="partial">Partial</option>
@@ -815,9 +937,14 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               </div>
               <div className="mb-5">
                 <label htmlFor="outcome-notes">Outcome Notes</label>
-                <textarea id="outcome-notes" aria-label="Outcome Notes" rows={3}
-                  value={outcomeNotes} onChange={e => setOutcomeNotes(e.target.value)}
-                  placeholder="Notes about the outcome…" />
+                <textarea
+                  id="outcome-notes"
+                  aria-label="Outcome Notes"
+                  rows={3}
+                  value={outcomeNotes}
+                  onChange={(e) => setOutcomeNotes(e.target.value)}
+                  placeholder="Notes about the outcome…"
+                />
               </div>
               <Button type="submit" disabled={!outcomeValue || outcomeSubmitting}>
                 {outcomeSubmitting ? 'Recording…' : 'Record Outcome'}
@@ -832,23 +959,44 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             <h2>Review Project</h2>
             <form onSubmit={handleSubmitReview}>
               <div className="mb-5">
-                <label className="flex items-center gap-2 cursor-pointer mb-2" style={{ fontWeight: 400 }}>
-                  <input type="radio" name="review_status" value="approved"
-                    checked={reviewStatus === 'approved'} onChange={() => setReviewStatus('approved')} />
+                <label
+                  className="flex items-center gap-2 cursor-pointer mb-2"
+                  style={{ fontWeight: 400 }}
+                >
+                  <input
+                    type="radio"
+                    name="review_status"
+                    value="approved"
+                    checked={reviewStatus === 'approved'}
+                    onChange={() => setReviewStatus('approved')}
+                  />
                   Approve
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer" style={{ fontWeight: 400 }}>
-                  <input type="radio" name="review_status" value="needs_discussion"
-                    checked={reviewStatus === 'needs_discussion'} onChange={() => setReviewStatus('needs_discussion')} />
+                <label
+                  className="flex items-center gap-2 cursor-pointer"
+                  style={{ fontWeight: 400 }}
+                >
+                  <input
+                    type="radio"
+                    name="review_status"
+                    value="needs_discussion"
+                    checked={reviewStatus === 'needs_discussion'}
+                    onChange={() => setReviewStatus('needs_discussion')}
+                  />
                   Needs Discussion
                 </label>
               </div>
               {reviewStatus === 'needs_discussion' && (
                 <div className="mb-5">
                   <label htmlFor="review-message">Message to Proposer</label>
-                  <textarea id="review-message" aria-label="Message to Proposer" rows={3}
-                    value={reviewMessage} onChange={e => setReviewMessage(e.target.value)}
-                    placeholder="What do you want to discuss?" />
+                  <textarea
+                    id="review-message"
+                    aria-label="Message to Proposer"
+                    rows={3}
+                    value={reviewMessage}
+                    onChange={(e) => setReviewMessage(e.target.value)}
+                    placeholder="What do you want to discuss?"
+                  />
                 </div>
               )}
               <Button type="submit" disabled={reviewSubmitting}>
@@ -865,9 +1013,14 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             <form onSubmit={handlePostUpdate} className="mb-4">
               <div className="mb-3">
                 <label htmlFor="add-update">Add Update</label>
-                <textarea id="add-update" aria-label="Add Update" rows={3}
-                  value={updateContent} onChange={e => setUpdateContent(e.target.value)}
-                  placeholder="Share a progress update…" />
+                <textarea
+                  id="add-update"
+                  aria-label="Add Update"
+                  rows={3}
+                  value={updateContent}
+                  onChange={(e) => setUpdateContent(e.target.value)}
+                  placeholder="Share a progress update…"
+                />
               </div>
               <Button type="submit" disabled={!updateContent.trim() || updateSubmitting}>
                 {updateSubmitting ? 'Posting…' : 'Post Update'}
@@ -878,7 +1031,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             <p className="text-text-light">No updates yet.</p>
           ) : (
             <ul className="list-none p-0 m-0">
-              {project.updates.map(u => (
+              {project.updates.map((u) => (
                 <li key={u.id} className="py-3 border-b border-brand-border last:border-0">
                   <p className="m-0 mb-1">{u.content}</p>
                   <span className="text-xs text-text-light">
@@ -895,7 +1048,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       {showContactModal && (
         <div
           className="fixed inset-0 bg-[rgba(29,53,87,0.5)] flex items-center justify-center z-1000 p-5"
-          onClick={e => { if (e.target === e.currentTarget) setShowContactModal(false) }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowContactModal(false)
+          }}
         >
           <div
             role="dialog"
@@ -905,7 +1060,14 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           >
             <div className="px-6 py-5 border-b border-brand-border flex justify-between items-center">
               <h2 style={{ margin: 0, fontSize: '1.25rem' }}>Contact Owner</h2>
-              <Button variant="ghost" icon onClick={() => setShowContactModal(false)} aria-label="Close">×</Button>
+              <Button
+                variant="ghost"
+                icon
+                onClick={() => setShowContactModal(false)}
+                aria-label="Close"
+              >
+                ×
+              </Button>
             </div>
             <div className="p-6">
               {/* Direct contact channels */}
@@ -933,23 +1095,37 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     )}
                   </div>
                   <hr className="my-4 border-brand-border" />
-                  <p className="text-sm text-text-light mb-3">Or send a message via the platform:</p>
+                  <p className="text-sm text-text-light mb-3">
+                    Or send a message via the platform:
+                  </p>
                 </div>
               )}
 
               <form onSubmit={handleContactOwner}>
                 <div className="mb-5">
                   <label htmlFor="contact-subject">Subject</label>
-                  <input id="contact-subject" type="text" value={contactSubject}
-                    onChange={e => setContactSubject(e.target.value)} required />
+                  <input
+                    id="contact-subject"
+                    type="text"
+                    value={contactSubject}
+                    onChange={(e) => setContactSubject(e.target.value)}
+                    required
+                  />
                 </div>
                 <div className="mb-5">
                   <label htmlFor="contact-message">Message</label>
-                  <textarea id="contact-message" rows={4} value={contactBody}
-                    onChange={e => setContactBody(e.target.value)} required />
+                  <textarea
+                    id="contact-message"
+                    rows={4}
+                    value={contactBody}
+                    onChange={(e) => setContactBody(e.target.value)}
+                    required
+                  />
                 </div>
                 <div className="flex gap-2 justify-end">
-                  <Button type="button" variant="ghost" onClick={() => setShowContactModal(false)}>Cancel</Button>
+                  <Button type="button" variant="ghost" onClick={() => setShowContactModal(false)}>
+                    Cancel
+                  </Button>
                   <Button type="submit" disabled={contactSubmitting}>
                     {contactSubmitting ? 'Sending…' : 'Send Message'}
                   </Button>

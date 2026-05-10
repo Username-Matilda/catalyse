@@ -17,7 +17,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-3 flex-wrap mb-4 last:mb-0">
-      <span className="text-text-light text-sm" style={{ minWidth: 80 }}>{label}</span>
+      <span className="text-text-light text-sm" style={{ minWidth: 80 }}>
+        {label}
+      </span>
       {children}
     </div>
   )
@@ -39,48 +41,89 @@ export default function ComponentPreviewPage() {
           <Button>Primary md</Button>
           <Button size="sm">Primary sm</Button>
           <Button disabled>Primary md</Button>
-          <Button icon aria-label="Add">+</Button>
-          <Button icon size="sm" aria-label="Add">+</Button>
+          <Button icon aria-label="Add">
+            +
+          </Button>
+          <Button icon size="sm" aria-label="Add">
+            +
+          </Button>
         </Row>
         <Row label="secondary">
           <Button variant="secondary">Secondary md</Button>
-          <Button variant="secondary" size="sm">Secondary sm</Button>
-          <Button variant="secondary" disabled>Disabled</Button>
-          <Button variant="secondary" icon aria-label="Add">+</Button>
-          <Button variant="secondary" icon size="sm" aria-label="Add">+</Button>
+          <Button variant="secondary" size="sm">
+            Secondary sm
+          </Button>
+          <Button variant="secondary" disabled>
+            Disabled
+          </Button>
+          <Button variant="secondary" icon aria-label="Add">
+            +
+          </Button>
+          <Button variant="secondary" icon size="sm" aria-label="Add">
+            +
+          </Button>
         </Row>
         <Row label="danger">
           <Button variant="danger">Danger md</Button>
-          <Button variant="danger" size="sm">Danger sm</Button>
-          <Button variant="danger" disabled>Disabled</Button>
-          <Button variant="danger" icon aria-label="Remove">×</Button>
-          <Button variant="danger" icon size="sm" aria-label="Remove">×</Button>
+          <Button variant="danger" size="sm">
+            Danger sm
+          </Button>
+          <Button variant="danger" disabled>
+            Disabled
+          </Button>
+          <Button variant="danger" icon aria-label="Remove">
+            ×
+          </Button>
+          <Button variant="danger" icon size="sm" aria-label="Remove">
+            ×
+          </Button>
         </Row>
         <Row label="ghost">
           <Button variant="ghost">Ghost md</Button>
-          <Button variant="ghost" size="sm">Ghost sm</Button>
-          <Button variant="ghost" disabled>Disabled</Button>
-          <Button variant="ghost" icon aria-label="Add">+</Button>
-          <Button variant="ghost" icon size="sm" aria-label="Add">+</Button>
+          <Button variant="ghost" size="sm">
+            Ghost sm
+          </Button>
+          <Button variant="ghost" disabled>
+            Disabled
+          </Button>
+          <Button variant="ghost" icon aria-label="Add">
+            +
+          </Button>
+          <Button variant="ghost" icon size="sm" aria-label="Add">
+            +
+          </Button>
         </Row>
         <Row label="outline">
           <Button variant="outline">Outline md</Button>
-          <Button variant="outline" size="sm">Outline sm</Button>
-          <Button variant="outline" disabled>Disabled</Button>
-          <Button variant="outline" icon aria-label="Add">+</Button>
-          <Button variant="outline" icon size="sm" aria-label="Add">+</Button>
+          <Button variant="outline" size="sm">
+            Outline sm
+          </Button>
+          <Button variant="outline" disabled>
+            Disabled
+          </Button>
+          <Button variant="outline" icon aria-label="Add">
+            +
+          </Button>
+          <Button variant="outline" icon size="sm" aria-label="Add">
+            +
+          </Button>
         </Row>
-
       </Section>
 
       <Section title="Button — as Link (href)">
         <Row label="primary">
           <Button href="/component-preview">Primary link</Button>
-          <Button href="/component-preview" size="sm">Primary sm link</Button>
+          <Button href="/component-preview" size="sm">
+            Primary sm link
+          </Button>
         </Row>
         <Row label="secondary">
-          <Button href="/component-preview" variant="secondary">Secondary link</Button>
-          <Button href="/component-preview" variant="outline" size="sm">Outline sm link</Button>
+          <Button href="/component-preview" variant="secondary">
+            Secondary link
+          </Button>
+          <Button href="/component-preview" variant="outline" size="sm">
+            Outline sm link
+          </Button>
         </Row>
       </Section>
 
@@ -91,24 +134,33 @@ export default function ComponentPreviewPage() {
           </div>
         </Row>
         <Row label="secondary">
-          <Button variant="secondary">
-            Secondary (privacy page delete link)
-          </Button>
+          <Button variant="secondary">Secondary (privacy page delete link)</Button>
         </Row>
       </Section>
 
       <Section title="Button — dynamic variant (ternary)">
-        <p className="text-text-light text-sm mb-3">Used in admin/triage tabs and admin/starter-tasks status filters.</p>
+        <p className="text-text-light text-sm mb-3">
+          Used in admin/triage tabs and admin/starter-tasks status filters.
+        </p>
         <Row label="md tabs">
-          {['one', 'two', 'three'].map(t => (
-            <Button key={t} variant={activeTab === t ? 'primary' : 'secondary'} onClick={() => setActiveTab(t)}>
+          {['one', 'two', 'three'].map((t) => (
+            <Button
+              key={t}
+              variant={activeTab === t ? 'primary' : 'secondary'}
+              onClick={() => setActiveTab(t)}
+            >
               Tab {t}
             </Button>
           ))}
         </Row>
         <Row label="sm filters">
-          {['all', 'open', 'assigned', 'submitted'].map(s => (
-            <Button key={s} variant={activeTab === s ? 'primary' : 'secondary'} size="sm" onClick={() => setActiveTab(s)}>
+          {['all', 'open', 'assigned', 'submitted'].map((s) => (
+            <Button
+              key={s}
+              variant={activeTab === s ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={() => setActiveTab(s)}
+            >
               {s}
             </Button>
           ))}
@@ -130,7 +182,9 @@ export default function ComponentPreviewPage() {
           onChange={setActiveTab}
           className="mb-4"
         />
-        <p className="text-sm text-text-light">Active: <strong>{activeTab}</strong></p>
+        <p className="text-sm text-text-light">
+          Active: <strong>{activeTab}</strong>
+        </p>
       </Section>
 
       <Section title="Ghost icon × — close / dismiss / remove">
@@ -138,30 +192,53 @@ export default function ComponentPreviewPage() {
           All × buttons now use <code>{'<Button variant="ghost" icon>'}</code>.
         </p>
         <Row label="modal header">
-          <div className="bg-surface border border-brand-border rounded-lg px-4 py-3 flex items-center gap-4" style={{ minWidth: 280 }}>
+          <div
+            className="bg-surface border border-brand-border rounded-lg px-4 py-3 flex items-center gap-4"
+            style={{ minWidth: 280 }}
+          >
             <span className="font-medium flex-1">Modal Header</span>
-            <Button variant="ghost" icon aria-label="Close">×</Button>
+            <Button variant="ghost" icon aria-label="Close">
+              ×
+            </Button>
           </div>
         </Row>
         <Row label="banner dismiss">
           {!dismissed ? (
-            <div className="flex items-center justify-between gap-3 p-4 rounded-lg bg-[#DBEAFE] text-[#1E40AF] border border-[#93C5FD] dark:bg-[#1E3A5F] dark:text-[#93C5FD] dark:border-[#2563EB]" style={{ minWidth: 300 }}>
+            <div
+              className="flex items-center justify-between gap-3 p-4 rounded-lg bg-[#DBEAFE] text-[#1E40AF] border border-[#93C5FD] dark:bg-[#1E3A5F] dark:text-[#93C5FD] dark:border-[#2563EB]"
+              style={{ minWidth: 300 }}
+            >
               <span>Dismissible banner.</span>
-              <Button variant="ghost" icon onClick={() => setDismissed(true)} aria-label="Dismiss">×</Button>
+              <Button variant="ghost" icon onClick={() => setDismissed(true)} aria-label="Dismiss">
+                ×
+              </Button>
             </div>
           ) : (
             <span className="text-text-light text-sm italic">
-              Dismissed. <button className="underline cursor-pointer" onClick={() => setDismissed(false)}>Reset</button>
+              Dismissed.{' '}
+              <button className="underline cursor-pointer" onClick={() => setDismissed(false)}>
+                Reset
+              </button>
             </span>
           )}
         </Row>
         <Row label="remove item">
           <div className="flex flex-col gap-2" style={{ minWidth: 280 }}>
             {tasks.map((t, i) => (
-              <div key={i} className="flex items-center gap-2 p-3 bg-brand-bg border border-brand-border rounded-lg">
+              <div
+                key={i}
+                className="flex items-center gap-2 p-3 bg-brand-bg border border-brand-border rounded-lg"
+              >
                 <span className="text-sm flex-1">{t}</span>
                 {tasks.length > 1 && (
-                  <Button variant="ghost" icon onClick={() => setTasks(ts => ts.filter((_, j) => j !== i))} aria-label="Remove task">×</Button>
+                  <Button
+                    variant="ghost"
+                    icon
+                    onClick={() => setTasks((ts) => ts.filter((_, j) => j !== i))}
+                    aria-label="Remove task"
+                  >
+                    ×
+                  </Button>
                 )}
               </div>
             ))}

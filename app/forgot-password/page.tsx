@@ -46,15 +46,23 @@ export default function ForgotPasswordPage() {
           </p>
 
           {error && (
-            <div role="alert" className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]">
+            <div
+              role="alert"
+              className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]"
+            >
               {error}
             </div>
           )}
 
           {!submitted ? (
-            <form className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word" onSubmit={handleSubmit}>
+            <form
+              className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
+              onSubmit={handleSubmit}
+            >
               <div className="mb-5">
-                <label htmlFor="email" className="required">Email</label>
+                <label htmlFor="email" className="required">
+                  Email
+                </label>
                 <input
                   type="email"
                   id="email"
@@ -63,7 +71,7 @@ export default function ForgotPasswordPage() {
                   autoFocus
                   placeholder="you@example.com"
                   value={email}
-                  onChange={e => setEmail(e.target.value)}
+                  onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
 
@@ -80,18 +88,25 @@ export default function ForgotPasswordPage() {
               <div className="text-center">
                 <h3 style={{ color: 'var(--success)' }}>Check Your Email</h3>
                 <p className="text-text-light" style={{ margin: '16px 0' }}>
-                  If an account exists with that email, you&apos;ll receive a password reset link shortly.
+                  If an account exists with that email, you&apos;ll receive a password reset link
+                  shortly.
                 </p>
-                <Button href="/login" variant="outline">Back to Login</Button>
+                <Button href="/login" variant="outline">
+                  Back to Login
+                </Button>
                 <p className="text-sm text-text-light" style={{ marginTop: 16 }}>
                   Not receiving the email? Check your spam folder, or{' '}
                   <a href="mailto:matilda@pauseai.info">contact support</a>.
                 </p>
               </div>
               {devUrl && (
-                <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+                <div
+                  style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid var(--border)' }}
+                >
                   <p style={{ fontSize: 12, color: 'var(--text-light)' }}>Dev mode — Reset link:</p>
-                  <a href={devUrl} style={{ wordBreak: 'break-all' }}>{devUrl}</a>
+                  <a href={devUrl} style={{ wordBreak: 'break-all' }}>
+                    {devUrl}
+                  </a>
                 </div>
               )}
             </div>

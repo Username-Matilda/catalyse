@@ -25,12 +25,15 @@ export async function POST(request: NextRequest) {
 
   const wantToOwn = body.want_to_own === true
   const skillIds = Array.isArray(body.skill_ids) ? (body.skill_ids as number[]) : []
-  const skillRequiredMap = (body.skill_required_map && typeof body.skill_required_map === 'object')
-    ? (body.skill_required_map as Record<string | number, boolean>)
-    : {}
-  const tasks = Array.isArray(body.tasks) ? body.tasks as Array<{ title: string; description?: string }> : []
+  const skillRequiredMap =
+    body.skill_required_map && typeof body.skill_required_map === 'object'
+      ? (body.skill_required_map as Record<string | number, boolean>)
+      : {}
+  const tasks = Array.isArray(body.tasks)
+    ? (body.tasks as Array<{ title: string; description?: string }>)
+    : []
 
-  const project = await prisma.$transaction(async tx => {
+  const project = await prisma.$transaction(async (tx) => {
     const newProject = await tx.project.create({
       data: {
         title: body.title as string,
@@ -53,7 +56,7 @@ export async function POST(request: NextRequest) {
 
     if (skillIds.length > 0) {
       await tx.projectSkill.createMany({
-        data: skillIds.map(skillId => ({
+        data: skillIds.map((skillId) => ({
           projectId: newProject.id,
           skillId,
           isRequired: skillRequiredMap[skillId] !== false,
@@ -63,7 +66,7 @@ export async function POST(request: NextRequest) {
 
     if (tasks.length > 0) {
       await tx.projectTask.createMany({
-        data: tasks.map(t => ({
+        data: tasks.map((t) => ({
           projectId: newProject.id,
           title: t.title,
           description: t.description ?? null,

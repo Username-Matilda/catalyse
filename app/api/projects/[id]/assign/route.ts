@@ -4,10 +4,7 @@ import { getCurrentVolunteer } from '@/lib/auth'
 import { sendProjectNotificationEmail } from '@/lib/email'
 import { createNotification } from '@/lib/project'
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = await params
   const projectId = parseInt(idParam, 10)
   if (isNaN(projectId)) {
@@ -27,7 +24,10 @@ export async function POST(
   const isOwner = project.ownerId === volunteer.id
   const isAdmin = volunteer.isAdmin
   if (!isOwner && !isAdmin) {
-    return Response.json({ detail: 'Only project owner or admin can assign volunteers' }, { status: 403 })
+    return Response.json(
+      { detail: 'Only project owner or admin can assign volunteers' },
+      { status: 403 },
+    )
   }
 
   let body: Record<string, unknown>
@@ -77,19 +77,22 @@ export async function POST(
 
   if (assignee) {
     createNotification(
-      volunteerId, 'assigned_to_project',
+      volunteerId,
+      'assigned_to_project',
       `You've been assigned to '${project.title}'`,
       `Assigned by ${volunteer.name}`,
-      `/projects/${projectId}`
-    ).catch(e => console.error('[NOTIFY ERROR]', e))
+      `/projects/${projectId}`,
+    ).catch((e) => console.error('[NOTIFY ERROR]', e))
 
     if (assignee.email) {
       sendProjectNotificationEmail(
-        assignee.email, assignee.name,
+        assignee.email,
+        assignee.name,
         `You've been assigned to '${project.title}'`,
         `<strong>${volunteer.name}</strong> has assigned you to the project <strong>${project.title}</strong>.`,
-        project.title, projectId
-      ).catch(e => console.error('[EMAIL ERROR]', e))
+        project.title,
+        projectId,
+      ).catch((e) => console.error('[EMAIL ERROR]', e))
     }
   }
 

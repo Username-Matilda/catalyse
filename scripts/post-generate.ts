@@ -15,7 +15,9 @@ function patch(description: string, from: string, to: string): void {
     dirty = true
     console.log(`  patched: ${description}`)
   } else {
-    console.warn(`  WARNING: expected string not found for "${description}" — Prisma generator may have changed`)
+    console.warn(
+      `  WARNING: expected string not found for "${description}" — Prisma generator may have changed`,
+    )
   }
 }
 

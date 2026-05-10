@@ -12,7 +12,9 @@ export async function GET(request: NextRequest) {
   const dbUrl = process.env.DATABASE_URL
   const dbPath = mountPath
     ? path.join(mountPath, 'catalyse.db')
-    : dbUrl?.startsWith('file:') ? dbUrl.slice(5) : null
+    : dbUrl?.startsWith('file:')
+      ? dbUrl.slice(5)
+      : null
   if (!dbPath || !existsSync(dbPath)) {
     return Response.json({ detail: 'Database not found' }, { status: 404 })
   }

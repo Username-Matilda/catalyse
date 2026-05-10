@@ -1,6 +1,11 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getCurrentVolunteer, serializeVolunteer, serializeSkill, serializeEndorsement } from '@/lib/auth'
+import {
+  getCurrentVolunteer,
+  serializeVolunteer,
+  serializeSkill,
+  serializeEndorsement,
+} from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   const volunteer = await getCurrentVolunteer(request.headers.get('authorization'))
@@ -13,10 +18,7 @@ export async function GET(request: NextRequest) {
     include: {
       skills: {
         include: { skill: { include: { category: true } } },
-        orderBy: [
-          { skill: { category: { sortOrder: 'asc' } } },
-          { skill: { sortOrder: 'asc' } },
-        ],
+        orderBy: [{ skill: { category: { sortOrder: 'asc' } } }, { skill: { sortOrder: 'asc' } }],
       },
       skillEndorsementsReceived: {
         include: { skill: true },
@@ -34,6 +36,6 @@ export async function GET(request: NextRequest) {
       showContact: true,
       skills,
       endorsements,
-    })
+    }),
   )
 }

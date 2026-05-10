@@ -27,29 +27,31 @@ export async function GET(request: NextRequest) {
     orderBy: { createdAt: 'desc' },
   })
 
-  return Response.json(tasks.map(t => ({
-    id: t.id,
-    project_id: t.projectId,
-    title: t.title,
-    description: t.description,
-    skill_id: t.skillId,
-    skill_name: t.skill?.name ?? null,
-    skill_category: t.skill?.category?.name ?? null,
-    project_title: t.project?.title ?? null,
-    assigned_to_id: t.assignedToId,
-    assigned_to_name: t.assignedTo?.name ?? null,
-    assigned_by_id: t.assignedById,
-    status: t.status,
-    review_rating: t.reviewRating,
-    review_notes: t.reviewNotes,
-    feedback_to_volunteer: t.feedbackToVolunteer,
-    reviewed_by_id: t.reviewedById,
-    reviewed_by_name: t.reviewedBy?.name ?? null,
-    reviewed_at: t.reviewedAt,
-    estimated_hours: t.estimatedHours,
-    created_at: t.createdAt,
-    updated_at: t.updatedAt,
-  })))
+  return Response.json(
+    tasks.map((t) => ({
+      id: t.id,
+      project_id: t.projectId,
+      title: t.title,
+      description: t.description,
+      skill_id: t.skillId,
+      skill_name: t.skill?.name ?? null,
+      skill_category: t.skill?.category?.name ?? null,
+      project_title: t.project?.title ?? null,
+      assigned_to_id: t.assignedToId,
+      assigned_to_name: t.assignedTo?.name ?? null,
+      assigned_by_id: t.assignedById,
+      status: t.status,
+      review_rating: t.reviewRating,
+      review_notes: t.reviewNotes,
+      feedback_to_volunteer: t.feedbackToVolunteer,
+      reviewed_by_id: t.reviewedById,
+      reviewed_by_name: t.reviewedBy?.name ?? null,
+      reviewed_at: t.reviewedAt,
+      estimated_hours: t.estimatedHours,
+      created_at: t.createdAt,
+      updated_at: t.updatedAt,
+    })),
+  )
 }
 
 export async function POST(request: NextRequest) {
@@ -67,7 +69,11 @@ export async function POST(request: NextRequest) {
   if (!body.title || typeof body.title !== 'string' || body.title.trim().length === 0) {
     errs.push(fieldError('title', 'Title is required'))
   }
-  if (!body.description || typeof body.description !== 'string' || body.description.trim().length === 0) {
+  if (
+    !body.description ||
+    typeof body.description !== 'string' ||
+    body.description.trim().length === 0
+  ) {
     errs.push(fieldError('description', 'Description is required'))
   }
   if (errs.length) return validationError(errs)

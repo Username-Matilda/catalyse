@@ -4,7 +4,7 @@ import { requireAdmin } from '@/lib/auth'
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: idParam } = await params
   const inviteId = parseInt(idParam, 10)

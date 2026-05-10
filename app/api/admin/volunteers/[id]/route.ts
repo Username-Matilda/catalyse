@@ -2,10 +2,7 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin, serializeVolunteer, serializeSkill, serializeEndorsement } from '@/lib/auth'
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = await params
   const volunteerId = parseInt(idParam, 10)
   if (isNaN(volunteerId)) {
@@ -20,10 +17,7 @@ export async function GET(
     include: {
       skills: {
         include: { skill: { include: { category: true } } },
-        orderBy: [
-          { skill: { category: { sortOrder: 'asc' } } },
-          { skill: { sortOrder: 'asc' } },
-        ],
+        orderBy: [{ skill: { category: { sortOrder: 'asc' } } }, { skill: { sortOrder: 'asc' } }],
       },
       skillEndorsementsReceived: {
         include: { skill: true },
@@ -69,7 +63,7 @@ export async function GET(
       skills,
       endorsements: publicEndorsements,
     }),
-    admin_notes: adminNotes.map(n => ({
+    admin_notes: adminNotes.map((n) => ({
       id: n.id,
       volunteer_id: n.volunteerId,
       author_id: n.authorId,
@@ -80,7 +74,7 @@ export async function GET(
       updated_at: n.updatedAt,
       author_name: n.author.name,
     })),
-    endorsements: endorsements.map(e => ({
+    endorsements: endorsements.map((e) => ({
       id: e.id,
       volunteer_id: e.volunteerId,
       skill_id: e.skillId,
@@ -94,7 +88,7 @@ export async function GET(
       skill_category: e.skill.category.name,
       endorsed_by_name: e.endorsedBy.name,
     })),
-    starter_tasks: starterTasks.map(t => ({
+    starter_tasks: starterTasks.map((t) => ({
       id: t.id,
       project_id: t.projectId,
       title: t.title,
@@ -113,7 +107,7 @@ export async function GET(
       updated_at: t.updatedAt,
       skill_name: t.skill?.name ?? null,
     })),
-    project_history: projectHistory.map(p => ({
+    project_history: projectHistory.map((p) => ({
       id: p.id,
       title: p.title,
       description: p.description,

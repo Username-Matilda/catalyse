@@ -43,7 +43,7 @@ export async function getCurrentVolunteer(authorization: string | null | undefin
 // showContact controls whether email and direct contact fields are included.
 export function serializeVolunteer(
   vol: Record<string, unknown>,
-  opts: { showContact?: boolean; skills?: unknown[]; endorsements?: unknown[] } = {}
+  opts: { showContact?: boolean; skills?: unknown[]; endorsements?: unknown[] } = {},
 ) {
   const { showContact = false, skills, endorsements } = opts
   const result: Record<string, unknown> = {
@@ -111,14 +111,23 @@ export function serializeEndorsement(se: {
 }
 
 export async function requireAdmin(
-  authorization: string | null | undefined
-): Promise<{ volunteer: NonNullable<Awaited<ReturnType<typeof getCurrentVolunteer>>>; error: null } | { volunteer: null; error: Response }> {
+  authorization: string | null | undefined,
+): Promise<
+  | { volunteer: NonNullable<Awaited<ReturnType<typeof getCurrentVolunteer>>>; error: null }
+  | { volunteer: null; error: Response }
+> {
   const volunteer = await getCurrentVolunteer(authorization)
   if (!volunteer) {
-    return { volunteer: null, error: Response.json({ detail: 'Authentication required' }, { status: 401 }) }
+    return {
+      volunteer: null,
+      error: Response.json({ detail: 'Authentication required' }, { status: 401 }),
+    }
   }
   if (!volunteer.isAdmin) {
-    return { volunteer: null, error: Response.json({ detail: 'Admin access required' }, { status: 403 }) }
+    return {
+      volunteer: null,
+      error: Response.json({ detail: 'Admin access required' }, { status: 403 }),
+    }
   }
   return { volunteer, error: null }
 }
@@ -127,7 +136,10 @@ export async function requireAdmin(
 export async function checkAdminBootstrap(email: string, volunteerId: number): Promise<boolean> {
   const adminEmails = process.env.ADMIN_EMAILS || ''
   if (!adminEmails) return false
-  const allowed = adminEmails.split(',').map(e => e.trim().toLowerCase()).filter(Boolean)
+  const allowed = adminEmails
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean)
   if (!allowed.includes(email.toLowerCase())) return false
   await prisma.volunteer.updateMany({
     where: { id: volunteerId, isAdmin: false },

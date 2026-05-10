@@ -58,7 +58,9 @@ function SortableSkill({
   onEdit: () => void
   onDelete: () => void
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: skill.id })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: skill.id,
+  })
   return (
     <div
       ref={setNodeRef}
@@ -76,16 +78,37 @@ function SortableSkill({
         gap: 8,
       }}
     >
-      <span {...attributes} {...listeners} style={{ cursor: 'grab', color: 'var(--text-light)', flexShrink: 0, marginTop: 2, lineHeight: 1 }} title="Drag to reorder">⠿</span>
+      <span
+        {...attributes}
+        {...listeners}
+        style={{
+          cursor: 'grab',
+          color: 'var(--text-light)',
+          flexShrink: 0,
+          marginTop: 2,
+          lineHeight: 1,
+        }}
+        title="Drag to reorder"
+      >
+        ⠿
+      </span>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <h4 role="heading" style={{ margin: '0 0 4px 0', fontSize: '1rem', fontWeight: 700 }}>{skill.name}</h4>
+        <h4 role="heading" style={{ margin: '0 0 4px 0', fontSize: '1rem', fontWeight: 700 }}>
+          {skill.name}
+        </h4>
         {skill.description && (
-          <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-light)' }}>{skill.description}</p>
+          <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-light)' }}>
+            {skill.description}
+          </p>
         )}
       </div>
       <div className="flex gap-1" style={{ flexShrink: 0 }}>
-        <Button variant="secondary" size="sm" onClick={onEdit}>Edit</Button>
-        <Button variant="danger" size="sm" onClick={onDelete}>Del</Button>
+        <Button variant="secondary" size="sm" onClick={onEdit}>
+          Edit
+        </Button>
+        <Button variant="danger" size="sm" onClick={onDelete}>
+          Del
+        </Button>
       </div>
     </div>
   )
@@ -108,15 +131,17 @@ function SortableCategory({
   onDeleteSkill: (skill: Skill) => void
   onSkillsReorder: (categoryId: number, newSkills: Skill[]) => void
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cat.id })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: cat.id,
+  })
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   function handleSkillDragEnd(event: DragEndEvent) {
     const { active, over } = event
     if (!over || active.id === over.id) return
-    const oldIndex = cat.skills.findIndex(s => s.id === active.id)
-    const newIndex = cat.skills.findIndex(s => s.id === over.id)
+    const oldIndex = cat.skills.findIndex((s) => s.id === active.id)
+    const newIndex = cat.skills.findIndex((s) => s.id === over.id)
     const reordered = arrayMove(cat.skills, oldIndex, newIndex)
     onSkillsReorder(cat.id, reordered)
     apiRequest('/api/admin/skills/reorder', {
@@ -129,28 +154,60 @@ function SortableCategory({
     <div
       ref={setNodeRef}
       className="category-card bg-surface rounded-xl shadow p-6 overflow-hidden wrap-break-word"
-      style={{ marginBottom: 24, transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
+      style={{
+        marginBottom: 24,
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+      }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: 16,
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-          <span {...attributes} {...listeners} style={{ cursor: 'grab', color: 'var(--text-light)', flexShrink: 0, marginTop: 4, lineHeight: 1, fontSize: '1.25rem' }} title="Drag to reorder">⠿</span>
+          <span
+            {...attributes}
+            {...listeners}
+            style={{
+              cursor: 'grab',
+              color: 'var(--text-light)',
+              flexShrink: 0,
+              marginTop: 4,
+              lineHeight: 1,
+              fontSize: '1.25rem',
+            }}
+            title="Drag to reorder"
+          >
+            ⠿
+          </span>
           <div>
             <h3 role="heading">{cat.name}</h3>
-            {cat.description && (
-              <p className="text-text-light text-sm mt-1">{cat.description}</p>
-            )}
+            {cat.description && <p className="text-text-light text-sm mt-1">{cat.description}</p>}
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" size="sm" onClick={onEdit}>Edit</Button>
-          <Button variant="danger" size="sm" onClick={onDelete}>Delete</Button>
+          <Button variant="secondary" size="sm" onClick={onEdit}>
+            Edit
+          </Button>
+          <Button variant="danger" size="sm" onClick={onDelete}>
+            Delete
+          </Button>
         </div>
       </div>
 
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSkillDragEnd}>
-        <SortableContext items={cat.skills.map(s => s.id)} strategy={verticalListSortingStrategy}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleSkillDragEnd}
+      >
+        <SortableContext items={cat.skills.map((s) => s.id)} strategy={verticalListSortingStrategy}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {cat.skills.map(skill => (
+            {cat.skills.map((skill) => (
               <SortableSkill
                 key={skill.id}
                 skill={skill}
@@ -160,7 +217,15 @@ function SortableCategory({
             ))}
             <button
               onClick={onAddSkill}
-              style={{ border: '2px dashed var(--border)', background: 'transparent', borderRadius: 'var(--radius)', padding: '12px 16px', color: 'var(--text-light)', cursor: 'pointer', textAlign: 'center' }}
+              style={{
+                border: '2px dashed var(--border)',
+                background: 'transparent',
+                borderRadius: 'var(--radius)',
+                padding: '12px 16px',
+                color: 'var(--text-light)',
+                cursor: 'pointer',
+                textAlign: 'center',
+              }}
               className="hover:border-primary hover:text-primary hover:bg-accent transition-all"
             >
               + Add Skill
@@ -202,7 +267,9 @@ export default function AdminSkillsPage() {
         apiRequest<Category[]>('/api/admin/skill-categories'),
         apiRequest<Skill[]>('/api/skills/flat'),
       ])
-      const catMap = new Map(cats.map(c => ({ ...c, skills: [] as Skill[] })).map(c => [c.id, c]))
+      const catMap = new Map(
+        cats.map((c) => ({ ...c, skills: [] as Skill[] })).map((c) => [c.id, c]),
+      )
       for (const s of skills) {
         catMap.get(s.category_id)?.skills.push(s)
       }
@@ -216,8 +283,16 @@ export default function AdminSkillsPage() {
 
   function openModal(m: ModalType) {
     setModal(m)
-    setInputName(m.type === 'edit-skill' ? m.skill.name : m.type === 'edit-category' ? m.category.name : '')
-    setInputDescription(m.type === 'edit-skill' ? (m.skill.description ?? '') : m.type === 'edit-category' ? (m.category.description ?? '') : '')
+    setInputName(
+      m.type === 'edit-skill' ? m.skill.name : m.type === 'edit-category' ? m.category.name : '',
+    )
+    setInputDescription(
+      m.type === 'edit-skill'
+        ? (m.skill.description ?? '')
+        : m.type === 'edit-category'
+          ? (m.category.description ?? '')
+          : '',
+    )
   }
 
   function closeModal() {
@@ -229,8 +304,8 @@ export default function AdminSkillsPage() {
   function handleCategoryDragEnd(event: DragEndEvent) {
     const { active, over } = event
     if (!over || active.id === over.id) return
-    const oldIndex = categories.findIndex(c => c.id === active.id)
-    const newIndex = categories.findIndex(c => c.id === over.id)
+    const oldIndex = categories.findIndex((c) => c.id === active.id)
+    const newIndex = categories.findIndex((c) => c.id === over.id)
     const reordered = arrayMove(categories, oldIndex, newIndex)
     setCategories(reordered)
     apiRequest('/api/admin/skill-categories/reorder', {
@@ -240,8 +315,8 @@ export default function AdminSkillsPage() {
   }
 
   function handleSkillsReorder(categoryId: number, newSkills: Skill[]) {
-    setCategories(cats =>
-      cats.map(c => c.id === categoryId ? { ...c, skills: newSkills } : c)
+    setCategories((cats) =>
+      cats.map((c) => (c.id === categoryId ? { ...c, skills: newSkills } : c)),
     )
   }
 
@@ -284,13 +359,20 @@ export default function AdminSkillsPage() {
       if (modal.type === 'add-skill') {
         await apiRequest('/api/admin/skills', {
           method: 'POST',
-          body: JSON.stringify({ name: inputName.trim(), description: inputDescription.trim() || null, category_id: modal.categoryId }),
+          body: JSON.stringify({
+            name: inputName.trim(),
+            description: inputDescription.trim() || null,
+            category_id: modal.categoryId,
+          }),
         })
         showToast('Skill created!', 'success')
       } else if (modal.type === 'edit-skill') {
         await apiRequest(`/api/admin/skills/${modal.skill.id}`, {
           method: 'PUT',
-          body: JSON.stringify({ name: inputName.trim(), description: inputDescription.trim() || null }),
+          body: JSON.stringify({
+            name: inputName.trim(),
+            description: inputDescription.trim() || null,
+          }),
         })
         showToast('Skill updated!', 'success')
       }
@@ -329,32 +411,51 @@ export default function AdminSkillsPage() {
     <>
       <Header />
       <main className="max-w-350 mx-auto px-6 py-5 pb-15">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 12,
+          }}
+        >
           <h1>Manage Skills</h1>
-          <Button onClick={() => openModal({ type: 'add-category' })}>
-            + Add Category
-          </Button>
+          <Button onClick={() => openModal({ type: 'add-category' })}>+ Add Category</Button>
         </div>
 
         <p className="text-text-light mb-6">
-          Manage skill categories and individual skills. These are used for volunteer profiles and project requirements.
+          Manage skill categories and individual skills. These are used for volunteer profiles and
+          project requirements.
         </p>
 
         {loadingData ? (
           <div className="text-center py-10 text-text-light">Loading…</div>
         ) : (
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleCategoryDragEnd}>
-            <SortableContext items={categories.map(c => c.id)} strategy={verticalListSortingStrategy}>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleCategoryDragEnd}
+          >
+            <SortableContext
+              items={categories.map((c) => c.id)}
+              strategy={verticalListSortingStrategy}
+            >
               {/* [test hook] category-card class used as test selector */}
-              {categories.map(cat => (
+              {categories.map((cat) => (
                 <SortableCategory
                   key={cat.id}
                   cat={cat}
                   onEdit={() => openModal({ type: 'edit-category', category: cat })}
-                  onDelete={() => openModal({ type: 'delete-category', id: cat.id, name: cat.name })}
-                  onAddSkill={() => openModal({ type: 'add-skill', categoryId: cat.id, categoryName: cat.name })}
-                  onEditSkill={skill => openModal({ type: 'edit-skill', skill })}
-                  onDeleteSkill={skill => openModal({ type: 'delete-skill', id: skill.id, name: skill.name })}
+                  onDelete={() =>
+                    openModal({ type: 'delete-category', id: cat.id, name: cat.name })
+                  }
+                  onAddSkill={() =>
+                    openModal({ type: 'add-skill', categoryId: cat.id, categoryName: cat.name })
+                  }
+                  onEditSkill={(skill) => openModal({ type: 'edit-skill', skill })}
+                  onDeleteSkill={(skill) =>
+                    openModal({ type: 'delete-skill', id: skill.id, name: skill.name })
+                  }
                   onSkillsReorder={handleSkillsReorder}
                 />
               ))}
@@ -367,25 +468,47 @@ export default function AdminSkillsPage() {
       {(modal?.type === 'add-category' || modal?.type === 'edit-category') && (
         <div
           className="fixed inset-0 bg-[rgba(29,53,87,0.5)] flex items-center justify-center z-1000 p-5"
-          onClick={e => { if (e.target === e.currentTarget) closeModal() }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeModal()
+          }}
         >
           <div className="bg-surface rounded-xl shadow-lg max-w-125 w-full max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-5 border-b border-brand-border flex justify-between items-center">
-              <h2 role="heading">{modal.type === 'edit-category' ? 'Edit Category' : 'Add Category'}</h2>
+              <h2 role="heading">
+                {modal.type === 'edit-category' ? 'Edit Category' : 'Add Category'}
+              </h2>
             </div>
             <div className="p-6">
               <form onSubmit={handleSaveCategory}>
                 <div className="mb-5">
                   <label htmlFor="cat-name">Category Name</label>
-                  <input id="cat-name" aria-label="Category Name" type="text" value={inputName} onChange={e => setInputName(e.target.value)} required autoFocus />
+                  <input
+                    id="cat-name"
+                    aria-label="Category Name"
+                    type="text"
+                    value={inputName}
+                    onChange={(e) => setInputName(e.target.value)}
+                    required
+                    autoFocus
+                  />
                 </div>
                 <div className="mb-5">
                   <label htmlFor="cat-description">Description</label>
-                  <textarea id="cat-description" aria-label="Description" value={inputDescription} onChange={e => setInputDescription(e.target.value)} rows={3} />
+                  <textarea
+                    id="cat-description"
+                    aria-label="Description"
+                    value={inputDescription}
+                    onChange={(e) => setInputDescription(e.target.value)}
+                    rows={3}
+                  />
                 </div>
                 <div className="px-0 py-4 border-t border-brand-border flex gap-3 justify-end">
-                  <Button type="button" variant="secondary" onClick={closeModal}>Cancel</Button>
-                  <Button type="submit" disabled={submitting}>Save Category</Button>
+                  <Button type="button" variant="secondary" onClick={closeModal}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={submitting}>
+                    Save Category
+                  </Button>
                 </div>
               </form>
             </div>
@@ -397,13 +520,13 @@ export default function AdminSkillsPage() {
       {(modal?.type === 'add-skill' || modal?.type === 'edit-skill') && (
         <div
           className="fixed inset-0 bg-[rgba(29,53,87,0.5)] flex items-center justify-center z-1000 p-5"
-          onClick={e => { if (e.target === e.currentTarget) closeModal() }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeModal()
+          }}
         >
           <div className="bg-surface rounded-xl shadow-lg max-w-125 w-full max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-5 border-b border-brand-border flex justify-between items-center">
-              <h2 role="heading">
-                {modal.type === 'add-skill' ? 'Add Skill' : 'Edit Skill'}
-              </h2>
+              <h2 role="heading">{modal.type === 'add-skill' ? 'Add Skill' : 'Edit Skill'}</h2>
             </div>
             <div className="p-6">
               {modal.type === 'add-skill' && (
@@ -412,15 +535,34 @@ export default function AdminSkillsPage() {
               <form onSubmit={handleSaveSkill}>
                 <div className="mb-5">
                   <label htmlFor="skill-name">Skill Name</label>
-                  <input id="skill-name" aria-label="Skill Name" type="text" value={inputName} onChange={e => setInputName(e.target.value)} required autoFocus />
+                  <input
+                    id="skill-name"
+                    aria-label="Skill Name"
+                    type="text"
+                    value={inputName}
+                    onChange={(e) => setInputName(e.target.value)}
+                    required
+                    autoFocus
+                  />
                 </div>
                 <div className="mb-5">
                   <label htmlFor="skill-description">Description</label>
-                  <textarea id="skill-description" aria-label="Description" value={inputDescription} onChange={e => setInputDescription(e.target.value)} placeholder="What does this skill involve?" rows={3} />
+                  <textarea
+                    id="skill-description"
+                    aria-label="Description"
+                    value={inputDescription}
+                    onChange={(e) => setInputDescription(e.target.value)}
+                    placeholder="What does this skill involve?"
+                    rows={3}
+                  />
                 </div>
                 <div className="px-0 py-4 border-t border-brand-border flex gap-3 justify-end">
-                  <Button type="button" variant="secondary" onClick={closeModal}>Cancel</Button>
-                  <Button type="submit" disabled={submitting}>Save Skill</Button>
+                  <Button type="button" variant="secondary" onClick={closeModal}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={submitting}>
+                    Save Skill
+                  </Button>
                 </div>
               </form>
             </div>
@@ -433,7 +575,9 @@ export default function AdminSkillsPage() {
         <div
           id="deleteModal"
           className="fixed inset-0 bg-[rgba(29,53,87,0.5)] flex items-center justify-center z-1000 p-5"
-          onClick={e => { if (e.target === e.currentTarget) closeModal() }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeModal()
+          }}
         >
           <div className="bg-surface rounded-xl shadow-lg max-w-125 w-full max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-5 border-b border-brand-border flex justify-between items-center">
@@ -444,7 +588,9 @@ export default function AdminSkillsPage() {
                 Delete &ldquo;{modal.name}&rdquo;? This cannot be undone.
               </p>
               <div className="px-0 py-4 border-t border-brand-border flex gap-3 justify-end">
-                <Button type="button" variant="secondary" onClick={closeModal}>Cancel</Button>
+                <Button type="button" variant="secondary" onClick={closeModal}>
+                  Cancel
+                </Button>
                 <Button type="button" variant="danger" onClick={handleDelete} disabled={submitting}>
                   Delete
                 </Button>

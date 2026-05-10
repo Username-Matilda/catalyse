@@ -57,7 +57,7 @@ export default function AdminTeamPage() {
         apiRequest<Invite[]>('/api/admin/invites'),
       ])
       setAdmins(a)
-      setInvites(i.filter(i => i.status === 'pending'))
+      setInvites(i.filter((i) => i.status === 'pending'))
     } catch {
       showToast('Failed to load team data', 'error')
     } finally {
@@ -100,7 +100,7 @@ export default function AdminTeamPage() {
     try {
       await apiRequest(`/api/admin/invites/${id}`, { method: 'DELETE' })
       showToast('Invite cancelled', 'success')
-      setInvites(prev => prev.filter(i => i.id !== id))
+      setInvites((prev) => prev.filter((i) => i.id !== id))
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Failed to cancel invite', 'error')
     }
@@ -111,7 +111,7 @@ export default function AdminTeamPage() {
     try {
       await apiRequest(`/api/admin/admins/${id}`, { method: 'DELETE' })
       showToast('Admin access revoked', 'success')
-      setAdmins(prev => prev.filter(a => a.id !== id))
+      setAdmins((prev) => prev.filter((a) => a.id !== id))
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Failed to revoke admin', 'error')
     }
@@ -123,7 +123,14 @@ export default function AdminTeamPage() {
     <>
       <Header />
       <main className="max-w-350 mx-auto px-6 py-5 pb-15">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 24,
+          }}
+        >
           <h1>Team Management</h1>
           <Button onClick={openInviteDialog}>Invite Admin</Button>
         </div>
@@ -147,15 +154,31 @@ export default function AdminTeamPage() {
                   <p className="text-text-light">No admins found.</p>
                 ) : (
                   /* [test hook] card class used as test selector */
-                  admins.map(a => (
-                    <div key={a.id} className="card bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word" style={{ marginBottom: 12 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  admins.map((a) => (
+                    <div
+                      key={a.id}
+                      className="card bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
+                      style={{ marginBottom: 12 }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
                         <div>
                           <strong>{a.name}</strong>
-                          <p className="text-text-light text-sm" style={{ margin: 0 }}>{a.email}</p>
+                          <p className="text-text-light text-sm" style={{ margin: 0 }}>
+                            {a.email}
+                          </p>
                         </div>
                         {a.id !== user.id && (
-                          <Button variant="danger" size="sm" onClick={() => revokeAdmin(a.id, a.name)}>
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            onClick={() => revokeAdmin(a.id, a.name)}
+                          >
                             Revoke Access
                           </Button>
                         )}
@@ -172,13 +195,24 @@ export default function AdminTeamPage() {
                   <p className="text-text-light">No pending invites.</p>
                 ) : (
                   /* [test hook] card class used as test selector */
-                  invites.map(inv => (
-                    <div key={inv.id} className="card bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word" style={{ marginBottom: 12 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  invites.map((inv) => (
+                    <div
+                      key={inv.id}
+                      className="card bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
+                      style={{ marginBottom: 12 }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
                         <div>
                           <strong>{inv.email}</strong>
                           <p className="text-text-light text-sm" style={{ margin: 0 }}>
-                            Invited by {inv.invited_by_name} · Expires {new Date(inv.expires_at).toLocaleDateString()}
+                            Invited by {inv.invited_by_name} · Expires{' '}
+                            {new Date(inv.expires_at).toLocaleDateString()}
                           </p>
                         </div>
                         <Button variant="secondary" size="sm" onClick={() => cancelInvite(inv.id)}>
@@ -196,7 +230,9 @@ export default function AdminTeamPage() {
         {showInviteDialog && (
           <div
             className="fixed inset-0 bg-[rgba(29,53,87,0.5)] flex items-center justify-center z-1000 p-5"
-            onClick={e => { if (e.target === e.currentTarget) closeInviteDialog() }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) closeInviteDialog()
+            }}
           >
             <div
               ref={dialogRef}
@@ -210,7 +246,9 @@ export default function AdminTeamPage() {
               </div>
               <div className="p-6">
                 {inviteSuccess ? (
-                  <p role="status" style={{ color: 'var(--success)' }}>{inviteSuccess}</p>
+                  <p role="status" style={{ color: 'var(--success)' }}>
+                    {inviteSuccess}
+                  </p>
                 ) : (
                   <form onSubmit={sendInvite}>
                     <div className="mb-5">
@@ -219,7 +257,7 @@ export default function AdminTeamPage() {
                         id="invite-email"
                         type="email"
                         value={inviteEmail}
-                        onChange={e => setInviteEmail(e.target.value)}
+                        onChange={(e) => setInviteEmail(e.target.value)}
                         placeholder="admin@example.com"
                         required
                         autoFocus

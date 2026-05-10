@@ -11,7 +11,9 @@ export async function POST(request: NextRequest) {
     return Response.json({ detail: 'Invalid JSON' }, { status: 400 })
   }
 
-  const email = String(body.email || '').toLowerCase().trim()
+  const email = String(body.email || '')
+    .toLowerCase()
+    .trim()
   const volunteer = await prisma.volunteer.findFirst({
     where: { email, deletedAt: null },
     select: { id: true, name: true, email: true },

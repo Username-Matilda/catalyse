@@ -13,5 +13,5 @@ export async function GET(request: NextRequest) {
     orderBy: { createdAt: 'asc' },
   })
 
-  return Response.json(projects.map(p => serializeProject(p as EnrichedProject)))
+  return Response.json(projects.map((p) => serializeProject(p as EnrichedProject)))
 }

@@ -3,10 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getCurrentVolunteer } from '@/lib/auth'
 import { createNotification } from '@/lib/project'
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = await params
   const taskId = parseInt(idParam, 10)
   if (isNaN(taskId)) {
@@ -32,11 +29,12 @@ export async function PUT(
 
   if (task.assignedById) {
     createNotification(
-      task.assignedById, 'starter_task_submitted',
+      task.assignedById,
+      'starter_task_submitted',
       `${volunteer.name} submitted: ${task.title}`,
       'Ready for review',
-      '/admin/starter-tasks'
-    ).catch(e => console.error('[NOTIFY ERROR]', e))
+      '/admin/starter-tasks',
+    ).catch((e) => console.error('[NOTIFY ERROR]', e))
   }
 
   return Response.json({ message: 'Task submitted for review' })

@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
   if (!vol?.passwordHash) {
     return Response.json(
       { detail: 'Cannot change email for accounts without a password. Contact an admin.' },
-      { status: 400 }
+      { status: 400 },
     )
   }
   if (!verifyPassword(String(body.password), vol.passwordHash)) {
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
   if (existing) {
     return Response.json(
       { detail: 'This email is already registered to another account' },
-      { status: 400 }
+      { status: 400 },
     )
   }
 

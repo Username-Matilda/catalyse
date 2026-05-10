@@ -13,15 +13,13 @@ export async function GET(request: NextRequest) {
     where: { id: volunteer.id },
     select: { skills: { select: { skillId: true } } },
   })
-  const volunteerSkillIds = new Set(
-    (volunteerWithSkills?.skills ?? []).map(s => s.skillId)
-  )
+  const volunteerSkillIds = new Set((volunteerWithSkills?.skills ?? []).map((s) => s.skillId))
 
   const alreadyInterestedProjects = await prisma.projectInterest.findMany({
     where: { volunteerId: volunteer.id },
     select: { projectId: true },
   })
-  const interestedProjectIds = alreadyInterestedProjects.map(i => i.projectId)
+  const interestedProjectIds = alreadyInterestedProjects.map((i) => i.projectId)
 
   const [ownedProjects, proposedProjects, myInterests, suggestedProjects, unreadCount] =
     await Promise.all([
@@ -72,9 +70,9 @@ export async function GET(request: NextRequest) {
     ])
 
   return Response.json({
-    owned_projects: ownedProjects.map(p => serializeProject(p as EnrichedProject)),
-    proposed_projects: proposedProjects.map(p => serializeProject(p as EnrichedProject)),
-    my_interests: myInterests.map(i => ({
+    owned_projects: ownedProjects.map((p) => serializeProject(p as EnrichedProject)),
+    proposed_projects: proposedProjects.map((p) => serializeProject(p as EnrichedProject)),
+    my_interests: myInterests.map((i) => ({
       interest_id: i.id,
       interest_type: i.interestType,
       interest_status: i.status,
@@ -84,7 +82,9 @@ export async function GET(request: NextRequest) {
       interest_responded_at: i.respondedAt,
       ...serializeProject(i.project as EnrichedProject, volunteerSkillIds),
     })),
-    suggested_projects: suggestedProjects.map(p => serializeProject(p as EnrichedProject, volunteerSkillIds)),
+    suggested_projects: suggestedProjects.map((p) =>
+      serializeProject(p as EnrichedProject, volunteerSkillIds),
+    ),
     unread_notification_count: unreadCount,
   })
 }

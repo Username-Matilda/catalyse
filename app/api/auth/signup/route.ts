@@ -1,8 +1,10 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import {
-  hashPassword, generateAuthToken,
-  checkAdminBootstrap, acceptPendingInvite,
+  hashPassword,
+  generateAuthToken,
+  checkAdminBootstrap,
+  acceptPendingInvite,
 } from '@/lib/auth'
 import { sendWelcomeEmail } from '@/lib/email'
 import { validationError, fieldError } from '@/lib/errors'
@@ -39,7 +41,7 @@ export async function POST(request: NextRequest) {
     if (existing.deletedAt) {
       return Response.json(
         { detail: 'This email was previously registered. Contact us to restore your account.' },
-        { status: 400 }
+        { status: 400 },
       )
     }
     return Response.json({ detail: 'Email already registered' }, { status: 400 })
@@ -61,16 +63,20 @@ export async function POST(request: NextRequest) {
       contactPreference: body.contact_preference ? String(body.contact_preference) : null,
       contactNotes: body.contact_notes ? String(body.contact_notes) : null,
       availabilityHoursPerWeek:
-        body.availability_hours_per_week != null
-          ? Number(body.availability_hours_per_week)
-          : null,
+        body.availability_hours_per_week != null ? Number(body.availability_hours_per_week) : null,
       location: body.location ? String(body.location) : null,
       country: body.country ? String(body.country) : null,
       localGroup: body.local_group ? String(body.local_group) : null,
       otherSkills: body.other_skills ? String(body.other_skills) : null,
-      consentMakeProfileVisibleInDirectory: Boolean(body.consent_make_profile_visible_in_directory ?? true),
-      consentContactableByProjectOwners: Boolean(body.consent_contactable_by_project_owners ?? true),
-      consentShareContactInfoWithProjectOwner: Boolean(body.consent_share_contact_info_with_project_owner ?? false),
+      consentMakeProfileVisibleInDirectory: Boolean(
+        body.consent_make_profile_visible_in_directory ?? true,
+      ),
+      consentContactableByProjectOwners: Boolean(
+        body.consent_contactable_by_project_owners ?? true,
+      ),
+      consentShareContactInfoWithProjectOwner: Boolean(
+        body.consent_share_contact_info_with_project_owner ?? false,
+      ),
       consentGivenAt: new Date(),
       emailDigest: body.email_digest ? String(body.email_digest) : 'none',
     },
@@ -94,8 +100,11 @@ export async function POST(request: NextRequest) {
   } catch (e) {
     console.error('[SIGNUP ERROR] admin bootstrap failed:', e)
     return Response.json(
-      { detail: 'Something went wrong creating your account. Please try again or contact us. Error Code: A' },
-      { status: 500 }
+      {
+        detail:
+          'Something went wrong creating your account. Please try again or contact us. Error Code: A',
+      },
+      { status: 500 },
     )
   }
   try {
@@ -103,13 +112,16 @@ export async function POST(request: NextRequest) {
   } catch (e) {
     console.error('[SIGNUP ERROR] admin invite check failed:', e)
     return Response.json(
-      { detail: 'Something went wrong creating your account. Please try again or contact us. Error Code: B' },
-      { status: 500 }
+      {
+        detail:
+          'Something went wrong creating your account. Please try again or contact us. Error Code: B',
+      },
+      { status: 500 },
     )
   }
 
   // Non-blocking welcome email
-  sendWelcomeEmail(email, name).catch(e => console.error('[SIGNUP] Welcome email failed:', e))
+  sendWelcomeEmail(email, name).catch((e) => console.error('[SIGNUP] Welcome email failed:', e))
 
   return Response.json({ id: volunteer.id, auth_token: authToken, message: 'Welcome to Catalyse!' })
 }

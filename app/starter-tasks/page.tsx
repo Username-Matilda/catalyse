@@ -43,7 +43,7 @@ export default function StarterTasksPage() {
   useEffect(() => {
     if (!user) return
     apiRequest<StarterTask[]>('/api/my/starter-tasks')
-      .then(data => {
+      .then((data) => {
         setTasks(data)
         setLoadingTasks(false)
       })
@@ -54,7 +54,7 @@ export default function StarterTasksPage() {
     setSubmitting(taskId)
     try {
       await apiRequest(`/api/starter-tasks/${taskId}/submit`, { method: 'PUT' })
-      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'submitted' } : t))
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status: 'submitted' } : t)))
       showToast('Task submitted for review!', 'success')
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Failed to submit task', 'error')
@@ -80,12 +80,16 @@ export default function StarterTasksPage() {
           <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word text-center">
             <h3>No tasks assigned yet</h3>
             <p className="text-text-light">
-              Check back soon, or browse <Link href="/">projects</Link> to find other ways to contribute.
+              Check back soon, or browse <Link href="/">projects</Link> to find other ways to
+              contribute.
             </p>
           </div>
         ) : (
-          tasks.map(task => (
-            <div key={task.id} className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word">
+          tasks.map((task) => (
+            <div
+              key={task.id}
+              className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
+            >
               <div className="flex justify-between items-start mb-2">
                 <h3 className="m-0">{task.title}</h3>
                 <span
@@ -96,14 +100,16 @@ export default function StarterTasksPage() {
               </div>
 
               <div className="flex gap-2 mb-3 flex-wrap">
-                {task.skill_name && <span className="inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-[#374151] dark:text-[#D1D5DB]">{task.skill_name}</span>}
+                {task.skill_name && (
+                  <span className="inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-[#374151] dark:text-[#D1D5DB]">
+                    {task.skill_name}
+                  </span>
+                )}
                 {task.estimated_hours && (
                   <span className="text-text-light text-sm">~{task.estimated_hours}h</span>
                 )}
                 {task.project_title && (
-                  <span className="text-text-light text-sm">
-                    Related: {task.project_title}
-                  </span>
+                  <span className="text-text-light text-sm">Related: {task.project_title}</span>
                 )}
               </div>
 
@@ -119,10 +125,7 @@ export default function StarterTasksPage() {
               )}
 
               {task.status === 'assigned' && (
-                <Button
-                  onClick={() => submitTask(task.id)}
-                  disabled={submitting === task.id}
-                >
+                <Button onClick={() => submitTask(task.id)} disabled={submitting === task.id}>
                   {submitting === task.id ? 'Submitting…' : 'Mark as Complete'}
                 </Button>
               )}

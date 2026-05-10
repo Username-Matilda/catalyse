@@ -1,11 +1,13 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getCurrentVolunteer, serializeVolunteer, serializeSkill, serializeEndorsement } from '@/lib/auth'
+import {
+  getCurrentVolunteer,
+  serializeVolunteer,
+  serializeSkill,
+  serializeEndorsement,
+} from '@/lib/auth'
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = await params
   const volunteerId = parseInt(idParam, 10)
   if (isNaN(volunteerId)) {
@@ -19,10 +21,7 @@ export async function GET(
     include: {
       skills: {
         include: { skill: { include: { category: true } } },
-        orderBy: [
-          { skill: { category: { sortOrder: 'asc' } } },
-          { skill: { sortOrder: 'asc' } },
-        ],
+        orderBy: [{ skill: { category: { sortOrder: 'asc' } } }, { skill: { sortOrder: 'asc' } }],
       },
       skillEndorsementsReceived: {
         include: { skill: true },
@@ -40,7 +39,10 @@ export async function GET(
       showContact = true
     } else if (currentVolunteer.isAdmin) {
       showContact = true
-    } else if (vol.consentContactableByProjectOwners && vol.consentShareContactInfoWithProjectOwner) {
+    } else if (
+      vol.consentContactableByProjectOwners &&
+      vol.consentShareContactInfoWithProjectOwner
+    ) {
       showContact = true
     }
   }
@@ -83,8 +85,12 @@ export async function GET(
   })
 
   return Response.json({
-    ...serializeVolunteer(vol as unknown as Record<string, unknown>, { showContact, skills, endorsements }),
-    projects: projects.map(p => ({
+    ...serializeVolunteer(vol as unknown as Record<string, unknown>, {
+      showContact,
+      skills,
+      endorsements,
+    }),
+    projects: projects.map((p) => ({
       ...p,
       owner_id: p.ownerId,
       proposed_by_id: p.proposedById,
@@ -92,7 +98,7 @@ export async function GET(
       updated_at: p.updatedAt,
       role: p.ownerId === volunteerId ? 'owner' : 'proposer',
     })),
-    completed_tasks: completedTasks.map(t => ({
+    completed_tasks: completedTasks.map((t) => ({
       title: t.title,
       review_rating: t.reviewRating,
       feedback_to_volunteer: t.feedbackToVolunteer,

@@ -24,7 +24,6 @@ export default function SignupPage() {
   const [googleClientId, setGoogleClientId] = useState('')
   const [skills, setSkills] = useState<SelectedSkill[]>([])
 
-
   // Form fields
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -52,20 +51,35 @@ export default function SignupPage() {
 
   useEffect(() => {
     apiRequest<{ client_id: string }>('/api/auth/google-client-id')
-      .then(d => setGoogleClientId(d.client_id))
+      .then((d) => setGoogleClientId(d.client_id))
       .catch(() => {})
   }, [])
 
   function initGoogleButton() {
-    const win = window as Window & typeof globalThis & { google?: { accounts: { id: { initialize: (c: unknown) => void; renderButton: (el: Element | null, opts: unknown) => void } } } }
+    const win = window as Window &
+      typeof globalThis & {
+        google?: {
+          accounts: {
+            id: {
+              initialize: (c: unknown) => void
+              renderButton: (el: Element | null, opts: unknown) => void
+            }
+          }
+        }
+      }
     if (!win.google?.accounts?.id || !googleClientId) return
     win.google.accounts.id.initialize({ client_id: googleClientId, callback: handleGoogleResponse })
-    win.google.accounts.id.renderButton(document.getElementById('g_signup_btn'), { theme: 'outline', size: 'large', width: 350, text: 'sign_up_with' })
+    win.google.accounts.id.renderButton(document.getElementById('g_signup_btn'), {
+      theme: 'outline',
+      size: 'large',
+      width: 350,
+      text: 'sign_up_with',
+    })
   }
 
   useEffect(() => {
     initGoogleButton()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [googleClientId])
 
   function handleGoogleResponse(response: { credential: string }) {
@@ -73,11 +87,11 @@ export default function SignupPage() {
       method: 'POST',
       body: JSON.stringify({ credential: response.credential }),
     })
-      .then(async data => {
+      .then(async (data) => {
         await setToken(data.auth_token)
         router.push('/dashboard')
       })
-      .catch(err => setError(err instanceof Error ? err.message : 'Google sign-up failed'))
+      .catch((err) => setError(err instanceof Error ? err.message : 'Google sign-up failed'))
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -113,7 +127,7 @@ export default function SignupPage() {
           country: country || undefined,
           local_group: localGroup || undefined,
           other_skills: otherSkills || undefined,
-          skill_ids: skills.map(s => s.skillId),
+          skill_ids: skills.map((s) => s.skillId),
           consent_make_profile_visible_in_directory: consentVisible,
           consent_contactable_by_project_owners: consentContact,
           consent_share_contact_info_with_project_owner: shareDirectly,
@@ -136,7 +150,13 @@ export default function SignupPage() {
 
   return (
     <>
-      {googleClientId && <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" onLoad={initGoogleButton} />}
+      {googleClientId && (
+        <Script
+          src="https://accounts.google.com/gsi/client"
+          strategy="afterInteractive"
+          onLoad={initGoogleButton}
+        />
+      )}
       <Header />
       <main className="max-w-4xl mx-auto px-6 py-5 pb-15">
         <div style={{ maxWidth: 600, margin: '0 auto' }}>
@@ -146,7 +166,10 @@ export default function SignupPage() {
           </p>
 
           {error && (
-            <div role="alert" className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]">
+            <div
+              role="alert"
+              className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]"
+            >
               {error}
             </div>
           )}
@@ -163,54 +186,161 @@ export default function SignupPage() {
             </div>
           )}
 
-          <form className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word" onSubmit={handleSubmit}>
+          <form
+            className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
+            onSubmit={handleSubmit}
+          >
             <div className="mb-5">
-              <label htmlFor="name" className="required">Your Name</label>
-              <input type="text" id="name" name="name" required placeholder="How should we call you?" value={name} onChange={e => { setName(e.target.value); if (fieldErrors.name) setFieldErrors(f => ({ ...f, name: '' })) }} aria-invalid={fieldErrors.name ? true : undefined} />
-              {fieldErrors.name && <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>{fieldErrors.name}</p>}
+              <label htmlFor="name" className="required">
+                Your Name
+              </label>
+              <input
+                type="text"
+                id="name"
+                name="name"
+                required
+                placeholder="How should we call you?"
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value)
+                  if (fieldErrors.name) setFieldErrors((f) => ({ ...f, name: '' }))
+                }}
+                aria-invalid={fieldErrors.name ? true : undefined}
+              />
+              {fieldErrors.name && (
+                <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
+                  {fieldErrors.name}
+                </p>
+              )}
             </div>
 
             <div className="mb-5">
-              <label htmlFor="email" className="required">Email</label>
-              <input type="email" id="email" name="email" required placeholder="you@example.com" value={email} onChange={e => { setEmail(e.target.value); if (fieldErrors.email) setFieldErrors(f => ({ ...f, email: '' })) }} aria-invalid={fieldErrors.email ? true : undefined} />
-              {fieldErrors.email ? <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>{fieldErrors.email}</p> : <p className="text-sm text-text-light mt-1">Used for login and notifications. Never shared publicly.</p>}
+              <label htmlFor="email" className="required">
+                Email
+              </label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                required
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value)
+                  if (fieldErrors.email) setFieldErrors((f) => ({ ...f, email: '' }))
+                }}
+                aria-invalid={fieldErrors.email ? true : undefined}
+              />
+              {fieldErrors.email ? (
+                <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
+                  {fieldErrors.email}
+                </p>
+              ) : (
+                <p className="text-sm text-text-light mt-1">
+                  Used for login and notifications. Never shared publicly.
+                </p>
+              )}
             </div>
 
             <div className="mb-5">
-              <label htmlFor="password" className="required">Password</label>
-              <input type="password" id="password" name="password" required minLength={8} placeholder="At least 8 characters" value={password} onChange={e => { setPassword(e.target.value); if (fieldErrors.password) setFieldErrors(f => ({ ...f, password: '' })) }} aria-invalid={fieldErrors.password ? true : undefined} />
-              {fieldErrors.password && <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>{fieldErrors.password}</p>}
+              <label htmlFor="password" className="required">
+                Password
+              </label>
+              <input
+                type="password"
+                id="password"
+                name="password"
+                required
+                minLength={8}
+                placeholder="At least 8 characters"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value)
+                  if (fieldErrors.password) setFieldErrors((f) => ({ ...f, password: '' }))
+                }}
+                aria-invalid={fieldErrors.password ? true : undefined}
+              />
+              {fieldErrors.password && (
+                <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
+                  {fieldErrors.password}
+                </p>
+              )}
             </div>
 
             <div className="mb-5">
-              <label htmlFor="password_confirm" className="required">Confirm Password</label>
-              <input type="password" id="password_confirm" name="password_confirm" required minLength={8} placeholder="Type your password again" value={passwordConfirm} onChange={e => setPasswordConfirm(e.target.value)} />
+              <label htmlFor="password_confirm" className="required">
+                Confirm Password
+              </label>
+              <input
+                type="password"
+                id="password_confirm"
+                name="password_confirm"
+                required
+                minLength={8}
+                placeholder="Type your password again"
+                value={passwordConfirm}
+                onChange={(e) => setPasswordConfirm(e.target.value)}
+              />
             </div>
 
             <div className="mb-5">
               <label htmlFor="bio">About You</label>
-              <textarea id="bio" name="bio" placeholder="Tell us a bit about yourself, your background, and what brings you to PauseAI…" value={bio} onChange={e => setBio(e.target.value)} />
+              <textarea
+                id="bio"
+                name="bio"
+                placeholder="Tell us a bit about yourself, your background, and what brings you to PauseAI…"
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+              />
             </div>
 
             <h3 style={{ marginTop: 24 }}>Contact Preferences</h3>
-            <p className="text-sm text-text-light mt-1 mb-4">Add ways for project owners to reach you. All optional.</p>
+            <p className="text-sm text-text-light mt-1 mb-4">
+              Add ways for project owners to reach you. All optional.
+            </p>
 
             <div className="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-5">
               <div className="mb-5">
                 <label htmlFor="discord">Discord Handle</label>
-                <input type="text" id="discord" name="discord_handle" placeholder="username#1234" value={discord} onChange={e => setDiscord(e.target.value)} />
+                <input
+                  type="text"
+                  id="discord"
+                  name="discord_handle"
+                  placeholder="username#1234"
+                  value={discord}
+                  onChange={(e) => setDiscord(e.target.value)}
+                />
               </div>
               <div className="mb-5">
                 <label htmlFor="signal">Signal</label>
-                <input type="text" id="signal" name="signal_number" placeholder="+44…" value={signal} onChange={e => setSignal(e.target.value)} />
+                <input
+                  type="text"
+                  id="signal"
+                  name="signal_number"
+                  placeholder="+44…"
+                  value={signal}
+                  onChange={(e) => setSignal(e.target.value)}
+                />
               </div>
               <div className="mb-5">
                 <label htmlFor="whatsapp">WhatsApp</label>
-                <input type="text" id="whatsapp" name="whatsapp_number" placeholder="+44…" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} />
+                <input
+                  type="text"
+                  id="whatsapp"
+                  name="whatsapp_number"
+                  placeholder="+44…"
+                  value={whatsapp}
+                  onChange={(e) => setWhatsapp(e.target.value)}
+                />
               </div>
               <div className="mb-5">
                 <label htmlFor="contact_preference">Preferred Contact Method</label>
-                <select id="contact_preference" name="contact_preference" value={contactPref} onChange={e => setContactPref(e.target.value)}>
+                <select
+                  id="contact_preference"
+                  name="contact_preference"
+                  value={contactPref}
+                  onChange={(e) => setContactPref(e.target.value)}
+                >
                   <option value="">Select…</option>
                   <option value="email">Email</option>
                   <option value="discord">Discord</option>
@@ -222,64 +352,139 @@ export default function SignupPage() {
 
             <div className="mb-5">
               <label htmlFor="contact_notes">Contact Notes</label>
-              <input type="text" id="contact_notes" name="contact_notes" placeholder="e.g., Best to DM me on Discord first" value={contactNotes} onChange={e => setContactNotes(e.target.value)} />
+              <input
+                type="text"
+                id="contact_notes"
+                name="contact_notes"
+                placeholder="e.g., Best to DM me on Discord first"
+                value={contactNotes}
+                onChange={(e) => setContactNotes(e.target.value)}
+              />
             </div>
 
             <h3 style={{ marginTop: 24 }}>Availability</h3>
             <div className="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-5">
               <div className="mb-5">
                 <label htmlFor="availability">Hours per Week</label>
-                <input type="number" id="availability" name="availability_hours_per_week" min={1} max={40} placeholder="e.g., 5" value={availability} onChange={e => setAvailability(e.target.value)} />
+                <input
+                  type="number"
+                  id="availability"
+                  name="availability_hours_per_week"
+                  min={1}
+                  max={40}
+                  placeholder="e.g., 5"
+                  value={availability}
+                  onChange={(e) => setAvailability(e.target.value)}
+                />
               </div>
               <div className="mb-5">
                 <label htmlFor="location">Location</label>
-                <input type="text" id="location" name="location" placeholder="e.g., London, UK" value={location} onChange={e => setLocation(e.target.value)} />
+                <input
+                  type="text"
+                  id="location"
+                  name="location"
+                  placeholder="e.g., London, UK"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                />
               </div>
               <div className="mb-5">
                 <label htmlFor="country">Country</label>
-                <input type="text" id="country" name="country" placeholder="e.g., United Kingdom" value={country} onChange={e => setCountry(e.target.value)} />
+                <input
+                  type="text"
+                  id="country"
+                  name="country"
+                  placeholder="e.g., United Kingdom"
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                />
               </div>
               <div className="mb-5">
                 <label htmlFor="local_group">Local Group</label>
-                <input type="text" id="local_group" name="local_group" placeholder="e.g., London" value={localGroup} onChange={e => setLocalGroup(e.target.value)} />
+                <input
+                  type="text"
+                  id="local_group"
+                  name="local_group"
+                  placeholder="e.g., London"
+                  value={localGroup}
+                  onChange={(e) => setLocalGroup(e.target.value)}
+                />
               </div>
             </div>
 
             <h3 style={{ marginTop: 24 }}>Your Skills</h3>
-            <p className="text-sm text-text-light mt-1" style={{ marginBottom: 12 }}>Select skills you can contribute. This helps match you with projects.</p>
+            <p className="text-sm text-text-light mt-1" style={{ marginBottom: 12 }}>
+              Select skills you can contribute. This helps match you with projects.
+            </p>
             <SkillPicker value={skills} onChange={setSkills} />
 
             <div className="mb-5" style={{ marginTop: 16 }}>
               <label htmlFor="other_skills">Other Skills</label>
-              <input type="text" id="other_skills" name="other_skills" placeholder="Any skills not listed above…" value={otherSkills} onChange={e => setOtherSkills(e.target.value)} />
+              <input
+                type="text"
+                id="other_skills"
+                name="other_skills"
+                placeholder="Any skills not listed above…"
+                value={otherSkills}
+                onChange={(e) => setOtherSkills(e.target.value)}
+              />
             </div>
 
             <div style={{ marginTop: 24 }}>
               <h3>Privacy &amp; Consent</h3>
               <div className="flex flex-col gap-2">
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400 }}>
-                  <input type="checkbox" checked={consentVisible} onChange={e => setConsentVisible(e.target.checked)} />
+                  <input
+                    type="checkbox"
+                    checked={consentVisible}
+                    onChange={(e) => setConsentVisible(e.target.checked)}
+                  />
                   Make my profile visible in the volunteer directory
                 </label>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400 }}>
-                  <input type="checkbox" checked={consentContact} onChange={e => setConsentContact(e.target.checked)} />
+                  <input
+                    type="checkbox"
+                    checked={consentContact}
+                    onChange={(e) => setConsentContact(e.target.checked)}
+                  />
                   Allow project owners to contact me about opportunities
                 </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400, marginLeft: 24, opacity: consentContact ? 1 : 0.5 }}>
-                  <input type="checkbox" checked={shareDirectly} disabled={!consentContact} onChange={e => setShareDirectly(e.target.checked)} />
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    fontWeight: 400,
+                    marginLeft: 24,
+                    opacity: consentContact ? 1 : 0.5,
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={shareDirectly}
+                    disabled={!consentContact}
+                    onChange={(e) => setShareDirectly(e.target.checked)}
+                  />
                   Share my contact info directly with project owners
                 </label>
               </div>
               <p className="text-sm text-text-light mt-1" style={{ marginTop: 12 }}>
                 You can change these settings or delete your account at any time.{' '}
-                <Link href="/privacy" target="_blank">Read our privacy policy</Link>
+                <Link href="/privacy" target="_blank">
+                  Read our privacy policy
+                </Link>
               </p>
             </div>
 
             <h3 style={{ marginTop: 24 }}>Email Notifications</h3>
             <div className="mb-5">
               <label htmlFor="email_digest">Keep me in the loop about new projects</label>
-              <select id="email_digest" name="email_digest" value={emailDigest} onChange={e => setEmailDigest(e.target.value)}>
+              <select
+                id="email_digest"
+                name="email_digest"
+                value={emailDigest}
+                onChange={(e) => setEmailDigest(e.target.value)}
+              >
                 <option value="none">Don&apos;t email me</option>
                 <option value="match">Email me when a project matches my skills</option>
                 <option value="fortnightly">Send me a fortnightly digest</option>
@@ -298,9 +503,13 @@ export default function SignupPage() {
           </form>
 
           <p className="text-center text-sm text-text-light" style={{ marginTop: 24 }}>
-            <Link href="/privacy" className="text-text-light">Privacy Policy</Link>
+            <Link href="/privacy" className="text-text-light">
+              Privacy Policy
+            </Link>
             {' · '}
-            <a href="mailto:matilda@pauseai.info" className="text-text-light">Contact Support</a>
+            <a href="mailto:matilda@pauseai.info" className="text-text-light">
+              Contact Support
+            </a>
           </p>
         </div>
       </main>

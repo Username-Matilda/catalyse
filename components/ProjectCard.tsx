@@ -60,7 +60,15 @@ export function statusBadgeClasses(status: string) {
   return `status-badge inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${map[status] ?? 'bg-[#F3F4F6] text-[#374151]'}`
 }
 
-export function ProjectCard({ project: p, userSkillIds = new Set(), action }: { project: Project; userSkillIds?: Set<number>; action?: React.ReactNode }) {
+export function ProjectCard({
+  project: p,
+  userSkillIds = new Set(),
+  action,
+}: {
+  project: Project
+  userSkillIds?: Set<number>
+  action?: React.ReactNode
+}) {
   return (
     <div className="card bg-surface rounded-xl shadow px-5 pt-5 pb-4 overflow-hidden wrap-break-word grid grid-rows-subgrid row-span-6 gap-y-2 relative">
       <div className={`card-header row-start-1${p.is_org_proposed ? ' pr-[80px]' : ''}`}>
@@ -73,11 +81,15 @@ export function ProjectCard({ project: p, userSkillIds = new Set(), action }: { 
         </Link>
       </div>
       {p.is_org_proposed && (
-        <span className="absolute top-0 right-0 bg-primary text-white text-xs font-semibold px-3 py-1 rounded-bl-xl rounded-tr-xl">PauseAI</span>
+        <span className="absolute top-0 right-0 bg-primary text-white text-xs font-semibold px-3 py-1 rounded-bl-xl rounded-tr-xl">
+          PauseAI
+        </span>
       )}
       <div className="row-start-2 flex gap-1 flex-wrap">
         {!['seeking_owner', 'seeking_help'].includes(p.status) && (
-          <span className={statusBadgeClasses(p.status)}>{STATUS_LABELS[p.status] ?? p.status.replace(/_/g, ' ')}</span>
+          <span className={statusBadgeClasses(p.status)}>
+            {STATUS_LABELS[p.status] ?? p.status.replace(/_/g, ' ')}
+          </span>
         )}
         {p.is_seeking_help && (
           <span className={statusBadgeClasses('seeking_help')}>Seeking Help</span>
@@ -91,29 +103,31 @@ export function ProjectCard({ project: p, userSkillIds = new Set(), action }: { 
         {(p.local_group || p.country) && (
           <span>📍 {[p.country, p.local_group].filter(Boolean).join(' · ')}</span>
         )}
-        {p.project_type && (
-          <span>📋 {PROJECT_TYPE_LABELS[p.project_type] ?? p.project_type}</span>
-        )}
+        {p.project_type && <span>📋 {PROJECT_TYPE_LABELS[p.project_type] ?? p.project_type}</span>}
         {p.time_commitment_hours_per_week && (
           <span>🕐 {p.time_commitment_hours_per_week}h/week</span>
         )}
-        {p.urgency && (
-          <span>⚡ {p.urgency} priority</span>
-        )}
+        {p.urgency && <span>⚡ {p.urgency} priority</span>}
       </div>
       <p className="row-start-4 text-text-light text-sm m-0">
-        {p.description ? `${p.description.slice(0, 150)}${p.description.length > 150 ? '…' : ''}` : ''}
+        {p.description
+          ? `${p.description.slice(0, 150)}${p.description.length > 150 ? '…' : ''}`
+          : ''}
       </p>
       {(() => {
         const allSkills = p.skills ?? []
-        const matched = userSkillIds.size > 0 ? allSkills.filter(s => userSkillIds.has(s.id)) : allSkills
+        const matched =
+          userSkillIds.size > 0 ? allSkills.filter((s) => userSkillIds.has(s.id)) : allSkills
         if (matched.length === 0) return null
         const shown = matched.slice(0, 4)
         const overflow = matched.length - 4
         return (
           <div className="row-start-5 flex items-center gap-2 flex-wrap">
-            {shown.map(s => (
-              <span key={s.id} className="inline-flex items-center px-2 py-0.5 bg-accent text-secondary-dark rounded-full text-xs font-medium dark:bg-[#374151] dark:text-[#D1D5DB]">
+            {shown.map((s) => (
+              <span
+                key={s.id}
+                className="inline-flex items-center px-2 py-0.5 bg-accent text-secondary-dark rounded-full text-xs font-medium dark:bg-[#374151] dark:text-[#D1D5DB]"
+              >
                 {s.name}
               </span>
             ))}
@@ -126,23 +140,41 @@ export function ProjectCard({ project: p, userSkillIds = new Set(), action }: { 
         )
       })()}
       <div className="row-start-6 flex justify-between items-center pt-2">
-        {p.match && (p.skills?.length ?? 0) > 0 && userSkillIds.size > 0
-          ? <span className="text-xs font-semibold text-primary">{p.match.required_match_percent}% match</span>
-          : <div />
-        }
-        {action ?? <Link href={`/projects/${p.id}`}><Button variant="secondary" size="sm">View Details</Button></Link>}
+        {p.match && (p.skills?.length ?? 0) > 0 && userSkillIds.size > 0 ? (
+          <span className="text-xs font-semibold text-primary">
+            {p.match.required_match_percent}% match
+          </span>
+        ) : (
+          <div />
+        )}
+        {action ?? (
+          <Link href={`/projects/${p.id}`}>
+            <Button variant="secondary" size="sm">
+              View Details
+            </Button>
+          </Link>
+        )}
       </div>
     </div>
   )
 }
 
-export const CARD_GRID_CLASSES = 'grid grid-cols-3 gap-x-5 gap-y-5 max-[1200px]:grid-cols-2 max-[600px]:grid-cols-1'
+export const CARD_GRID_CLASSES =
+  'grid grid-cols-3 gap-x-5 gap-y-5 max-[1200px]:grid-cols-2 max-[600px]:grid-cols-1'
 export const CARD_GRID_SINGLE_CLASSES = 'flex flex-col gap-5'
 
-export function ProjectList({ projects, userSkillIds = new Set(), single = false }: { projects: Project[]; userSkillIds?: Set<number>; single?: boolean }) {
+export function ProjectList({
+  projects,
+  userSkillIds = new Set(),
+  single = false,
+}: {
+  projects: Project[]
+  userSkillIds?: Set<number>
+  single?: boolean
+}) {
   return (
     <div className={single ? CARD_GRID_SINGLE_CLASSES : CARD_GRID_CLASSES}>
-      {projects.map(p => (
+      {projects.map((p) => (
         <ProjectCard key={p.id} project={p} userSkillIds={userSkillIds} />
       ))}
     </div>

@@ -4,10 +4,7 @@ import { requireAdmin } from '@/lib/auth'
 import { sendProjectNotificationEmail } from '@/lib/email'
 import { createNotification } from '@/lib/project'
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = await params
   const projectId = parseInt(idParam, 10)
   if (isNaN(projectId)) {
@@ -64,11 +61,12 @@ export async function POST(
 
     if (project.proposedById) {
       createNotification(
-        project.proposedById, 'project_approved',
+        project.proposedById,
+        'project_approved',
         `Your project '${project.title}' has been approved!`,
         "It's now visible to other volunteers.",
-        `/projects/${projectId}`
-      ).catch(e => console.error('[NOTIFY ERROR]', e))
+        `/projects/${projectId}`,
+      ).catch((e) => console.error('[NOTIFY ERROR]', e))
 
       const proposer = await prisma.volunteer.findFirst({
         where: { id: project.proposedById },
@@ -76,11 +74,13 @@ export async function POST(
       })
       if (proposer?.email) {
         sendProjectNotificationEmail(
-          proposer.email, proposer.name,
+          proposer.email,
+          proposer.name,
           `Your project '${project.title}' has been approved!`,
           'Great news! Your project has been approved and is now visible to all volunteers. People can start expressing interest.',
-          project.title, projectId
-        ).catch(e => console.error('[EMAIL ERROR]', e))
+          project.title,
+          projectId,
+        ).catch((e) => console.error('[EMAIL ERROR]', e))
       }
     }
   } else {
@@ -99,11 +99,12 @@ export async function POST(
     if (project.proposedById) {
       const feedback = feedbackToProposer || 'A team lead wants to chat about your proposal.'
       createNotification(
-        project.proposedById, 'project_needs_discussion',
+        project.proposedById,
+        'project_needs_discussion',
         `Let's discuss your project '${project.title}'`,
         feedback,
-        `/projects/${projectId}`
-      ).catch(e => console.error('[NOTIFY ERROR]', e))
+        `/projects/${projectId}`,
+      ).catch((e) => console.error('[NOTIFY ERROR]', e))
 
       const proposer = await prisma.volunteer.findFirst({
         where: { id: project.proposedById },
@@ -112,11 +113,14 @@ export async function POST(
       if (proposer?.email) {
         const extra = `<div style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"><strong>Feedback:</strong> ${feedback}</div>`
         sendProjectNotificationEmail(
-          proposer.email, proposer.name,
+          proposer.email,
+          proposer.name,
           `Let's discuss your project '${project.title}'`,
           'A team lead would like to discuss your project proposal before it goes live.',
-          project.title, projectId, extra
-        ).catch(e => console.error('[EMAIL ERROR]', e))
+          project.title,
+          projectId,
+          extra,
+        ).catch((e) => console.error('[EMAIL ERROR]', e))
       }
     }
   }

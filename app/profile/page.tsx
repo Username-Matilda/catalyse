@@ -41,9 +41,11 @@ export default function ProfilePage() {
   const [bio, setBio] = useState('')
   const [location, setLocation] = useState('')
   const [hours, setHours] = useState('')
-  const [consentMakeProfileVisibleInDirectory, setConsentMakeProfileVisibleInDirectory] = useState(true)
+  const [consentMakeProfileVisibleInDirectory, setConsentMakeProfileVisibleInDirectory] =
+    useState(true)
   const [consentContactableByProjectOwners, setConsentContactableByProjectOwners] = useState(true)
-  const [consentShareContactInfoWithProjectOwner, setConsentShareContactInfoWithProjectOwner] = useState(false)
+  const [consentShareContactInfoWithProjectOwner, setConsentShareContactInfoWithProjectOwner] =
+    useState(false)
   const [discordHandle, setDiscordHandle] = useState('')
   const [signalNumber, setSignalNumber] = useState('')
   const [whatsappNumber, setWhatsappNumber] = useState('')
@@ -62,14 +64,16 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!user) return
     apiRequest<ProfileData>('/api/auth/me')
-      .then(d => {
+      .then((d) => {
         setName(d.name ?? '')
         setBio(d.bio ?? '')
         setLocation(d.location ?? '')
         setHours(d.availability_hours_per_week != null ? String(d.availability_hours_per_week) : '')
         setConsentMakeProfileVisibleInDirectory(!!d.consent_make_profile_visible_in_directory)
         setConsentContactableByProjectOwners(!!d.consent_contactable_by_project_owners)
-        setConsentShareContactInfoWithProjectOwner(!!d.consent_share_contact_info_with_project_owner)
+        setConsentShareContactInfoWithProjectOwner(
+          !!d.consent_share_contact_info_with_project_owner,
+        )
         setDiscordHandle(d.discord_handle ?? '')
         setSignalNumber(d.signal_number ?? '')
         setWhatsappNumber(d.whatsapp_number ?? '')
@@ -78,10 +82,10 @@ export default function ProfilePage() {
         setEmailDigest(d.email_digest ?? 'none')
         setOtherSkills(d.other_skills ?? '')
         setSkills(
-          (d.skills ?? []).map(s => ({
+          (d.skills ?? []).map((s) => ({
             skillId: s.id,
             proficiencyLevel: s.proficiency_level ?? 'intermediate',
-          }))
+          })),
         )
       })
       .catch(() => {})
@@ -109,7 +113,7 @@ export default function ProfilePage() {
           contact_notes: contactNotes.trim() || null,
           email_digest: emailDigest,
           other_skills: otherSkills.trim() || null,
-          skill_ids: skills.map(s => s.skillId),
+          skill_ids: skills.map((s) => s.skillId),
         }),
       })
       await refreshUser()
@@ -140,27 +144,26 @@ export default function ProfilePage() {
       <main className="max-w-4xl mx-auto px-6 py-5 pb-15">
         <h1>Your Profile</h1>
 
-        <form className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word" onSubmit={handleSubmit}>
-
+        <form
+          className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
+          onSubmit={handleSubmit}
+        >
           {/* Basic info */}
           <div className="mb-5">
-            <label htmlFor="name" className="required">Your Name</label>
+            <label htmlFor="name" className="required">
+              Your Name
+            </label>
             <input
               type="text"
               id="name"
               value={name}
-              onChange={e => setName(e.target.value)}
+              onChange={(e) => setName(e.target.value)}
               required
             />
           </div>
           <div className="mb-5">
             <label htmlFor="bio">About You</label>
-            <textarea
-              id="bio"
-              rows={4}
-              value={bio}
-              onChange={e => setBio(e.target.value)}
-            />
+            <textarea id="bio" rows={4} value={bio} onChange={(e) => setBio(e.target.value)} />
           </div>
 
           {/* Contact Information */}
@@ -172,7 +175,7 @@ export default function ProfilePage() {
                 type="text"
                 id="discord_handle"
                 value={discordHandle}
-                onChange={e => setDiscordHandle(e.target.value)}
+                onChange={(e) => setDiscordHandle(e.target.value)}
                 placeholder="e.g. username#1234"
               />
             </div>
@@ -182,7 +185,7 @@ export default function ProfilePage() {
                 type="text"
                 id="signal_number"
                 value={signalNumber}
-                onChange={e => setSignalNumber(e.target.value)}
+                onChange={(e) => setSignalNumber(e.target.value)}
                 placeholder="e.g. +44…"
               />
             </div>
@@ -192,7 +195,7 @@ export default function ProfilePage() {
                 type="text"
                 id="whatsapp_number"
                 value={whatsappNumber}
-                onChange={e => setWhatsappNumber(e.target.value)}
+                onChange={(e) => setWhatsappNumber(e.target.value)}
                 placeholder="e.g. +44…"
               />
             </div>
@@ -201,7 +204,7 @@ export default function ProfilePage() {
               <select
                 id="contact_preference"
                 value={contactPreference}
-                onChange={e => setContactPreference(e.target.value)}
+                onChange={(e) => setContactPreference(e.target.value)}
               >
                 <option value="">Select…</option>
                 <option value="email">Email</option>
@@ -217,7 +220,7 @@ export default function ProfilePage() {
               type="text"
               id="contact_notes"
               value={contactNotes}
-              onChange={e => setContactNotes(e.target.value)}
+              onChange={(e) => setContactNotes(e.target.value)}
               placeholder="e.g. Best to DM me on Discord first"
             />
           </div>
@@ -233,7 +236,7 @@ export default function ProfilePage() {
                 min={0}
                 max={168}
                 value={hours}
-                onChange={e => setHours(e.target.value)}
+                onChange={(e) => setHours(e.target.value)}
               />
             </div>
             <div>
@@ -242,7 +245,7 @@ export default function ProfilePage() {
                 type="text"
                 id="location"
                 value={location}
-                onChange={e => setLocation(e.target.value)}
+                onChange={(e) => setLocation(e.target.value)}
                 placeholder="e.g. London, UK"
               />
             </div>
@@ -260,7 +263,7 @@ export default function ProfilePage() {
               id="other_skills"
               placeholder="Any skills not listed above…"
               value={otherSkills}
-              onChange={e => setOtherSkills(e.target.value)}
+              onChange={(e) => setOtherSkills(e.target.value)}
             />
           </div>
 
@@ -270,14 +273,14 @@ export default function ProfilePage() {
             <Checkbox
               id="consent_make_profile_visible_in_directory"
               checked={consentMakeProfileVisibleInDirectory}
-              onChange={e => setConsentMakeProfileVisibleInDirectory(e.target.checked)}
+              onChange={(e) => setConsentMakeProfileVisibleInDirectory(e.target.checked)}
             >
               Make my profile visible in the volunteer directory
             </Checkbox>
             <Checkbox
               id="consent_contactable_by_project_owners"
               checked={consentContactableByProjectOwners}
-              onChange={e => setConsentContactableByProjectOwners(e.target.checked)}
+              onChange={(e) => setConsentContactableByProjectOwners(e.target.checked)}
             >
               Allow project owners to contact me about opportunities
             </Checkbox>
@@ -286,10 +289,11 @@ export default function ProfilePage() {
                 id="consent_share_contact_info_with_project_owner"
                 checked={consentShareContactInfoWithProjectOwner}
                 disabled={!consentContactableByProjectOwners}
-                onChange={e => setConsentShareContactInfoWithProjectOwner(e.target.checked)}
+                onChange={(e) => setConsentShareContactInfoWithProjectOwner(e.target.checked)}
               >
                 <span className={consentContactableByProjectOwners ? '' : 'opacity-50'}>
-                  Share my contact info directly with project owners (otherwise they use the contact form)
+                  Share my contact info directly with project owners (otherwise they use the contact
+                  form)
                 </span>
               </Checkbox>
             </div>
@@ -302,7 +306,7 @@ export default function ProfilePage() {
             <select
               id="email_digest"
               value={emailDigest}
-              onChange={e => setEmailDigest(e.target.value)}
+              onChange={(e) => setEmailDigest(e.target.value)}
             >
               <option value="none">Don&apos;t email me</option>
               <option value="match">Email me when a project matches my skills</option>
@@ -318,7 +322,9 @@ export default function ProfilePage() {
         <div className="bg-surface rounded-xl shadow p-6 mb-4 border-2 border-brand-border">
           <h3>Data &amp; Privacy</h3>
           <p className="text-text-light mb-4">Manage your data or delete your account.</p>
-          <Button href="/privacy" variant="outline">Privacy Settings</Button>
+          <Button href="/privacy" variant="outline">
+            Privacy Settings
+          </Button>
         </div>
       </main>
     </>

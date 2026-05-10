@@ -24,7 +24,9 @@ export default function Alert({ message, type, onDismiss }: AlertProps) {
     <div role="alert" className={`toast ${toastClass}`}>
       <span>{message}</span>
       {onDismiss && (
-        <Button variant="ghost" icon onClick={onDismiss} aria-label="Dismiss">×</Button>
+        <Button variant="ghost" icon onClick={onDismiss} aria-label="Dismiss">
+          ×
+        </Button>
       )}
     </div>
   )

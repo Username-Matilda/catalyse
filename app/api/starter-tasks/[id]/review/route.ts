@@ -3,10 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/auth'
 import { createNotification } from '@/lib/project'
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = await params
   const taskId = parseInt(idParam, 10)
   if (isNaN(taskId)) {
@@ -33,7 +30,10 @@ export async function POST(
 
   const reviewRating = body.review_rating as string
   if (!reviewRating || !['excellent', 'good', 'needs_improvement'].includes(reviewRating)) {
-    return Response.json({ detail: 'review_rating must be excellent, good, or needs_improvement' }, { status: 400 })
+    return Response.json(
+      { detail: 'review_rating must be excellent, good, or needs_improvement' },
+      { status: 400 },
+    )
   }
 
   const reviewNotes = (body.review_notes as string | null) ?? null
@@ -89,11 +89,12 @@ export async function POST(
     }
 
     createNotification(
-      task.assignedToId, 'starter_task_reviewed',
+      task.assignedToId,
+      'starter_task_reviewed',
       `Your starter task was reviewed: ${task.title}`,
       feedbackToVolunteer || 'Check your dashboard for details.',
-      '/dashboard'
-    ).catch(e => console.error('[NOTIFY ERROR]', e))
+      '/dashboard',
+    ).catch((e) => console.error('[NOTIFY ERROR]', e))
   }
 
   return Response.json({ message: `Task reviewed as ${reviewRating}` })

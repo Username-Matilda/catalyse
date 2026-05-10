@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
   ])
 
   return Response.json({
-    received: received.map(m => ({
+    received: received.map((m) => ({
       id: m.id,
       from_volunteer_id: m.fromVolunteerId,
       to_volunteer_id: m.toVolunteerId,
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
       created_at: m.createdAt,
       from_name: m.from.name,
     })),
-    sent: sent.map(m => ({
+    sent: sent.map((m) => ({
       id: m.id,
       from_volunteer_id: m.fromVolunteerId,
       to_volunteer_id: m.toVolunteerId,

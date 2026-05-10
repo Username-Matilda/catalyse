@@ -12,29 +12,27 @@ export async function GET(request: NextRequest) {
   const offset = parseInt(searchParams.get('offset') ?? '0', 10)
 
   const skillIds = skillIdsParam
-    ? skillIdsParam.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n))
+    ? skillIdsParam
+        .split(',')
+        .map((s) => parseInt(s.trim(), 10))
+        .filter((n) => !isNaN(n))
     : null
 
   const where: Record<string, unknown> = {
     deletedAt: null,
     consentMakeProfileVisibleInDirectory: true,
-    ...(skillIds && skillIds.length > 0
-      ? { skills: { some: { skillId: { in: skillIds } } } }
-      : {}),
-    ...(search
-      ? { OR: [{ name: { contains: search } }, { bio: { contains: search } }] }
-      : {}),
+    ...(skillIds && skillIds.length > 0 ? { skills: { some: { skillId: { in: skillIds } } } } : {}),
+    ...(search ? { OR: [{ name: { contains: search } }, { bio: { contains: search } }] } : {}),
     // TODO: volunteers have two overlapping location fields — `location` (freeform, older) and
     // `country` (structured, added later). Volunteers who filled in `location` before `country`
     // existed have no `country` value, so we fall back to a LIKE match on `location`. These
     // fields should be rationalised: ideally migrate existing `location` data into `country`
     // (and a separate city/region field), then drop the fallback and filter on `country` alone.
-    ...(country ? {
-      OR: [
-        { country },
-        { country: null, location: { contains: country } },
-      ],
-    } : {}),
+    ...(country
+      ? {
+          OR: [{ country }, { country: null, location: { contains: country } }],
+        }
+      : {}),
     ...(localGroup ? { localGroup } : {}),
   }
 
@@ -53,10 +51,7 @@ export async function GET(request: NextRequest) {
         createdAt: true,
         skills: {
           include: { skill: { include: { category: true } } },
-          orderBy: [
-            { skill: { category: { sortOrder: 'asc' } } },
-            { skill: { sortOrder: 'asc' } },
-          ],
+          orderBy: [{ skill: { category: { sortOrder: 'asc' } } }, { skill: { sortOrder: 'asc' } }],
         },
       },
       orderBy: { createdAt: 'desc' },
@@ -67,7 +62,7 @@ export async function GET(request: NextRequest) {
   ])
 
   return Response.json({
-    volunteers: volunteers.map(v => ({
+    volunteers: volunteers.map((v) => ({
       id: v.id,
       name: v.name,
       bio: v.bio,

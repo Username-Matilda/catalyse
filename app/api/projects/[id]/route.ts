@@ -2,7 +2,12 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentVolunteer } from '@/lib/auth'
 import { sendProjectNotificationEmail } from '@/lib/email'
-import { serializeProject, projectInclude, EnrichedProject, createNotification } from '@/lib/project'
+import {
+  serializeProject,
+  projectInclude,
+  EnrichedProject,
+  createNotification,
+} from '@/lib/project'
 
 const STATUS_LABELS: Record<string, string> = {
   seeking_owner: 'Seeking Owner',
@@ -15,13 +20,15 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 const OWNER_ALLOWED_STATUSES = new Set([
-  'seeking_owner', 'seeking_help', 'needs_tasks', 'in_progress', 'on_hold', 'completed',
+  'seeking_owner',
+  'seeking_help',
+  'needs_tasks',
+  'in_progress',
+  'on_hold',
+  'completed',
 ])
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = await params
   const projectId = parseInt(idParam, 10)
   if (isNaN(projectId)) {
@@ -44,7 +51,8 @@ export async function GET(
     if (!volunteer) return Response.json({ detail: 'Project not found' }, { status: 404 })
     const isProposer = project.proposedById === volunteer.id
     const isAdmin = volunteer.isAdmin
-    if (!isProposer && !isAdmin) return Response.json({ detail: 'Project not found' }, { status: 404 })
+    if (!isProposer && !isAdmin)
+      return Response.json({ detail: 'Project not found' }, { status: 404 })
   }
 
   let volunteerSkillIds: Set<number> | undefined
@@ -53,10 +61,13 @@ export async function GET(
       where: { id: volunteer.id },
       select: { skills: { select: { skillId: true } } },
     })
-    volunteerSkillIds = new Set((v?.skills ?? []).map(s => s.skillId))
+    volunteerSkillIds = new Set((v?.skills ?? []).map((s) => s.skillId))
   }
 
-  const serialized = serializeProject(project as EnrichedProject, volunteerSkillIds) as Record<string, unknown>
+  const serialized = serializeProject(project as EnrichedProject, volunteerSkillIds) as Record<
+    string,
+    unknown
+  >
 
   const [updates, tasks] = await Promise.all([
     prisma.projectUpdate.findMany({
@@ -70,10 +81,7 @@ export async function GET(
         assignedTo: { select: { name: true } },
         createdBy: { select: { name: true } },
       },
-      orderBy: [
-        { status: 'asc' },
-        { createdAt: 'desc' },
-      ],
+      orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
     }),
   ])
 
@@ -81,7 +89,7 @@ export async function GET(
   const taskOrder: Record<string, number> = { open: 0, assigned: 1, done: 2 }
   const sortedTasks = tasks.sort((a, b) => (taskOrder[a.status] ?? 0) - (taskOrder[b.status] ?? 0))
 
-  serialized.updates = updates.map(u => ({
+  serialized.updates = updates.map((u) => ({
     id: u.id,
     project_id: u.projectId,
     author_id: u.authorId,
@@ -90,7 +98,7 @@ export async function GET(
     author_name: u.author?.name ?? null,
   }))
 
-  serialized.tasks = sortedTasks.map(t => ({
+  serialized.tasks = sortedTasks.map((t) => ({
     id: t.id,
     project_id: t.projectId,
     title: t.title,
@@ -125,7 +133,7 @@ export async function GET(
         orderBy: { createdAt: 'desc' },
       })
 
-      serialized.interests = interests.map(i => ({
+      serialized.interests = interests.map((i) => ({
         id: i.id,
         volunteer_id: i.volunteerId,
         project_id: i.projectId,
@@ -137,7 +145,7 @@ export async function GET(
         responded_at: i.respondedAt,
         volunteer_name: i.volunteer.name,
         volunteer_bio: i.volunteer.bio,
-        volunteer_skills: i.volunteer.skills.map(vs => ({
+        volunteer_skills: i.volunteer.skills.map((vs) => ({
           id: vs.skill.id,
           name: vs.skill.name,
           category_name: vs.skill.category.name,
@@ -167,10 +175,7 @@ export async function GET(
   return Response.json(serialized)
 }
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = await params
   const projectId = parseInt(idParam, 10)
   if (isNaN(projectId)) {
@@ -211,17 +216,28 @@ export async function PUT(
     if (openTaskCount === 0) {
       return Response.json(
         { detail: 'A project cannot be moved to In Progress without at least one open task' },
-        { status: 400 }
+        { status: 400 },
       )
     }
   }
 
   const data: Record<string, unknown> = {}
 
-  const stringFields = ['title', 'description', 'project_type', 'estimated_duration',
-    'urgency', 'collaboration_link', 'country', 'local_group', 'outcome', 'outcome_notes'] as const
+  const stringFields = [
+    'title',
+    'description',
+    'project_type',
+    'estimated_duration',
+    'urgency',
+    'collaboration_link',
+    'country',
+    'local_group',
+    'outcome',
+    'outcome_notes',
+  ] as const
   for (const field of stringFields) {
-    if (body[field] !== undefined) data[field.replace(/_([a-z])/g, (_, c) => c.toUpperCase())] = body[field]
+    if (body[field] !== undefined)
+      data[field.replace(/_([a-z])/g, (_, c) => c.toUpperCase())] = body[field]
   }
 
   if (body.time_commitment_hours_per_week !== undefined) {
@@ -253,13 +269,14 @@ export async function PUT(
 
   if (body.skill_ids !== undefined) {
     const skillIds = Array.isArray(body.skill_ids) ? (body.skill_ids as number[]) : []
-    const skillRequiredMap = (body.skill_required_map && typeof body.skill_required_map === 'object')
-      ? (body.skill_required_map as Record<string | number, boolean>)
-      : {}
+    const skillRequiredMap =
+      body.skill_required_map && typeof body.skill_required_map === 'object'
+        ? (body.skill_required_map as Record<string | number, boolean>)
+        : {}
     await prisma.projectSkill.deleteMany({ where: { projectId } })
     if (skillIds.length > 0) {
       await prisma.projectSkill.createMany({
-        data: skillIds.map(skillId => ({
+        data: skillIds.map((skillId) => ({
           projectId,
           skillId,
           isRequired: skillRequiredMap[skillId] !== false,
@@ -273,7 +290,8 @@ export async function PUT(
 
     const notifyIds = new Set<number>()
     if (project.ownerId && project.ownerId !== volunteer.id) notifyIds.add(project.ownerId)
-    if (project.proposedById && project.proposedById !== volunteer.id) notifyIds.add(project.proposedById)
+    if (project.proposedById && project.proposedById !== volunteer.id)
+      notifyIds.add(project.proposedById)
 
     const accepted = await prisma.projectInterest.findMany({
       where: { projectId, status: 'accepted' },
@@ -285,11 +303,12 @@ export async function PUT(
 
     for (const vid of notifyIds) {
       createNotification(
-        vid, 'project_status_changed',
+        vid,
+        'project_status_changed',
         `'${project.title}' is now ${statusLabel}`,
         `Status changed by ${volunteer.name}`,
-        `/projects/${projectId}`
-      ).catch(e => console.error('[NOTIFY ERROR]', e))
+        `/projects/${projectId}`,
+      ).catch((e) => console.error('[NOTIFY ERROR]', e))
 
       const vol = await prisma.volunteer.findFirst({
         where: { id: vid, deletedAt: null },
@@ -297,22 +316,27 @@ export async function PUT(
       })
       if (vol?.email) {
         sendProjectNotificationEmail(
-          vol.email, vol.name,
+          vol.email,
+          vol.name,
           `'${project.title}' is now ${statusLabel}`,
           `The project <strong>${project.title}</strong> has been updated to <strong>${statusLabel}</strong>.`,
-          project.title, projectId
-        ).catch(e => console.error('[EMAIL ERROR]', e))
+          project.title,
+          projectId,
+        ).catch((e) => console.error('[EMAIL ERROR]', e))
       }
     }
   }
 
-  const updated = await prisma.project.findUnique({ where: { id: projectId }, include: projectInclude })
+  const updated = await prisma.project.findUnique({
+    where: { id: projectId },
+    include: projectInclude,
+  })
   return Response.json(serializeProject(updated as EnrichedProject))
 }
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: idParam } = await params
   const projectId = parseInt(idParam, 10)
@@ -322,7 +346,10 @@ export async function DELETE(
 
   const volunteer = await getCurrentVolunteer(request.headers.get('authorization'))
   if (!volunteer || !volunteer.isAdmin) {
-    return Response.json({ detail: volunteer ? 'Admin access required' : 'Authentication required' }, { status: volunteer ? 403 : 401 })
+    return Response.json(
+      { detail: volunteer ? 'Admin access required' : 'Authentication required' },
+      { status: volunteer ? 403 : 401 },
+    )
   }
 
   const project = await prisma.project.findUnique({ where: { id: projectId } })

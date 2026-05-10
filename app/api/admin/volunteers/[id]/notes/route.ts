@@ -3,10 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/auth'
 import { fieldError, validationError } from '@/lib/errors'
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = await params
   const volunteerId = parseInt(idParam, 10)
   if (isNaN(volunteerId)) {
@@ -23,7 +20,7 @@ export async function GET(
   })
 
   return Response.json(
-    notes.map(n => ({
+    notes.map((n) => ({
       id: n.id,
       volunteer_id: n.volunteerId,
       author_id: n.authorId,
@@ -33,14 +30,11 @@ export async function GET(
       created_at: n.createdAt,
       updated_at: n.updatedAt,
       author_name: n.author.name,
-    }))
+    })),
   )
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = await params
   const volunteerId = parseInt(idParam, 10)
   if (isNaN(volunteerId)) {
@@ -63,7 +57,10 @@ export async function POST(
   }
   if (errs.length) return validationError(errs)
 
-  const target = await prisma.volunteer.findUnique({ where: { id: volunteerId }, select: { id: true } })
+  const target = await prisma.volunteer.findUnique({
+    where: { id: volunteerId },
+    select: { id: true },
+  })
   if (!target) {
     return Response.json({ detail: 'Volunteer not found' }, { status: 404 })
   }

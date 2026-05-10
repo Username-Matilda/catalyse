@@ -11,13 +11,15 @@ export async function GET(_request: NextRequest) {
     orderBy: { createdAt: 'desc' },
   })
 
-  return Response.json(tasks.map(t => ({
-    id: t.id,
-    title: t.title,
-    description: t.description,
-    estimated_hours: t.estimatedHours,
-    skill_name: t.skill?.name ?? null,
-    skill_category: t.skill?.category?.name ?? null,
-    project_title: t.project?.title ?? null,
-  })))
+  return Response.json(
+    tasks.map((t) => ({
+      id: t.id,
+      title: t.title,
+      description: t.description,
+      estimated_hours: t.estimatedHours,
+      skill_name: t.skill?.name ?? null,
+      skill_category: t.skill?.category?.name ?? null,
+      project_title: t.project?.title ?? null,
+    })),
+  )
 }

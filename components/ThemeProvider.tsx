@@ -37,14 +37,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     const mq = window.matchMedia('(prefers-color-scheme: dark)')
     const handler = () => {
-      setThemeState(prev => {
+      setThemeState((prev) => {
         if (prev === 'system') applyTheme('system')
         return prev
       })
     }
     mq.addEventListener('change', handler)
     return () => mq.removeEventListener('change', handler)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function setTheme(t: Theme) {

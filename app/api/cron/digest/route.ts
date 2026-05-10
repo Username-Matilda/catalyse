@@ -50,12 +50,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ skipped: true, reason: 'no new projects' })
   }
 
-  const projectList = rawProjects.map(p => ({
+  const projectList = rawProjects.map((p) => ({
     id: p.id,
     title: p.title,
     description: p.description ?? '',
-    skill_names: p.skills.map(ps => ps.skill.name),
-    requiredSkillIds: new Set(p.skills.filter(ps => ps.isRequired).map(ps => ps.skillId)),
+    skill_names: p.skills.map((ps) => ps.skill.name),
+    requiredSkillIds: new Set(p.skills.filter((ps) => ps.isRequired).map((ps) => ps.skillId)),
   }))
 
   const volunteers = await prisma.volunteer.findMany({
@@ -70,13 +70,13 @@ export async function POST(request: NextRequest) {
 
   let sent = 0
   for (const vol of volunteers) {
-    const volSkillIds = new Set(vol.skills.map(vs => vs.skillId))
+    const volSkillIds = new Set(vol.skills.map((vs) => vs.skillId))
 
-    const enriched = projectList.map(p => {
+    const enriched = projectList.map((p) => {
       const { requiredSkillIds, ...rest } = p
       let match_percent: number | undefined
       if (volSkillIds.size && requiredSkillIds.size) {
-        const matched = [...requiredSkillIds].filter(id => volSkillIds.has(id)).length
+        const matched = [...requiredSkillIds].filter((id) => volSkillIds.has(id)).length
         match_percent = Math.round((matched / requiredSkillIds.size) * 100)
       }
       return { ...rest, match_percent }
@@ -89,6 +89,8 @@ export async function POST(request: NextRequest) {
 
   await prisma.digestRun.create({ data: { type: 'fortnightly' } })
 
-  console.log(`[CRON DIGEST] Sent to ${sent}/${volunteers.length} volunteers (${projectList.length} projects)`)
+  console.log(
+    `[CRON DIGEST] Sent to ${sent}/${volunteers.length} volunteers (${projectList.length} projects)`,
+  )
   return NextResponse.json({ sent, total: volunteers.length, projects: projectList.length })
 }

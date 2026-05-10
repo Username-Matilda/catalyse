@@ -19,8 +19,8 @@ export async function PATCH(request: NextRequest) {
 
   await prisma.$transaction(
     body.map(({ id, sort_order }: { id: number; sort_order: number }) =>
-      prisma.skill.update({ where: { id }, data: { sortOrder: sort_order } })
-    )
+      prisma.skill.update({ where: { id }, data: { sortOrder: sort_order } }),
+    ),
   )
 
   return Response.json({ success: true })

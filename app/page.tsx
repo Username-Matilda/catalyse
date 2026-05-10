@@ -16,7 +16,6 @@ interface ProjectsResponse {
   total: number
 }
 
-
 const STATUS_OPTIONS = [
   { value: '', label: 'All Active' },
   { value: 'in_progress', label: 'In Progress' },
@@ -47,13 +46,10 @@ const SORT_OPTIONS = [
   { value: 'urgency', label: 'Most urgent' },
 ]
 
-
-
-
 export default function ProjectsPage() {
   const router = useRouter()
   const { user, loading } = useAuth()
-  const userSkillIds = new Set(user?.skills?.map(s => s.id) ?? [])
+  const userSkillIds = new Set(user?.skills?.map((s) => s.id) ?? [])
   const [projects, setProjects] = useState<Project[]>([])
   const [loadingProjects, setLoadingProjects] = useState(true)
   const [search, setSearch] = useState('')
@@ -73,7 +69,7 @@ export default function ProjectsPage() {
     if (!user) return
     if (user.is_admin) {
       apiRequest<Project[]>('/api/admin/triage')
-        .then(list => setPendingCount(list.length))
+        .then((list) => setPendingCount(list.length))
         .catch(() => {})
     }
   }, [user])
@@ -85,7 +81,7 @@ export default function ProjectsPage() {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, search, statusFilter, needsFilter, urgencyFilter, locationFilter, sortBy])
 
   async function fetchProjects() {
@@ -114,27 +110,63 @@ export default function ProjectsPage() {
     }
   }
 
-  const hasFilters = search || statusFilter || needsFilter || urgencyFilter || locationFilter || sortBy
+  const hasFilters =
+    search || statusFilter || needsFilter || urgencyFilter || locationFilter || sortBy
 
   function clearFilters() {
-    setSearch(''); setStatusFilter(''); setNeedsFilter(''); setUrgencyFilter(''); setLocationFilter(''); setSortBy('')
+    setSearch('')
+    setStatusFilter('')
+    setNeedsFilter('')
+    setUrgencyFilter('')
+    setLocationFilter('')
+    setSortBy('')
   }
 
-  const seeking = projects.filter(p => p.is_seeking_help || p.is_seeking_owner)
-  const inProgress = projects.filter(p => !p.is_seeking_help && !p.is_seeking_owner && p.status === 'in_progress')
-  const onHold = projects.filter(p => !p.is_seeking_help && !p.is_seeking_owner && p.status === 'on_hold')
-  const completed = projects.filter(p => p.status === 'completed')
-  const other = projects.filter(p =>
-    !p.is_seeking_help && !p.is_seeking_owner &&
-    !['in_progress', 'on_hold', 'completed'].includes(p.status)
+  const seeking = projects.filter((p) => p.is_seeking_help || p.is_seeking_owner)
+  const inProgress = projects.filter(
+    (p) => !p.is_seeking_help && !p.is_seeking_owner && p.status === 'in_progress',
+  )
+  const onHold = projects.filter(
+    (p) => !p.is_seeking_help && !p.is_seeking_owner && p.status === 'on_hold',
+  )
+  const completed = projects.filter((p) => p.status === 'completed')
+  const other = projects.filter(
+    (p) =>
+      !p.is_seeking_help &&
+      !p.is_seeking_owner &&
+      !['in_progress', 'on_hold', 'completed'].includes(p.status),
   )
 
   const groups = [
-    { key: 'seeking', projects: seeking, label: 'Looking for People', desc: 'These projects need your help', color: 'text-orange-600 dark:text-orange-400' },
-    { key: 'in_progress', projects: inProgress, label: 'In Progress', desc: 'Actively being worked on', color: 'text-blue-600 dark:text-blue-400' },
+    {
+      key: 'seeking',
+      projects: seeking,
+      label: 'Looking for People',
+      desc: 'These projects need your help',
+      color: 'text-orange-600 dark:text-orange-400',
+    },
+    {
+      key: 'in_progress',
+      projects: inProgress,
+      label: 'In Progress',
+      desc: 'Actively being worked on',
+      color: 'text-blue-600 dark:text-blue-400',
+    },
     { key: 'other', projects: other, label: 'Other Active', desc: '', color: 'text-text-light' },
-    { key: 'on_hold', projects: onHold, label: 'On Hold', desc: '', color: 'text-red-600 dark:text-red-400' },
-    { key: 'completed', projects: completed, label: 'Completed', desc: '', color: 'text-green-600 dark:text-green-400' },
+    {
+      key: 'on_hold',
+      projects: onHold,
+      label: 'On Hold',
+      desc: '',
+      color: 'text-red-600 dark:text-red-400',
+    },
+    {
+      key: 'completed',
+      projects: completed,
+      label: 'Completed',
+      desc: '',
+      color: 'text-green-600 dark:text-green-400',
+    },
   ]
 
   if (loading || !user) return null
@@ -147,8 +179,12 @@ export default function ProjectsPage() {
 
         {user.is_admin && pendingCount > 0 && (
           <div className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEF3C7] text-[#92400E] border border-[#FCD34D] dark:bg-[#78350F] dark:text-[#FDE68A] dark:border-[#D97706]">
-            <strong>{pendingCount} project{pendingCount !== 1 ? 's' : ''} pending review.</strong>{' '}
-            <Link href="/admin/triage" className="underline">Go to triage →</Link>
+            <strong>
+              {pendingCount} project{pendingCount !== 1 ? 's' : ''} pending review.
+            </strong>{' '}
+            <Link href="/admin/triage" className="underline">
+              Go to triage →
+            </Link>
           </div>
         )}
 
@@ -162,7 +198,7 @@ export default function ProjectsPage() {
               aria-label="Search"
               placeholder="Search projects…"
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={(e) => setSearch(e.target.value)}
             />
           </div>
           <div className="flex gap-3 flex-wrap items-end">
@@ -211,7 +247,9 @@ export default function ProjectsPage() {
             />
 
             {hasFilters && (
-              <Button variant="outline" size="lg" onClick={clearFilters}>Clear filters</Button>
+              <Button variant="outline" size="lg" onClick={clearFilters}>
+                Clear filters
+              </Button>
             )}
           </div>
         </div>
@@ -221,8 +259,12 @@ export default function ProjectsPage() {
         ) : projects.length === 0 ? (
           <div className="text-center py-15 px-5 text-text-light">
             <h3>No projects found</h3>
-            <p>Try adjusting your filters or{' '}
-              <Link href="/suggest" className="underline">suggest a new project</Link>.
+            <p>
+              Try adjusting your filters or{' '}
+              <Link href="/suggest" className="underline">
+                suggest a new project
+              </Link>
+              .
             </p>
           </div>
         ) : (
@@ -231,10 +273,14 @@ export default function ProjectsPage() {
             {!statusFilter && !needsFilter && projects.length > 1 && (
               <div className="flex flex-wrap gap-2 mb-6">
                 {seeking.length > 0 && (
-                  <span className={statusBadgeClasses('seeking_help')}>Looking for People: {seeking.length}</span>
+                  <span className={statusBadgeClasses('seeking_help')}>
+                    Looking for People: {seeking.length}
+                  </span>
                 )}
                 {inProgress.length > 0 && (
-                  <span className={statusBadgeClasses('in_progress')}>In Progress: {inProgress.length}</span>
+                  <span className={statusBadgeClasses('in_progress')}>
+                    In Progress: {inProgress.length}
+                  </span>
                 )}
                 <span className="text-sm text-text-light self-center">{projects.length} total</span>
               </div>
@@ -244,13 +290,17 @@ export default function ProjectsPage() {
             {statusFilter || needsFilter ? (
               <ProjectList projects={projects} userSkillIds={userSkillIds} />
             ) : (
-              groups.filter(g => g.projects.length > 0).map(g => (
-                <div key={g.key} className="mb-8">
-                  <h2 className={`text-lg mb-1 ${g.color}`}>{g.label} — {g.projects.length} project{g.projects.length !== 1 ? 's' : ''}</h2>
-                  {g.desc && <p className="text-text-light text-sm mb-3">{g.desc}</p>}
-                  <ProjectList projects={g.projects} userSkillIds={userSkillIds} />
-                </div>
-              ))
+              groups
+                .filter((g) => g.projects.length > 0)
+                .map((g) => (
+                  <div key={g.key} className="mb-8">
+                    <h2 className={`text-lg mb-1 ${g.color}`}>
+                      {g.label} — {g.projects.length} project{g.projects.length !== 1 ? 's' : ''}
+                    </h2>
+                    {g.desc && <p className="text-text-light text-sm mb-3">{g.desc}</p>}
+                    <ProjectList projects={g.projects} userSkillIds={userSkillIds} />
+                  </div>
+                ))
             )}
           </>
         )}
@@ -258,4 +308,3 @@ export default function ProjectsPage() {
     </>
   )
 }
-

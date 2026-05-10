@@ -45,5 +45,5 @@ export const LOCATION_OPTIONS: FilterOption[] = [
 
 export const COUNTRY_OPTIONS: FilterOption[] = [
   { value: '', label: 'Select…' },
-  ...LOCATION_OPTIONS.filter(o => o.value !== '' && !o.indent),
+  ...LOCATION_OPTIONS.filter((o) => o.value !== '' && !o.indent),
 ]

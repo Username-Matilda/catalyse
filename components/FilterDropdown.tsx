@@ -18,7 +18,15 @@ interface Props {
   searchable?: boolean
 }
 
-export default function FilterDropdown({ id, label, ariaLabel, value, options, onChange, searchable }: Props) {
+export default function FilterDropdown({
+  id,
+  label,
+  ariaLabel,
+  value,
+  options,
+  onChange,
+  searchable,
+}: Props) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [focusedIndex, setFocusedIndex] = useState(-1)
@@ -53,11 +61,12 @@ export default function FilterDropdown({ id, label, ariaLabel, value, options, o
     }
   }, [focusedIndex])
 
-  const selectedLabel = options.find(o => o.value === value)?.label ?? options[0]?.label
+  const selectedLabel = options.find((o) => o.value === value)?.label ?? options[0]?.label
 
-  const filtered = searchable && query
-    ? options.filter(o => o.label.toLowerCase().includes(query.toLowerCase()))
-    : options
+  const filtered =
+    searchable && query
+      ? options.filter((o) => o.label.toLowerCase().includes(query.toLowerCase()))
+      : options
 
   function select(opt: FilterOption) {
     onChange(opt.value)
@@ -77,19 +86,19 @@ export default function FilterDropdown({ id, label, ariaLabel, value, options, o
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault()
-        setFocusedIndex(i => Math.min(i + 1, filtered.length - 1))
+        setFocusedIndex((i) => Math.min(i + 1, filtered.length - 1))
         break
       case 'Tab':
         e.preventDefault()
         if (e.shiftKey) {
-          setFocusedIndex(i => Math.max(i - 1, 0))
+          setFocusedIndex((i) => Math.max(i - 1, 0))
         } else {
-          setFocusedIndex(i => Math.min(i + 1, filtered.length - 1))
+          setFocusedIndex((i) => Math.min(i + 1, filtered.length - 1))
         }
         break
       case 'ArrowUp':
         e.preventDefault()
-        setFocusedIndex(i => Math.max(i - 1, 0))
+        setFocusedIndex((i) => Math.max(i - 1, 0))
         break
       case 'Enter':
         e.preventDefault()
@@ -109,7 +118,8 @@ export default function FilterDropdown({ id, label, ariaLabel, value, options, o
     }
   }
 
-  const triggerClass = "w-full flex items-center justify-between p-3 bg-[var(--surface)] text-[var(--text)] border-2 border-[var(--border)] rounded-[var(--radius)] text-base font-[var(--font-body)] cursor-pointer focus:outline-none focus:border-[var(--secondary)] transition-colors"
+  const triggerClass =
+    'w-full flex items-center justify-between p-3 bg-[var(--surface)] text-[var(--text)] border-2 border-[var(--border)] rounded-[var(--radius)] text-base font-[var(--font-body)] cursor-pointer focus:outline-none focus:border-[var(--secondary)] transition-colors'
 
   return (
     <div ref={ref} style={{ minWidth: 200 }}>
@@ -140,7 +150,7 @@ export default function FilterDropdown({ id, label, ariaLabel, value, options, o
             aria-activedescendant={focusedIndex >= 0 ? `${id}-opt-${focusedIndex}` : undefined}
             placeholder="Search…"
             value={query}
-            onChange={e => setQuery(e.target.value)}
+            onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             className="absolute inset-0 m-0"
           />
@@ -157,7 +167,7 @@ export default function FilterDropdown({ id, label, ariaLabel, value, options, o
                 id={`${id}-opt-${i}`}
                 role="option"
                 aria-selected={value === opt.value}
-                onMouseDown={e => e.preventDefault()}
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => select(opt)}
                 className={`px-3 py-2 cursor-pointer rounded-md hover:bg-accent transition-colors text-sm ${value === opt.value || i === focusedIndex ? 'bg-accent' : ''} ${opt.indent ? 'pl-6' : ''}`}
               >

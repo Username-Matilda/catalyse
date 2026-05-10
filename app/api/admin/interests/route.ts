@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
   })
 
   return Response.json(
-    interests.map(i => ({
+    interests.map((i) => ({
       id: i.id,
       volunteer_id: i.volunteerId,
       project_id: i.projectId,
@@ -48,6 +48,6 @@ export async function GET(request: NextRequest) {
       volunteer_email: i.volunteer.email,
       owner_name: i.project.owner?.name ?? null,
       volunteer_skills: i.volunteer.skills.map(serializeSkill),
-    }))
+    })),
   )
 }

@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   })
 
   return Response.json(
-    reports.map(r => ({
+    reports.map((r) => ({
       id: r.id,
       reporter_id: r.reporterId,
       reporter_email: r.reporterEmail,
@@ -34,6 +34,6 @@ export async function GET(request: NextRequest) {
       resolved_at: r.resolvedAt,
       created_at: r.createdAt,
       reporter_name: r.reporter?.name ?? null,
-    }))
+    })),
   )
 }

@@ -17,7 +17,8 @@ export async function POST(request: NextRequest) {
   }
 
   const errs: ReturnType<typeof fieldError>[] = []
-  if (!body.current_password) errs.push(fieldError('current_password', 'Current password is required'))
+  if (!body.current_password)
+    errs.push(fieldError('current_password', 'Current password is required'))
   if (!body.new_password) errs.push(fieldError('new_password', 'New password is required'))
   else if (String(body.new_password).length < 8)
     errs.push(fieldError('new_password', 'New password must be at least 8 characters'))

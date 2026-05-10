@@ -42,15 +42,15 @@ export async function POST(request: NextRequest) {
     select: { id: true },
   })
   await Promise.all(
-    admins.map(admin =>
+    admins.map((admin) =>
       createNotification(
         admin.id,
         'new_bug_report',
         `New ${(body.category as string) || 'bug'}: ${(body.title as string).trim()}`,
         `Severity: ${(body.severity as string) || 'medium'}`,
-        '/admin/bugs'
-      ).catch(e => console.error('[NOTIFY ERROR]', e))
-    )
+        '/admin/bugs',
+      ).catch((e) => console.error('[NOTIFY ERROR]', e)),
+    ),
   )
 
   return Response.json({ id: report.id, message: 'Thank you for your feedback!' })

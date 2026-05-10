@@ -45,5 +45,7 @@ export async function POST(request: NextRequest) {
     data: { usedAt: new Date() },
   })
 
-  return Response.json({ message: 'Password reset successful. Please log in with your new password.' })
+  return Response.json({
+    message: 'Password reset successful. Please log in with your new password.',
+  })
 }

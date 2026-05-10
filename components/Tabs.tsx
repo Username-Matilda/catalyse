@@ -15,7 +15,13 @@ interface TabsProps<T extends string = string> {
   className?: string
 }
 
-export default function Tabs<T extends string = string>({ tabs, activeTab, onChange, role, className = 'mb-6' }: TabsProps<T>) {
+export default function Tabs<T extends string = string>({
+  tabs,
+  activeTab,
+  onChange,
+  role,
+  className = 'mb-6',
+}: TabsProps<T>) {
   return (
     <div role={role} className={`flex border-b border-brand-border ${className}`}>
       {tabs.map(({ key, label, 'data-tab': dataTab }) => (

@@ -4,7 +4,7 @@ import { getCurrentVolunteer } from '@/lib/auth'
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string; task_id: string }> }
+  { params }: { params: Promise<{ id: string; task_id: string }> },
 ) {
   const { id: idParam, task_id: taskIdParam } = await params
   const projectId = parseInt(idParam, 10)
@@ -42,7 +42,8 @@ export async function PUT(
   const newAssignedToId = body.assigned_to_id as number | undefined
 
   if (!isOwner && !isAdmin) {
-    const isSelfClaim = newStatus === 'assigned' && newAssignedToId === volunteer.id && task.status === 'open'
+    const isSelfClaim =
+      newStatus === 'assigned' && newAssignedToId === volunteer.id && task.status === 'open'
     const isMarkingDone = newStatus === 'done' && isAssignee && task.status === 'assigned'
     if (!isSelfClaim && !isMarkingDone) {
       return Response.json({ detail: 'Not authorized to update this task' }, { status: 403 })
@@ -72,7 +73,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string; task_id: string }> }
+  { params }: { params: Promise<{ id: string; task_id: string }> },
 ) {
   const { id: idParam, task_id: taskIdParam } = await params
   const projectId = parseInt(idParam, 10)

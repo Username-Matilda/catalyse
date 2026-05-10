@@ -1,8 +1,10 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import {
-  verifyPassword, generateAuthToken,
-  checkAdminBootstrap, acceptPendingInvite,
+  verifyPassword,
+  generateAuthToken,
+  checkAdminBootstrap,
+  acceptPendingInvite,
 } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
@@ -13,7 +15,9 @@ export async function POST(request: NextRequest) {
     return Response.json({ detail: 'Invalid JSON' }, { status: 400 })
   }
 
-  const email = String(body.email || '').toLowerCase().trim()
+  const email = String(body.email || '')
+    .toLowerCase()
+    .trim()
   const password = String(body.password || '')
   if (!email || !password) {
     return Response.json({ detail: 'Invalid email or password' }, { status: 401 })

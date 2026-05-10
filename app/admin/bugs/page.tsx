@@ -24,24 +24,24 @@ interface BugReport {
 }
 
 const STATUS_OPTIONS = [
-  { value: 'all',         label: 'All' },
-  { value: 'open',        label: 'Open' },
+  { value: 'all', label: 'All' },
+  { value: 'open', label: 'Open' },
   { value: 'in_progress', label: 'In Progress' },
-  { value: 'resolved',    label: 'Resolved' },
-  { value: 'wont_fix',    label: "Won't Fix" },
+  { value: 'resolved', label: 'Resolved' },
+  { value: 'wont_fix', label: "Won't Fix" },
 ]
 const CATEGORY_OPTIONS = [
-  { value: 'all',     label: 'All' },
-  { value: 'bug',     label: 'Bug' },
+  { value: 'all', label: 'All' },
+  { value: 'bug', label: 'Bug' },
   { value: 'feature', label: 'Feature' },
-  { value: 'ux',      label: 'UX Issue' },
+  { value: 'ux', label: 'UX Issue' },
 ]
 
 const BUG_STATUS_CLASSES: Record<string, string> = {
-  open:        'bg-[#FED7AA] text-[#92400E] dark:bg-[#78350F] dark:text-[#FED7AA]',
+  open: 'bg-[#FED7AA] text-[#92400E] dark:bg-[#78350F] dark:text-[#FED7AA]',
   in_progress: 'bg-[#DBEAFE] text-[#1E40AF] dark:bg-[#1E3A5F] dark:text-[#93C5FD]',
-  resolved:    'bg-[#D1FAE5] text-[#065F46] dark:bg-[#064E3B] dark:text-[#6EE7B7]',
-  wont_fix:    'bg-[#F3F4F6] text-[#374151] dark:bg-[#374151] dark:text-[#9CA3AF]',
+  resolved: 'bg-[#D1FAE5] text-[#065F46] dark:bg-[#064E3B] dark:text-[#6EE7B7]',
+  wont_fix: 'bg-[#F3F4F6] text-[#374151] dark:bg-[#374151] dark:text-[#9CA3AF]',
 }
 
 function bugStatusClasses(status: string) {
@@ -69,7 +69,7 @@ export default function AdminBugsPage() {
   useEffect(() => {
     if (!user?.is_admin) return
     loadReports()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, statusFilter, categoryFilter])
 
   async function loadReports() {
@@ -145,49 +145,69 @@ export default function AdminBugsPage() {
           <p>No bug reports found.</p>
         ) : (
           /* [test hook] card class used as test selector */
-          reports.map(r => (
+          reports.map((r) => (
             <div
               key={r.id}
               className="card bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word w-full"
               style={{ cursor: 'pointer' }}
               onClick={() => openEdit(r)}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                  marginBottom: 8,
+                }}
+              >
                 <div>
                   <h3 style={{ margin: '0 0 4px' }}>{r.title}</h3>
-                  <div className="text-text-light" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: '0.8rem' }}>
+                  <div
+                    className="text-text-light"
+                    style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: '0.8rem' }}
+                  >
                     {r.category && <span>{r.category}</span>}
                     {r.severity && <span>· {r.severity}</span>}
                     {r.reporter_name && <span>· {r.reporter_name}</span>}
                     <span>· {new Date(r.created_at).toLocaleDateString()}</span>
-                    {r.page_url && (() => {
-                      let path: string
-                      try { path = new URL(r.page_url).pathname + new URL(r.page_url).search } catch { path = r.page_url }
-                      return (
-                        <span>·{' '}
-                          <a
-                            href={path}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={e => e.stopPropagation()}
-                            className="underline hover:text-text"
-                          >
-                            {path}
-                          </a>
-                        </span>
-                      )
-                    })()}
+                    {r.page_url &&
+                      (() => {
+                        let path: string
+                        try {
+                          path = new URL(r.page_url).pathname + new URL(r.page_url).search
+                        } catch {
+                          path = r.page_url
+                        }
+                        return (
+                          <span>
+                            ·{' '}
+                            <a
+                              href={path}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="underline hover:text-text"
+                            >
+                              {path}
+                            </a>
+                          </span>
+                        )
+                      })()}
                   </div>
                 </div>
                 <span className={bugStatusClasses(r.status)}>
-                  {STATUS_OPTIONS.find(s => s.value === r.status)?.label ?? r.status}
+                  {STATUS_OPTIONS.find((s) => s.value === r.status)?.label ?? r.status}
                 </span>
               </div>
 
-              <p className="text-text-light" style={{ margin: '0 0 12px', whiteSpace: 'pre-wrap' }}>{r.description}</p>
+              <p className="text-text-light" style={{ margin: '0 0 12px', whiteSpace: 'pre-wrap' }}>
+                {r.description}
+              </p>
 
               {r.resolution_notes && (
-                <p style={{ margin: '0 0 12px', fontSize: '0.875rem', fontStyle: 'italic' }}>Resolution: {r.resolution_notes}</p>
+                <p style={{ margin: '0 0 12px', fontSize: '0.875rem', fontStyle: 'italic' }}>
+                  Resolution: {r.resolution_notes}
+                </p>
               )}
             </div>
           ))
@@ -197,7 +217,9 @@ export default function AdminBugsPage() {
       {editModal && (
         <div
           className="fixed inset-0 bg-[rgba(29,53,87,0.5)] flex items-center justify-center z-1000 p-5"
-          onClick={e => { if (e.target === e.currentTarget) setEditModal(null) }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setEditModal(null)
+          }}
         >
           <div
             role="dialog"
@@ -217,11 +239,13 @@ export default function AdminBugsPage() {
                 <select
                   id="edit-status"
                   value={editStatus}
-                  onChange={e => setEditStatus(e.target.value)}
+                  onChange={(e) => setEditStatus(e.target.value)}
                   style={{ width: '100%' }}
                 >
-                  {STATUS_OPTIONS.filter(s => s.value !== 'all').map(s => (
-                    <option key={s.value} value={s.value}>{s.label}</option>
+                  {STATUS_OPTIONS.filter((s) => s.value !== 'all').map((s) => (
+                    <option key={s.value} value={s.value}>
+                      {s.label}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -232,14 +256,16 @@ export default function AdminBugsPage() {
                   id="edit-notes"
                   rows={3}
                   value={editNotes}
-                  onChange={e => setEditNotes(e.target.value)}
+                  onChange={(e) => setEditNotes(e.target.value)}
                   placeholder="Describe what was fixed…"
                   style={{ width: '100%' }}
                 />
               </div>
 
               <div className="px-0 py-4 border-t border-brand-border flex gap-3 justify-end">
-                <Button variant="secondary" onClick={() => setEditModal(null)}>Cancel</Button>
+                <Button variant="secondary" onClick={() => setEditModal(null)}>
+                  Cancel
+                </Button>
                 <Button disabled={submitting} onClick={handleUpdate}>
                   Update
                 </Button>
