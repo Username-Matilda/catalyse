@@ -1,4 +1,4 @@
-.PHONY: dev dev-next install build serve test test-headed test-debug test-smoke scenario scenarios scenario-clean preview-emails preview-emails-plaintext
+.PHONY: dev dev-next install build serve start test test-headed test-debug test-smoke scenario scenarios scenario-clean preview-emails preview-emails-plaintext
 
 # Start the FastAPI development server on http://localhost:8001
 dev:
@@ -17,6 +17,11 @@ build:
 # Build and serve (mirrors production — serves from dist/)
 serve: build
 	. venv/bin/activate && python api.py
+
+# Build Next.js then start both Next.js + FastAPI via start.sh (mirrors Railway production)
+start: build
+	cd web && npm run build
+	. venv/bin/activate && bash start.sh
 
 # Install Python dependencies and download the Playwright Chromium browser
 install:

@@ -4262,20 +4262,18 @@ def get_dashboard(volunteer: Dict = Depends(require_auth)) -> Dict:
 # ============================================
 
 _NEXT_INTERNAL_PORT = 3000
-_HOP_BY_HOP = {"connection", "transfer-encoding", "upgrade", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailers"}
+_HOP_BY_HOP = {"connection", "transfer-encoding", "upgrade", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailers", "content-encoding"}
 
 
-@app.api_route("/next/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
-async def proxy_next(request: Request, path: str):
-    """Proxy all /next/* requests to the Next.js process on the internal port."""
-    url = f"http://localhost:{_NEXT_INTERNAL_PORT}/next/{path}"
+async def _proxy_to_next(request: Request, next_path: str):
+    url = f"http://localhost:{_NEXT_INTERNAL_PORT}{next_path}"
     if request.url.query:
         url += f"?{request.url.query}"
 
     req_headers = {k: v for k, v in request.headers.items() if k.lower() not in _HOP_BY_HOP}
 
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(follow_redirects=True) as client:
             resp = await client.request(
                 method=request.method,
                 url=url,
@@ -4288,6 +4286,18 @@ async def proxy_next(request: Request, path: str):
 
     resp_headers = {k: v for k, v in resp.headers.items() if k.lower() not in _HOP_BY_HOP}
     return Response(content=resp.content, status_code=resp.status_code, headers=resp_headers)
+
+
+@app.api_route("/next", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
+async def proxy_next_root(request: Request):
+    """Proxy /next (no trailing slash) to Next.js — avoids FastAPI 307 → Next.js 308 loop."""
+    return await _proxy_to_next(request, "/next")
+
+
+@app.api_route("/next/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
+async def proxy_next(request: Request, path: str):
+    """Proxy all /next/* requests to the Next.js process on the internal port."""
+    return await _proxy_to_next(request, f"/next/{path}")
 
 
 # ============================================

@@ -6,6 +6,8 @@ export class ApiError extends Error {
   }
 }
 
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? ''
+
 export async function apiRequest<T = unknown>(
   path: string,
   options: RequestInit = {}
@@ -17,7 +19,7 @@ export async function apiRequest<T = unknown>(
   }
   if (token) headers['Authorization'] = `Bearer ${token}`
 
-  const res = await fetch(path, { ...options, headers })
+  const res = await fetch(`${BASE_PATH}${path}`, { ...options, headers })
 
   if (res.status === 401) {
     if (typeof window !== 'undefined') {

@@ -32,7 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchMe = useCallback(async (t: string) => {
     try {
-      const res = await fetch('/api/auth/me', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/api/auth/me`, {
         headers: { Authorization: `Bearer ${t}` },
       })
       if (!res.ok) {
@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     const t = localStorage.getItem('authToken')
     if (t) {
-      await fetch('/api/auth/logout', {
+      await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/api/auth/logout`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${t}` },
       }).catch(() => {})
