@@ -235,6 +235,15 @@ model Project {
   @@map("projects")
 }
 
+model DigestRun {
+  id     Int      @id @default(autoincrement())
+  type   String
+  sentAt DateTime @default(now()) @map("sent_at")
+
+  @@index([type], map: "idx_digest_runs_type")
+  @@map("digest_runs")
+}
+
 /// Not exposed via Prisma Client — no valid unique identifier.
 model SchemaMigration {
   filename  String?   @id
