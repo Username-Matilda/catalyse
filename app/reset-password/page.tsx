@@ -130,7 +130,7 @@ export default function ResetPasswordPage() {
   return (
     <>
       <Header />
-      <main className="max-w-350 mx-auto px-6 py-5 pb-15">
+      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
         <div style={{ maxWidth: 400, margin: '60px auto' }}>
           <h1 className="text-center">Set New Password</h1>
           <Suspense fallback={<div className="text-center py-10 text-text-light">Loading…</div>}>

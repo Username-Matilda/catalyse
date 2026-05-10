@@ -132,7 +132,7 @@ export default function ProfilePage() {
     return (
       <>
         <Header />
-        <main className="max-w-4xl mx-auto px-6 py-5 pb-15">
+        <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
           <div className="text-center py-10 text-text-light">Loading profile…</div>
         </main>
       </>
@@ -142,11 +142,11 @@ export default function ProfilePage() {
   return (
     <>
       <Header />
-      <main className="max-w-4xl mx-auto px-6 py-5 pb-15">
+      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
         <h1>Your Profile</h1>
 
         <form
-          className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
+          className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word max-w-4xl"
           onSubmit={handleSubmit}
         >
           {/* Basic info */}

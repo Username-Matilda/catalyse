@@ -20,18 +20,20 @@ export default function AdminCreateProjectPage() {
   return (
     <>
       <Header />
-      <main className="max-w-4xl mx-auto px-6 py-5 pb-15">
+      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
         <h1 role="heading">Create Organisation Project</h1>
         <p className="text-text-light mb-6">
           Create a project on behalf of PauseAI UK. This skips the approval process.
         </p>
         {/* TODO: add a "Save as draft" option so org projects can be created without immediately going live */}
-        <ProjectForm
-          action="/api/admin/projects"
-          submitLabel="Create Project"
-          onSuccess={(id) => router.push(`/projects/${id}`)}
-          onCancel={() => router.back()}
-        />
+        <div className="max-w-4xl">
+          <ProjectForm
+            action="/api/admin/projects"
+            submitLabel="Create Project"
+            onSuccess={(id) => router.push(`/projects/${id}`)}
+            onCancel={() => router.back()}
+          />
+        </div>
       </main>
     </>
   )

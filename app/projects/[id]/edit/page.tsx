@@ -106,7 +106,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
     return (
       <>
         <Header />
-        <main className="max-w-350 mx-auto px-6 py-5 pb-15">
+        <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
           <div className="text-center py-10 text-text-light">Loading project…</div>
         </main>
       </>
@@ -116,7 +116,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
   return (
     <>
       <Header />
-      <main className="max-w-350 mx-auto px-6 py-5 pb-15">
+      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
         <h1 role="heading">Edit Project</h1>
 
         {permissionChecked && !canEdit && (

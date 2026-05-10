@@ -268,7 +268,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     return (
       <>
         <Header />
-        <main className="max-w-350 mx-auto px-6 py-5 pb-15">
+        <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
           <div className="text-center py-10 text-text-light">Loading project…</div>
         </main>
       </>
@@ -527,7 +527,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   return (
     <>
       <Header />
-      <main className="max-w-350 mx-auto px-6 py-5 pb-15">
+      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
         {/* [test hook] projectContent id used by action helpers to confirm page has loaded */}
         <div id="projectContent" className="flex items-center gap-3 flex-wrap mb-2">
           <span aria-label="project status" className={statusBadge(project.status)}>

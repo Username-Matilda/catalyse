@@ -87,7 +87,7 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
     return (
       <>
         <Header />
-        <main className="max-w-350 mx-auto px-6 py-5 pb-15">
+        <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
           <div className="text-center py-10 text-text-light">Loading profile…</div>
         </main>
       </>
@@ -98,7 +98,7 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
     return (
       <>
         <Header />
-        <main className="max-w-350 mx-auto px-6 py-5 pb-15">
+        <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
           <p className="text-[color:var(--error)]">Volunteer not found.</p>
           <Button href="/volunteers" variant="secondary" className="mt-4">
             Back to Volunteers
@@ -118,7 +118,7 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
   return (
     <>
       <Header />
-      <main className="max-w-350 mx-auto px-6 py-5 pb-15">
+      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
         <div className="mb-5">
           <Link href="/volunteers" className="text-text-light">
             &larr; Back to Volunteers

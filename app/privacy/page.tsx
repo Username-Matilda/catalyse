@@ -43,7 +43,7 @@ export default function PrivacyPage() {
   return (
     <>
       <Header />
-      <main className="max-w-350 mx-auto px-6 py-5 pb-15">
+      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
         <div style={{ maxWidth: 600, margin: '0 auto' }}>
           <h1>Privacy &amp; Data</h1>
           <p className="text-text-light mb-6">

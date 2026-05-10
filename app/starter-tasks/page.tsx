@@ -68,7 +68,7 @@ export default function StarterTasksPage() {
   return (
     <>
       <Header />
-      <main className="max-w-350 mx-auto px-6 py-5 pb-15">
+      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
         <h1>My Starter Tasks</h1>
         <p className="text-text-light mb-6">
           Small, self-contained tasks to help you get started and demonstrate your skills.

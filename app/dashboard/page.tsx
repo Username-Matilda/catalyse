@@ -135,7 +135,7 @@ function DashboardPageInner() {
     return (
       <>
         <Header />
-        <main className="max-w-350 mx-auto px-6 py-5 pb-15">
+        <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
           <div className="text-center py-10 text-text-light">Loading dashboard…</div>
         </main>
       </>
@@ -168,7 +168,7 @@ function DashboardPageInner() {
   return (
     <>
       <Header />
-      <main className="max-w-350 mx-auto px-6 py-5 pb-15">
+      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
         <h1 role="heading">Welcome back, {user.name}!</h1>
 
         {/* Email notification preference banner */}

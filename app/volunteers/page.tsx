@@ -100,7 +100,7 @@ export default function VolunteersPage() {
   return (
     <>
       <Header />
-      <main className="max-w-350 mx-auto px-6 py-5 pb-15">
+      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
         <h1>Volunteer Directory</h1>
 
         <div className="mb-5">

@@ -99,7 +99,7 @@ export default function SettingsPage() {
   return (
     <>
       <Header />
-      <main className="max-w-350 mx-auto px-6 py-5 pb-15">
+      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
         <h1>Settings</h1>
 
         {/* Change Email */}

@@ -38,7 +38,7 @@ export default function ForgotPasswordPage() {
   return (
     <>
       <Header />
-      <main className="max-w-350 mx-auto px-6 py-5 pb-15">
+      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
         <div style={{ maxWidth: 400, margin: '60px auto' }}>
           <h1 className="text-center">Reset Password</h1>
           <p className="text-center text-text-light" style={{ marginBottom: 32 }}>

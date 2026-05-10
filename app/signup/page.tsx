@@ -161,8 +161,8 @@ export default function SignupPage() {
         />
       )}
       <Header />
-      <main className="max-w-4xl mx-auto px-6 py-5 pb-15">
-        <div style={{ maxWidth: 600, margin: '0 auto' }}>
+      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
+        <div className="max-w-2xl mx-auto">
           <h1>Join Catalyse</h1>
           <p className="text-text-light mb-6">
             Connect with PauseAI UK projects and fellow volunteers.
