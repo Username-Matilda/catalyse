@@ -1,6 +1,6 @@
 [build]
 builder = "NIXPACKS"
-buildCommand = "python build.py && npm run build --prefix web"
+buildCommand = "python build.py && npm install --prefix web && npm run build --prefix web"
 
 [deploy]
 startCommand = "bash start.sh"
