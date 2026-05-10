@@ -101,14 +101,22 @@ async function b2DownloadFile(auth: B2Auth, bucketName: string, fileName: string
 
 // ── Anonymisation ─────────────────────────────────────────────────────────────
 
-// Seed faker with the volunteer ID so names/emails are deterministic per volunteer.
-function fakeVolunteer(id: number): { name: string; email: string } {
+// Seed faker with the volunteer ID so all fake fields are deterministic per volunteer.
+function fakeVolunteerData(id: number): { name: string; email: string; bio: string; discordHandle: string; signalNumber: string; whatsappNumber: string; contactNotes: string; otherSkills: string; location: string; localGroup: string } {
   faker.seed(id)
   const firstName = faker.person.firstName()
   const lastName = faker.person.lastName()
   return {
     name: `${firstName} ${lastName}`,
     email: faker.internet.email({ firstName, lastName }).toLowerCase(),
+    bio: faker.lorem.sentence(),
+    discordHandle: faker.internet.username(),
+    signalNumber: faker.phone.number({ style: 'international' }),
+    whatsappNumber: faker.phone.number({ style: 'international' }),
+    contactNotes: faker.lorem.sentence(),
+    otherSkills: faker.lorem.words({ min: 2, max: 5 }),
+    location: `${faker.location.city()}, ${faker.location.country()}`,
+    localGroup: faker.location.city(),
   }
 }
 
@@ -128,33 +136,46 @@ function anonymise(dbPath: string): void {
 
   const anonPasswordHash = makePasswordHash('volunteerpass1')
 
-  const volunteerIds = (db.prepare('SELECT id FROM volunteers').all() as { id: number }[]).map(r => r.id)
+  const volunteerRows = db.prepare('SELECT id, bio, discord_handle, signal_number, whatsapp_number, contact_notes, other_skills, location, local_group FROM volunteers').all() as { id: number; bio: string | null; discord_handle: string | null; signal_number: string | null; whatsapp_number: string | null; contact_notes: string | null; other_skills: string | null; location: string | null; local_group: string | null }[]
   const updateVolunteer = db.prepare(`
     UPDATE volunteers SET
       name                  = ?,
       email                 = ?,
-      bio                   = '[redacted]',
-      discord_handle        = NULL,
-      signal_number         = NULL,
-      whatsapp_number       = NULL,
-      contact_notes         = NULL,
-      other_skills          = NULL,
-      location              = NULL,
-      local_group           = NULL,
+      bio                   = ?,
+      discord_handle        = ?,
+      signal_number         = ?,
+      whatsapp_number       = ?,
+      contact_notes         = ?,
+      other_skills          = ?,
+      location              = ?,
+      local_group           = ?,
       auth_token            = NULL,
       auth_token_expires_at = NULL,
       password_hash         = ?
     WHERE id = ?
   `)
-  for (const vid of volunteerIds) {
-    const { name, email } = fakeVolunteer(vid)
-    updateVolunteer.run(name, email, anonPasswordHash, vid)
+  for (const row of volunteerRows) {
+    const { name, email, bio, discordHandle, signalNumber, whatsappNumber, contactNotes, otherSkills, location, localGroup } = fakeVolunteerData(row.id)
+    updateVolunteer.run(
+      name,
+      email,
+      row.bio !== null ? bio : null,
+      row.discord_handle !== null ? discordHandle : null,
+      row.signal_number !== null ? signalNumber : null,
+      row.whatsapp_number !== null ? whatsappNumber : null,
+      row.contact_notes !== null ? contactNotes : null,
+      row.other_skills !== null ? otherSkills : null,
+      row.location !== null ? location : null,
+      row.local_group !== null ? localGroup : null,
+      anonPasswordHash,
+      row.id,
+    )
   }
 
   const adminInvites = db.prepare('SELECT id, invited_by_id FROM admin_invites').all() as { id: number; invited_by_id: number }[]
   const updateInvite = db.prepare('UPDATE admin_invites SET email = ?, invite_token = ? WHERE id = ?')
   for (const row of adminInvites) {
-    updateInvite.run(fakeVolunteer(row.invited_by_id).email, randomToken(), row.id)
+    updateInvite.run(fakeVolunteerData(row.invited_by_id).email, randomToken(), row.id)
   }
 
   db.exec("UPDATE admin_notes SET content = '[redacted]'")

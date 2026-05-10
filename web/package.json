@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "generate": "npx prisma generate && tsx scripts/post-generate.ts",
-    "fetch-prod-db": "tsx scripts/fetch-prod-db.ts"
+    "fetch-prod-db": "NODE_OPTIONS=--experimental-sqlite tsx scripts/fetch-prod-db.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
