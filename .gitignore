@@ -1,12 +1,43 @@
 *.db
 *.db-*
 backups/
-__pycache__/
-*.pyc
 .env*
-!.env*.example
-venv/
+!.env.example
+!.env.local.example
 .playwright-mcp
-dist/
-tests/scenarios/results/
 test-results/
+playwright-report/
+e2e/.auth/
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+/app/generated/prisma
+
+.vscode/settings.json

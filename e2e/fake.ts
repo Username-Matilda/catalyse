@@ -1,13 +1,13 @@
-import { faker } from '@faker-js/faker';
+import { faker } from '@faker-js/faker'
 
 export const fake = {
   person: () => {
-    const firstName = faker.person.firstName();
-    const lastName = faker.person.lastName();
+    const firstName = faker.person.firstName()
+    const lastName = faker.person.lastName()
     return {
       name: `${firstName} ${lastName}`,
       email: faker.internet.email({ firstName, lastName }).toLowerCase(),
-    };
+    }
   },
   personName: () => faker.person.fullName(),
   projectTitle: () => faker.company.catchPhrase(),
@@ -25,4 +25,4 @@ export const fake = {
   uniqueEmail: () => faker.internet.email().toLowerCase(),
   username: () => faker.internet.username(),
   phoneNumber: () => faker.phone.number({ style: 'international' }),
-};
+}

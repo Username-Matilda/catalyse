@@ -1,43 +1,49 @@
-import { test as base, Browser, Page, WorkerInfo } from '@playwright/test';
-import { workerAuthFile, workerBaseUrl, parallelIndexFromBaseUrl } from './config';
-import { fake } from './fake';
+import { test as base, Browser, Page, WorkerInfo } from '@playwright/test'
+import { workerAuthFile, workerBaseUrl, parallelIndexFromBaseUrl } from './config'
+import { fake } from './fake'
 
 interface Volunteer {
-  page: Page;
-  name: string;
-  email: string;
-  password: string;
+  page: Page
+  name: string
+  email: string
+  password: string
 }
 
 interface Fixtures {
-  adminPage: Page;
-  volunteer: Volunteer;
+  adminPage: Page
+  volunteer: Volunteer
 }
 
 interface WorkerFixtures {
-  baseUrl: string;
+  baseUrl: string
 }
 
 export const test = base.extend<Fixtures, WorkerFixtures>({
-  baseUrl: [async ({}, use, workerInfo: WorkerInfo) => {
-    await use(workerBaseUrl(workerInfo.parallelIndex));
-  }, { scope: 'worker' }],
+  baseUrl: [
+    async ({}, runFixture, workerInfo: WorkerInfo) => {
+      await runFixture(workerBaseUrl(workerInfo.parallelIndex))
+    },
+    { scope: 'worker' },
+  ],
 
-  adminPage: async ({ browser, baseUrl }, use) => {
-    const authFile = workerAuthFile(parallelIndexFromBaseUrl(baseUrl));
-    const context = await browser.newContext({ storageState: authFile });
-    const page = await context.newPage();
-    await use(page);
-    await context.close();
+  adminPage: async ({ browser, baseUrl }, runFixture) => {
+    const authFile = workerAuthFile(parallelIndexFromBaseUrl(baseUrl))
+    const context = await browser.newContext({ storageState: authFile })
+    const page = await context.newPage()
+    await runFixture(page)
+    await context.close()
   },
 
-  volunteer: async ({ browser, baseUrl }: { browser: Browser; baseUrl: string }, use: (v: Volunteer) => Promise<void>) => {
-    const person = fake.person();
+  volunteer: async (
+    { browser, baseUrl }: { browser: Browser; baseUrl: string },
+    runFixture: (v: Volunteer) => Promise<void>,
+  ) => {
+    const person = fake.person()
     const credentials = {
       name: person.name,
       email: person.email,
       password: 'testpassword1',
-    };
+    }
     const resp = await fetch(`${baseUrl}/api/auth/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -48,21 +54,21 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
         consent_make_profile_visible_in_directory: true,
         consent_contactable_by_project_owners: true,
       }),
-    });
-    if (!resp.ok) throw new Error(`Volunteer signup failed: ${await resp.text()}`);
-    const { auth_token } = await resp.json();
-    const context = await browser.newContext();
+    })
+    if (!resp.ok) throw new Error(`Volunteer signup failed: ${await resp.text()}`)
+    const { auth_token } = await resp.json()
+    const context = await browser.newContext()
     await context.addInitScript((token: string) => {
-      localStorage.setItem('authToken', token);
-    }, auth_token);
-    const page = await context.newPage();
-    await use({ page, ...credentials });
-    await context.close();
+      localStorage.setItem('authToken', token)
+    }, auth_token)
+    const page = await context.newPage()
+    await runFixture({ page, ...credentials })
+    await context.close()
   },
-});
+})
 
-export { expect } from '@playwright/test';
+export { expect } from '@playwright/test'
 
 export function getAlert(page: Page) {
-  return page.locator('[role="alert"]:not(#__next-route-announcer__)').last();
+  return page.locator('[role="alert"]:not(#__next-route-announcer__)').last()
 }

@@ -1,13 +1,13 @@
 [build]
 builder = "NIXPACKS"
-buildCommand = "python build.py && npm install --prefix web && (cd web && npx prisma generate) && npm run build --prefix web && if [ \"$RAILWAY_ENVIRONMENT_NAME\" != \"production\" ] && [ -n \"$B2_KEY_ID\" ]; then (cd web && npm run fetch-prod-db) && cp anonymised_prod.db catalyse.db; fi"
+buildCommand = "npm run build:railway"
 
 [deploy]
-startCommand = "bash start.sh"
+startCommand = "npm start"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
 
 [deploy.healthcheck]
-path = "/api/skills"
+path = "/api/health"
 interval = 300
 timeout = 5
