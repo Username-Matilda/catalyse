@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { apiRequest, ApiError } from '@/lib/api'
 import Button from '@/components/Button'
+import FilterDropdown from '@/components/FilterDropdown'
 import { useAuth } from '@/lib/auth-context'
 
 interface BugReportDialogProps {
@@ -193,17 +194,19 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
               )}
 
               <div className="mb-5">
-                <label htmlFor="bug-severity">How urgent is this?</label>
-                <select
+                <FilterDropdown
                   id="bug-severity"
+                  label="How urgent is this?"
+                  ariaLabel="How urgent is this?"
                   value={severity}
-                  onChange={(e) => setSeverity(e.target.value)}
-                >
-                  <option value="low">Low — minor inconvenience</option>
-                  <option value="medium">Medium — affects workflow</option>
-                  <option value="high">High — blocking</option>
-                  <option value="critical">Critical — site is broken</option>
-                </select>
+                  options={[
+                    { value: 'low', label: 'Low — minor inconvenience' },
+                    { value: 'medium', label: 'Medium — affects workflow' },
+                    { value: 'high', label: 'High — blocking' },
+                    { value: 'critical', label: 'Critical — site is broken' },
+                  ]}
+                  onChange={(v) => setSeverity(v)}
+                />
               </div>
 
               <div className="flex gap-3 justify-end">

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/components/Header'
 import Button from '@/components/Button'
+import FilterDropdown from '@/components/FilterDropdown'
 import {
   ProjectCard,
   type Project as CardProject,
@@ -206,23 +207,23 @@ export default function TriagePage() {
           <>
             {/* TODO: add typeahead volunteer filtering so admins can search interests by volunteer name */}
             <div className="mb-5 flex items-end gap-3">
-              <div>
-                <label htmlFor="interest-status-filter">Status</label>
-                <select
-                  id="interest-status-filter"
-                  value={interestStatusFilter}
-                  onChange={(e) => {
-                    setLoadingInterests(true)
-                    setInterestStatusFilter(e.target.value)
-                  }}
-                >
-                  <option value="pending">Pending</option>
-                  <option value="accepted">Accepted</option>
-                  <option value="declined">Declined</option>
-                  <option value="withdrawn">Withdrawn</option>
-                  <option value="">All</option>
-                </select>
-              </div>
+              <FilterDropdown
+                id="interest-status-filter"
+                label="Status"
+                ariaLabel="Status"
+                value={interestStatusFilter}
+                options={[
+                  { value: 'pending', label: 'Pending' },
+                  { value: 'accepted', label: 'Accepted' },
+                  { value: 'declined', label: 'Declined' },
+                  { value: 'withdrawn', label: 'Withdrawn' },
+                  { value: '', label: 'All' },
+                ]}
+                onChange={(v) => {
+                  setLoadingInterests(true)
+                  setInterestStatusFilter(v)
+                }}
+              />
             </div>
 
             {loadingInterests ? (

@@ -236,19 +236,14 @@ export default function AdminBugsPage() {
 
               {/* TODO: add quick-action buttons to mark as in_progress with an assignee, without opening the full edit form */}
               <div className="mb-5">
-                <label htmlFor="edit-status">Status</label>
-                <select
+                <FilterDropdown
                   id="edit-status"
+                  label="Status"
+                  ariaLabel="Status"
                   value={editStatus}
-                  onChange={(e) => setEditStatus(e.target.value)}
-                  style={{ width: '100%' }}
-                >
-                  {STATUS_OPTIONS.filter((s) => s.value !== 'all').map((s) => (
-                    <option key={s.value} value={s.value}>
-                      {s.label}
-                    </option>
-                  ))}
-                </select>
+                  options={STATUS_OPTIONS.filter((s) => s.value !== 'all')}
+                  onChange={(v) => setEditStatus(v)}
+                />
               </div>
 
               <div className="mb-5">

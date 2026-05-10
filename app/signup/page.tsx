@@ -6,6 +6,7 @@ import Link from 'next/link'
 import Script from 'next/script'
 import Header from '@/components/Header'
 import Button from '@/components/Button'
+import FilterDropdown from '@/components/FilterDropdown'
 import SkillPicker from '@/components/SkillPicker'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest, ApiError } from '@/lib/api'
@@ -336,19 +337,20 @@ export default function SignupPage() {
                 />
               </div>
               <div className="mb-5">
-                <label htmlFor="contact_preference">Preferred Contact Method</label>
-                <select
+                <FilterDropdown
                   id="contact_preference"
-                  name="contact_preference"
+                  label="Preferred Contact Method"
+                  ariaLabel="Preferred Contact Method"
                   value={contactPref}
-                  onChange={(e) => setContactPref(e.target.value)}
-                >
-                  <option value="">Select…</option>
-                  <option value="email">Email</option>
-                  <option value="discord">Discord</option>
-                  <option value="signal">Signal</option>
-                  <option value="whatsapp">WhatsApp</option>
-                </select>
+                  options={[
+                    { value: '', label: 'Select…' },
+                    { value: 'email', label: 'Email' },
+                    { value: 'discord', label: 'Discord' },
+                    { value: 'signal', label: 'Signal' },
+                    { value: 'whatsapp', label: 'WhatsApp' },
+                  ]}
+                  onChange={(v) => setContactPref(v)}
+                />
               </div>
             </div>
 
@@ -480,17 +482,18 @@ export default function SignupPage() {
 
             <h3 style={{ marginTop: 24 }}>Email Notifications</h3>
             <div className="mb-5">
-              <label htmlFor="email_digest">Keep me in the loop about new projects</label>
-              <select
+              <FilterDropdown
                 id="email_digest"
-                name="email_digest"
+                label="Keep me in the loop about new projects"
+                ariaLabel="Keep me in the loop about new projects"
                 value={emailDigest}
-                onChange={(e) => setEmailDigest(e.target.value)}
-              >
-                <option value="none">Don&apos;t email me</option>
-                <option value="match">Email me when a project matches my skills</option>
-                <option value="fortnightly">Send me a fortnightly digest</option>
-              </select>
+                options={[
+                  { value: 'none', label: "Don't email me" },
+                  { value: 'match', label: 'Email me when a project matches my skills' },
+                  { value: 'fortnightly', label: 'Send me a fortnightly digest' },
+                ]}
+                onChange={(v) => setEmailDigest(v)}
+              />
             </div>
 
             <div style={{ marginTop: 12 }}>

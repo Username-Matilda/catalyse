@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/components/Header'
 import Button from '@/components/Button'
+import FilterDropdown from '@/components/FilterDropdown'
 import Tabs from '@/components/Tabs'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
@@ -496,19 +497,14 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
               <form onSubmit={addNote} style={{ marginTop: 16 }}>
                 <div style={{ display: 'flex', gap: 12, marginBottom: 8, flexWrap: 'wrap' }}>
                   <div className="mb-5" style={{ margin: 0 }}>
-                    <label htmlFor="note-category">Category</label>
-                    <select
+                    <FilterDropdown
                       id="note-category"
+                      label="Category"
+                      ariaLabel="Category"
                       value={noteCategory}
-                      onChange={(e) => setNoteCategory(e.target.value)}
-                      style={{ width: 160 }}
-                    >
-                      {NOTE_CATEGORIES.map((c) => (
-                        <option key={c.value} value={c.value}>
-                          {c.label}
-                        </option>
-                      ))}
-                    </select>
+                      options={NOTE_CATEGORIES}
+                      onChange={(v) => setNoteCategory(v)}
+                    />
                   </div>
                 </div>
                 <div className="mb-5">
@@ -598,51 +594,38 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
                 style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 480 }}
               >
                 <div className="mb-5" style={{ margin: 0 }}>
-                  <label htmlFor="endorse-skill">Skill</label>
-                  <select
+                  <FilterDropdown
                     id="endorse-skill"
+                    label="Skill"
+                    ariaLabel="Skill"
                     value={endorseSkillId}
-                    onChange={(e) => setEndorseSkillId(e.target.value)}
-                    required
-                    style={{ width: '100%' }}
-                  >
-                    <option value="">Select skill…</option>
-                    {flatSkills.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name} ({s.category_name})
-                      </option>
-                    ))}
-                  </select>
+                    options={[
+                      { value: '', label: 'Select skill…' },
+                      ...flatSkills.map((s) => ({ value: String(s.id), label: `${s.name} (${s.category_name})` })),
+                    ]}
+                    onChange={(v) => setEndorseSkillId(v)}
+                    searchable
+                  />
                 </div>
                 <div className="mb-5" style={{ margin: 0 }}>
-                  <label htmlFor="endorse-rating">Rating</label>
-                  <select
+                  <FilterDropdown
                     id="endorse-rating"
+                    label="Rating"
+                    ariaLabel="Rating"
                     value={endorseRating}
-                    onChange={(e) => setEndorseRating(e.target.value)}
-                    style={{ width: '100%' }}
-                  >
-                    {RATING_OPTIONS.map((r) => (
-                      <option key={r.value} value={r.value}>
-                        {r.label}
-                      </option>
-                    ))}
-                  </select>
+                    options={RATING_OPTIONS}
+                    onChange={(v) => setEndorseRating(v)}
+                  />
                 </div>
                 <div className="mb-5" style={{ margin: 0 }}>
-                  <label htmlFor="endorse-based-on">Based On</label>
-                  <select
+                  <FilterDropdown
                     id="endorse-based-on"
+                    label="Based On"
+                    ariaLabel="Based On"
                     value={endorseBasedOn}
-                    onChange={(e) => setEndorseBasedOn(e.target.value)}
-                    style={{ width: '100%' }}
-                  >
-                    {BASED_ON_OPTIONS.map((b) => (
-                      <option key={b.value} value={b.value}>
-                        {b.label}
-                      </option>
-                    ))}
-                  </select>
+                    options={BASED_ON_OPTIONS}
+                    onChange={(v) => setEndorseBasedOn(v)}
+                  />
                 </div>
                 <div>
                   <Button type="submit" variant="secondary" disabled={submitting}>

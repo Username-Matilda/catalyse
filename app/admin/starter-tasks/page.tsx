@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/components/Header'
 import Button from '@/components/Button'
+import FilterDropdown from '@/components/FilterDropdown'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
 import { useToast } from '@/lib/toast'
@@ -280,21 +281,21 @@ export default function AdminStarterTasksPage() {
         </p>
 
         <div className="mb-6" style={{ maxWidth: 240 }}>
-          <label htmlFor="status-filter" className="text-sm text-text-light block mb-1">
-            Status
-          </label>
-          <select
+          <FilterDropdown
             id="status-filter"
+            label="Status"
+            ariaLabel="Status"
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="">All</option>
-            <option value="open">Open</option>
-            <option value="assigned">Assigned</option>
-            <option value="submitted">Submitted (needs review)</option>
-            <option value="reviewed">Reviewed</option>
-            <option value="completed">Completed</option>
-          </select>
+            options={[
+              { value: '', label: 'All' },
+              { value: 'open', label: 'Open' },
+              { value: 'assigned', label: 'Assigned' },
+              { value: 'submitted', label: 'Submitted (needs review)' },
+              { value: 'reviewed', label: 'Reviewed' },
+              { value: 'completed', label: 'Completed' },
+            ]}
+            onChange={(v) => setStatusFilter(v)}
+          />
         </div>
 
         {loadingData ? (
@@ -544,19 +545,18 @@ export default function AdminStarterTasksPage() {
                   className="mb-5"
                 >
                   <div>
-                    <label htmlFor="ct-skill">Skill Being Tested</label>
-                    <select
+                    <FilterDropdown
                       id="ct-skill"
+                      label="Skill Being Tested"
+                      ariaLabel="Skill Being Tested"
                       value={createSkillId}
-                      onChange={(e) => setCreateSkillId(e.target.value)}
-                    >
-                      <option value="">None specific</option>
-                      {skills.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name} ({s.category_name})
-                        </option>
-                      ))}
-                    </select>
+                      options={[
+                        { value: '', label: 'None specific' },
+                        ...skills.map((s) => ({ value: String(s.id), label: `${s.name} (${s.category_name})` })),
+                      ]}
+                      onChange={(v) => setCreateSkillId(v)}
+                      searchable
+                    />
                   </div>
                   <div>
                     <label htmlFor="ct-hours">Estimated Hours</label>
@@ -630,19 +630,18 @@ export default function AdminStarterTasksPage() {
                   className="mb-5"
                 >
                   <div>
-                    <label htmlFor="et-skill">Skill Being Tested</label>
-                    <select
+                    <FilterDropdown
                       id="et-skill"
+                      label="Skill Being Tested"
+                      ariaLabel="Skill Being Tested"
                       value={editSkillId}
-                      onChange={(e) => setEditSkillId(e.target.value)}
-                    >
-                      <option value="">None specific</option>
-                      {skills.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name} ({s.category_name})
-                        </option>
-                      ))}
-                    </select>
+                      options={[
+                        { value: '', label: 'None specific' },
+                        ...skills.map((s) => ({ value: String(s.id), label: `${s.name} (${s.category_name})` })),
+                      ]}
+                      onChange={(v) => setEditSkillId(v)}
+                      searchable
+                    />
                   </div>
                   <div>
                     <label htmlFor="et-hours">Estimated Hours</label>
@@ -691,20 +690,18 @@ export default function AdminStarterTasksPage() {
               <p className="text-text-light mb-4">{assignModal.title}</p>
               <form onSubmit={assignTask}>
                 <div className="mb-5">
-                  <label htmlFor="assign-vol">Volunteer</label>
-                  <select
+                  <FilterDropdown
                     id="assign-vol"
+                    label="Volunteer"
+                    ariaLabel="Volunteer"
                     value={assignVolunteerId}
-                    onChange={(e) => setAssignVolunteerId(e.target.value)}
-                    required
-                  >
-                    <option value="">Select volunteer…</option>
-                    {volunteers.map((v) => (
-                      <option key={v.id} value={v.id}>
-                        {v.name}
-                      </option>
-                    ))}
-                  </select>
+                    options={[
+                      { value: '', label: 'Select volunteer…' },
+                      ...volunteers.map((v) => ({ value: String(v.id), label: v.name })),
+                    ]}
+                    onChange={(v) => setAssignVolunteerId(v)}
+                    searchable
+                  />
                 </div>
                 <div className="px-0 py-4 border-t border-brand-border flex gap-3 justify-end">
                   <Button type="button" variant="secondary" onClick={() => setAssignModal(null)}>

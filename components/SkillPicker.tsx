@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { apiRequest } from '@/lib/api'
+import FilterDropdown from '@/components/FilterDropdown'
 
 interface Skill {
   id: number
@@ -80,15 +81,18 @@ export default function SkillPicker({
                     {skill.name}
                   </label>
                   {showProficiency && selected && (
-                    <select
+                    <FilterDropdown
+                      id={`proficiency-${skill.id}`}
+                      label="Proficiency"
+                      ariaLabel="Proficiency"
                       value={selected.proficiencyLevel}
-                      onChange={(e) => setProficiency(skill.id, e.target.value)}
-                      style={{ fontSize: '0.75rem', padding: '2px 6px' }}
-                    >
-                      <option value="beginner">Beginner</option>
-                      <option value="intermediate">Intermediate</option>
-                      <option value="expert">Expert</option>
-                    </select>
+                      options={[
+                        { value: 'beginner', label: 'Beginner' },
+                        { value: 'intermediate', label: 'Intermediate' },
+                        { value: 'expert', label: 'Expert' },
+                      ]}
+                      onChange={(v) => setProficiency(skill.id, v)}
+                    />
                   )}
                 </div>
               )

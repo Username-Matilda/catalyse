@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/components/Header'
 import Button from '@/components/Button'
+import FilterDropdown from '@/components/FilterDropdown'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
 import { useToast } from '@/lib/toast'
@@ -790,19 +791,14 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             <h2>Manage Project Status</h2>
             <form onSubmit={handleUpdateStatus} className="flex gap-2 items-end flex-wrap">
               <div className="mb-0 flex-1" style={{ minWidth: 160 }}>
-                <label htmlFor="change-status">Change Status</label>
-                <select
+                <FilterDropdown
                   id="change-status"
-                  aria-label="Change Status"
+                  label="Change Status"
+                  ariaLabel="Change Status"
                   value={newStatus}
-                  onChange={(e) => setNewStatus(e.target.value)}
-                >
-                  {statusOptions.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
+                  options={statusOptions}
+                  onChange={(v) => setNewStatus(v)}
+                />
               </div>
               <Button type="submit" disabled={statusSubmitting}>
                 {statusSubmitting ? 'Updating…' : 'Update Status'}
@@ -864,20 +860,18 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             {volunteers.length > 0 && (
               <form onSubmit={handleAssign} className="flex gap-2 items-end flex-wrap mt-4">
                 <div className="flex-1" style={{ minWidth: 200 }}>
-                  <label htmlFor="assign-volunteer">Assign volunteer directly</label>
-                  <select
+                  <FilterDropdown
                     id="assign-volunteer"
-                    aria-label="Volunteer to assign"
+                    label="Assign volunteer directly"
+                    ariaLabel="Volunteer to assign"
                     value={assignTo}
-                    onChange={(e) => setAssignTo(e.target.value)}
-                  >
-                    <option value="">— Select volunteer —</option>
-                    {volunteers.map((v) => (
-                      <option key={v.id} value={v.id}>
-                        {v.name}
-                      </option>
-                    ))}
-                  </select>
+                    options={[
+                      { value: '', label: '— Select volunteer —' },
+                      ...volunteers.map((v) => ({ value: String(v.id), label: v.name })),
+                    ]}
+                    onChange={(v) => setAssignTo(v)}
+                    searchable
+                  />
                 </div>
                 <Button type="submit" disabled={!assignTo || assignSubmitting}>
                   {assignSubmitting ? 'Assigning…' : 'Assign'}
@@ -893,20 +887,18 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             <h3>Transfer Ownership</h3>
             <form onSubmit={handleTransfer} className="flex gap-2 items-end flex-wrap">
               <div className="flex-1" style={{ minWidth: 200 }}>
-                <label htmlFor="transfer-to">Transfer to</label>
-                <select
+                <FilterDropdown
                   id="transfer-to"
-                  aria-label="Transfer to"
+                  label="Transfer to"
+                  ariaLabel="Transfer to"
                   value={transferTo}
-                  onChange={(e) => setTransferTo(e.target.value)}
-                >
-                  <option value="">— Select volunteer —</option>
-                  {volunteers.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.name}
-                    </option>
-                  ))}
-                </select>
+                  options={[
+                    { value: '', label: '— Select volunteer —' },
+                    ...volunteers.map((v) => ({ value: String(v.id), label: v.name })),
+                  ]}
+                  onChange={(v) => setTransferTo(v)}
+                  searchable
+                />
               </div>
               <Button type="submit" disabled={!transferTo || transferSubmitting}>
                 {transferSubmitting ? 'Transferring…' : 'Transfer'}
@@ -921,20 +913,20 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             <h2>Record Project Outcome</h2>
             <form onSubmit={handleRecordOutcome}>
               <div className="mb-5">
-                <label htmlFor="outcome-select">Outcome</label>
-                <select
+                <FilterDropdown
                   id="outcome-select"
-                  aria-label="Outcome"
+                  label="Outcome"
+                  ariaLabel="Outcome"
                   value={outcomeValue}
-                  onChange={(e) => setOutcomeValue(e.target.value)}
-                  required
-                >
-                  <option value="">— Select outcome —</option>
-                  <option value="successful">Successful</option>
-                  <option value="partial">Partial</option>
-                  <option value="not_completed">Not Completed</option>
-                  <option value="ongoing">Ongoing</option>
-                </select>
+                  options={[
+                    { value: '', label: '— Select outcome —' },
+                    { value: 'successful', label: 'Successful' },
+                    { value: 'partial', label: 'Partial' },
+                    { value: 'not_completed', label: 'Not Completed' },
+                    { value: 'ongoing', label: 'Ongoing' },
+                  ]}
+                  onChange={(v) => setOutcomeValue(v)}
+                />
               </div>
               <div className="mb-5">
                 <label htmlFor="outcome-notes">Outcome Notes</label>
