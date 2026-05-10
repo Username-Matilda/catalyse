@@ -1,13 +1,14 @@
 import { test, expect } from '../fixtures';
 import { openBugReportForm, fillAndSubmitBugReport } from '../actions/bugs';
 import { goToDashboardNotifications } from '../actions/dashboard';
+import { fake } from '../fake';
 
 test.describe('Bug Reporting', () => {
   test('Logged-in volunteer submits a bug report; admin receives a notification', async ({ adminPage, volunteer, baseUrl }) => {
     test.setTimeout(60_000);
-    const title = `E2E Bug Report ${Date.now()}`;
+    const title = fake.bugTitle();
 
-    await volunteer.page.goto(`${baseUrl}/static/dashboard.html`);
+    await volunteer.page.goto(`${baseUrl}/dashboard`);
     await expect(volunteer.page.getByRole('heading', { name: /Welcome back/ })).toBeVisible({ timeout: 10_000 });
 
     await openBugReportForm(volunteer.page);
@@ -31,11 +32,11 @@ test.describe('Bug Reporting', () => {
     const context = await browser.newContext();
     const page = await context.newPage();
     try {
-      await page.goto(`${baseUrl}/static/index.html`);
+      await page.goto(`${baseUrl}/`);
 
       await openBugReportForm(page);
       await fillAndSubmitBugReport(page, {
-        title: `E2E Anon Bug ${Date.now()}`,
+        title: fake.bugTitle(),
         description: 'Anonymous bug report with an email address provided',
         email: 'anon-reporter@example.com',
       });
@@ -51,11 +52,11 @@ test.describe('Bug Reporting', () => {
     const context = await browser.newContext();
     const page = await context.newPage();
     try {
-      await page.goto(`${baseUrl}/static/index.html`);
+      await page.goto(`${baseUrl}/`);
 
       await openBugReportForm(page);
       await fillAndSubmitBugReport(page, {
-        title: `E2E Anon No Email ${Date.now()}`,
+        title: fake.bugTitle(),
         description: 'Anonymous bug report without an email address',
       });
 
@@ -67,7 +68,7 @@ test.describe('Bug Reporting', () => {
   });
 
   test('Bug report submission fails with a too-short description', async ({ volunteer, baseUrl }) => {
-    await volunteer.page.goto(`${baseUrl}/static/dashboard.html`);
+    await volunteer.page.goto(`${baseUrl}/dashboard`);
     await expect(volunteer.page.getByRole('heading', { name: /Welcome back/ })).toBeVisible({ timeout: 10_000 });
 
     await openBugReportForm(volunteer.page);
@@ -76,6 +77,7 @@ test.describe('Bug Reporting', () => {
       description: 'too short', // 9 characters — below the API minimum of 10
     });
 
-    await expect(volunteer.page.locator('.toast-error')).toBeVisible({ timeout: 10_000 });
+    const dialog = volunteer.page.getByRole('dialog', { name: 'Report an Issue' });
+    await expect(dialog.locator('[aria-invalid="true"]')).toBeVisible({ timeout: 10_000 });
   });
 });

@@ -15,6 +15,8 @@ from pathlib import Path
 from typing import Optional, List, Dict, Any
 from contextlib import contextmanager
 
+import httpx
+
 from fastapi import FastAPI, HTTPException, Depends, Header, Query, Response, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
@@ -1130,8 +1132,8 @@ def forgot_password(data: ForgotPasswordRequest) -> Dict:
 
     result = {"message": "If an account exists with this email, you'll receive a reset link."}
 
-    # In dev mode (no email configured), include token for testing
-    if not is_email_configured():
+    # In dev/test mode (no real email sending), include token for testing
+    if not is_real_email_sending():
         result["_dev_reset_token"] = reset_token
         result["_dev_reset_url"] = f"/static/reset-password.html?token={reset_token}"
         result["_dev_note"] = "Email not configured. Set RESEND_API_KEY to enable."
@@ -3973,34 +3975,31 @@ def send_contact_message(
         if project:
             project_title = project["title"]
 
-    # TODO: The message/notification is only created if email succeeds, meaning it
-    # fails entirely in environments without RESEND_API_KEY configured (e.g. local
-    # dev and the e2e test suite). Consider saving to contact_messages and creating
-    # the notification unconditionally, then treating email as best-effort delivery.
-
-    # Send via email relay
-    email_sent = send_relay_message(
-        to=recipient["email"],
-        to_name=recipient["name"],
-        from_name=sender["name"],
-        from_email=sender["email"],
-        subject=data.subject,
-        message=data.message,
-        project_title=project_title
-    )
-
-    if not email_sent:
-        if not is_email_configured():
-            raise HTTPException(status_code=503, detail="Email service is not configured. Contact an admin for help.")
-        raise HTTPException(status_code=500, detail="Failed to send message. Please try again later.")
-
-    # Create notification for recipient
+    # Save message and create notification unconditionally; treat email as best-effort delivery.
     with db_transaction() as conn:
+        conn.execute(
+            """INSERT INTO contact_messages
+               (from_volunteer_id, to_volunteer_id, subject, message, related_project_id)
+               VALUES (?, ?, ?, ?, ?)""",
+            (sender["id"], volunteer_id, data.subject, data.message, data.related_project_id)
+        )
         create_notification(
             conn, volunteer_id, "message_received",
             f"Message from {sender['name']}",
             data.subject,
             "/static/dashboard.html"
+        )
+
+    # Send via email relay (best-effort; message already saved above)
+    if is_email_configured():
+        send_relay_message(
+            to=recipient["email"],
+            to_name=recipient["name"],
+            from_name=sender["name"],
+            from_email=sender["email"],
+            subject=data.subject,
+            message=data.message,
+            project_title=project_title
         )
 
     return {"message": "Message sent! They'll receive it by email and can reply directly to you."}
@@ -4256,6 +4255,49 @@ def get_dashboard(volunteer: Dict = Depends(require_auth)) -> Dict:
         "suggested_projects": suggested,
         "unread_notification_count": unread_count
     }
+
+
+# ============================================
+# NEXT.JS PROXY
+# ============================================
+
+_NEXT_INTERNAL_PORT = 3000
+_HOP_BY_HOP = {"connection", "transfer-encoding", "upgrade", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailers", "content-encoding"}
+
+
+async def _proxy_to_next(request: Request, next_path: str):
+    url = f"http://localhost:{_NEXT_INTERNAL_PORT}{next_path}"
+    if request.url.query:
+        url += f"?{request.url.query}"
+
+    req_headers = {k: v for k, v in request.headers.items() if k.lower() not in _HOP_BY_HOP}
+
+    try:
+        async with httpx.AsyncClient(follow_redirects=True) as client:
+            resp = await client.request(
+                method=request.method,
+                url=url,
+                headers=req_headers,
+                content=await request.body(),
+                timeout=30.0,
+            )
+    except httpx.ConnectError:
+        return Response(content="Next.js is starting up, please retry shortly.", status_code=503)
+
+    resp_headers = {k: v for k, v in resp.headers.items() if k.lower() not in _HOP_BY_HOP}
+    return Response(content=resp.content, status_code=resp.status_code, headers=resp_headers)
+
+
+@app.api_route("/next", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
+async def proxy_next_root(request: Request):
+    """Proxy /next (no trailing slash) to Next.js — avoids FastAPI 307 → Next.js 308 loop."""
+    return await _proxy_to_next(request, "/next")
+
+
+@app.api_route("/next/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
+async def proxy_next(request: Request, path: str):
+    """Proxy all /next/* requests to the Next.js process on the internal port."""
+    return await _proxy_to_next(request, f"/next/{path}")
 
 
 # ============================================

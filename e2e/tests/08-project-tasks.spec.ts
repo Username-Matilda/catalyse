@@ -1,4 +1,5 @@
-import { test, expect } from '../fixtures';
+import { test, expect, getAlert } from '../fixtures';
+import { fake } from '../fake';
 import {
   proposeProject,
   adminCreateProject,
@@ -12,7 +13,7 @@ async function setupInProgressProject(
   adminPage: Page,
   volunteer: { page: Page; name: string }
 ): Promise<number> {
-  const title = `E2E Tasks ${Date.now()}`;
+  const title = fake.projectTitle();
   const id = await proposeProject(baseUrl, volunteer.page, title, 'Setup for task scenarios');
   await adminApproveProject(baseUrl, adminPage, title);
   return id;
@@ -23,7 +24,7 @@ test.describe('Project Tasks', () => {
     await adminCreateProject(
       baseUrl,
       adminPage,
-      `E2E Task Promote ${Date.now()}`,
+      fake.projectTitle(),
       'Project for auto-promotion test'
     );
 
@@ -32,7 +33,7 @@ test.describe('Project Tasks', () => {
     await adminPage.getByRole('button', { name: 'Add Task' }).click();
     await adminPage.getByLabel('Task title').fill('First task');
     await adminPage.getByRole('button', { name: 'Create Task' }).click();
-    await expect(adminPage.getByRole('alert')).toContainText('Task added!', { timeout: 10_000 });
+    await expect(getAlert(adminPage)).toContainText('Task added!', { timeout: 10_000 });
 
     await expect(adminPage.getByLabel('project status')).toContainText('In Progress', { timeout: 10_000 });
   });
@@ -40,12 +41,12 @@ test.describe('Project Tasks', () => {
   test('A volunteer can claim an open task', async ({ adminPage, volunteer, baseUrl }) => {
     const projectId = await setupInProgressProject(baseUrl, adminPage, volunteer);
 
-    await volunteer.page.goto(`${baseUrl}/static/project.html?id=${projectId}`);
+    await volunteer.page.goto(`${baseUrl}/projects/${projectId}`);
     await expect(volunteer.page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 });
 
     await expect(volunteer.page.getByRole('button', { name: 'Claim' })).toBeVisible({ timeout: 10_000 });
     await volunteer.page.getByRole('button', { name: 'Claim' }).click();
-    await expect(volunteer.page.getByRole('alert')).toContainText('Task claimed!', { timeout: 10_000 });
+    await expect(getAlert(volunteer.page)).toContainText('Task claimed!', { timeout: 10_000 });
 
     // Done button appears only for the assignee — confirms task is now assigned to this volunteer
     await expect(volunteer.page.getByRole('button', { name: 'Done' })).toBeVisible({ timeout: 10_000 });
@@ -54,14 +55,14 @@ test.describe('Project Tasks', () => {
   test('A volunteer can mark their claimed task as done', async ({ adminPage, volunteer, baseUrl }) => {
     const projectId = await setupInProgressProject(baseUrl, adminPage, volunteer);
 
-    await volunteer.page.goto(`${baseUrl}/static/project.html?id=${projectId}`);
+    await volunteer.page.goto(`${baseUrl}/projects/${projectId}`);
     await expect(volunteer.page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 });
 
     await volunteer.page.getByRole('button', { name: 'Claim' }).click();
-    await expect(volunteer.page.getByRole('alert')).toContainText('Task claimed!', { timeout: 10_000 });
+    await expect(getAlert(volunteer.page)).toContainText('Task claimed!', { timeout: 10_000 });
 
     await volunteer.page.getByRole('button', { name: 'Done' }).click();
-    await expect(volunteer.page.getByRole('alert')).toContainText('Task completed!', { timeout: 10_000 });
+    await expect(getAlert(volunteer.page)).toContainText('Task completed!', { timeout: 10_000 });
 
     await expect(volunteer.page.getByRole('button', { name: 'Done' })).not.toBeVisible({ timeout: 10_000 });
     await expect(volunteer.page.getByText('done', { exact: true })).toBeVisible({ timeout: 10_000 });
@@ -72,19 +73,19 @@ test.describe('Project Tasks', () => {
     await adminCreateProject(
       baseUrl,
       adminPage,
-      `E2E Delete Task ${Date.now()}`,
+      fake.projectTitle(),
       'Project for task deletion test'
     );
 
     await adminPage.getByRole('button', { name: 'Add Task' }).click();
     await adminPage.getByLabel('Task title').fill('Task to delete');
     await adminPage.getByRole('button', { name: 'Create Task' }).click();
-    await expect(adminPage.getByRole('alert')).toContainText('Task added!', { timeout: 10_000 });
+    await expect(getAlert(adminPage)).toContainText('Task added!', { timeout: 10_000 });
 
     adminPage.once('dialog', dialog => dialog.accept());
     await adminPage.getByRole('button', { name: 'Delete task' }).click();
 
-    await expect(adminPage.getByRole('alert')).toContainText('Task deleted!', { timeout: 10_000 });
+    await expect(getAlert(adminPage)).toContainText('Task deleted!', { timeout: 10_000 });
     await expect(adminPage.getByText('Task to delete')).not.toBeVisible({ timeout: 10_000 });
   });
 });

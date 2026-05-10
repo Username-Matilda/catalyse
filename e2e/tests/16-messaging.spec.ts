@@ -1,21 +1,19 @@
-import { test, expect } from '../fixtures';
-import crypto from 'crypto';
+import { test, expect, getAlert } from '../fixtures';
 import { adminCreateProject, transferProjectOwnership } from '../actions/projects';
+import { fake } from '../fake';
 
 test.describe('Messaging', () => {
   test('Volunteer sends a contact message to another volunteer', async ({ adminPage, volunteer, browser, baseUrl }) => {
-    const ts = Date.now();
-    const subject = `E2E Subject ${ts}`;
-    const body = `E2E message body ${ts}`;
+    const subject = fake.messageSubject();
+    const body = fake.messageBody();
 
-    const projectId = await adminCreateProject(baseUrl, adminPage, `E2E Contact ${ts}`, 'Project for contact test');
+    const projectId = await adminCreateProject(baseUrl, adminPage, fake.projectTitle(), 'Project for contact test');
     await transferProjectOwnership(baseUrl, adminPage, projectId, volunteer.name);
 
-    const sid = crypto.randomBytes(4).toString('hex');
     const senderSignupResp = await fetch(`${baseUrl}/api/auth/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: `Msg Sender ${sid}`, email: `msgsender_${sid}@test.com`, password: 'testpassword1', consent_make_profile_visible_in_directory: true, consent_contactable_by_project_owners: true }),
+      body: JSON.stringify({ ...fake.person(), password: 'testpassword1', consent_make_profile_visible_in_directory: true, consent_contactable_by_project_owners: true }),
     });
     if (!senderSignupResp.ok) throw new Error(`Sender signup failed: ${await senderSignupResp.text()}`);
     const { auth_token: senderToken } = await senderSignupResp.json();
@@ -24,7 +22,7 @@ test.describe('Messaging', () => {
     const senderPage = await senderCtx.newPage();
 
     try {
-      await senderPage.goto(`${baseUrl}/static/project.html?id=${projectId}`);
+      await senderPage.goto(`${baseUrl}/projects/${projectId}`);
       await expect(senderPage.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 });
 
       await senderPage.getByRole('button', { name: 'Contact Owner' }).click();
@@ -38,7 +36,7 @@ test.describe('Messaging', () => {
       await dialog.getByLabel('Message').fill(body);
       await dialog.getByRole('button', { name: 'Send Message' }).click();
 
-      await expect(senderPage.getByRole('alert')).toContainText('Message sent', { timeout: 10_000 });
+      await expect(getAlert(senderPage)).toContainText('Message sent', { timeout: 10_000 });
     } finally {
       await senderCtx.close();
     }
@@ -46,24 +44,22 @@ test.describe('Messaging', () => {
 
   test('Recipient sees a message notification', async ({ adminPage, volunteer, browser, baseUrl }) => {
     test.setTimeout(60_000);
-    const ts = Date.now();
-    const subject = `E2E Notify Subject ${ts}`;
+    const subject = fake.messageSubject();
 
-    const projectId = await adminCreateProject(baseUrl, adminPage, `E2E Notify ${ts}`, 'Project for notification test');
+    const projectId = await adminCreateProject(baseUrl, adminPage, fake.projectTitle(), 'Project for notification test');
     await transferProjectOwnership(baseUrl, adminPage, projectId, volunteer.name);
 
     // Confirm the recipient starts with no unread notifications.
-    await volunteer.page.goto(`${baseUrl}/static/dashboard.html`);
+    await volunteer.page.goto(`${baseUrl}/dashboard`);
     await expect(volunteer.page.getByRole('heading', { name: /Welcome back/ })).toBeVisible({ timeout: 10_000 });
-    const notifTab = volunteer.page.getByRole('button', { name: /^Notifications/ });
+    const notifTab = volunteer.page.getByRole('tab', { name: /^Notifications/ });
     await expect(notifTab.locator('.notification-badge')).not.toBeVisible();
 
     // Sender sends the message.
-    const sid = crypto.randomBytes(4).toString('hex');
     const senderSignupResp = await fetch(`${baseUrl}/api/auth/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: `Notif Sender ${sid}`, email: `notifsender_${sid}@test.com`, password: 'testpassword1', consent_make_profile_visible_in_directory: true, consent_contactable_by_project_owners: true }),
+      body: JSON.stringify({ ...fake.person(), password: 'testpassword1', consent_make_profile_visible_in_directory: true, consent_contactable_by_project_owners: true }),
     });
     if (!senderSignupResp.ok) throw new Error(`Sender signup failed: ${await senderSignupResp.text()}`);
     const { auth_token: senderToken } = await senderSignupResp.json();
@@ -72,7 +68,7 @@ test.describe('Messaging', () => {
     const senderPage = await senderCtx.newPage();
 
     try {
-      await senderPage.goto(`${baseUrl}/static/project.html?id=${projectId}`);
+      await senderPage.goto(`${baseUrl}/projects/${projectId}`);
       await expect(senderPage.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 });
       await senderPage.getByRole('button', { name: 'Contact Owner' }).click();
       const dialog = senderPage.getByRole('dialog');
@@ -80,15 +76,15 @@ test.describe('Messaging', () => {
       await dialog.getByLabel('Subject').fill(subject);
       await dialog.getByLabel('Message').fill('Notification test body');
       await dialog.getByRole('button', { name: 'Send Message' }).click();
-      await expect(senderPage.getByRole('alert')).toContainText('Message sent', { timeout: 10_000 });
+      await expect(getAlert(senderPage)).toContainText('Message sent', { timeout: 10_000 });
     } finally {
       await senderCtx.close();
     }
 
     // Recipient refreshes the dashboard — the notification badge now shows 1.
-    await volunteer.page.goto(`${baseUrl}/static/dashboard.html`);
+    await volunteer.page.goto(`${baseUrl}/dashboard`);
     await expect(volunteer.page.getByRole('heading', { name: /Welcome back/ })).toBeVisible({ timeout: 10_000 });
-    const notifTabAfter = volunteer.page.getByRole('button', { name: /^Notifications/ });
+    const notifTabAfter = volunteer.page.getByRole('tab', { name: /^Notifications/ });
     await expect(notifTabAfter.locator('.notification-badge')).toBeVisible({ timeout: 10_000 });
     await expect(notifTabAfter.locator('.notification-badge')).toContainText('1');
 
@@ -96,7 +92,7 @@ test.describe('Messaging', () => {
     await expect(volunteer.page.getByText(/Message from /)).toBeVisible({ timeout: 10_000 });
     await expect(volunteer.page.getByText(subject)).toBeVisible({ timeout: 10_000 });
     const viewLink = volunteer.page.getByRole('link', { name: 'View' }).first();
-    await expect(viewLink).toHaveAttribute('href', '/static/dashboard.html');
+    await expect(viewLink).toHaveAttribute('href', '/dashboard');
   });
 
   test.skip('Both parties see the message in their history', async () => {

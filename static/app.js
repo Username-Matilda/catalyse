@@ -1,5 +1,19 @@
 // Catalyse - Shared JavaScript Utilities
 
+// During the strangler fig migration, auth and skills routes live on Next.js running on a
+// separate port. Derive that port from the current page's port:
+//   FastAPI dev  (8001) → Next.js dev  (3001)
+//   FastAPI test (8002+) → Next.js test (port - 4000, e.g. 8002 → 4002)
+// In production Next.js serves everything, so relative URLs work (BASE = '').
+const AUTH_BASE_URL = (() => {
+    const p = parseInt(location.port || '0');
+    if (p >= 8002 && p <= 8099) return `http://localhost:${p - 4000}`;
+    return '';
+})();
+const SKILLS_BASE_URL = AUTH_BASE_URL;
+const PROJECTS_BASE_URL = AUTH_BASE_URL;
+const STARTER_TASKS_BASE_URL = AUTH_BASE_URL;
+
 // Apply dark mode immediately to prevent flash
 (function() {
     const saved = localStorage.getItem('theme');
@@ -339,7 +353,7 @@ function showMessage(text, type, containerId = 'messageDiv') {
 
 // Skills rendering
 async function loadSkills() {
-    return apiRequest('/api/skills');
+    return apiRequest(`${SKILLS_BASE_URL}/api/skills`);
 }
 
 function renderSkillSelector(containerId, selectedIds = [], onChangeCallback = null) {
@@ -405,7 +419,7 @@ async function getCurrentUser() {
     if (!token) return null;
 
     try {
-        return await apiRequest('/api/auth/me');
+        return await apiRequest(`${AUTH_BASE_URL}/api/auth/me`);
     } catch (e) {
         localStorage.removeItem('authToken');
         return null;
@@ -592,7 +606,7 @@ async function logout() {
     const token = localStorage.getItem('authToken');
     if (token) {
         try {
-            await fetch('/api/auth/logout', {
+            await fetch(`${AUTH_BASE_URL}/api/auth/logout`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             });

@@ -1,5 +1,5 @@
-import crypto from 'crypto';
-import { test, expect } from '../fixtures';
+import { test, expect, getAlert } from '../fixtures';
+import { fake } from '../fake';
 import { ADMIN_EMAIL } from '../config';
 import { signup } from '../actions/auth';
 import { Page } from '@playwright/test';
@@ -34,16 +34,15 @@ async function getMe(page: Page): Promise<{ id: number; is_admin: boolean }> {
 
 test.describe('Admin: Admin Team Management', () => {
   test('Admin views the list of current admins', async ({ adminPage, baseUrl }) => {
-    await adminPage.goto(`${baseUrl}/static/admin/team.html`);
+    await adminPage.goto(`${baseUrl}/admin/team`);
     const adminList = adminPage.locator('#adminList');
     await expect(adminList).toContainText(ADMIN_EMAIL, { timeout: 10_000 });
   });
 
   test('Admin invites a new admin by email', async ({ adminPage, baseUrl }) => {
-    const id = crypto.randomBytes(4).toString('hex');
-    const inviteEmail = `invite_${id}@test.com`;
+    const inviteEmail = fake.uniqueEmail();
 
-    await adminPage.goto(`${baseUrl}/static/admin/team.html`);
+    await adminPage.goto(`${baseUrl}/admin/team`);
     await expect(adminPage.getByRole('button', { name: 'Invite Admin' })).toBeVisible({ timeout: 10_000 });
 
     await adminPage.getByRole('button', { name: 'Invite Admin' }).click();
@@ -56,47 +55,44 @@ test.describe('Admin: Admin Team Management', () => {
   });
 
   test('Admin views pending invites', async ({ adminPage, baseUrl }) => {
-    const id = crypto.randomBytes(4).toString('hex');
-    const inviteEmail = `invite_${id}@test.com`;
+    const inviteEmail = fake.uniqueEmail();
 
-    await adminPage.goto(`${baseUrl}/static/admin/team.html`);
+    await adminPage.goto(`${baseUrl}/admin/team`);
     await createAdminInvite(adminPage, inviteEmail);
 
-    await adminPage.goto(`${baseUrl}/static/admin/team.html`);
-    await adminPage.getByRole('button', { name: 'Pending Invites' }).click();
+    await adminPage.goto(`${baseUrl}/admin/team`);
+    await adminPage.getByRole('tab', { name: 'Pending Invites' }).click();
 
     await expect(adminPage.locator('#inviteList')).toContainText(inviteEmail, { timeout: 10_000 });
   });
 
   test('Admin revokes a pending invite', async ({ adminPage, baseUrl }) => {
-    const id = crypto.randomBytes(4).toString('hex');
-    const inviteEmail = `invite_${id}@test.com`;
+    const inviteEmail = fake.uniqueEmail();
 
-    await adminPage.goto(`${baseUrl}/static/admin/team.html`);
+    await adminPage.goto(`${baseUrl}/admin/team`);
     await createAdminInvite(adminPage, inviteEmail);
 
-    await adminPage.goto(`${baseUrl}/static/admin/team.html`);
-    await adminPage.getByRole('button', { name: 'Pending Invites' }).click();
+    await adminPage.goto(`${baseUrl}/admin/team`);
+    await adminPage.getByRole('tab', { name: 'Pending Invites' }).click();
 
     const inviteCard = adminPage.locator('#inviteList .card').filter({ hasText: inviteEmail });
     await expect(inviteCard).toBeVisible({ timeout: 10_000 });
     await inviteCard.getByRole('button', { name: 'Cancel' }).click();
 
-    await expect(adminPage.getByRole('alert')).toContainText('Invite cancelled', { timeout: 10_000 });
+    await expect(getAlert(adminPage)).toContainText('Invite cancelled', { timeout: 10_000 });
     await expect(inviteCard).not.toBeVisible({ timeout: 10_000 });
   });
 
   test('New user accepts an admin invite link', async ({ adminPage, browser, baseUrl }) => {
-    const id = crypto.randomBytes(4).toString('hex');
-    const inviteEmail = `new_admin_${id}@test.com`;
+    const person = fake.person();
 
-    await adminPage.goto(`${baseUrl}/static/admin/team.html`);
-    const token = await createAdminInvite(adminPage, inviteEmail);
+    await adminPage.goto(`${baseUrl}/admin/team`);
+    const token = await createAdminInvite(adminPage, person.email);
 
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
     try {
-      await page.goto(`${baseUrl}/static/accept-invite.html?token=${token}`);
+      await page.goto(`${baseUrl}/accept-invite?token=${token}`);
       await expect(page.getByRole('heading', { name: 'Admin Invite' })).toBeVisible({ timeout: 10_000 });
 
       // Clear the pending invite token stored by accept-invite.html so signup
@@ -104,7 +100,7 @@ test.describe('Admin: Admin Team Management', () => {
       await page.evaluate(() => localStorage.removeItem('pendingAdminInvite'));
 
       // Signing up with the invited email auto-accepts the invite server-side
-      await signup(baseUrl, page, `New Admin ${id}`, inviteEmail, 'testpassword1');
+      await signup(baseUrl, page, person.name, person.email, 'testpassword1');
 
       const me = await getMe(page);
       expect(me.is_admin).toBeTruthy();
@@ -114,10 +110,10 @@ test.describe('Admin: Admin Team Management', () => {
   });
 
   test('Existing user accepts an admin invite', async ({ adminPage, volunteer, baseUrl }) => {
-    await adminPage.goto(`${baseUrl}/static/admin/team.html`);
+    await adminPage.goto(`${baseUrl}/admin/team`);
     const token = await createAdminInvite(adminPage, volunteer.email);
 
-    await volunteer.page.goto(`${baseUrl}/static/accept-invite.html?token=${token}`);
+    await volunteer.page.goto(`${baseUrl}/accept-invite?token=${token}`);
     await expect(volunteer.page.getByRole('heading', { name: 'Welcome to the Team!' })).toBeVisible({ timeout: 10_000 });
 
     const me = await getMe(volunteer.page);
@@ -125,11 +121,11 @@ test.describe('Admin: Admin Team Management', () => {
   });
 
   test("Admin revokes another admin's access", async ({ adminPage, volunteer, baseUrl }) => {
-    await adminPage.goto(`${baseUrl}/static/admin/team.html`);
+    await adminPage.goto(`${baseUrl}/admin/team`);
     const token = await createAdminInvite(adminPage, volunteer.email);
 
     // Navigate to a real page first so the volunteer's localStorage is accessible
-    await volunteer.page.goto(`${baseUrl}/static/dashboard.html`);
+    await volunteer.page.goto(`${baseUrl}/dashboard`);
 
     // Accept invite as the volunteer directly via API
     await volunteer.page.evaluate(async (inviteToken: string) => {
@@ -142,14 +138,14 @@ test.describe('Admin: Admin Team Management', () => {
     }, token);
 
     // Reload team page to see updated admin list
-    await adminPage.goto(`${baseUrl}/static/admin/team.html`);
+    await adminPage.goto(`${baseUrl}/admin/team`);
     const adminCard = adminPage.locator('#adminList .card').filter({ hasText: volunteer.email });
     await expect(adminCard).toBeVisible({ timeout: 10_000 });
 
     adminPage.once('dialog', dialog => dialog.accept());
     await adminCard.getByRole('button', { name: 'Revoke Access' }).click();
 
-    await expect(adminPage.getByRole('alert')).toContainText('Admin access revoked', { timeout: 10_000 });
+    await expect(getAlert(adminPage)).toContainText('Admin access revoked', { timeout: 10_000 });
     await expect(adminCard).not.toBeVisible({ timeout: 10_000 });
 
     // Volunteer should no longer have admin access

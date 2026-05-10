@@ -156,7 +156,7 @@
 
         async function loadTriageQueue() {
             try {
-                const projects = await apiRequest('/api/admin/triage');
+                const projects = await apiRequest(`${PROJECTS_BASE_URL}/api/admin/triage`);
                 pendingProjects = projects.filter(p => p.status === 'pending_review');
                 discussionProjects = projects.filter(p => p.status === 'needs_discussion');
 
@@ -267,7 +267,7 @@
                         data.feedback_to_proposer = document.getElementById('feedback').value.trim() || null;
                     }
 
-                    await apiRequest(`/api/admin/projects/${projectId}/review`, {
+                    await apiRequest(`${PROJECTS_BASE_URL}/api/admin/projects/${projectId}/review`, {
                         method: 'POST',
                         body: JSON.stringify(data)
                     });
@@ -355,7 +355,7 @@
                 : null;
 
             try {
-                await apiRequest(`/api/projects/${projectId}/interest/${interestId}`, {
+                await apiRequest(`${PROJECTS_BASE_URL}/api/projects/${projectId}/interest/${interestId}`, {
                     method: 'PUT',
                     body: JSON.stringify({ status, response_message: message })
                 });

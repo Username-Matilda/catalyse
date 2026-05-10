@@ -1,10 +1,10 @@
-import crypto from 'crypto';
 import { readFileSync } from 'fs';
-import { test, expect } from '../fixtures';
+import { test, expect, getAlert } from '../fixtures';
+import { fake } from '../fake';
 
 test.describe('GDPR & Privacy', () => {
   test('Volunteer exports their personal data', async ({ volunteer, baseUrl }) => {
-    await volunteer.page.goto(`${baseUrl}/static/privacy.html`);
+    await volunteer.page.goto(`${baseUrl}/privacy`);
     await expect(
       volunteer.page.getByRole('heading', { name: 'Export Your Data' })
     ).toBeVisible({ timeout: 10_000 });
@@ -14,7 +14,7 @@ test.describe('GDPR & Privacy', () => {
       volunteer.page.getByRole('button', { name: 'Download My Data' }).click(),
     ]);
 
-    await expect(volunteer.page.getByRole('alert')).toContainText(
+    await expect(getAlert(volunteer.page)).toContainText(
       'Data exported successfully!',
       { timeout: 10_000 }
     );
@@ -31,17 +31,16 @@ test.describe('GDPR & Privacy', () => {
   });
 
   test('Volunteer with contact sharing disabled does not expose contact handles', async ({ volunteer, browser, baseUrl }) => {
-    const id = crypto.randomBytes(4).toString('hex');
-    const vol2Name = `Private Vol ${id}`;
-    const discordHandle = `privdiscord_${id}`;
-    const signalNumber = `+4400${id.slice(0, 6)}`;
-    const whatsappNumber = `+4500${id.slice(0, 6)}`;
+    const vol2 = fake.person();
+    const discordHandle = fake.username();
+    const signalNumber = fake.phoneNumber();
+    const whatsappNumber = fake.phoneNumber();
 
     const signupResp = await fetch(`${baseUrl}/api/auth/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        name: vol2Name, email: `privvol_${id}@test.com`, password: 'testpassword1',
+        name: vol2.name, email: vol2.email, password: 'testpassword1',
         consent_make_profile_visible_in_directory: true, consent_contactable_by_project_owners: true,
       }),
     });
@@ -52,7 +51,7 @@ test.describe('GDPR & Privacy', () => {
     const page2 = await ctx2.newPage();
 
     try {
-      await page2.goto(`${baseUrl}/static/profile.html`);
+      await page2.goto(`${baseUrl}/profile`);
       await expect(page2.getByLabel('Discord Handle')).toBeVisible({ timeout: 10_000 });
 
       await page2.getByLabel('Discord Handle').fill(discordHandle);
@@ -65,14 +64,14 @@ test.describe('GDPR & Privacy', () => {
       await expect(page2.getByLabel(/Share my contact info directly/)).not.toBeChecked();
 
       await page2.getByRole('button', { name: 'Save Changes' }).click();
-      await expect(page2.getByRole('alert')).toContainText('Profile updated!', { timeout: 10_000 });
+      await expect(getAlert(page2)).toContainText('Profile updated!', { timeout: 10_000 });
 
-      await volunteer.page.goto(`${baseUrl}/static/volunteers.html`);
-      await volunteer.page.getByLabel('Search').fill(vol2Name);
-      await volunteer.page.getByRole('link', { name: vol2Name }).click();
+      await volunteer.page.goto(`${baseUrl}/volunteers`);
+      await volunteer.page.getByLabel('Search').fill(vol2.name);
+      await volunteer.page.getByRole('link', { name: vol2.name }).click();
 
       await expect(
-        volunteer.page.getByRole('heading', { name: vol2Name, level: 1 })
+        volunteer.page.getByRole('heading', { name: vol2.name, level: 1 })
       ).toBeVisible({ timeout: 10_000 });
 
       await expect(volunteer.page.getByText(discordHandle)).not.toBeVisible();

@@ -8,17 +8,19 @@ export const ADMIN_EMAIL = 'admin@e2e-test.com';
 export const ADMIN_PASSWORD = 'adminpassword1';
 
 export const BASE_PORT = 8002;
+// Next.js workers run at BASE_PORT - 4000 (e.g. 8002 → 4002)
+export const NEXT_BASE_PORT = BASE_PORT - 4000;
 export const WORKER_COUNT = 4;
 
 export function workerBaseUrl(parallelIndex: number): string {
-  if (IS_LOCAL) return `http://localhost:${BASE_PORT + parallelIndex}`;
+  if (IS_LOCAL) return `http://localhost:${NEXT_BASE_PORT + parallelIndex}`;
   return _remoteBaseUrl!;
 }
 
 export function parallelIndexFromBaseUrl(baseUrl: string): number {
   if (!IS_LOCAL) return 0;
   const port = parseInt(new URL(baseUrl).port, 10);
-  return port - BASE_PORT;
+  return port - NEXT_BASE_PORT;
 }
 
 export function workerAuthFile(parallelIndex: number): string {

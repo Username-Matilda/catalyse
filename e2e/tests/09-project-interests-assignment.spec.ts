@@ -1,5 +1,6 @@
-import { test, expect } from '../fixtures';
+import { test, expect, getAlert } from '../fixtures';
 import { goToDashboardNotifications } from '../actions/dashboard';
+import { fake } from '../fake';
 import {
   proposeProject,
   adminApproveProject,
@@ -10,21 +11,21 @@ import { Page } from '@playwright/test';
 
 // Creates an org project that immediately accepts interest (is_seeking_help = true by default)
 async function setupSeekingProject(baseUrl: string, adminPage: Page): Promise<number> {
-  return adminCreateProject(baseUrl, adminPage, `E2E Interests ${Date.now()}`, 'Project seeking volunteers');
+  return adminCreateProject(baseUrl, adminPage, fake.projectTitle(), 'Project seeking volunteers');
 }
 
 test.describe('Project Interests and Assignment', () => {
   test('Volunteer expresses interest to contribute', async ({ adminPage, volunteer, baseUrl }) => {
     const projectId = await setupSeekingProject(baseUrl, adminPage);
 
-    await volunteer.page.goto(`${baseUrl}/static/project.html?id=${projectId}`);
+    await volunteer.page.goto(`${baseUrl}/projects/${projectId}`);
     await expect(volunteer.page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 });
 
     // want_to_contribute is selected by default; submit directly
     await expect(volunteer.page.getByRole('radio', { name: /I want to help out/ })).toBeChecked({ timeout: 10_000 });
     await volunteer.page.getByRole('button', { name: 'Express Interest' }).click();
 
-    await expect(volunteer.page.getByRole('alert')).toContainText('Interest expressed!', { timeout: 10_000 });
+    await expect(getAlert(volunteer.page)).toContainText('Interest expressed!', { timeout: 10_000 });
     await expect(volunteer.page.getByRole('button', { name: 'Express Interest' })).not.toBeVisible({ timeout: 10_000 });
     await expect(volunteer.page.getByLabel('interest status')).toContainText('pending', { timeout: 10_000 });
   });
@@ -32,13 +33,13 @@ test.describe('Project Interests and Assignment', () => {
   test('Volunteer expresses interest to own / lead', async ({ adminPage, volunteer, baseUrl }) => {
     const projectId = await setupSeekingProject(baseUrl, adminPage);
 
-    await volunteer.page.goto(`${baseUrl}/static/project.html?id=${projectId}`);
+    await volunteer.page.goto(`${baseUrl}/projects/${projectId}`);
     await expect(volunteer.page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 });
 
     await volunteer.page.getByRole('radio', { name: /I want to own/ }).click();
     await volunteer.page.getByRole('button', { name: 'Express Interest' }).click();
 
-    await expect(volunteer.page.getByRole('alert')).toContainText('Interest expressed!', { timeout: 10_000 });
+    await expect(getAlert(volunteer.page)).toContainText('Interest expressed!', { timeout: 10_000 });
     await expect(volunteer.page.getByLabel('interest status')).toContainText('pending', { timeout: 10_000 });
   });
 
@@ -46,18 +47,18 @@ test.describe('Project Interests and Assignment', () => {
     const projectId = await setupSeekingProject(baseUrl, adminPage);
 
     // Volunteer expresses interest
-    await volunteer.page.goto(`${baseUrl}/static/project.html?id=${projectId}`);
+    await volunteer.page.goto(`${baseUrl}/projects/${projectId}`);
     await expect(volunteer.page.getByRole('button', { name: 'Express Interest' })).toBeVisible({ timeout: 10_000 });
     await volunteer.page.getByRole('button', { name: 'Express Interest' }).click();
-    await expect(volunteer.page.getByRole('alert')).toContainText('Interest expressed!', { timeout: 10_000 });
+    await expect(getAlert(volunteer.page)).toContainText('Interest expressed!', { timeout: 10_000 });
 
     // Admin (managing the project) accepts the interest
-    await adminPage.goto(`${baseUrl}/static/project.html?id=${projectId}`);
+    await adminPage.goto(`${baseUrl}/projects/${projectId}`);
     await expect(adminPage.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 });
     const interestCard = adminPage.locator('.interest-card').filter({ hasText: volunteer.name });
     await expect(interestCard).toBeVisible({ timeout: 10_000 });
     await interestCard.getByRole('button', { name: 'Accept' }).click();
-    await expect(adminPage.getByRole('alert')).toContainText('Interest accepted', { timeout: 10_000 });
+    await expect(getAlert(adminPage)).toContainText('Interest accepted', { timeout: 10_000 });
 
     // Interest status updates to accepted
     await expect(adminPage.locator('.interest-card').filter({ hasText: volunteer.name })).toContainText('accepted', { timeout: 10_000 });
@@ -69,23 +70,23 @@ test.describe('Project Interests and Assignment', () => {
 
   test('Project owner declines a pending interest', async ({ adminPage, volunteer, baseUrl }) => {
     const projectId = await setupSeekingProject(baseUrl, adminPage);
-    const declineMessage = `Not the right fit ${Date.now()}`;
+    const declineMessage = fake.feedbackText();
 
     // Volunteer expresses interest
-    await volunteer.page.goto(`${baseUrl}/static/project.html?id=${projectId}`);
+    await volunteer.page.goto(`${baseUrl}/projects/${projectId}`);
     await expect(volunteer.page.getByRole('button', { name: 'Express Interest' })).toBeVisible({ timeout: 10_000 });
     await volunteer.page.getByRole('button', { name: 'Express Interest' }).click();
-    await expect(volunteer.page.getByRole('alert')).toContainText('Interest expressed!', { timeout: 10_000 });
+    await expect(getAlert(volunteer.page)).toContainText('Interest expressed!', { timeout: 10_000 });
 
     // Admin declines with a response message via browser prompt
-    await adminPage.goto(`${baseUrl}/static/project.html?id=${projectId}`);
+    await adminPage.goto(`${baseUrl}/projects/${projectId}`);
     await expect(adminPage.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 });
     const interestCard = adminPage.locator('.interest-card').filter({ hasText: volunteer.name });
     await expect(interestCard).toBeVisible({ timeout: 10_000 });
     // Admin declines with a response message via browser prompt
     adminPage.once('dialog', dialog => dialog.accept(declineMessage));
     await interestCard.getByRole('button', { name: 'Decline' }).click();
-    await expect(adminPage.getByRole('alert')).toContainText('Interest declined', { timeout: 10_000 });
+    await expect(getAlert(adminPage)).toContainText('Interest declined', { timeout: 10_000 });
 
     // Interest status updates to declined
     await expect(adminPage.locator('.interest-card').filter({ hasText: volunteer.name })).toContainText('declined', { timeout: 10_000 });
@@ -95,15 +96,15 @@ test.describe('Project Interests and Assignment', () => {
     const projectId = await setupSeekingProject(baseUrl, adminPage);
 
     // Express interest first
-    await volunteer.page.goto(`${baseUrl}/static/project.html?id=${projectId}`);
+    await volunteer.page.goto(`${baseUrl}/projects/${projectId}`);
     await expect(volunteer.page.getByRole('button', { name: 'Express Interest' })).toBeVisible({ timeout: 10_000 });
     await volunteer.page.getByRole('button', { name: 'Express Interest' }).click();
-    await expect(volunteer.page.getByRole('alert')).toContainText('Interest expressed!', { timeout: 10_000 });
+    await expect(getAlert(volunteer.page)).toContainText('Interest expressed!', { timeout: 10_000 });
     await expect(volunteer.page.getByRole('button', { name: 'Withdraw Interest' })).toBeVisible({ timeout: 10_000 });
 
     volunteer.page.once('dialog', dialog => dialog.accept());
     await volunteer.page.getByRole('button', { name: 'Withdraw Interest' }).click();
-    await expect(volunteer.page.getByRole('alert')).toContainText('Interest withdrawn', { timeout: 10_000 });
+    await expect(getAlert(volunteer.page)).toContainText('Interest withdrawn', { timeout: 10_000 });
 
     // Interest form reappears
     await expect(volunteer.page.getByRole('button', { name: 'Express Interest' })).toBeVisible({ timeout: 10_000 });
@@ -112,12 +113,12 @@ test.describe('Project Interests and Assignment', () => {
   test('Admin directly assigns a volunteer to a project', async ({ adminPage, volunteer, baseUrl }) => {
     const projectId = await setupSeekingProject(baseUrl, adminPage);
 
-    await adminPage.goto(`${baseUrl}/static/project.html?id=${projectId}`);
+    await adminPage.goto(`${baseUrl}/projects/${projectId}`);
     await expect(adminPage.getByRole('heading', { name: 'Interested Volunteers' })).toBeVisible({ timeout: 10_000 });
     await expect(adminPage.getByLabel('Volunteer to assign').locator(`option:has-text("${volunteer.name}")`)).toBeAttached({ timeout: 10_000 });
     await adminPage.getByLabel('Volunteer to assign').selectOption({ label: volunteer.name });
     await adminPage.getByRole('button', { name: 'Assign' }).click();
-    await expect(adminPage.getByRole('alert')).toContainText('Volunteer assigned!', { timeout: 10_000 });
+    await expect(getAlert(adminPage)).toContainText('Volunteer assigned!', { timeout: 10_000 });
 
     // Volunteer's interest record appears as accepted
     await expect(adminPage.locator('.interest-card').filter({ hasText: volunteer.name })).toContainText('accepted', { timeout: 10_000 });
@@ -128,12 +129,12 @@ test.describe('Project Interests and Assignment', () => {
   });
 
   test('Volunteer cannot express interest in their own project', async ({ adminPage, volunteer, baseUrl }) => {
-    const title = `E2E Own Project ${Date.now()}`;
+    const title = fake.projectTitle();
     const projectId = await proposeProject(baseUrl, volunteer.page, title, 'Project owned by the volunteer');
     await adminApproveProject(baseUrl, adminPage, title);
     await transferProjectOwnership(baseUrl, adminPage, projectId, volunteer.name);
 
-    await volunteer.page.goto(`${baseUrl}/static/project.html?id=${projectId}`);
+    await volunteer.page.goto(`${baseUrl}/projects/${projectId}`);
     await expect(volunteer.page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 });
 
     // Interest form is hidden for the project owner

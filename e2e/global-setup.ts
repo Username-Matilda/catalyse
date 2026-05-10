@@ -1,19 +1,20 @@
-import { chromium } from '@playwright/test';
+import { chromium, FullConfig } from '@playwright/test';
 import { execSync } from 'child_process';
 import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import {
-  IS_LOCAL, WORKER_COUNT,
+  IS_LOCAL,
   ADMIN_EMAIL, ADMIN_PASSWORD,
-  BASE_PORT,
+  NEXT_BASE_PORT,
   workerBaseUrl, workerDbDir, workerAuthFile,
   SERVER_PIDS_FILE,
 } from './config';
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
-const VENV_PYTHON = path.join(PROJECT_ROOT, 'venv', 'bin', 'python3');
-const PYTHON = fs.existsSync(VENV_PYTHON) ? VENV_PYTHON : 'python3';
+const WEB_DIR = path.join(PROJECT_ROOT, 'web');
+const NEXT_BINARY = path.join(WEB_DIR, 'node_modules', '.bin', 'next');
+const PRISMA_BINARY = path.join(WEB_DIR, 'node_modules', '.bin', 'prisma');
 
 function killServerOnPort(port: number): void {
   try {
@@ -23,42 +24,63 @@ function killServerOnPort(port: number): void {
   }
 }
 
-function startWorkerServer(parallelIndex: number): number {
-  const port = BASE_PORT + parallelIndex;
+function buildNextJs(): void {
+  execSync(`${NEXT_BINARY} build`, {
+    cwd: WEB_DIR,
+    stdio: 'inherit',
+    env: { ...process.env, NEXT_BASE_PATH: '' },
+  });
+}
+
+function migrateWorkerDb(parallelIndex: number): void {
+  const dbDir = workerDbDir(parallelIndex);
+  const dbUrl = `file:${path.join(dbDir, 'catalyse.db')}`;
+  execSync(`${PRISMA_BINARY} migrate deploy`, {
+    cwd: WEB_DIR,
+    env: { ...process.env, DATABASE_URL: dbUrl },
+    stdio: 'pipe',
+  });
+}
+
+function startWorkerNextJs(parallelIndex: number): number {
+  const nextPort = NEXT_BASE_PORT + parallelIndex;
   const dbDir = workerDbDir(parallelIndex);
 
-  killServerOnPort(port);
+  killServerOnPort(nextPort);
   fs.rmSync(dbDir, { recursive: true, force: true });
   fs.mkdirSync(dbDir, { recursive: true });
+  migrateWorkerDb(parallelIndex);
 
-  const server = spawn(PYTHON, ['api.py'], {
+  const server = spawn(NEXT_BINARY, ['start', '-p', String(nextPort)], {
     env: {
       ...process.env,
-      PORT: String(port),
+      PORT: String(nextPort),
       RAILWAY_VOLUME_MOUNT_PATH: dbDir,
       ADMIN_EMAILS: ADMIN_EMAIL,
       RESEND_API_KEY: '',
       STUB_EMAIL: 'true',
+      NEXT_BASE_PATH: '',
     },
-    cwd: PROJECT_ROOT,
+    cwd: WEB_DIR,
     detached: false,
+    stdio: 'ignore',
   });
 
   return server.pid!;
 }
 
-async function waitForServer(baseUrl: string): Promise<void> {
-  const deadline = Date.now() + 30_000;
+async function waitForServer(baseUrl: string, path = '/api/skills', timeoutMs = 30_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {
-      const r = await fetch(`${baseUrl}/api/skills`);
+      const r = await fetch(`${baseUrl}${path}`);
       if (r.ok) return;
     } catch {
       // not ready yet
     }
     await new Promise(r => setTimeout(r, 500));
   }
-  throw new Error(`Server at ${baseUrl} did not become ready within 30 seconds`);
+  throw new Error(`Server at ${baseUrl}${path} did not become ready within ${timeoutMs / 1000}s`);
 }
 
 async function setupAdminAuth(parallelIndex: number): Promise<void> {
@@ -85,11 +107,11 @@ async function setupAdminAuth(parallelIndex: number): Promise<void> {
   const context = await browser.newContext();
   const page = await context.newPage();
 
-  await page.goto(`${baseUrl}/static/login.html`);
+  await page.goto(`${baseUrl}/login`);
   await page.getByLabel('Email', { exact: true }).fill(ADMIN_EMAIL);
   await page.getByLabel('Password').fill(ADMIN_PASSWORD);
   await page.getByRole('button', { name: 'Login' }).click();
-  await page.waitForURL(`${baseUrl}/static/dashboard.html`);
+  await page.waitForURL(`${baseUrl}/dashboard`);
 
   const authFile = workerAuthFile(parallelIndex);
   fs.mkdirSync(path.dirname(authFile), { recursive: true });
@@ -98,25 +120,31 @@ async function setupAdminAuth(parallelIndex: number): Promise<void> {
   await browser.close();
 }
 
-async function globalSetup(): Promise<void> {
+async function globalSetup(config: FullConfig): Promise<void> {
+  const workerCount = config.workers;
+
   if (IS_LOCAL) {
-    const pids: Record<number, number> = {};
-    for (let i = 0; i < WORKER_COUNT; i++) {
-      pids[i] = startWorkerServer(i);
+    buildNextJs();
+
+    const pids: Record<string, number> = {};
+    for (let i = 0; i < workerCount; i++) {
+      pids[i] = startWorkerNextJs(i);
     }
     fs.writeFileSync(SERVER_PIDS_FILE, JSON.stringify(pids));
 
     await Promise.all(
-      Array.from({ length: WORKER_COUNT }, (_, i) => waitForServer(workerBaseUrl(i)))
+      Array.from({ length: workerCount }, (_, i) =>
+        waitForServer(workerBaseUrl(i), '/api/health', 30_000)
+      )
     );
 
     await Promise.all(
-      Array.from({ length: WORKER_COUNT }, (_, i) => setupAdminAuth(i))
+      Array.from({ length: workerCount }, (_, i) => setupAdminAuth(i))
     );
   } else {
     await setupAdminAuth(0);
     const src = workerAuthFile(0);
-    for (let i = 1; i < WORKER_COUNT; i++) {
+    for (let i = 1; i < workerCount; i++) {
       fs.copyFileSync(src, workerAuthFile(i));
     }
   }

@@ -5,11 +5,15 @@
   "scripts": {
     "test": "playwright test",
     "test:log": "playwright test 2>&1 | tee test-output.txt",
-    "test:headed": "playwright test --headed",
-    "test:ui": "playwright test --ui",
+    "test:headed": "playwright test --headed --workers=1",
+    "test:ui": "SLOW_MO=800 playwright test --ui --headed --workers=1",
     "install:browsers": "playwright install chromium"
   },
+  "engines": {
+    "node": ">=24"
+  },
   "devDependencies": {
+    "@faker-js/faker": "^10.4.0",
     "@playwright/test": "^1.44.0",
     "typescript": "^5.4.0"
   }

@@ -1,6 +1,6 @@
 import { test as base, Browser, Page, WorkerInfo } from '@playwright/test';
-import crypto from 'crypto';
 import { workerAuthFile, workerBaseUrl, parallelIndexFromBaseUrl } from './config';
+import { fake } from './fake';
 
 interface Volunteer {
   page: Page;
@@ -32,10 +32,10 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
   },
 
   volunteer: async ({ browser, baseUrl }: { browser: Browser; baseUrl: string }, use: (v: Volunteer) => Promise<void>) => {
-    const id = crypto.randomBytes(4).toString('hex');
+    const person = fake.person();
     const credentials = {
-      name: `Test Volunteer ${id}`,
-      email: `vol_${id}@test.com`,
+      name: person.name,
+      email: person.email,
       password: 'testpassword1',
     };
     const resp = await fetch(`${baseUrl}/api/auth/signup`, {
@@ -62,3 +62,7 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
 });
 
 export { expect } from '@playwright/test';
+
+export function getAlert(page: Page) {
+  return page.locator('[role="alert"]:not(#__next-route-announcer__)').last();
+}

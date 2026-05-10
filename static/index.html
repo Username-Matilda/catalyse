@@ -205,7 +205,7 @@
                 if (search) params.set('search', search);
                 if (sortBy) params.set('sort_by', sortBy);
 
-                const data = await apiRequest(`/api/projects?${params}`);
+                const data = await apiRequest(`${PROJECTS_BASE_URL}/api/projects?${params}`);
                 allProjects = data.projects;
                 renderProjects();
             } catch (error) {
