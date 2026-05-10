@@ -25,7 +25,11 @@ function killServerOnPort(port: number): void {
 }
 
 function buildNextJs(): void {
-  execSync(`${NEXT_BINARY} build`, { cwd: WEB_DIR, stdio: 'inherit' });
+  execSync(`${NEXT_BINARY} build`, {
+    cwd: WEB_DIR,
+    stdio: 'inherit',
+    env: { ...process.env, NEXT_BASE_PATH: '' },
+  });
 }
 
 function migrateWorkerDb(parallelIndex: number): void {
@@ -55,6 +59,7 @@ function startWorkerNextJs(parallelIndex: number): number {
       ADMIN_EMAILS: ADMIN_EMAIL,
       RESEND_API_KEY: '',
       STUB_EMAIL: 'true',
+      NEXT_BASE_PATH: '',
     },
     cwd: WEB_DIR,
     detached: false,
