@@ -12,12 +12,15 @@ export async function GET() {
 
   let dbOk = false
   let projectCount: number | null = null
+  let volunteerCount: number | null = null
   try {
     await prisma.$queryRaw`SELECT 1`
     dbOk = true
-    const result = await prisma.$queryRaw<[{ count: bigint }]>`SELECT COUNT(*) as count FROM projects`
-    projectCount = Number(result[0].count)
+    const pr = await prisma.$queryRaw<[{ count: bigint }]>`SELECT COUNT(*) as count FROM projects`
+    projectCount = Number(pr[0].count)
+    const vr = await prisma.$queryRaw<[{ count: bigint }]>`SELECT COUNT(*) as count FROM volunteers`
+    volunteerCount = Number(vr[0].count)
   } catch {}
 
-  return Response.json({ ok: dbOk, dbUrl, cwd: process.cwd(), fileExists: exists, sizeKb, projectCount })
+  return Response.json({ ok: dbOk, dbUrl, cwd: process.cwd(), fileExists: exists, sizeKb, projectCount, volunteerCount })
 }
