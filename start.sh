@@ -5,6 +5,9 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+echo "[start] Running pre-deploy backup..."
+python "$SCRIPT_DIR/backup_service.py"
+
 echo "[start] Starting Next.js on port 3000..."
 (cd "$SCRIPT_DIR/web" && PORT=3000 npm start) &
 
