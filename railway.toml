@@ -1,6 +1,6 @@
 [build]
 builder = "NIXPACKS"
-buildCommand = "npm run generate && npm run build && if [ \"$RAILWAY_ENVIRONMENT_NAME\" != \"production\" ] && [ -n \"$B2_KEY_ID\" ]; then npm run fetch-prod-db && cp db/anonymised_prod.db db/catalyse.db; fi"
+buildCommand = "npm run build:railway"
 
 [deploy]
 startCommand = "npm start"

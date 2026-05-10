@@ -11,6 +11,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "generate": "npx prisma generate && tsx scripts/post-generate.ts",
+    "build:railway": "tsx scripts/build-railway.ts",
     "fetch-prod-db": "NODE_OPTIONS=--experimental-sqlite tsx scripts/fetch-prod-db.ts",
     "install:browsers": "playwright install chromium",
     "test": "playwright test",
