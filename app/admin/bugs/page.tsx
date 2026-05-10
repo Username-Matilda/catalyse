@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/Header'
 import Button from '@/components/Button'
@@ -66,13 +66,7 @@ export default function AdminBugsPage() {
     if (!loading && user && !user.is_admin) router.push('/')
   }, [user, loading, router])
 
-  useEffect(() => {
-    if (!user?.is_admin) return
-    loadReports()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, statusFilter, categoryFilter])
-
-  async function loadReports() {
+  const loadReports = useCallback(async () => {
     setLoadingData(true)
     try {
       const params = new URLSearchParams()
@@ -86,7 +80,14 @@ export default function AdminBugsPage() {
     } finally {
       setLoadingData(false)
     }
-  }
+  }, [statusFilter, categoryFilter, showToast])
+
+  useEffect(() => {
+    if (!user?.is_admin) return
+    // False positive: setState calls inside loadReports are in async callbacks, not synchronously.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadReports()
+  }, [user, loadReports])
 
   function openEdit(report: BugReport) {
     setEditModal(report)

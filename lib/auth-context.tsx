@@ -26,8 +26,12 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [token, setTokenState] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [token, setTokenState] = useState<string | null>(() =>
+    typeof window !== 'undefined' ? localStorage.getItem('authToken') : null,
+  )
+  const [loading, setLoading] = useState(
+    () => typeof window !== 'undefined' && !!localStorage.getItem('authToken'),
+  )
   const router = useRouter()
 
   const fetchMe = useCallback(async (t: string) => {
@@ -49,13 +53,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
-    const stored = localStorage.getItem('authToken')
-    if (stored) {
-      setTokenState(stored)
-      fetchMe(stored).finally(() => setLoading(false))
-    } else {
-      setLoading(false)
-    }
+    if (!token) return
+    // False positive: rule traces call graph without modelling async boundaries.
+    // setState inside fetchMe only runs after await fetch(), never synchronously in the effect.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchMe(token).finally(() => setLoading(false))
+    // Intentionally omit `token` from deps: only fetch on mount. setToken() already
+    // calls fetchMe() explicitly, so including token here would double-fetch on login.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchMe])
 
   useEffect(() => {

@@ -20,23 +20,23 @@ interface WorkerFixtures {
 
 export const test = base.extend<Fixtures, WorkerFixtures>({
   baseUrl: [
-    async ({}, use, workerInfo: WorkerInfo) => {
-      await use(workerBaseUrl(workerInfo.parallelIndex))
+    async ({}, runFixture, workerInfo: WorkerInfo) => {
+      await runFixture(workerBaseUrl(workerInfo.parallelIndex))
     },
     { scope: 'worker' },
   ],
 
-  adminPage: async ({ browser, baseUrl }, use) => {
+  adminPage: async ({ browser, baseUrl }, runFixture) => {
     const authFile = workerAuthFile(parallelIndexFromBaseUrl(baseUrl))
     const context = await browser.newContext({ storageState: authFile })
     const page = await context.newPage()
-    await use(page)
+    await runFixture(page)
     await context.close()
   },
 
   volunteer: async (
     { browser, baseUrl }: { browser: Browser; baseUrl: string },
-    use: (v: Volunteer) => Promise<void>,
+    runFixture: (v: Volunteer) => Promise<void>,
   ) => {
     const person = fake.person()
     const credentials = {
@@ -62,7 +62,7 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
       localStorage.setItem('authToken', token)
     }, auth_token)
     const page = await context.newPage()
-    await use({ page, ...credentials })
+    await runFixture({ page, ...credentials })
     await context.close()
   },
 })

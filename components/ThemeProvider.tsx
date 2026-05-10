@@ -14,37 +14,44 @@ export function useTheme() {
   return useContext(ThemeContext)
 }
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('system')
-  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme | undefined>(undefined)
+function resolveTheme(t: Theme): ResolvedTheme {
+  if (t !== 'system') return t
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
 
-  function resolve(t: Theme): ResolvedTheme {
-    if (t !== 'system') return t
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-  }
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [theme, setThemeState] = useState<Theme>(() => {
+    if (typeof window === 'undefined') return 'system'
+    return (localStorage.getItem('theme') as Theme) ?? 'system'
+  })
+  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme | undefined>(() => {
+    if (typeof window === 'undefined') return undefined
+    return resolveTheme((localStorage.getItem('theme') as Theme) ?? 'system')
+  })
 
   function applyTheme(t: Theme) {
-    const resolved = resolve(t)
+    const resolved = resolveTheme(t)
     setResolvedTheme(resolved)
     document.documentElement.setAttribute('data-theme', resolved)
   }
 
   useEffect(() => {
-    const stored = localStorage.getItem('theme') as Theme | null
-    const initial = stored ?? 'system'
-    setThemeState(initial)
-    applyTheme(initial)
+    const stored = (localStorage.getItem('theme') as Theme) ?? 'system'
+    document.documentElement.setAttribute('data-theme', resolveTheme(stored))
 
     const mq = window.matchMedia('(prefers-color-scheme: dark)')
     const handler = () => {
       setThemeState((prev) => {
-        if (prev === 'system') applyTheme('system')
+        if (prev === 'system') {
+          const resolved = resolveTheme('system')
+          setResolvedTheme(resolved)
+          document.documentElement.setAttribute('data-theme', resolved)
+        }
         return prev
       })
     }
     mq.addEventListener('change', handler)
     return () => mq.removeEventListener('change', handler)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function setTheme(t: Theme) {

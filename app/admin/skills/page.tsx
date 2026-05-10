@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   DndContext,
@@ -255,31 +255,36 @@ export default function AdminSkillsPage() {
     if (!loading && user && !user.is_admin) router.push('/')
   }, [user, loading, router])
 
+  const loadData = useCallback(
+    async function () {
+      try {
+        const [cats, skills] = await Promise.all([
+          apiRequest<Category[]>('/api/admin/skill-categories'),
+          apiRequest<Skill[]>('/api/skills/flat'),
+        ])
+        const catMap = new Map(
+          cats.map((c) => ({ ...c, skills: [] as Skill[] })).map((c) => [c.id, c]),
+        )
+        for (const s of skills) {
+          catMap.get(s.category_id)?.skills.push(s)
+        }
+        setCategories(Array.from(catMap.values()))
+      } catch {
+        showToast('Failed to load data', 'error')
+      } finally {
+        setLoadingData(false)
+      }
+    },
+    [showToast],
+  )
+
   useEffect(() => {
     if (!user?.is_admin) return
+    // False positive: setState calls inside loadData are in .then()/.finally() callbacks,
+    // never synchronously in the effect. Rule doesn't track async boundaries.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadData()
-  }, [user])
-
-  async function loadData() {
-    setLoadingData(true)
-    try {
-      const [cats, skills] = await Promise.all([
-        apiRequest<Category[]>('/api/admin/skill-categories'),
-        apiRequest<Skill[]>('/api/skills/flat'),
-      ])
-      const catMap = new Map(
-        cats.map((c) => ({ ...c, skills: [] as Skill[] })).map((c) => [c.id, c]),
-      )
-      for (const s of skills) {
-        catMap.get(s.category_id)?.skills.push(s)
-      }
-      setCategories(Array.from(catMap.values()))
-    } catch {
-      showToast('Failed to load data', 'error')
-    } finally {
-      setLoadingData(false)
-    }
-  }
+  }, [user, loadData])
 
   function openModal(m: ModalType) {
     setModal(m)

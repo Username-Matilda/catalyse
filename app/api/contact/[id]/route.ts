@@ -2,7 +2,6 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentVolunteer } from '@/lib/auth'
 import { sendRelayMessage, isEmailConfigured } from '@/lib/email'
-import { createNotification } from '@/lib/project'
 import { fieldError, validationError } from '@/lib/errors'
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

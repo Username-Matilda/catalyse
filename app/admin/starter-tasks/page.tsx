@@ -3,7 +3,7 @@
 // here. Check the rating/notes fields, status transitions, and what feedback is shown to volunteers.
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/components/Header'
@@ -111,13 +111,7 @@ export default function AdminStarterTasksPage() {
     if (!loading && user && !user.is_admin) router.push('/')
   }, [user, loading, router])
 
-  useEffect(() => {
-    if (!user?.is_admin) return
-    loadAll()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, statusFilter])
-
-  async function loadAll() {
+  const loadAll = useCallback(async () => {
     setLoadingData(true)
     try {
       const params = statusFilter ? `?status=${statusFilter}` : ''
@@ -134,7 +128,14 @@ export default function AdminStarterTasksPage() {
     } finally {
       setLoadingData(false)
     }
-  }
+  }, [statusFilter, toast])
+
+  useEffect(() => {
+    if (!user?.is_admin) return
+    // False positive: setState calls inside loadAll are in async callbacks, not synchronously.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadAll()
+  }, [user, loadAll])
 
   function toggleCard(id: number) {
     setExpandedCards((prev) => {

@@ -81,7 +81,6 @@ export default function TriagePage() {
 
   useEffect(() => {
     if (!user?.is_admin) return
-    setLoadingInterests(true)
     const params = interestStatusFilter ? `?status=${interestStatusFilter}` : ''
     apiRequest<Interest[]>(`/api/admin/interests${params}`)
       .then((data) => {
@@ -212,7 +211,10 @@ export default function TriagePage() {
                 <select
                   id="interest-status-filter"
                   value={interestStatusFilter}
-                  onChange={(e) => setInterestStatusFilter(e.target.value)}
+                  onChange={(e) => {
+                    setLoadingInterests(true)
+                    setInterestStatusFilter(e.target.value)
+                  }}
                 >
                   <option value="pending">Pending</option>
                   <option value="accepted">Accepted</option>

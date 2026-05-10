@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, FormEvent } from 'react'
+import { useState, useEffect, useCallback, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Script from 'next/script'
@@ -45,19 +45,22 @@ export default function LoginPage() {
     }
   }
 
-  function handleGoogleResponse(response: { credential: string }) {
-    apiRequest<{ auth_token: string; is_new_user?: boolean }>('/api/auth/google', {
-      method: 'POST',
-      body: JSON.stringify({ credential: response.credential }),
-    })
-      .then(async (data) => {
-        await setToken(data.auth_token)
-        router.push(data.is_new_user ? '/profile' : '/dashboard')
+  const handleGoogleResponse = useCallback(
+    (response: { credential: string }) => {
+      apiRequest<{ auth_token: string; is_new_user?: boolean }>('/api/auth/google', {
+        method: 'POST',
+        body: JSON.stringify({ credential: response.credential }),
       })
-      .catch((err) => setError(err instanceof Error ? err.message : 'Google sign-in failed'))
-  }
+        .then(async (data) => {
+          await setToken(data.auth_token)
+          router.push(data.is_new_user ? '/profile' : '/dashboard')
+        })
+        .catch((err) => setError(err instanceof Error ? err.message : 'Google sign-in failed'))
+    },
+    [setToken, router],
+  )
 
-  function initGoogleButton() {
+  const initGoogleButton = useCallback(() => {
     const win = window as Window &
       typeof globalThis & {
         google?: {
@@ -77,12 +80,11 @@ export default function LoginPage() {
       width: 350,
       text: 'sign_in_with',
     })
-  }
+  }, [googleClientId, handleGoogleResponse])
 
   useEffect(() => {
     initGoogleButton()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [googleClientId])
+  }, [initGoogleButton])
 
   if (loading) return null
 

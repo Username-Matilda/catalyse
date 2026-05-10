@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/Header'
 import Button from '@/components/Button'
@@ -44,26 +44,31 @@ export default function AdminTeamPage() {
     if (!loading && user && !user.is_admin) router.push('/')
   }, [user, loading, router])
 
+  const loadData = useCallback(
+    async function () {
+      try {
+        const [a, i] = await Promise.all([
+          apiRequest<Admin[]>('/api/admin/admins'),
+          apiRequest<Invite[]>('/api/admin/invites'),
+        ])
+        setAdmins(a)
+        setInvites(i.filter((i) => i.status === 'pending'))
+      } catch {
+        showToast('Failed to load team data', 'error')
+      } finally {
+        setLoadingData(false)
+      }
+    },
+    [showToast],
+  )
+
   useEffect(() => {
     if (!user?.is_admin) return
+    // False positive: setState calls inside loadData are in .then()/.finally() callbacks,
+    // never synchronously in the effect. Rule doesn't track async boundaries.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadData()
-  }, [user])
-
-  async function loadData() {
-    setLoadingData(true)
-    try {
-      const [a, i] = await Promise.all([
-        apiRequest<Admin[]>('/api/admin/admins'),
-        apiRequest<Invite[]>('/api/admin/invites'),
-      ])
-      setAdmins(a)
-      setInvites(i.filter((i) => i.status === 'pending'))
-    } catch {
-      showToast('Failed to load team data', 'error')
-    } finally {
-      setLoadingData(false)
-    }
-  }
+  }, [user, loadData])
 
   function openInviteDialog() {
     setInviteEmail('')

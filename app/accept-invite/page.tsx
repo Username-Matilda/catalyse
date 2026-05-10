@@ -13,29 +13,27 @@ function AcceptInviteContent() {
   const searchParams = useSearchParams()
   const token = searchParams.get('token')
   const { user, loading } = useAuth()
-  const [status, setStatus] = useState<'loading' | 'needs-login' | 'success' | 'error'>('loading')
+  const [apiStatus, setApiStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
 
+  const status = loading
+    ? 'loading'
+    : !token
+      ? 'error'
+      : !user
+        ? 'needs-login'
+        : apiStatus === 'idle'
+          ? 'loading'
+          : apiStatus
+
   useEffect(() => {
-    if (loading) return
-
-    if (!token) {
-      setStatus('error')
-      setErrorMsg('No invite token provided.')
-      return
-    }
-
-    if (!user) {
-      setStatus('needs-login')
-      return
-    }
-
+    if (loading || !token || !user) return
     apiRequest('/api/admin/admins/accept-invite?invite_token=' + encodeURIComponent(token), {
       method: 'POST',
     })
-      .then(() => setStatus('success'))
+      .then(() => setApiStatus('success'))
       .catch((err) => {
-        setStatus('error')
+        setApiStatus('error')
         setErrorMsg(err instanceof Error ? err.message : 'Failed to accept invite')
       })
   }, [loading, user, token])

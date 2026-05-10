@@ -51,10 +51,6 @@ export default function FilterDropdown({
   }, [open, searchable])
 
   useEffect(() => {
-    setFocusedIndex(-1)
-  }, [query])
-
-  useEffect(() => {
     if (focusedIndex >= 0 && listboxRef.current) {
       const el = listboxRef.current.children[focusedIndex] as HTMLElement
       el?.scrollIntoView({ block: 'nearest' })
@@ -145,12 +141,14 @@ export default function FilterDropdown({
             id={id}
             type="search"
             aria-label={ariaLabel}
-            aria-expanded={open}
             aria-haspopup="listbox"
             aria-activedescendant={focusedIndex >= 0 ? `${id}-opt-${focusedIndex}` : undefined}
             placeholder="Search…"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value)
+              setFocusedIndex(-1)
+            }}
             onKeyDown={handleKeyDown}
             className="absolute inset-0 m-0"
           />

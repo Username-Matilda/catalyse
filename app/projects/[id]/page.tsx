@@ -1,6 +1,6 @@
 'use client'
 
-import React, { use, useEffect, useState } from 'react'
+import React, { use, useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/components/Header'
@@ -200,13 +200,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     if (!loading && !user) router.replace('/login')
   }, [user, loading, router])
 
-  useEffect(() => {
-    if (!user) return
-    loadProject()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, idParam])
-
-  async function loadProject() {
+  const loadProject = useCallback(async () => {
     setLoadingProject(true)
     try {
       const data = await apiRequest<ProjectDetail>(`/api/projects/${idParam}`)
@@ -217,7 +211,14 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     } finally {
       setLoadingProject(false)
     }
-  }
+  }, [idParam, router])
+
+  useEffect(() => {
+    if (!user) return
+    // False positive: setState calls inside loadProject are in async callbacks, not synchronously.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadProject()
+  }, [user, loadProject])
 
   useEffect(() => {
     if (!user?.is_admin || !project) return

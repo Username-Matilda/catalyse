@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useCallback, useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/components/Header'
@@ -74,17 +74,7 @@ export default function ProjectsPage() {
     }
   }, [user])
 
-  useEffect(() => {
-    if (!user) return
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(fetchProjects, search || locationFilter ? 300 : 0)
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, search, statusFilter, needsFilter, urgencyFilter, locationFilter, sortBy])
-
-  async function fetchProjects() {
+  const fetchProjects = useCallback(async () => {
     setLoadingProjects(true)
     try {
       const params = new URLSearchParams()
@@ -108,7 +98,16 @@ export default function ProjectsPage() {
     } finally {
       setLoadingProjects(false)
     }
-  }
+  }, [search, statusFilter, needsFilter, urgencyFilter, locationFilter, sortBy])
+
+  useEffect(() => {
+    if (!user) return
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(fetchProjects, search || locationFilter ? 300 : 0)
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [user, fetchProjects, search, locationFilter])
 
   const hasFilters =
     search || statusFilter || needsFilter || urgencyFilter || locationFilter || sortBy

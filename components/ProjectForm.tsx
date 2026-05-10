@@ -73,8 +73,9 @@ export default function ProjectForm({
   function clearFieldError(field: string) {
     setFieldErrors((prev) => {
       if (!prev[field]) return prev
-      const { [field]: _, ...rest } = prev
-      return rest
+      const next = { ...prev }
+      delete next[field]
+      return next
     })
   }
 

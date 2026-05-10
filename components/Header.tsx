@@ -89,6 +89,9 @@ export default function Header() {
   }, [user])
 
   useEffect(() => {
+    // False positive: fetchNotifications is async; setUnreadCount only runs after
+    // await apiRequest(), never synchronously. Rule traces call graph without async boundaries.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchNotifications()
   }, [fetchNotifications, pathname])
 
@@ -103,8 +106,10 @@ export default function Header() {
     }
   }, [mobileMenuOpen])
 
-  // Close mobile menu on navigation
+  // Close mobile menu on navigation. Intentional derived-state reset pattern;
+  // threading a callback through all MobileNavLink usages would be worse.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMobileMenuOpen(false)
   }, [pathname])
 

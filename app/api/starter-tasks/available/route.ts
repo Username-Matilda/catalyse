@@ -1,7 +1,6 @@
-import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-export async function GET(_request: NextRequest) {
+export async function GET() {
   const tasks = await prisma.starterTask.findMany({
     where: { status: 'open' },
     include: {

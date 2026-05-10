@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "lint:fix": "eslint --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "generate": "npx prisma generate && tsx scripts/post-generate.ts",

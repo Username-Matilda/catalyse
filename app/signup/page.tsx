@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, FormEvent } from 'react'
+import { useState, useEffect, useCallback, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Script from 'next/script'
@@ -55,7 +55,22 @@ export default function SignupPage() {
       .catch(() => {})
   }, [])
 
-  function initGoogleButton() {
+  const handleGoogleResponse = useCallback(
+    (response: { credential: string }) => {
+      apiRequest<{ auth_token: string }>('/api/auth/google', {
+        method: 'POST',
+        body: JSON.stringify({ credential: response.credential }),
+      })
+        .then(async (data) => {
+          await setToken(data.auth_token)
+          router.push('/dashboard')
+        })
+        .catch((err) => setError(err instanceof Error ? err.message : 'Google sign-up failed'))
+    },
+    [setToken, router],
+  )
+
+  const initGoogleButton = useCallback(() => {
     const win = window as Window &
       typeof globalThis & {
         google?: {
@@ -75,24 +90,11 @@ export default function SignupPage() {
       width: 350,
       text: 'sign_up_with',
     })
-  }
+  }, [googleClientId, handleGoogleResponse])
 
   useEffect(() => {
     initGoogleButton()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [googleClientId])
-
-  function handleGoogleResponse(response: { credential: string }) {
-    apiRequest<{ auth_token: string }>('/api/auth/google', {
-      method: 'POST',
-      body: JSON.stringify({ credential: response.credential }),
-    })
-      .then(async (data) => {
-        await setToken(data.auth_token)
-        router.push('/dashboard')
-      })
-      .catch((err) => setError(err instanceof Error ? err.message : 'Google sign-up failed'))
-  }
+  }, [initGoogleButton])
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
