@@ -4,6 +4,7 @@ import { AuthProvider } from '@/lib/auth-context'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { ToastProvider } from '@/lib/toast'
 import FloatingActions from '@/components/FloatingActions'
+import Script from 'next/script'
 import './globals.css'
 
 const montserrat = Montserrat({
@@ -41,11 +42,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `try{var t=localStorage.getItem('theme');document.documentElement.setAttribute('data-theme',t==='dark'?'dark':t==='light'?'light':window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')}catch(e){}`,
-          }}
-        />
+        <Script id="theme-init" strategy="beforeInteractive">{`try{var t=localStorage.getItem('theme');document.documentElement.setAttribute('data-theme',t==='dark'?'dark':t==='light'?'light':window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')}catch(e){}`}</Script>
       </head>
       <body className="min-h-screen flex flex-col">
         <ThemeProvider>

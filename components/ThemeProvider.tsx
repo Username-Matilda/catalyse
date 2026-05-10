@@ -24,10 +24,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     if (typeof window === 'undefined') return 'system'
     return (localStorage.getItem('theme') as Theme) ?? 'system'
   })
-  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme | undefined>(() => {
-    if (typeof window === 'undefined') return undefined
-    return resolveTheme((localStorage.getItem('theme') as Theme) ?? 'system')
-  })
+  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme | undefined>(undefined)
 
   function applyTheme(t: Theme) {
     const resolved = resolveTheme(t)
@@ -37,7 +34,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const stored = (localStorage.getItem('theme') as Theme) ?? 'system'
-    document.documentElement.setAttribute('data-theme', resolveTheme(stored))
+    const resolved = resolveTheme(stored)
+    setResolvedTheme(resolved)
+    document.documentElement.setAttribute('data-theme', resolved)
 
     const mq = window.matchMedia('(prefers-color-scheme: dark)')
     const handler = () => {
