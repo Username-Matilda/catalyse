@@ -6,19 +6,18 @@ import path from 'path';
 import {
   IS_LOCAL,
   ADMIN_EMAIL, ADMIN_PASSWORD,
-  NEXT_BASE_PORT,
+  BASE_PORT,
   workerBaseUrl, workerDbDir, workerAuthFile,
   SERVER_PIDS_FILE,
 } from './config';
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
-const WEB_DIR = path.join(PROJECT_ROOT, 'web');
-const NEXT_BINARY = path.join(WEB_DIR, 'node_modules', '.bin', 'next');
-const PRISMA_BINARY = path.join(WEB_DIR, 'node_modules', '.bin', 'prisma');
+const NEXT_BINARY = path.join(PROJECT_ROOT, 'node_modules', '.bin', 'next');
+const PRISMA_BINARY = path.join(PROJECT_ROOT, 'node_modules', '.bin', 'prisma');
 
 function killServerOnPort(port: number): void {
   try {
-    execSync(`lsof -ti :${port} | xargs kill -TERM 2>/dev/null || true`, { shell: true });
+    execSync(`lsof -ti :${port} | xargs kill -TERM 2>/dev/null || true`, { shell: '/bin/sh' });
   } catch {
     // nothing listening
   }
@@ -26,9 +25,9 @@ function killServerOnPort(port: number): void {
 
 function buildNextJs(): void {
   execSync(`${NEXT_BINARY} build`, {
-    cwd: WEB_DIR,
+    cwd: PROJECT_ROOT,
     stdio: 'inherit',
-    env: { ...process.env, NEXT_BASE_PATH: '' },
+    env: { ...process.env },
   });
 }
 
@@ -36,14 +35,14 @@ function migrateWorkerDb(parallelIndex: number): void {
   const dbDir = workerDbDir(parallelIndex);
   const dbUrl = `file:${path.join(dbDir, 'catalyse.db')}`;
   execSync(`${PRISMA_BINARY} migrate deploy`, {
-    cwd: WEB_DIR,
+    cwd: PROJECT_ROOT,
     env: { ...process.env, DATABASE_URL: dbUrl },
     stdio: 'pipe',
   });
 }
 
 function startWorkerNextJs(parallelIndex: number): number {
-  const nextPort = NEXT_BASE_PORT + parallelIndex;
+  const nextPort = BASE_PORT + parallelIndex;
   const dbDir = workerDbDir(parallelIndex);
 
   killServerOnPort(nextPort);
@@ -55,13 +54,12 @@ function startWorkerNextJs(parallelIndex: number): number {
     env: {
       ...process.env,
       PORT: String(nextPort),
-      RAILWAY_VOLUME_MOUNT_PATH: dbDir,
+      DATABASE_URL: `file:${path.join(dbDir, 'catalyse.db')}`,
       ADMIN_EMAILS: ADMIN_EMAIL,
       RESEND_API_KEY: '',
       STUB_EMAIL: 'true',
-      NEXT_BASE_PATH: '',
     },
-    cwd: WEB_DIR,
+    cwd: PROJECT_ROOT,
     detached: false,
     stdio: 'ignore',
   });
@@ -69,7 +67,7 @@ function startWorkerNextJs(parallelIndex: number): number {
   return server.pid!;
 }
 
-async function waitForServer(baseUrl: string, path = '/api/skills', timeoutMs = 30_000): Promise<void> {
+async function waitForServer(baseUrl: string, path = '/api/health', timeoutMs = 30_000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {

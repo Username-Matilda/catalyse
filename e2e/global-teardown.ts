@@ -1,11 +1,11 @@
 import { FullConfig } from '@playwright/test';
 import { execSync } from 'child_process';
 import fs from 'fs';
-import { IS_LOCAL, NEXT_BASE_PORT, SERVER_PIDS_FILE } from './config';
+import { IS_LOCAL, BASE_PORT, SERVER_PIDS_FILE } from './config';
 
 function killServerOnPort(port: number): void {
   try {
-    execSync(`lsof -ti :${port} | xargs kill -TERM 2>/dev/null || true`, { shell: true });
+    execSync(`lsof -ti :${port} | xargs kill -TERM 2>/dev/null || true`, { shell: '/bin/sh' });
   } catch {
     // nothing listening
   }
@@ -23,7 +23,7 @@ async function globalTeardown(config: FullConfig): Promise<void> {
   }
 
   for (let i = 0; i < config.workers; i++) {
-    killServerOnPort(NEXT_BASE_PORT + i);
+    killServerOnPort(BASE_PORT + i);
   }
 }
 
