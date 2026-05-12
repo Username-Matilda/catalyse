@@ -74,6 +74,40 @@ export default function DashboardPage() {
   }, [user, loading, router])
 
   useEffect(() => {
+    function onHashChange() {
+      const hash = window.location.hash
+      const tab: TabKey = hash.startsWith('#tab-')
+        ? ((hash.slice('#tab-'.length) as TabKey) || 'owned')
+        : 'owned'
+      setActiveTab(tab)
+      if (tab === 'notifications') {
+        apiRequest<Notification[]>('/api/notifications')
+          .then(setNotifications)
+          .catch(() => {})
+      }
+    }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
+
+  useEffect(() => {
+    function onHashChange() {
+      const hash = window.location.hash
+      const tab: TabKey = hash.startsWith('#tab-')
+        ? ((hash.slice('#tab-'.length) as TabKey) || 'owned')
+        : 'owned'
+      setActiveTab(tab)
+      if (tab === 'notifications') {
+        apiRequest<Notification[]>('/api/notifications')
+          .then(setNotifications)
+          .catch(() => {})
+      }
+    }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
+
+  useEffect(() => {
     if (!user) return
     apiRequest<DashboardData>('/api/dashboard')
       .then((d) => {
@@ -115,8 +149,12 @@ export default function DashboardPage() {
 
   async function handleTabClick(tab: TabKey) {
     setActiveTab(tab)
-    const hash = tab === 'owned' ? '' : `#tab-${tab}`
-    history.replaceState(null, '', `/dashboard${hash}`)
+    if (tab === 'owned') {
+      history.replaceState(null, '', '/dashboard')
+      window.dispatchEvent(new HashChangeEvent('hashchange'))
+    } else {
+      window.location.hash = `tab-${tab}`
+    }
     if (tab === 'notifications') {
       try {
         const notifs = await apiRequest<Notification[]>('/api/notifications')
