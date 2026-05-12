@@ -20,7 +20,7 @@ export async function submitLocalGroupSuggestion(
 export async function navigateToAdminLocalGroups(baseUrl: string, adminPage: Page): Promise<void> {
   await adminPage.goto(`${baseUrl}/admin/local-groups`)
   await adminPage
-    .getByRole('heading', { name: 'Local Group Suggestions', level: 1 })
+    .getByRole('heading', { name: 'Local Groups', level: 1 })
     .waitFor({ timeout: 10_000 })
   await adminPage.getByText('Loading…').waitFor({ state: 'hidden', timeout: 10_000 })
 }

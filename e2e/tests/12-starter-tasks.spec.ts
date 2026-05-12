@@ -328,7 +328,7 @@ test.describe('Starter Tasks', () => {
 
     // Get the task ID via API so we can build the deep-link URL
     const response = await adminPage.request.get(`${baseUrl}/api/starter-tasks`)
-    const tasks = await response.json()
+    const { tasks } = await response.json()
     const task = tasks.find((t: { title: string }) => t.title === taskTitle)
     expect(task).toBeDefined()
 
