@@ -1,8 +1,8 @@
 'use client'
 
-import React, { Suspense, useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
 import Button from '@/components/Button'
@@ -40,23 +40,60 @@ function MobileNavSection({ children, admin }: { children: React.ReactNode; admi
 
 function DashboardNavButtons({ unreadCount }: { unreadCount: number }) {
   const pathname = usePathname()
-  const searchParams = useSearchParams()
-  const dashboardTab = pathname === '/dashboard' ? (searchParams.get('tab') ?? '') : ''
+  const [hash, setHash] = useState(() =>
+    typeof window !== 'undefined' ? window.location.hash : '',
+  )
+
+  useEffect(() => {
+    function onHashChange() {
+      setHash(window.location.hash)
+    }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
+
+  // Sync hash when pathname changes (navigating to/from dashboard)
+  useEffect(() => {
+    setHash(typeof window !== 'undefined' ? window.location.hash : '')
+  }, [pathname])
+
+  const onDashboard = pathname === '/dashboard'
+  const activeTab = onDashboard && hash.startsWith('#tab-') ? hash.slice('#tab-'.length) : ''
+
+  function goToTab(tab: string) {
+    if (tab) {
+      window.location.hash = `tab-${tab}`
+    } else {
+      history.pushState(null, '', '/dashboard')
+      window.dispatchEvent(new HashChangeEvent('hashchange'))
+    }
+  }
+
   return (
     <>
       <Button
         href="/dashboard"
-        variant={
-          pathname === '/dashboard' && dashboardTab !== 'notifications' ? 'primary' : 'ghost'
-        }
+        variant={onDashboard && activeTab !== 'notifications' ? 'primary' : 'ghost'}
         size="sm"
+        onClick={(e) => {
+          if (onDashboard) {
+            e.preventDefault()
+            goToTab('')
+          }
+        }}
       >
         My Projects
       </Button>
       <Button
-        href="/dashboard?tab=notifications"
-        variant={dashboardTab === 'notifications' ? 'primary' : 'ghost'}
+        href="/dashboard#tab-notifications"
+        variant={activeTab === 'notifications' ? 'primary' : 'ghost'}
         size="sm"
+        onClick={(e) => {
+          if (onDashboard) {
+            e.preventDefault()
+            goToTab('notifications')
+          }
+        }}
       >
         Notifications
         {unreadCount > 0 && (
@@ -144,22 +181,7 @@ export default function Header() {
                 {label}
               </Button>
             ))}
-            {!loading && user && (
-              <Suspense
-                fallback={
-                  <>
-                    <Button href="/dashboard" variant="ghost" size="sm">
-                      My Projects
-                    </Button>
-                    <Button href="/dashboard?tab=notifications" variant="ghost" size="sm">
-                      Notifications
-                    </Button>
-                  </>
-                }
-              >
-                <DashboardNavButtons unreadCount={unreadCount} />
-              </Suspense>
-            )}
+            {!loading && user && <DashboardNavButtons unreadCount={unreadCount} />}
           </nav>
 
           <div className="hidden xl:flex gap-2 items-center">

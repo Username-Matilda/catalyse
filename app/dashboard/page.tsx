@@ -1,7 +1,7 @@
 'use client'
 
-import React, { Suspense, useEffect, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import React, { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/components/Header'
 import Button from '@/components/Button'
@@ -50,13 +50,17 @@ interface StarterTask {
 
 type TabKey = 'owned' | 'interests' | 'proposed' | 'suggested' | 'notifications'
 
-function DashboardPageInner() {
+export default function DashboardPage() {
   const router = useRouter()
   const { user, loading } = useAuth()
   const [data, setData] = useState<DashboardData | null>(null)
   const [notifications, setNotifications] = useState<Notification[]>([])
-  const searchParams = useSearchParams()
-  const [activeTab, setActiveTab] = useState<TabKey>((searchParams.get('tab') as TabKey) || 'owned')
+  const [activeTab, setActiveTab] = useState<TabKey>(() => {
+    if (typeof window === 'undefined') return 'owned'
+    const hash = window.location.hash
+    if (hash.startsWith('#tab-')) return (hash.slice('#tab-'.length) as TabKey) || 'owned'
+    return 'owned'
+  })
   const [unreadCount, setUnreadCount] = useState(0)
   const [loadingData, setLoadingData] = useState(true)
   const [starterTasks, setStarterTasks] = useState<StarterTask[]>([])
@@ -68,6 +72,40 @@ function DashboardPageInner() {
   useEffect(() => {
     if (!loading && !user) router.replace('/login')
   }, [user, loading, router])
+
+  useEffect(() => {
+    function onHashChange() {
+      const hash = window.location.hash
+      const tab: TabKey = hash.startsWith('#tab-')
+        ? ((hash.slice('#tab-'.length) as TabKey) || 'owned')
+        : 'owned'
+      setActiveTab(tab)
+      if (tab === 'notifications') {
+        apiRequest<Notification[]>('/api/notifications')
+          .then(setNotifications)
+          .catch(() => {})
+      }
+    }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
+
+  useEffect(() => {
+    function onHashChange() {
+      const hash = window.location.hash
+      const tab: TabKey = hash.startsWith('#tab-')
+        ? ((hash.slice('#tab-'.length) as TabKey) || 'owned')
+        : 'owned'
+      setActiveTab(tab)
+      if (tab === 'notifications') {
+        apiRequest<Notification[]>('/api/notifications')
+          .then(setNotifications)
+          .catch(() => {})
+      }
+    }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
 
   useEffect(() => {
     if (!user) return
@@ -111,8 +149,12 @@ function DashboardPageInner() {
 
   async function handleTabClick(tab: TabKey) {
     setActiveTab(tab)
-    const url = tab === 'owned' ? '/dashboard' : `/dashboard?tab=${tab}`
-    router.replace(url, { scroll: false })
+    if (tab === 'owned') {
+      history.replaceState(null, '', '/dashboard')
+      window.dispatchEvent(new HashChangeEvent('hashchange'))
+    } else {
+      window.location.hash = `tab-${tab}`
+    }
     if (tab === 'notifications') {
       try {
         const notifs = await apiRequest<Notification[]>('/api/notifications')
@@ -353,10 +395,3 @@ function DashboardPageInner() {
   )
 }
 
-export default function DashboardPage() {
-  return (
-    <Suspense>
-      <DashboardPageInner />
-    </Suspense>
-  )
-}
