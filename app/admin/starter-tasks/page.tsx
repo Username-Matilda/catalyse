@@ -1,10 +1,7 @@
-// TODO: review the full starter tasks workflow end-to-end — how tasks are created/assigned by admins,
-// how volunteers see and submit them (app/starter-tasks/page.tsx), and how admins review submissions
-// here. Check the rating/notes fields, status transitions, and what feedback is shown to volunteers.
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import React, { Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/components/Header'
 import Button from '@/components/Button'
@@ -69,8 +66,9 @@ function formatDate(iso: string) {
   })
 }
 
-export default function AdminStarterTasksPage() {
+function AdminStarterTasksPageInner() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user, loading } = useAuth()
   const [tasks, setTasks] = useState<StarterTask[]>([])
   const [skills, setSkills] = useState<Skill[]>([])
@@ -107,6 +105,8 @@ export default function AdminStarterTasksPage() {
   const [reviewFeedback, setReviewFeedback] = useState('')
   const [reviewNotes, setReviewNotes] = useState('')
 
+  const cardRefs = useRef<Map<number, HTMLDivElement>>(new Map())
+
   useEffect(() => {
     if (!loading && !user) router.push('/login')
     if (!loading && user && !user.is_admin) router.push('/')
@@ -137,6 +137,17 @@ export default function AdminStarterTasksPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadAll()
   }, [user, loadAll])
+
+  useEffect(() => {
+    const idParam = searchParams.get('id')
+    if (!idParam || tasks.length === 0) return
+    const taskId = parseInt(idParam, 10)
+    if (isNaN(taskId)) return
+    setExpandedCards((prev) => new Set(prev).add(taskId))
+    setTimeout(() => {
+      cardRefs.current.get(taskId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 50)
+  }, [searchParams, tasks])
 
   function toggleCard(id: number) {
     setExpandedCards((prev) => {
@@ -235,6 +246,23 @@ export default function AdminStarterTasksPage() {
     }
   }
 
+  async function deleteTask(task: StarterTask) {
+    if (!confirm(`Delete "${task.title}"? This cannot be undone.`)) return
+    try {
+      await apiRequest(`/api/starter-tasks/${task.id}`, { method: 'DELETE' })
+      toast('Task deleted', 'success')
+      await loadAll()
+    } catch (err: unknown) {
+      toast(err instanceof Error ? err.message : 'Failed to delete task', 'error')
+    }
+  }
+
+  function copyLink(taskId: number) {
+    const url = `${window.location.origin}/admin/starter-tasks?id=${taskId}`
+    navigator.clipboard.writeText(url)
+    toast('Link copied!', 'success')
+  }
+
   async function reviewTask(e: React.FormEvent) {
     e.preventDefault()
     if (!reviewModal) return
@@ -314,6 +342,10 @@ export default function AdminStarterTasksPage() {
             return (
               <div
                 key={task.id}
+                ref={(el) => {
+                  if (el) cardRefs.current.set(task.id, el)
+                  else cardRefs.current.delete(task.id)
+                }}
                 className="card bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
               >
                 <div
@@ -442,10 +474,30 @@ export default function AdminStarterTasksPage() {
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation()
+                            copyLink(task.id)
+                          }}
+                        >
+                          Copy link
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
                             openEdit(task)
                           }}
                         >
                           Edit
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            deleteTask(task)
+                          }}
+                        >
+                          Delete
                         </Button>
                         {task.status === 'open' && (
                           <Button
@@ -718,7 +770,7 @@ export default function AdminStarterTasksPage() {
       )}
 
       {/* Review Task Modal */}
-      {reviewModal && (
+      {reviewModal != null && (
         <div
           className="fixed inset-0 bg-[rgba(29,53,87,0.5)] flex items-center justify-center z-1000 p-5"
           onClick={(e) => {
@@ -799,5 +851,13 @@ export default function AdminStarterTasksPage() {
         </div>
       )}
     </>
+  )
+}
+
+export default function AdminStarterTasksPage() {
+  return (
+    <Suspense>
+      <AdminStarterTasksPageInner />
+    </Suspense>
   )
 }
