@@ -490,7 +490,7 @@ function AdminStarterTasksPageInner() {
                           Edit
                         </Button>
                         <Button
-                          variant="secondary"
+                          variant="danger"
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation()
