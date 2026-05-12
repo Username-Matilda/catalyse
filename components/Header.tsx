@@ -328,9 +328,9 @@ export default function Header() {
 
       {/* Mobile nav panel — full-screen overlay */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 bg-surface z-[1500] flex flex-col overflow-y-auto">
+        <div className="fixed inset-0 bg-surface z-[1500] flex flex-col">
           {/* Panel header */}
-          <div className="border-b border-brand-border sticky top-0 bg-surface z-[1]">
+          <div className="border-b border-brand-border bg-surface shrink-0">
             <div className="container flex items-center justify-between py-4">
               <Link
                 href="/"
@@ -362,7 +362,7 @@ export default function Header() {
           </div>
 
           {/* Nav links */}
-          <div>
+          <div className="flex-1 overflow-y-auto">
             {user &&
               navLinks.map(({ href, label }) => (
                 <MobileNavLink key={href} href={href} active={pathname === href}>
@@ -418,6 +418,36 @@ export default function Header() {
                   <MobileNavLink href="/signup">Sign Up</MobileNavLink>
                 </>
               ))}
+
+          </div>
+
+          {/* Pinned bottom bar */}
+          <div className="shrink-0 border-t border-brand-border bg-surface">
+            <div className="flex items-center overflow-hidden w-full">
+              <ThemeToggle showLabel size="md" className="rounded-none flex-1 justify-center" />
+              <button
+                onClick={() => {
+                  setBugDialogOpen(true)
+                  setMobileMenuOpen(false)
+                }}
+                className="flex items-center justify-center gap-2 flex-1 px-4 py-2 text-[var(--text)] font-medium text-base border-l border-brand-border hover:bg-[var(--background)] cursor-pointer bg-transparent whitespace-nowrap"
+              >
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                  <line x1="4" y1="22" x2="4" y2="15" />
+                </svg>
+                Report bug/feedback
+              </button>
+            </div>
           </div>
         </div>
       )}
