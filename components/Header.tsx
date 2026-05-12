@@ -54,7 +54,7 @@ function DashboardNavButtons({ unreadCount }: { unreadCount: number }) {
         My Projects
       </Button>
       <Button
-        href="/dashboard?tab=notifications"
+        href="/dashboard#tab-notifications"
         variant={dashboardTab === 'notifications' ? 'primary' : 'ghost'}
         size="sm"
       >
@@ -151,7 +151,7 @@ export default function Header() {
                     <Button href="/dashboard" variant="ghost" size="sm">
                       My Projects
                     </Button>
-                    <Button href="/dashboard?tab=notifications" variant="ghost" size="sm">
+                    <Button href="/dashboard#tab-notifications" variant="ghost" size="sm">
                       Notifications
                     </Button>
                   </>

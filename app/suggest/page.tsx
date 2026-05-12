@@ -35,7 +35,7 @@ export default function SuggestPage() {
             requireTasks
             onSuccess={() => {
               toast("Project submitted for review! We'll be in touch.", 'success')
-              setTimeout(() => router.push('/dashboard?tab=proposed'), 2000)
+              setTimeout(() => router.push('/dashboard#tab-proposed'), 2000)
             }}
           />
         </div>
