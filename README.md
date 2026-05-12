@@ -51,10 +51,10 @@ npm run install:browsers # install Playwright browser
 
 ### Environment
 
-Copy `web/.env.local.example` to `web/.env.local` and fill in the values:
+Copy `.env.local.example` to `.env.local` and fill in the values:
 
 ```bash
-cp web/.env.local.example web/.env.local
+cp .env.local.example .env.local
 ```
 
 Key variables:
@@ -96,15 +96,13 @@ Tests spin up an isolated Next.js server with a fresh database — your dev serv
 
 ```
 catalyse/
-├── web/                    # Next.js application
-│   ├── app/                # App Router pages and API routes
-│   ├── components/         # Shared React components
-│   ├── lib/                # Auth, email, Prisma, utilities
-│   ├── prisma/             # Prisma schema and migrations
-│   └── public/             # Static assets
-├── e2e/                    # Playwright end-to-end tests
-│   └── tests/              # Test specs
-└── Makefile                # Common commands
+├── app/                    # App Router pages and API routes
+├── components/             # Shared React components
+├── lib/                    # Auth, email, Prisma, utilities
+├── prisma/                 # Prisma schema and migrations
+├── public/                 # Static assets
+├── scripts/                # Build and utility scripts
+└── e2e/                    # Playwright end-to-end tests
 ```
 
 ## License
