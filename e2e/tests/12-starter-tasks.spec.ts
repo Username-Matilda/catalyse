@@ -299,4 +299,48 @@ test.describe('Starter Tasks', () => {
       timeout: 10_000,
     })
   })
+
+  test('Admin deletes a starter task; task disappears from the list', async ({
+    adminPage,
+    baseUrl,
+  }) => {
+    const skill = await createSkill(baseUrl, adminPage)
+    const taskTitle = await createOpenStarterTask(baseUrl, adminPage, skill)
+
+    const taskCard = adminPage.locator('.card').filter({ hasText: taskTitle })
+    await expect(taskCard).toBeVisible({ timeout: 10_000 })
+    await taskCard.locator('.card-header').click()
+    await expect(taskCard.getByRole('button', { name: 'Delete' })).toBeVisible({ timeout: 10_000 })
+
+    adminPage.once('dialog', (dialog) => dialog.accept())
+    await taskCard.getByRole('button', { name: 'Delete' }).click()
+
+    await expect(getAlert(adminPage)).toContainText('Task deleted', { timeout: 10_000 })
+    await expect(taskCard).not.toBeVisible({ timeout: 10_000 })
+  })
+
+  test('Deep-linking to ?id= auto-expands the matching task card', async ({
+    adminPage,
+    baseUrl,
+  }) => {
+    const skill = await createSkill(baseUrl, adminPage)
+    const taskTitle = await createOpenStarterTask(baseUrl, adminPage, skill)
+
+    // Get the task ID via API so we can build the deep-link URL
+    const response = await adminPage.request.get(`${baseUrl}/api/starter-tasks`)
+    const tasks = await response.json()
+    const task = tasks.find((t: { title: string }) => t.title === taskTitle)
+    expect(task).toBeDefined()
+
+    // Navigate directly to the deep-link — card should be expanded without clicking
+    await adminPage.goto(`${baseUrl}/admin/starter-tasks?id=${task.id}`)
+    await expect(adminPage.getByRole('heading', { name: 'Starter Tasks', level: 1 })).toBeVisible({
+      timeout: 10_000,
+    })
+
+    const taskCard = adminPage.locator('.card').filter({ hasText: taskTitle })
+    await expect(taskCard).toBeVisible({ timeout: 10_000 })
+    // Card is expanded — action buttons are visible without clicking the header
+    await expect(taskCard.getByRole('button', { name: 'Edit' })).toBeVisible({ timeout: 10_000 })
+  })
 })
