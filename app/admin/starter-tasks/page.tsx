@@ -873,8 +873,11 @@ function AdminStarterTasksPageInner() {
             </div>
             <div className="p-6">
               <p className="text-text-light mb-6">
-                Remove <strong>{unassignModal.assigned_to_name}</strong> from &ldquo;
-                {unassignModal.title}&rdquo;? The task will return to open.
+                Remove{' '}
+                <Link href={`/admin/volunteers/${unassignModal.assigned_to_id}`}>
+                  {unassignModal.assigned_to_name}
+                </Link>{' '}
+                from &ldquo;{unassignModal.title}&rdquo;? The task will return to open.
               </p>
               <div className="flex gap-3 justify-end">
                 <Button variant="secondary" onClick={() => setUnassignModal(null)}>
