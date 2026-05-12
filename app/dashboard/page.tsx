@@ -1,7 +1,7 @@
 'use client'
 
-import React, { Suspense, useEffect, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import React, { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/components/Header'
 import Button from '@/components/Button'
@@ -50,13 +50,17 @@ interface StarterTask {
 
 type TabKey = 'owned' | 'interests' | 'proposed' | 'suggested' | 'notifications'
 
-function DashboardPageInner() {
+export default function DashboardPage() {
   const router = useRouter()
   const { user, loading } = useAuth()
   const [data, setData] = useState<DashboardData | null>(null)
   const [notifications, setNotifications] = useState<Notification[]>([])
-  const searchParams = useSearchParams()
-  const [activeTab, setActiveTab] = useState<TabKey>((searchParams.get('tab') as TabKey) || 'owned')
+  const [activeTab, setActiveTab] = useState<TabKey>(() => {
+    if (typeof window === 'undefined') return 'owned'
+    const hash = window.location.hash
+    if (hash.startsWith('#tab-')) return (hash.slice('#tab-'.length) as TabKey) || 'owned'
+    return 'owned'
+  })
   const [unreadCount, setUnreadCount] = useState(0)
   const [loadingData, setLoadingData] = useState(true)
   const [starterTasks, setStarterTasks] = useState<StarterTask[]>([])
@@ -111,8 +115,8 @@ function DashboardPageInner() {
 
   async function handleTabClick(tab: TabKey) {
     setActiveTab(tab)
-    const url = tab === 'owned' ? '/dashboard' : `/dashboard?tab=${tab}`
-    router.replace(url, { scroll: false })
+    const hash = tab === 'owned' ? '' : `#tab-${tab}`
+    history.replaceState(null, '', `/dashboard${hash}`)
     if (tab === 'notifications') {
       try {
         const notifs = await apiRequest<Notification[]>('/api/notifications')
@@ -353,10 +357,3 @@ function DashboardPageInner() {
   )
 }
 
-export default function DashboardPage() {
-  return (
-    <Suspense>
-      <DashboardPageInner />
-    </Suspense>
-  )
-}
