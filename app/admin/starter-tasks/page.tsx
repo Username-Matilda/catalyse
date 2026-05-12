@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/components/Header'
@@ -77,6 +77,8 @@ export default function AdminStarterTasksPage() {
   const toast = useToast()
   const [submitting, setSubmitting] = useState(false)
   const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set())
+  // useRef so the hash is captured client-side in a useEffect (useState initializer runs on server)
+  const deepLinkHash = useRef('')
 
   // Create modal
   const [showCreate, setShowCreate] = useState(false)
@@ -138,7 +140,25 @@ export default function AdminStarterTasksPage() {
   }, [user, loadAll])
 
   useEffect(() => {
-    const hash = window.location.hash
+    function expandFromHash(hash: string) {
+      if (!hash.startsWith('#task-')) return
+      const taskId = parseInt(hash.slice('#task-'.length), 10)
+      if (isNaN(taskId)) return
+      setExpandedCards((prev) => new Set(prev).add(taskId))
+    }
+    deepLinkHash.current = window.location.hash
+    const onHashChange = () => {
+      deepLinkHash.current = window.location.hash
+      // Tasks are already loaded when a hashchange fires mid-session
+      expandFromHash(deepLinkHash.current)
+    }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
+
+  // When tasks first load, apply any hash that was present on initial page load
+  useEffect(() => {
+    const hash = deepLinkHash.current
     if (!hash.startsWith('#task-') || tasks.length === 0) return
     const taskId = parseInt(hash.slice('#task-'.length), 10)
     if (isNaN(taskId)) return

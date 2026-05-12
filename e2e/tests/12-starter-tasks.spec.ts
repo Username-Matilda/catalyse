@@ -327,7 +327,10 @@ test.describe('Starter Tasks', () => {
     const taskTitle = await createOpenStarterTask(baseUrl, adminPage, skill)
 
     // Get the task ID via API so we can build the deep-link URL
-    const response = await adminPage.request.get(`${baseUrl}/api/starter-tasks`)
+    const token = await adminPage.evaluate(() => localStorage.getItem('authToken'))
+    const response = await adminPage.request.get(`${baseUrl}/api/starter-tasks`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
     const tasks: { id: number; title: string }[] = await response.json()
     const task = tasks.find((t) => t.title === taskTitle)
     expect(task).toBeDefined()
@@ -337,6 +340,7 @@ test.describe('Starter Tasks', () => {
     await expect(adminPage.getByRole('heading', { name: 'Starter Tasks', level: 1 })).toBeVisible({
       timeout: 10_000,
     })
+    await adminPage.getByText('Loading…').waitFor({ state: 'hidden', timeout: 10_000 })
 
     const taskCard = adminPage.locator(`#task-${task.id}`)
     await expect(taskCard).toBeVisible({ timeout: 10_000 })
