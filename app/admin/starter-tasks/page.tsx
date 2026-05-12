@@ -1,9 +1,6 @@
-// TODO: review the full starter tasks workflow end-to-end — how tasks are created/assigned by admins,
-// how volunteers see and submit them (app/starter-tasks/page.tsx), and how admins review submissions
-// here. Check the rating/notes fields, status transitions, and what feedback is shown to volunteers.
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/components/Header'
@@ -107,6 +104,8 @@ export default function AdminStarterTasksPage() {
   const [reviewFeedback, setReviewFeedback] = useState('')
   const [reviewNotes, setReviewNotes] = useState('')
 
+  const [unassignModal, setUnassignModal] = useState<StarterTask | null>(null)
+
   useEffect(() => {
     if (!loading && !user) router.push('/login')
     if (!loading && user && !user.is_admin) router.push('/')
@@ -137,6 +136,14 @@ export default function AdminStarterTasksPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadAll()
   }, [user, loadAll])
+
+  useEffect(() => {
+    const hash = window.location.hash
+    if (!hash.startsWith('#task-') || tasks.length === 0) return
+    const taskId = parseInt(hash.slice('#task-'.length), 10)
+    if (isNaN(taskId)) return
+    setExpandedCards((prev) => new Set(prev).add(taskId))
+  }, [tasks])
 
   function toggleCard(id: number) {
     setExpandedCards((prev) => {
@@ -225,14 +232,36 @@ export default function AdminStarterTasksPage() {
     }
   }
 
-  async function unassignTask(taskId: number) {
+  async function unassignTask() {
+    if (!unassignModal) return
+    setSubmitting(true)
     try {
-      await apiRequest(`/api/starter-tasks/${taskId}/unassign`, { method: 'POST' })
+      await apiRequest(`/api/starter-tasks/${unassignModal.id}/unassign`, { method: 'POST' })
       toast('Assignee removed', 'success')
+      setUnassignModal(null)
       await loadAll()
     } catch (err: unknown) {
       toast(err instanceof Error ? err.message : 'Failed to unassign', 'error')
+    } finally {
+      setSubmitting(false)
     }
+  }
+
+  async function deleteTask(task: StarterTask) {
+    if (!confirm(`Delete "${task.title}"? This cannot be undone.`)) return
+    try {
+      await apiRequest(`/api/starter-tasks/${task.id}`, { method: 'DELETE' })
+      toast('Task deleted', 'success')
+      await loadAll()
+    } catch (err: unknown) {
+      toast(err instanceof Error ? err.message : 'Failed to delete task', 'error')
+    }
+  }
+
+  function copyLink(taskId: number) {
+    const url = `${window.location.origin}/starter-tasks#task-${taskId}`
+    navigator.clipboard.writeText(url)
+    toast('Link copied!', 'success')
   }
 
   async function reviewTask(e: React.FormEvent) {
@@ -314,6 +343,7 @@ export default function AdminStarterTasksPage() {
             return (
               <div
                 key={task.id}
+                id={`task-${task.id}`}
                 className="card bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
               >
                 <div
@@ -438,6 +468,16 @@ export default function AdminStarterTasksPage() {
                       </span>
                       <div className="flex gap-2">
                         <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            copyLink(task.id)
+                          }}
+                        >
+                          Copy share link
+                        </Button>
+                        <Button
                           variant="secondary"
                           size="sm"
                           onClick={(e) => {
@@ -446,6 +486,16 @@ export default function AdminStarterTasksPage() {
                           }}
                         >
                           Edit
+                        </Button>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            deleteTask(task)
+                          }}
+                        >
+                          Delete
                         </Button>
                         {task.status === 'open' && (
                           <Button
@@ -460,16 +510,13 @@ export default function AdminStarterTasksPage() {
                             Assign
                           </Button>
                         )}
-                        {task.assigned_to_id &&
-                          task.status !== 'open' &&
-                          task.status !== 'completed' &&
-                          task.status !== 'reviewed' && (
+                        {task.assigned_to_id && (
                             <Button
                               variant="secondary"
                               size="sm"
                               onClick={(e) => {
                                 e.stopPropagation()
-                                unassignTask(task.id)
+                                setUnassignModal(task)
                               }}
                             >
                               Unassign
@@ -718,7 +765,7 @@ export default function AdminStarterTasksPage() {
       )}
 
       {/* Review Task Modal */}
-      {reviewModal && (
+      {reviewModal != null && (
         <div
           className="fixed inset-0 bg-[rgba(29,53,87,0.5)] flex items-center justify-center z-1000 p-5"
           onClick={(e) => {
@@ -794,6 +841,43 @@ export default function AdminStarterTasksPage() {
                   </Button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unassign Confirm Modal */}
+      {unassignModal && (
+        <div
+          className="fixed inset-0 bg-[rgba(29,53,87,0.5)] flex items-center justify-center z-1000 p-5"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setUnassignModal(null)
+          }}
+        >
+          <div
+            role="dialog"
+            aria-labelledby="unassign-dialog-title"
+            className="bg-surface rounded-xl shadow-lg max-w-125 w-full"
+          >
+            <div className="px-6 py-5 border-b border-brand-border">
+              <h2 id="unassign-dialog-title">Unassign Volunteer?</h2>
+            </div>
+            <div className="p-6">
+              <p className="text-text-light mb-6">
+                Remove{' '}
+                <Link href={`/admin/volunteers/${unassignModal.assigned_to_id}`}>
+                  {unassignModal.assigned_to_name}
+                </Link>{' '}
+                from &ldquo;{unassignModal.title}&rdquo;? The task will return to open.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <Button variant="secondary" onClick={() => setUnassignModal(null)}>
+                  Cancel
+                </Button>
+                <Button onClick={unassignTask} disabled={submitting}>
+                  {submitting ? 'Removing…' : 'Unassign'}
+                </Button>
+              </div>
             </div>
           </div>
         </div>

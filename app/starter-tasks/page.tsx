@@ -88,6 +88,7 @@ export default function StarterTasksPage() {
           tasks.map((task) => (
             <div
               key={task.id}
+              id={`task-${task.id}`}
               className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
             >
               <div className="flex justify-between items-start mb-2">

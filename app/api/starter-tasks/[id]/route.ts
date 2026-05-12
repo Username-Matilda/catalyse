@@ -36,3 +36,25 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
   return Response.json({ id: updated.id, message: 'Task updated' })
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { error } = await requireAdmin(request.headers.get('authorization'))
+  if (error) return error
+
+  const { id } = await params
+  const taskId = parseInt(id, 10)
+  if (isNaN(taskId)) return Response.json({ detail: 'Invalid id' }, { status: 400 })
+
+  const task = await prisma.starterTask.findUnique({ where: { id: taskId } })
+  if (!task) return Response.json({ detail: 'Task not found' }, { status: 404 })
+
+  await prisma.skillEndorsement.deleteMany({
+    where: { source: 'starter_task', sourceId: taskId },
+  })
+  await prisma.starterTask.delete({ where: { id: taskId } })
+
+  return Response.json({ message: 'Task deleted' })
+}
