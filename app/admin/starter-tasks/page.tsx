@@ -105,6 +105,8 @@ function AdminStarterTasksPageInner() {
   const [reviewFeedback, setReviewFeedback] = useState('')
   const [reviewNotes, setReviewNotes] = useState('')
 
+  const [unassignModal, setUnassignModal] = useState<StarterTask | null>(null)
+
   const cardRefs = useRef<Map<number, HTMLDivElement>>(new Map())
 
   useEffect(() => {
@@ -236,13 +238,18 @@ function AdminStarterTasksPageInner() {
     }
   }
 
-  async function unassignTask(taskId: number) {
+  async function unassignTask() {
+    if (!unassignModal) return
+    setSubmitting(true)
     try {
-      await apiRequest(`/api/starter-tasks/${taskId}/unassign`, { method: 'POST' })
+      await apiRequest(`/api/starter-tasks/${unassignModal.id}/unassign`, { method: 'POST' })
       toast('Assignee removed', 'success')
+      setUnassignModal(null)
       await loadAll()
     } catch (err: unknown) {
       toast(err instanceof Error ? err.message : 'Failed to unassign', 'error')
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -470,7 +477,7 @@ function AdminStarterTasksPageInner() {
                       </span>
                       <div className="flex gap-2">
                         <Button
-                          variant="secondary"
+                          variant="ghost"
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation()
@@ -518,7 +525,7 @@ function AdminStarterTasksPageInner() {
                               size="sm"
                               onClick={(e) => {
                                 e.stopPropagation()
-                                unassignTask(task.id)
+                                setUnassignModal(task)
                               }}
                             >
                               Unassign
@@ -843,6 +850,40 @@ function AdminStarterTasksPageInner() {
                   </Button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unassign Confirm Modal */}
+      {unassignModal && (
+        <div
+          className="fixed inset-0 bg-[rgba(29,53,87,0.5)] flex items-center justify-center z-1000 p-5"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setUnassignModal(null)
+          }}
+        >
+          <div
+            role="dialog"
+            aria-labelledby="unassign-dialog-title"
+            className="bg-surface rounded-xl shadow-lg max-w-125 w-full"
+          >
+            <div className="px-6 py-5 border-b border-brand-border">
+              <h2 id="unassign-dialog-title">Unassign Volunteer?</h2>
+            </div>
+            <div className="p-6">
+              <p className="text-text-light mb-6">
+                Remove <strong>{unassignModal.assigned_to_name}</strong> from &ldquo;
+                {unassignModal.title}&rdquo;? The task will return to open.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <Button variant="secondary" onClick={() => setUnassignModal(null)}>
+                  Cancel
+                </Button>
+                <Button onClick={unassignTask} disabled={submitting}>
+                  {submitting ? 'Removing…' : 'Unassign'}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
