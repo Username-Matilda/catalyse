@@ -1,7 +1,7 @@
 'use client'
 
-import React, { Suspense, useCallback, useEffect, useRef, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import React, { useCallback, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/components/Header'
 import Button from '@/components/Button'
@@ -66,9 +66,8 @@ function formatDate(iso: string) {
   })
 }
 
-function AdminStarterTasksPageInner() {
+export default function AdminStarterTasksPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const { user, loading } = useAuth()
   const [tasks, setTasks] = useState<StarterTask[]>([])
   const [skills, setSkills] = useState<Skill[]>([])
@@ -107,8 +106,6 @@ function AdminStarterTasksPageInner() {
 
   const [unassignModal, setUnassignModal] = useState<StarterTask | null>(null)
 
-  const cardRefs = useRef<Map<number, HTMLDivElement>>(new Map())
-
   useEffect(() => {
     if (!loading && !user) router.push('/login')
     if (!loading && user && !user.is_admin) router.push('/')
@@ -141,15 +138,12 @@ function AdminStarterTasksPageInner() {
   }, [user, loadAll])
 
   useEffect(() => {
-    const idParam = searchParams.get('id')
-    if (!idParam || tasks.length === 0) return
-    const taskId = parseInt(idParam, 10)
+    const hash = window.location.hash
+    if (!hash.startsWith('#task-') || tasks.length === 0) return
+    const taskId = parseInt(hash.slice('#task-'.length), 10)
     if (isNaN(taskId)) return
     setExpandedCards((prev) => new Set(prev).add(taskId))
-    setTimeout(() => {
-      cardRefs.current.get(taskId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }, 50)
-  }, [searchParams, tasks])
+  }, [tasks])
 
   function toggleCard(id: number) {
     setExpandedCards((prev) => {
@@ -265,7 +259,7 @@ function AdminStarterTasksPageInner() {
   }
 
   function copyLink(taskId: number) {
-    const url = `${window.location.origin}/admin/starter-tasks?id=${taskId}`
+    const url = `${window.location.origin}/admin/starter-tasks#task-${taskId}`
     navigator.clipboard.writeText(url)
     toast('Link copied!', 'success')
   }
@@ -349,10 +343,7 @@ function AdminStarterTasksPageInner() {
             return (
               <div
                 key={task.id}
-                ref={(el) => {
-                  if (el) cardRefs.current.set(task.id, el)
-                  else cardRefs.current.delete(task.id)
-                }}
+                id={`task-${task.id}`}
                 className="card bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
               >
                 <div
@@ -892,13 +883,5 @@ function AdminStarterTasksPageInner() {
         </div>
       )}
     </>
-  )
-}
-
-export default function AdminStarterTasksPage() {
-  return (
-    <Suspense>
-      <AdminStarterTasksPageInner />
-    </Suspense>
   )
 }

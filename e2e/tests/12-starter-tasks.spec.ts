@@ -333,12 +333,12 @@ test.describe('Starter Tasks', () => {
     expect(task).toBeDefined()
 
     // Navigate directly to the deep-link — card should be expanded without clicking
-    await adminPage.goto(`${baseUrl}/admin/starter-tasks?id=${task.id}`)
+    await adminPage.goto(`${baseUrl}/admin/starter-tasks#task-${task.id}`)
     await expect(adminPage.getByRole('heading', { name: 'Starter Tasks', level: 1 })).toBeVisible({
       timeout: 10_000,
     })
 
-    const taskCard = adminPage.locator('.card').filter({ hasText: taskTitle })
+    const taskCard = adminPage.locator(`#task-${task.id}`)
     await expect(taskCard).toBeVisible({ timeout: 10_000 })
     // Card is expanded — action buttons are visible without clicking the header
     await expect(taskCard.getByRole('button', { name: 'Edit' })).toBeVisible({ timeout: 10_000 })
