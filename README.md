@@ -74,11 +74,13 @@ The app will be available at `http://localhost:3000`.
 
 ### First-Time Setup
 
-To make yourself an admin, update the database:
+To make yourself an admin, add your email to `.env.local`:
 
-```sql
-UPDATE volunteers SET is_admin = 1 WHERE email = 'your@email.com';
+```env
+ADMIN_EMAILS=your@email.com
 ```
+
+On next login, the app will automatically grant admin access. Multiple emails can be comma-separated.
 
 ## Testing
 
@@ -94,7 +96,7 @@ Tests spin up an isolated Next.js server with a fresh database — your dev serv
 
 ## Project Structure
 
-```
+```text
 catalyse/
 ├── app/                    # App Router pages and API routes
 ├── components/             # Shared React components
