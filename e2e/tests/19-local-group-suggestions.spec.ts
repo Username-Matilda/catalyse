@@ -3,6 +3,9 @@ import {
   submitLocalGroupSuggestion,
   navigateToAdminLocalGroups,
   adminReviewSuggestion,
+  adminAddGroup,
+  adminEditGroup,
+  adminDeleteItem,
 } from '../actions/local-groups'
 import { selectFilterDropdown } from '../actions/ui'
 import { fake } from '../fake'
@@ -113,12 +116,8 @@ test.describe('Local Group Suggestions', () => {
       .waitFor({ timeout: 10_000 })
     await volunteer.page.waitForLoadState('networkidle', { timeout: 15_000 })
 
-    await selectFilterDropdown(volunteer.page, 'Select country', 'UK')
-    await expect(volunteer.page.getByLabel('Select local group', { exact: true })).toBeVisible({
-      timeout: 10_000,
-    })
-    await selectFilterDropdown(volunteer.page, 'Select local group', `UK - ${groupName}`)
-    await expect(volunteer.page.getByLabel('Select local group', { exact: true })).toContainText(
+    await selectFilterDropdown(volunteer.page, 'Select country', `UK - ${groupName}`)
+    await expect(volunteer.page.getByLabel('Select country', { exact: true })).toContainText(
       groupName,
     )
   })
@@ -138,12 +137,10 @@ test.describe('Local Group Suggestions', () => {
 
     await expect(getAlert(adminPage)).toContainText('merged', { timeout: 10_000 })
 
-    await adminPage.getByRole('tab', { name: 'Accepted' }).click()
-    await adminPage.getByText('Loading…').waitFor({ state: 'hidden', timeout: 10_000 })
-    const accepted = adminPage.getByRole('article').filter({ hasText: groupName })
-    await expect(accepted).toBeVisible({ timeout: 10_000 })
-    await expect(accepted).toContainText('Merged into')
-    await expect(accepted).toContainText('London')
+    // Suggestion is removed from the pending list after merge
+    await expect(adminPage.getByRole('article').filter({ hasText: groupName })).toBeHidden({
+      timeout: 10_000,
+    })
   })
 
   test('Admin puts a suggestion on hold', async ({ volunteer, adminPage, baseUrl }) => {
@@ -156,7 +153,7 @@ test.describe('Local Group Suggestions', () => {
 
     await expect(getAlert(adminPage)).toContainText('on hold', { timeout: 10_000 })
 
-    await adminPage.getByRole('tab', { name: 'On Hold' }).click()
+    await selectFilterDropdown(adminPage, 'Status filter', 'On Hold')
     await adminPage.getByText('Loading…').waitFor({ state: 'hidden', timeout: 10_000 })
     await expect(adminPage.getByRole('article').filter({ hasText: groupName })).toBeVisible({
       timeout: 10_000,
@@ -173,7 +170,7 @@ test.describe('Local Group Suggestions', () => {
 
     await expect(getAlert(adminPage)).toContainText('declined', { timeout: 10_000 })
 
-    await adminPage.getByRole('tab', { name: 'Declined' }).click()
+    await selectFilterDropdown(adminPage, 'Status filter', 'Declined')
     await adminPage.getByText('Loading…').waitFor({ state: 'hidden', timeout: 10_000 })
     const card = adminPage.getByRole('article').filter({ hasText: groupName })
     await expect(card).toBeVisible({ timeout: 10_000 })
@@ -199,5 +196,87 @@ test.describe('Local Group Suggestions', () => {
     await expect(
       volunteer.page.getByRole('article').filter({ hasText: groupName }),
     ).toContainText('Declined', { timeout: 10_000 })
+  })
+})
+
+test.describe('Admin Local Group Management', () => {
+  test('Admin creates a group directly and it appears as Active', async ({
+    adminPage,
+    baseUrl,
+  }) => {
+    const groupName = fake.localGroupName()
+
+    await navigateToAdminLocalGroups(baseUrl, adminPage)
+    await adminAddGroup(adminPage, 'UK', groupName)
+
+    await expect(getAlert(adminPage)).toContainText('added', { timeout: 10_000 })
+
+    await selectFilterDropdown(adminPage, 'Status filter', 'Active')
+    await adminPage.getByText('Loading…').waitFor({ state: 'hidden', timeout: 10_000 })
+    const card = adminPage.getByRole('article').filter({ hasText: groupName })
+    await expect(card).toBeVisible({ timeout: 10_000 })
+    await expect(card).toContainText('Active')
+    await expect(card).toContainText('UK')
+  })
+
+  test('Admin edits a group name', async ({ adminPage, baseUrl }) => {
+    const groupName = fake.localGroupName()
+    const updatedName = `${groupName} Updated`
+
+    await navigateToAdminLocalGroups(baseUrl, adminPage)
+    await adminAddGroup(adminPage, 'UK', groupName)
+    await expect(getAlert(adminPage)).toContainText('added', { timeout: 10_000 })
+
+    await selectFilterDropdown(adminPage, 'Status filter', 'Active')
+    await adminPage.getByText('Loading…').waitFor({ state: 'hidden', timeout: 10_000 })
+
+    await adminEditGroup(adminPage, groupName, { newName: updatedName })
+    await expect(getAlert(adminPage)).toContainText('updated', { timeout: 10_000 })
+
+    await expect(adminPage.getByRole('article').filter({ hasText: updatedName })).toBeVisible({
+      timeout: 10_000,
+    })
+  })
+
+  test('Admin deletes a group and it is removed from the list', async ({
+    adminPage,
+    baseUrl,
+  }) => {
+    const groupName = fake.localGroupName()
+
+    await navigateToAdminLocalGroups(baseUrl, adminPage)
+    await adminAddGroup(adminPage, 'UK', groupName)
+    await expect(getAlert(adminPage)).toContainText('added', { timeout: 10_000 })
+
+    await selectFilterDropdown(adminPage, 'Status filter', 'Active')
+    await adminPage.getByText('Loading…').waitFor({ state: 'hidden', timeout: 10_000 })
+
+    await adminDeleteItem(adminPage, groupName)
+    await expect(getAlert(adminPage)).toContainText('Deleted', { timeout: 10_000 })
+
+    await expect(adminPage.getByRole('article').filter({ hasText: groupName })).toBeHidden()
+  })
+
+  test('Directly-created group appears in the propose-project location dropdown', async ({
+    volunteer,
+    adminPage,
+    baseUrl,
+  }) => {
+    const groupName = fake.localGroupName()
+
+    await navigateToAdminLocalGroups(baseUrl, adminPage)
+    await adminAddGroup(adminPage, 'UK', groupName)
+    await expect(getAlert(adminPage)).toContainText('added', { timeout: 10_000 })
+
+    await volunteer.page.goto(`${baseUrl}/suggest`)
+    await volunteer.page
+      .getByRole('button', { name: 'Submit Project Proposal' })
+      .waitFor({ timeout: 10_000 })
+    await volunteer.page.waitForLoadState('networkidle', { timeout: 15_000 })
+
+    await selectFilterDropdown(volunteer.page, 'Select country', `UK - ${groupName}`)
+    await expect(volunteer.page.getByLabel('Select country', { exact: true })).toContainText(
+      groupName,
+    )
   })
 })

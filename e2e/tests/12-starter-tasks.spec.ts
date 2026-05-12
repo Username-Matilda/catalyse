@@ -328,8 +328,8 @@ test.describe('Starter Tasks', () => {
 
     // Get the task ID via API so we can build the deep-link URL
     const response = await adminPage.request.get(`${baseUrl}/api/starter-tasks`)
-    const { tasks } = await response.json()
-    const task = tasks.find((t: { title: string }) => t.title === taskTitle)
+    const tasks: { id: number; title: string }[] = await response.json()
+    const task = tasks.find((t) => t.title === taskTitle)
     expect(task).toBeDefined()
 
     // Navigate directly to the deep-link — card should be expanded without clicking
