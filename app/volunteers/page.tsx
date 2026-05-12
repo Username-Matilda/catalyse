@@ -6,7 +6,7 @@ import Link from 'next/link'
 import Header from '@/components/Header'
 import Button from '@/components/Button'
 import FilterDropdown from '@/components/FilterDropdown'
-import { LOCATION_OPTIONS } from '@/lib/filter-options'
+import { buildLocationOptions, type LocalGroupOption } from '@/lib/filter-options'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
 import { CARD_GRID_CLASSES } from '@/components/ProjectCard'
@@ -44,6 +44,7 @@ export default function VolunteersPage() {
   const [search, setSearch] = useState('')
   const [skillFilter, setSkillFilter] = useState('')
   const [locationFilter, setLocationFilter] = useState('')
+  const [localGroups, setLocalGroups] = useState<LocalGroupOption[]>([])
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -53,6 +54,12 @@ export default function VolunteersPage() {
   useEffect(() => {
     apiRequest<FlatSkill[]>('/api/skills/flat')
       .then((s) => setAllSkills(s))
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    apiRequest<{ groups: LocalGroupOption[] }>('/api/local-groups')
+      .then((data) => setLocalGroups(data.groups))
       .catch(() => {})
   }, [])
 
@@ -134,7 +141,7 @@ export default function VolunteersPage() {
               label="Country"
               ariaLabel="Country filter"
               value={locationFilter}
-              options={LOCATION_OPTIONS}
+              options={buildLocationOptions(localGroups)}
               onChange={setLocationFilter}
               searchable
             />

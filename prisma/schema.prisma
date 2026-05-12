@@ -235,6 +235,38 @@ model Project {
   @@map("projects")
 }
 
+model LocalGroup {
+  id          Int                    @id @default(autoincrement())
+  name        String
+  country     String
+  suggestions LocalGroupSuggestion[]
+
+  @@index([country], map: "idx_local_groups_country")
+  @@map("local_groups")
+}
+
+model LocalGroupSuggestion {
+  id            Int        @id @default(autoincrement())
+  name          String
+  country       String
+  status        String     @default("pending")
+  suggestedById Int        @map("suggested_by_id")
+  reviewedById  Int?       @map("reviewed_by_id")
+  reviewedAt    DateTime?  @map("reviewed_at")
+  adminNotes    String?    @map("admin_notes")
+  mergedIntoId  Int?       @map("merged_into_id")
+  createdAt     DateTime?  @default(now()) @map("created_at")
+  updatedAt     DateTime?  @default(now()) @map("updated_at")
+
+  suggestedBy Volunteer   @relation("LocalGroupSuggestionSuggestedBy", fields: [suggestedById], references: [id])
+  reviewedBy  Volunteer?  @relation("LocalGroupSuggestionReviewedBy", fields: [reviewedById], references: [id])
+  mergedInto  LocalGroup? @relation(fields: [mergedIntoId], references: [id])
+
+  @@index([status], map: "idx_local_group_suggestions_status")
+  @@index([suggestedById], map: "idx_local_group_suggestions_suggested_by")
+  @@map("local_group_suggestions")
+}
+
 model DigestRun {
   id     Int      @id @default(autoincrement())
   type   String
@@ -393,6 +425,8 @@ model Volunteer {
   starterTasksAssignedBy                  StarterTask[]        @relation("StarterTaskAssignedBy")
   starterTasksAssigned                    StarterTask[]        @relation("StarterTaskAssignedTo")
   skills                                  VolunteerSkill[]
+  localGroupSuggestions                   LocalGroupSuggestion[] @relation("LocalGroupSuggestionSuggestedBy")
+  localGroupSuggestionsReviewed           LocalGroupSuggestion[] @relation("LocalGroupSuggestionReviewedBy")
 
   @@index([localGroup], map: "idx_volunteers_local_group")
   @@index([country], map: "idx_volunteers_country")

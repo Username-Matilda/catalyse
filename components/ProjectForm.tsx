@@ -1,13 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Button from '@/components/Button'
 import Checkbox from '@/components/Checkbox'
 import Radio from '@/components/Radio'
 import FilterDropdown from '@/components/FilterDropdown'
 import DescriptionTips from '@/components/DescriptionTips'
 import SkillPicker from '@/components/SkillPicker'
-import { COUNTRY_OPTIONS, LOCAL_GROUPS } from '@/lib/filter-options'
+import { buildLocationOptions, type LocalGroupOption } from '@/lib/filter-options'
 import { useToast } from '@/lib/toast'
 import { apiRequest, ApiError } from '@/lib/api'
 
@@ -59,16 +59,22 @@ export default function ProjectForm({
   const [projectType, setProjectType] = useState('')
   const [hoursPerWeek, setHoursPerWeek] = useState('')
   const [urgency, setUrgency] = useState('medium')
-  const [country, setCountry] = useState('')
-  const [localGroup, setLocalGroup] = useState('')
+  const [locationValue, setLocationValue] = useState('') // 'UK' or 'UK:London'
   const [duration, setDuration] = useState('')
   const [collaborationLink, setCollaborationLink] = useState('')
   const [skills, setSkills] = useState<SelectedSkill[]>([])
   const [seekingHelp, setSeekingHelp] = useState(true)
   const [wantToOwn, setWantToOwn] = useState(false)
   const [tasks, setTasks] = useState<Task[]>([{ title: '', description: '' }])
+  const [allLocalGroups, setAllLocalGroups] = useState<LocalGroupOption[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    apiRequest<{ groups: LocalGroupOption[] }>('/api/local-groups')
+      .then((data) => setAllLocalGroups(data.groups))
+      .catch(() => {})
+  }, [])
 
   function clearFieldError(field: string) {
     setFieldErrors((prev) => {
@@ -103,6 +109,7 @@ export default function ProjectForm({
       return
     }
     setSubmitting(true)
+    const [country, localGroup] = locationValue.split(':')
     try {
       const result = await apiRequest<{ id: number }>(action, {
         method: 'POST',
@@ -297,53 +304,25 @@ export default function ProjectForm({
           id="country"
           label="Country / Region"
           ariaLabel="Select country"
-          value={country}
-          options={COUNTRY_OPTIONS}
+          value={locationValue}
+          options={buildLocationOptions(allLocalGroups)}
           onChange={(v) => {
-            setCountry(v)
-            setLocalGroup('')
+            setLocationValue(v)
             clearFieldError('country')
+            clearFieldError('local_group')
           }}
           searchable
         />
-        {fe('country') ? (
+        {fe('country') || fe('local_group') ? (
           <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
-            {fe('country')}
+            {fe('country') ?? fe('local_group')}
           </p>
         ) : (
           <p className="text-sm text-text-light mt-1">
-            Where is this project based? Select &quot;Remote&quot; if location-independent.
+            Where is this project based? Local groups appear indented under their country.
           </p>
         )}
       </div>
-
-      {(LOCAL_GROUPS[country]?.length ?? 0) > 0 && (
-        <div className="mb-5">
-          <FilterDropdown
-            id="local-group"
-            label="Local Group"
-            ariaLabel="Select local group"
-            value={localGroup}
-            options={[
-              { value: '', label: 'Not specific to a local group' },
-              ...LOCAL_GROUPS[country].map((g) => ({ value: g, label: `${country} - ${g}` })),
-            ]}
-            onChange={(v) => {
-              setLocalGroup(v)
-              clearFieldError('local_group')
-            }}
-          />
-          {fe('local_group') ? (
-            <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
-              {fe('local_group')}
-            </p>
-          ) : (
-            <p className="text-sm text-text-light mt-1">
-              Is this project relevant to a particular local group?
-            </p>
-          )}
-        </div>
-      )}
 
       <div className="mb-5">
         <label htmlFor="collaboration-link">Collaboration Doc / Link (optional)</label>

@@ -6,7 +6,7 @@ import Link from 'next/link'
 import Header from '@/components/Header'
 import Button from '@/components/Button'
 import FilterDropdown from '@/components/FilterDropdown'
-import { LOCATION_OPTIONS } from '@/lib/filter-options'
+import { buildLocationOptions, type LocalGroupOption } from '@/lib/filter-options'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
 import { type Project, ProjectList, statusBadgeClasses } from '@/components/ProjectCard'
@@ -60,6 +60,7 @@ export default function ProjectsPage() {
   const [sortBy, setSortBy] = useState('')
   const [pendingCount, setPendingCount] = useState(0)
   const [completedOpen, setCompletedOpen] = useState(false)
+  const [localGroups, setLocalGroups] = useState<LocalGroupOption[]>([])
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -74,6 +75,12 @@ export default function ProjectsPage() {
         .catch(() => {})
     }
   }, [user])
+
+  useEffect(() => {
+    apiRequest<{ groups: LocalGroupOption[] }>('/api/local-groups')
+      .then((data) => setLocalGroups(data.groups))
+      .catch(() => {})
+  }, [])
 
   const fetchProjects = useCallback(async () => {
     setLoadingProjects(true)
@@ -232,7 +239,7 @@ export default function ProjectsPage() {
               label="Country"
               ariaLabel="Country filter"
               value={locationFilter}
-              options={LOCATION_OPTIONS}
+              options={buildLocationOptions(localGroups)}
               onChange={setLocationFilter}
               searchable
             />

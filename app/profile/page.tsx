@@ -325,6 +325,16 @@ export default function ProfilePage() {
         </form>
 
         <div className="bg-surface rounded-xl shadow p-6 mb-4 border-2 border-brand-border">
+          <h3>Local Groups</h3>
+          <p className="text-text-light mb-4">
+            Don&apos;t see your local group listed? Suggest a new one.
+          </p>
+          <Button href="/suggest-local-group" variant="outline">
+            Suggest a Local Group
+          </Button>
+        </div>
+
+        <div className="bg-surface rounded-xl shadow p-6 mb-4 border-2 border-brand-border">
           <h3>Data &amp; Privacy</h3>
           <p className="text-text-light mb-4">Manage your data or delete your account.</p>
           <Button href="/privacy" variant="outline">

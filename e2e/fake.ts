@@ -25,4 +25,5 @@ export const fake = {
   uniqueEmail: () => faker.internet.email().toLowerCase(),
   username: () => faker.internet.username(),
   phoneNumber: () => faker.phone.number({ style: 'international' }),
+  localGroupName: () => faker.location.city(),
 }

@@ -1,10 +1,11 @@
 import { FilterOption } from '@/components/FilterDropdown'
 
-export const LOCAL_GROUPS: Record<string, string[]> = {
-  UK: ['Oxfordshire', 'London', 'Scotland', 'West of England', 'Leicester', 'Manchester'],
+export interface LocalGroupOption {
+  name: string
+  country: string
 }
 
-export const LOCATION_OPTIONS: FilterOption[] = [
+export const BASE_LOCATION_OPTIONS: FilterOption[] = [
   { value: '', label: 'Any country' },
   { value: 'Remote', label: 'Remote' },
   { value: 'Australia', label: 'Australia' },
@@ -33,17 +34,25 @@ export const LOCATION_OPTIONS: FilterOption[] = [
   { value: 'Sweden', label: 'Sweden' },
   { value: 'Switzerland', label: 'Switzerland' },
   { value: 'UK', label: 'UK' },
-  { value: 'UK:Oxfordshire', label: 'UK - Oxfordshire', indent: true },
-  { value: 'UK:London', label: 'UK - London', indent: true },
-  { value: 'UK:Scotland', label: 'UK - Scotland', indent: true },
-  { value: 'UK:West of England', label: 'UK - West of England', indent: true },
-  { value: 'UK:Leicester', label: 'UK - Leicester', indent: true },
-  { value: 'UK:Manchester', label: 'UK - Manchester', indent: true },
   { value: 'US', label: 'US' },
   { value: 'Other', label: 'Other' },
 ]
 
+export function buildLocationOptions(groups: LocalGroupOption[]): FilterOption[] {
+  const result: FilterOption[] = []
+  for (const option of BASE_LOCATION_OPTIONS) {
+    result.push(option)
+    if (!option.indent && option.value) {
+      const countryGroups = groups.filter((g) => g.country === option.value)
+      for (const g of countryGroups) {
+        result.push({ value: `${option.value}:${g.name}`, label: `${option.value} - ${g.name}`, indent: true })
+      }
+    }
+  }
+  return result
+}
+
 export const COUNTRY_OPTIONS: FilterOption[] = [
   { value: '', label: 'Select…' },
-  ...LOCATION_OPTIONS.filter((o) => o.value !== '' && !o.indent),
+  ...BASE_LOCATION_OPTIONS.filter((o) => o.value !== '' && !o.indent),
 ]

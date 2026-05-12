@@ -203,7 +203,7 @@ export default function Header() {
                   </Button>
                   {userMenuOpen && (
                     <div
-                      className="absolute top-full right-0 mt-2 bg-surface rounded-[var(--radius)] border border-brand-border shadow-lg min-w-[180px] z-[101]"
+                      className="absolute top-full right-0 mt-2 bg-surface rounded-[var(--radius)] border border-brand-border shadow-lg w-max z-[101]"
                       onClick={() => setUserMenuOpen(false)}
                     >
                       <Link
@@ -270,6 +270,12 @@ export default function Header() {
                             className="block px-4 py-3 text-[var(--text)] no-underline"
                           >
                             Platform Stats
+                          </Link>
+                          <Link
+                            href="/admin/local-groups"
+                            className="block px-4 py-3 text-[var(--text)] no-underline"
+                          >
+                            Manage local groups
                           </Link>
                         </>
                       )}
@@ -419,6 +425,7 @@ export default function Header() {
                       <MobileNavLink href="/admin/bugs">Bug Reports</MobileNavLink>
                       <MobileNavLink href="/admin/team">Admin Team</MobileNavLink>
                       <MobileNavLink href="/admin/stats">Platform Stats</MobileNavLink>
+                      <MobileNavLink href="/admin/local-groups">Manage local groups</MobileNavLink>
                     </>
                   )}
 
