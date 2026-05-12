@@ -363,11 +363,12 @@ export default function Header() {
 
           {/* Nav links */}
           <div>
-            {navLinks.map(({ href, label }) => (
-              <MobileNavLink key={href} href={href} active={pathname === href}>
-                {label}
-              </MobileNavLink>
-            ))}
+            {user &&
+              navLinks.map(({ href, label }) => (
+                <MobileNavLink key={href} href={href} active={pathname === href}>
+                  {label}
+                </MobileNavLink>
+              ))}
 
             {!loading &&
               (user ? (
