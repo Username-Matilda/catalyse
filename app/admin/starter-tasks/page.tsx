@@ -512,10 +512,7 @@ function AdminStarterTasksPageInner() {
                             Assign
                           </Button>
                         )}
-                        {task.assigned_to_id &&
-                          task.status !== 'open' &&
-                          task.status !== 'completed' &&
-                          task.status !== 'reviewed' && (
+                        {task.assigned_to_id && (
                             <Button
                               variant="secondary"
                               size="sm"
