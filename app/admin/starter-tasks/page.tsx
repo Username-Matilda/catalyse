@@ -259,7 +259,7 @@ export default function AdminStarterTasksPage() {
   }
 
   function copyLink(taskId: number) {
-    const url = `${window.location.origin}/admin/starter-tasks#task-${taskId}`
+    const url = `${window.location.origin}/starter-tasks#task-${taskId}`
     navigator.clipboard.writeText(url)
     toast('Link copied!', 'success')
   }
@@ -475,7 +475,7 @@ export default function AdminStarterTasksPage() {
                             copyLink(task.id)
                           }}
                         >
-                          Copy link
+                          Copy share link
                         </Button>
                         <Button
                           variant="secondary"
