@@ -11,6 +11,7 @@ import { copyFileSync, existsSync, readFileSync, statSync, unlinkSync } from 'no
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { pbkdf2Sync, randomBytes } from 'node:crypto'
+import { execSync } from 'node:child_process'
 import { DatabaseSync } from 'node:sqlite'
 import { faker } from '@faker-js/faker'
 
@@ -306,6 +307,22 @@ async function main(): Promise<void> {
 
   console.log('Seeding dev accounts...')
   seedDevAccounts(destPath)
+
+  const db = new DatabaseSync(destPath)
+  const hasMigrationTable =
+    db
+      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='_prisma_migrations'")
+      .all().length > 0
+  db.close()
+
+  if (!hasMigrationTable) {
+    console.log('Bootstrapping Prisma migration history...')
+    const url = `file:${destPath}`
+    const env = { ...process.env, DATABASE_URL: url }
+    const run = (cmd: string) => execSync(cmd, { stdio: 'inherit', env })
+    run('npx prisma migrate resolve --applied 20260503000000_baseline')
+    run('npx prisma migrate resolve --applied 20260504000000_seed_skills')
+  }
 
   const sizeKb = statSync(destPath).size / 1024
   console.log(`Done. anonymised_prod.db written (${sizeKb.toFixed(0)} KB)`)
