@@ -2,11 +2,13 @@ import { execSync } from 'child_process'
 import { DatabaseSync } from 'node:sqlite'
 import { resolveDbUrl } from '../lib/db-url'
 
+const dbUrl = resolveDbUrl()
+process.env.DATABASE_URL = dbUrl
+
 function run(cmd: string) {
   execSync(cmd, { stdio: 'inherit' })
 }
 
-const dbUrl = resolveDbUrl()
 const dbPath = dbUrl.replace(/^file:/, '')
 
 const db = new DatabaseSync(dbPath)
