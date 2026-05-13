@@ -357,12 +357,12 @@ export default function AdminStarterTasksPage() {
             </p>
           </div>
         ) : (
-          /* [test hook] card, card-header classes used as test selectors */
           tasks.map((task) => {
             const expanded = expandedCards.has(task.id)
             return (
               <div
                 key={task.id}
+                role="article"
                 id={`task-${task.id}`}
                 className="card bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
               >
@@ -412,8 +412,8 @@ export default function AdminStarterTasksPage() {
                       </div>
                     </div>
                   </div>
-                  {/* [test hook] status-badge class used as test selector */}
                   <span
+                    role="status"
                     className="status-badge"
                     style={{
                       padding: '2px 8px',
