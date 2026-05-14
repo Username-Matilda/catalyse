@@ -77,7 +77,7 @@ async function b2UploadFile(
       'Content-Length': String(fileData.length),
       'X-Bz-Content-Sha1': sha1,
     },
-    body: fileData,
+    body: new Uint8Array(fileData),
   })
   if (!res.ok) throw new Error(`b2_upload_file failed: ${res.status} ${await res.text()}`)
   return res.json()
@@ -110,10 +110,10 @@ function isB2Configured() {
 }
 
 function createLocalBackup(dbPath: string): string {
-  const backupDir = join(dirname(dbPath), 'backups')
+  const backupDir = join(/*turbopackIgnore: true*/ dirname(dbPath), 'backups')
   mkdirSync(backupDir, { recursive: true })
   const name = `catalyse-${timestamp()}.db`
-  const dest = join(backupDir, name)
+  const dest = join(/*turbopackIgnore: true*/ backupDir, name)
   copyFileSync(dbPath, dest)
   const kb = (statSync(dest).size / 1024).toFixed(0)
   console.log(`[BACKUP] Local backup created: ${name} (${kb} KB)`)
@@ -121,13 +121,13 @@ function createLocalBackup(dbPath: string): string {
 }
 
 function cleanupLocalBackups(dbPath: string) {
-  const backupDir = join(dirname(dbPath), 'backups')
+  const backupDir = join(/*turbopackIgnore: true*/ dirname(dbPath), 'backups')
   if (!existsSync(backupDir)) return
   const cutoff = Date.now() - LOCAL_RETENTION_DAYS * 24 * 60 * 60 * 1000
   let removed = 0
   for (const f of readdirSync(backupDir)) {
     if (!f.startsWith('catalyse-') || !f.endsWith('.db')) continue
-    const fp = join(backupDir, f)
+    const fp = join(/*turbopackIgnore: true*/ backupDir, f)
     if (statSync(fp).mtimeMs < cutoff) {
       unlinkSync(fp)
       removed++
