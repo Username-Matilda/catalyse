@@ -177,6 +177,28 @@ test.describe('Local Group Suggestions', () => {
     await expect(card).toContainText(note)
   })
 
+  test('Admin re-reviews a declined suggestion and accepts it', async ({
+    volunteer,
+    adminPage,
+    baseUrl,
+  }) => {
+    const groupName = fake.localGroupName()
+
+    await submitLocalGroupSuggestion(baseUrl, volunteer.page, 'UK', groupName)
+    await navigateToAdminLocalGroups(baseUrl, adminPage)
+    await adminReviewSuggestion(adminPage, groupName, 'decline')
+    await expect(getAlert(adminPage)).toContainText('declined', { timeout: 10_000 })
+
+    await selectFilterDropdown(adminPage, 'Status filter', 'Declined')
+    await adminPage.getByText('Loading…').waitFor({ state: 'hidden', timeout: 10_000 })
+
+    const card = adminPage.getByRole('article').filter({ hasText: groupName })
+    await expect(card.getByRole('button', { name: 'Re-review' })).toBeVisible({ timeout: 10_000 })
+
+    await adminReviewSuggestion(adminPage, groupName, 'accept')
+    await expect(getAlert(adminPage)).toContainText('accepted', { timeout: 10_000 })
+  })
+
   test('Volunteer sees updated status after admin review', async ({
     volunteer,
     adminPage,

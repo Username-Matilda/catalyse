@@ -89,7 +89,7 @@ export async function adminReviewSuggestion(
   } = {},
 ): Promise<void> {
   const card = adminPage.getByRole('article').filter({ hasText: groupName })
-  await card.getByRole('button', { name: 'Review' }).click()
+  await card.getByRole('button', { name: /^Re?-?review$/i }).click()
 
   await adminPage.getByRole('heading', { name: 'Review Suggestion', level: 2 }).waitFor({
     timeout: 10_000,

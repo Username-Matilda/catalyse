@@ -429,12 +429,11 @@ export default function AdminLocalGroupsPage() {
                         Edit
                       </Button>
                     )}
-                    {item.kind === 'suggestion' &&
-                      (item.status === 'pending' || item.status === 'on_hold') && (
-                        <Button size="sm" onClick={() => openReview(item)}>
-                          Review
-                        </Button>
-                      )}
+                    {item.kind === 'suggestion' && (
+                      <Button size="sm" onClick={() => openReview(item)}>
+                        {item.status === 'declined' || item.status === 'on_hold' ? 'Re-review' : 'Review'}
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="danger"
