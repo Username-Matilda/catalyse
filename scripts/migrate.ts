@@ -22,7 +22,7 @@ async function main() {
     await runBackup().catch((err) => console.error('[MIGRATE] Backup failed (continuing):', err))
   }
 
-  const dbUrl = process.env.DATABASE_URL
+  const dbUrl = process.env.DATABASE_URL ?? ''
   if (dbUrl.startsWith('file:')) {
     const dbPath = dbUrl.slice(5)
     try {
