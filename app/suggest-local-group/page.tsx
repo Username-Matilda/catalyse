@@ -47,7 +47,6 @@ export default function SuggestLocalGroupPage() {
   const [name, setName] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
-  const [submitted, setSubmitted] = useState(false)
 
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [loadingSuggestions, setLoadingSuggestions] = useState(true)
@@ -84,7 +83,6 @@ export default function SuggestLocalGroupPage() {
       setSuggestions((prev) => [result, ...prev])
       setCountry('')
       setName('')
-      setSubmitted(true)
       showToast('Suggestion submitted!', 'success')
     } catch (err) {
       if (err instanceof ApiError && err.fieldErrors) {
@@ -109,14 +107,6 @@ export default function SuggestLocalGroupPage() {
         </p>
 
         <div className="max-w-xl">
-          {submitted && (
-            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-6">
-              <p className="text-green-800 dark:text-green-300 m-0">
-                Thanks! Your suggestion has been submitted and will be reviewed by an admin.
-              </p>
-            </div>
-          )}
-
           <form onSubmit={handleSubmit} className="bg-surface rounded-xl shadow p-6 mb-8">
             <div className="mb-5">
               <FilterDropdown

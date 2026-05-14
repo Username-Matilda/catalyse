@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/components/Header'
 import Button from '@/components/Button'
+import Radio from '@/components/Radio'
 import FilterDropdown from '@/components/FilterDropdown'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
@@ -600,18 +601,17 @@ export default function AdminLocalGroupsPage() {
                         { value: 'decline', label: 'Decline', desc: 'Not adding at this time' },
                       ] as { value: ReviewAction; label: string; desc: string }[]
                     ).map((opt) => (
-                      <label key={opt.value} className="flex items-center gap-3 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="action"
-                          value={opt.value}
-                          checked={reviewAction === opt.value}
-                          onChange={() => setReviewAction(opt.value)}
-                        />
+                      <Radio
+                        key={opt.value}
+                        name="action"
+                        value={opt.value}
+                        checked={reviewAction === opt.value}
+                        onChange={() => setReviewAction(opt.value)}
+                      >
                         <span>
                           <strong>{opt.label}</strong> — {opt.desc}
                         </span>
-                      </label>
+                      </Radio>
                     ))}
                   </div>
                 </div>
@@ -669,11 +669,10 @@ export default function AdminLocalGroupsPage() {
                       rows={3}
                       value={adminNotes}
                       onChange={(e) => setAdminNotes(e.target.value)}
-                      placeholder={
-                        reviewAction === 'on_hold'
-                          ? "e.g., We're looking into existing groups in this area first…"
-                          : 'e.g., This area is already covered by an existing group…'
-                      }
+                      placeholder={{
+                        on_hold: "e.g., We're looking into existing groups in this area first…",
+                        decline: "e.g., Thanks for the suggestion. This area isn't something we're able to support at the moment.",
+                      }[reviewAction] ?? ''}
                       style={{ width: '100%' }}
                     />
                     <p className="text-sm text-text-light mt-1">
