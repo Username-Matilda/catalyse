@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import Header from '@/components/Header'
 import Button from '@/components/Button'
 import FilterDropdown from '@/components/FilterDropdown'
 import { buildLocationOptions, type LocalGroupOption } from '@/lib/filter-options'
@@ -106,7 +105,6 @@ export default function VolunteersPage() {
 
   return (
     <>
-      <Header />
       <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
         <h1>Volunteer Directory</h1>
 

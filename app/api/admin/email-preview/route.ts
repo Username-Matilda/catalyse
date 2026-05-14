@@ -5,6 +5,7 @@ import {
   buildAdminInviteHtml,
   buildWelcomeHtml,
   buildProjectNotificationHtml,
+  buildLocalGroupSuggestionHtml,
   buildRelayMessageHtml,
   buildDigestHtml,
   buildTaskNudgeHtml,
@@ -68,6 +69,26 @@ function buildPreview(type: string): { subject: string; html: string } | null {
           1,
           APP_URL,
         ),
+      }
+    case 'local-group-suggestion-accepted':
+      return {
+        subject: 'Your local group suggestion "London" was accepted',
+        html: buildLocalGroupSuggestionHtml('Alex', 'accepted', 'London'),
+      }
+    case 'local-group-suggestion-merge':
+      return {
+        subject: 'Your local group suggestion "London" has been merged',
+        html: buildLocalGroupSuggestionHtml('Alex', 'merge', 'London', 'Merged with existing South London group.'),
+      }
+    case 'local-group-suggestion-on-hold':
+      return {
+        subject: 'Your local group suggestion "London" is under review',
+        html: buildLocalGroupSuggestionHtml('Alex', 'on_hold', 'London', 'We need a bit more time to assess this one.'),
+      }
+    case 'local-group-suggestion-declined':
+      return {
+        subject: 'Update on your local group suggestion "London"',
+        html: buildLocalGroupSuggestionHtml('Alex', 'declined', 'London', 'We already have good coverage in this area.'),
       }
     case 'relay-message':
       return {
@@ -158,6 +179,10 @@ export async function GET(request: NextRequest) {
         'admin-invite',
         'welcome',
         'project-notification',
+        'local-group-suggestion-accepted',
+        'local-group-suggestion-merge',
+        'local-group-suggestion-on-hold',
+        'local-group-suggestion-declined',
         'relay-message',
         'digest-match',
         'digest-general',

@@ -3,7 +3,6 @@
 import { use, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import Header from '@/components/Header'
 import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
@@ -86,7 +85,6 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
   if (loadingProfile) {
     return (
       <>
-        <Header />
         <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
           <div className="text-center py-10 text-text-light">Loading profile…</div>
         </main>
@@ -97,7 +95,6 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
   if (notFound || !volunteer) {
     return (
       <>
-        <Header />
         <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
           <p className="text-[color:var(--error)]">Volunteer not found.</p>
           <Button href="/volunteers" variant="secondary" className="mt-4">
@@ -117,7 +114,6 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
 
   return (
     <>
-      <Header />
       <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
         <div className="mb-5">
           <Link href="/volunteers" className="text-text-light">

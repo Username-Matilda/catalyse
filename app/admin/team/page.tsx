@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Header from '@/components/Header'
 import Button from '@/components/Button'
 import Tabs from '@/components/Tabs'
 import { useAuth } from '@/lib/auth-context'
@@ -126,7 +125,6 @@ export default function AdminTeamPage() {
 
   return (
     <>
-      <Header />
       <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
         <div
           style={{

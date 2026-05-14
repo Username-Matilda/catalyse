@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Header from '@/components/Header'
 import ProjectForm from '@/components/ProjectForm'
 import { useAuth } from '@/lib/auth-context'
 import { useToast } from '@/lib/toast'
@@ -20,7 +19,6 @@ export default function SuggestPage() {
 
   return (
     <>
-      <Header />
       <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
         <h1 role="heading">Suggest a Project</h1>
         <p>

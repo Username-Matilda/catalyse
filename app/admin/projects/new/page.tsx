@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Header from '@/components/Header'
 import ProjectForm from '@/components/ProjectForm'
 import { useAuth } from '@/lib/auth-context'
 
@@ -19,7 +18,6 @@ export default function AdminCreateProjectPage() {
 
   return (
     <>
-      <Header />
       <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
         <h1 role="heading">Create Organisation Project</h1>
         <p className="text-text-light mb-6">

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Header from '@/components/Header'
 import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
@@ -44,7 +43,6 @@ export default function AdminStatsPage() {
 
   return (
     <>
-      <Header />
       <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
         <h1>Platform Statistics</h1>
 

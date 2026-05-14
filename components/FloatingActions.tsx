@@ -13,7 +13,7 @@ export default function FloatingActions() {
   return (
     <>
       <div className="fixed bottom-6 right-6 z-[200] hidden xl:flex items-center bg-surface border border-brand-border rounded-[var(--radius)] shadow-lg overflow-hidden">
-        <ThemeToggle showLabel className="rounded-none" />
+        <ThemeToggle icon={false} className="rounded-none self-stretch" />
         {process.env.NODE_ENV === 'development' && (
           <>
             <Button

@@ -2,7 +2,6 @@
 
 import React, { use, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Header from '@/components/Header'
 import Button from '@/components/Button'
 import Checkbox from '@/components/Checkbox'
 import FilterDropdown from '@/components/FilterDropdown'
@@ -161,7 +160,6 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
   if (loadingProject) {
     return (
       <>
-        <Header />
         <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
           <div className="text-center py-10 text-text-light">Loading project…</div>
         </main>
@@ -171,7 +169,6 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
 
   return (
     <>
-      <Header />
       <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
         <h1 role="heading">Edit Project</h1>
 

@@ -2,7 +2,6 @@
 
 import { useState, FormEvent } from 'react'
 import Link from 'next/link'
-import Header from '@/components/Header'
 import { apiRequest } from '@/lib/api'
 import Button from '@/components/Button'
 
@@ -37,7 +36,6 @@ export default function ForgotPasswordPage() {
 
   return (
     <>
-      <Header />
       <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
         <div style={{ maxWidth: 400, margin: '60px auto' }}>
           <h1 className="text-center">Reset Password</h1>

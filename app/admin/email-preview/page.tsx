@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Header from '@/components/Header'
 import { useAuth } from '@/lib/auth-context'
 
 type Param = string | number | boolean
@@ -33,6 +32,26 @@ const EMAIL_TYPES: { value: string; label: string; params: Record<string, Param>
         'Great news — your project AI Safety Explainer Series has been reviewed and approved.',
       project_id: 1,
     },
+  },
+  {
+    value: 'local-group-suggestion-accepted',
+    label: 'Local Group Suggestion (Accepted)',
+    params: { name: 'Alex', action: 'accepted', groupName: 'London' },
+  },
+  {
+    value: 'local-group-suggestion-merge',
+    label: 'Local Group Suggestion (Merge)',
+    params: { name: 'Alex', action: 'merge', groupName: 'London', adminNotes: 'Merged with existing South London group.' },
+  },
+  {
+    value: 'local-group-suggestion-on-hold',
+    label: 'Local Group Suggestion (On Hold)',
+    params: { name: 'Alex', action: 'on_hold', groupName: 'London', adminNotes: 'We need a bit more time to assess this one.' },
+  },
+  {
+    value: 'local-group-suggestion-declined',
+    label: 'Local Group Suggestion (Declined)',
+    params: { name: 'Alex', action: 'declined', groupName: 'London', adminNotes: 'We already have good coverage in this area.' },
   },
   {
     value: 'relay-message',
@@ -240,7 +259,6 @@ export default function EmailPreviewPage() {
 
   return (
     <>
-      <Header />
       <main style={{ width: '100%', maxWidth: 1280, margin: '0 auto', padding: '32px 24px 64px' }}>
         <h1 style={{ marginBottom: 4 }}>Email Previews</h1>
         <p style={{ color: '#718096', marginBottom: 0 }}>

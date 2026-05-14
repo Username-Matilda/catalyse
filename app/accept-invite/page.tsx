@@ -3,7 +3,6 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSearchParams } from 'next/navigation'
-import Header from '@/components/Header'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
 import Button from '@/components/Button'
@@ -100,7 +99,6 @@ function AcceptInviteContent() {
 export default function AcceptInvitePage() {
   return (
     <>
-      <Header />
       <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
         <div style={{ maxWidth: 500, margin: '60px auto', textAlign: 'center' }}>
           <Suspense fallback={<div className="text-center py-10 text-text-light">Loading…</div>}>
