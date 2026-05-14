@@ -154,7 +154,7 @@ export default function Header() {
     { href: '/', label: 'Projects' },
     { href: '/volunteers', label: 'Volunteers' },
     { href: '/suggest', label: 'Suggest' },
-    { href: '/starter-tasks', label: 'Starter Tasks' },
+    { href: '/starter-tasks', label: 'Quick Tasks' },
   ]
 
   const isAdminPage = pathname.startsWith('/admin')
@@ -245,7 +245,7 @@ export default function Header() {
                             href="/admin/starter-tasks"
                             className="block px-4 py-3 text-[var(--text)] no-underline"
                           >
-                            Manage Starter Tasks
+                            Manage Quick Tasks
                           </Link>
                           <Link
                             href="/admin/skills"
@@ -419,7 +419,7 @@ export default function Header() {
                       <MobileNavLink href="/admin/triage">Triage Queue</MobileNavLink>
                       <MobileNavLink href="/admin/projects/new">Create Org Project</MobileNavLink>
                       <MobileNavLink href="/admin/starter-tasks">
-                        Manage Starter Tasks
+                        Manage Quick Tasks
                       </MobileNavLink>
                       <MobileNavLink href="/admin/skills">Manage Skills</MobileNavLink>
                       <MobileNavLink href="/admin/bugs">Bug Reports</MobileNavLink>

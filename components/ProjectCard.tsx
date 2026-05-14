@@ -1,6 +1,7 @@
 import React from 'react'
 import Link from 'next/link'
 import Button from '@/components/Button'
+import { matchGradeLabel } from '@/lib/matching'
 
 export interface Project {
   id: number
@@ -20,7 +21,12 @@ export interface Project {
   owner?: { name: string } | null
   proposed_by?: { id?: number; name: string } | string | null
   skills?: Array<{ id: number; name: string; is_required: boolean }>
-  match?: { required_match_percent: number } | null
+  match?: {
+    required_match_percent: number
+    matched_required_count: number
+    total_required: number
+    overall_score: number
+  } | null
 }
 
 export const STATUS_LABELS: Record<string, string> = {
@@ -140,9 +146,9 @@ export function ProjectCard({
         )
       })()}
       <div className="row-start-6 flex justify-between items-center pt-2">
-        {p.match && (p.skills?.length ?? 0) > 0 && userSkillIds.size > 0 ? (
+        {p.match && (p.skills?.length ?? 0) > 0 && userSkillIds.size > 0 && matchGradeLabel(p.match.matched_required_count) ? (
           <span className="text-xs font-semibold text-primary">
-            {p.match.required_match_percent}% match
+            {matchGradeLabel(p.match.matched_required_count)}
           </span>
         ) : (
           <div />
