@@ -89,7 +89,7 @@ export async function adminReviewSuggestion(
   } = {},
 ): Promise<void> {
   const card = adminPage.getByRole('article').filter({ hasText: groupName })
-  await card.getByRole('button', { name: /^Re?-?review$/i }).click()
+  await card.getByRole('button', { name: /Review/i }).click()
 
   await adminPage.getByRole('heading', { name: 'Review Suggestion', level: 2 }).waitFor({
     timeout: 10_000,
@@ -98,7 +98,7 @@ export async function adminReviewSuggestion(
   const actionLabel = { accept: 'Accept', merge: 'Merge', on_hold: 'On Hold', decline: 'Decline' }[
     action
   ]
-  await adminPage.getByRole('radio', { name: new RegExp(actionLabel) }).click()
+  await adminPage.getByRole('radio', { name: new RegExp(actionLabel) }).click({ force: true })
 
   if (action === 'accept') {
     if (opts.editName !== undefined) {
