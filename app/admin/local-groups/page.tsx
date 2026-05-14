@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import Header from '@/components/Header'
 import Button from '@/components/Button'
 import Radio from '@/components/Radio'
 import FilterDropdown from '@/components/FilterDropdown'
@@ -347,7 +346,6 @@ export default function AdminLocalGroupsPage() {
 
   return (
     <>
-      <Header />
       <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
         <div className="flex items-center justify-between mb-2">
           <h1 className="m-0">Local Groups</h1>

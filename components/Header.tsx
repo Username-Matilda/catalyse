@@ -453,7 +453,7 @@ export default function Header() {
           {/* Pinned bottom bar */}
           <div className="shrink-0 border-t border-brand-border bg-surface">
             <div className="flex items-center overflow-hidden w-full">
-              <ThemeToggle showLabel size="md" className="rounded-none flex-1 justify-center" />
+              <ThemeToggle size="md" className="rounded-none flex-1 justify-center" />
               <button
                 onClick={() => {
                   setBugDialogOpen(true)

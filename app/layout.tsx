@@ -4,6 +4,8 @@ import { AuthProvider } from '@/lib/auth-context'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { ToastProvider } from '@/lib/toast'
 import FloatingActions from '@/components/FloatingActions'
+import Header from '@/components/Header'
+import Footer from '@/components/Footer'
 import Script from 'next/script'
 import './globals.css'
 
@@ -48,7 +50,9 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>
             <ToastProvider>
+              <Header />
               {children}
+              <Footer />
               <FloatingActions />
             </ToastProvider>
           </AuthProvider>

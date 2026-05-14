@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Script from 'next/script'
-import Header from '@/components/Header'
 import Button from '@/components/Button'
 import FilterDropdown from '@/components/FilterDropdown'
 import SkillPicker from '@/components/SkillPicker'
@@ -160,7 +159,6 @@ export default function SignupPage() {
           onLoad={initGoogleButton}
         />
       )}
-      <Header />
       <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
         <div className="max-w-2xl mx-auto">
           <h1>Join Catalyse</h1>

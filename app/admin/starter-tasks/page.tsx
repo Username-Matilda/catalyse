@@ -3,7 +3,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import Header from '@/components/Header'
 import Button from '@/components/Button'
 import FilterDropdown from '@/components/FilterDropdown'
 import { useAuth } from '@/lib/auth-context'
@@ -311,7 +310,6 @@ export default function AdminStarterTasksPage() {
 
   return (
     <>
-      <Header />
       <main className="max-w-350 w-full mx-auto px-6 py-5 pb-15">
         <div
           style={{

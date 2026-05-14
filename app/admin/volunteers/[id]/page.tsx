@@ -3,7 +3,6 @@
 import { use, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import Header from '@/components/Header'
 import Button from '@/components/Button'
 import FilterDropdown from '@/components/FilterDropdown'
 import Tabs from '@/components/Tabs'
@@ -215,7 +214,6 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
   if (loadingData) {
     return (
       <>
-        <Header />
         <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
           <div className="text-center py-10 text-text-light">Loading…</div>
         </main>
@@ -226,7 +224,6 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
   if (!vol) {
     return (
       <>
-        <Header />
         <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
           <p style={{ color: 'var(--error)' }}>Volunteer not found.</p>
           <Button href="/volunteers" variant="secondary" style={{ marginTop: 16 }}>
@@ -239,7 +236,6 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
 
   return (
     <>
-      <Header />
       <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
         <div className="mb-4">
           <Link href="/volunteers" className="text-text-light">

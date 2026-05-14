@@ -3,7 +3,6 @@
 import { useState, FormEvent, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSearchParams } from 'next/navigation'
-import Header from '@/components/Header'
 import { apiRequest, ApiError } from '@/lib/api'
 import Button from '@/components/Button'
 
@@ -129,7 +128,6 @@ function ResetPasswordForm() {
 export default function ResetPasswordPage() {
   return (
     <>
-      <Header />
       <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
         <div style={{ maxWidth: 400, margin: '60px auto' }}>
           <h1 className="text-center">Set New Password</h1>

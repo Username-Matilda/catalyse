@@ -3,7 +3,6 @@
 import React, { use, useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import Header from '@/components/Header'
 import Button from '@/components/Button'
 import FilterDropdown from '@/components/FilterDropdown'
 import { useAuth } from '@/lib/auth-context'
@@ -267,7 +266,6 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   if (loadingProject) {
     return (
       <>
-        <Header />
         <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
           <div className="text-center py-10 text-text-light">Loading project…</div>
         </main>
@@ -526,7 +524,6 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   return (
     <>
-      <Header />
       <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
         {/* [test hook] projectContent id used by action helpers to confirm page has loaded */}
         <div id="projectContent" className="flex items-center gap-3 flex-wrap mb-2">

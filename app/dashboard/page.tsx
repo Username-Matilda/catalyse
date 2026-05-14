@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import Header from '@/components/Header'
 import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
@@ -176,7 +175,6 @@ export default function DashboardPage() {
   if (loadingData) {
     return (
       <>
-        <Header />
         <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
           <div className="text-center py-10 text-text-light">Loading dashboard…</div>
         </main>
@@ -209,7 +207,6 @@ export default function DashboardPage() {
 
   return (
     <>
-      <Header />
       <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
         <h1 role="heading">Welcome back, {user.name}!</h1>
 
