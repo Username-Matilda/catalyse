@@ -1,8 +1,14 @@
 import { execSync } from 'child_process'
 import { DatabaseSync } from 'node:sqlite'
 import { resolveDbUrl } from '../lib/db-url'
+import { runBackup } from '../lib/backup'
 
 process.env.DATABASE_URL = resolveDbUrl()
+
+if (process.env.RAILWAY_ENVIRONMENT_NAME === 'production') {
+  console.log('[MIGRATE] Running pre-deploy backup...')
+  await runBackup().catch((err) => console.error('[MIGRATE] Backup failed (continuing):', err))
+}
 
 // PR preview DB snapshots may have been taken before this migration was recorded in
 // _prisma_migrations on prod (columns exist via db push, record missing). Resolve it

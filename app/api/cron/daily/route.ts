@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { runBackup } from '@/lib/backup'
 import {
   sendDigestEmail,
   sendTaskNudgeEmail,
@@ -31,9 +32,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  // ── Backup ────────────────────────────────────────────────────────────────
+  const backupResult = await runBackup()
+  console.log(`[CRON DAILY] Backup: local=${backupResult.local} b2=${backupResult.b2}`)
+
   if (!isEmailConfigured()) {
     console.log('[CRON DAILY] Email not configured, skipping')
-    return NextResponse.json({ skipped: true, reason: 'email not configured' })
+    return NextResponse.json({ skipped: true, reason: 'email not configured', backup: backupResult })
   }
 
   // ── Digest ────────────────────────────────────────────────────────────────
@@ -193,5 +198,5 @@ export async function POST(request: NextRequest) {
   console.log(
     `[CRON DAILY] Nudges done — nudges: ${nudgesSent}, warnings: ${warningsSent}, surrendered: ${surrendered}`,
   )
-  return NextResponse.json({ digest: digestResult, nudgesSent, warningsSent, surrendered })
+  return NextResponse.json({ backup: backupResult, digest: digestResult, nudgesSent, warningsSent, surrendered })
 }
