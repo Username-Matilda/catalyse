@@ -65,6 +65,8 @@ export async function PUT(
   if (newAssignedToId !== undefined) data.assignedToId = newAssignedToId
 
   data.updatedAt = new Date()
+  data.nudgeSentAt = null
+  data.finalWarningSentAt = null
 
   await prisma.projectTask.update({ where: { id: taskId }, data })
 
