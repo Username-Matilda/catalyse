@@ -20,6 +20,10 @@ function formatDate(date: Date): string {
   return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
+// TODO: Split this handler into separate Railway cron endpoints (e.g. /api/cron/backup,
+// /api/cron/digest, /api/cron/nudges) each triggered independently. Currently a thrown
+// error in any section aborts everything after it. Separate endpoints give Railway
+// independent retry/failure visibility per job.
 export async function POST(request: NextRequest) {
   const secret = process.env.CRON_SECRET
   if (!secret) {
