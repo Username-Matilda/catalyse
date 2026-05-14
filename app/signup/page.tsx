@@ -25,6 +25,7 @@ export default function SignupPage() {
   const [skills, setSkills] = useState<SelectedSkill[]>([])
 
   // Form fields
+  const [applicationPending, setApplicationPending] = useState(false)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -40,6 +41,7 @@ export default function SignupPage() {
   const [country, setCountry] = useState('')
   const [localGroup, setLocalGroup] = useState('')
   const [otherSkills, setOtherSkills] = useState('')
+  const [applicationMessage, setApplicationMessage] = useState('')
   const [consentVisible, setConsentVisible] = useState(true)
   const [consentContact, setConsentContact] = useState(true)
   const [shareDirectly, setShareDirectly] = useState(false)
@@ -57,13 +59,17 @@ export default function SignupPage() {
 
   const handleGoogleResponse = useCallback(
     (response: { credential: string }) => {
-      apiRequest<{ auth_token: string }>('/api/auth/google', {
+      apiRequest<{ auth_token: string; is_pending?: boolean }>('/api/auth/google', {
         method: 'POST',
         body: JSON.stringify({ credential: response.credential }),
       })
         .then(async (data) => {
-          await setToken(data.auth_token)
-          router.push('/dashboard')
+          if (data.is_pending) {
+            setApplicationPending(true)
+          } else {
+            await setToken(data.auth_token)
+            router.push('/dashboard')
+          }
         })
         .catch((err) => setError(err instanceof Error ? err.message : 'Google sign-up failed'))
     },
@@ -112,12 +118,13 @@ export default function SignupPage() {
 
     setSubmitting(true)
     try {
-      const data = await apiRequest<{ auth_token: string }>('/api/auth/signup', {
+      const data = await apiRequest<{ auth_token: string; pending?: boolean }>('/api/auth/signup', {
         method: 'POST',
         body: JSON.stringify({
           name,
           email: email.trim(),
           password,
+          application_message: applicationMessage || undefined,
           bio: bio || undefined,
           discord_handle: discord || undefined,
           signal_number: signal || undefined,
@@ -136,8 +143,12 @@ export default function SignupPage() {
           email_digest: emailDigest,
         }),
       })
-      await setToken(data.auth_token)
-      router.push('/dashboard')
+      if (data.pending) {
+        setApplicationPending(true)
+      } else {
+        await setToken(data.auth_token)
+        router.push('/dashboard')
+      }
     } catch (err: unknown) {
       if (err instanceof ApiError && err.fieldErrors && Object.keys(err.fieldErrors).length > 0) {
         setFieldErrors(err.fieldErrors)
@@ -149,6 +160,28 @@ export default function SignupPage() {
   }
 
   if (loading) return null
+
+  if (applicationPending) {
+    return (
+      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
+        <div className="max-w-2xl mx-auto">
+          <div className="bg-surface rounded-xl shadow p-8 text-center">
+            <h1>Application Received!</h1>
+            <p className="text-text-light mt-4 mb-6">
+              Thanks for applying to join Catalyse. We&#39;ll review your application and notify
+              you by email as soon as it&#39;s been reviewed.
+            </p>
+            <p className="text-text-light text-sm">
+              Questions? Contact{' '}
+              <a href="mailto:uk@pauseai.info" className="underline">
+                uk@pauseai.info
+              </a>
+            </p>
+          </div>
+        </div>
+      </main>
+    )
+  }
 
   return (
     <>
@@ -281,6 +314,21 @@ export default function SignupPage() {
                 placeholder="Type your password again"
                 value={passwordConfirm}
                 onChange={(e) => setPasswordConfirm(e.target.value)}
+              />
+            </div>
+
+            <div className="mb-5">
+              <label htmlFor="application_message" className="required">
+                Your Application
+              </label>
+              <textarea
+                id="application_message"
+                name="application_message"
+                required
+                rows={6}
+                placeholder="Please tell us a bit about your relationship to PauseAI, why you are excited about our mission, and how you would like to contribute based on your interests/skills (everyone has ways to contribute!) We routinely oversee signups to ensure the integrity of this platform, and you'll be notified by email as soon as we've reviewed your request to join."
+                value={applicationMessage}
+                onChange={(e) => setApplicationMessage(e.target.value)}
               />
             </div>
 

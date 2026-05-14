@@ -87,6 +87,72 @@ function footer(buttons: Array<[string, string]> = []): string {
   </div>`
 }
 
+export function buildApplicationReceivedHtml(name: string): string {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
+<body><div class="container">
+  <h2>Application Received</h2>
+  <p>Hi ${name},</p>
+  <p>Thanks for applying to join Catalyse, the PauseAI volunteer platform. We've received your application and will review it shortly.</p>
+  <p>You'll receive an email as soon as we've reviewed your request to join.</p>
+  ${footer()}
+</div></body></html>`
+}
+
+export async function sendApplicationReceivedEmail(to: string, name: string): Promise<boolean> {
+  return sendEmail(to, 'Your Catalyse application has been received', buildApplicationReceivedHtml(name))
+}
+
+export function buildApplicationApprovedHtml(name: string, appUrl: string): string {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
+<body><div class="container">
+  <h2>Welcome to Catalyse!</h2>
+  <p>Hi ${name},</p>
+  <p>Thank you for applying to join Catalyse PauseAI. Welcome to the community!</p>
+  <p>Your account has been approved and you can now sign in.</p>
+  <p style="text-align: center; margin: 32px 0;"><a href="${appUrl}/login" class="button">Sign In</a></p>
+  ${footer([['Sign In', `${appUrl}/login`]])}
+</div></body></html>`
+}
+
+export async function sendApplicationApprovedEmail(to: string, name: string): Promise<boolean> {
+  return sendEmail(to, 'Your Catalyse application has been approved', buildApplicationApprovedHtml(name, APP_URL))
+}
+
+export function buildApplicationRejectedHtml(name: string): string {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
+<body><div class="container">
+  <h2>Update on your Catalyse application</h2>
+  <p>Hi ${name},</p>
+  <p>Thank you for applying to join Catalyse PauseAI. There was a problem with your submission.</p>
+  <p>You can contact <a href="mailto:uk@pauseai.info">uk@pauseai.info</a> if you have any queries.</p>
+  ${footer()}
+</div></body></html>`
+}
+
+export async function sendApplicationRejectedEmail(to: string, name: string): Promise<boolean> {
+  return sendEmail(to, 'Update on your Catalyse application', buildApplicationRejectedHtml(name))
+}
+
+export function buildPendingApplicationsSummaryHtml(count: number, appUrl: string): string {
+  const plural = count === 1 ? 'application' : 'applications'
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
+<body><div class="container">
+  <h2>Pending Applications</h2>
+  <p>There ${count === 1 ? 'is' : 'are'} <strong>${count}</strong> pending ${plural} waiting for review on Catalyse.</p>
+  <p style="text-align: center; margin: 32px 0;"><a href="${appUrl}/admin/applications" class="button">Review Applications</a></p>
+  ${footer([['Review Applications', `${appUrl}/admin/applications`]])}
+</div></body></html>`
+}
+
+export async function sendPendingApplicationsSummaryEmail(to: string, name: string, count: number): Promise<boolean> {
+  const plural = count === 1 ? 'application' : 'applications'
+  return sendEmail(
+    to,
+    `${count} pending ${plural} on Catalyse`,
+    buildPendingApplicationsSummaryHtml(count, APP_URL),
+  )
+}
+
 export function buildPasswordResetHtml(resetUrl: string, name: string): string {
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
 <body><div class="container">

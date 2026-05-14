@@ -404,6 +404,8 @@ model Volunteer {
   country                                 String?
   emailDigest                             String?              @default("none") @map("email_digest")
   localGroup                              String?              @map("local_group")
+  approvalStatus                          String               @default("PENDING") @map("approval_status")
+  applicationMessage                      String?              @map("application_message")
   invitesAccepted                         AdminInvite[]        @relation("AdminInviteAcceptedBy")
   invitesSent                             AdminInvite[]        @relation("AdminInviteInvitedBy")
   adminNotesAuthored                      AdminNote[]          @relation("AdminNoteAuthor")

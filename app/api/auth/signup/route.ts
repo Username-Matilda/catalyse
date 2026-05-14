@@ -6,7 +6,7 @@ import {
   checkAdminBootstrap,
   acceptPendingInvite,
 } from '@/lib/auth'
-import { sendWelcomeEmail } from '@/lib/email'
+import { sendWelcomeEmail, sendApplicationReceivedEmail } from '@/lib/email'
 import { validationError, fieldError } from '@/lib/errors'
 
 export async function POST(request: NextRequest) {
@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
       email,
       passwordHash,
       authToken,
+      applicationMessage: body.application_message ? String(body.application_message) : null,
       bio: body.bio ? String(body.bio) : null,
       discordHandle: body.discord_handle ? String(body.discord_handle) : null,
       signalNumber: body.signal_number ? String(body.signal_number) : null,
@@ -94,34 +95,23 @@ export async function POST(request: NextRequest) {
     })
   }
 
-  // Admin bootstrap and invite acceptance
-  try {
-    await checkAdminBootstrap(email, volunteer.id)
-  } catch (e) {
+  const wasBootstrapped = await checkAdminBootstrap(email, volunteer.id).catch((e) => {
     console.error('[SIGNUP ERROR] admin bootstrap failed:', e)
-    return Response.json(
-      {
-        detail:
-          'Something went wrong creating your account. Please try again or contact us. Error Code: A',
-      },
-      { status: 500 },
-    )
-  }
-  try {
-    await acceptPendingInvite(email, volunteer.id)
-  } catch (e) {
+    return false
+  })
+  const wasInvited = await acceptPendingInvite(email, volunteer.id).catch((e) => {
     console.error('[SIGNUP ERROR] admin invite check failed:', e)
-    return Response.json(
-      {
-        detail:
-          'Something went wrong creating your account. Please try again or contact us. Error Code: B',
-      },
-      { status: 500 },
+    return false
+  })
+  const isApproved = wasBootstrapped || wasInvited
+
+  if (isApproved) {
+    sendWelcomeEmail(email, name).catch((e) => console.error('[SIGNUP] Welcome email failed:', e))
+  } else {
+    sendApplicationReceivedEmail(email, name).catch((e) =>
+      console.error('[SIGNUP] Application received email failed:', e),
     )
   }
 
-  // Non-blocking welcome email
-  sendWelcomeEmail(email, name).catch((e) => console.error('[SIGNUP] Welcome email failed:', e))
-
-  return Response.json({ id: volunteer.id, auth_token: authToken, message: 'Welcome to Catalyse!' })
+  return Response.json({ id: volunteer.id, auth_token: authToken, pending: !isApproved })
 }

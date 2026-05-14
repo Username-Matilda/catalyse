@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentVolunteer } from '@/lib/auth'
+
 import { fieldError, validationError } from '@/lib/errors'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -9,6 +10,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (isNaN(projectId)) {
     return Response.json({ detail: 'Invalid project ID' }, { status: 400 })
   }
+
+  const currentVolunteer = await getCurrentVolunteer(request.headers.get('authorization'))
+  const isPending = Boolean(currentVolunteer && currentVolunteer.approvalStatus !== 'APPROVED' && !currentVolunteer.isAdmin)
 
   const tasks = await prisma.projectTask.findMany({
     where: { projectId },
@@ -31,10 +35,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       project_id: t.projectId,
       title: t.title,
       description: t.description,
-      assigned_to_id: t.assignedToId,
-      assigned_to_name: t.assignedTo?.name ?? null,
-      created_by_id: t.createdById,
-      created_by_name: t.createdBy?.name ?? null,
+      assigned_to_id: isPending ? null : t.assignedToId,
+      assigned_to_name: isPending ? null : (t.assignedTo?.name ?? null),
+      created_by_id: isPending ? null : t.createdById,
+      created_by_name: isPending ? null : (t.createdBy?.name ?? null),
       status: t.status,
       completed_at: t.completedAt,
       created_at: t.createdAt,

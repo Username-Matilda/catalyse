@@ -60,6 +60,7 @@ export function serializeVolunteer(
     consent_share_contact_info_with_project_owner: vol.consentShareContactInfoWithProjectOwner,
     consent_given_at: vol.consentGivenAt,
     is_admin: vol.isAdmin,
+    approval_status: vol.approvalStatus,
     email_digest: vol.emailDigest,
     created_at: vol.createdAt,
     updated_at: vol.updatedAt,
@@ -143,7 +144,7 @@ export async function checkAdminBootstrap(email: string, volunteerId: number): P
   if (!allowed.includes(email.toLowerCase())) return false
   await prisma.volunteer.updateMany({
     where: { id: volunteerId, isAdmin: false },
-    data: { isAdmin: true },
+    data: { isAdmin: true, approvalStatus: 'APPROVED' },
   })
   return true
 }
@@ -166,7 +167,7 @@ export async function acceptPendingInvite(email: string, volunteerId: number): P
   `
   const invite = result[0]
   if (!invite) return false
-  await prisma.volunteer.update({ where: { id: volunteerId }, data: { isAdmin: true } })
+  await prisma.volunteer.update({ where: { id: volunteerId }, data: { isAdmin: true, approvalStatus: 'APPROVED' } })
   await prisma.adminInvite.update({
     where: { id: invite.id },
     data: { status: 'accepted', acceptedById: volunteerId, acceptedAt: new Date() },

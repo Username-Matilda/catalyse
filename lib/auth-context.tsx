@@ -8,6 +8,7 @@ interface User {
   email: string
   name: string
   is_admin: boolean
+  approval_status: string
   volunteer_id?: number
   email_digest: string | null
   skills: Array<{ id: number; name: string }>

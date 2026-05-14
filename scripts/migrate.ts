@@ -5,14 +5,26 @@ import { runBackup } from '../lib/backup'
 
 process.env.DATABASE_URL = resolveDbUrl()
 
-// PR preview DB snapshots may have been taken before this migration was recorded in
-// _prisma_migrations on prod (columns exist via db push, record missing). Resolve it
-// so migrate deploy doesn't fail with "duplicate column". Safe to run on prod — if
-// already recorded, the SELECT guard skips it. Remove once all environments are clean.
-const CATCH_UP: Array<{ name: string; detectTable: string }> = [
+// DB snapshots may have been taken before a migration was recorded in _prisma_migrations
+// (columns/tables exist via db push or manual ALTER, record missing). Resolve it so
+// migrate deploy doesn't fail. Safe to run on prod — if already recorded, the SELECT guard
+// skips it. Remove entries once all environments are clean.
+const CATCH_UP: Array<{ name: string; detect: (db: DatabaseSync) => boolean }> = [
   {
     name: '20260514115514_add_digest_runs_and_task_nudge_tracking',
-    detectTable: 'digest_runs',
+    detect: (db) =>
+      !!db
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='digest_runs'")
+        .get(),
+  },
+  {
+    name: '20260514200000_add_approval_status',
+    detect: (db) =>
+      (
+        db
+          .prepare("SELECT name FROM pragma_table_info('volunteers') WHERE name='approval_status'")
+          .all() as unknown[]
+      ).length > 0,
   },
 ]
 
@@ -32,14 +44,12 @@ async function main() {
         .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='_prisma_migrations'")
         .get()
       if (hasMigrationsTable) {
-        for (const { name, detectTable } of CATCH_UP) {
-          const tableExists = db
-            .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='${detectTable}'`)
-            .get()
+        for (const { name, detect } of CATCH_UP) {
+          const alreadyApplied = detect(db)
           const migrationRecorded = db
             .prepare(`SELECT id FROM _prisma_migrations WHERE migration_name = '${name}'`)
             .get()
-          if (tableExists && !migrationRecorded) toResolve.push(name)
+          if (alreadyApplied && !migrationRecorded) toResolve.push(name)
         }
       }
       db.close()
