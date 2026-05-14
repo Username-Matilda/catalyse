@@ -43,9 +43,9 @@ async function assignStarterTask(
     timeout: 10_000,
   })
 
-  const taskCard = adminPage.locator('.card').filter({ hasText: taskTitle })
+  const taskCard = adminPage.getByRole('article').filter({ hasText: taskTitle })
   await expect(taskCard).toBeVisible({ timeout: 10_000 })
-  await taskCard.locator('.card-header').click()
+  await taskCard.getByText(taskTitle, { exact: true }).click()
   await expect(taskCard.getByRole('button', { name: 'Assign' })).toBeVisible({ timeout: 10_000 })
   await taskCard.getByRole('button', { name: 'Assign' }).click()
 
@@ -67,9 +67,9 @@ async function submitStarterTask(
   })
 
   const banner = volunteerPage.getByRole('region', { name: 'Starter Tasks' })
-  const taskCard = banner.locator('.card').filter({ hasText: taskTitle })
+  const taskCard = banner.getByRole('article').filter({ hasText: taskTitle })
   await expect(taskCard).toBeVisible({ timeout: 10_000 })
-  await taskCard.locator('.card-header').click()
+  await taskCard.getByText(taskTitle, { exact: true }).click()
   await expect(taskCard.getByRole('button', { name: 'Mark as Complete' })).toBeVisible({
     timeout: 10_000,
   })
@@ -102,9 +102,9 @@ test.describe('Starter Tasks', () => {
     await expect(getAlert(adminPage)).toContainText('Task created!', { timeout: 10_000 })
 
     // Task appears in the list with status 'open'
-    const taskCard = adminPage.locator('.card').filter({ hasText: taskTitle })
+    const taskCard = adminPage.getByRole('article').filter({ hasText: taskTitle })
     await expect(taskCard).toBeVisible({ timeout: 10_000 })
-    await expect(taskCard.locator('.status-badge')).toContainText('open')
+    await expect(taskCard.getByRole('status')).toContainText('open')
   })
 
   test('Admin assigns a starter task to a volunteer; task status becomes assigned and volunteer receives a notification', async ({
@@ -116,9 +116,9 @@ test.describe('Starter Tasks', () => {
     const taskTitle = await createOpenStarterTask(baseUrl, adminPage, skill)
 
     // Expand the card to reveal the Assign button
-    const taskCard = adminPage.locator('.card').filter({ hasText: taskTitle })
+    const taskCard = adminPage.getByRole('article').filter({ hasText: taskTitle })
     await expect(taskCard).toBeVisible({ timeout: 10_000 })
-    await taskCard.locator('.card-header').click()
+    await taskCard.getByText(taskTitle, { exact: true }).click()
     await expect(taskCard.getByRole('button', { name: 'Assign' })).toBeVisible({ timeout: 10_000 })
     await taskCard.getByRole('button', { name: 'Assign' }).click()
 
@@ -128,7 +128,7 @@ test.describe('Starter Tasks', () => {
     await assignDialog.getByRole('button', { name: 'Assign' }).click()
 
     await expect(getAlert(adminPage)).toContainText('Task assigned!', { timeout: 10_000 })
-    await expect(taskCard.locator('.status-badge')).toContainText('assigned', { timeout: 10_000 })
+    await expect(taskCard.getByRole('status')).toContainText('assigned', { timeout: 10_000 })
 
     // Volunteer receives an assignment notification
     await goToDashboardNotifications(baseUrl, volunteer.page)
@@ -153,9 +153,9 @@ test.describe('Starter Tasks', () => {
 
     // Starter task banner shows the assigned task with its details
     const banner = volunteer.page.getByRole('region', { name: 'Starter Tasks' })
-    const taskCard = banner.locator('.card').filter({ hasText: taskTitle })
+    const taskCard = banner.getByRole('article').filter({ hasText: taskTitle })
     await expect(taskCard).toBeVisible({ timeout: 10_000 })
-    await expect(taskCard.locator('.status-badge')).toContainText('assigned')
+    await expect(taskCard.getByRole('status')).toContainText('assigned')
   })
 
   test('Volunteer submits a completed starter task; task status becomes submitted and admin receives a notification', async ({
@@ -174,9 +174,9 @@ test.describe('Starter Tasks', () => {
     })
 
     const banner = volunteer.page.getByRole('region', { name: 'Starter Tasks' })
-    const taskCard = banner.locator('.card').filter({ hasText: taskTitle })
+    const taskCard = banner.getByRole('article').filter({ hasText: taskTitle })
     await expect(taskCard).toBeVisible({ timeout: 10_000 })
-    await taskCard.locator('.card-header').click()
+    await taskCard.getByText(taskTitle, { exact: true }).click()
     await expect(taskCard.getByRole('button', { name: 'Mark as Complete' })).toBeVisible({
       timeout: 10_000,
     })
@@ -190,8 +190,8 @@ test.describe('Starter Tasks', () => {
     await expect(adminPage.getByRole('heading', { name: 'Starter Tasks', level: 1 })).toBeVisible({
       timeout: 10_000,
     })
-    const adminTaskCard = adminPage.locator('.card').filter({ hasText: taskTitle })
-    await expect(adminTaskCard.locator('.status-badge')).toContainText('submitted', {
+    const adminTaskCard = adminPage.getByRole('article').filter({ hasText: taskTitle })
+    await expect(adminTaskCard.getByRole('status')).toContainText('submitted', {
       timeout: 10_000,
     })
 
@@ -218,9 +218,9 @@ test.describe('Starter Tasks', () => {
       timeout: 10_000,
     })
 
-    const taskCard = adminPage.locator('.card').filter({ hasText: taskTitle })
+    const taskCard = adminPage.getByRole('article').filter({ hasText: taskTitle })
     await expect(taskCard).toBeVisible({ timeout: 10_000 })
-    await taskCard.locator('.card-header').click()
+    await taskCard.getByText(taskTitle, { exact: true }).click()
     await expect(taskCard.getByRole('button', { name: 'Review' })).toBeVisible({ timeout: 10_000 })
     await taskCard.getByRole('button', { name: 'Review' }).click()
 
@@ -233,7 +233,7 @@ test.describe('Starter Tasks', () => {
     await expect(getAlert(adminPage)).toContainText('Task reviewed!', { timeout: 10_000 })
 
     // Task status becomes 'completed'
-    await expect(taskCard.locator('.status-badge')).toContainText('completed', { timeout: 10_000 })
+    await expect(taskCard.getByRole('status')).toContainText('completed', { timeout: 10_000 })
 
     // Volunteer receives a feedback notification
     await goToDashboardNotifications(baseUrl, volunteer.page)
@@ -265,9 +265,9 @@ test.describe('Starter Tasks', () => {
       timeout: 10_000,
     })
 
-    const taskCard = adminPage.locator('.card').filter({ hasText: taskTitle })
+    const taskCard = adminPage.getByRole('article').filter({ hasText: taskTitle })
     await expect(taskCard).toBeVisible({ timeout: 10_000 })
-    await taskCard.locator('.card-header').click()
+    await taskCard.getByText(taskTitle, { exact: true }).click()
     await expect(taskCard.getByRole('button', { name: 'Review' })).toBeVisible({ timeout: 10_000 })
     await taskCard.getByRole('button', { name: 'Review' }).click()
 
@@ -282,7 +282,7 @@ test.describe('Starter Tasks', () => {
     await expect(getAlert(adminPage)).toContainText('Task reviewed!', { timeout: 10_000 })
 
     // Task status becomes 'reviewed'
-    await expect(taskCard.locator('.status-badge')).toContainText('reviewed', { timeout: 10_000 })
+    await expect(taskCard.getByRole('status')).toContainText('reviewed', { timeout: 10_000 })
 
     // Volunteer receives a feedback notification
     await goToDashboardNotifications(baseUrl, volunteer.page)
@@ -307,9 +307,9 @@ test.describe('Starter Tasks', () => {
     const skill = await createSkill(baseUrl, adminPage)
     const taskTitle = await createOpenStarterTask(baseUrl, adminPage, skill)
 
-    const taskCard = adminPage.locator('.card').filter({ hasText: taskTitle })
+    const taskCard = adminPage.getByRole('article').filter({ hasText: taskTitle })
     await expect(taskCard).toBeVisible({ timeout: 10_000 })
-    await taskCard.locator('.card-header').click()
+    await taskCard.getByText(taskTitle, { exact: true }).click()
     await expect(taskCard.getByRole('button', { name: 'Delete' })).toBeVisible({ timeout: 10_000 })
 
     adminPage.once('dialog', (dialog) => dialog.accept())
@@ -326,21 +326,22 @@ test.describe('Starter Tasks', () => {
     const skill = await createSkill(baseUrl, adminPage)
     const taskTitle = await createOpenStarterTask(baseUrl, adminPage, skill)
 
-    // Get the task ID via API so we can build the deep-link URL
-    const response = await adminPage.request.get(`${baseUrl}/api/starter-tasks`)
-    const tasks = await response.json()
-    const task = tasks.find((t: { title: string }) => t.title === taskTitle)
-    expect(task).toBeDefined()
+    // Get the task ID from the card's DOM id attribute (card has id="task-N")
+    const taskCard = adminPage.getByRole('article').filter({ hasText: taskTitle })
+    await expect(taskCard).toBeVisible({ timeout: 10_000 })
+    const cardId = await taskCard.getAttribute('id')
+    const taskId = parseInt(cardId!.replace('task-', ''), 10)
 
     // Navigate directly to the deep-link — card should be expanded without clicking
-    await adminPage.goto(`${baseUrl}/admin/starter-tasks#task-${task.id}`)
+    await adminPage.goto(`${baseUrl}/admin/starter-tasks#task-${taskId}`)
     await expect(adminPage.getByRole('heading', { name: 'Starter Tasks', level: 1 })).toBeVisible({
       timeout: 10_000,
     })
+    await adminPage.getByText('Loading…').waitFor({ state: 'hidden', timeout: 10_000 })
 
-    const taskCard = adminPage.locator(`#task-${task.id}`)
-    await expect(taskCard).toBeVisible({ timeout: 10_000 })
+    const deepLinkCard = adminPage.locator(`#task-${taskId}`)
+    await expect(deepLinkCard).toBeVisible({ timeout: 10_000 })
     // Card is expanded — action buttons are visible without clicking the header
-    await expect(taskCard.getByRole('button', { name: 'Edit' })).toBeVisible({ timeout: 10_000 })
+    await expect(deepLinkCard.getByRole('button', { name: 'Edit' })).toBeVisible({ timeout: 10_000 })
   })
 })

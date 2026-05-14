@@ -238,14 +238,14 @@ export default function DashboardPage() {
         {starterTasks.length > 0 && (
           <section aria-label="Starter Tasks" className="mb-8">
             <h2>Starter Tasks</h2>
-            {/* [test hook] card, card-header classes used as test selectors */}
             {starterTasks.map((task) => (
               <div
                 key={task.id}
-                className="card bg-surface rounded-xl shadow p-6 mb-3 overflow-hidden wrap-break-word"
+                role="article"
+                className="bg-surface rounded-xl shadow p-6 mb-3 overflow-hidden wrap-break-word"
               >
                 <div
-                  className="card-header flex justify-between items-center cursor-pointer"
+                  className="flex justify-between items-center cursor-pointer"
                   onClick={() => toggleTask(task.id)}
                 >
                   <div>
@@ -254,7 +254,7 @@ export default function DashboardPage() {
                       <span className="ml-2 text-sm text-text-light">{task.skill_name}</span>
                     )}
                   </div>
-                  <span className={statusBadgeClasses(task.status)}>{task.status}</span>
+                  <span role="status" className={statusBadgeClasses(task.status)}>{task.status}</span>
                 </div>
                 {expandedTasks.has(task.id) && (
                   <div className="mt-3">

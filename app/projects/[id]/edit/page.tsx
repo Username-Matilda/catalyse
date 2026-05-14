@@ -4,10 +4,13 @@ import React, { use, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/Header'
 import Button from '@/components/Button'
+import Checkbox from '@/components/Checkbox'
+import FilterDropdown from '@/components/FilterDropdown'
 import SkillPicker from '@/components/SkillPicker'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
 import { useToast } from '@/lib/toast'
+import { buildLocationOptions, type LocalGroupOption } from '@/lib/filter-options'
 
 interface SelectedSkill {
   skillId: number
@@ -21,28 +24,66 @@ interface ProjectData {
   collaboration_link: string | null
   owner_id: number | null
   proposed_by_id: number | null
+  project_type: string | null
+  time_commitment_hours_per_week: number | null
+  urgency: string | null
+  country: string | null
+  local_group: string | null
+  estimated_duration: string | null
+  is_seeking_help: boolean
+  is_seeking_owner: boolean
   skills: Array<{ id: number; name: string; is_required: boolean | null }>
 }
+
+const URGENCY_OPTIONS = [
+  { value: 'low', label: 'Low - Nice to have' },
+  { value: 'medium', label: 'Medium - Should do soon' },
+  { value: 'high', label: 'High - Urgent / time-sensitive' },
+]
+
+const PROJECT_TYPES = [
+  { value: '', label: 'Select a project type…' },
+  { value: 'sprint', label: 'Sprint (1-2 weeks)' },
+  { value: 'container', label: 'Time-boxed (1-3 months)' },
+  { value: 'ongoing', label: 'Ongoing' },
+  { value: 'one_off', label: 'One-off task' },
+]
 
 export default function EditProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = use(params)
   const router = useRouter()
   const { user, loading } = useAuth()
+  const showToast = useToast()
+
   const [project, setProject] = useState<ProjectData | null>(null)
   const [loadingProject, setLoadingProject] = useState(true)
+  const [canEdit, setCanEdit] = useState(false)
+  const [permissionChecked, setPermissionChecked] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [collaborationLink, setCollaborationLink] = useState('')
   const [skills, setSkills] = useState<SelectedSkill[]>([])
-  const [canEdit, setCanEdit] = useState(false)
-  const [permissionChecked, setPermissionChecked] = useState(false)
-  const showToast = useToast()
-  const [submitting, setSubmitting] = useState(false)
-  const [deleting, setDeleting] = useState(false)
+  const [projectType, setProjectType] = useState('')
+  const [hoursPerWeek, setHoursPerWeek] = useState('')
+  const [urgency, setUrgency] = useState('medium')
+  const [locationValue, setLocationValue] = useState('') // 'UK' or 'UK:London'
+  const [estimatedDuration, setEstimatedDuration] = useState('')
+  const [seekingHelp, setSeekingHelp] = useState(true)
+  const [seekingOwner, setSeekingOwner] = useState(true)
+  const [allLocalGroups, setAllLocalGroups] = useState<LocalGroupOption[]>([])
 
   useEffect(() => {
     if (!loading && !user) router.replace('/login')
   }, [user, loading, router])
+
+  useEffect(() => {
+    apiRequest<{ groups: LocalGroupOption[] }>('/api/local-groups')
+      .then((d) => setAllLocalGroups(d.groups))
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (!user) return
@@ -55,14 +96,20 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
         setSkills(
           (data.skills ?? []).map((s) => ({ skillId: s.id, proficiencyLevel: 'intermediate' })),
         )
+        setProjectType(data.project_type ?? '')
+        setHoursPerWeek(data.time_commitment_hours_per_week?.toString() ?? '')
+        setUrgency(data.urgency ?? 'medium')
+        const country = data.country ?? ''
+        const localGroup = data.local_group ?? ''
+        setLocationValue(country && localGroup ? `${country}:${localGroup}` : country)
+        setEstimatedDuration(data.estimated_duration ?? '')
+        setSeekingHelp(data.is_seeking_help)
+        setSeekingOwner(data.is_seeking_owner)
         const isOwner = data.owner_id === user.id || data.proposed_by_id === user.id
-        const isAdmin = user.is_admin
-        setCanEdit(isOwner || isAdmin)
+        setCanEdit(isOwner || user.is_admin)
         setPermissionChecked(true)
       })
-      .catch(() => {
-        setPermissionChecked(true)
-      })
+      .catch(() => setPermissionChecked(true))
       .finally(() => setLoadingProject(false))
   }, [user, idParam])
 
@@ -70,6 +117,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
     e.preventDefault()
     if (!canEdit) return
     setSubmitting(true)
+    const [country, localGroup] = locationValue.split(':')
     try {
       await apiRequest(`/api/projects/${idParam}`, {
         method: 'PUT',
@@ -78,6 +126,14 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
           description: description.trim(),
           collaboration_link: collaborationLink.trim() || null,
           skill_ids: skills.map((s) => s.skillId),
+          project_type: projectType || null,
+          time_commitment_hours_per_week: hoursPerWeek ? Number(hoursPerWeek) : null,
+          urgency,
+          country: country || null,
+          local_group: localGroup || null,
+          estimated_duration: estimatedDuration.trim() || null,
+          is_seeking_help: seekingHelp,
+          is_seeking_owner: seekingOwner,
         }),
       })
       router.push(`/projects/${idParam}`)
@@ -137,7 +193,6 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
             <input
               id="edit-title"
               type="text"
-              aria-label="Project Title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               disabled={!canEdit}
@@ -149,7 +204,6 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
             <label htmlFor="edit-description">Description</label>
             <textarea
               id="edit-description"
-              aria-label="Description"
               rows={6}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -158,11 +212,76 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
           </div>
 
           <div className="mb-5">
+            <FilterDropdown
+              id="project-type"
+              label="Project Type"
+              ariaLabel="Select project type"
+              value={projectType}
+              options={PROJECT_TYPES}
+              onChange={setProjectType}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-5 mb-5">
+            <div>
+              <label htmlFor="hours-per-week">Hours per Week</label>
+              <input
+                id="hours-per-week"
+                type="number"
+                min={1}
+                max={40}
+                placeholder="e.g., 5"
+                value={hoursPerWeek}
+                onChange={(e) => setHoursPerWeek(e.target.value)}
+                disabled={!canEdit}
+              />
+            </div>
+            <div>
+              <FilterDropdown
+                id="urgency"
+                label="Urgency"
+                ariaLabel="Select urgency"
+                value={urgency}
+                options={URGENCY_OPTIONS}
+                onChange={setUrgency}
+              />
+            </div>
+          </div>
+
+          {['sprint', 'container'].includes(projectType) && (
+            <div className="mb-5">
+              <label htmlFor="duration">Estimated Duration</label>
+              <input
+                id="duration"
+                type="text"
+                placeholder="e.g., 6 weeks, 2 months"
+                value={estimatedDuration}
+                onChange={(e) => setEstimatedDuration(e.target.value)}
+                disabled={!canEdit}
+              />
+            </div>
+          )}
+
+          <div className="mb-5">
+            <FilterDropdown
+              id="country"
+              label="Country/Group"
+              ariaLabel="Select country/group"
+              value={locationValue}
+              options={buildLocationOptions(allLocalGroups)}
+              onChange={setLocationValue}
+              searchable
+            />
+            <p className="text-sm text-text-light mt-1">
+              Local groups appear indented under their country.
+            </p>
+          </div>
+
+          <div className="mb-5">
             <label htmlFor="edit-collab">Collaboration Doc / Link</label>
             <input
               id="edit-collab"
-              type="url"
-              aria-label="Collaboration Doc / Link"
+              type="text"
               placeholder="https://…"
               value={collaborationLink}
               onChange={(e) => setCollaborationLink(e.target.value)}
@@ -173,6 +292,26 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
           <div className="mb-5">
             <label>Skills needed</label>
             <SkillPicker value={skills} onChange={canEdit ? setSkills : () => {}} />
+          </div>
+
+          <div className="mb-5">
+            <p className="font-medium mb-2">This project needs:</p>
+            <div className="flex flex-col gap-2">
+              <Checkbox
+                checked={seekingHelp}
+                onChange={(e) => setSeekingHelp(e.target.checked)}
+                disabled={!canEdit}
+              >
+                Help / contributors
+              </Checkbox>
+              <Checkbox
+                checked={seekingOwner}
+                onChange={(e) => setSeekingOwner(e.target.checked)}
+                disabled={!canEdit}
+              >
+                An owner / lead
+              </Checkbox>
+            </div>
           </div>
 
           <div className="flex gap-3 flex-wrap">

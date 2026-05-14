@@ -70,6 +70,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     })
   }
 
+  if (interestType === 'want_to_own' && project.isSeekingOwner) {
+    await prisma.project.update({ where: { id: projectId }, data: { isSeekingOwner: false } })
+  }
+
   const assignee = await prisma.volunteer.findFirst({
     where: { id: volunteerId },
     select: { name: true, email: true },

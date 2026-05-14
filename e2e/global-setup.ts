@@ -26,6 +26,8 @@ function killServerOnPort(port: number): void {
   }
 }
 
+const IS_DEV_MODE = process.env.E2E_DEV === '1'
+
 function buildNextJs(): void {
   execSync(`${NEXT_BINARY} build`, {
     cwd: PROJECT_ROOT,
@@ -53,7 +55,8 @@ function startWorkerNextJs(parallelIndex: number): number {
   fs.mkdirSync(dbDir, { recursive: true })
   migrateWorkerDb(parallelIndex)
 
-  const server = spawn(NEXT_BINARY, ['start', '-p', String(nextPort)], {
+  const nextArgs = IS_DEV_MODE ? ['dev', '--turbo', '-p', String(nextPort)] : ['start', '-p', String(nextPort)]
+  const server = spawn(NEXT_BINARY, nextArgs, {
     env: {
       ...process.env,
       PORT: String(nextPort),
@@ -129,7 +132,7 @@ async function globalSetup(config: FullConfig): Promise<void> {
   const workerCount = config.workers
 
   if (IS_LOCAL) {
-    buildNextJs()
+    if (!IS_DEV_MODE) buildNextJs()
 
     const pids: Record<string, number> = {}
     for (let i = 0; i < workerCount; i++) {

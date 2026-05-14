@@ -198,6 +198,50 @@ export async function sendProjectNotificationEmail(
   )
 }
 
+const LOCAL_GROUP_SUGGESTION_MESSAGES: Record<string, (groupName: string) => string> = {
+  accepted: (g) => `Great news! Your suggestion <strong>"${g}"</strong> has been added as a new local group on Catalyse.`,
+  merge: (g) => `Your suggestion <strong>"${g}"</strong> has been merged with an existing local group.`,
+  on_hold: (g) => `Your local group suggestion <strong>"${g}"</strong> is currently under review. We'll be in touch if we need more information.`,
+  declined: (g) => `Thanks for your suggestion of <strong>"${g}"</strong>. After review, we've decided not to add it as a separate local group at this time.`,
+}
+
+export function buildLocalGroupSuggestionHtml(
+  name: string,
+  action: string,
+  groupName: string,
+  adminNotes?: string | null,
+): string {
+  const getMessage = LOCAL_GROUP_SUGGESTION_MESSAGES[action]
+  const message = getMessage ? getMessage(groupName) : `Your local group suggestion "${groupName}" has been reviewed.`
+  const notesHtml = adminNotes ? `<p><em>${adminNotes}</em></p>` : ''
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
+<body><div class="container">
+  <h2>Local Group Suggestion Update</h2>
+  <p>Hi ${name},</p>
+  <p>${message}</p>
+  ${notesHtml}
+  <p style="text-align: center; margin: 32px 0;"><a href="${APP_URL}" class="button">Visit Catalyse</a></p>
+  ${footer()}
+</div></body></html>`
+}
+
+export async function sendLocalGroupSuggestionEmail(
+  to: string,
+  name: string,
+  action: string,
+  groupName: string,
+  adminNotes?: string | null,
+): Promise<boolean> {
+  const subjects: Record<string, string> = {
+    accepted: `Your local group suggestion "${groupName}" was accepted`,
+    merge: `Your local group suggestion "${groupName}" has been merged`,
+    on_hold: `Your local group suggestion "${groupName}" is under review`,
+    declined: `Update on your local group suggestion "${groupName}"`,
+  }
+  const subject = subjects[action] ?? `Update on your local group suggestion`
+  return sendEmail(to, subject, buildLocalGroupSuggestionHtml(name, action, groupName, adminNotes))
+}
+
 // TODO: Relay replies bypass the platform — once the recipient hits reply, the thread becomes a
 // private email exchange with no platform record. Re-evaluate if ongoing coordination via the
 // platform is needed: inbound routing (Resend webhooks + per-conversation relay addresses) would
