@@ -236,8 +236,8 @@ export default function ProjectsPage() {
 
             <FilterDropdown
               id="location-filter"
-              label="Country"
-              ariaLabel="Country filter"
+              label="Country/Group"
+              ariaLabel="Country/Group filter"
               value={locationFilter}
               options={buildLocationOptions(localGroups)}
               onChange={setLocationFilter}

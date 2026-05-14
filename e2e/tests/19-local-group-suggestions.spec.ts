@@ -40,7 +40,7 @@ test.describe('Local Group Suggestions', () => {
     await volunteer.page.getByLabel('Local Group Name').fill('TestCity')
     await expect(volunteer.page.getByRole('button', { name: 'Submit Suggestion' })).toBeDisabled()
 
-    await selectFilterDropdown(volunteer.page, 'Select country', 'UK')
+    await selectFilterDropdown(volunteer.page, 'Select country/group', 'UK')
     await expect(volunteer.page.getByRole('button', { name: 'Submit Suggestion' })).toBeEnabled()
   })
 
@@ -70,8 +70,8 @@ test.describe('Local Group Suggestions', () => {
 
     await volunteer.page.goto(`${baseUrl}/`)
     await volunteer.page.waitForLoadState('networkidle', { timeout: 15_000 })
-    await selectFilterDropdown(volunteer.page, 'Country filter', `UK - ${groupName}`)
-    await expect(volunteer.page.getByLabel('Country filter', { exact: true })).toContainText(
+    await selectFilterDropdown(volunteer.page, 'Country/Group filter', `UK - ${groupName}`)
+    await expect(volunteer.page.getByLabel('Country/Group filter', { exact: true })).toContainText(
       `UK - ${groupName}`,
     )
   })
@@ -92,8 +92,8 @@ test.describe('Local Group Suggestions', () => {
 
     await volunteer.page.goto(`${baseUrl}/`)
     await volunteer.page.waitForLoadState('networkidle', { timeout: 15_000 })
-    await selectFilterDropdown(volunteer.page, 'Country filter', `UK - ${adjusted}`)
-    await expect(volunteer.page.getByLabel('Country filter', { exact: true })).toContainText(
+    await selectFilterDropdown(volunteer.page, 'Country/Group filter', `UK - ${adjusted}`)
+    await expect(volunteer.page.getByLabel('Country/Group filter', { exact: true })).toContainText(
       `UK - ${adjusted}`,
     )
   })
@@ -116,8 +116,8 @@ test.describe('Local Group Suggestions', () => {
       .waitFor({ timeout: 10_000 })
     await volunteer.page.waitForLoadState('networkidle', { timeout: 15_000 })
 
-    await selectFilterDropdown(volunteer.page, 'Select country', `UK - ${groupName}`)
-    await expect(volunteer.page.getByLabel('Select country', { exact: true })).toContainText(
+    await selectFilterDropdown(volunteer.page, 'Select country/group', `UK - ${groupName}`)
+    await expect(volunteer.page.getByLabel('Select country/group', { exact: true })).toContainText(
       groupName,
     )
   })
@@ -296,8 +296,8 @@ test.describe('Admin Local Group Management', () => {
       .waitFor({ timeout: 10_000 })
     await volunteer.page.waitForLoadState('networkidle', { timeout: 15_000 })
 
-    await selectFilterDropdown(volunteer.page, 'Select country', `UK - ${groupName}`)
-    await expect(volunteer.page.getByLabel('Select country', { exact: true })).toContainText(
+    await selectFilterDropdown(volunteer.page, 'Select country/group', `UK - ${groupName}`)
+    await expect(volunteer.page.getByLabel('Select country/group', { exact: true })).toContainText(
       groupName,
     )
   })

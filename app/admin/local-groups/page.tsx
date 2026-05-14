@@ -370,8 +370,8 @@ export default function AdminLocalGroupsPage() {
           />
           <FilterDropdown
             id="country-filter"
-            label="Country"
-            ariaLabel="Country filter"
+            label="Country/Group"
+            ariaLabel="Country/Group filter"
             value={countryFilter}
             options={countryOptions}
             onChange={(v) => setCountryFilter(v)}
@@ -470,7 +470,7 @@ export default function AdminLocalGroupsPage() {
                   <FilterDropdown
                     id="add-country"
                     label="Country"
-                    ariaLabel="Select country"
+                    ariaLabel="Select country/group"
                     value={addCountry}
                     options={SUGGESTION_COUNTRIES}
                     onChange={setAddCountry}
@@ -525,7 +525,7 @@ export default function AdminLocalGroupsPage() {
                   <FilterDropdown
                     id="edit-country"
                     label="Country"
-                    ariaLabel="Select country"
+                    ariaLabel="Select country/group"
                     value={editCountry}
                     options={SUGGESTION_COUNTRIES}
                     onChange={setEditCountry}

@@ -11,7 +11,7 @@ export async function submitLocalGroupSuggestion(
   await page.getByRole('heading', { name: 'Suggest a Local Group', level: 1 }).waitFor({
     timeout: 10_000,
   })
-  await selectFilterDropdown(page, 'Select country', country)
+  await selectFilterDropdown(page, 'Select country/group', country)
   await page.getByLabel('Local Group Name').fill(name)
   await page.getByRole('button', { name: 'Submit Suggestion' }).click()
   await page.getByText('Suggestion submitted!').waitFor({ timeout: 10_000 })
@@ -34,7 +34,7 @@ export async function adminAddGroup(
   await adminPage
     .getByRole('heading', { name: 'Add Local Group', level: 2 })
     .waitFor({ timeout: 10_000 })
-  await selectFilterDropdown(adminPage, 'Select country', country)
+  await selectFilterDropdown(adminPage, 'Select country/group', country)
   await adminPage.getByLabel('Group Name').fill(name)
   await adminPage.getByRole('button', { name: 'Add Group' }).click()
   await adminPage
@@ -53,7 +53,7 @@ export async function adminEditGroup(
     .getByRole('heading', { name: 'Edit Local Group', level: 2 })
     .waitFor({ timeout: 10_000 })
   if (opts.newCountry !== undefined) {
-    await selectFilterDropdown(adminPage, 'Select country', opts.newCountry)
+    await selectFilterDropdown(adminPage, 'Select country/group', opts.newCountry)
   }
   if (opts.newName !== undefined) {
     await adminPage.getByLabel('Group Name').fill(opts.newName)

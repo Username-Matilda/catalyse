@@ -265,8 +265,8 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
           <div className="mb-5">
             <FilterDropdown
               id="country"
-              label="Country / Region"
-              ariaLabel="Select country"
+              label="Country/Group"
+              ariaLabel="Select country/group"
               value={locationValue}
               options={buildLocationOptions(allLocalGroups)}
               onChange={setLocationValue}

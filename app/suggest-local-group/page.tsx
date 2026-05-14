@@ -111,8 +111,8 @@ export default function SuggestLocalGroupPage() {
             <div className="mb-5">
               <FilterDropdown
                 id="country"
-                label="Country"
-                ariaLabel="Select country"
+                label="Country/Group"
+                ariaLabel="Select country/group"
                 value={country}
                 options={SUGGESTION_COUNTRIES}
                 onChange={(v) => {

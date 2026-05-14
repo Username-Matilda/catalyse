@@ -302,8 +302,8 @@ export default function ProjectForm({
       <div className="mb-5">
         <FilterDropdown
           id="country"
-          label="Country / Region"
-          ariaLabel="Select country"
+          label="Country/Group"
+          ariaLabel="Select country/group"
           value={locationValue}
           options={buildLocationOptions(allLocalGroups)}
           onChange={(v) => {
@@ -319,7 +319,10 @@ export default function ProjectForm({
           </p>
         ) : (
           <p className="text-sm text-text-light mt-1">
-            Where is this project based? Local groups appear indented under their country.
+            Where is this project based? Local groups appear indented under their country.{' '}
+            <a href="/suggest-local-group" className="underline">
+              Don&apos;t see your group? Suggest one.
+            </a>
           </p>
         )}
       </div>
