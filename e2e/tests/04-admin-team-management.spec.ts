@@ -108,6 +108,7 @@ test.describe('Admin: Admin Team Management', () => {
 
       // Signing up with the invited email auto-accepts the invite server-side
       await signup(baseUrl, page, person.name, person.email, 'testpassword1')
+      await page.waitForURL(`${baseUrl}/dashboard`, { timeout: 15_000 })
 
       const me = await getMe(page)
       expect(me.is_admin).toBeTruthy()

@@ -1,5 +1,5 @@
 import { readFileSync } from 'fs'
-import { test, expect, getAlert } from '../fixtures'
+import { test, expect, getAlert, approveVolunteer } from '../fixtures'
 import { fake } from '../fake'
 
 test.describe('GDPR & Privacy', () => {
@@ -51,7 +51,8 @@ test.describe('GDPR & Privacy', () => {
       }),
     })
     if (!signupResp.ok) throw new Error(`vol2 signup failed: ${await signupResp.text()}`)
-    const { auth_token: vol2Token } = await signupResp.json()
+    const { id: vol2Id, auth_token: vol2Token } = await signupResp.json()
+    await approveVolunteer(baseUrl, vol2Id)
     const ctx2 = await browser.newContext()
     await ctx2.addInitScript((token: string) => {
       localStorage.setItem('authToken', token)

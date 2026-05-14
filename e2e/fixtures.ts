@@ -1,6 +1,7 @@
 import { test as base, Browser, Page, WorkerInfo } from '@playwright/test'
 import { workerAuthFile, workerBaseUrl, parallelIndexFromBaseUrl } from './config'
 import { fake } from './fake'
+import fs from 'fs'
 
 interface Volunteer {
   page: Page
@@ -56,7 +57,10 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
       }),
     })
     if (!resp.ok) throw new Error(`Volunteer signup failed: ${await resp.text()}`)
-    const { auth_token } = await resp.json()
+    const { id: volunteerId, auth_token } = await resp.json()
+
+    await approveVolunteer(baseUrl, volunteerId)
+
     const context = await browser.newContext()
     await context.addInitScript((token: string) => {
       localStorage.setItem('authToken', token)
@@ -68,6 +72,25 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
 })
 
 export { expect } from '@playwright/test'
+
+export async function approveVolunteer(baseUrl: string, volunteerId: number): Promise<void> {
+  const parallelIndex = parallelIndexFromBaseUrl(baseUrl)
+  const authFile = workerAuthFile(parallelIndex)
+  let adminToken: string | null = null
+  try {
+    const data = JSON.parse(fs.readFileSync(authFile, 'utf-8'))
+    const origin = data.origins?.find((o: { origin: string }) => o.origin === baseUrl)
+    adminToken = origin?.localStorage?.find((ls: { name: string }) => ls.name === 'authToken')?.value ?? null
+  } catch {
+    return
+  }
+  if (!adminToken) return
+  await fetch(`${baseUrl}/api/admin/applications/${volunteerId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+    body: JSON.stringify({ action: 'approve' }),
+  })
+}
 
 export function getAlert(page: Page) {
   return page.locator('[role="alert"]:not(#__next-route-announcer__)').last()

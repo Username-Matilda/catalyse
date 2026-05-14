@@ -9,7 +9,9 @@ test.describe('Authentication: Signup & Login', () => {
     try {
       const person = fake.person()
       await signup(baseUrl, page, person.name, person.email, 'testpassword1')
-      await expect(page).toHaveURL(`${baseUrl}/dashboard`)
+      await expect(page.getByRole('heading', { name: 'Application Received!' })).toBeVisible({
+        timeout: 10_000,
+      })
     } finally {
       await context.close()
     }
@@ -64,6 +66,7 @@ test.describe('Authentication: Signup & Login', () => {
       await page.getByLabel('Email', { exact: true }).fill(volunteer.email)
       await page.getByLabel('Password', { exact: true }).fill('testpassword1')
       await page.getByLabel('Confirm Password').fill('testpassword1')
+      await page.getByLabel('Your Application').fill('e2e test application message')
       await page.getByRole('button', { name: 'Create Account' }).click()
       await expect(getAlert(page)).toBeVisible({ timeout: 10_000 })
     } finally {
@@ -86,10 +89,56 @@ test.describe('Authentication: Signup & Login', () => {
       })
       await page.getByLabel('Password', { exact: true }).fill('abc')
       await page.getByLabel('Confirm Password').fill('abc')
+      await page.getByLabel('Your Application').fill('e2e test application message')
       await page.getByRole('button', { name: 'Create Account' }).click()
       await expect(getAlert(page)).toBeVisible({ timeout: 10_000 })
     } finally {
       await context.close()
+    }
+  })
+
+  test('Admin approves a pending application; volunteer can then access the platform', async ({
+    adminPage,
+    browser,
+    baseUrl,
+  }) => {
+    const person = fake.person()
+
+    const signupResp = await fetch(`${baseUrl}/api/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: person.name,
+        email: person.email,
+        password: 'testpassword1',
+        application_message: 'I want to contribute to AI safety',
+        consent_make_profile_visible_in_directory: true,
+        consent_contactable_by_project_owners: true,
+      }),
+    })
+    expect(signupResp.ok).toBeTruthy()
+    const { pending } = await signupResp.json()
+    expect(pending).toBe(true)
+
+    await adminPage.goto(`${baseUrl}/admin/applications`)
+    await expect(adminPage.getByRole('heading', { name: 'Applications' })).toBeVisible({
+      timeout: 10_000,
+    })
+
+    const card = adminPage.locator('.bg-surface').filter({ hasText: person.name })
+    await expect(card).toBeVisible({ timeout: 10_000 })
+    await card.getByRole('button', { name: 'Approve' }).click()
+    await expect(getAlert(adminPage)).toContainText('Application approved', { timeout: 10_000 })
+
+    // Approved volunteer can log in and reach dashboard without pending banner
+    const ctx = await browser.newContext()
+    const page = await ctx.newPage()
+    try {
+      await login(baseUrl, page, person.email, 'testpassword1')
+      await expect(page).toHaveURL(`${baseUrl}/dashboard`)
+      await expect(page.getByText('Your account is pending approval')).not.toBeVisible()
+    } finally {
+      await ctx.close()
     }
   })
 
