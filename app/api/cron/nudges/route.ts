@@ -1,0 +1,11 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { checkCronAuth } from '@/lib/cron-auth'
+import { runNudgesJob } from '@/lib/jobs/nudges'
+
+export async function POST(request: NextRequest) {
+  const authError = checkCronAuth(request)
+  if (authError) return authError
+
+  const result = await runNudgesJob()
+  return NextResponse.json(result)
+}
