@@ -306,7 +306,7 @@ export default function Header() {
 
           {/* Mobile action buttons + hamburger — visible below xl breakpoint */}
           <div className="xl:hidden flex items-center gap-2 shrink-0">
-            <ThemeToggle invertedStyle size="md" />
+            <ThemeToggle size="md" />
             <Button
               variant="ghost"
               size="md"
@@ -453,7 +453,7 @@ export default function Header() {
           {/* Pinned bottom bar */}
           <div className="shrink-0 border-t border-brand-border bg-surface">
             <div className="flex items-center overflow-hidden w-full">
-              <ThemeToggle size="md" className="rounded-none flex-1 justify-center" />
+              <ThemeToggle icon={false} size="md" className="rounded-none flex-1 justify-center self-stretch" />
               <button
                 onClick={() => {
                   setBugDialogOpen(true)

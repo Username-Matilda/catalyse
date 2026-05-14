@@ -3,13 +3,11 @@ import { useTheme } from '@/components/ThemeProvider'
 import Button from '@/components/Button'
 
 export function ThemeToggle({
-  showLabel,
-  invertedStyle,
+  icon = true,
   size = 'sm',
   className,
 }: {
-  showLabel?: boolean
-  invertedStyle?: boolean
+  icon?: boolean
   size?: 'sm' | 'md' | 'lg'
   className?: string
 }) {
@@ -20,18 +18,16 @@ export function ThemeToggle({
   const isDark = resolvedTheme === 'dark'
 
   const targetDark = !isDark
-  const style =
-    showLabel || invertedStyle
-      ? {
-          backgroundColor: targetDark ? '#374151' : '#d1d5db',
-          color: targetDark ? '#e5e7eb' : '#374151',
-        }
-      : undefined
+  const style = {
+    backgroundColor: targetDark ? '#374151' : '#d1d5db',
+    color: targetDark ? '#e5e7eb' : '#374151',
+  }
 
   return (
     <Button
       variant="ghost"
-      icon={!showLabel}
+      icon={icon}
+
       size={size}
       className={className}
       style={style}
@@ -73,7 +69,7 @@ export function ThemeToggle({
           <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
         </svg>
       )}
-      {showLabel && <span className="ml-1">{targetDark ? 'Dark mode' : 'Light mode'}</span>}
+
     </Button>
   )
 }
