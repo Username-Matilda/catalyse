@@ -11,7 +11,7 @@ export async function runApplicationsSummaryJob(): Promise<Record<string, unknow
   if (!count) return { skipped: true, reason: 'no pending applications' }
 
   const admins = await prisma.volunteer.findMany({
-    where: { isAdmin: true, deletedAt: null },
+    where: { isAdmin: true, isSuperAdmin: true, deletedAt: null },
     select: { name: true, email: true },
   })
 
