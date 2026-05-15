@@ -20,11 +20,11 @@ interface Application {
   admin_notes: string | null
   applicant_notes: string | null
   reviewer: { id: number; name: string } | null
-  previous_rejection: {
+  previous_rejections: Array<{
     rejected_at: string
     admin_notes: string | null
     applicant_notes: string | null
-  } | null
+  }>
   availability_hours_per_week: number | null
   location: string | null
   country: string | null
@@ -386,23 +386,30 @@ function ApplicationCard({
         </div>
       )}
 
-      {app.previous_rejection && (
+      {app.previous_rejections.length > 0 && (
         <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg">
-          <p className="text-sm font-medium text-amber-800 dark:text-amber-300 mb-2">
-            Previously rejected ({new Date(app.previous_rejection.rejected_at).toLocaleDateString()})
+          <p className="text-sm font-medium text-amber-800 dark:text-amber-300 mb-3">
+            {app.previous_rejections.length === 1 ? 'Previously rejected' : `Previously rejected ${app.previous_rejections.length} times`}
           </p>
-          {app.previous_rejection.admin_notes && (
-            <div className="mb-2">
-              <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide mb-0.5">Admin notes</p>
-              <p className="text-sm text-amber-700 dark:text-amber-400 whitespace-pre-wrap">{app.previous_rejection.admin_notes}</p>
+          {app.previous_rejections.map((r, i) => (
+            <div key={i} className={i > 0 ? 'mt-3 pt-3 border-t border-amber-200 dark:border-amber-700' : ''}>
+              <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide mb-1">
+                {new Date(r.rejected_at).toLocaleDateString()}
+              </p>
+              {r.admin_notes && (
+                <div className="mb-1">
+                  <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide mb-0.5">Admin notes</p>
+                  <p className="text-sm text-amber-700 dark:text-amber-400 whitespace-pre-wrap">{r.admin_notes}</p>
+                </div>
+              )}
+              {r.applicant_notes && (
+                <div>
+                  <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide mb-0.5">Message sent to applicant</p>
+                  <p className="text-sm text-amber-700 dark:text-amber-400 whitespace-pre-wrap">{r.applicant_notes}</p>
+                </div>
+              )}
             </div>
-          )}
-          {app.previous_rejection.applicant_notes && (
-            <div>
-              <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide mb-0.5">Message sent to applicant</p>
-              <p className="text-sm text-amber-700 dark:text-amber-400 whitespace-pre-wrap">{app.previous_rejection.applicant_notes}</p>
-            </div>
-          )}
+          ))}
         </div>
       )}
 

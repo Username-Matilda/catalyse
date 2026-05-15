@@ -1,4 +1,3 @@
-import { createHash } from 'crypto'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import {
@@ -48,12 +47,6 @@ export async function POST(request: NextRequest) {
     return Response.json({ detail: 'Email already registered' }, { status: 400 })
   }
 
-  const emailHash = createHash('sha256').update(email).digest('hex')
-  const previousRejection = await prisma.rejectedApplication.findUnique({
-    where: { emailHash },
-    select: { id: true },
-  })
-
   const authToken = generateAuthToken()
   const passwordHash = hashPassword(password)
 
@@ -87,7 +80,6 @@ export async function POST(request: NextRequest) {
       ),
       consentGivenAt: new Date(),
       emailDigest: body.email_digest ? String(body.email_digest) : 'none',
-      ...(previousRejection && { previousRejectionId: previousRejection.id }),
     },
   })
 

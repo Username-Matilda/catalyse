@@ -52,19 +52,18 @@ export async function runApplicationsAnonymisationJob(): Promise<Record<string, 
     if (v.email) {
       const emailHash = createHash('sha256').update(v.email.toLowerCase().trim()).digest('hex')
       const rejectedAt = new Date(v.rejected_at!)
-      await prisma.rejectedApplication.upsert({
-        where: { emailHash },
-        create: {
+      await prisma.rejectedApplication.create({
+        data: {
           emailHash,
           rejectedAt,
           adminNotes: v.application_admin_notes,
           applicantNotes: v.application_applicant_notes,
         },
-        update: {
-          rejectedAt,
-          adminNotes: v.application_admin_notes,
-          applicantNotes: v.application_applicant_notes,
-        },
+      })
+      await prisma.anonymisedEmail.upsert({
+        where: { emailHash },
+        create: { emailHash },
+        update: {},
       })
     }
 

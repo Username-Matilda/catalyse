@@ -1,3 +1,4 @@
+import { createHash } from 'crypto'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin, serializeSkill } from '@/lib/auth'
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  type WhereClause = Parameters<typeof prisma.volunteer.findMany>[0]['where']
+  type WhereClause = NonNullable<Parameters<typeof prisma.volunteer.findMany>[0]>['where']
   const where: WhereClause = (() => {
     switch (filter) {
       case 'mine':
@@ -56,43 +57,66 @@ export async function GET(request: NextRequest) {
         orderBy: [{ skill: { category: { sortOrder: 'asc' } } }, { skill: { sortOrder: 'asc' } }],
       },
       reviewer: { select: { id: true, name: true } },
-      previousRejection: { select: { rejectedAt: true, adminNotes: true, applicantNotes: true } },
     },
     orderBy: { createdAt: 'asc' },
   })
 
+  const emailHashes = volunteers
+    .filter((v) => v.email)
+    .map((v) => createHash('sha256').update(v.email!.toLowerCase().trim()).digest('hex'))
+
+  const rejectionRows =
+    emailHashes.length > 0
+      ? await prisma.rejectedApplication.findMany({
+          where: { emailHash: { in: emailHashes } },
+          orderBy: { rejectedAt: 'desc' },
+          select: { emailHash: true, rejectedAt: true, adminNotes: true, applicantNotes: true },
+        })
+      : []
+
+  const rejectionsByHash = new Map<string, typeof rejectionRows>()
+  for (const row of rejectionRows) {
+    const list = rejectionsByHash.get(row.emailHash) ?? []
+    list.push(row)
+    rejectionsByHash.set(row.emailHash, list)
+  }
+
   return Response.json(
-    volunteers.map((v) => ({
-      id: v.id,
-      name: v.name,
-      email: v.email,
-      bio: v.bio,
-      application_message: v.applicationMessage,
-      approval_status: v.approvalStatus,
-      created_at: v.createdAt,
-      rejected_at: v.rejectedAt,
-      anonymise_at: v.rejectedAt
-        ? new Date(v.rejectedAt.getTime() + APPLICATION_ANONYMISATION_MS).toISOString()
-        : null,
-      admin_notes: v.applicationAdminNotes,
-      applicant_notes: v.applicationApplicantNotes,
-      reviewer: v.reviewer ? { id: v.reviewer.id, name: v.reviewer.name } : null,
-      previous_rejection: v.previousRejection
-        ? {
-            rejected_at: v.previousRejection.rejectedAt,
-            admin_notes: v.previousRejection.adminNotes,
-            applicant_notes: v.previousRejection.applicantNotes,
-          }
-        : null,
-      availability_hours_per_week: v.availabilityHoursPerWeek,
-      location: v.location,
-      country: v.country,
-      local_group: v.localGroup,
-      signal_number: v.signalNumber,
-      whatsapp_number: v.whatsappNumber,
-      discord_handle: v.discordHandle,
-      contact_notes: v.contactNotes,
-      skills: v.skills.map(serializeSkill),
-    })),
+    volunteers.map((v) => {
+      const emailHash = v.email
+        ? createHash('sha256').update(v.email.toLowerCase().trim()).digest('hex')
+        : null
+      const previousRejections = emailHash ? (rejectionsByHash.get(emailHash) ?? []) : []
+      return {
+        id: v.id,
+        name: v.name,
+        email: v.email,
+        bio: v.bio,
+        application_message: v.applicationMessage,
+        approval_status: v.approvalStatus,
+        created_at: v.createdAt,
+        rejected_at: v.rejectedAt,
+        anonymise_at: v.rejectedAt
+          ? new Date(v.rejectedAt.getTime() + APPLICATION_ANONYMISATION_MS).toISOString()
+          : null,
+        admin_notes: v.applicationAdminNotes,
+        applicant_notes: v.applicationApplicantNotes,
+        reviewer: v.reviewer ? { id: v.reviewer.id, name: v.reviewer.name } : null,
+        previous_rejections: previousRejections.map((r) => ({
+          rejected_at: r.rejectedAt,
+          admin_notes: r.adminNotes,
+          applicant_notes: r.applicantNotes,
+        })),
+        availability_hours_per_week: v.availabilityHoursPerWeek,
+        location: v.location,
+        country: v.country,
+        local_group: v.localGroup,
+        signal_number: v.signalNumber,
+        whatsapp_number: v.whatsappNumber,
+        discord_handle: v.discordHandle,
+        contact_notes: v.contactNotes,
+        skills: v.skills.map(serializeSkill),
+      }
+    }),
   )
 }

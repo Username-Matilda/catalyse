@@ -264,14 +264,15 @@ test.describe('Authentication: Signup & Login', () => {
     await card.getByRole('button', { name: 'Start Review' }).click()
     await expect(getAlert(adminPage)).toContainText('Review started', { timeout: 10_000 })
 
-    // Card should leave Pending tab
-    await expect(card).not.toBeVisible({ timeout: 5_000 })
+    // Card stays visible in "mine" filter (UNDER_REVIEW by me is still "mine")
+    await expect(card).toBeVisible({ timeout: 5_000 })
+    await expect(card.getByText(/Reviewer:/)).toBeVisible()
 
-    // Card should appear in Under Review tab with reviewer name shown
-    await adminPage.getByRole('tab', { name: 'Under Review' }).click()
-    const reviewCard = adminPage.getByRole('article').filter({ hasText: person.name })
-    await expect(reviewCard).toBeVisible({ timeout: 5_000 })
-    await expect(reviewCard.getByText(/Reviewer:/)).toBeVisible()
+    // Card also appears in "others" tab when viewed by a different reviewer (not tested here),
+    // and in the dedicated Under Review by Others filter — switch to confirm it's gone from others
+    await adminPage.getByRole('combobox').selectOption('others')
+    const othersCard = adminPage.getByRole('article').filter({ hasText: person.name })
+    await expect(othersCard).not.toBeVisible({ timeout: 5_000 })
   })
 
   test('Admin can reject application with notes; notes visible on Rejected tab card', async ({
@@ -308,8 +309,8 @@ test.describe('Authentication: Signup & Login', () => {
 
     await expect(getAlert(adminPage)).toContainText('Application rejected', { timeout: 10_000 })
 
-    // Notes visible on Rejected tab
-    await adminPage.getByRole('tab', { name: 'Rejected' }).click()
+    // Notes visible on Rejected filter
+    await adminPage.getByRole('combobox').selectOption('rejected')
     const rejectedCard = adminPage.getByRole('article').filter({ hasText: person.name })
     await expect(rejectedCard).toBeVisible({ timeout: 5_000 })
     await expect(rejectedCard.getByText('Spam account')).toBeVisible()
@@ -338,7 +339,7 @@ test.describe('Authentication: Signup & Login', () => {
     await rejectVolunteer(baseUrl, volunteerId, 'Test rejection')
 
     await adminPage.goto(`${baseUrl}/admin/applications`)
-    await adminPage.getByRole('tab', { name: 'Rejected' }).click()
+    await adminPage.getByRole('combobox').selectOption('rejected')
     const card = adminPage.getByRole('article').filter({ hasText: person.name })
     await expect(card).toBeVisible({ timeout: 10_000 })
     await expect(card.getByText(/will be anonymised on/i)).toBeVisible()
@@ -372,5 +373,23 @@ test.describe('Authentication: Signup & Login', () => {
       body: JSON.stringify({ token: email_verification_token }),
     })
     expect(verifyResp.ok).toBeTruthy()
+  })
+
+  test.skip('Re-applicant shows full prior rejection history on admin card', async ({
+    adminPage,
+    baseUrl,
+  }) => {
+    // Scenario:
+    // 1. Person signs up with email A, admin rejects them with notes + applicant message.
+    // 2. After 7 days the anonymisation job runs: creates AnonymisedEmail + RejectedApplication
+    //    rows for the email hash, then nulls out PII on the volunteer record.
+    // 3. Person signs up again with the same email A.
+    // 4. Admin opens the new application — the amber "Previously rejected" box should list
+    //    every prior rejection event (date, admin notes, message sent to applicant), not just
+    //    the most recent one. If rejected and re-applied multiple times, all events appear.
+    //
+    // Skipped: triggering anonymisation requires backdating rejected_at by 7 days,
+    // which needs a test-only seed endpoint that doesn't yet exist.
+    void adminPage, baseUrl
   })
 })

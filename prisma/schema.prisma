@@ -426,8 +426,6 @@ model Volunteer {
   reviewerId                              Int?                 @map("reviewer_id")
   reviewer                                Volunteer?           @relation("ApplicationReviewer", fields: [reviewerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   reviewerOf                              Volunteer[]          @relation("ApplicationReviewer")
-  previousRejectionId                     Int?                 @map("previous_rejection_id")
-  previousRejection                       RejectedApplication? @relation(fields: [previousRejectionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   emailConfirmed                          Boolean              @default(false) @map("email_confirmed")
   invitesAccepted                         AdminInvite[]        @relation("AdminInviteAcceptedBy")
   invitesSent                             AdminInvite[]        @relation("AdminInviteInvitedBy")
@@ -465,13 +463,21 @@ model Volunteer {
 }
 
 model RejectedApplication {
-  id             Int         @id @default(autoincrement())
-  emailHash      String      @unique @map("email_hash")
-  rejectedAt     DateTime    @map("rejected_at")
-  adminNotes     String?     @map("admin_notes")
-  applicantNotes String?     @map("applicant_notes")
-  createdAt      DateTime    @default(now()) @map("created_at")
-  reapplicants   Volunteer[]
+  id             Int      @id @default(autoincrement())
+  emailHash      String   @map("email_hash")
+  rejectedAt     DateTime @map("rejected_at")
+  adminNotes     String?  @map("admin_notes")
+  applicantNotes String?  @map("applicant_notes")
+  createdAt      DateTime @default(now()) @map("created_at")
 
+  @@index([emailHash], map: "idx_rejected_applications_email_hash")
   @@map("rejected_applications")
+}
+
+model AnonymisedEmail {
+  id        Int      @id @default(autoincrement())
+  emailHash String   @unique @map("email_hash")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("anonymised_emails")
 }
