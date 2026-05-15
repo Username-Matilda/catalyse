@@ -283,12 +283,20 @@ export default function Header() {
                             Platform Stats
                           </Link>
                           {user.is_super_admin && (
-                            <Link
-                              href="/admin/applications"
-                              className="block px-4 py-3 text-[var(--text)] no-underline"
-                            >
-                              Manage Applications
-                            </Link>
+                            <>
+                              <Link
+                                href="/admin/applications"
+                                className="block px-4 py-3 text-[var(--text)] no-underline"
+                              >
+                                Manage Applications
+                              </Link>
+                              <Link
+                                href="/admin/platform-settings"
+                                className="block px-4 py-3 text-[var(--text)] no-underline"
+                              >
+                                Platform Settings
+                              </Link>
+                            </>
                           )}
                           <Link
                             href="/admin/local-groups"
@@ -445,7 +453,10 @@ export default function Header() {
                       <MobileNavLink href="/admin/team">Admin Team</MobileNavLink>
                       <MobileNavLink href="/admin/stats">Platform Stats</MobileNavLink>
                       {user.is_super_admin && (
-                        <MobileNavLink href="/admin/applications">Manage Applications</MobileNavLink>
+                        <>
+                          <MobileNavLink href="/admin/applications">Manage Applications</MobileNavLink>
+                          <MobileNavLink href="/admin/platform-settings">Platform Settings</MobileNavLink>
+                        </>
                       )}
                       <MobileNavLink href="/admin/local-groups">Manage Local Groups</MobileNavLink>
                     </>

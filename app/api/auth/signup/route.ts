@@ -103,11 +103,37 @@ export async function POST(request: NextRequest) {
     console.error('[SIGNUP ERROR] admin invite check failed:', e)
     return false
   })
-  const isApproved = wasBootstrapped || wasInvited
+
+  const platformSettings = await prisma.platformSettings
+    .upsert({
+      where: { id: 1 },
+      create: { id: 1, requireApplicationApproval: true },
+      update: {},
+    })
+    .catch((e) => {
+      console.error('[SIGNUP ERROR] platform settings fetch failed:', e)
+      return { requireApplicationApproval: true }
+    })
 
   let emailVerificationToken: string | undefined
-  if (isApproved) {
+  if (wasBootstrapped || wasInvited) {
     sendWelcomeEmail(email, name).catch((e) => console.error('[SIGNUP] Welcome email failed:', e))
+  } else if (!platformSettings.requireApplicationApproval) {
+    await prisma.volunteer.update({
+      where: { id: volunteer.id },
+      data: { approvalStatus: 'APPROVED' },
+    })
+    const verificationToken = await prisma.emailVerificationToken.create({
+      data: {
+        volunteerId: volunteer.id,
+        token: (await import('crypto')).randomBytes(32).toString('hex'),
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      },
+    })
+    emailVerificationToken = verificationToken.token
+    sendEmailConfirmationEmail(email, verificationToken.token, name).catch((e) =>
+      console.error('[SIGNUP] Email confirmation send failed:', e),
+    )
   } else {
     const verificationToken = await prisma.emailVerificationToken.create({
       data: {
@@ -121,6 +147,8 @@ export async function POST(request: NextRequest) {
       console.error('[SIGNUP] Email confirmation send failed:', e),
     )
   }
+
+  const isApproved = wasBootstrapped || wasInvited || !platformSettings.requireApplicationApproval
 
   const response: Record<string, unknown> = {
     id: volunteer.id,

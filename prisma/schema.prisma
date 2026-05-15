@@ -481,3 +481,10 @@ model AnonymisedEmail {
 
   @@map("anonymised_emails")
 }
+
+model PlatformSettings {
+  id                         Int     @id @default(1)
+  requireApplicationApproval Boolean @default(true) @map("require_application_approval")
+
+  @@map("platform_settings")
+}

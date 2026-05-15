@@ -82,6 +82,45 @@ ADMIN_EMAILS=your@email.com
 
 On next login, the app will automatically grant admin access. Multiple emails can be comma-separated.
 
+## Database & Migrations
+
+### Local dev database
+
+The local dev database (`db/anonymised_prod.db`) is a fresh copy of prod with PII anonymised. Refresh it with:
+
+```bash
+npm run fetch-prod-db && npm run migrate
+```
+
+`fetch-prod-db` downloads the latest prod backup and anonymises it. `migrate` runs `prisma migrate deploy`, which applies any unapplied migration files in order without drift-checking.
+
+### Adding a migration
+
+Do **not** use `prisma migrate dev` — it checks for schema drift against the live DB and will fail. The correct workflow:
+
+1. Edit `prisma/schema.prisma`
+2. Generate the SQL:
+   ```bash
+   npx prisma migrate diff \
+     --from-schema-datasource prisma/schema.prisma \
+     --to-schema-datamodel prisma/schema.prisma \
+     --script
+   ```
+3. Create a new timestamped directory under `prisma/migrations/` and save the relevant SQL as `migration.sql`:
+   ```
+   prisma/migrations/YYYYMMDDHHMMSS_your_migration_name/migration.sql
+   ```
+4. Apply it:
+   ```bash
+   npm run migrate
+   ```
+5. Regenerate the Prisma client:
+   ```bash
+   npx prisma generate
+   ```
+
+The `migrate diff` command compares the actual database against the schema model and outputs Prisma-authoritative SQL. Extract only the statements relevant to your change (the output may include unrelated pending changes from other branches).
+
 ## Testing
 
 ### Running tests

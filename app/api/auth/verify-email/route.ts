@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { sendApplicationReceivedEmail, sendApplicationApprovedEmail } from '@/lib/email'
+import { sendApplicationReceivedEmail, sendApplicationApprovedEmail, sendWelcomeEmail } from '@/lib/email'
 
 export async function POST(request: NextRequest) {
   let body: Record<string, unknown>
@@ -52,9 +52,23 @@ export async function POST(request: NextRequest) {
 
   if (!volunteer.emailConfirmed && volunteer.email) {
     if (volunteer.approvalStatus === 'APPROVED') {
-      sendApplicationApprovedEmail(volunteer.email, volunteer.name).catch((e) =>
-        console.error('[VERIFY_EMAIL] Application approved email failed:', e),
-      )
+      const platformSettings = await prisma.platformSettings
+        .upsert({
+          where: { id: 1 },
+          create: { id: 1, requireApplicationApproval: true },
+          update: {},
+        })
+        .catch(() => ({ requireApplicationApproval: true }))
+
+      if (platformSettings.requireApplicationApproval) {
+        sendApplicationApprovedEmail(volunteer.email, volunteer.name).catch((e) =>
+          console.error('[VERIFY_EMAIL] Application approved email failed:', e),
+        )
+      } else {
+        sendWelcomeEmail(volunteer.email, volunteer.name).catch((e) =>
+          console.error('[VERIFY_EMAIL] Welcome email failed:', e),
+        )
+      }
     } else if (volunteer.approvalStatus === 'PENDING') {
       sendApplicationReceivedEmail(volunteer.email, volunteer.name).catch((e) =>
         console.error('[VERIFY_EMAIL] Application received email failed:', e),
