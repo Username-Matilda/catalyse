@@ -87,6 +87,24 @@ function footer(buttons: Array<[string, string]> = []): string {
   </div>`
 }
 
+export function buildEmailConfirmationHtml(name: string, confirmUrl: string): string {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
+<body><div class="container">
+  <h2>Confirm your email address</h2>
+  <p>Hi ${name},</p>
+  <p>Thanks for applying to join Catalyse, the PauseAI volunteer platform. Please confirm your email address to continue.</p>
+  <p style="text-align: center; margin: 32px 0;"><a href="${confirmUrl}" class="button">Confirm Email</a></p>
+  <p>This link will expire in <strong>24 hours</strong>.</p>
+  <p>If you didn't sign up for Catalyse, you can safely ignore this email.</p>
+  ${footer([['Confirm Email', confirmUrl]])}
+</div></body></html>`
+}
+
+export async function sendEmailConfirmationEmail(to: string, token: string, name: string): Promise<boolean> {
+  const confirmUrl = `${APP_URL}/verify-email?token=${token}`
+  return sendEmail(to, 'Confirm your Catalyse email address', buildEmailConfirmationHtml(name, confirmUrl))
+}
+
 export function buildApplicationReceivedHtml(name: string): string {
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
 <body><div class="container">

@@ -57,8 +57,11 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
       }),
     })
     if (!resp.ok) throw new Error(`Volunteer signup failed: ${await resp.text()}`)
-    const { id: volunteerId, auth_token } = await resp.json()
+    const { id: volunteerId, auth_token, email_verification_token } = await resp.json()
 
+    if (email_verification_token) {
+      await confirmVolunteerEmail(baseUrl, email_verification_token)
+    }
     await approveVolunteer(baseUrl, volunteerId)
 
     const context = await browser.newContext()
@@ -72,6 +75,14 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
 })
 
 export { expect } from '@playwright/test'
+
+export async function confirmVolunteerEmail(baseUrl: string, token: string): Promise<void> {
+  await fetch(`${baseUrl}/api/auth/verify-email`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token }),
+  })
+}
 
 export async function approveVolunteer(baseUrl: string, volunteerId: number): Promise<void> {
   const parallelIndex = parallelIndexFromBaseUrl(baseUrl)

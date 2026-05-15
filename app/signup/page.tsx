@@ -166,10 +166,14 @@ export default function SignupPage() {
       <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
         <div className="max-w-2xl mx-auto">
           <div className="bg-surface rounded-xl shadow p-8 text-center">
-            <h1>Application Received!</h1>
+            <h1>Check your email</h1>
             <p className="text-text-light mt-4 mb-6">
-              Thanks for applying to join Catalyse. We&#39;ll review your application and notify
-              you by email as soon as it&#39;s been reviewed.
+              We&#39;ve sent a confirmation link to your email address. Please click it to confirm
+              your email and activate your pending access.
+            </p>
+            <p className="text-text-light mb-4">
+              Once confirmed, your application will be reviewed by our team. You&#39;ll be able to
+              browse projects while you wait.
             </p>
             <p className="text-text-light text-sm">
               Questions? Contact{' '}

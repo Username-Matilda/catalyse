@@ -125,6 +125,20 @@ model PasswordResetToken {
   @@map("password_reset_tokens")
 }
 
+model EmailVerificationToken {
+  id          Int       @id @default(autoincrement())
+  volunteerId Int       @map("volunteer_id")
+  token       String    @unique(map: "sqlite_autoindex_email_verification_tokens_1")
+  expiresAt   DateTime  @map("expires_at")
+  usedAt      DateTime? @map("used_at")
+  createdAt   DateTime? @default(now()) @map("created_at")
+  volunteer   Volunteer @relation(fields: [volunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([volunteerId], map: "idx_email_verification_tokens_volunteer")
+  @@index([token], map: "idx_email_verification_tokens_token")
+  @@map("email_verification_tokens")
+}
+
 model ProjectInterest {
   id              Int       @id @default(autoincrement())
   volunteerId     Int       @map("volunteer_id")
@@ -406,6 +420,7 @@ model Volunteer {
   localGroup                              String?              @map("local_group")
   approvalStatus                          String               @default("PENDING") @map("approval_status")
   applicationMessage                      String?              @map("application_message")
+  emailConfirmed                          Boolean              @default(false) @map("email_confirmed")
   invitesAccepted                         AdminInvite[]        @relation("AdminInviteAcceptedBy")
   invitesSent                             AdminInvite[]        @relation("AdminInviteInvitedBy")
   adminNotesAuthored                      AdminNote[]          @relation("AdminNoteAuthor")
@@ -415,6 +430,7 @@ model Volunteer {
   messagesSent                            Message[]            @relation("MessageFrom")
   messagesReceived                        Message[]            @relation("MessageTo")
   notifications                           Notification[]
+  emailVerificationTokens                 EmailVerificationToken[]
   passwordResetTokens                     PasswordResetToken[]
   projectInterests                        ProjectInterest[]
   projectTasksCreated                     ProjectTask[]        @relation("ProjectTaskCreatedBy")

@@ -1,4 +1,4 @@
-import { test, expect, getAlert } from '../fixtures'
+import { test, expect, getAlert, confirmVolunteerEmail } from '../fixtures'
 import { signup, login } from '../actions/auth'
 import { fake } from '../fake'
 
@@ -9,7 +9,7 @@ test.describe('Authentication: Signup & Login', () => {
     try {
       const person = fake.person()
       await signup(baseUrl, page, person.name, person.email, 'testpassword1')
-      await expect(page.getByRole('heading', { name: 'Application Received!' })).toBeVisible({
+      await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible({
         timeout: 10_000,
       })
     } finally {
@@ -117,8 +117,12 @@ test.describe('Authentication: Signup & Login', () => {
       }),
     })
     expect(signupResp.ok).toBeTruthy()
-    const { pending } = await signupResp.json()
+    const { pending, email_verification_token } = await signupResp.json()
     expect(pending).toBe(true)
+
+    if (email_verification_token) {
+      await confirmVolunteerEmail(baseUrl, email_verification_token)
+    }
 
     await adminPage.goto(`${baseUrl}/admin/applications`)
     await expect(adminPage.getByRole('heading', { name: 'Applications' })).toBeVisible({

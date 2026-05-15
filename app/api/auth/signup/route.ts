@@ -6,7 +6,7 @@ import {
   checkAdminBootstrap,
   acceptPendingInvite,
 } from '@/lib/auth'
-import { sendWelcomeEmail, sendApplicationReceivedEmail } from '@/lib/email'
+import { sendWelcomeEmail, sendEmailConfirmationEmail } from '@/lib/email'
 import { validationError, fieldError } from '@/lib/errors'
 
 export async function POST(request: NextRequest) {
@@ -105,13 +105,27 @@ export async function POST(request: NextRequest) {
   })
   const isApproved = wasBootstrapped || wasInvited
 
+  let emailVerificationToken: string | undefined
   if (isApproved) {
     sendWelcomeEmail(email, name).catch((e) => console.error('[SIGNUP] Welcome email failed:', e))
   } else {
-    sendApplicationReceivedEmail(email, name).catch((e) =>
-      console.error('[SIGNUP] Application received email failed:', e),
+    const verificationToken = await prisma.emailVerificationToken.create({
+      data: {
+        volunteerId: volunteer.id,
+        token: (await import('crypto')).randomBytes(32).toString('hex'),
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      },
+    })
+    emailVerificationToken = verificationToken.token
+    sendEmailConfirmationEmail(email, verificationToken.token, name).catch((e) =>
+      console.error('[SIGNUP] Email confirmation send failed:', e),
     )
   }
 
-  return Response.json({ id: volunteer.id, auth_token: authToken, pending: !isApproved })
+  const response: Record<string, unknown> = { id: volunteer.id, auth_token: authToken, pending: !isApproved }
+  const stubEmail = ['1', 'true', 'yes'].includes((process.env.STUB_EMAIL ?? '').toLowerCase())
+  if (stubEmail && emailVerificationToken) {
+    response.email_verification_token = emailVerificationToken
+  }
+  return Response.json(response)
 }

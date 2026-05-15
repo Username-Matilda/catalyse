@@ -70,13 +70,14 @@ export async function POST(request: NextRequest) {
     return Response.json({ message, auth_token: authToken })
   }
 
-  // New user
+  // New user — Google has already verified the email address
   const authToken = generateAuthToken()
   const volunteer = await prisma.volunteer.create({
     data: {
       name,
       email,
       authToken,
+      emailConfirmed: true,
       consentMakeProfileVisibleInDirectory: true,
       consentContactableByProjectOwners: true,
       consentGivenAt: new Date(),
