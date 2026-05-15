@@ -49,6 +49,14 @@ interface StarterTask {
 
 type TabKey = 'owned' | 'interests' | 'proposed' | 'suggested' | 'notifications'
 
+const TAB_LABELS: Record<TabKey, string> = {
+  owned: 'Owned Projects',
+  interests: 'Interested Projects',
+  proposed: 'Proposed Projects',
+  suggested: 'Suggested for You',
+  notifications: 'Notifications',
+}
+
 export default function DashboardPage() {
   const router = useRouter()
   const { user, loading } = useAuth()
@@ -105,6 +113,11 @@ export default function DashboardPage() {
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
+
+  useEffect(() => {
+    document.title = `Catalyse | ${TAB_LABELS[activeTab]}`
+    return () => { document.title = 'Catalyse | Dashboard' }
+  }, [activeTab])
 
   useEffect(() => {
     if (!user) return
@@ -185,16 +198,16 @@ export default function DashboardPage() {
   const showEmailBanner = !user.email_digest && !emailBannerDismissed
 
   const tabs: { key: TabKey; label: React.ReactNode; 'data-tab'?: string }[] = [
-    { key: 'owned', label: 'My Projects' },
-    { key: 'interests', label: 'My Interests' },
-    { key: 'proposed', label: 'Proposed Projects' },
-    { key: 'suggested', label: 'Suggested for You' },
+    { key: 'owned', label: TAB_LABELS.owned },
+    { key: 'interests', label: TAB_LABELS.interests },
+    { key: 'proposed', label: TAB_LABELS.proposed },
+    { key: 'suggested', label: TAB_LABELS.suggested },
     {
       key: 'notifications',
       'data-tab': 'notifications',
       label: (
         <>
-          Notifications
+          {TAB_LABELS.notifications}
           {unreadCount > 0 && (
             <span className="notification-badge bg-primary text-secondary-dark text-xs px-2 py-0.5 rounded-full ml-1">
               {unreadCount}
