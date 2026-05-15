@@ -133,7 +133,10 @@ function cleanupLocalBackups(dbPath: string) {
       removed++
     }
   }
-  if (removed) console.log(`[BACKUP] Removed ${removed} local backup(s) older than ${LOCAL_RETENTION_DAYS} days`)
+  if (removed)
+    console.log(
+      `[BACKUP] Removed ${removed} local backup(s) older than ${LOCAL_RETENTION_DAYS} days`,
+    )
 }
 
 async function uploadToB2(backupPath: string): Promise<boolean> {
@@ -171,7 +174,8 @@ async function cleanupB2Backups() {
         removed++
       }
     }
-    if (removed) console.log(`[BACKUP] Removed ${removed} B2 backup(s) older than ${B2_RETENTION_DAYS} days`)
+    if (removed)
+      console.log(`[BACKUP] Removed ${removed} B2 backup(s) older than ${B2_RETENTION_DAYS} days`)
   } catch (err) {
     console.error('[BACKUP] B2 cleanup failed:', err)
   }

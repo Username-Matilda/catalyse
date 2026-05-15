@@ -48,5 +48,8 @@ export async function POST(request: NextRequest) {
 
   const group = await prisma.localGroup.create({ data: { name, country } })
 
-  return NextResponse.json({ id: group.id, name: group.name, country: group.country }, { status: 201 })
+  return NextResponse.json(
+    { id: group.id, name: group.name, country: group.country },
+    { status: 201 },
+  )
 }

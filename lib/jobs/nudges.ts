@@ -92,7 +92,10 @@ export async function runNudgesJob(): Promise<Record<string, unknown>> {
         surrenderDate,
       )
       if (sent) {
-        await prisma.projectTask.update({ where: { id: task.id }, data: { finalWarningSentAt: now } })
+        await prisma.projectTask.update({
+          where: { id: task.id },
+          data: { finalWarningSentAt: now },
+        })
         warningsSent++
         console.log(`[CRON NUDGES] Final warning sent for task ${task.id} (${daysInactive} days)`)
       }
@@ -116,6 +119,8 @@ export async function runNudgesJob(): Promise<Record<string, unknown>> {
     }
   }
 
-  console.log(`[CRON NUDGES] Done — nudges: ${nudgesSent}, warnings: ${warningsSent}, surrendered: ${surrendered}`)
+  console.log(
+    `[CRON NUDGES] Done — nudges: ${nudgesSent}, warnings: ${warningsSent}, surrendered: ${surrendered}`,
+  )
   return { nudgesSent, warningsSent, surrendered }
 }

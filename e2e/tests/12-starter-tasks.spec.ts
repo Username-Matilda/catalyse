@@ -14,12 +14,12 @@ async function createOpenStarterTask(
   const taskTitle = fake.starterTaskTitle()
 
   await adminPage.goto(`${baseUrl}/admin/starter-tasks`)
-  await expect(adminPage.getByRole('heading', { name: 'Starter Tasks', level: 1 })).toBeVisible({
+  await expect(adminPage.getByRole('heading', { name: 'Quick Tasks', level: 1 })).toBeVisible({
     timeout: 10_000,
   })
 
   await adminPage.getByRole('button', { name: 'Create Task' }).click()
-  const createDialog = adminPage.getByRole('dialog', { name: 'Create Starter Task' })
+  const createDialog = adminPage.getByRole('dialog', { name: 'Create Quick Task' })
   await expect(createDialog).toBeVisible({ timeout: 10_000 })
 
   await createDialog.getByLabel('Title').fill(taskTitle)
@@ -39,7 +39,7 @@ async function assignStarterTask(
   volunteerName: string,
 ): Promise<void> {
   await adminPage.goto(`${baseUrl}/admin/starter-tasks`)
-  await expect(adminPage.getByRole('heading', { name: 'Starter Tasks', level: 1 })).toBeVisible({
+  await expect(adminPage.getByRole('heading', { name: 'Quick Tasks', level: 1 })).toBeVisible({
     timeout: 10_000,
   })
 
@@ -85,12 +85,12 @@ test.describe('Starter Tasks', () => {
     const taskTitle = fake.starterTaskTitle()
 
     await adminPage.goto(`${baseUrl}/admin/starter-tasks`)
-    await expect(adminPage.getByRole('heading', { name: 'Starter Tasks', level: 1 })).toBeVisible({
+    await expect(adminPage.getByRole('heading', { name: 'Quick Tasks', level: 1 })).toBeVisible({
       timeout: 10_000,
     })
 
     await adminPage.getByRole('button', { name: 'Create Task' }).click()
-    const createDialog = adminPage.getByRole('dialog', { name: 'Create Starter Task' })
+    const createDialog = adminPage.getByRole('dialog', { name: 'Create Quick Task' })
     await expect(createDialog).toBeVisible({ timeout: 10_000 })
 
     await createDialog.getByLabel('Title').fill(taskTitle)
@@ -187,7 +187,7 @@ test.describe('Starter Tasks', () => {
 
     // Task status changes to 'submitted' on the admin page
     await adminPage.goto(`${baseUrl}/admin/starter-tasks`)
-    await expect(adminPage.getByRole('heading', { name: 'Starter Tasks', level: 1 })).toBeVisible({
+    await expect(adminPage.getByRole('heading', { name: 'Quick Tasks', level: 1 })).toBeVisible({
       timeout: 10_000,
     })
     const adminTaskCard = adminPage.getByRole('article').filter({ hasText: taskTitle })
@@ -214,7 +214,7 @@ test.describe('Starter Tasks', () => {
 
     // Admin opens the review modal
     await adminPage.goto(`${baseUrl}/admin/starter-tasks`)
-    await expect(adminPage.getByRole('heading', { name: 'Starter Tasks', level: 1 })).toBeVisible({
+    await expect(adminPage.getByRole('heading', { name: 'Quick Tasks', level: 1 })).toBeVisible({
       timeout: 10_000,
     })
 
@@ -261,7 +261,7 @@ test.describe('Starter Tasks', () => {
 
     // Admin opens the review modal
     await adminPage.goto(`${baseUrl}/admin/starter-tasks`)
-    await expect(adminPage.getByRole('heading', { name: 'Starter Tasks', level: 1 })).toBeVisible({
+    await expect(adminPage.getByRole('heading', { name: 'Quick Tasks', level: 1 })).toBeVisible({
       timeout: 10_000,
     })
 
@@ -334,7 +334,7 @@ test.describe('Starter Tasks', () => {
 
     // Navigate directly to the deep-link — card should be expanded without clicking
     await adminPage.goto(`${baseUrl}/admin/starter-tasks#task-${taskId}`)
-    await expect(adminPage.getByRole('heading', { name: 'Starter Tasks', level: 1 })).toBeVisible({
+    await expect(adminPage.getByRole('heading', { name: 'Quick Tasks', level: 1 })).toBeVisible({
       timeout: 10_000,
     })
     await adminPage.getByText('Loading…').waitFor({ state: 'hidden', timeout: 10_000 })
@@ -342,6 +342,8 @@ test.describe('Starter Tasks', () => {
     const deepLinkCard = adminPage.locator(`#task-${taskId}`)
     await expect(deepLinkCard).toBeVisible({ timeout: 10_000 })
     // Card is expanded — action buttons are visible without clicking the header
-    await expect(deepLinkCard.getByRole('button', { name: 'Edit' })).toBeVisible({ timeout: 10_000 })
+    await expect(deepLinkCard.getByRole('button', { name: 'Edit' })).toBeVisible({
+      timeout: 10_000,
+    })
   })
 })

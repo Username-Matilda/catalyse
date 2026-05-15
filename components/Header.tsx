@@ -54,6 +54,8 @@ function DashboardNavButtons({ unreadCount }: { unreadCount: number }) {
 
   // Sync hash when pathname changes (navigating to/from dashboard)
   useEffect(() => {
+    // Re-reads window.location.hash after Next.js client navigation — the router does not track the hash fragment.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHash(typeof window !== 'undefined' ? window.location.hash : '')
   }, [pathname])
 
@@ -109,10 +111,15 @@ function DashboardNavButtons({ unreadCount }: { unreadCount: number }) {
 export default function Header() {
   const { user, loading, logout } = useAuth()
   const pathname = usePathname()
+  const [mounted, setMounted] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [bugDialogOpen, setBugDialogOpen] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const fetchNotifications = useCallback(async () => {
     if (!user) return
@@ -171,21 +178,25 @@ export default function Header() {
           </Link>
 
           <nav className="hidden xl:flex gap-2 flex-wrap">
-            {navLinks.map(({ href, label }) => (
-              <Button
-                key={href}
-                href={href}
-                variant={pathname === href ? 'primary' : 'ghost'}
-                size="sm"
-              >
-                {label}
-              </Button>
-            ))}
-            {!loading && user && <DashboardNavButtons unreadCount={unreadCount} />}
+            {mounted && !loading && user && (
+              <>
+                {navLinks.map(({ href, label }) => (
+                  <Button
+                    key={href}
+                    href={href}
+                    variant={pathname === href ? 'primary' : 'ghost'}
+                    size="sm"
+                  >
+                    {label}
+                  </Button>
+                ))}
+                <DashboardNavButtons unreadCount={unreadCount} />
+              </>
+            )}
           </nav>
 
           <div className="hidden xl:flex gap-2 items-center">
-            {!loading &&
+            {mounted && !loading &&
               (user ? (
                 <div className="relative">
                   <Button
@@ -271,11 +282,27 @@ export default function Header() {
                           >
                             Platform Stats
                           </Link>
+                          {user.is_super_admin && (
+                            <>
+                              <Link
+                                href="/admin/applications"
+                                className="block px-4 py-3 text-[var(--text)] no-underline"
+                              >
+                                Manage Applications
+                              </Link>
+                              <Link
+                                href="/admin/platform-settings"
+                                className="block px-4 py-3 text-[var(--text)] no-underline"
+                              >
+                                Platform Settings
+                              </Link>
+                            </>
+                          )}
                           <Link
                             href="/admin/local-groups"
                             className="block px-4 py-3 text-[var(--text)] no-underline"
                           >
-                            Manage local groups
+                            Manage Local Groups
                           </Link>
                         </>
                       )}
@@ -398,7 +425,7 @@ export default function Header() {
                 </MobileNavLink>
               ))}
 
-            {!loading &&
+            {mounted && !loading &&
               (user ? (
                 <>
                   <MobileNavSection>Account</MobileNavSection>
@@ -413,7 +440,7 @@ export default function Header() {
                   <MobileNavLink href="/profile">My Profile</MobileNavLink>
                   <MobileNavLink href="/settings">Account Settings</MobileNavLink>
 
-                  {user.is_admin && !isAdminPage && (
+                  {user.is_admin && (
                     <>
                       <MobileNavSection admin>Admin</MobileNavSection>
                       <MobileNavLink href="/admin/triage">Triage Queue</MobileNavLink>
@@ -425,7 +452,13 @@ export default function Header() {
                       <MobileNavLink href="/admin/bugs">Bug Reports</MobileNavLink>
                       <MobileNavLink href="/admin/team">Admin Team</MobileNavLink>
                       <MobileNavLink href="/admin/stats">Platform Stats</MobileNavLink>
-                      <MobileNavLink href="/admin/local-groups">Manage local groups</MobileNavLink>
+                      {user.is_super_admin && (
+                        <>
+                          <MobileNavLink href="/admin/applications">Manage Applications</MobileNavLink>
+                          <MobileNavLink href="/admin/platform-settings">Platform Settings</MobileNavLink>
+                        </>
+                      )}
+                      <MobileNavLink href="/admin/local-groups">Manage Local Groups</MobileNavLink>
                     </>
                   )}
 
@@ -447,13 +480,16 @@ export default function Header() {
                   <MobileNavLink href="/signup">Sign Up</MobileNavLink>
                 </>
               ))}
-
           </div>
 
           {/* Pinned bottom bar */}
           <div className="shrink-0 border-t border-brand-border bg-surface">
             <div className="flex items-center overflow-hidden w-full">
-              <ThemeToggle icon={false} size="md" className="rounded-none flex-1 justify-center self-stretch" />
+              <ThemeToggle
+                icon={false}
+                size="md"
+                className="rounded-none flex-1 justify-center self-stretch"
+              />
               <button
                 onClick={() => {
                   setBugDialogOpen(true)

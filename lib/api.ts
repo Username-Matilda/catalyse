@@ -21,10 +21,16 @@ export async function apiRequest<T = unknown>(path: string, options: RequestInit
   const res = await fetch(path, { ...options, headers })
 
   if (res.status === 401) {
-    if (typeof window !== 'undefined') {
+    let message = 'Session expired'
+    try {
+      const body = await res.json()
+      if (typeof body?.error === 'string') message = body.error
+      else if (typeof body?.detail === 'string') message = body.detail
+    } catch {}
+    if (message === 'Session expired' && typeof window !== 'undefined') {
       window.dispatchEvent(new Event('auth:expired'))
     }
-    throw new ApiError(401, 'Session expired')
+    throw new ApiError(401, message)
   }
 
   if (!res.ok) {

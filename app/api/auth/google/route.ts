@@ -1,9 +1,10 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { generateAuthToken, checkAdminBootstrap, acceptPendingInvite } from '@/lib/auth'
-import { sendWelcomeEmail } from '@/lib/email'
+import { sendWelcomeEmail, sendApplicationReceivedEmail } from '@/lib/email'
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID
+const STUB_GOOGLE = !GOOGLE_CLIENT_ID && process.env.NODE_ENV !== 'production'
 
 async function verifyGoogleToken(credential: string) {
   if (!GOOGLE_CLIENT_ID) return null
@@ -32,7 +33,7 @@ async function verifyGoogleToken(credential: string) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!GOOGLE_CLIENT_ID) {
+  if (!GOOGLE_CLIENT_ID && !STUB_GOOGLE) {
     return Response.json({ detail: 'Google Sign-In is not configured' }, { status: 503 })
   }
 
@@ -43,12 +44,19 @@ export async function POST(request: NextRequest) {
     return Response.json({ detail: 'Invalid JSON' }, { status: 400 })
   }
 
-  const googleUser = await verifyGoogleToken(String(body.credential || ''))
-  if (!googleUser) {
-    return Response.json({ detail: 'Invalid Google token' }, { status: 401 })
-  }
+  let email: string
+  let name: string
 
-  const { email, name } = googleUser
+  if (STUB_GOOGLE && body.stub === true) {
+    email = String(body.email || 'stub@example.com')
+    name = String(body.name || 'Stub User')
+  } else {
+    const googleUser = await verifyGoogleToken(String(body.credential || ''))
+    if (!googleUser) {
+      return Response.json({ detail: 'Invalid Google token' }, { status: 401 })
+    }
+    ;({ email, name } = googleUser)
+  }
   const existing = await prisma.volunteer.findFirst({
     where: { email, deletedAt: null },
   })
@@ -70,51 +78,44 @@ export async function POST(request: NextRequest) {
     return Response.json({ message, auth_token: authToken })
   }
 
-  // New user
+  // New user — Google has already verified the email address
   const authToken = generateAuthToken()
   const volunteer = await prisma.volunteer.create({
     data: {
       name,
       email,
       authToken,
+      emailConfirmed: true,
       consentMakeProfileVisibleInDirectory: true,
       consentContactableByProjectOwners: true,
       consentGivenAt: new Date(),
     },
   })
 
-  try {
-    await checkAdminBootstrap(email, volunteer.id)
-  } catch (e) {
+  const wasBootstrapped = await checkAdminBootstrap(email, volunteer.id).catch((e) => {
     console.error('[GOOGLE_SIGNUP ERROR] admin bootstrap failed:', e)
-    return Response.json(
-      {
-        detail:
-          'Something went wrong creating your account. Please try again or contact us. Error Code: C',
-      },
-      { status: 500 },
-    )
-  }
-  try {
-    await acceptPendingInvite(email, volunteer.id)
-  } catch (e) {
+    return false
+  })
+  const wasInvited = await acceptPendingInvite(email, volunteer.id).catch((e) => {
     console.error('[GOOGLE_SIGNUP ERROR] admin invite check failed:', e)
-    return Response.json(
-      {
-        detail:
-          'Something went wrong creating your account. Please try again or contact us. Error Code: D',
-      },
-      { status: 500 },
+    return false
+  })
+  const isApproved = wasBootstrapped || wasInvited
+
+  if (isApproved) {
+    sendWelcomeEmail(email, name).catch((e) =>
+      console.error('[GOOGLE_SIGNUP] Welcome email failed:', e),
+    )
+  } else {
+    sendApplicationReceivedEmail(email, name).catch((e) =>
+      console.error('[GOOGLE_SIGNUP] Application received email failed:', e),
     )
   }
-
-  sendWelcomeEmail(email, name).catch((e) =>
-    console.error('[GOOGLE_SIGNUP] Welcome email failed:', e),
-  )
 
   return Response.json({
     auth_token: authToken,
-    message: 'Welcome to Catalyse!',
     is_new_user: true,
+    is_pending: !isApproved,
+    name,
   })
 }

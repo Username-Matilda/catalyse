@@ -15,6 +15,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!volunteer) {
     return Response.json({ detail: 'Authentication required' }, { status: 401 })
   }
+  if (volunteer.approvalStatus !== 'APPROVED' && !volunteer.isAdmin) {
+    return Response.json({ detail: 'Your account is pending approval' }, { status: 403 })
+  }
 
   const project = await prisma.project.findFirst({
     where: {

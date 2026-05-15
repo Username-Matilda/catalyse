@@ -6,7 +6,7 @@ import {
   checkAdminBootstrap,
   acceptPendingInvite,
 } from '@/lib/auth'
-import { sendWelcomeEmail } from '@/lib/email'
+import { sendWelcomeEmail, sendWelcomeAndConfirmEmail } from '@/lib/email'
 import { validationError, fieldError } from '@/lib/errors'
 
 export async function POST(request: NextRequest) {
@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
       email,
       passwordHash,
       authToken,
+      applicationMessage: body.application_message ? String(body.application_message) : null,
       bio: body.bio ? String(body.bio) : null,
       discordHandle: body.discord_handle ? String(body.discord_handle) : null,
       signalNumber: body.signal_number ? String(body.signal_number) : null,
@@ -94,34 +95,69 @@ export async function POST(request: NextRequest) {
     })
   }
 
-  // Admin bootstrap and invite acceptance
-  try {
-    await checkAdminBootstrap(email, volunteer.id)
-  } catch (e) {
+  const wasBootstrapped = await checkAdminBootstrap(email, volunteer.id).catch((e) => {
     console.error('[SIGNUP ERROR] admin bootstrap failed:', e)
-    return Response.json(
-      {
-        detail:
-          'Something went wrong creating your account. Please try again or contact us. Error Code: A',
-      },
-      { status: 500 },
-    )
-  }
-  try {
-    await acceptPendingInvite(email, volunteer.id)
-  } catch (e) {
+    return false
+  })
+  const wasInvited = await acceptPendingInvite(email, volunteer.id).catch((e) => {
     console.error('[SIGNUP ERROR] admin invite check failed:', e)
-    return Response.json(
-      {
-        detail:
-          'Something went wrong creating your account. Please try again or contact us. Error Code: B',
+    return false
+  })
+
+  const platformSettings = await prisma.platformSettings
+    .upsert({
+      where: { id: 1 },
+      create: { id: 1, requireApplicationApproval: true },
+      update: {},
+    })
+    .catch((e) => {
+      console.error('[SIGNUP ERROR] platform settings fetch failed:', e)
+      return { requireApplicationApproval: true }
+    })
+
+  let emailVerificationToken: string | undefined
+  if (wasBootstrapped || wasInvited) {
+    sendWelcomeEmail(email, name).catch((e) => console.error('[SIGNUP] Welcome email failed:', e))
+  } else if (!platformSettings.requireApplicationApproval) {
+    await prisma.volunteer.update({
+      where: { id: volunteer.id },
+      data: { approvalStatus: 'APPROVED' },
+    })
+    const verificationToken = await prisma.emailVerificationToken.create({
+      data: {
+        volunteerId: volunteer.id,
+        token: (await import('crypto')).randomBytes(32).toString('hex'),
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
       },
-      { status: 500 },
+    })
+    emailVerificationToken = verificationToken.token
+    sendWelcomeAndConfirmEmail(email, verificationToken.token, name).catch((e) =>
+      console.error('[SIGNUP] Email confirmation send failed:', e),
+    )
+  } else {
+    const verificationToken = await prisma.emailVerificationToken.create({
+      data: {
+        volunteerId: volunteer.id,
+        token: (await import('crypto')).randomBytes(32).toString('hex'),
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      },
+    })
+    emailVerificationToken = verificationToken.token
+    sendWelcomeAndConfirmEmail(email, verificationToken.token, name).catch((e) =>
+      console.error('[SIGNUP] Email confirmation send failed:', e),
     )
   }
 
-  // Non-blocking welcome email
-  sendWelcomeEmail(email, name).catch((e) => console.error('[SIGNUP] Welcome email failed:', e))
+  const isApproved = wasBootstrapped || wasInvited || !platformSettings.requireApplicationApproval
 
-  return Response.json({ id: volunteer.id, auth_token: authToken, message: 'Welcome to Catalyse!' })
+  const response: Record<string, unknown> = {
+    id: volunteer.id,
+    auth_token: authToken,
+    pending: !isApproved,
+  }
+  const stubEmail = ['1', 'true', 'yes'].includes((process.env.STUB_EMAIL ?? '').toLowerCase())
+  if (stubEmail && emailVerificationToken) {
+    response.email_verification_token = emailVerificationToken
+  }
+  return Response.json(response)
 }

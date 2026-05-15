@@ -125,6 +125,20 @@ model PasswordResetToken {
   @@map("password_reset_tokens")
 }
 
+model EmailVerificationToken {
+  id          Int       @id @default(autoincrement())
+  volunteerId Int       @map("volunteer_id")
+  token       String    @unique(map: "sqlite_autoindex_email_verification_tokens_1")
+  expiresAt   DateTime  @map("expires_at")
+  usedAt      DateTime? @map("used_at")
+  createdAt   DateTime? @default(now()) @map("created_at")
+  volunteer   Volunteer @relation(fields: [volunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([volunteerId], map: "idx_email_verification_tokens_volunteer")
+  @@index([token], map: "idx_email_verification_tokens_token")
+  @@map("email_verification_tokens")
+}
+
 model ProjectInterest {
   id              Int       @id @default(autoincrement())
   volunteerId     Int       @map("volunteer_id")
@@ -404,6 +418,15 @@ model Volunteer {
   country                                 String?
   emailDigest                             String?              @default("none") @map("email_digest")
   localGroup                              String?              @map("local_group")
+  approvalStatus                          String               @default("PENDING") @map("approval_status")
+  applicationMessage                      String?              @map("application_message")
+  applicationAdminNotes                   String?              @map("application_admin_notes")
+  applicationApplicantNotes               String?              @map("application_applicant_notes")
+  rejectedAt                              DateTime?            @map("rejected_at")
+  reviewerId                              Int?                 @map("reviewer_id")
+  reviewer                                Volunteer?           @relation("ApplicationReviewer", fields: [reviewerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reviewerOf                              Volunteer[]          @relation("ApplicationReviewer")
+  emailConfirmed                          Boolean              @default(false) @map("email_confirmed")
   invitesAccepted                         AdminInvite[]        @relation("AdminInviteAcceptedBy")
   invitesSent                             AdminInvite[]        @relation("AdminInviteInvitedBy")
   adminNotesAuthored                      AdminNote[]          @relation("AdminNoteAuthor")
@@ -413,6 +436,7 @@ model Volunteer {
   messagesSent                            Message[]            @relation("MessageFrom")
   messagesReceived                        Message[]            @relation("MessageTo")
   notifications                           Notification[]
+  emailVerificationTokens                 EmailVerificationToken[]
   passwordResetTokens                     PasswordResetToken[]
   projectInterests                        ProjectInterest[]
   projectTasksCreated                     ProjectTask[]        @relation("ProjectTaskCreatedBy")
@@ -436,4 +460,31 @@ model Volunteer {
   @@index([authToken], map: "idx_volunteers_auth_token")
   @@index([email], map: "idx_volunteers_email")
   @@map("volunteers")
+}
+
+model RejectedApplication {
+  id             Int      @id @default(autoincrement())
+  emailHash      String   @map("email_hash")
+  rejectedAt     DateTime @map("rejected_at")
+  adminNotes     String?  @map("admin_notes")
+  applicantNotes String?  @map("applicant_notes")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([emailHash], map: "idx_rejected_applications_email_hash")
+  @@map("rejected_applications")
+}
+
+model AnonymisedEmail {
+  id        Int      @id @default(autoincrement())
+  emailHash String   @unique @map("email_hash")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("anonymised_emails")
+}
+
+model PlatformSettings {
+  id                         Int     @id @default(1)
+  requireApplicationApproval Boolean @default(true) @map("require_application_approval")
+
+  @@map("platform_settings")
 }

@@ -12,8 +12,8 @@ export async function signup(
   await page.getByLabel('Email', { exact: true }).fill(email)
   await page.getByLabel('Password', { exact: true }).fill(password)
   await page.getByLabel('Confirm Password').fill(password)
+  await page.getByLabel('Your Application').fill('e2e test application message')
   await page.getByRole('button', { name: 'Create Account' }).click()
-  await page.waitForURL(`${baseUrl}/dashboard`, { timeout: 15_000 })
 }
 
 export async function login(

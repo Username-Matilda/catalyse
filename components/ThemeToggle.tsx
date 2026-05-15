@@ -27,7 +27,6 @@ export function ThemeToggle({
     <Button
       variant="ghost"
       icon={icon}
-
       size={size}
       className={className}
       style={style}
@@ -69,7 +68,6 @@ export function ThemeToggle({
           <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
         </svg>
       )}
-
     </Button>
   )
 }

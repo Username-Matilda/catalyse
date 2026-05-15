@@ -137,16 +137,26 @@ test.describe('Volunteer Profile', () => {
 
   test('Volunteer updates email digest preference', async ({ volunteer, baseUrl }) => {
     await volunteer.page.goto(`${baseUrl}/profile`)
-    await expect(volunteer.page.getByLabel('Keep me in the loop about new projects')).toBeVisible({ timeout: 10_000 })
+    await expect(volunteer.page.getByLabel('Keep me in the loop about new projects')).toBeVisible({
+      timeout: 10_000,
+    })
 
-    await selectFilterDropdown(volunteer.page, 'Keep me in the loop about new projects', 'Send me a fortnightly digest')
+    await selectFilterDropdown(
+      volunteer.page,
+      'Keep me in the loop about new projects',
+      'Send me a fortnightly digest',
+    )
     await volunteer.page.getByRole('button', { name: 'Save Changes' }).click()
     await expect(getAlert(volunteer.page)).toBeVisible({ timeout: 10_000 })
     await expect(getAlert(volunteer.page)).toContainText('Profile updated!')
 
     await volunteer.page.reload()
-    await expect(volunteer.page.getByLabel('Keep me in the loop about new projects')).toBeVisible({ timeout: 10_000 })
-    await expect(volunteer.page.getByLabel('Keep me in the loop about new projects')).toContainText('Send me a fortnightly digest')
+    await expect(volunteer.page.getByLabel('Keep me in the loop about new projects')).toBeVisible({
+      timeout: 10_000,
+    })
+    await expect(volunteer.page.getByLabel('Keep me in the loop about new projects')).toContainText(
+      'Send me a fortnightly digest',
+    )
   })
 
   test("Volunteer views another volunteer's public profile", async ({

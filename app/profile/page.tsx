@@ -161,7 +161,11 @@ export default function ProfilePage() {
           </div>
           <div className="mb-5">
             <label htmlFor="bio">About You</label>
-            <textarea id="bio" rows={4} value={bio} onChange={(e) => setBio(e.target.value)} />
+            <aside className="bg-brand-bg border border-brand-border rounded-lg px-4 py-3 mb-2 text-sm text-text-light">
+              Shown to other volunteers in the directory if you choose to make your profile visible
+              below.
+            </aside>
+            <textarea id="bio" rows={4} value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Your background and what brings you to PauseAI…" />
           </div>
 
           {/* Contact Information */}

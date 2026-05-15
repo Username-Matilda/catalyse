@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth'
 import {
+  buildWelcomeAndConfirmHtml,
+  buildApplicationReceivedHtml,
+  buildApplicationApprovedHtml,
+  buildApplicationRejectedHtml,
+  buildPendingApplicationsSummaryHtml,
   buildPasswordResetHtml,
   buildAdminInviteHtml,
   buildWelcomeHtml,
@@ -44,6 +49,39 @@ const SAMPLE_PROJECTS = [
 
 function buildPreview(type: string): { subject: string; html: string } | null {
   switch (type) {
+    case 'welcome-google':
+      return { subject: 'Welcome to Catalyse!', html: buildWelcomeHtml('Alex', APP_URL) }
+    case 'welcome-and-confirm':
+      return {
+        subject: 'Welcome to Catalyse — please confirm your email',
+        html: buildWelcomeAndConfirmHtml(
+          'Alex',
+          `${APP_URL}/verify-email?token=sample-token-abc123`,
+        ),
+      }
+    case 'application-received':
+      return {
+        subject: 'Your Catalyse application has been received',
+        html: buildApplicationReceivedHtml('Alex'),
+      }
+    case 'application-approved':
+      return {
+        subject: 'Your Catalyse application has been approved',
+        html: buildApplicationApprovedHtml('Alex', APP_URL),
+      }
+    case 'application-rejected':
+      return {
+        subject: 'Update on your Catalyse application',
+        html: buildApplicationRejectedHtml(
+          'Alex',
+          'Unfortunately your application did not meet our current requirements. You are welcome to reapply in the future.',
+        ),
+      }
+    case 'pending-applications-summary':
+      return {
+        subject: '3 pending applications on Catalyse',
+        html: buildPendingApplicationsSummaryHtml(3, APP_URL),
+      }
     case 'password-reset':
       return {
         subject: 'Reset your Catalyse password',
@@ -57,8 +95,6 @@ function buildPreview(type: string): { subject: string; html: string } | null {
           'Jamie Smith',
         ),
       }
-    case 'welcome':
-      return { subject: 'Welcome to Catalyse!', html: buildWelcomeHtml('Alex', APP_URL) }
     case 'project-notification':
       return {
         subject: 'Your project has been approved',
@@ -78,17 +114,32 @@ function buildPreview(type: string): { subject: string; html: string } | null {
     case 'local-group-suggestion-merge':
       return {
         subject: 'Your local group suggestion "London" has been merged',
-        html: buildLocalGroupSuggestionHtml('Alex', 'merge', 'London', 'Merged with existing South London group.'),
+        html: buildLocalGroupSuggestionHtml(
+          'Alex',
+          'merge',
+          'London',
+          'Merged with existing South London group.',
+        ),
       }
     case 'local-group-suggestion-on-hold':
       return {
         subject: 'Your local group suggestion "London" is under review',
-        html: buildLocalGroupSuggestionHtml('Alex', 'on_hold', 'London', 'We need a bit more time to assess this one.'),
+        html: buildLocalGroupSuggestionHtml(
+          'Alex',
+          'on_hold',
+          'London',
+          'We need a bit more time to assess this one.',
+        ),
       }
     case 'local-group-suggestion-declined':
       return {
         subject: 'Update on your local group suggestion "London"',
-        html: buildLocalGroupSuggestionHtml('Alex', 'declined', 'London', 'We already have good coverage in this area.'),
+        html: buildLocalGroupSuggestionHtml(
+          'Alex',
+          'declined',
+          'London',
+          'We already have good coverage in this area.',
+        ),
       }
     case 'relay-message':
       return {
@@ -175,9 +226,14 @@ export async function GET(request: NextRequest) {
   if (!type) {
     return NextResponse.json({
       types: [
+        'welcome-google',
+        'welcome-and-confirm',
+        'application-received',
+        'application-approved',
+        'application-rejected',
+        'pending-applications-summary',
         'password-reset',
         'admin-invite',
-        'welcome',
         'project-notification',
         'local-group-suggestion-accepted',
         'local-group-suggestion-merge',

@@ -36,6 +36,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   const volunteer = await getCurrentVolunteer(request.headers.get('authorization'))
+  const isPending = Boolean(
+    volunteer && volunteer.approvalStatus !== 'APPROVED' && !volunteer.isAdmin,
+  )
 
   const project = await prisma.project.findUnique({
     where: { id: projectId },
@@ -64,10 +67,19 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     volunteerSkillIds = new Set((v?.skills ?? []).map((s) => s.skillId))
   }
 
-  const serialized = serializeProject(project as EnrichedProject, volunteerSkillIds) as Record<
+  let serialized = serializeProject(project as EnrichedProject, volunteerSkillIds) as Record<
     string,
     unknown
   >
+  if (isPending) {
+    serialized = {
+      ...serialized,
+      owner: null,
+      owner_id: null,
+      proposed_by: null,
+      proposed_by_id: null,
+    }
+  }
 
   const [updates, tasks] = await Promise.all([
     prisma.projectUpdate.findMany({
@@ -103,10 +115,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     project_id: t.projectId,
     title: t.title,
     description: t.description,
-    assigned_to_id: t.assignedToId,
-    assigned_to_name: t.assignedTo?.name ?? null,
-    created_by_id: t.createdById,
-    created_by_name: t.createdBy?.name ?? null,
+    assigned_to_id: isPending ? null : t.assignedToId,
+    assigned_to_name: isPending ? null : (t.assignedTo?.name ?? null),
+    created_by_id: isPending ? null : t.createdById,
+    created_by_name: isPending ? null : (t.createdBy?.name ?? null),
     status: t.status,
     completed_at: t.completedAt,
     created_at: t.createdAt,

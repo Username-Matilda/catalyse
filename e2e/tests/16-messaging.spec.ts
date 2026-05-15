@@ -1,4 +1,4 @@
-import { test, expect, getAlert } from '../fixtures'
+import { test, expect, getAlert, approveVolunteer } from '../fixtures'
 import { adminCreateProject, transferProjectOwnership } from '../actions/projects'
 import { fake } from '../fake'
 
@@ -32,7 +32,8 @@ test.describe('Messaging', () => {
     })
     if (!senderSignupResp.ok)
       throw new Error(`Sender signup failed: ${await senderSignupResp.text()}`)
-    const { auth_token: senderToken } = await senderSignupResp.json()
+    const { id: senderId, auth_token: senderToken } = await senderSignupResp.json()
+    await approveVolunteer(baseUrl, senderId)
     const senderCtx = await browser.newContext()
     await senderCtx.addInitScript((token: string) => {
       localStorage.setItem('authToken', token)
@@ -98,7 +99,8 @@ test.describe('Messaging', () => {
     })
     if (!senderSignupResp.ok)
       throw new Error(`Sender signup failed: ${await senderSignupResp.text()}`)
-    const { auth_token: senderToken } = await senderSignupResp.json()
+    const { id: senderId, auth_token: senderToken } = await senderSignupResp.json()
+    await approveVolunteer(baseUrl, senderId)
     const senderCtx = await browser.newContext()
     await senderCtx.addInitScript((token: string) => {
       localStorage.setItem('authToken', token)

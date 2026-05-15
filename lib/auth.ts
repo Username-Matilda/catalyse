@@ -60,7 +60,11 @@ export function serializeVolunteer(
     consent_share_contact_info_with_project_owner: vol.consentShareContactInfoWithProjectOwner,
     consent_given_at: vol.consentGivenAt,
     is_admin: vol.isAdmin,
+    is_super_admin: isSuperAdmin(vol.email as string | null | undefined),
+    approval_status: vol.approvalStatus,
+    email_confirmed: vol.emailConfirmed,
     email_digest: vol.emailDigest,
+    has_password: Boolean(vol.passwordHash),
     created_at: vol.createdAt,
     updated_at: vol.updatedAt,
     deleted_at: vol.deletedAt,
@@ -132,6 +136,33 @@ export async function requireAdmin(
   return { volunteer, error: null }
 }
 
+export function isSuperAdmin(email: string | null | undefined): boolean {
+  if (!email) return false
+  const adminEmails = process.env.ADMIN_EMAILS || ''
+  return adminEmails
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean)
+    .includes(email.toLowerCase())
+}
+
+export async function requireSuperAdmin(
+  authorization: string | null | undefined,
+): Promise<
+  | { volunteer: NonNullable<Awaited<ReturnType<typeof getCurrentVolunteer>>>; error: null }
+  | { volunteer: null; error: Response }
+> {
+  const result = await requireAdmin(authorization)
+  if (result.error) return result
+  if (!isSuperAdmin(result.volunteer.email)) {
+    return {
+      volunteer: null,
+      error: Response.json({ detail: 'Super-admin access required' }, { status: 403 }),
+    }
+  }
+  return result
+}
+
 // Promote volunteer to admin if their email is in ADMIN_EMAILS env var
 export async function checkAdminBootstrap(email: string, volunteerId: number): Promise<boolean> {
   const adminEmails = process.env.ADMIN_EMAILS || ''
@@ -143,7 +174,7 @@ export async function checkAdminBootstrap(email: string, volunteerId: number): P
   if (!allowed.includes(email.toLowerCase())) return false
   await prisma.volunteer.updateMany({
     where: { id: volunteerId, isAdmin: false },
-    data: { isAdmin: true },
+    data: { isAdmin: true, approvalStatus: 'APPROVED', emailConfirmed: true },
   })
   return true
 }
@@ -166,7 +197,10 @@ export async function acceptPendingInvite(email: string, volunteerId: number): P
   `
   const invite = result[0]
   if (!invite) return false
-  await prisma.volunteer.update({ where: { id: volunteerId }, data: { isAdmin: true } })
+  await prisma.volunteer.update({
+    where: { id: volunteerId },
+    data: { isAdmin: true, approvalStatus: 'APPROVED', emailConfirmed: true },
+  })
   await prisma.adminInvite.update({
     where: { id: invite.id },
     data: { status: 'accepted', acceptedById: volunteerId, acceptedAt: new Date() },

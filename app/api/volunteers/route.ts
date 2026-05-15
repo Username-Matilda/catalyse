@@ -1,8 +1,17 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { serializeSkill } from '@/lib/auth'
+import { serializeSkill, getCurrentVolunteer } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
+  const currentVolunteer = await getCurrentVolunteer(request.headers.get('authorization'))
+  if (
+    currentVolunteer &&
+    currentVolunteer.approvalStatus !== 'APPROVED' &&
+    !currentVolunteer.isAdmin
+  ) {
+    return Response.json({ detail: 'Your account is pending approval' }, { status: 403 })
+  }
+
   const { searchParams } = new URL(request.url)
   const skillIdsParam = searchParams.get('skill_ids')
   const search = searchParams.get('search')

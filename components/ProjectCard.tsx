@@ -91,7 +91,7 @@ export function ProjectCard({
           PauseAI
         </span>
       )}
-      <div className="row-start-2 flex gap-1 flex-wrap">
+      <div className="row-start-2 flex gap-1 flex-wrap self-start">
         {!['seeking_owner', 'seeking_help'].includes(p.status) && (
           <span className={statusBadgeClasses(p.status)}>
             {STATUS_LABELS[p.status] ?? p.status.replace(/_/g, ' ')}
@@ -104,7 +104,7 @@ export function ProjectCard({
           <span className={statusBadgeClasses('seeking_owner')}>Seeking Owner</span>
         )}
       </div>
-      <div className="row-start-3 flex items-center gap-3 flex-wrap text-xs text-text-light">
+      <div className="row-start-3 flex items-center gap-3 flex-wrap text-xs text-text-light self-start">
         <span>👤 {p.owner ? p.owner.name : 'No owner yet'}</span>
         {(p.local_group || p.country) && (
           <span>📍 {[p.country, p.local_group].filter(Boolean).join(' · ')}</span>
@@ -166,7 +166,7 @@ export function ProjectCard({
 }
 
 export const CARD_GRID_CLASSES =
-  'grid grid-cols-3 gap-x-5 gap-y-5 max-[1200px]:grid-cols-2 max-[600px]:grid-cols-1'
+  'grid grid-cols-2 gap-x-5 gap-y-5 max-[600px]:grid-cols-1'
 export const CARD_GRID_SINGLE_CLASSES = 'flex flex-col gap-5'
 
 export function ProjectList({

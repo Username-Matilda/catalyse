@@ -168,7 +168,8 @@ export default function SuggestLocalGroupPage() {
                         {s.country} — {s.name}
                         {s.merged_into && (
                           <span className="text-text-light font-normal text-sm">
-                            {' '}(merged into {s.merged_into.name})
+                            {' '}
+                            (merged into {s.merged_into.name})
                           </span>
                         )}
                       </p>

@@ -87,6 +87,129 @@ function footer(buttons: Array<[string, string]> = []): string {
   </div>`
 }
 
+export function buildWelcomeAndConfirmHtml(name: string, confirmUrl: string): string {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
+<body><div class="container">
+  <h2>Welcome to Catalyse!</h2>
+  <p>Hi ${name},</p>
+  <p>Thanks for joining the PauseAI volunteer community! We're excited to have you.</p>
+  <ul>
+    <li><strong>Browse projects</strong> - Find opportunities that match your skills</li>
+    <li><strong>Complete your profile</strong> - Help project owners find you</li>
+    <li><strong>Express interest</strong> - Let project owners know you want to help</li>
+  </ul>
+  <p>Please confirm your email address to continue.</p>
+  <p style="text-align: center; margin: 32px 0;"><a href="${confirmUrl}" class="button">Confirm Email</a></p>
+  <p>This link will expire in <strong>24 hours</strong>.</p>
+  <p>If you didn't sign up for Catalyse, you can safely ignore this email.</p>
+  ${footer([['Confirm Email', confirmUrl]])}
+</div></body></html>`
+}
+
+export async function sendWelcomeAndConfirmEmail(
+  to: string,
+  token: string,
+  name: string,
+): Promise<boolean> {
+  const confirmUrl = `${APP_URL}/verify-email?token=${token}`
+  return sendEmail(
+    to,
+    'Welcome to Catalyse — please confirm your email',
+    buildWelcomeAndConfirmHtml(name, confirmUrl),
+  )
+}
+
+export function buildApplicationReceivedHtml(name: string): string {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
+<body><div class="container">
+  <h2>Application Received</h2>
+  <p>Hi ${name},</p>
+  <p>Thanks for applying to join Catalyse, the PauseAI volunteer platform. We've received your application and will review it shortly.</p>
+  <p>You'll receive an email as soon as we've reviewed your request to join.</p>
+  ${footer()}
+</div></body></html>`
+}
+
+export async function sendApplicationReceivedEmail(to: string, name: string): Promise<boolean> {
+  return sendEmail(
+    to,
+    'Your Catalyse application has been received',
+    buildApplicationReceivedHtml(name),
+  )
+}
+
+export function buildApplicationApprovedHtml(name: string, appUrl: string): string {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
+<body><div class="container">
+  <h2>Welcome to Catalyse!</h2>
+  <p>Hi ${name},</p>
+  <p>Thank you for applying to join Catalyse PauseAI. Welcome to the community!</p>
+  <p>Your account has been approved and you can now sign in.</p>
+  <p style="text-align: center; margin: 32px 0;"><a href="${appUrl}/login" class="button">Sign In</a></p>
+  ${footer([['Sign In', `${appUrl}/login`]])}
+</div></body></html>`
+}
+
+export async function sendApplicationApprovedEmail(to: string, name: string): Promise<boolean> {
+  return sendEmail(
+    to,
+    'Your Catalyse application has been approved',
+    buildApplicationApprovedHtml(name, APP_URL),
+  )
+}
+
+export function buildApplicationRejectedHtml(name: string, applicantNotes?: string): string {
+  const notesHtml = applicantNotes
+    ? `<p><strong>Feedback from the team:</strong></p>
+  <div style="background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0; white-space: pre-wrap;">${applicantNotes}</div>`
+    : ''
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
+<body><div class="container">
+  <h2>Update on your Catalyse application</h2>
+  <p>Hi ${name},</p>
+  <p>Thank you for applying to join Catalyse PauseAI. Unfortunately we're unable to approve your application at this time.</p>
+  ${notesHtml}
+  <p>You can contact <a href="mailto:uk@pauseai.info">uk@pauseai.info</a> if you have any queries.</p>
+  ${footer()}
+</div></body></html>`
+}
+
+export async function sendApplicationRejectedEmail(
+  to: string,
+  name: string,
+  applicantNotes?: string,
+): Promise<boolean> {
+  return sendEmail(
+    to,
+    'Update on your Catalyse application',
+    buildApplicationRejectedHtml(name, applicantNotes),
+  )
+}
+
+export function buildPendingApplicationsSummaryHtml(count: number, appUrl: string): string {
+  const plural = count === 1 ? 'application' : 'applications'
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
+<body><div class="container">
+  <h2>Pending Applications</h2>
+  <p>There ${count === 1 ? 'is' : 'are'} <strong>${count}</strong> pending ${plural} waiting for review on Catalyse.</p>
+  <p style="text-align: center; margin: 32px 0;"><a href="${appUrl}/admin/applications" class="button">Review Applications</a></p>
+  ${footer([['Review Applications', `${appUrl}/admin/applications`]])}
+</div></body></html>`
+}
+
+export async function sendPendingApplicationsSummaryEmail(
+  to: string,
+  name: string,
+  count: number,
+): Promise<boolean> {
+  const plural = count === 1 ? 'application' : 'applications'
+  return sendEmail(
+    to,
+    `${count} pending ${plural} on Catalyse`,
+    buildPendingApplicationsSummaryHtml(count, APP_URL),
+  )
+}
+
 export function buildPasswordResetHtml(resetUrl: string, name: string): string {
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
 <body><div class="container">
@@ -199,10 +322,14 @@ export async function sendProjectNotificationEmail(
 }
 
 const LOCAL_GROUP_SUGGESTION_MESSAGES: Record<string, (groupName: string) => string> = {
-  accepted: (g) => `Great news! Your suggestion <strong>"${g}"</strong> has been added as a new local group on Catalyse.`,
-  merge: (g) => `Your suggestion <strong>"${g}"</strong> has been merged with an existing local group.`,
-  on_hold: (g) => `Your local group suggestion <strong>"${g}"</strong> is currently under review. We'll be in touch if we need more information.`,
-  declined: (g) => `Thanks for your suggestion of <strong>"${g}"</strong>. After review, we've decided not to add it as a separate local group at this time.`,
+  accepted: (g) =>
+    `Great news! Your suggestion <strong>"${g}"</strong> has been added as a new local group on Catalyse.`,
+  merge: (g) =>
+    `Your suggestion <strong>"${g}"</strong> has been merged with an existing local group.`,
+  on_hold: (g) =>
+    `Your local group suggestion <strong>"${g}"</strong> is currently under review. We'll be in touch if we need more information.`,
+  declined: (g) =>
+    `Thanks for your suggestion of <strong>"${g}"</strong>. After review, we've decided not to add it as a separate local group at this time.`,
 }
 
 export function buildLocalGroupSuggestionHtml(
@@ -212,7 +339,9 @@ export function buildLocalGroupSuggestionHtml(
   adminNotes?: string | null,
 ): string {
   const getMessage = LOCAL_GROUP_SUGGESTION_MESSAGES[action]
-  const message = getMessage ? getMessage(groupName) : `Your local group suggestion "${groupName}" has been reviewed.`
+  const message = getMessage
+    ? getMessage(groupName)
+    : `Your local group suggestion "${groupName}" has been reviewed.`
   const notesHtml = adminNotes ? `<p><em>${adminNotes}</em></p>` : ''
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
 <body><div class="container">

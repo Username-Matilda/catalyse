@@ -90,6 +90,17 @@ export async function GET(request: NextRequest) {
 
   const volunteer = await getCurrentVolunteer(request.headers.get('authorization'))
 
+  if (volunteer && !volunteer.emailConfirmed && !volunteer.isAdmin) {
+    return Response.json(
+      { detail: 'Please confirm your email address to browse projects' },
+      { status: 403 },
+    )
+  }
+
+  const isPending = Boolean(
+    volunteer && volunteer.approvalStatus !== 'APPROVED' && !volunteer.isAdmin,
+  )
+
   let volunteerSkillIds: Set<number> | undefined
   if (volunteer) {
     const v = await prisma.volunteer.findUnique({
@@ -122,7 +133,19 @@ export async function GET(request: NextRequest) {
   const projects = ids
     .map((id) => projectMap.get(id))
     .filter((p): p is NonNullable<typeof p> => p !== undefined)
-    .map((p) => serializeProject(p as EnrichedProject, volunteerSkillIds))
+    .map((p) => {
+      const serialized = serializeProject(p as EnrichedProject, volunteerSkillIds)
+      if (isPending) {
+        return {
+          ...serialized,
+          owner: null,
+          owner_id: null,
+          proposed_by: null,
+          proposed_by_id: null,
+        }
+      }
+      return serialized
+    })
 
   if (sortBy === 'match' && volunteerSkillIds && volunteerSkillIds.size > 0) {
     projects.sort((a, b) => (b.match?.overall_score ?? 0) - (a.match?.overall_score ?? 0))
@@ -136,6 +159,9 @@ export async function POST(request: NextRequest) {
   const volunteer = await getCurrentVolunteer(request.headers.get('authorization'))
   if (!volunteer) {
     return Response.json({ detail: 'Authentication required' }, { status: 401 })
+  }
+  if (volunteer.approvalStatus !== 'APPROVED' && !volunteer.isAdmin) {
+    return Response.json({ detail: 'Your account is pending approval' }, { status: 403 })
   }
 
   let body: Record<string, unknown>

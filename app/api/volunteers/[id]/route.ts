@@ -15,6 +15,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   const currentVolunteer = await getCurrentVolunteer(request.headers.get('authorization'))
+  if (
+    currentVolunteer &&
+    currentVolunteer.approvalStatus !== 'APPROVED' &&
+    !currentVolunteer.isAdmin
+  ) {
+    return Response.json({ detail: 'Your account is pending approval' }, { status: 403 })
+  }
 
   const vol = await prisma.volunteer.findFirst({
     where: { id: volunteerId, deletedAt: null, consentMakeProfileVisibleInDirectory: true },

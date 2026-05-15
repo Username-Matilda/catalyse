@@ -58,6 +58,7 @@ export default function ProjectsPage() {
   const [locationFilter, setLocationFilter] = useState('')
   const [sortBy, setSortBy] = useState('')
   const [pendingCount, setPendingCount] = useState(0)
+  const [pendingApplicationsCount, setPendingApplicationsCount] = useState(0)
   const [completedOpen, setCompletedOpen] = useState(false)
   const [localGroups, setLocalGroups] = useState<LocalGroupOption[]>([])
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -71,6 +72,9 @@ export default function ProjectsPage() {
     if (user.is_admin) {
       apiRequest<Project[]>('/api/admin/triage')
         .then((list) => setPendingCount(list.length))
+        .catch(() => {})
+      apiRequest<unknown[]>('/api/admin/applications?status=PENDING')
+        .then((list) => setPendingApplicationsCount(list.length))
         .catch(() => {})
     }
   }, [user])
@@ -200,6 +204,17 @@ export default function ProjectsPage() {
             </Link>
           </div>
         )}
+        {user.is_admin && pendingApplicationsCount > 0 && (
+          <div className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#EDE9FE] text-[#5B21B6] border border-[#C4B5FD] dark:bg-[#2E1065] dark:text-[#C4B5FD] dark:border-[#7C3AED]">
+            <strong>
+              {pendingApplicationsCount} application{pendingApplicationsCount !== 1 ? 's' : ''}{' '}
+              pending review.
+            </strong>{' '}
+            <Link href="/admin/applications" className="underline">
+              Review applications →
+            </Link>
+          </div>
+        )}
 
         {/* Filters */}
         <div className="mb-5">
@@ -319,23 +334,38 @@ export default function ProjectsPage() {
                           tabIndex={0}
                           onKeyDown={(e) => e.key === 'Enter' && setCompletedOpen((o) => !o)}
                         >
-                          {g.label} — {g.projects.length} project{g.projects.length !== 1 ? 's' : ''}
+                          {g.label} — {g.projects.length} project
+                          {g.projects.length !== 1 ? 's' : ''}
                           <svg
                             className="text-text-light shrink-0"
-                            width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                            style={{ transform: completedOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}
+                            width="32"
+                            height="32"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            style={{
+                              transform: completedOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                              transition: 'transform 0.2s',
+                            }}
                           >
                             <polyline points="6 9 12 15 18 9" />
                           </svg>
                         </h2>
                       ) : (
                         <h2 className={`text-lg mb-1 ${g.color}`}>
-                          {g.label} — {g.projects.length} project{g.projects.length !== 1 ? 's' : ''}
+                          {g.label} — {g.projects.length} project
+                          {g.projects.length !== 1 ? 's' : ''}
                         </h2>
                       )}
                       {g.desc && <p className="text-text-light text-sm mb-3">{g.desc}</p>}
                       {isOpen && (
-                        <div key={String(completedOpen)} className={isCompleted ? 'animate-fade-slide-in' : undefined}>
+                        <div
+                          key={String(completedOpen)}
+                          className={isCompleted ? 'animate-fade-slide-in' : undefined}
+                        >
                           <ProjectList projects={g.projects} userSkillIds={userSkillIds} />
                         </div>
                       )}

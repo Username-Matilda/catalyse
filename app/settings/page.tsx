@@ -73,15 +73,22 @@ export default function SettingsPage() {
 
   async function handleDeleteAccount(e: FormEvent) {
     e.preventDefault()
-    if (deletePassword !== deleteConfirmPassword) {
-      showToast('Passwords do not match', 'error')
-      return
+    if (user?.has_password) {
+      if (deletePassword !== deleteConfirmPassword) {
+        showToast('Passwords do not match', 'error')
+        return
+      }
+    } else {
+      if (deletePassword !== 'DELETE') {
+        showToast('Please type DELETE to confirm', 'error')
+        return
+      }
     }
     setDeleting(true)
     try {
       const data = await apiRequest<{ message: string }>('/api/auth/delete-account', {
         method: 'POST',
-        body: JSON.stringify({ password: deletePassword }),
+        body: JSON.stringify(user?.has_password ? { password: deletePassword } : {}),
       })
       showToast(data.message, 'success')
       setTimeout(async () => {
@@ -199,32 +206,56 @@ export default function SettingsPage() {
                 <h2 style={{ margin: 0, fontSize: '1.25rem' }}>Delete Your Account</h2>
               </div>
               <div className="p-6">
-                <p className="text-text-light mb-4">
-                  This action is permanent and cannot be undone. Please enter your password twice to
-                  confirm.
-                </p>
+                {user.has_password && (
+                  <p className="text-text-light mb-4">
+                    This action is permanent and cannot be undone. Please enter your password twice to
+                    confirm.
+                  </p>
+                )}
 
                 <form onSubmit={handleDeleteAccount}>
-                  <div className="mb-5">
-                    <label htmlFor="delete_password">Enter your password</label>
-                    <input
-                      type="password"
-                      id="delete_password"
-                      value={deletePassword}
-                      onChange={(e) => setDeletePassword(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="mb-5">
-                    <label htmlFor="delete_confirm_password">Confirm your password</label>
-                    <input
-                      type="password"
-                      id="delete_confirm_password"
-                      value={deleteConfirmPassword}
-                      onChange={(e) => setDeleteConfirmPassword(e.target.value)}
-                      required
-                    />
-                  </div>
+                  {user.has_password ? (
+                    <>
+                      <div className="mb-5">
+                        <label htmlFor="delete_password">Enter your password</label>
+                        <input
+                          type="password"
+                          id="delete_password"
+                          value={deletePassword}
+                          onChange={(e) => setDeletePassword(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="mb-5">
+                        <label htmlFor="delete_confirm_password">Confirm your password</label>
+                        <input
+                          type="password"
+                          id="delete_confirm_password"
+                          value={deleteConfirmPassword}
+                          onChange={(e) => setDeleteConfirmPassword(e.target.value)}
+                          required
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-text-light mb-4">
+                        This action is permanent and cannot be undone.
+                      </p>
+                      <p className="text-text-light mb-4">
+                        Type <strong>DELETE</strong> to confirm.
+                      </p>
+                      <div className="mb-5">
+                        <input
+                          type="text"
+                          value={deletePassword}
+                          onChange={(e) => setDeletePassword(e.target.value)}
+                          placeholder="DELETE"
+                          required
+                        />
+                      </div>
+                    </>
+                  )}
                   <div className="flex gap-2">
                     <Button type="submit" variant="danger" disabled={deleting}>
                       {deleting ? 'Deleting…' : 'Permanently Delete Account'}

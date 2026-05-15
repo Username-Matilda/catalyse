@@ -73,10 +73,12 @@ export default function LoginPage() {
       }
     if (!win.google?.accounts?.id || !googleClientId) return
     win.google.accounts.id.initialize({ client_id: googleClientId, callback: handleGoogleResponse })
-    win.google.accounts.id.renderButton(document.getElementById('g_signin_btn'), {
+    const btnEl = document.getElementById('g_signin_btn')
+    const btnWidth = Math.min(400, Math.max(200, btnEl?.offsetWidth ?? 350))
+    win.google.accounts.id.renderButton(btnEl, {
       theme: 'outline',
       size: 'large',
-      width: 350,
+      width: btnWidth,
       text: 'sign_in_with',
     })
   }, [googleClientId, handleGoogleResponse])
@@ -115,7 +117,7 @@ export default function LoginPage() {
           <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word">
             {googleClientId && (
               <div className="text-center mb-5">
-                <div id="g_signin_btn" />
+                <div id="g_signin_btn" className="flex justify-center" />
                 <div style={{ display: 'flex', alignItems: 'center', margin: '20px 0', gap: 16 }}>
                   <hr style={{ flex: 1, border: 'none', borderTop: '1px solid var(--border)' }} />
                   <span className="text-text-light text-sm">or use email</span>

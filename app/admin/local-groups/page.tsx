@@ -73,7 +73,9 @@ export default function AdminLocalGroupsPage() {
 
   const [allGroups, setAllGroups] = useState<LocalGroup[]>([])
   const [deleteTarget, setDeleteTarget] = useState<DisplayItem | null>(null)
-  const [deleteTargetProjects, setDeleteTargetProjects] = useState<{ id: number; title: string }[]>([])
+  const [deleteTargetProjects, setDeleteTargetProjects] = useState<{ id: number; title: string }[]>(
+    [],
+  )
   const [loadingDeleteProjects, setLoadingDeleteProjects] = useState(false)
 
   // Add group modal
@@ -112,6 +114,8 @@ export default function AdminLocalGroupsPage() {
   useEffect(() => {
     if (!user?.is_admin) return
 
+    // Intentional: spinner must appear synchronously before the async fetch begins.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoadingItems(true)
 
     async function fetchItems() {
@@ -136,17 +140,12 @@ export default function AdminLocalGroupsPage() {
           apiRequest<{ suggestions: Suggestion[] }>(
             `/api/admin/local-groups/suggestions?status=${s}`,
           ).then((d) => {
-            suggestions.push(
-              ...d.suggestions.map((sg) => ({ kind: 'suggestion' as const, ...sg })),
-            )
+            suggestions.push(...d.suggestions.map((sg) => ({ kind: 'suggestion' as const, ...sg })))
           }),
         ),
       ])
 
-      const merged: DisplayItem[] = [
-        ...groups,
-        ...suggestions,
-      ].sort((a, b) => {
+      const merged: DisplayItem[] = [...groups, ...suggestions].sort((a, b) => {
         const cc = a.country.localeCompare(b.country)
         if (cc !== 0) return cc
         return a.name.localeCompare(b.name)
@@ -162,6 +161,8 @@ export default function AdminLocalGroupsPage() {
 
   useEffect(() => {
     if (!deleteTarget || deleteTarget.kind !== 'group') {
+      // Derived-state reset — clears stale project list when delete target changes or is cleared.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDeleteTargetProjects([])
       return
     }
@@ -174,9 +175,7 @@ export default function AdminLocalGroupsPage() {
       .finally(() => setLoadingDeleteProjects(false))
   }, [deleteTarget])
 
-  const displayItems = countryFilter
-    ? items.filter((i) => i.country === countryFilter)
-    : items
+  const displayItems = countryFilter ? items.filter((i) => i.country === countryFilter) : items
 
   const countryOptions = [
     { value: '', label: 'All countries' },
@@ -282,7 +281,9 @@ export default function AdminLocalGroupsPage() {
         body: JSON.stringify(body),
       })
 
-      setItems((prev) => prev.filter((i) => !(i.kind === 'suggestion' && i.id === reviewSuggestion.id)))
+      setItems((prev) =>
+        prev.filter((i) => !(i.kind === 'suggestion' && i.id === reviewSuggestion.id)),
+      )
 
       if (reviewAction === 'accept') {
         const newGroup: DisplayGroup = {
@@ -291,7 +292,10 @@ export default function AdminLocalGroupsPage() {
           name: reviewEditName.trim(),
           country: reviewEditCountry.trim(),
         }
-        setAllGroups((prev) => [...prev, { id: newGroup.id, name: newGroup.name, country: newGroup.country }])
+        setAllGroups((prev) => [
+          ...prev,
+          { id: newGroup.id, name: newGroup.name, country: newGroup.country },
+        ])
         if (statusFilter === 'active' || statusFilter === 'all') {
           setItems((prev) =>
             [...prev, newGroup].sort((a, b) => {
@@ -429,14 +433,12 @@ export default function AdminLocalGroupsPage() {
                     )}
                     {item.kind === 'suggestion' && (
                       <Button size="sm" onClick={() => openReview(item)}>
-                        {item.status === 'declined' || item.status === 'on_hold' ? 'Re-review' : 'Review'}
+                        {item.status === 'declined' || item.status === 'on_hold'
+                          ? 'Re-review'
+                          : 'Review'}
                       </Button>
                     )}
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      onClick={() => setDeleteTarget(item)}
-                    >
+                    <Button size="sm" variant="danger" onClick={() => setDeleteTarget(item)}>
                       Delete
                     </Button>
                   </div>
@@ -489,10 +491,7 @@ export default function AdminLocalGroupsPage() {
                   <Button type="button" variant="secondary" onClick={() => setShowAdd(false)}>
                     Cancel
                   </Button>
-                  <Button
-                    type="submit"
-                    disabled={addSubmitting || !addCountry || !addName.trim()}
-                  >
+                  <Button type="submit" disabled={addSubmitting || !addCountry || !addName.trim()}>
                     {addSubmitting ? 'Saving…' : 'Add Group'}
                   </Button>
                 </div>
@@ -666,10 +665,13 @@ export default function AdminLocalGroupsPage() {
                       rows={3}
                       value={adminNotes}
                       onChange={(e) => setAdminNotes(e.target.value)}
-                      placeholder={{
-                        on_hold: "e.g., We're looking into existing groups in this area first…",
-                        decline: "e.g., Thanks for the suggestion. This area isn't something we're able to support at the moment.",
-                      }[reviewAction] ?? ''}
+                      placeholder={
+                        {
+                          on_hold: "e.g., We're looking into existing groups in this area first…",
+                          decline:
+                            "e.g., Thanks for the suggestion. This area isn't something we're able to support at the moment.",
+                        }[reviewAction] ?? ''
+                      }
                       style={{ width: '100%' }}
                     />
                     <p className="text-sm text-text-light mt-1">
@@ -722,10 +724,14 @@ export default function AdminLocalGroupsPage() {
             </div>
             <div className="p-6">
               <p>
-                Delete <strong>{deleteTarget.country} — {deleteTarget.name}</strong>? This cannot be undone.
+                Delete{' '}
+                <strong>
+                  {deleteTarget.country} — {deleteTarget.name}
+                </strong>
+                ? This cannot be undone.
               </p>
-              {deleteTarget.kind === 'group' && (
-                loadingDeleteProjects ? (
+              {deleteTarget.kind === 'group' &&
+                (loadingDeleteProjects ? (
                   <p className="text-sm text-text-light">Checking affected projects…</p>
                 ) : deleteTargetProjects.length > 0 ? (
                   <div className="mt-3 mb-1">
@@ -746,8 +752,7 @@ export default function AdminLocalGroupsPage() {
                       ))}
                     </ul>
                   </div>
-                ) : null
-              )}
+                ) : null)}
               <div className="pt-4 border-t border-brand-border flex gap-3 justify-end mt-4">
                 <Button variant="secondary" onClick={() => setDeleteTarget(null)}>
                   Cancel
