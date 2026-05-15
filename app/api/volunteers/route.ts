@@ -4,7 +4,11 @@ import { serializeSkill, getCurrentVolunteer } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   const currentVolunteer = await getCurrentVolunteer(request.headers.get('authorization'))
-  if (currentVolunteer && currentVolunteer.approvalStatus !== 'APPROVED' && !currentVolunteer.isAdmin) {
+  if (
+    currentVolunteer &&
+    currentVolunteer.approvalStatus !== 'APPROVED' &&
+    !currentVolunteer.isAdmin
+  ) {
     return Response.json({ detail: 'Your account is pending approval' }, { status: 403 })
   }
 

@@ -76,7 +76,7 @@ export default function DashboardPage() {
     function onHashChange() {
       const hash = window.location.hash
       const tab: TabKey = hash.startsWith('#tab-')
-        ? ((hash.slice('#tab-'.length) as TabKey) || 'owned')
+        ? (hash.slice('#tab-'.length) as TabKey) || 'owned'
         : 'owned'
       setActiveTab(tab)
       if (tab === 'notifications') {
@@ -93,7 +93,7 @@ export default function DashboardPage() {
     function onHashChange() {
       const hash = window.location.hash
       const tab: TabKey = hash.startsWith('#tab-')
-        ? ((hash.slice('#tab-'.length) as TabKey) || 'owned')
+        ? (hash.slice('#tab-'.length) as TabKey) || 'owned'
         : 'owned'
       setActiveTab(tab)
       if (tab === 'notifications') {
@@ -261,7 +261,9 @@ export default function DashboardPage() {
                       <span className="ml-2 text-sm text-text-light">{task.skill_name}</span>
                     )}
                   </div>
-                  <span role="status" className={statusBadgeClasses(task.status)}>{task.status}</span>
+                  <span role="status" className={statusBadgeClasses(task.status)}>
+                    {task.status}
+                  </span>
                 </div>
                 {expandedTasks.has(task.id) && (
                   <div className="mt-3">
@@ -401,4 +403,3 @@ export default function DashboardPage() {
     </>
   )
 }
-

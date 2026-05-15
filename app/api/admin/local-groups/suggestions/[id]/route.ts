@@ -11,10 +11,7 @@ const NOTIFICATION_TITLES: Record<string, (name: string) => string> = {
   declined: (n) => `Update on your local group suggestion "${n}"`,
 }
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { volunteer: admin, error } = await requireAdmin(request.headers.get('authorization'))
   if (error) return error
 
@@ -71,7 +68,8 @@ export async function PUT(
       return NextResponse.json({ detail: 'merged_into_id required for merge' }, { status: 400 })
     }
     const target = await prisma.localGroup.findUnique({ where: { id: mergedIntoId } })
-    if (!target) return NextResponse.json({ detail: 'Target local group not found' }, { status: 404 })
+    if (!target)
+      return NextResponse.json({ detail: 'Target local group not found' }, { status: 404 })
 
     await prisma.localGroupSuggestion.update({
       where: { id: suggestionId },

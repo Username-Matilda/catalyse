@@ -597,7 +597,10 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
                     value={endorseSkillId}
                     options={[
                       { value: '', label: 'Select skill…' },
-                      ...flatSkills.map((s) => ({ value: String(s.id), label: `${s.name} (${s.category_name})` })),
+                      ...flatSkills.map((s) => ({
+                        value: String(s.id),
+                        label: `${s.name} (${s.category_name})`,
+                      })),
                     ]}
                     onChange={(v) => setEndorseSkillId(v)}
                     searchable

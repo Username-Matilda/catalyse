@@ -529,17 +529,17 @@ export default function AdminStarterTasksPage() {
                           </Button>
                         )}
                         {task.assigned_to_id && (
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setUnassignModal(task)
-                              }}
-                            >
-                              Unassign
-                            </Button>
-                          )}
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setUnassignModal(task)
+                            }}
+                          >
+                            Unassign
+                          </Button>
+                        )}
                         {task.status === 'submitted' && (
                           <Button
                             size="sm"
@@ -617,7 +617,10 @@ export default function AdminStarterTasksPage() {
                       value={createSkillId}
                       options={[
                         { value: '', label: 'None specific' },
-                        ...skills.map((s) => ({ value: String(s.id), label: `${s.name} (${s.category_name})` })),
+                        ...skills.map((s) => ({
+                          value: String(s.id),
+                          label: `${s.name} (${s.category_name})`,
+                        })),
                       ]}
                       onChange={(v) => setCreateSkillId(v)}
                       searchable
@@ -702,7 +705,10 @@ export default function AdminStarterTasksPage() {
                       value={editSkillId}
                       options={[
                         { value: '', label: 'None specific' },
-                        ...skills.map((s) => ({ value: String(s.id), label: `${s.name} (${s.category_name})` })),
+                        ...skills.map((s) => ({
+                          value: String(s.id),
+                          label: `${s.name} (${s.category_name})`,
+                        })),
                       ]}
                       onChange={(v) => setEditSkillId(v)}
                       searchable

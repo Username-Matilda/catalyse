@@ -8,8 +8,8 @@ export default function Footer() {
 
   useEffect(() => {
     fetch('/api/version')
-      .then(r => r.json())
-      .then(d => {
+      .then((r) => r.json())
+      .then((d) => {
         if (d.sha && d.sha !== 'dev') setSha(d.sha.slice(0, 7))
       })
       .catch(() => {})
@@ -18,9 +18,21 @@ export default function Footer() {
   return (
     <footer className="border-t border-brand-border mt-auto py-6 text-sm text-muted">
       <div className="container flex flex-wrap justify-center gap-x-6 gap-y-1">
-        <Link href="/privacy" className="underline hover:text-foreground transition-colors">Privacy &amp; Data</Link>
-        <a href="mailto:matilda@pauseai.info" className="underline hover:text-foreground transition-colors">Contact</a>
-        <a href="https://pauseai.uk" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground transition-colors">
+        <Link href="/privacy" className="underline hover:text-foreground transition-colors">
+          Privacy &amp; Data
+        </Link>
+        <a
+          href="mailto:matilda@pauseai.info"
+          className="underline hover:text-foreground transition-colors"
+        >
+          Contact
+        </a>
+        <a
+          href="https://pauseai.uk"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline hover:text-foreground transition-colors"
+        >
           PauseAI UK
         </a>
         {sha && (

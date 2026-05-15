@@ -36,7 +36,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   const volunteer = await getCurrentVolunteer(request.headers.get('authorization'))
-  const isPending = Boolean(volunteer && volunteer.approvalStatus !== 'APPROVED' && !volunteer.isAdmin)
+  const isPending = Boolean(
+    volunteer && volunteer.approvalStatus !== 'APPROVED' && !volunteer.isAdmin,
+  )
 
   const project = await prisma.project.findUnique({
     where: { id: projectId },
@@ -70,7 +72,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     unknown
   >
   if (isPending) {
-    serialized = { ...serialized, owner: null, owner_id: null, proposed_by: null, proposed_by_id: null }
+    serialized = {
+      ...serialized,
+      owner: null,
+      owner_id: null,
+      proposed_by: null,
+      proposed_by_id: null,
+    }
   }
 
   const [updates, tasks] = await Promise.all([

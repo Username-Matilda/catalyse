@@ -215,9 +215,10 @@ test.describe('Local Group Suggestions', () => {
       .getByRole('heading', { name: 'Suggest a Local Group', level: 1 })
       .waitFor({ timeout: 10_000 })
 
-    await expect(
-      volunteer.page.getByRole('article').filter({ hasText: groupName }),
-    ).toContainText('Declined', { timeout: 10_000 })
+    await expect(volunteer.page.getByRole('article').filter({ hasText: groupName })).toContainText(
+      'Declined',
+      { timeout: 10_000 },
+    )
   })
 })
 
@@ -260,10 +261,7 @@ test.describe('Admin Local Group Management', () => {
     })
   })
 
-  test('Admin deletes a group and it is removed from the list', async ({
-    adminPage,
-    baseUrl,
-  }) => {
+  test('Admin deletes a group and it is removed from the list', async ({ adminPage, baseUrl }) => {
     const groupName = fake.localGroupName()
 
     await navigateToAdminLocalGroups(baseUrl, adminPage)

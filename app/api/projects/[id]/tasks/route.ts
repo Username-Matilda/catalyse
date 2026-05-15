@@ -12,7 +12,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   const currentVolunteer = await getCurrentVolunteer(request.headers.get('authorization'))
-  const isPending = Boolean(currentVolunteer && currentVolunteer.approvalStatus !== 'APPROVED' && !currentVolunteer.isAdmin)
+  const isPending = Boolean(
+    currentVolunteer && currentVolunteer.approvalStatus !== 'APPROVED' && !currentVolunteer.isAdmin,
+  )
 
   const tasks = await prisma.projectTask.findMany({
     where: { projectId },

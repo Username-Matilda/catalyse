@@ -17,9 +17,21 @@ export async function POST(request: NextRequest) {
   ])
 
   return NextResponse.json({
-    backup: backupResult.status === 'fulfilled' ? backupResult.value : { error: String(backupResult.reason) },
-    digest: digestResult.status === 'fulfilled' ? digestResult.value : { error: String(digestResult.reason) },
-    nudges: nudgesResult.status === 'fulfilled' ? nudgesResult.value : { error: String(nudgesResult.reason) },
-    applications: applicationsResult.status === 'fulfilled' ? applicationsResult.value : { error: String(applicationsResult.reason) },
+    backup:
+      backupResult.status === 'fulfilled'
+        ? backupResult.value
+        : { error: String(backupResult.reason) },
+    digest:
+      digestResult.status === 'fulfilled'
+        ? digestResult.value
+        : { error: String(digestResult.reason) },
+    nudges:
+      nudgesResult.status === 'fulfilled'
+        ? nudgesResult.value
+        : { error: String(nudgesResult.reason) },
+    applications:
+      applicationsResult.status === 'fulfilled'
+        ? applicationsResult.value
+        : { error: String(applicationsResult.reason) },
   })
 }

@@ -41,17 +41,32 @@ const EMAIL_TYPES: { value: string; label: string; params: Record<string, Param>
   {
     value: 'local-group-suggestion-merge',
     label: 'Local Group Suggestion (Merge)',
-    params: { name: 'Alex', action: 'merge', groupName: 'London', adminNotes: 'Merged with existing South London group.' },
+    params: {
+      name: 'Alex',
+      action: 'merge',
+      groupName: 'London',
+      adminNotes: 'Merged with existing South London group.',
+    },
   },
   {
     value: 'local-group-suggestion-on-hold',
     label: 'Local Group Suggestion (On Hold)',
-    params: { name: 'Alex', action: 'on_hold', groupName: 'London', adminNotes: 'We need a bit more time to assess this one.' },
+    params: {
+      name: 'Alex',
+      action: 'on_hold',
+      groupName: 'London',
+      adminNotes: 'We need a bit more time to assess this one.',
+    },
   },
   {
     value: 'local-group-suggestion-declined',
     label: 'Local Group Suggestion (Declined)',
-    params: { name: 'Alex', action: 'declined', groupName: 'London', adminNotes: 'We already have good coverage in this area.' },
+    params: {
+      name: 'Alex',
+      action: 'declined',
+      groupName: 'London',
+      adminNotes: 'We already have good coverage in this area.',
+    },
   },
   {
     value: 'relay-message',

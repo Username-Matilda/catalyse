@@ -49,7 +49,11 @@ export function buildLocationOptions(groups: LocalGroupOption[]): FilterOption[]
     if (!option.indent && option.value) {
       const countryGroups = groups.filter((g) => g.country === option.value)
       for (const g of countryGroups) {
-        result.push({ value: `${option.value}:${g.name}`, label: `${option.value} - ${g.name}`, indent: true })
+        result.push({
+          value: `${option.value}:${g.name}`,
+          label: `${option.value} - ${g.name}`,
+          indent: true,
+        })
       }
     }
   }

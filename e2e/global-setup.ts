@@ -55,7 +55,9 @@ function startWorkerNextJs(parallelIndex: number): number {
   fs.mkdirSync(dbDir, { recursive: true })
   migrateWorkerDb(parallelIndex)
 
-  const nextArgs = IS_DEV_MODE ? ['dev', '--turbo', '-p', String(nextPort)] : ['start', '-p', String(nextPort)]
+  const nextArgs = IS_DEV_MODE
+    ? ['dev', '--turbo', '-p', String(nextPort)]
+    : ['start', '-p', String(nextPort)]
   const server = spawn(NEXT_BINARY, nextArgs, {
     env: {
       ...process.env,

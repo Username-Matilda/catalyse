@@ -41,8 +41,10 @@ export default function FilterDropdown({
     function onClickOutside(e: MouseEvent) {
       const target = e.target as Node
       if (
-        ref.current && !ref.current.contains(target) &&
-        listboxRef.current && !listboxRef.current.contains(target)
+        ref.current &&
+        !ref.current.contains(target) &&
+        listboxRef.current &&
+        !listboxRef.current.contains(target)
       ) {
         setOpen(false)
         setQuery('')
@@ -59,7 +61,11 @@ export default function FilterDropdown({
     if (!trigger) return
     function reposition() {
       const r = trigger!.getBoundingClientRect()
-      setDropdownPos({ top: r.bottom + window.scrollY, left: r.left + window.scrollX, width: r.width })
+      setDropdownPos({
+        top: r.bottom + window.scrollY,
+        left: r.left + window.scrollX,
+        width: r.width,
+      })
     }
     window.addEventListener('scroll', reposition, true)
     window.addEventListener('resize', reposition)
@@ -153,7 +159,11 @@ export default function FilterDropdown({
           aria-activedescendant={focusedIndex >= 0 ? `${id}-opt-${focusedIndex}` : undefined}
           onClick={() => {
             const rect = triggerRef.current!.getBoundingClientRect()
-            setDropdownPos({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX, width: rect.width })
+            setDropdownPos({
+              top: rect.bottom + window.scrollY,
+              left: rect.left + window.scrollX,
+              width: rect.width,
+            })
             setOpen(true)
           }}
           onKeyDown={handleKeyDown}
@@ -181,32 +191,39 @@ export default function FilterDropdown({
             className="absolute inset-0 m-0"
           />
         )}
-        {open && createPortal(
-          <div
-            ref={listboxRef}
-            role="listbox"
-            style={{ position: 'absolute', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width, zIndex: 9999 }}
-            className="mt-1 bg-surface border border-brand-border rounded-lg shadow-lg py-1 max-h-72 overflow-y-auto"
-          >
-            {filtered.map((opt, i) => (
-              <div
-                key={opt.value}
-                id={`${id}-opt-${i}`}
-                role="option"
-                aria-selected={value === opt.value}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => select(opt)}
-                className={`px-3 py-2 cursor-pointer rounded-md hover:bg-accent transition-colors text-sm ${value === opt.value || i === focusedIndex ? 'bg-accent' : ''} ${opt.indent ? 'pl-6' : ''}`}
-              >
-                {opt.label}
-              </div>
-            ))}
-            {filtered.length === 0 && (
-              <div className="px-3 py-2 text-sm text-text-light">No results</div>
-            )}
-          </div>,
-          document.body
-        )}
+        {open &&
+          createPortal(
+            <div
+              ref={listboxRef}
+              role="listbox"
+              style={{
+                position: 'absolute',
+                top: dropdownPos.top,
+                left: dropdownPos.left,
+                width: dropdownPos.width,
+                zIndex: 9999,
+              }}
+              className="mt-1 bg-surface border border-brand-border rounded-lg shadow-lg py-1 max-h-72 overflow-y-auto"
+            >
+              {filtered.map((opt, i) => (
+                <div
+                  key={opt.value}
+                  id={`${id}-opt-${i}`}
+                  role="option"
+                  aria-selected={value === opt.value}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => select(opt)}
+                  className={`px-3 py-2 cursor-pointer rounded-md hover:bg-accent transition-colors text-sm ${value === opt.value || i === focusedIndex ? 'bg-accent' : ''} ${opt.indent ? 'pl-6' : ''}`}
+                >
+                  {opt.label}
+                </div>
+              ))}
+              {filtered.length === 0 && (
+                <div className="px-3 py-2 text-sm text-text-light">No results</div>
+              )}
+            </div>,
+            document.body,
+          )}
       </div>
     </div>
   )

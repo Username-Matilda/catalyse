@@ -3,10 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/auth'
 import { sendApplicationApprovedEmail, sendApplicationRejectedEmail } from '@/lib/email'
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { error } = await requireAdmin(request.headers.get('authorization'))
   if (error) return error
 

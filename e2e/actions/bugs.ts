@@ -40,7 +40,12 @@ export async function fillAndSubmitBugReport(
     await dialog.getByLabel('Your Email (optional)').fill(opts.email)
   }
   if (opts.severity) {
-    await selectFilterDropdown(page, 'How urgent is this?', SEVERITY_LABELS[opts.severity] ?? opts.severity, dialog)
+    await selectFilterDropdown(
+      page,
+      'How urgent is this?',
+      SEVERITY_LABELS[opts.severity] ?? opts.severity,
+      dialog,
+    )
   }
   await dialog.getByRole('button', { name: 'Submit Report' }).click()
 }

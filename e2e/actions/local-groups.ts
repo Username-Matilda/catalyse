@@ -25,11 +25,7 @@ export async function navigateToAdminLocalGroups(baseUrl: string, adminPage: Pag
   await adminPage.getByText('Loading…').waitFor({ state: 'hidden', timeout: 10_000 })
 }
 
-export async function adminAddGroup(
-  adminPage: Page,
-  country: string,
-  name: string,
-): Promise<void> {
+export async function adminAddGroup(adminPage: Page, country: string, name: string): Promise<void> {
   await adminPage.getByRole('button', { name: 'Add Local Group' }).click()
   await adminPage
     .getByRole('heading', { name: 'Add Local Group', level: 2 })

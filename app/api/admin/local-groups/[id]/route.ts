@@ -10,10 +10,7 @@ const VALID_COUNTRIES = new Set(
   ),
 )
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { error } = await requireAdmin(request.headers.get('authorization'))
   if (error) return error
 

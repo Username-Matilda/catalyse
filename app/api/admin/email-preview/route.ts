@@ -78,17 +78,32 @@ function buildPreview(type: string): { subject: string; html: string } | null {
     case 'local-group-suggestion-merge':
       return {
         subject: 'Your local group suggestion "London" has been merged',
-        html: buildLocalGroupSuggestionHtml('Alex', 'merge', 'London', 'Merged with existing South London group.'),
+        html: buildLocalGroupSuggestionHtml(
+          'Alex',
+          'merge',
+          'London',
+          'Merged with existing South London group.',
+        ),
       }
     case 'local-group-suggestion-on-hold':
       return {
         subject: 'Your local group suggestion "London" is under review',
-        html: buildLocalGroupSuggestionHtml('Alex', 'on_hold', 'London', 'We need a bit more time to assess this one.'),
+        html: buildLocalGroupSuggestionHtml(
+          'Alex',
+          'on_hold',
+          'London',
+          'We need a bit more time to assess this one.',
+        ),
       }
     case 'local-group-suggestion-declined':
       return {
         subject: 'Update on your local group suggestion "London"',
-        html: buildLocalGroupSuggestionHtml('Alex', 'declined', 'London', 'We already have good coverage in this area.'),
+        html: buildLocalGroupSuggestionHtml(
+          'Alex',
+          'declined',
+          'London',
+          'We already have good coverage in this area.',
+        ),
       }
     case 'relay-message':
       return {
