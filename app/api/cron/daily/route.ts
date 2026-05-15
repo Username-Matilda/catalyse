@@ -3,17 +3,27 @@ import { checkCronAuth } from '@/lib/cron-auth'
 import { runBackupJob } from '@/lib/jobs/backup'
 import { runDigestJob } from '@/lib/jobs/digest'
 import { runNudgesJob } from '@/lib/jobs/nudges'
-import { runApplicationsSummaryJob } from '@/lib/jobs/applications'
+import {
+  runApplicationsSummaryJob,
+  runApplicationsAnonymisationJob,
+} from '@/lib/jobs/applications'
 
 export async function POST(request: NextRequest) {
   const authError = checkCronAuth(request)
   if (authError) return authError
 
-  const [backupResult, digestResult, nudgesResult, applicationsResult] = await Promise.allSettled([
+  const [
+    backupResult,
+    digestResult,
+    nudgesResult,
+    applicationsResult,
+    anonymisationResult,
+  ] = await Promise.allSettled([
     runBackupJob(),
     runDigestJob(),
     runNudgesJob(),
     runApplicationsSummaryJob(),
+    runApplicationsAnonymisationJob(),
   ])
 
   return NextResponse.json({
@@ -33,5 +43,9 @@ export async function POST(request: NextRequest) {
       applicationsResult.status === 'fulfilled'
         ? applicationsResult.value
         : { error: String(applicationsResult.reason) },
+    anonymisation:
+      anonymisationResult.status === 'fulfilled'
+        ? anonymisationResult.value
+        : { error: String(anonymisationResult.reason) },
   })
 }

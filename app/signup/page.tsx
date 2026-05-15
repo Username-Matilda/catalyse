@@ -363,12 +363,17 @@ export default function SignupPage() {
               <label htmlFor="application_message" className="required">
                 Your Application
               </label>
+              <aside className="bg-brand-bg border border-brand-border rounded-lg px-4 py-3 mb-2 text-sm text-text-light">
+                Tell us about your relationship to PauseAI, why you are excited about the mission,
+                and how you would like to contribute. This is reviewed by admins only and is not
+                shown on your public profile.
+              </aside>
               <textarea
                 id="application_message"
                 name="application_message"
                 required
                 rows={6}
-                placeholder="Please tell us a bit about your relationship to PauseAI, why you are excited about our mission, and how you would like to contribute based on your interests/skills (everyone has ways to contribute!) We routinely oversee signups to ensure the integrity of this platform, and you'll be notified by email as soon as we've reviewed your request to join."
+                placeholder="Your connection to PauseAI, motivation, and how you'd like to contribute…"
                 value={applicationMessage}
                 onChange={(e) => setApplicationMessage(e.target.value)}
               />
@@ -376,10 +381,14 @@ export default function SignupPage() {
 
             <div className="mb-5">
               <label htmlFor="bio">About You</label>
+              <aside className="bg-brand-bg border border-brand-border rounded-lg px-4 py-3 mb-2 text-sm text-text-light">
+                Shown to other volunteers in the directory if you choose to make your profile
+                visible. Tell us about your background and what brings you to PauseAI.
+              </aside>
               <textarea
                 id="bio"
                 name="bio"
-                placeholder="Tell us a bit about yourself, your background, and what brings you to PauseAI…"
+                placeholder="Your background and what brings you to PauseAI…"
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
               />
