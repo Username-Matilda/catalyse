@@ -6,7 +6,7 @@ import {
   checkAdminBootstrap,
   acceptPendingInvite,
 } from '@/lib/auth'
-import { sendWelcomeEmail, sendEmailConfirmationEmail } from '@/lib/email'
+import { sendWelcomeEmail, sendWelcomeAndConfirmEmail } from '@/lib/email'
 import { validationError, fieldError } from '@/lib/errors'
 
 export async function POST(request: NextRequest) {
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
       },
     })
     emailVerificationToken = verificationToken.token
-    sendEmailConfirmationEmail(email, verificationToken.token, name).catch((e) =>
+    sendWelcomeAndConfirmEmail(email, verificationToken.token, name).catch((e) =>
       console.error('[SIGNUP] Email confirmation send failed:', e),
     )
   } else {
@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
       },
     })
     emailVerificationToken = verificationToken.token
-    sendEmailConfirmationEmail(email, verificationToken.token, name).catch((e) =>
+    sendWelcomeAndConfirmEmail(email, verificationToken.token, name).catch((e) =>
       console.error('[SIGNUP] Email confirmation send failed:', e),
     )
   }

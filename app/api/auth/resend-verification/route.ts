@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { randomBytes } from 'crypto'
 import { prisma } from '@/lib/prisma'
-import { sendEmailConfirmationEmail } from '@/lib/email'
+import { sendWelcomeAndConfirmEmail } from '@/lib/email'
 
 const STUB_EMAIL = ['1', 'true', 'yes'].includes((process.env.STUB_EMAIL ?? '').toLowerCase())
 const OK_MESSAGE = 'If that email is registered and unconfirmed, a new link has been sent.'
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     },
   })
 
-  sendEmailConfirmationEmail(volunteer.email, verificationToken.token, volunteer.name).catch((e) =>
+  sendWelcomeAndConfirmEmail(volunteer.email, verificationToken.token, volunteer.name).catch((e) =>
     console.error('[RESEND_VERIFICATION] Email failed:', e),
   )
 

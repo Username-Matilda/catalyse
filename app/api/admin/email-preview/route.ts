@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth'
 import {
-  buildEmailConfirmationHtml,
+  buildWelcomeAndConfirmHtml,
   buildApplicationReceivedHtml,
   buildApplicationApprovedHtml,
   buildApplicationRejectedHtml,
@@ -49,10 +49,12 @@ const SAMPLE_PROJECTS = [
 
 function buildPreview(type: string): { subject: string; html: string } | null {
   switch (type) {
-    case 'email-confirmation':
+    case 'welcome-google':
+      return { subject: 'Welcome to Catalyse!', html: buildWelcomeHtml('Alex', APP_URL) }
+    case 'welcome-and-confirm':
       return {
-        subject: 'Confirm your Catalyse email address',
-        html: buildEmailConfirmationHtml(
+        subject: 'Welcome to Catalyse — please confirm your email',
+        html: buildWelcomeAndConfirmHtml(
           'Alex',
           `${APP_URL}/verify-email?token=sample-token-abc123`,
         ),
@@ -93,8 +95,6 @@ function buildPreview(type: string): { subject: string; html: string } | null {
           'Jamie Smith',
         ),
       }
-    case 'welcome':
-      return { subject: 'Welcome to Catalyse!', html: buildWelcomeHtml('Alex', APP_URL) }
     case 'project-notification':
       return {
         subject: 'Your project has been approved',
@@ -226,14 +226,14 @@ export async function GET(request: NextRequest) {
   if (!type) {
     return NextResponse.json({
       types: [
-        'email-confirmation',
+        'welcome-google',
+        'welcome-and-confirm',
         'application-received',
         'application-approved',
         'application-rejected',
         'pending-applications-summary',
         'password-reset',
         'admin-invite',
-        'welcome',
         'project-notification',
         'local-group-suggestion-accepted',
         'local-group-suggestion-merge',

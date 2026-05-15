@@ -440,7 +440,7 @@ export default function Header() {
                   <MobileNavLink href="/profile">My Profile</MobileNavLink>
                   <MobileNavLink href="/settings">Account Settings</MobileNavLink>
 
-                  {user.is_admin && !isAdminPage && (
+                  {user.is_admin && (
                     <>
                       <MobileNavSection admin>Admin</MobileNavSection>
                       <MobileNavLink href="/admin/triage">Triage Queue</MobileNavLink>
