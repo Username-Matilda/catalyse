@@ -1,4 +1,4 @@
-import { test, expect, getAlert, confirmVolunteerEmail } from '../fixtures'
+import { test, expect, getAlert, confirmVolunteerEmail, approveVolunteer, rejectVolunteer } from '../fixtures'
 import { signup, login } from '../actions/auth'
 import { fake } from '../fake'
 
@@ -129,9 +129,11 @@ test.describe('Authentication: Signup & Login', () => {
       timeout: 10_000,
     })
 
-    const card = adminPage.locator('.bg-surface').filter({ hasText: person.name })
+    const card = adminPage.getByRole('article').filter({ hasText: person.name })
     await expect(card).toBeVisible({ timeout: 10_000 })
     await card.getByRole('button', { name: 'Approve' }).click()
+    // Approve opens a modal — confirm inside it
+    await adminPage.getByRole('dialog').getByRole('button', { name: 'Approve' }).click()
     await expect(getAlert(adminPage)).toContainText('Application approved', { timeout: 10_000 })
 
     // Approved volunteer can log in and reach dashboard without pending banner
@@ -231,6 +233,143 @@ test.describe('Authentication: Signup & Login', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token: newToken }),
+    })
+    expect(verifyResp.ok).toBeTruthy()
+  })
+
+  test('Admin can start review; application moves to Under Review tab', async ({
+    adminPage,
+    baseUrl,
+  }) => {
+    const person = fake.person()
+    await fetch(`${baseUrl}/api/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: person.name,
+        email: person.email,
+        password: 'testpassword1',
+        consent_make_profile_visible_in_directory: true,
+        consent_contactable_by_project_owners: true,
+      }),
+    })
+
+    await adminPage.goto(`${baseUrl}/admin/applications`)
+    await expect(adminPage.getByRole('heading', { name: 'Applications' })).toBeVisible({
+      timeout: 10_000,
+    })
+
+    const card = adminPage.getByRole('article').filter({ hasText: person.name })
+    await expect(card).toBeVisible({ timeout: 10_000 })
+    await card.getByRole('button', { name: 'Start Review' }).click()
+    await expect(getAlert(adminPage)).toContainText('Review started', { timeout: 10_000 })
+
+    // Card should leave Pending tab
+    await expect(card).not.toBeVisible({ timeout: 5_000 })
+
+    // Card should appear in Under Review tab with reviewer name shown
+    await adminPage.getByRole('tab', { name: 'Under Review' }).click()
+    const reviewCard = adminPage.getByRole('article').filter({ hasText: person.name })
+    await expect(reviewCard).toBeVisible({ timeout: 5_000 })
+    await expect(reviewCard.getByText(/Reviewer:/)).toBeVisible()
+  })
+
+  test('Admin can reject application with notes; notes visible on Rejected tab card', async ({
+    adminPage,
+    baseUrl,
+  }) => {
+    const person = fake.person()
+    await fetch(`${baseUrl}/api/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: person.name,
+        email: person.email,
+        password: 'testpassword1',
+        consent_make_profile_visible_in_directory: true,
+        consent_contactable_by_project_owners: true,
+      }),
+    })
+
+    await adminPage.goto(`${baseUrl}/admin/applications`)
+    await expect(adminPage.getByRole('heading', { name: 'Applications' })).toBeVisible({
+      timeout: 10_000,
+    })
+
+    const card = adminPage.getByRole('article').filter({ hasText: person.name })
+    await expect(card).toBeVisible({ timeout: 10_000 })
+    await card.getByRole('button', { name: 'Reject' }).click()
+
+    const modal = adminPage.getByRole('dialog')
+    await expect(modal).toBeVisible({ timeout: 5_000 })
+    await modal.getByPlaceholder(/Notes visible only to admins/).fill('Spam account')
+    await modal.getByPlaceholder(/Optional message/).fill('Your application did not meet our requirements.')
+    await modal.getByRole('button', { name: 'Reject' }).click()
+
+    await expect(getAlert(adminPage)).toContainText('Application rejected', { timeout: 10_000 })
+
+    // Notes visible on Rejected tab
+    await adminPage.getByRole('tab', { name: 'Rejected' }).click()
+    const rejectedCard = adminPage.getByRole('article').filter({ hasText: person.name })
+    await expect(rejectedCard).toBeVisible({ timeout: 5_000 })
+    await expect(rejectedCard.getByText('Spam account')).toBeVisible()
+    await expect(rejectedCard.getByText('Your application did not meet our requirements.')).toBeVisible()
+  })
+
+  test('Rejected application shows anonymisation countdown', async ({
+    adminPage,
+    baseUrl,
+  }) => {
+    const person = fake.person()
+    const signupResp = await fetch(`${baseUrl}/api/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: person.name,
+        email: person.email,
+        password: 'testpassword1',
+        consent_make_profile_visible_in_directory: true,
+        consent_contactable_by_project_owners: true,
+      }),
+    })
+    const { id: volunteerId } = await signupResp.json()
+
+    // Reject via API using the same helper pattern as approveVolunteer
+    await rejectVolunteer(baseUrl, volunteerId, 'Test rejection')
+
+    await adminPage.goto(`${baseUrl}/admin/applications`)
+    await adminPage.getByRole('tab', { name: 'Rejected' }).click()
+    const card = adminPage.getByRole('article').filter({ hasText: person.name })
+    await expect(card).toBeVisible({ timeout: 10_000 })
+    await expect(card.getByText(/will be anonymised on/i)).toBeVisible()
+    await expect(card.getByText('Test rejection')).toBeVisible()
+  })
+
+  test('Admin approved before email confirmation; verify-email succeeds', async ({ baseUrl }) => {
+    const person = fake.person()
+    const signupResp = await fetch(`${baseUrl}/api/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: person.name,
+        email: person.email,
+        password: 'testpassword1',
+        consent_make_profile_visible_in_directory: true,
+        consent_contactable_by_project_owners: true,
+      }),
+    })
+    expect(signupResp.ok).toBeTruthy()
+    const { id: volunteerId, email_verification_token } = await signupResp.json()
+    expect(email_verification_token).toBeTruthy()
+
+    // Admin approves before user confirms email
+    await approveVolunteer(baseUrl, volunteerId)
+
+    // User then confirms email — should still succeed
+    const verifyResp = await fetch(`${baseUrl}/api/auth/verify-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: email_verification_token }),
     })
     expect(verifyResp.ok).toBeTruthy()
   })

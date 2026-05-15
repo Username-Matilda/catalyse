@@ -420,6 +420,14 @@ model Volunteer {
   localGroup                              String?              @map("local_group")
   approvalStatus                          String               @default("PENDING") @map("approval_status")
   applicationMessage                      String?              @map("application_message")
+  applicationAdminNotes                   String?              @map("application_admin_notes")
+  applicationApplicantNotes               String?              @map("application_applicant_notes")
+  rejectedAt                              DateTime?            @map("rejected_at")
+  reviewerId                              Int?                 @map("reviewer_id")
+  reviewer                                Volunteer?           @relation("ApplicationReviewer", fields: [reviewerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reviewerOf                              Volunteer[]          @relation("ApplicationReviewer")
+  previousRejectionId                     Int?                 @map("previous_rejection_id")
+  previousRejection                       RejectedApplication? @relation(fields: [previousRejectionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   emailConfirmed                          Boolean              @default(false) @map("email_confirmed")
   invitesAccepted                         AdminInvite[]        @relation("AdminInviteAcceptedBy")
   invitesSent                             AdminInvite[]        @relation("AdminInviteInvitedBy")
@@ -454,4 +462,16 @@ model Volunteer {
   @@index([authToken], map: "idx_volunteers_auth_token")
   @@index([email], map: "idx_volunteers_email")
   @@map("volunteers")
+}
+
+model RejectedApplication {
+  id             Int         @id @default(autoincrement())
+  emailHash      String      @unique @map("email_hash")
+  rejectedAt     DateTime    @map("rejected_at")
+  adminNotes     String?     @map("admin_notes")
+  applicantNotes String?     @map("applicant_notes")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  reapplicants   Volunteer[]
+
+  @@map("rejected_applications")
 }

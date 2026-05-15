@@ -84,6 +84,30 @@ export async function confirmVolunteerEmail(baseUrl: string, token: string): Pro
   })
 }
 
+export async function rejectVolunteer(
+  baseUrl: string,
+  volunteerId: number,
+  adminNotes?: string,
+): Promise<void> {
+  const parallelIndex = parallelIndexFromBaseUrl(baseUrl)
+  const authFile = workerAuthFile(parallelIndex)
+  let adminToken: string | null = null
+  try {
+    const data = JSON.parse(fs.readFileSync(authFile, 'utf-8'))
+    const origin = data.origins?.find((o: { origin: string }) => o.origin === baseUrl)
+    adminToken =
+      origin?.localStorage?.find((ls: { name: string }) => ls.name === 'authToken')?.value ?? null
+  } catch {
+    return
+  }
+  if (!adminToken) return
+  await fetch(`${baseUrl}/api/admin/applications/${volunteerId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+    body: JSON.stringify({ action: 'reject', ...(adminNotes && { admin_notes: adminNotes }) }),
+  })
+}
+
 export async function approveVolunteer(baseUrl: string, volunteerId: number): Promise<void> {
   const parallelIndex = parallelIndexFromBaseUrl(baseUrl)
   const authFile = workerAuthFile(parallelIndex)

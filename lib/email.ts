@@ -152,19 +152,28 @@ export async function sendApplicationApprovedEmail(to: string, name: string): Pr
   )
 }
 
-export function buildApplicationRejectedHtml(name: string): string {
+export function buildApplicationRejectedHtml(name: string, applicantNotes?: string): string {
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
 <body><div class="container">
   <h2>Update on your Catalyse application</h2>
   <p>Hi ${name},</p>
-  <p>Thank you for applying to join Catalyse PauseAI. There was a problem with your submission.</p>
+  <p>Thank you for applying to join Catalyse PauseAI. Unfortunately we're unable to approve your application at this time.</p>
+  ${applicantNotes ? `<p>${applicantNotes}</p>` : ''}
   <p>You can contact <a href="mailto:uk@pauseai.info">uk@pauseai.info</a> if you have any queries.</p>
   ${footer()}
 </div></body></html>`
 }
 
-export async function sendApplicationRejectedEmail(to: string, name: string): Promise<boolean> {
-  return sendEmail(to, 'Update on your Catalyse application', buildApplicationRejectedHtml(name))
+export async function sendApplicationRejectedEmail(
+  to: string,
+  name: string,
+  applicantNotes?: string,
+): Promise<boolean> {
+  return sendEmail(
+    to,
+    'Update on your Catalyse application',
+    buildApplicationRejectedHtml(name, applicantNotes),
+  )
 }
 
 export function buildPendingApplicationsSummaryHtml(count: number, appUrl: string): string {

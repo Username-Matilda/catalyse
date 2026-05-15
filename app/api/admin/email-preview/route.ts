@@ -70,7 +70,10 @@ function buildPreview(type: string): { subject: string; html: string } | null {
     case 'application-rejected':
       return {
         subject: 'Update on your Catalyse application',
-        html: buildApplicationRejectedHtml('Alex'),
+        html: buildApplicationRejectedHtml(
+          'Alex',
+          'Unfortunately your application did not meet our current requirements. You are welcome to reapply in the future.',
+        ),
       }
     case 'pending-applications-summary':
       return {

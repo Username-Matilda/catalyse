@@ -34,12 +34,12 @@ test.describe('Dashboard', () => {
       timeout: 10_000,
     })
 
-    // My Projects tab is active by default
-    await expect(volunteer.page.getByRole('tab', { name: 'My Projects' })).toHaveClass(/\bactive\b/)
+    // Owned Projects tab is active by default
+    await expect(volunteer.page.getByRole('tab', { name: 'Owned Projects' })).toHaveClass(/\bactive\b/)
 
-    // My Interests tab
-    await volunteer.page.getByRole('tab', { name: 'My Interests' }).click()
-    await expect(volunteer.page.getByRole('tab', { name: 'My Interests' })).toHaveClass(
+    // Interested Projects tab
+    await volunteer.page.getByRole('tab', { name: 'Interested Projects' }).click()
+    await expect(volunteer.page.getByRole('tab', { name: 'Interested Projects' })).toHaveClass(
       /\bactive\b/,
     )
 
