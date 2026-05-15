@@ -132,20 +132,28 @@ export default function ProjectsPage() {
     setSortBy('')
   }
 
-  const seeking = projects.filter((p) => p.is_seeking_help || p.is_seeking_owner)
-  const inProgress = projects.filter(
+  function byMatchScore(a: Project, b: Project) {
+    const scoreA = a.match?.matched_required_count ?? 0
+    const scoreB = b.match?.matched_required_count ?? 0
+    return scoreB - scoreA
+  }
+  const sortGroup = (list: Project[]) =>
+    userSkillIds.size > 0 ? [...list].sort(byMatchScore) : list
+
+  const seeking = sortGroup(projects.filter((p) => p.is_seeking_help || p.is_seeking_owner))
+  const inProgress = sortGroup(projects.filter(
     (p) => !p.is_seeking_help && !p.is_seeking_owner && p.status === 'in_progress',
-  )
-  const onHold = projects.filter(
+  ))
+  const onHold = sortGroup(projects.filter(
     (p) => !p.is_seeking_help && !p.is_seeking_owner && p.status === 'on_hold',
-  )
-  const completed = projects.filter((p) => p.status === 'completed')
-  const other = projects.filter(
+  ))
+  const completed = sortGroup(projects.filter((p) => p.status === 'completed'))
+  const other = sortGroup(projects.filter(
     (p) =>
       !p.is_seeking_help &&
       !p.is_seeking_owner &&
       !['in_progress', 'on_hold', 'completed'].includes(p.status),
-  )
+  ))
 
   const groups = [
     {

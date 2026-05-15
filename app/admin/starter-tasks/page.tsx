@@ -319,7 +319,7 @@ export default function AdminStarterTasksPage() {
             marginBottom: 12,
           }}
         >
-          <h1>Starter Tasks</h1>
+          <h1>Quick Tasks</h1>
           <Button onClick={() => setShowCreate(true)}>Create Task</Button>
         </div>
 
@@ -349,7 +349,7 @@ export default function AdminStarterTasksPage() {
           <div className="text-center py-10 text-text-light">Loading…</div>
         ) : tasks.length === 0 ? (
           <div className="bg-surface rounded-xl shadow p-6 text-center">
-            <h3>No starter tasks</h3>
+            <h3>No quick tasks</h3>
             <p className="text-text-light">
               Create one to verify a volunteer&apos;s skills before giving them a bigger project.
             </p>
@@ -578,7 +578,7 @@ export default function AdminStarterTasksPage() {
             className="bg-surface rounded-xl shadow-lg max-w-150 w-full max-h-[90vh] overflow-y-auto"
           >
             <div className="px-6 py-5 border-b border-brand-border flex justify-between items-center">
-              <h2 id="create-dialog-title">Create Starter Task</h2>
+              <h2 id="create-dialog-title">Create Quick Task</h2>
             </div>
             <div className="p-6">
               <form onSubmit={createTask}>
@@ -668,7 +668,7 @@ export default function AdminStarterTasksPage() {
             className="bg-surface rounded-xl shadow-lg max-w-150 w-full max-h-[90vh] overflow-y-auto"
           >
             <div className="px-6 py-5 border-b border-brand-border flex justify-between items-center">
-              <h2 id="edit-dialog-title">Edit Starter Task</h2>
+              <h2 id="edit-dialog-title">Edit Quick Task</h2>
             </div>
             <div className="p-6">
               <form onSubmit={editTask}>

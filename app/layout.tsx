@@ -28,7 +28,10 @@ const sairaCondensed = Saira_Condensed({
 })
 
 export const metadata: Metadata = {
-  title: 'Catalyse',
+  title: {
+    template: 'Catalyse | %s',
+    default: 'Catalyse | All Projects',
+  },
   description: 'PauseAI UK volunteer platform',
 }
 

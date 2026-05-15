@@ -23,7 +23,7 @@
     "test:dev:headed": "E2E_DEV=1 playwright test --headed --workers=1",
     "test:ui": "SLOW_MO=800 playwright test --ui --headed --workers=1",
     "test:dev:ui": "E2E_DEV=1 SLOW_MO=800 playwright test --ui --headed --workers=1",
-    "cron:backup": "curl -sf -X POST -H \"Authorization: Bearer $CRON_SECRET\" $PROD_URL/api/cron/backup | jq"
+    "cron:backup": "tsx scripts/cron-backup.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
