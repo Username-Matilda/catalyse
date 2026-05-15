@@ -4,12 +4,8 @@ import { requireSuperAdmin } from '@/lib/auth'
 
 const SINGLETON_ID = 1
 
-async function getSettings() {
-  return prisma.platformSettings.upsert({
-    where: { id: SINGLETON_ID },
-    create: { id: SINGLETON_ID, requireApplicationApproval: true },
-    update: {},
-  })
+function getSettings() {
+  return prisma.platformSettings.findUniqueOrThrow({ where: { id: SINGLETON_ID } })
 }
 
 export async function GET(request: NextRequest) {
@@ -40,7 +36,6 @@ export async function PATCH(request: NextRequest) {
     )
   }
 
-  await getSettings()
   const settings = await prisma.platformSettings.update({
     where: { id: SINGLETON_ID },
     data: { requireApplicationApproval: body.require_application_approval },
