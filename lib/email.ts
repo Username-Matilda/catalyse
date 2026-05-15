@@ -153,12 +153,16 @@ export async function sendApplicationApprovedEmail(to: string, name: string): Pr
 }
 
 export function buildApplicationRejectedHtml(name: string, applicantNotes?: string): string {
+  const notesHtml = applicantNotes
+    ? `<p><strong>Feedback from the team:</strong></p>
+  <div style="background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0; white-space: pre-wrap;">${applicantNotes}</div>`
+    : ''
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
 <body><div class="container">
   <h2>Update on your Catalyse application</h2>
   <p>Hi ${name},</p>
   <p>Thank you for applying to join Catalyse PauseAI. Unfortunately we're unable to approve your application at this time.</p>
-  ${applicantNotes ? `<p>${applicantNotes}</p>` : ''}
+  ${notesHtml}
   <p>You can contact <a href="mailto:uk@pauseai.info">uk@pauseai.info</a> if you have any queries.</p>
   ${footer()}
 </div></body></html>`

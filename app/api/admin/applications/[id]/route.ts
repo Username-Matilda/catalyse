@@ -1,10 +1,79 @@
+import { createHash } from 'crypto'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireAdmin } from '@/lib/auth'
+import { requireSuperAdmin, serializeSkill } from '@/lib/auth'
 import { sendApplicationApprovedEmail, sendApplicationRejectedEmail } from '@/lib/email'
+import { APPLICATION_ANONYMISATION_MS } from '@/lib/applications'
+
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { error } = await requireSuperAdmin(request.headers.get('authorization'))
+  if (error) return error
+
+  const { id: idParam } = await params
+  const volunteerId = parseInt(idParam, 10)
+  if (isNaN(volunteerId)) {
+    return Response.json({ detail: 'Invalid volunteer ID' }, { status: 400 })
+  }
+
+  const v = await prisma.volunteer.findFirst({
+    where: { id: volunteerId, deletedAt: null },
+    include: {
+      skills: {
+        include: { skill: { include: { category: true } } },
+        orderBy: [{ skill: { category: { sortOrder: 'asc' } } }, { skill: { sortOrder: 'asc' } }],
+      },
+      reviewer: { select: { id: true, name: true } },
+    },
+  })
+
+  if (!v) return Response.json({ detail: 'Volunteer not found' }, { status: 404 })
+
+  const emailHash = v.email
+    ? createHash('sha256').update(v.email.toLowerCase().trim()).digest('hex')
+    : null
+
+  const previousRejections = emailHash
+    ? await prisma.rejectedApplication.findMany({
+        where: { emailHash },
+        orderBy: { rejectedAt: 'desc' },
+        select: { rejectedAt: true, adminNotes: true, applicantNotes: true },
+      })
+    : []
+
+  return Response.json({
+    id: v.id,
+    name: v.name,
+    email: v.email,
+    bio: v.bio,
+    application_message: v.applicationMessage,
+    approval_status: v.approvalStatus,
+    created_at: v.createdAt,
+    rejected_at: v.rejectedAt,
+    anonymise_at: v.rejectedAt
+      ? new Date(v.rejectedAt.getTime() + APPLICATION_ANONYMISATION_MS).toISOString()
+      : null,
+    admin_notes: v.applicationAdminNotes,
+    applicant_notes: v.applicationApplicantNotes,
+    reviewer: v.reviewer ? { id: v.reviewer.id, name: v.reviewer.name } : null,
+    previous_rejections: previousRejections.map((r) => ({
+      rejected_at: r.rejectedAt,
+      admin_notes: r.adminNotes,
+      applicant_notes: r.applicantNotes,
+    })),
+    availability_hours_per_week: v.availabilityHoursPerWeek,
+    location: v.location,
+    country: v.country,
+    local_group: v.localGroup,
+    signal_number: v.signalNumber,
+    whatsapp_number: v.whatsappNumber,
+    discord_handle: v.discordHandle,
+    contact_notes: v.contactNotes,
+    skills: v.skills.map(serializeSkill),
+  })
+}
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { volunteer: admin, error } = await requireAdmin(request.headers.get('authorization'))
+  const { volunteer: admin, error } = await requireSuperAdmin(request.headers.get('authorization'))
   if (error) return error
 
   const { id: idParam } = await params

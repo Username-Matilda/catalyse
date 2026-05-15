@@ -1,11 +1,11 @@
 import { createHash } from 'crypto'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireAdmin, serializeSkill } from '@/lib/auth'
+import { requireSuperAdmin, serializeSkill } from '@/lib/auth'
 import { APPLICATION_ANONYMISATION_MS } from '@/lib/applications'
 
 export async function GET(request: NextRequest) {
-  const { volunteer: admin, error } = await requireAdmin(request.headers.get('authorization'))
+  const { volunteer: admin, error } = await requireSuperAdmin(request.headers.get('authorization'))
   if (error) return error
 
   const { searchParams } = new URL(request.url)

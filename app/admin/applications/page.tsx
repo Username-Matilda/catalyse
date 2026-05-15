@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Button from '@/components/Button'
+import FilterDropdown from '@/components/FilterDropdown'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
 import { useToast } from '@/lib/toast'
+
 
 interface Application {
   id: number
@@ -45,14 +47,6 @@ interface AnonymisedApplication {
   applicant_notes: string | null
 }
 
-interface NotesModalState {
-  id: number
-  name: string
-  action: 'approve' | 'reject' | 'edit_notes'
-  adminNotes: string
-  applicantNotes: string
-}
-
 export default function ApplicationsPage() {
   const router = useRouter()
   const { user, loading } = useAuth()
@@ -61,12 +55,11 @@ export default function ApplicationsPage() {
   const [anonymisedApplications, setAnonymisedApplications] = useState<AnonymisedApplication[]>([])
   const [loadingData, setLoadingData] = useState(true)
   const [filter, setFilter] = useState<FilterKey>('mine')
-  const [submitting, setSubmitting] = useState<number | null>(null)
-  const [modal, setModal] = useState<NotesModalState | null>(null)
+  const [startingReview, setStartingReview] = useState<number | null>(null)
 
   useEffect(() => {
     if (!loading && !user) router.push('/login')
-    if (!loading && user && !user.is_admin) router.push('/')
+    if (!loading && user && !user.is_super_admin) router.push('/')
   }, [user, loading, router])
 
   const loadApplications = useCallback(
@@ -96,61 +89,32 @@ export default function ApplicationsPage() {
     if (user?.is_admin) loadApplications(filter)
   }, [user, filter, loadApplications])
 
-  async function handleAction(
-    id: number,
-    action: 'start_review' | 'approve' | 'reject' | 'update_notes',
-    adminNotes?: string,
-    applicantNotes?: string,
-  ) {
-    setSubmitting(id)
-    setModal(null)
+  async function handleStartReview(id: number) {
+    setStartingReview(id)
     try {
       await apiRequest(`/api/admin/applications/${id}`, {
         method: 'PATCH',
-        body: JSON.stringify({
-          action,
-          ...(adminNotes !== undefined && { admin_notes: adminNotes }),
-          ...(applicantNotes !== undefined && { applicant_notes: applicantNotes }),
-        }),
+        body: JSON.stringify({ action: 'start_review' }),
       })
-      const label =
-        action === 'start_review'
-          ? 'Review started'
-          : action === 'approve'
-            ? 'Application approved'
-            : action === 'reject'
-              ? 'Application rejected'
-              : 'Notes updated'
-      showToast(label, 'success')
-      await loadApplications(filter)
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : `Failed to ${action}`, 'error')
+    } catch {
+      // ignore — navigate anyway, page will show current status
     } finally {
-      setSubmitting(null)
+      setStartingReview(null)
+      router.push(`/admin/applications/${id}`)
     }
-  }
-
-  function openModal(app: Application, action: 'approve' | 'reject' | 'edit_notes') {
-    setModal({
-      id: app.id,
-      name: app.name,
-      action,
-      adminNotes: app.admin_notes ?? '',
-      applicantNotes: app.applicant_notes ?? '',
-    })
   }
 
   if (loading || !user) return null
 
-  const filterOptions: { key: FilterKey; label: string }[] = [
-    { key: 'mine', label: 'Pending & Under Review by Me' },
-    { key: 'others', label: 'Under Review by Others' },
-    { key: 'approved', label: 'Approved' },
-    { key: 'rejected', label: 'Rejected' },
-    { key: 'rejected_anonymised', label: 'Rejected – Anonymised' },
+  const filterOptions = [
+    { value: 'mine', label: 'Pending & Under Review by Me' },
+    { value: 'others', label: 'Under Review by Others' },
+    { value: 'approved', label: 'Approved' },
+    { value: 'rejected', label: 'Rejected' },
+    { value: 'rejected_anonymised', label: 'Rejected – Anonymised' },
   ]
 
-  const emptyLabel = filterOptions.find((o) => o.key === filter)?.label.toLowerCase() ?? ''
+  const emptyLabel = filterOptions.find((o) => o.value === filter)?.label.toLowerCase() ?? ''
   const isEmpty =
     filter === 'rejected_anonymised' ? anonymisedApplications.length === 0 : applications.length === 0
 
@@ -160,17 +124,14 @@ export default function ApplicationsPage() {
       <p className="text-text-light mb-6">Review new volunteer applications.</p>
 
       <div className="mb-6">
-        <select
+        <FilterDropdown
+          id="applications-filter"
+          label="Show"
+          ariaLabel="Filter applications"
           value={filter}
-          onChange={(e) => setFilter(e.target.value as FilterKey)}
-          className="w-auto"
-        >
-          {filterOptions.map((o) => (
-            <option key={o.key} value={o.key}>
-              {o.label}
-            </option>
-          ))}
-        </select>
+          options={filterOptions}
+          onChange={(v) => setFilter(v as FilterKey)}
+        />
       </div>
 
       {loadingData ? (
@@ -189,114 +150,33 @@ export default function ApplicationsPage() {
             <ApplicationCard
               key={app.id}
               app={app}
-              submitting={submitting}
-              onStartReview={(id) => handleAction(id, 'start_review')}
-              onOpenModal={openModal}
+              startingReview={startingReview}
+              onStartReview={handleStartReview}
+              onNavigate={(id) => router.push(`/admin/applications/${id}`)}
             />
           ))}
         </div>
       )}
 
-      {modal && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={() => setModal(null)}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            className="bg-surface rounded-xl shadow-lg p-6 w-full max-w-lg"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="mb-4">
-              {modal.action === 'approve'
-                ? 'Approve'
-                : modal.action === 'reject'
-                  ? 'Reject'
-                  : 'Edit Notes'}{' '}
-              — {modal.name}
-            </h2>
-
-            <label className="block text-sm font-medium mb-1">
-              Internal admin notes
-              <span className="text-text-light font-normal ml-1">(not sent to applicant)</span>
-            </label>
-            <textarea
-              className="w-full border border-border rounded-lg p-3 text-sm mb-4 bg-background"
-              rows={3}
-              value={modal.adminNotes}
-              onChange={(e) => setModal({ ...modal, adminNotes: e.target.value })}
-              placeholder="Notes visible only to admins…"
-            />
-
-            {(modal.action === 'reject' || modal.action === 'edit_notes') && (
-              <>
-                <label className="block text-sm font-medium mb-1">
-                  Message to applicant
-                  <span className="text-text-light font-normal ml-1">
-                    {modal.action === 'reject'
-                      ? '(included in rejection email)'
-                      : '(only sent if applicant is later rejected)'}
-                  </span>
-                </label>
-                <textarea
-                  className="w-full border border-border rounded-lg p-3 text-sm mb-4 bg-background"
-                  rows={3}
-                  value={modal.applicantNotes}
-                  onChange={(e) => setModal({ ...modal, applicantNotes: e.target.value })}
-                  placeholder="Optional message to applicant…"
-                />
-              </>
-            )}
-
-            <div className="flex gap-2 justify-end">
-              <Button variant="secondary" onClick={() => setModal(null)}>
-                Cancel
-              </Button>
-              <Button
-                variant={modal.action === 'reject' ? 'danger' : 'primary'}
-                disabled={submitting === modal.id}
-                onClick={() =>
-                  handleAction(
-                    modal.id,
-                    modal.action === 'edit_notes' ? 'update_notes' : modal.action,
-                    modal.adminNotes,
-                    modal.applicantNotes,
-                  )
-                }
-              >
-                {modal.action === 'approve'
-                  ? 'Approve'
-                  : modal.action === 'reject'
-                    ? 'Reject'
-                    : 'Save'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </main>
   )
 }
 
 function ApplicationCard({
   app,
-  submitting,
+  startingReview,
   onStartReview,
-  onOpenModal,
+  onNavigate,
 }: {
   app: Application
-  submitting: number | null
+  startingReview: number | null
   onStartReview: (id: number) => void
-  onOpenModal: (app: Application, action: 'approve' | 'reject' | 'edit_notes') => void
+  onNavigate: (id: number) => void
 }) {
   const anonymiseDate = app.anonymise_at ? new Date(app.anonymise_at) : null
   const daysUntilAnonymise = anonymiseDate
     ? Math.ceil((anonymiseDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
     : null
-
-  const hasActions =
-    app.approval_status === 'PENDING' || app.approval_status === 'UNDER_REVIEW'
 
   const locationParts = [app.local_group, app.country ?? app.location].filter(Boolean)
   const meta = [
@@ -414,36 +294,21 @@ function ApplicationCard({
       )}
 
       <div className="flex gap-2 justify-end border-t border-brand-border pt-4 mt-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onOpenModal(app, 'edit_notes')}
-          disabled={submitting === app.id}
-        >
-          Edit Notes
-        </Button>
-        {hasActions && (
-          <>
-            {app.approval_status === 'PENDING' && (
-              <Button
-                variant="secondary"
-                onClick={() => onStartReview(app.id)}
-                disabled={submitting === app.id}
-              >
-                Start Review
-              </Button>
-            )}
-            <Button onClick={() => onOpenModal(app, 'approve')} disabled={submitting === app.id}>
-              Approve
-            </Button>
-            <Button
-              variant="danger"
-              onClick={() => onOpenModal(app, 'reject')}
-              disabled={submitting === app.id}
-            >
-              Reject
-            </Button>
-          </>
+        {app.approval_status === 'PENDING' ? (
+          <Button
+            onClick={() => onStartReview(app.id)}
+            disabled={startingReview === app.id}
+          >
+            Start Review
+          </Button>
+        ) : app.approval_status === 'UNDER_REVIEW' ? (
+          <Button onClick={() => onNavigate(app.id)}>
+            Continue Review
+          </Button>
+        ) : (
+          <Button variant="secondary" onClick={() => onNavigate(app.id)}>
+            View
+          </Button>
         )}
       </div>
     </div>

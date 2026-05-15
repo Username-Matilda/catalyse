@@ -282,17 +282,19 @@ export default function Header() {
                           >
                             Platform Stats
                           </Link>
-                          <Link
-                            href="/admin/applications"
-                            className="block px-4 py-3 text-[var(--text)] no-underline"
-                          >
-                            Manage Applications
-                          </Link>
+                          {user.is_super_admin && (
+                            <Link
+                              href="/admin/applications"
+                              className="block px-4 py-3 text-[var(--text)] no-underline"
+                            >
+                              Manage Applications
+                            </Link>
+                          )}
                           <Link
                             href="/admin/local-groups"
                             className="block px-4 py-3 text-[var(--text)] no-underline"
                           >
-                            Manage local groups
+                            Manage Local Groups
                           </Link>
                         </>
                       )}
@@ -442,8 +444,10 @@ export default function Header() {
                       <MobileNavLink href="/admin/bugs">Bug Reports</MobileNavLink>
                       <MobileNavLink href="/admin/team">Admin Team</MobileNavLink>
                       <MobileNavLink href="/admin/stats">Platform Stats</MobileNavLink>
-                      <MobileNavLink href="/admin/applications">Manage Applications</MobileNavLink>
-                      <MobileNavLink href="/admin/local-groups">Manage local groups</MobileNavLink>
+                      {user.is_super_admin && (
+                        <MobileNavLink href="/admin/applications">Manage Applications</MobileNavLink>
+                      )}
+                      <MobileNavLink href="/admin/local-groups">Manage Local Groups</MobileNavLink>
                     </>
                   )}
 

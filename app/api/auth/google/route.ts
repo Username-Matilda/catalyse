@@ -4,6 +4,7 @@ import { generateAuthToken, checkAdminBootstrap, acceptPendingInvite } from '@/l
 import { sendWelcomeEmail, sendApplicationReceivedEmail } from '@/lib/email'
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID
+const STUB_GOOGLE = !GOOGLE_CLIENT_ID && process.env.NODE_ENV !== 'production'
 
 async function verifyGoogleToken(credential: string) {
   if (!GOOGLE_CLIENT_ID) return null
@@ -32,7 +33,7 @@ async function verifyGoogleToken(credential: string) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!GOOGLE_CLIENT_ID) {
+  if (!GOOGLE_CLIENT_ID && !STUB_GOOGLE) {
     return Response.json({ detail: 'Google Sign-In is not configured' }, { status: 503 })
   }
 
@@ -43,12 +44,19 @@ export async function POST(request: NextRequest) {
     return Response.json({ detail: 'Invalid JSON' }, { status: 400 })
   }
 
-  const googleUser = await verifyGoogleToken(String(body.credential || ''))
-  if (!googleUser) {
-    return Response.json({ detail: 'Invalid Google token' }, { status: 401 })
-  }
+  let email: string
+  let name: string
 
-  const { email, name } = googleUser
+  if (STUB_GOOGLE && body.stub === true) {
+    email = String(body.email || 'stub@example.com')
+    name = String(body.name || 'Stub User')
+  } else {
+    const googleUser = await verifyGoogleToken(String(body.credential || ''))
+    if (!googleUser) {
+      return Response.json({ detail: 'Invalid Google token' }, { status: 401 })
+    }
+    ;({ email, name } = googleUser)
+  }
   const existing = await prisma.volunteer.findFirst({
     where: { email, deletedAt: null },
   })
@@ -108,5 +116,6 @@ export async function POST(request: NextRequest) {
     auth_token: authToken,
     is_new_user: true,
     is_pending: !isApproved,
+    name,
   })
 }

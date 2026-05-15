@@ -131,10 +131,13 @@ test.describe('Authentication: Signup & Login', () => {
 
     const card = adminPage.getByRole('article').filter({ hasText: person.name })
     await expect(card).toBeVisible({ timeout: 10_000 })
-    await card.getByRole('button', { name: 'Approve' }).click()
-    // Approve opens a modal — confirm inside it
+    await card.getByRole('button', { name: 'Start Review' }).click()
+    await expect(adminPage).toHaveURL(/\/admin\/applications\/\d+/, { timeout: 10_000 })
+    await adminPage.getByRole('button', { name: 'Approve' }).click()
+    await expect(adminPage.getByRole('dialog')).toBeVisible({ timeout: 5_000 })
     await adminPage.getByRole('dialog').getByRole('button', { name: 'Approve' }).click()
     await expect(getAlert(adminPage)).toContainText('Application approved', { timeout: 10_000 })
+    await expect(adminPage).toHaveURL(/\/admin\/applications$/, { timeout: 10_000 })
 
     // Approved volunteer can log in and reach dashboard without pending banner
     const ctx = await browser.newContext()
@@ -262,15 +265,23 @@ test.describe('Authentication: Signup & Login', () => {
     const card = adminPage.getByRole('article').filter({ hasText: person.name })
     await expect(card).toBeVisible({ timeout: 10_000 })
     await card.getByRole('button', { name: 'Start Review' }).click()
-    await expect(getAlert(adminPage)).toContainText('Review started', { timeout: 10_000 })
+    await expect(adminPage).toHaveURL(/\/admin\/applications\/\d+/, { timeout: 10_000 })
+    await adminPage.goto(`${baseUrl}/admin/applications`)
+    await expect(adminPage.getByRole('heading', { name: 'Applications' })).toBeVisible({
+      timeout: 10_000,
+    })
 
     // Card stays visible in "mine" filter (UNDER_REVIEW by me is still "mine")
-    await expect(card).toBeVisible({ timeout: 5_000 })
-    await expect(card.getByText(/Reviewer:/)).toBeVisible()
+    const mineCard = adminPage.getByRole('article').filter({ hasText: person.name })
+    await expect(mineCard.getByRole('button', { name: 'Continue Review' })).toBeVisible({
+      timeout: 5_000,
+    })
+    await expect(mineCard.getByText(/Reviewer:/)).toBeVisible()
 
     // Card also appears in "others" tab when viewed by a different reviewer (not tested here),
     // and in the dedicated Under Review by Others filter — switch to confirm it's gone from others
-    await adminPage.getByRole('combobox').selectOption('others')
+    await adminPage.getByRole('button', { name: 'Filter applications' }).click()
+    await adminPage.getByRole('option', { name: 'Under Review by Others' }).click()
     const othersCard = adminPage.getByRole('article').filter({ hasText: person.name })
     await expect(othersCard).not.toBeVisible({ timeout: 5_000 })
   })
@@ -299,18 +310,23 @@ test.describe('Authentication: Signup & Login', () => {
 
     const card = adminPage.getByRole('article').filter({ hasText: person.name })
     await expect(card).toBeVisible({ timeout: 10_000 })
-    await card.getByRole('button', { name: 'Reject' }).click()
+    await card.getByRole('button', { name: 'Start Review' }).click()
+    await expect(adminPage).toHaveURL(/\/admin\/applications\/\d+/, { timeout: 10_000 })
+
+    await adminPage.getByPlaceholder('Notes visible only to admins…').fill('Spam account')
+    await adminPage.getByPlaceholder('Optional message to applicant…').fill('Your application did not meet our requirements.')
+    await adminPage.getByRole('button', { name: 'Reject' }).click()
 
     const modal = adminPage.getByRole('dialog')
     await expect(modal).toBeVisible({ timeout: 5_000 })
-    await modal.getByPlaceholder(/Notes visible only to admins/).fill('Spam account')
-    await modal.getByPlaceholder(/Optional message/).fill('Your application did not meet our requirements.')
     await modal.getByRole('button', { name: 'Reject' }).click()
 
     await expect(getAlert(adminPage)).toContainText('Application rejected', { timeout: 10_000 })
+    await expect(adminPage).toHaveURL(/\/admin\/applications$/, { timeout: 10_000 })
 
     // Notes visible on Rejected filter
-    await adminPage.getByRole('combobox').selectOption('rejected')
+    await adminPage.getByRole('button', { name: 'Filter applications' }).click()
+    await adminPage.getByRole('option', { name: 'Rejected', exact: true }).click()
     const rejectedCard = adminPage.getByRole('article').filter({ hasText: person.name })
     await expect(rejectedCard).toBeVisible({ timeout: 5_000 })
     await expect(rejectedCard.getByText('Spam account')).toBeVisible()
@@ -339,7 +355,9 @@ test.describe('Authentication: Signup & Login', () => {
     await rejectVolunteer(baseUrl, volunteerId, 'Test rejection')
 
     await adminPage.goto(`${baseUrl}/admin/applications`)
-    await adminPage.getByRole('combobox').selectOption('rejected')
+    await expect(adminPage.getByRole('heading', { name: 'Applications' })).toBeVisible({ timeout: 10_000 })
+    await adminPage.getByRole('button', { name: 'Filter applications' }).click()
+    await adminPage.getByRole('option', { name: 'Rejected', exact: true }).click()
     const card = adminPage.getByRole('article').filter({ hasText: person.name })
     await expect(card).toBeVisible({ timeout: 10_000 })
     await expect(card.getByText(/will be anonymised on/i)).toBeVisible()

@@ -34,6 +34,7 @@ export async function PUT(request: NextRequest) {
     'local_group',
     'other_skills',
     'email_digest',
+    'application_message',
   ] as const
 
   const prismaFieldMap: Record<string, string> = {
@@ -46,6 +47,7 @@ export async function PUT(request: NextRequest) {
     local_group: 'localGroup',
     other_skills: 'otherSkills',
     email_digest: 'emailDigest',
+    application_message: 'applicationMessage',
   }
 
   const data: Record<string, unknown> = { updatedAt: new Date() }

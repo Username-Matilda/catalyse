@@ -167,8 +167,10 @@ export async function POST(request: NextRequest) {
     select: { passwordHash: true },
   })
 
-  if (!vol?.passwordHash || !verifyPassword(String(body.password || ''), vol.passwordHash)) {
-    return Response.json({ detail: 'Password is incorrect' }, { status: 400 })
+  if (vol?.passwordHash) {
+    if (!verifyPassword(String(body.password || ''), vol.passwordHash)) {
+      return Response.json({ detail: 'Password is incorrect' }, { status: 400 })
+    }
   }
 
   await prisma.deletionRequest.create({
