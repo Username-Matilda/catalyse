@@ -8,6 +8,31 @@ type Param = string | number | boolean
 
 const EMAIL_TYPES: { value: string; label: string; params: Record<string, Param> }[] = [
   {
+    value: 'email-confirmation',
+    label: 'Email Confirmation',
+    params: { name: 'Alex', confirm_token: 'sample-token-abc123' },
+  },
+  {
+    value: 'application-received',
+    label: 'Application Received',
+    params: { name: 'Alex' },
+  },
+  {
+    value: 'application-approved',
+    label: 'Application Approved',
+    params: { name: 'Alex' },
+  },
+  {
+    value: 'application-rejected',
+    label: 'Application Rejected',
+    params: { name: 'Alex' },
+  },
+  {
+    value: 'pending-applications-summary',
+    label: 'Pending Applications Summary',
+    params: { count: 3 },
+  },
+  {
     value: 'password-reset',
     label: 'Password Reset',
     params: { name: 'Alex', reset_token: 'sample-token-abc123' },

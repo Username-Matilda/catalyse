@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth'
 import {
+  buildEmailConfirmationHtml,
+  buildApplicationReceivedHtml,
+  buildApplicationApprovedHtml,
+  buildApplicationRejectedHtml,
+  buildPendingApplicationsSummaryHtml,
   buildPasswordResetHtml,
   buildAdminInviteHtml,
   buildWelcomeHtml,
@@ -44,6 +49,34 @@ const SAMPLE_PROJECTS = [
 
 function buildPreview(type: string): { subject: string; html: string } | null {
   switch (type) {
+    case 'email-confirmation':
+      return {
+        subject: 'Confirm your Catalyse email address',
+        html: buildEmailConfirmationHtml(
+          'Alex',
+          `${APP_URL}/verify-email?token=sample-token-abc123`,
+        ),
+      }
+    case 'application-received':
+      return {
+        subject: 'Your Catalyse application has been received',
+        html: buildApplicationReceivedHtml('Alex'),
+      }
+    case 'application-approved':
+      return {
+        subject: 'Your Catalyse application has been approved',
+        html: buildApplicationApprovedHtml('Alex', APP_URL),
+      }
+    case 'application-rejected':
+      return {
+        subject: 'Update on your Catalyse application',
+        html: buildApplicationRejectedHtml('Alex'),
+      }
+    case 'pending-applications-summary':
+      return {
+        subject: '3 pending applications on Catalyse',
+        html: buildPendingApplicationsSummaryHtml(3, APP_URL),
+      }
     case 'password-reset':
       return {
         subject: 'Reset your Catalyse password',
@@ -190,6 +223,11 @@ export async function GET(request: NextRequest) {
   if (!type) {
     return NextResponse.json({
       types: [
+        'email-confirmation',
+        'application-received',
+        'application-approved',
+        'application-rejected',
+        'pending-applications-summary',
         'password-reset',
         'admin-invite',
         'welcome',

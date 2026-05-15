@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { sendApplicationReceivedEmail } from '@/lib/email'
+import { sendApplicationReceivedEmail, sendApplicationApprovedEmail } from '@/lib/email'
 
 export async function POST(request: NextRequest) {
   let body: Record<string, unknown>
@@ -17,7 +17,11 @@ export async function POST(request: NextRequest) {
 
   const record = await prisma.emailVerificationToken.findUnique({
     where: { token },
-    include: { volunteer: { select: { id: true, name: true, email: true, emailConfirmed: true } } },
+    include: {
+      volunteer: {
+        select: { id: true, name: true, email: true, emailConfirmed: true, approvalStatus: true },
+      },
+    },
   })
 
   if (!record) {
@@ -47,9 +51,16 @@ export async function POST(request: NextRequest) {
   ])
 
   if (!volunteer.emailConfirmed && volunteer.email) {
-    sendApplicationReceivedEmail(volunteer.email, volunteer.name).catch((e) =>
-      console.error('[VERIFY_EMAIL] Application received email failed:', e),
-    )
+    if (volunteer.approvalStatus === 'APPROVED') {
+      sendApplicationApprovedEmail(volunteer.email, volunteer.name).catch((e) =>
+        console.error('[VERIFY_EMAIL] Application approved email failed:', e),
+      )
+    } else if (volunteer.approvalStatus === 'PENDING') {
+      sendApplicationReceivedEmail(volunteer.email, volunteer.name).catch((e) =>
+        console.error('[VERIFY_EMAIL] Application received email failed:', e),
+      )
+    }
+    // REJECTED: send nothing
   }
 
   return Response.json({ success: true })
