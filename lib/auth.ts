@@ -168,7 +168,10 @@ export async function acceptPendingInvite(email: string, volunteerId: number): P
   `
   const invite = result[0]
   if (!invite) return false
-  await prisma.volunteer.update({ where: { id: volunteerId }, data: { isAdmin: true, approvalStatus: 'APPROVED', emailConfirmed: true } })
+  await prisma.volunteer.update({
+    where: { id: volunteerId },
+    data: { isAdmin: true, approvalStatus: 'APPROVED', emailConfirmed: true },
+  })
   await prisma.adminInvite.update({
     where: { id: invite.id },
     data: { status: 'accepted', acceptedById: volunteerId, acceptedAt: new Date() },

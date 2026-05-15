@@ -100,9 +100,17 @@ export function buildEmailConfirmationHtml(name: string, confirmUrl: string): st
 </div></body></html>`
 }
 
-export async function sendEmailConfirmationEmail(to: string, token: string, name: string): Promise<boolean> {
+export async function sendEmailConfirmationEmail(
+  to: string,
+  token: string,
+  name: string,
+): Promise<boolean> {
   const confirmUrl = `${APP_URL}/verify-email?token=${token}`
-  return sendEmail(to, 'Confirm your Catalyse email address', buildEmailConfirmationHtml(name, confirmUrl))
+  return sendEmail(
+    to,
+    'Confirm your Catalyse email address',
+    buildEmailConfirmationHtml(name, confirmUrl),
+  )
 }
 
 export function buildApplicationReceivedHtml(name: string): string {
@@ -117,7 +125,11 @@ export function buildApplicationReceivedHtml(name: string): string {
 }
 
 export async function sendApplicationReceivedEmail(to: string, name: string): Promise<boolean> {
-  return sendEmail(to, 'Your Catalyse application has been received', buildApplicationReceivedHtml(name))
+  return sendEmail(
+    to,
+    'Your Catalyse application has been received',
+    buildApplicationReceivedHtml(name),
+  )
 }
 
 export function buildApplicationApprovedHtml(name: string, appUrl: string): string {
@@ -133,7 +145,11 @@ export function buildApplicationApprovedHtml(name: string, appUrl: string): stri
 }
 
 export async function sendApplicationApprovedEmail(to: string, name: string): Promise<boolean> {
-  return sendEmail(to, 'Your Catalyse application has been approved', buildApplicationApprovedHtml(name, APP_URL))
+  return sendEmail(
+    to,
+    'Your Catalyse application has been approved',
+    buildApplicationApprovedHtml(name, APP_URL),
+  )
 }
 
 export function buildApplicationRejectedHtml(name: string): string {
@@ -162,7 +178,11 @@ export function buildPendingApplicationsSummaryHtml(count: number, appUrl: strin
 </div></body></html>`
 }
 
-export async function sendPendingApplicationsSummaryEmail(to: string, name: string, count: number): Promise<boolean> {
+export async function sendPendingApplicationsSummaryEmail(
+  to: string,
+  name: string,
+  count: number,
+): Promise<boolean> {
   const plural = count === 1 ? 'application' : 'applications'
   return sendEmail(
     to,
@@ -283,10 +303,14 @@ export async function sendProjectNotificationEmail(
 }
 
 const LOCAL_GROUP_SUGGESTION_MESSAGES: Record<string, (groupName: string) => string> = {
-  accepted: (g) => `Great news! Your suggestion <strong>"${g}"</strong> has been added as a new local group on Catalyse.`,
-  merge: (g) => `Your suggestion <strong>"${g}"</strong> has been merged with an existing local group.`,
-  on_hold: (g) => `Your local group suggestion <strong>"${g}"</strong> is currently under review. We'll be in touch if we need more information.`,
-  declined: (g) => `Thanks for your suggestion of <strong>"${g}"</strong>. After review, we've decided not to add it as a separate local group at this time.`,
+  accepted: (g) =>
+    `Great news! Your suggestion <strong>"${g}"</strong> has been added as a new local group on Catalyse.`,
+  merge: (g) =>
+    `Your suggestion <strong>"${g}"</strong> has been merged with an existing local group.`,
+  on_hold: (g) =>
+    `Your local group suggestion <strong>"${g}"</strong> is currently under review. We'll be in touch if we need more information.`,
+  declined: (g) =>
+    `Thanks for your suggestion of <strong>"${g}"</strong>. After review, we've decided not to add it as a separate local group at this time.`,
 }
 
 export function buildLocalGroupSuggestionHtml(
@@ -296,7 +320,9 @@ export function buildLocalGroupSuggestionHtml(
   adminNotes?: string | null,
 ): string {
   const getMessage = LOCAL_GROUP_SUGGESTION_MESSAGES[action]
-  const message = getMessage ? getMessage(groupName) : `Your local group suggestion "${groupName}" has been reviewed.`
+  const message = getMessage
+    ? getMessage(groupName)
+    : `Your local group suggestion "${groupName}" has been reviewed.`
   const notesHtml = adminNotes ? `<p><em>${adminNotes}</em></p>` : ''
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
 <body><div class="container">

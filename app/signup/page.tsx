@@ -26,6 +26,8 @@ export default function SignupPage() {
 
   // Form fields
   const [applicationPending, setApplicationPending] = useState(false)
+  const [resendSent, setResendSent] = useState(false)
+  const [resendCooldown, setResendCooldown] = useState(0)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -50,6 +52,22 @@ export default function SignupPage() {
   useEffect(() => {
     if (!loading && user) router.replace('/dashboard')
   }, [user, loading, router])
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return
+    const t = setTimeout(() => setResendCooldown((c) => c - 1), 1000)
+    return () => clearTimeout(t)
+  }, [resendCooldown])
+
+  async function handleResend() {
+    await fetch('/api/auth/resend-verification', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    })
+    setResendSent(true)
+    setResendCooldown(60)
+  }
 
   useEffect(() => {
     apiRequest<{ client_id: string }>('/api/auth/google-client-id')
@@ -175,7 +193,27 @@ export default function SignupPage() {
               Once confirmed, your application will be reviewed by our team. You&#39;ll be able to
               browse projects while you wait.
             </p>
-            <p className="text-text-light text-sm">
+            <div className="mt-6 pt-6 border-t border-border">
+              {resendSent ? (
+                <p className="text-text-light text-sm">
+                  {resendCooldown > 0
+                    ? `Email sent! You can request another in ${resendCooldown}s.`
+                    : 'Email sent! Check your inbox.'}
+                </p>
+              ) : (
+                <p className="text-text-light text-sm">
+                  Didn&#39;t receive it?{' '}
+                  <button
+                    onClick={handleResend}
+                    disabled={resendCooldown > 0}
+                    className="underline disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Resend confirmation email
+                  </button>
+                </p>
+              )}
+            </div>
+            <p className="text-text-light text-sm mt-4">
               Questions? Contact{' '}
               <a href="mailto:uk@pauseai.info" className="underline">
                 uk@pauseai.info

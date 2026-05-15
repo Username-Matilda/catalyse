@@ -24,7 +24,10 @@ export async function POST(request: NextRequest) {
     return Response.json({ detail: 'Invalid or expired confirmation link' }, { status: 400 })
   }
   if (record.usedAt) {
-    return Response.json({ detail: 'This confirmation link has already been used' }, { status: 400 })
+    return Response.json(
+      { detail: 'This confirmation link has already been used' },
+      { status: 400 },
+    )
   }
   if (record.expiresAt < new Date()) {
     return Response.json({ detail: 'This confirmation link has expired' }, { status: 400 })

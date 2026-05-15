@@ -153,4 +153,85 @@ test.describe('Authentication: Signup & Login', () => {
     await volunteer.page.goto(`${baseUrl}/login`)
     await expect(volunteer.page).toHaveURL(`${baseUrl}/dashboard`, { timeout: 10_000 })
   })
+
+  test('Resend confirmation email button appears on pending screen and sends email', async ({
+    browser,
+    baseUrl,
+  }) => {
+    const context = await browser.newContext()
+    const page = await context.newPage()
+    try {
+      const person = fake.person()
+      await signup(baseUrl, page, person.name, person.email, 'testpassword1')
+      await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible({
+        timeout: 10_000,
+      })
+      await page.getByRole('button', { name: 'Resend confirmation email' }).click()
+      await expect(page.getByText(/Email sent!/)).toBeVisible({ timeout: 5_000 })
+    } finally {
+      await context.close()
+    }
+  })
+
+  test('Resend invalidates old confirmation token', async ({ baseUrl }) => {
+    const person = fake.person()
+    const signupResp = await fetch(`${baseUrl}/api/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: person.name,
+        email: person.email,
+        password: 'testpassword1',
+        consent_make_profile_visible_in_directory: true,
+        consent_contactable_by_project_owners: true,
+      }),
+    })
+    expect(signupResp.ok).toBeTruthy()
+    const { email_verification_token: oldToken } = await signupResp.json()
+    expect(oldToken).toBeTruthy()
+
+    await fetch(`${baseUrl}/api/auth/resend-verification`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: person.email }),
+    })
+
+    const verifyResp = await fetch(`${baseUrl}/api/auth/verify-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: oldToken }),
+    })
+    expect(verifyResp.status).toBe(400)
+  })
+
+  test('New token from resend confirms email successfully', async ({ baseUrl }) => {
+    const person = fake.person()
+    await fetch(`${baseUrl}/api/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: person.name,
+        email: person.email,
+        password: 'testpassword1',
+        consent_make_profile_visible_in_directory: true,
+        consent_contactable_by_project_owners: true,
+      }),
+    })
+
+    const resendResp = await fetch(`${baseUrl}/api/auth/resend-verification`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: person.email }),
+    })
+    expect(resendResp.ok).toBeTruthy()
+    const { email_verification_token: newToken } = await resendResp.json()
+    expect(newToken).toBeTruthy()
+
+    const verifyResp = await fetch(`${baseUrl}/api/auth/verify-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: newToken }),
+    })
+    expect(verifyResp.ok).toBeTruthy()
+  })
 })

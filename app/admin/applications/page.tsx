@@ -37,9 +37,7 @@ export default function ApplicationsPage() {
     async function (status: string) {
       setLoadingData(true)
       try {
-        const data = await apiRequest<Application[]>(
-          `/api/admin/applications?status=${status}`,
-        )
+        const data = await apiRequest<Application[]>(`/api/admin/applications?status=${status}`)
         setApplications(data)
       } catch {
         showToast('Failed to load applications', 'error')
@@ -51,6 +49,8 @@ export default function ApplicationsPage() {
   )
 
   useEffect(() => {
+    // False positive: loadApplications is async; setState only runs after the awaited API response, never synchronously.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (user?.is_admin) loadApplications(activeTab)
   }, [user, activeTab, loadApplications])
 

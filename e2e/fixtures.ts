@@ -91,7 +91,8 @@ export async function approveVolunteer(baseUrl: string, volunteerId: number): Pr
   try {
     const data = JSON.parse(fs.readFileSync(authFile, 'utf-8'))
     const origin = data.origins?.find((o: { origin: string }) => o.origin === baseUrl)
-    adminToken = origin?.localStorage?.find((ls: { name: string }) => ls.name === 'authToken')?.value ?? null
+    adminToken =
+      origin?.localStorage?.find((ls: { name: string }) => ls.name === 'authToken')?.value ?? null
   } catch {
     return
   }

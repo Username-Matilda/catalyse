@@ -122,7 +122,11 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const response: Record<string, unknown> = { id: volunteer.id, auth_token: authToken, pending: !isApproved }
+  const response: Record<string, unknown> = {
+    id: volunteer.id,
+    auth_token: authToken,
+    pending: !isApproved,
+  }
   const stubEmail = ['1', 'true', 'yes'].includes((process.env.STUB_EMAIL ?? '').toLowerCase())
   if (stubEmail && emailVerificationToken) {
     response.email_verification_token = emailVerificationToken

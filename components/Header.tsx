@@ -54,6 +54,8 @@ function DashboardNavButtons({ unreadCount }: { unreadCount: number }) {
 
   // Sync hash when pathname changes (navigating to/from dashboard)
   useEffect(() => {
+    // Re-reads window.location.hash after Next.js client navigation — the router does not track the hash fragment.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHash(typeof window !== 'undefined' ? window.location.hash : '')
   }, [pathname])
 
@@ -447,13 +449,16 @@ export default function Header() {
                   <MobileNavLink href="/signup">Sign Up</MobileNavLink>
                 </>
               ))}
-
           </div>
 
           {/* Pinned bottom bar */}
           <div className="shrink-0 border-t border-brand-border bg-surface">
             <div className="flex items-center overflow-hidden w-full">
-              <ThemeToggle icon={false} size="md" className="rounded-none flex-1 justify-center self-stretch" />
+              <ThemeToggle
+                icon={false}
+                size="md"
+                className="rounded-none flex-1 justify-center self-stretch"
+              />
               <button
                 onClick={() => {
                   setBugDialogOpen(true)

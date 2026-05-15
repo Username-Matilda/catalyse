@@ -91,10 +91,15 @@ export async function GET(request: NextRequest) {
   const volunteer = await getCurrentVolunteer(request.headers.get('authorization'))
 
   if (volunteer && !volunteer.emailConfirmed && !volunteer.isAdmin) {
-    return Response.json({ detail: 'Please confirm your email address to browse projects' }, { status: 403 })
+    return Response.json(
+      { detail: 'Please confirm your email address to browse projects' },
+      { status: 403 },
+    )
   }
 
-  const isPending = Boolean(volunteer && volunteer.approvalStatus !== 'APPROVED' && !volunteer.isAdmin)
+  const isPending = Boolean(
+    volunteer && volunteer.approvalStatus !== 'APPROVED' && !volunteer.isAdmin,
+  )
 
   let volunteerSkillIds: Set<number> | undefined
   if (volunteer) {
@@ -131,7 +136,13 @@ export async function GET(request: NextRequest) {
     .map((p) => {
       const serialized = serializeProject(p as EnrichedProject, volunteerSkillIds)
       if (isPending) {
-        return { ...serialized, owner: null, owner_id: null, proposed_by: null, proposed_by_id: null }
+        return {
+          ...serialized,
+          owner: null,
+          owner_id: null,
+          proposed_by: null,
+          proposed_by_id: null,
+        }
       }
       return serialized
     })

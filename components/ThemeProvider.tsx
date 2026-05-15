@@ -35,6 +35,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const stored = (localStorage.getItem('theme') as Theme) ?? 'system'
     const resolved = resolveTheme(stored)
+    // resolvedTheme starts undefined to avoid SSR/client hydration mismatch; browser APIs are unavailable on the server so this effect is the only valid place to initialise it.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setResolvedTheme(resolved)
     document.documentElement.setAttribute('data-theme', resolved)
 
