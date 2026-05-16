@@ -149,7 +149,6 @@ function buildPreview(type: string): { subject: string; html: string } | null {
           'Jamie Smith',
           'Collaboration on AI Safety Explainer Series',
           'Hi Alex,\n\nI came across your profile and think your writing skills would be a great fit for our project. Would you be interested in jumping on a call this week?\n\nThanks,\nJamie',
-          APP_URL,
           'AI Safety Explainer Series',
         ),
       }

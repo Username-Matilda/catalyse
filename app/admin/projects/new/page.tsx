@@ -23,7 +23,6 @@ export default function AdminCreateProjectPage() {
         <p className="text-text-light mb-6">
           Create a project on behalf of PauseAI UK. This skips the approval process.
         </p>
-        {/* TODO: add a "Save as draft" option so org projects can be created without immediately going live */}
         <div className="max-w-4xl">
           <ProjectForm
             action="/api/admin/projects"

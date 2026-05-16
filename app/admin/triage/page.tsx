@@ -203,7 +203,6 @@ export default function TriagePage() {
 
         {tab === 'interests' ? (
           <>
-            {/* TODO: add typeahead volunteer filtering so admins can search interests by volunteer name */}
             <div className="mb-5 flex items-end gap-3">
               <FilterDropdown
                 id="interest-status-filter"
@@ -336,7 +335,6 @@ export default function TriagePage() {
               <p>No projects awaiting {tab === 'pending_review' ? 'review' : 'discussion'}.</p>
             ) : (
               <div className={CARD_GRID_CLASSES}>
-                {/* TODO: for needs_discussion projects, show the feedback message sent to the volunteer and allow admins to send follow-up messages */}
                 {visible.map((p) => (
                   <ProjectCard
                     key={p.id}

@@ -32,11 +32,6 @@ export async function GET(request: NextRequest) {
     consentMakeProfileVisibleInDirectory: true,
     ...(skillIds && skillIds.length > 0 ? { skills: { some: { skillId: { in: skillIds } } } } : {}),
     ...(search ? { OR: [{ name: { contains: search } }, { bio: { contains: search } }] } : {}),
-    // TODO: volunteers have two overlapping location fields — `location` (freeform, older) and
-    // `country` (structured, added later). Volunteers who filled in `location` before `country`
-    // existed have no `country` value, so we fall back to a LIKE match on `location`. These
-    // fields should be rationalised: ideally migrate existing `location` data into `country`
-    // (and a separate city/region field), then drop the fallback and filter on `country` alone.
     ...(country
       ? {
           OR: [{ country }, { country: null, location: { contains: country } }],

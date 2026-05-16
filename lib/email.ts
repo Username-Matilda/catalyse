@@ -371,16 +371,11 @@ export async function sendLocalGroupSuggestionEmail(
   return sendEmail(to, subject, buildLocalGroupSuggestionHtml(name, action, groupName, adminNotes))
 }
 
-// TODO: Relay replies bypass the platform — once the recipient hits reply, the thread becomes a
-// private email exchange with no platform record. Re-evaluate if ongoing coordination via the
-// platform is needed: inbound routing (Resend webhooks + per-conversation relay addresses) would
-// fix this but requires a messages table and inbound webhook handler.
 export function buildRelayMessageHtml(
   toName: string,
   fromName: string,
   subject: string,
   message: string,
-  appUrl: string,
   projectTitle?: string,
 ): string {
   const projectContext = projectTitle ? ` about the project <strong>${projectTitle}</strong>` : ''
@@ -413,7 +408,7 @@ export async function sendRelayMessage(
   return sendEmail(
     to,
     `[Catalyse] ${subject}`,
-    buildRelayMessageHtml(toName, fromName, subject, message, APP_URL, projectTitle),
+    buildRelayMessageHtml(toName, fromName, subject, message, projectTitle),
     fromEmail,
   )
 }

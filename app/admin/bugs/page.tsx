@@ -232,7 +232,6 @@ export default function AdminBugsPage() {
             <div className="p-6">
               <p className="text-text-light mb-4 text-sm">{editModal.description}</p>
 
-              {/* TODO: add quick-action buttons to mark as in_progress with an assignee, without opening the full edit form */}
               <div className="mb-5">
                 <FilterDropdown
                   id="edit-status"
