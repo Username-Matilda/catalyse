@@ -1,14 +1,8 @@
-import path from 'path'
-import os from 'os'
-
 export const DEMO_PORT = 3099
 export const BASE_URL = `http://localhost:${DEMO_PORT}`
-export const DEMO_DB_DIR = path.join(os.tmpdir(), 'catalyse_demo')
-export const DEMO_DB_PATH = path.join(DEMO_DB_DIR, 'catalyse.db')
 export const ADMIN_EMAIL = 'admin@example.com'
 export const ADMIN_PASSWORD = 'admin1'
 export const NOREPLY_EMAIL = 'noreply@pauseai.uk'
-export const SCRATCH_DIR = path.join(process.cwd(), 'demo', '.scratch')
 export const SPEED = 1 // <1 = slower, >1 = faster
 
 export const APPLICANT = {
@@ -49,5 +43,3 @@ export const REJECT_APPLICANT = {
   adminNotes: 'Seems that the application is mostly about finding users for their startup.',
   rejectionMessage: "Thank you for applying. After careful review, we don't think this is the right fit at this time.",
 }
-
-export const DEMO_VIDEO_TITLE = 'Volunteer Signup & Approval Flow'

@@ -1,11 +1,11 @@
-import { Browser, Locator } from '@playwright/test'
+import { Browser, Locator, Page } from '@playwright/test'
 import { DemoEngine } from '../engine'
-import { buildEmailClientHtml, buildTitleCardHtml } from '../html'
+import { buildTitleCardHtml } from '../html'
 import { apiSignup, apiVerifyEmail } from '../api'
+import { showEmailClient } from '../helpers'
 import {
   APPLICANT,
   REJECT_APPLICANT,
-  DEMO_VIDEO_TITLE,
   ADMIN_EMAIL,
   ADMIN_PASSWORD,
   NOREPLY_EMAIL,
@@ -13,7 +13,12 @@ import {
 } from '../data'
 import { buildWelcomeAndConfirmHtml } from '../../lib/email'
 
-export async function recordDemoFlow(engine: DemoEngine, browser: Browser): Promise<void> {
+export const meta = {
+  name: 'volunteer-signup-approval-flow',
+  title: 'Volunteer Signup & Approval Flow',
+} as const
+
+export async function run(engine: DemoEngine, browser: Browser): Promise<void> {
   await recordApplicantSignup(engine, browser)
   await recordApplicantPending(engine, browser)
   await recordAdminReview(engine, browser)
@@ -26,7 +31,7 @@ async function recordApplicantSignup(engine: DemoEngine, browser: Browser): Prom
 
   const { ctx, page } = await engine.beginSegment(browser)
 
-  await engine.showTitleCard(`${BASE_URL}/`, buildTitleCardHtml(DEMO_VIDEO_TITLE))
+  await engine.showTitleCard(`${BASE_URL}/`, buildTitleCardHtml(meta.title))
   await engine.narrate(
     "Let me walk you through Catalyse. We'll see how a volunteer applies, and how an admin reviews and approves their application",
   )
@@ -171,20 +176,14 @@ async function recordApplicantPending(engine: DemoEngine, browser: Browser): Pro
   await page.goto(`${BASE_URL}/dashboard`)
   await engine.pause(300)
 
-  // Fade out, switch to mock email client
-  await engine.fadeOut(400)
-
   const confirmUrl = `${BASE_URL}/verify-email?token=${_verifyToken}`
   const emailHtml = buildWelcomeAndConfirmHtml(APPLICANT.name, confirmUrl)
-  const emailClientHtml = buildEmailClientHtml(
-    'Confirm your Catalyse email address',
-    NOREPLY_EMAIL,
-    APPLICANT.email,
-    emailHtml,
-  )
-  await page.setContent(emailClientHtml)
-  await engine.placeCursor(120, 400)
-  await engine.pause(600)
+  await showEmailClient(engine, page, {
+    subject: 'Confirm your Catalyse email address',
+    from: NOREPLY_EMAIL,
+    to: APPLICANT.email,
+    bodyHtml: emailHtml,
+  })
 
   await engine.narrate(
     "Alex checks their email. There's a verification email from Catalyse",

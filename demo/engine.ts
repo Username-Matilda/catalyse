@@ -3,7 +3,7 @@ import { execSync, spawn, ChildProcess } from 'child_process'
 import crypto from 'crypto'
 import path from 'path'
 import fs from 'fs'
-import { SCRATCH_DIR, SPEED, BASE_URL } from './data'
+import { SPEED, BASE_URL } from './data'
 
 // ─── Audio synthesis ──────────────────────────────────────────────────────────
 
@@ -77,8 +77,10 @@ export class DemoEngine {
   private detectMode = false
   private detectedTexts: string[] = []
   private pregeneratedCache = new Map<string, string>()
+  private readonly scratchDir: string
 
-  constructor(opts: { detectMode?: boolean } = {}) {
+  constructor(opts: { detectMode?: boolean; scratchDir?: string } = {}) {
+    this.scratchDir = opts.scratchDir ?? path.join(process.cwd(), 'demo', '.scratch')
     this.detectMode = opts.detectMode ?? false
     if (!this.detectMode) {
       this.CLICK_CLIP = this.loadClip(path.join(SOUNDS_DIR, 'click.mp3'))
@@ -799,7 +801,7 @@ export class DemoEngine {
 
   private async newContext(browser: Browser, authToken?: string): Promise<BrowserContext> {
     const ctx = await browser.newContext({
-      recordVideo: { dir: SCRATCH_DIR, size: { width: 1280, height: 800 } },
+      recordVideo: { dir: this.scratchDir, size: { width: 1280, height: 800 } },
       viewport: { width: 1280, height: 800 },
     })
     await ctx.addInitScript(CURSOR_SCRIPT)
@@ -850,7 +852,7 @@ export class DemoEngine {
 
     if (videoPath) {
       const idx = this.segments.length
-      const clipPath = path.join(SCRATCH_DIR, `clip-${idx.toString().padStart(2, '0')}.webm`)
+      const clipPath = path.join(this.scratchDir, `clip-${idx.toString().padStart(2, '0')}.webm`)
       fs.renameSync(videoPath, clipPath)
       this.mixAudioIntoClip(clipPath, events, narration)
       this.segments.push(clipPath)
@@ -863,7 +865,7 @@ export class DemoEngine {
       console.warn('No segments to compile.')
       return
     }
-    const concatFile = path.join(SCRATCH_DIR, 'concat.txt')
+    const concatFile = path.join(this.scratchDir, 'concat.txt')
     fs.writeFileSync(concatFile, this.segments.map((f) => `file '${f}'`).join('\n'))
     console.log(`\nMerging ${this.segments.length} segment(s) → ${outputPath}`)
     execSync(`ffmpeg -y -f concat -safe 0 -i "${concatFile}" -c copy "${outputPath}"`, { stdio: 'pipe' })
