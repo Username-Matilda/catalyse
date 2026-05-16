@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Demo compare viewer</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; }
+
+header { padding: 14px 20px; border-bottom: 1px solid #1e293b; display: flex; gap: 12px; align-items: center; }
+h1 { font-size: 14px; font-weight: 600; }
+#flowName { font-size: 12px; color: #475569; }
+#summary { font-size: 12px; color: #64748b; }
+#summary .hit { color: #f59e0b; font-weight: 600; }
+.global-audio { display: flex; gap: 4px; margin-left: auto; align-items: center; }
+.global-audio-label { font-size: 10px; color: #475569; text-transform: uppercase; letter-spacing: 0.06em; margin-right: 4px; }
+
+.scene-list { display: flex; flex-direction: column; }
+
+.scene { border-bottom: 1px solid #1e293b; border-left: 3px solid transparent; }
+.scene.changed { border-left-color: #f59e0b; }
+
+.scene-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; cursor: pointer; user-select: none;
+}
+.scene-header:hover { background: rgba(255,255,255,0.02); }
+.chevron { font-size: 10px; color: #475569; transition: transform 0.15s; flex-shrink: 0; }
+.scene.open .chevron { transform: rotate(90deg); }
+.scene-key { font-size: 12px; color: #f1f5f9; flex: 1; min-width: 0; }
+.dur { font-size: 11px; color: #64748b; }
+.arrow { color: #334155; }
+.delta { font-size: 10px; padding: 1px 5px; border-radius: 3px; font-weight: 600; }
+.delta.longer { background: #052e16; color: #86efac; }
+.delta.shorter { background: #450a0a; color: #fca5a5; }
+.badge { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: #78350f; color: #fef3c7; font-weight: 600; flex-shrink: 0; }
+
+.scene-body { display: none; padding: 0 16px 14px; }
+.scene.open .scene-body { display: block; }
+
+.videos { display: flex; gap: 10px; margin-bottom: 10px; }
+.video-col { flex: 1; min-width: 0; }
+.side-label { font-size: 9px; color: #475569; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.07em; }
+video { width: 100%; border-radius: 4px; background: #000; display: block; }
+.no-video { height: 80px; border-radius: 4px; background: #1e293b; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #475569; }
+
+/* Waveform */
+.waveform-wrap { position: relative; margin-bottom: 8px; }
+.wf-side-labels {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  display: flex; flex-direction: column; justify-content: space-around;
+  pointer-events: none; z-index: 1;
+  padding: 2px 0;
+}
+.wf-side-label { font-size: 8px; color: #475569; text-transform: uppercase; letter-spacing: 0.06em; padding: 0 5px; }
+.waveform-canvas {
+  display: block; width: 100%; height: 72px;
+  border-radius: 4px; cursor: crosshair;
+  border: 1px solid #1e293b;
+}
+
+/* Controls */
+.controls { display: flex; align-items: center; gap: 10px; padding: 4px 0; }
+.play-btn {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: #334155; border: none; color: #f8fafc;
+  font-size: 11px; cursor: pointer; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.play-btn:hover { background: #475569; }
+.time { font-size: 11px; color: #64748b; font-variant-numeric: tabular-nums; min-width: 100px; }
+.audio-btn {
+  padding: 3px 9px; border-radius: 4px; font-size: 10px; cursor: pointer;
+  background: #1e293b; border: 1px solid #334155; color: #64748b;
+}
+.audio-btn.active { background: #1e3a5f; border-color: #3b82f6; color: #93c5fd; }
+
+/* Frames */
+.frames-row { display: flex; gap: 8px; margin-top: 10px; }
+.frame-col { flex: 1; }
+.frames { display: flex; gap: 6px; }
+figure { flex: 1; min-width: 0; }
+figcaption { font-size: 9px; color: #475569; margin-bottom: 3px; text-transform: uppercase; }
+img { width: 100%; border-radius: 3px; display: block; border: 1px solid #1e293b; }
+
+.loading { padding: 48px 24px; text-align: center; color: #475569; font-size: 13px; }
+.error { padding: 48px 24px; text-align: center; color: #fca5a5; font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Demo compare</h1>
+  <span id="flowName"></span>
+  <span id="summary"></span>
+  <div class="global-audio">
+    <span class="global-audio-label">Audio</span>
+    <button class="audio-btn" data-side="before">🔊 Before</button>
+    <button class="audio-btn active" data-side="after">🔊 After</button>
+  </div>
+</header>
+<div id="root"><div class="loading">Loading results…</div></div>
+
+<script>
+// ── Waveform decode ──────────────────────────────────────────────────────────
+
+async function decodePeaks(url, buckets = 300) {
+  try {
+    const res = await fetch(url)
+    if (!res.ok) return null
+    const buf = await res.arrayBuffer()
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+    let decoded
+    try { decoded = await audioCtx.decodeAudioData(buf) } catch { return null } finally { audioCtx.close() }
+    const data = decoded.getChannelData(0)
+    const step = Math.max(1, Math.floor(data.length / buckets))
+    const peaks = new Float32Array(buckets)
+    for (let i = 0; i < buckets; i++) {
+      let max = 0
+      const end = Math.min((i + 1) * step, data.length)
+      for (let j = i * step; j < end; j++) max = Math.max(max, Math.abs(data[j]))
+      peaks[i] = max
+    }
+    return peaks
+  } catch { return null }
+}
+
+// ── Global audio state ───────────────────────────────────────────────────────
+
+const globalAudio = { side: 'after' } // 'before' | 'after'
+const allPlayers = new Map()
+
+function setGlobalAudio(side) {
+  globalAudio.side = side
+  document.querySelectorAll('.audio-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.side === side))
+  for (const player of allPlayers.values()) player.applyAudio()
+}
+
+// ── ScenePlayer ──────────────────────────────────────────────────────────────
+
+class ScenePlayer {
+  constructor(el, scene) {
+    this.el = el
+    this.scene = scene
+    this.beforeDur = scene.beforeDurationMs / 1000
+    this.afterDur = scene.afterDurationMs / 1000
+    this.maxDur = Math.max(this.beforeDur, this.afterDur, 0.01)
+    this.currentTime = 0
+    this.playing = false
+    this.beforePeaks = null
+    this.afterPeaks = null
+    this.rafId = null
+
+    this.vBefore = el.querySelector('.v-before')
+    this.vAfter = el.querySelector('.v-after')
+    this.canvas = el.querySelector('.waveform-canvas')
+    this.ctx = this.canvas.getContext('2d')
+    this.playBtn = el.querySelector('.play-btn')
+    this.timeEl = el.querySelector('.time')
+
+    this.applyAudio()
+    this.setupEvents()
+    this.resizeCanvas()
+    this.drawWaveforms(0)
+
+    // Load waveforms async
+    Promise.all([
+      scene.hasBeforeVideo ? decodePeaks(`/scene/before/${scene.safeKey}`) : Promise.resolve(null),
+      scene.hasAfterVideo ? decodePeaks(`/scene/after/${scene.safeKey}`) : Promise.resolve(null),
+    ]).then(([b, a]) => {
+      this.beforePeaks = b
+      this.afterPeaks = a
+      this.drawWaveforms(this.currentTime / this.maxDur)
+    })
+  }
+
+  applyAudio() {
+    if (this.vBefore) this.vBefore.muted = globalAudio.side !== 'before'
+    if (this.vAfter) this.vAfter.muted = globalAudio.side !== 'after'
+  }
+
+  setupEvents() {
+    this.playBtn.addEventListener('click', () => this.togglePlay())
+
+    // Ended
+    const onEnded = () => {
+      const bDone = !this.vBefore || this.vBefore.ended || this.vBefore.currentTime >= this.beforeDur - 0.05
+      const aDone = !this.vAfter || this.vAfter.ended || this.vAfter.currentTime >= this.afterDur - 0.05
+      if (bDone && aDone) {
+        this.playing = false
+        cancelAnimationFrame(this.rafId)
+        this.playBtn.textContent = '▶'
+      }
+    }
+    if (this.vBefore) this.vBefore.addEventListener('ended', onEnded)
+    if (this.vAfter) this.vAfter.addEventListener('ended', onEnded)
+
+    // Canvas scrubbing
+    const canvas = this.canvas
+    let dragging = false
+
+    const seekFromEvent = (e) => {
+      const rect = canvas.getBoundingClientRect()
+      const frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
+      this.seek(frac * this.maxDur)
+    }
+
+    canvas.addEventListener('mousedown', (e) => { dragging = true; seekFromEvent(e) })
+    window.addEventListener('mousemove', (e) => { if (dragging) seekFromEvent(e) })
+    window.addEventListener('mouseup', () => { dragging = false })
+
+    // Resize
+    new ResizeObserver(() => { this.resizeCanvas(); this.drawWaveforms(this.currentTime / this.maxDur) })
+      .observe(canvas)
+  }
+
+  resizeCanvas() {
+    const canvas = this.canvas
+    const dpr = window.devicePixelRatio || 1
+    canvas.width = canvas.offsetWidth * dpr
+    canvas.height = canvas.offsetHeight * dpr
+    this.ctx.scale(dpr, dpr)
+  }
+
+  seek(t) {
+    this.currentTime = Math.max(0, Math.min(t, this.maxDur))
+    if (this.vBefore) this.vBefore.currentTime = Math.min(this.currentTime, this.beforeDur)
+    if (this.vAfter) this.vAfter.currentTime = Math.min(this.currentTime, this.afterDur)
+    this.updateUI()
+  }
+
+  togglePlay() {
+    if (this.playing) {
+      if (this.vBefore) this.vBefore.pause()
+      if (this.vAfter) this.vAfter.pause()
+      this.playing = false
+      cancelAnimationFrame(this.rafId)
+      this.playBtn.textContent = '▶'
+    } else {
+      if (this.currentTime >= this.maxDur - 0.05) this.seek(0)
+      if (this.vBefore) this.vBefore.play().catch(() => {})
+      if (this.vAfter) this.vAfter.play().catch(() => {})
+      this.playing = true
+      this.playBtn.textContent = '⏸'
+      this.tick()
+    }
+  }
+
+  tick() {
+    if (!this.playing) return
+    // Use the longer-duration video as time master
+    const master = this.beforeDur >= this.afterDur ? this.vBefore : this.vAfter
+    if (master) this.currentTime = master.currentTime
+    this.updateUI()
+    this.rafId = requestAnimationFrame(() => this.tick())
+  }
+
+  updateUI() {
+    const frac = this.currentTime / this.maxDur
+    this.drawWaveforms(frac)
+    const fmt = t => {
+      const m = Math.floor(t / 60)
+      const s = (t % 60).toFixed(1).padStart(4, '0')
+      return `${m}:${s}`
+    }
+    this.timeEl.textContent = `${fmt(this.currentTime)} / ${fmt(this.maxDur)}`
+  }
+
+  drawWaveforms(playFrac) {
+    const canvas = this.canvas
+    const dpr = window.devicePixelRatio || 1
+    const W = canvas.offsetWidth
+    const H = canvas.offsetHeight
+    const ctx = this.ctx
+
+    // Clear at physical resolution
+    ctx.save()
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    ctx.restore()
+
+    // Background
+    ctx.fillStyle = '#0f172a'
+    ctx.fillRect(0, 0, W, H)
+
+    // Before waveform — top half, width proportional to duration
+    const beforeFrac = this.beforeDur / this.maxDur
+    const afterFrac = this.afterDur / this.maxDur
+    this.drawPeaks(ctx, this.beforePeaks, 0, 0, W * beforeFrac, H / 2 - 1, '#3b82f6', '#1d4ed8')
+
+    // After waveform — bottom half
+    this.drawPeaks(ctx, this.afterPeaks, 0, H / 2 + 1, W * afterFrac, H / 2 - 1, '#10b981', '#065f46')
+
+    // Grey fill for unused duration (shorter side)
+    if (beforeFrac < 1) {
+      ctx.fillStyle = '#0f172a'
+      ctx.fillRect(W * beforeFrac, 0, W * (1 - beforeFrac), H / 2 - 1)
+    }
+    if (afterFrac < 1) {
+      ctx.fillStyle = '#0f172a'
+      ctx.fillRect(W * afterFrac, H / 2 + 1, W * (1 - afterFrac), H / 2 - 1)
+    }
+
+    // Centre divider
+    ctx.fillStyle = '#1e293b'
+    ctx.fillRect(0, H / 2 - 1, W, 2)
+
+    // Playhead
+    const px = playFrac * W
+    ctx.fillStyle = 'rgba(255,255,255,0.75)'
+    ctx.fillRect(px - 0.5, 0, 1, H)
+
+    // Playhead dot markers
+    ctx.fillStyle = '#fff'
+    ctx.beginPath(); ctx.arc(px, H / 4, 3, 0, Math.PI * 2); ctx.fill()
+    ctx.beginPath(); ctx.arc(px, H * 3 / 4, 3, 0, Math.PI * 2); ctx.fill()
+  }
+
+  drawPeaks(ctx, peaks, x, y, w, h, color, bgColor) {
+    ctx.fillStyle = bgColor || '#1e293b'
+    ctx.fillRect(x, y, w, h)
+    if (!peaks || w <= 0) return
+    ctx.fillStyle = color
+    const mid = y + h / 2
+    const barW = w / peaks.length
+    for (let i = 0; i < peaks.length; i++) {
+      const amp = peaks[i] * h * 0.85
+      ctx.fillRect(x + i * barW, mid - amp / 2, Math.max(1, barW - 0.5), amp)
+    }
+  }
+}
+
+// ── Render ───────────────────────────────────────────────────────────────────
+
+function frameImg(side, pos, has, safeKey) {
+  if (!has) return ''
+  return `<figure><figcaption>${pos}</figcaption><img src="/frame/${side}/${safeKey}-${pos}.png" loading="lazy" alt="${side} ${pos}"></figure>`
+}
+
+function renderScene(scene) {
+  const { key, safeKey, changed, beforeDurationMs, afterDurationMs,
+          hasBeforeVideo, hasAfterVideo,
+          hasBeforeStart, hasBeforeEnd, hasAfterStart, hasAfterEnd } = scene
+
+  const beforeSec = (beforeDurationMs / 1000).toFixed(1)
+  const afterSec = (afterDurationMs / 1000).toFixed(1)
+  const deltaSec = (afterDurationMs - beforeDurationMs) / 1000
+  const hasDelta = Math.abs(deltaSec) > 0.05
+  const deltaStr = hasDelta ? `${deltaSec > 0 ? '+' : ''}${deltaSec.toFixed(1)}s` : ''
+
+  const durHtml = hasDelta
+    ? `<span class="dur">${beforeSec}s <span class="arrow">→</span> ${afterSec}s <span class="delta ${deltaSec > 0 ? 'longer' : 'shorter'}">${deltaStr}</span></span>`
+    : `<span class="dur">${beforeSec}s</span>`
+
+  const beforeFrames = [frameImg('before', 'start', hasBeforeStart, safeKey), frameImg('before', 'end', hasBeforeEnd, safeKey)].filter(Boolean).join('')
+  const afterFrames = [frameImg('after', 'start', hasAfterStart, safeKey), frameImg('after', 'end', hasAfterEnd, safeKey)].filter(Boolean).join('')
+
+  return `<div class="scene${changed ? ' changed' : ''}" data-safe-key="${safeKey}">
+  <div class="scene-header">
+    <span class="chevron">▶</span>
+    <span class="scene-key">${key}</span>
+    ${durHtml}
+    ${changed ? '<span class="badge">CHANGED</span>' : ''}
+  </div>
+  <div class="scene-body">
+    <div class="videos">
+      <div class="video-col">
+        <div class="side-label">Before</div>
+        ${hasBeforeVideo ? `<video class="v-before" src="/scene/before/${safeKey}" preload="auto"></video>` : '<div class="no-video v-before-missing">no clip</div>'}
+      </div>
+      <div class="video-col">
+        <div class="side-label">After</div>
+        ${hasAfterVideo ? `<video class="v-after" src="/scene/after/${safeKey}" preload="auto"></video>` : '<div class="no-video v-after-missing">no clip</div>'}
+      </div>
+    </div>
+    <div class="waveform-wrap">
+      <div class="wf-side-labels">
+        <span class="wf-side-label">Before</span>
+        <span class="wf-side-label">After</span>
+      </div>
+      <canvas class="waveform-canvas"></canvas>
+    </div>
+    <div class="controls">
+      <button class="play-btn">▶</button>
+      <span class="time">0:00.0 / 0:00.0</span>
+    </div>
+    ${(beforeFrames || afterFrames) ? `<div class="frames-row">
+      <div class="frame-col">
+        <div class="side-label">Before frames</div>
+        <div class="frames">${beforeFrames}</div>
+      </div>
+      <div class="frame-col">
+        <div class="side-label">After frames</div>
+        <div class="frames">${afterFrames}</div>
+      </div>
+    </div>` : ''}
+  </div>
+</div>`
+}
+
+async function load() {
+  let data
+  try {
+    const res = await fetch('/results.json')
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+    data = await res.json()
+  } catch (err) {
+    document.getElementById('root').innerHTML = `<div class="error">Failed to load results.json: ${err.message}</div>`
+    return
+  }
+
+  const { flowName, generatedAt, scenes } = data
+  const changedCount = scenes.filter(s => s.changed).length
+
+  document.title = `Demo compare — ${flowName}`
+  document.getElementById('flowName').textContent = flowName
+  document.getElementById('summary').innerHTML =
+    `<span class="hit">${changedCount}</span> / ${scenes.length} scenes changed &middot; ${new Date(generatedAt).toLocaleString()}`
+
+  const root = document.getElementById('root')
+  root.innerHTML = `<div class="scene-list">${scenes.map(renderScene).join('\n')}</div>`
+
+  // Global audio toggle
+  document.querySelectorAll('.audio-btn').forEach(btn => {
+    btn.addEventListener('click', () => setGlobalAudio(btn.dataset.side))
+  })
+
+  // Accordion — one scene open at a time; init ScenePlayer on first open
+  root.querySelectorAll('.scene').forEach((el, i) => {
+    const scene = scenes[i]
+    el.querySelector('.scene-header').addEventListener('click', () => {
+      const isOpen = el.classList.contains('open')
+      if (isOpen) {
+        // Close it — pause if playing
+        const player = allPlayers.get(scene.safeKey)
+        if (player && player.playing) player.togglePlay()
+        el.classList.remove('open')
+        return
+      }
+      // Close any other open scene
+      root.querySelectorAll('.scene.open').forEach(other => {
+        const otherKey = other.dataset.safeKey
+        const otherPlayer = allPlayers.get(otherKey)
+        if (otherPlayer && otherPlayer.playing) otherPlayer.togglePlay()
+        other.classList.remove('open')
+      })
+      el.classList.add('open')
+      if (!allPlayers.has(scene.safeKey)) {
+        allPlayers.set(scene.safeKey, new ScenePlayer(el, scene))
+      }
+    })
+  })
+
+  // Auto-open first changed scene
+  const firstChanged = root.querySelector('.scene.changed')
+  if (firstChanged) firstChanged.querySelector('.scene-header').click()
+}
+
+load()
+</script>
+</body>
+</html>
