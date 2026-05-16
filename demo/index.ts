@@ -4,6 +4,7 @@ import fs from 'fs'
 import os from 'os'
 import { buildForDemo, startDemoServer, stopDemoServer } from './server'
 import { DemoEngine } from './engine'
+import { extractSnapshot } from './snapshot'
 import * as volunteerSignupApprovalFlow from './flows/volunteer-signup-approval-flow'
 
 type FlowModule = {
@@ -12,6 +13,18 @@ type FlowModule = {
 }
 
 const ALL_FLOWS: FlowModule[] = [volunteerSignupApprovalFlow]
+
+function deduplicateNarrationTexts(texts: string[]): string[] {
+  const counts = new Map<string, number>()
+  for (const t of texts) counts.set(t, (counts.get(t) ?? 0) + 1)
+  const seen = new Map<string, number>()
+  return texts.map((t) => {
+    if (counts.get(t)! === 1) return t
+    const n = (seen.get(t) ?? 0) + 1
+    seen.set(t, n)
+    return `${t}-${n}`
+  })
+}
 
 async function main() {
   const flowArg = process.argv[2]
@@ -46,13 +59,15 @@ async function main() {
     // Detect all narration texts without TTS or recording
     const detectEngine = new DemoEngine({ detectMode: true, scratchDir })
     await flow.run(detectEngine, null as unknown as Browser)
-    const narrationTexts = detectEngine.collectNarration()
-    console.log(`  Found ${narrationTexts.length} narration clips.`)
+    const rawTexts = detectEngine.collectNarration()
+    const narrationKeys = deduplicateNarrationTexts(rawTexts)
+    console.log(`  Found ${rawTexts.length} narration clips.`)
 
     // Pre-generate TTS and start server concurrently — whichever takes longer wins
     const engine = new DemoEngine({ scratchDir })
+    engine.setNarrationKeys(narrationKeys)
     process.stdout.write('  Waiting for server and pre-generating narration...')
-    await Promise.all([engine.pregenerateNarration(narrationTexts), startDemoServer(dbPath)])
+    await Promise.all([engine.pregenerateNarration(rawTexts), startDemoServer(dbPath)])
     console.log(' ready.')
 
     try {
@@ -66,6 +81,13 @@ async function main() {
       const outputDir = path.join(process.cwd(), 'demo', 'output')
       fs.mkdirSync(outputDir, { recursive: true })
       await engine.compile(path.join(outputDir, `${flow.meta.name}.webm`))
+      const snapManifest = path.join(process.cwd(), 'demo', 'snapshots', flow.meta.name, 'manifest.json')
+      if (!fs.existsSync(snapManifest)) {
+        console.log('  No snapshot found — saving initial snapshot...')
+        extractSnapshot(flow.meta.name)
+      } else {
+        console.log('  Snapshot exists — run `npm run demo:snapshot` to promote this run as new reference.')
+      }
     } finally {
       stopDemoServer()
     }

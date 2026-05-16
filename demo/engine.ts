@@ -25,6 +25,19 @@ const TTS_CACHE_DIR = path.join(__dirname, '.tts-cache')
 const TTS_VOICE = 'bm_fable'
 
 const ANIM_STEP_MS = 50 // real wall-clock ms per animation step; long enough for screencast to capture
+
+function mulberry32(seed: number): () => number {
+  return () => {
+    seed = (seed + 0x6D2B79F5) | 0
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+function textToSeed(text: string): number {
+  return crypto.createHash('sha256').update(text).digest().readUInt32LE(0)
+}
 const CAPTION_FADE_MS = 240
 const SCROLL_PX_PER_SEC = 500 * SPEED // scale with SPEED so slower mode = slower scroll
 
@@ -78,6 +91,10 @@ export class DemoEngine {
   private detectedTexts: string[] = []
   private pregeneratedCache = new Map<string, string>()
   private readonly scratchDir: string
+  private rng: () => number = Math.random
+  private narrationKeys: string[] = []
+  private narrationKeyIndex = 0
+  private manifest: Array<{ key: string; clipIndex: number; clipMs: number; durationMs: number }> = []
 
   constructor(opts: { detectMode?: boolean; scratchDir?: string } = {}) {
     this.scratchDir = opts.scratchDir ?? path.join(process.cwd(), 'demo', '.scratch')
@@ -126,6 +143,11 @@ export class DemoEngine {
 
   collectNarration(): string[] {
     return [...this.detectedTexts]
+  }
+
+  setNarrationKeys(keys: string[]): void {
+    this.narrationKeys = keys
+    this.narrationKeyIndex = 0
   }
 
   private ttsCachePath(text: string): string {
@@ -324,7 +346,7 @@ export class DemoEngine {
     const dx = tx - sx
     const dy = ty - sy
     const len = Math.sqrt(dx * dx + dy * dy) || 1
-    const perpScale = (Math.random() - 0.5) * 80
+    const perpScale = (this.rng() - 0.5) * 80
     const cpx = (sx + tx) / 2 + (-dy / len) * perpScale
     const cpy = (sy + ty) / 2 + (dx / len) * perpScale
 
@@ -342,7 +364,7 @@ export class DemoEngine {
           else { console.log('[demo] cursor missing step ${i}/${steps}'); }
         })()`,
       )
-      const jitterMs = ANIM_STEP_MS * (0.7 + Math.random() * 0.6)
+      const jitterMs = ANIM_STEP_MS * (0.7 + this.rng() * 0.6)
       await new Promise((r) => setTimeout(r, jitterMs))
     }
     await this.activePage.mouse.move(tx, ty)
@@ -355,8 +377,8 @@ export class DemoEngine {
     const box = await locator.boundingBox()
     if (!box) return
     // Land at a random point within the middle 60% of the element
-    const tx = box.x + box.width * (0.2 + Math.random() * 0.6)
-    const ty = box.y + box.height * (0.2 + Math.random() * 0.6)
+    const tx = box.x + box.width * (0.2 + this.rng() * 0.6)
+    const ty = box.y + box.height * (0.2 + this.rng() * 0.6)
     await this.moveCursorToXY(tx, ty)
   }
 
@@ -404,7 +426,7 @@ export class DemoEngine {
           if(el){ el.style.transform='translate(${cx}px,${cy}px)'; }
         })()`,
       )
-      const jitterMs = ANIM_STEP_MS * (0.8 + Math.random() * 0.4)
+      const jitterMs = ANIM_STEP_MS * (0.8 + this.rng() * 0.4)
       await new Promise((r) => setTimeout(r, jitterMs))
     }
     await this.activePage.mouse.move(endX, Math.round(baseY))
@@ -505,6 +527,12 @@ export class DemoEngine {
       return
     }
 
+    // Reseed RNG from this narration's stable key so cursor paths are deterministic
+    // and independent of changes in other narrations
+    const key = this.narrationKeys[this.narrationKeyIndex] ?? text
+    this.narrationKeyIndex++
+    this.rng = mulberry32(textToSeed(key))
+
     const tts = await this.initTTS()
     let wavPath: string
     let pregenerated = false
@@ -530,6 +558,7 @@ export class DemoEngine {
     await this.showCaption(text)
     const captionStartMs = Date.now() - this.phaseStartMs
     this.narrationClips.push({ wavPath, ms: captionStartMs, pregenerated })
+    this.manifest.push({ key, clipIndex: this.segments.length, clipMs: captionStartMs, durationMs: ttsDurationMs })
 
     if (!process.env.DEMO_HEADLESS) {
       spawn('afplay', [wavPath], { stdio: 'ignore' }).unref()
@@ -656,13 +685,13 @@ export class DemoEngine {
       const t = i / steps
       // Ease-in-out + tiny ±2px noise so scroll feels hand-driven
       const e = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t
-      const noise = (Math.random() - 0.5) * 4
+      const noise = (this.rng() - 0.5) * 4
       const y = Math.round(startY + distance * e + (i < steps ? noise : 0))
       await this.activePage.evaluate(
         `(document.scrollingElement || document.documentElement).scrollTop = ${y}`,
       )
       // Variable step delay ±30%
-      const jitterMs = ANIM_STEP_MS * (0.7 + Math.random() * 0.6)
+      const jitterMs = ANIM_STEP_MS * (0.7 + this.rng() * 0.6)
       await new Promise((r) => setTimeout(r, jitterMs))
     }
     await this.pause(200)
@@ -692,7 +721,7 @@ export class DemoEngine {
       await this.activePage.evaluate(
         `(document.scrollingElement || document.documentElement).scrollTop = ${Math.round(startY + distance * e)}`,
       )
-      await new Promise((r) => setTimeout(r, stepMs * (0.8 + Math.random() * 0.4)))
+      await new Promise((r) => setTimeout(r, stepMs * (0.8 + this.rng() * 0.4)))
     }
   }
 
@@ -746,7 +775,7 @@ export class DemoEngine {
     void this.clickRipple()
     // Move cursor clear of the field so typed text is visible
     const box = await locator.boundingBox()
-    if (box) await this.moveCursorToXY(box.x + box.width * 0.75, box.y + box.height + 40 + Math.random() * 20)
+    if (box) await this.moveCursorToXY(box.x + box.width * 0.75, box.y + box.height + 40 + this.rng() * 20)
     await this.pause(400)
     // Pre-schedule a keypress sound per character relative to now
     const typeStartMs = Date.now() - this.phaseStartMs
@@ -791,7 +820,7 @@ export class DemoEngine {
       await this.activePage!.waitForURL(href, { timeout: 10_000 }).catch(() => {})
       await this.placeCursor()
     } else if ((tag === 'input' || tag === 'textarea') && box) {
-      await this.moveCursorToXY(box.x + box.width * 0.75, box.y + box.height + 40 + Math.random() * 20)
+      await this.moveCursorToXY(box.x + box.width * 0.75, box.y + box.height + 40 + this.rng() * 20)
     }
   }
 
@@ -876,6 +905,10 @@ export class DemoEngine {
       `ffmpeg -y -i "${outputPath}" -c:v libx264 -preset fast -crf 18 -c:a aac -b:a 192k "${mp4Path}"`,
       { stdio: 'pipe' },
     )
+
+    const manifestPath = outputPath.replace(/\.webm$/, '.manifest.json')
+    fs.writeFileSync(manifestPath, JSON.stringify(this.manifest, null, 2))
+    console.log(`Manifest → ${manifestPath}`)
     console.log('Done.')
   }
 }

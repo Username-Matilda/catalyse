@@ -25,7 +25,8 @@
     "test:dev:ui": "E2E_DEV=1 SLOW_MO=800 playwright test --ui --headed --workers=1",
     "cron:backup": "tsx scripts/cron-backup.ts",
     "demo": "tsx demo/index.ts",
-    "demo:headless": "DEMO_HEADLESS=true tsx demo/index.ts"
+    "demo:snapshot": "tsx demo/snapshot.ts",
+    "demo:compare": "tsx demo/compare.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
