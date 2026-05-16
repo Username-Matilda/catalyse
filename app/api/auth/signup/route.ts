@@ -8,8 +8,15 @@ import {
 } from '@/lib/auth'
 import { sendWelcomeEmail, sendWelcomeAndConfirmEmail } from '@/lib/email'
 import { validationError, fieldError } from '@/lib/errors'
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
+  const { allowed, retryAfterMs } = checkRateLimit(
+    request,
+    'signup',
+    { limit: 10, windowMs: 60 * 60 * 1000 },
+  )
+  if (!allowed) return rateLimitResponse(retryAfterMs)
   let body: Record<string, unknown>
   try {
     body = await request.json()

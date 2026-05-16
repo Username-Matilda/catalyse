@@ -1,11 +1,11 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/auth'
-import { sendAdminInviteEmail, isRealEmailSending } from '@/lib/email'
+import { sendAdminInviteEmail } from '@/lib/email'
 import { fieldError, validationError } from '@/lib/errors'
 import { randomBytes } from 'node:crypto'
 
-const APP_URL = process.env.APP_URL || 'http://localhost:3000'
+const APP_URL = process.env.APP_URL!
 
 export async function POST(request: NextRequest) {
   const { volunteer: admin, error } = await requireAdmin(request.headers.get('authorization'))
@@ -66,10 +66,10 @@ export async function POST(request: NextRequest) {
     expires_at: expiresAt.toISOString(),
   }
 
-  if (!isRealEmailSending()) {
+  if (process.env.NODE_ENV !== 'production') {
     result._dev_invite_token = inviteToken
     result._dev_invite_url = `${APP_URL}/accept-invite?token=${inviteToken}`
-    result._dev_note = 'Email not configured. Share link manually.'
+    result._dev_note = 'Dev mode. Share link manually.'
   }
 
   return Response.json(result)

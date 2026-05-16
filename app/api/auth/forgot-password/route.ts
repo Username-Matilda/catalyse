@@ -1,9 +1,16 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { generateAuthToken } from '@/lib/auth'
-import { sendPasswordResetEmail, isRealEmailSending } from '@/lib/email'
+import { sendPasswordResetEmail } from '@/lib/email'
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
+  const { allowed, retryAfterMs } = checkRateLimit(
+    request,
+    'forgot-password',
+    { limit: 5, windowMs: 15 * 60 * 1000 },
+  )
+  if (!allowed) return rateLimitResponse(retryAfterMs)
   let body: Record<string, unknown>
   try {
     body = await request.json()
@@ -43,10 +50,10 @@ export async function POST(request: NextRequest) {
 
   const result: Record<string, unknown> = { message: successMsg }
 
-  if (!isRealEmailSending()) {
+  if (process.env.NODE_ENV !== 'production') {
     result._dev_reset_token = resetToken
     result._dev_reset_url = `/reset-password?token=${resetToken}`
-    result._dev_note = 'Email not configured. Set RESEND_API_KEY to enable.'
+    result._dev_note = 'Dev mode. Set RESEND_API_KEY to enable real emails.'
   }
 
   return Response.json(result)

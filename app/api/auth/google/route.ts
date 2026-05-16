@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { generateAuthToken, checkAdminBootstrap, acceptPendingInvite } from '@/lib/auth'
 import { sendWelcomeEmail, sendApplicationReceivedEmail } from '@/lib/email'
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID
 const STUB_GOOGLE = !GOOGLE_CLIENT_ID && process.env.NODE_ENV !== 'production'
@@ -33,6 +34,13 @@ async function verifyGoogleToken(credential: string) {
 }
 
 export async function POST(request: NextRequest) {
+  const { allowed, retryAfterMs } = checkRateLimit(
+    request,
+    'google',
+    { limit: 20, windowMs: 5 * 60 * 1000 },
+  )
+  if (!allowed) return rateLimitResponse(retryAfterMs)
+
   if (!GOOGLE_CLIENT_ID && !STUB_GOOGLE) {
     return Response.json({ detail: 'Google Sign-In is not configured' }, { status: 503 })
   }

@@ -1,9 +1,18 @@
 import { Resend } from 'resend'
 
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const FROM_EMAIL = process.env.FROM_EMAIL || 'Catalyse <noreply@pauseai.uk>'
 const REPLY_TO_EMAIL = process.env.REPLY_TO_EMAIL
-const APP_URL = process.env.APP_URL || 'http://localhost:3000'
+const APP_URL = process.env.APP_URL!
 const STUB_EMAIL_DEFAULT = process.env.NODE_ENV === 'production' ? '' : 'true'
 const STUB_EMAIL = ['1', 'true', 'yes'].includes(
   (process.env.STUB_EMAIL || STUB_EMAIL_DEFAULT).toLowerCase(),
@@ -15,9 +24,6 @@ export function isEmailConfigured(): boolean {
   return STUB_EMAIL || Boolean(RESEND_API_KEY)
 }
 
-export function isRealEmailSending(): boolean {
-  return Boolean(RESEND_API_KEY) && !STUB_EMAIL
-}
 
 const STUB_EMAIL_DIR = '/tmp/catalyse-emails'
 
@@ -88,10 +94,11 @@ function footer(buttons: Array<[string, string]> = []): string {
 }
 
 export function buildWelcomeAndConfirmHtml(name: string, confirmUrl: string): string {
+  const n = escapeHtml(name)
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
 <body><div class="container">
   <h2>Welcome to Catalyse!</h2>
-  <p>Hi ${name},</p>
+  <p>Hi ${n},</p>
   <p>Thanks for joining the PauseAI volunteer community! We're excited to have you.</p>
   <ul>
     <li><strong>Browse projects</strong> - Find opportunities that match your skills</li>
@@ -120,10 +127,11 @@ export async function sendWelcomeAndConfirmEmail(
 }
 
 export function buildApplicationReceivedHtml(name: string): string {
+  const n = escapeHtml(name)
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
 <body><div class="container">
   <h2>Application Received</h2>
-  <p>Hi ${name},</p>
+  <p>Hi ${n},</p>
   <p>Thanks for applying to join Catalyse, the PauseAI volunteer platform. We've received your application and will review it shortly.</p>
   <p>You'll receive an email as soon as we've reviewed your request to join.</p>
   ${footer()}
@@ -139,10 +147,11 @@ export async function sendApplicationReceivedEmail(to: string, name: string): Pr
 }
 
 export function buildApplicationApprovedHtml(name: string, appUrl: string): string {
+  const n = escapeHtml(name)
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
 <body><div class="container">
   <h2>Welcome to Catalyse!</h2>
-  <p>Hi ${name},</p>
+  <p>Hi ${n},</p>
   <p>Thank you for applying to join Catalyse PauseAI. Welcome to the community!</p>
   <p>Your account has been approved and you can now sign in.</p>
   <p style="text-align: center; margin: 32px 0;"><a href="${appUrl}/login" class="button">Sign In</a></p>
@@ -159,14 +168,15 @@ export async function sendApplicationApprovedEmail(to: string, name: string): Pr
 }
 
 export function buildApplicationRejectedHtml(name: string, applicantNotes?: string): string {
+  const n = escapeHtml(name)
   const notesHtml = applicantNotes
     ? `<p><strong>Feedback from the team:</strong></p>
-  <div style="background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0; white-space: pre-wrap;">${applicantNotes}</div>`
+  <div style="background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0; white-space: pre-wrap;">${escapeHtml(applicantNotes)}</div>`
     : ''
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
 <body><div class="container">
   <h2>Update on your Catalyse application</h2>
-  <p>Hi ${name},</p>
+  <p>Hi ${n},</p>
   <p>Thank you for applying to join Catalyse PauseAI. Unfortunately we're unable to approve your application at this time.</p>
   ${notesHtml}
   <p>You can contact <a href="mailto:uk@pauseai.info">uk@pauseai.info</a> if you have any queries.</p>
@@ -211,10 +221,11 @@ export async function sendPendingApplicationsSummaryEmail(
 }
 
 export function buildPasswordResetHtml(resetUrl: string, name: string): string {
+  const n = escapeHtml(name)
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
 <body><div class="container">
   <h2>Reset Your Password</h2>
-  <p>Hi ${name},</p>
+  <p>Hi ${n},</p>
   <p>We received a request to reset your password for your Catalyse account. Click the button below to choose a new password:</p>
   <p style="text-align: center; margin: 32px 0;"><a href="${resetUrl}" class="button">Reset Password</a></p>
   <p>This link will expire in <strong>1 hour</strong>.</p>
@@ -233,11 +244,12 @@ export async function sendPasswordResetEmail(
 }
 
 export function buildAdminInviteHtml(inviteUrl: string, invitedBy: string): string {
+  const by = escapeHtml(invitedBy)
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
 <body><div class="container">
   <h2>You're Invited to be a Catalyse Admin</h2>
   <p>Hi there,</p>
-  <p><strong>${invitedBy}</strong> has invited you to become an admin on Catalyse, the PauseAI volunteer coordination platform.</p>
+  <p><strong>${by}</strong> has invited you to become an admin on Catalyse, the PauseAI volunteer coordination platform.</p>
   <ul>
     <li>Review and approve volunteer-proposed projects</li>
     <li>Manage skills and starter tasks</li>
@@ -265,10 +277,11 @@ export async function sendAdminInviteEmail(
 }
 
 export function buildWelcomeHtml(name: string, appUrl: string): string {
+  const n = escapeHtml(name)
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
 <body><div class="container">
   <h2>Welcome to Catalyse!</h2>
-  <p>Hi ${name},</p>
+  <p>Hi ${n},</p>
   <p>Thanks for joining the PauseAI volunteer community! We're excited to have you.</p>
   <ul>
     <li><strong>Browse projects</strong> - Find opportunities that match your skills</li>
@@ -292,10 +305,11 @@ export function buildProjectNotificationHtml(
   appUrl: string,
   extraHtml = '',
 ): string {
+  const n = escapeHtml(name)
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
 <body><div class="container">
   <h2>${subject}</h2>
-  <p>Hi ${name},</p>
+  <p>Hi ${n},</p>
   <p>${message}</p>
   ${extraHtml}
   <p style="text-align: center; margin: 32px 0;">
@@ -338,15 +352,17 @@ export function buildLocalGroupSuggestionHtml(
   groupName: string,
   adminNotes?: string | null,
 ): string {
+  const n = escapeHtml(name)
+  const g = escapeHtml(groupName)
   const getMessage = LOCAL_GROUP_SUGGESTION_MESSAGES[action]
   const message = getMessage
-    ? getMessage(groupName)
-    : `Your local group suggestion "${groupName}" has been reviewed.`
-  const notesHtml = adminNotes ? `<p><em>${adminNotes}</em></p>` : ''
+    ? getMessage(g)
+    : `Your local group suggestion "${g}" has been reviewed.`
+  const notesHtml = adminNotes ? `<p><em>${escapeHtml(adminNotes)}</em></p>` : ''
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
 <body><div class="container">
   <h2>Local Group Suggestion Update</h2>
-  <p>Hi ${name},</p>
+  <p>Hi ${n},</p>
   <p>${message}</p>
   ${notesHtml}
   <p style="text-align: center; margin: 32px 0;"><a href="${APP_URL}" class="button">Visit Catalyse</a></p>
@@ -378,20 +394,26 @@ export function buildRelayMessageHtml(
   message: string,
   projectTitle?: string,
 ): string {
-  const projectContext = projectTitle ? ` about the project <strong>${projectTitle}</strong>` : ''
+  const to = escapeHtml(toName)
+  const from = escapeHtml(fromName)
+  const subj = escapeHtml(subject)
+  const msg = escapeHtml(message)
+  const projectContext = projectTitle
+    ? ` about the project <strong>${escapeHtml(projectTitle)}</strong>`
+    : ''
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
   ${baseStyle}
   .message-box { background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0; white-space: pre-wrap; }
   </style></head>
 <body><div class="container">
-  <h2>Message from ${fromName}</h2>
-  <p>Hi ${toName},</p>
-  <p><strong>${fromName}</strong> has sent you a message via Catalyse${projectContext}:</p>
+  <h2>Message from ${from}</h2>
+  <p>Hi ${to},</p>
+  <p><strong>${from}</strong> has sent you a message via Catalyse${projectContext}:</p>
   <div class="message-box">
-    <p style="font-weight: 500; margin-bottom: 8px;">${subject}</p>
-    <p>${message}</p>
+    <p style="font-weight: 500; margin-bottom: 8px;">${subj}</p>
+    <p>${msg}</p>
   </div>
-  <p>You can reply directly to this email to respond to ${fromName}.</p>
+  <p>You can reply directly to this email to respond to ${from}.</p>
   ${footer()}
 </div></body></html>`
 }
@@ -430,25 +452,30 @@ export function buildDigestHtml(
     : "Here's what's new on Catalyse:"
   const projectHtml = projects
     .map((p) => {
-      const skillsHtml = (p.skill_names || []).slice(0, 5).join(', ')
+      const skillsHtml = (p.skill_names || [])
+        .slice(0, 5)
+        .map(escapeHtml)
+        .join(', ')
       const matchBadge = p.match_percent
         ? ` <span style="background: #D1FAE5; color: #065F46; padding: 2px 8px; border-radius: 10px; font-size: 12px;">${p.match_percent}% match</span>`
         : ''
-      const desc = p.description || ''
+      const desc = escapeHtml(p.description || '')
+      const title = escapeHtml(p.title)
       return `<div style="padding: 16px; margin-bottom: 12px; background: #f7fafc; border-radius: 8px; border-left: 4px solid #FF9416;">
-      <a href="${appUrl}/projects/${p.id}" style="font-weight: bold; color: #1A202C; text-decoration: none; font-size: 16px;">${p.title}</a>${matchBadge}
+      <a href="${appUrl}/projects/${p.id}" style="font-weight: bold; color: #1A202C; text-decoration: none; font-size: 16px;">${title}</a>${matchBadge}
       <p style="color: #4A5568; margin: 8px 0 4px 0; font-size: 14px;">${desc.slice(0, 150)}${desc.length > 150 ? '...' : ''}</p>
       ${skillsHtml ? `<p style="font-size: 12px; color: #718096;">Skills: ${skillsHtml}</p>` : ''}
     </div>`
     })
     .join('')
+  const n = escapeHtml(name)
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
   ${baseStyle}
   .container { max-width: 600px; }
   </style></head>
 <body><div class="container">
   <h2>Catalyse Project Update</h2>
-  <p>Hi ${name},</p>
+  <p>Hi ${n},</p>
   <p>${matchIntro}</p>
   ${projectHtml}
   <p style="text-align: center; margin: 32px 0;"><a href="${appUrl}" class="button">Browse All Projects</a></p>
@@ -484,12 +511,15 @@ export function buildTaskNudgeHtml(
   activityPhrase: string,
   lastActivityDate: string,
 ): string {
+  const n = escapeHtml(name)
+  const tt = escapeHtml(taskTitle)
+  const pt = escapeHtml(projectTitle)
   const taskUrl = `${APP_URL}/projects/${projectId}#task-${taskId}`
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
 <body><div class="container">
   <h2>How's it going?</h2>
-  <p>Hi ${name},</p>
-  <p>It's been ${daysInactive} days since ${activityPhrase} <strong>${taskTitle}</strong> in the project <strong>${projectTitle}</strong> (on ${lastActivityDate}).</p>
+  <p>Hi ${n},</p>
+  <p>It's been ${daysInactive} days since ${activityPhrase} <strong>${tt}</strong> in the project <strong>${pt}</strong> (on ${lastActivityDate}).</p>
   <p>Could you leave a quick comment with a progress update? Even a brief note — like "ticking along, awaiting XYZ, will post another update in 2 weeks" — is really helpful so the project team knows things are in good hands.</p>
   <p>If you don't have capacity for the task right now, it's much better to update the project page with an ETA than for the team not to know what's happening.</p>
   <p>We'll send another reminder in a week if we haven't heard from you — it's important that things move along smoothly so everyone can make progress.</p>
@@ -539,6 +569,9 @@ export function buildTaskFinalWarningHtml(
   lastActivityDate: string,
   surrenderDate: string,
 ): string {
+  const n = escapeHtml(name)
+  const tt = escapeHtml(taskTitle)
+  const pt = escapeHtml(projectTitle)
   const taskUrl = `${APP_URL}/projects/${projectId}#task-${taskId}`
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
   ${baseStyle}
@@ -546,8 +579,8 @@ export function buildTaskFinalWarningHtml(
   </style></head>
 <body><div class="container">
   <h2>One more nudge</h2>
-  <p>Hi ${name},</p>
-  <p>It's now been ${daysInactive} days since ${activityPhrase} <strong>${taskTitle}</strong> in <strong>${projectTitle}</strong> (on ${lastActivityDate}).</p>
+  <p>Hi ${n},</p>
+  <p>It's now been ${daysInactive} days since ${activityPhrase} <strong>${tt}</strong> in <strong>${pt}</strong> (on ${lastActivityDate}).</p>
   <div class="warning">
     <strong>If there is no update by ${surrenderDate}, we'll open the task to other contributors</strong> so the project can keep moving forward.
   </div>
@@ -595,12 +628,16 @@ export function buildTaskSurrenderedOwnerHtml(
   projectTitle: string,
   projectId: number,
 ): string {
+  const on = escapeHtml(ownerName)
+  const vn = escapeHtml(volunteerName)
+  const tt = escapeHtml(taskTitle)
+  const pt = escapeHtml(projectTitle)
   const projectUrl = `${APP_URL}/projects/${projectId}`
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
 <body><div class="container">
   <h2>Task unassigned due to inactivity</h2>
-  <p>Hi ${ownerName},</p>
-  <p><strong>${volunteerName}</strong> has been removed from the task <strong>${taskTitle}</strong> in your project <strong>${projectTitle}</strong> after four weeks without an update, despite reminders.</p>
+  <p>Hi ${on},</p>
+  <p><strong>${vn}</strong> has been removed from the task <strong>${tt}</strong> in your project <strong>${pt}</strong> after four weeks without an update, despite reminders.</p>
   <p>The task is now open and can be claimed by another contributor.</p>
   <p style="text-align: center; margin: 32px 0;"><a href="${projectUrl}" class="button">View Project</a></p>
   <p>If you need support, please contact your project owner or a platform admin.</p>
@@ -630,12 +667,15 @@ export function buildTaskSurrenderedAssigneeHtml(
   projectTitle: string,
   projectId: number,
 ): string {
+  const n = escapeHtml(name)
+  const tt = escapeHtml(taskTitle)
+  const pt = escapeHtml(projectTitle)
   const projectUrl = `${APP_URL}/projects/${projectId}`
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
 <body><div class="container">
   <h2>Task now open to other contributors</h2>
-  <p>Hi ${name},</p>
-  <p>Because we haven't received updates from you on the task <strong>${taskTitle}</strong> in <strong>${projectTitle}</strong> for four weeks, we've opened the task to other contributors and removed you from it.</p>
+  <p>Hi ${n},</p>
+  <p>Because we haven't received updates from you on the task <strong>${tt}</strong> in <strong>${pt}</strong> for four weeks, we've opened the task to other contributors and removed you from it.</p>
   <p>We hope things are going well — if you'd still like to contribute, you're always welcome to claim the task again or pick up something else on the project.</p>
   <p style="text-align: center; margin: 32px 0;"><a href="${projectUrl}" class="button">View Project</a></p>
   <p>If you need support, please contact your project owner or a platform admin.</p>

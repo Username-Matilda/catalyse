@@ -2,11 +2,18 @@ import { NextRequest } from 'next/server'
 import { randomBytes } from 'crypto'
 import { prisma } from '@/lib/prisma'
 import { sendWelcomeAndConfirmEmail } from '@/lib/email'
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
 
 const STUB_EMAIL = ['1', 'true', 'yes'].includes((process.env.STUB_EMAIL ?? '').toLowerCase())
 const OK_MESSAGE = 'If that email is registered and unconfirmed, a new link has been sent.'
 
 export async function POST(request: NextRequest) {
+  const { allowed, retryAfterMs } = checkRateLimit(
+    request,
+    'resend-verification',
+    { limit: 5, windowMs: 15 * 60 * 1000 },
+  )
+  if (!allowed) return rateLimitResponse(retryAfterMs)
   let body: Record<string, unknown>
   try {
     body = await request.json()

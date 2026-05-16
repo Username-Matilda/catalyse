@@ -66,6 +66,7 @@ function startWorkerNextJs(parallelIndex: number): number {
       ADMIN_EMAILS: ADMIN_EMAIL,
       RESEND_API_KEY: '',
       STUB_EMAIL: 'true',
+      DISABLE_RATE_LIMIT: 'true',
     },
     cwd: PROJECT_ROOT,
     detached: false,
