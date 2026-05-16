@@ -22,7 +22,6 @@ export async function GET(request: NextRequest) {
   const isOrgProposedParam = searchParams.get('is_org_proposed')
   const isSeekingHelpParam = searchParams.get('is_seeking_help')
   const isSeekingOwnerParam = searchParams.get('is_seeking_owner')
-  // TODO: refactor — is_seeking_any and not_seeking are not in the Python API; added for the Needs filter
   const isSeekingAnyParam = searchParams.get('is_seeking_any')
   const notSeekingParam = searchParams.get('not_seeking')
   const sortBy = searchParams.get('sort_by') ?? 'created_at'
@@ -183,10 +182,9 @@ export async function POST(request: NextRequest) {
     : []
   if (errs.length) return validationError(errs)
   if (tasks.length === 0) {
-    // TODO: should be 422 (validation error), kept as 400 to match FastAPI behaviour
     return Response.json(
       { detail: 'At least one task is required to submit a project proposal' },
-      { status: 400 },
+      { status: 422 },
     )
   }
 
