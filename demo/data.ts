@@ -7,7 +7,8 @@ export const DEMO_DB_DIR = path.join(os.tmpdir(), 'catalyse_demo')
 export const DEMO_DB_PATH = path.join(DEMO_DB_DIR, 'catalyse.db')
 export const ADMIN_EMAIL = 'admin@example.com'
 export const ADMIN_PASSWORD = 'admin1'
-export const OUT_DIR = path.join(process.cwd(), 'demo-videos')
+export const NOREPLY_EMAIL = 'noreply@pauseai.uk'
+export const SCRATCH_DIR = path.join(process.cwd(), 'demo', '.scratch')
 export const SPEED = 1 // <1 = slower, >1 = faster
 
 export const APPLICANT = {
@@ -23,13 +24,30 @@ export const APPLICANT = {
   country: 'United Kingdom',
   localGroup: 'London',
   availability: '8',
+  preferredContact: 'Discord',
+  adminNotes: 'Strong application. ML background, two years following the org, clear on the mission.',
+  skills: new Set([
+    'Software Engineering',
+    'Writing',
+    'AI Governance Research',
+    'Technical AI Safety Expertise',
+  ]),
 }
 
 export const REJECT_APPLICANT = {
   name: 'Jordan Smith',
   email: 'jordan.smith@example.com',
   password: 'DemoPassword1',
-  applicationMessage: 'I want to join to promote my startup and grow my network.',
+  applicationMessage: "I'm building an AI startup and care deeply about doing it responsibly. I'd love to connect with like-minded people — and if any of you are interested in trying our product, even better!",
+  bio: 'Founder of Meridian AI. Building responsible AI tools for enterprise. Always looking for early adopters.',
+  discordHandle: 'jordansmith#7734',
+  contactPreference: 'discord',
+  contactNotes: 'Always happy to chat — especially if you work in AI governance or product.',
+  availabilityHoursPerWeek: '3',
+  location: 'San Francisco, CA',
+  country: 'United States',
+  adminNotes: 'Seems that the application is mostly about finding users for their startup.',
+  rejectionMessage: "Thank you for applying. After careful review, we don't think this is the right fit at this time.",
 }
 
 export const DEMO_VIDEO_TITLE = 'Volunteer Signup & Approval Flow'

@@ -155,7 +155,7 @@ export default function ApplicationReviewPage() {
 
       {app.approval_status === 'REJECTED' && anonymiseDate && (
         <p className={`text-sm mb-4 ${daysUntilAnonymise !== null && daysUntilAnonymise <= 1 ? 'text-red-500' : 'text-amber-500'}`}>
-          PII will be anonymised on {anonymiseDate.toLocaleDateString()}
+          Personally Identifiable Information will be anonymised on {anonymiseDate.toLocaleDateString()}
           {daysUntilAnonymise !== null && daysUntilAnonymise >= 0
             ? ` (${daysUntilAnonymise === 0 ? 'today' : `${daysUntilAnonymise} day${daysUntilAnonymise === 1 ? '' : 's'}`})`
             : ''}
