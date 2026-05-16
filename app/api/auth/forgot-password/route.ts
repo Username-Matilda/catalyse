@@ -4,6 +4,8 @@ import { generateAuthToken } from '@/lib/auth'
 import { sendPasswordResetEmail } from '@/lib/email'
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
 
+const STUB_EMAIL = ['1', 'true', 'yes'].includes((process.env.STUB_EMAIL ?? '').toLowerCase())
+
 export async function POST(request: NextRequest) {
   const { allowed, retryAfterMs } = checkRateLimit(
     request,
@@ -50,10 +52,10 @@ export async function POST(request: NextRequest) {
 
   const result: Record<string, unknown> = { message: successMsg }
 
-  if (process.env.NODE_ENV !== 'production') {
+  if (STUB_EMAIL) {
     result._dev_reset_token = resetToken
     result._dev_reset_url = `/reset-password?token=${resetToken}`
-    result._dev_note = 'Dev mode. Set RESEND_API_KEY to enable real emails.'
+    result._dev_note = 'Email stubbed. Set RESEND_API_KEY to enable real emails.'
   }
 
   return Response.json(result)

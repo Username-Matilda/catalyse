@@ -6,6 +6,7 @@ import { fieldError, validationError } from '@/lib/errors'
 import { randomBytes } from 'node:crypto'
 
 const APP_URL = process.env.APP_URL!
+const STUB_EMAIL = ['1', 'true', 'yes'].includes((process.env.STUB_EMAIL ?? '').toLowerCase())
 
 export async function POST(request: NextRequest) {
   const { volunteer: admin, error } = await requireAdmin(request.headers.get('authorization'))
@@ -66,10 +67,10 @@ export async function POST(request: NextRequest) {
     expires_at: expiresAt.toISOString(),
   }
 
-  if (process.env.NODE_ENV !== 'production') {
+  if (STUB_EMAIL) {
     result._dev_invite_token = inviteToken
     result._dev_invite_url = `${APP_URL}/accept-invite?token=${inviteToken}`
-    result._dev_note = 'Dev mode. Share link manually.'
+    result._dev_note = 'Email stubbed. Share link manually.'
   }
 
   return Response.json(result)
