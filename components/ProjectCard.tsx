@@ -77,7 +77,7 @@ export function ProjectCard({
 }) {
   return (
     <div className="card bg-surface rounded-xl shadow px-5 pt-5 pb-4 overflow-hidden wrap-break-word grid grid-rows-subgrid row-span-6 gap-y-2 relative">
-      <div className={`card-header row-start-1${p.is_org_proposed ? ' pr-[80px]' : ''}`}>
+      <div className="card-header row-start-1">
         <Link
           role="link"
           href={`/projects/${p.id}`}
@@ -86,11 +86,6 @@ export function ProjectCard({
           {p.title}
         </Link>
       </div>
-      {p.is_org_proposed && (
-        <span className="absolute top-0 right-0 bg-primary text-white text-xs font-semibold px-3 py-1 rounded-bl-xl rounded-tr-xl">
-          PauseAI
-        </span>
-      )}
       <div className="row-start-2 flex gap-1 flex-wrap self-start">
         {!['seeking_owner', 'seeking_help'].includes(p.status) && (
           <span className={statusBadgeClasses(p.status)}>
