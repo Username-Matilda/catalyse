@@ -13,6 +13,13 @@ async function getVolunteerId(page: Page): Promise<number> {
   })
 }
 
+async function setCheckbox(page: Page, id: string, checked: boolean) {
+  const isChecked = await page.locator(`#${id}`).isChecked()
+  if (isChecked !== checked) {
+    await page.locator(`label:has(#${id})`).click()
+  }
+}
+
 test.describe('Volunteer Profile', () => {
   test('Volunteer updates their profile', async ({ volunteer, baseUrl }) => {
     const uniqueName = fake.personName()
@@ -60,9 +67,7 @@ test.describe('Volunteer Profile', () => {
     await volunteer.page.goto(`${baseUrl}/profile`)
     await expect(volunteer.page.getByLabel('Your Name')).toBeVisible({ timeout: 10_000 })
     await volunteer.page.getByLabel('Your Name').fill(uniqueName)
-    await volunteer.page
-      .locator('#consent_make_profile_visible_in_directory')
-      .check({ force: true })
+    await setCheckbox(volunteer.page, 'consent_make_profile_visible_in_directory', true)
     await volunteer.page.getByRole('button', { name: 'Save Changes' }).click()
     await expect(getAlert(volunteer.page)).toBeVisible({ timeout: 10_000 })
 
@@ -78,9 +83,7 @@ test.describe('Volunteer Profile', () => {
     // Now hide the profile
     await volunteer.page.goto(`${baseUrl}/profile`)
     await expect(volunteer.page.getByLabel('Your Name')).toBeVisible({ timeout: 10_000 })
-    await volunteer.page
-      .locator('#consent_make_profile_visible_in_directory')
-      .uncheck({ force: true })
+    await setCheckbox(volunteer.page, 'consent_make_profile_visible_in_directory', false)
     await volunteer.page.getByRole('button', { name: 'Save Changes' }).click()
     await expect(getAlert(volunteer.page)).toBeVisible({ timeout: 10_000 })
 
@@ -101,9 +104,7 @@ test.describe('Volunteer Profile', () => {
     await volunteer.page.goto(`${baseUrl}/profile`)
     await expect(volunteer.page.getByLabel('Your Name')).toBeVisible({ timeout: 10_000 })
     await volunteer.page.getByLabel('Your Name').fill(uniqueName)
-    await volunteer.page
-      .locator('#consent_make_profile_visible_in_directory')
-      .uncheck({ force: true })
+    await setCheckbox(volunteer.page, 'consent_make_profile_visible_in_directory', false)
     await volunteer.page.getByRole('button', { name: 'Save Changes' }).click()
     await expect(getAlert(volunteer.page)).toBeVisible({ timeout: 10_000 })
 
@@ -119,9 +120,7 @@ test.describe('Volunteer Profile', () => {
     // Now make the profile visible
     await volunteer.page.goto(`${baseUrl}/profile`)
     await expect(volunteer.page.getByLabel('Your Name')).toBeVisible({ timeout: 10_000 })
-    await volunteer.page
-      .locator('#consent_make_profile_visible_in_directory')
-      .check({ force: true })
+    await setCheckbox(volunteer.page, 'consent_make_profile_visible_in_directory', true)
     await volunteer.page.getByRole('button', { name: 'Save Changes' }).click()
     await expect(getAlert(volunteer.page)).toBeVisible({ timeout: 10_000 })
 
@@ -193,7 +192,7 @@ test.describe('Volunteer Profile', () => {
       const skillOption = page2.locator('.skill-option').filter({ hasText: 'Fundraising' })
       await expect(skillOption).toBeVisible({ timeout: 10_000 })
       await skillOption.click()
-      await page2.locator('#consent_make_profile_visible_in_directory').check({ force: true })
+      await setCheckbox(page2, 'consent_make_profile_visible_in_directory', true)
       await page2.getByRole('button', { name: 'Save Changes' }).click()
       await expect(getAlert(page2)).toBeVisible({ timeout: 10_000 })
 
