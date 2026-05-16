@@ -98,23 +98,6 @@ export default function DashboardPage() {
   }, [])
 
   useEffect(() => {
-    function onHashChange() {
-      const hash = window.location.hash
-      const tab: TabKey = hash.startsWith('#tab-')
-        ? (hash.slice('#tab-'.length) as TabKey) || 'owned'
-        : 'owned'
-      setActiveTab(tab)
-      if (tab === 'notifications') {
-        apiRequest<Notification[]>('/api/notifications')
-          .then(setNotifications)
-          .catch(() => {})
-      }
-    }
-    window.addEventListener('hashchange', onHashChange)
-    return () => window.removeEventListener('hashchange', onHashChange)
-  }, [])
-
-  useEffect(() => {
     document.title = `Catalyse | ${TAB_LABELS[activeTab]}`
     return () => { document.title = 'Catalyse | Dashboard' }
   }, [activeTab])
