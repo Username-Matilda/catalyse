@@ -99,17 +99,12 @@ npm run fetch-prod-db && npm run migrate
 Do **not** use `prisma migrate dev` — it checks for schema drift against the live DB and will fail. The correct workflow:
 
 1. Edit `prisma/schema.prisma`
-2. Generate the SQL:
+2. Generate the migration file:
    ```bash
-   npx prisma migrate diff \
-     --from-schema-datasource prisma/schema.prisma \
-     --to-schema-datamodel prisma/schema.prisma \
-     --script
+   npm run new-migration your_migration_name
    ```
-3. Create a new timestamped directory under `prisma/migrations/` and save the relevant SQL as `migration.sql`:
-   ```
-   prisma/migrations/YYYYMMDDHHMMSS_your_migration_name/migration.sql
-   ```
+   This creates `prisma/migrations/YYYYMMDDHHMMSS_your_migration_name/migration.sql` with the diff SQL.
+3. **Review the generated SQL** — the diff may include unrelated pending changes from other branches. Remove any statements not relevant to your change.
 4. Apply it:
    ```bash
    npm run migrate
@@ -118,8 +113,6 @@ Do **not** use `prisma migrate dev` — it checks for schema drift against the l
    ```bash
    npx prisma generate
    ```
-
-The `migrate diff` command compares the actual database against the schema model and outputs Prisma-authoritative SQL. Extract only the statements relevant to your change (the output may include unrelated pending changes from other branches).
 
 ## Testing
 
