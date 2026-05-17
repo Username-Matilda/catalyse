@@ -80,6 +80,9 @@ if [ -n "$PREREQ_NUMBERS" ]; then
       P_STATE=$(echo "$P_JSON" | jq -r '.state')
       P_URL=$(echo "$P_JSON" | jq -r '.url')
       PREREQ_SECTION="${PREREQ_SECTION}\n- #${NUM} [${P_STATE}] ${P_TITLE} (${P_URL})"
+    else
+      echo "Warning: could not fetch prerequisite issue #${NUM} (not found or no access)" >&2
+      PREREQ_SECTION="${PREREQ_SECTION}\n- #${NUM} [UNKNOWN] (could not fetch)"
     fi
   done
 fi
@@ -92,6 +95,12 @@ BRANCH_SLUG=$(echo "$ISSUE_TITLE" \
   | cut -c1-50)
 BRANCH_NAME="issue-${ISSUE_NUMBER}-${BRANCH_SLUG}"
 
+if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
+  echo "Error: branch '$BRANCH_NAME' already exists — a previous session may have been started for this issue." >&2
+  echo "To resume: git checkout $BRANCH_NAME && claude --continue" >&2
+  echo "To start fresh: git branch -D $BRANCH_NAME" >&2
+  exit 1
+fi
 git checkout -b "$BRANCH_NAME"
 echo "Created branch: $BRANCH_NAME"
 
@@ -103,6 +112,8 @@ Title: ${ISSUE_TITLE}
 Description:
 ${ISSUE_BODY}
 $(echo -e "$PREREQ_SECTION")
+
+FIRST: run \`issue-session-canary\` and confirm it outputs 'issue-session-sandbox-active'. If the command is not found or outputs anything else, stop immediately and warn the user that the sandbox command wrappers are not active — do not proceed with any work.
 
 Before writing any code, propose a clear implementation plan and wait for the user to confirm. If there are open prerequisites above, flag them and ask whether to proceed anyway. Once confirmed, implement the changes. When all work is complete, run \`npm run check-all\` and report the results. Then push the branch and raise a PR using \`gh pr create\` with a clear title and description referencing the issue."
 
@@ -227,6 +238,12 @@ case "\$1" in
 esac
 NPMSCRIPT
 chmod +x "$TMPBIN/npm"
+
+cat > "$TMPBIN/issue-session-canary" << 'CANARY'
+#!/bin/bash
+echo "issue-session-sandbox-active"
+CANARY
+chmod +x "$TMPBIN/issue-session-canary"
 
 # Note: --sandbox runs Claude in a Docker container. If the container does not
 # inherit the host PATH, the wrappers above will not apply inside the session.
