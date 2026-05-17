@@ -62,7 +62,7 @@ export async function runDigestJob(): Promise<Record<string, unknown>> {
       return { ...rest, match_percent }
     })
     enriched.sort((a, b) => (b.match_percent ?? 0) - (a.match_percent ?? 0))
-    if (await sendDigestEmail(vol.email!, vol.name, enriched, false)) digestSent++
+    if (await sendDigestEmail({ to: vol.email!, name: vol.name, projects: enriched, isMatch: false })) digestSent++
   }
 
   await prisma.digestRun.create({ data: { type: 'fortnightly' } })

@@ -96,15 +96,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     })
   }
 
-  sendRelayMessage(
-    recipient.email,
-    recipient.name,
-    sender.name,
-    sender.email ?? '',
+  sendRelayMessage({
+    to: recipient.email,
+    toName: recipient.name,
+    fromName: sender.name,
+    fromEmail: sender.email ?? '',
     subject,
     message,
-    projectTitle ?? undefined,
-  ).catch((e) => console.error('[EMAIL ERROR]', e))
+    projectTitle: projectTitle ?? undefined,
+  }).catch((e) => console.error('[EMAIL ERROR]', e))
 
   return Response.json({
     message: "Message sent! They'll receive it by email and can reply directly to you.",

@@ -82,15 +82,15 @@ export async function PUT(
     const extra = responseMessage
       ? `<div style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"><strong>Message:</strong> ${responseMessage}</div>`
       : ''
-    sendProjectNotificationEmail(
-      vol.email,
-      vol.name,
-      `Your interest in '${project.title}' was ${statusText}`,
-      `The team has <strong>${statusText}</strong> your interest in the project <strong>${project.title}</strong>.`,
-      project.title,
+    sendProjectNotificationEmail({
+      to: vol.email,
+      name: vol.name,
+      subject: `Your interest in '${project.title}' was ${statusText}`,
+      message: `The team has <strong>${statusText}</strong> your interest in the project <strong>${project.title}</strong>.`,
+      projectTitle: project.title,
       projectId,
-      extra,
-    ).catch((e) => console.error('[EMAIL ERROR]', e))
+      extraHtml: extra,
+    }).catch((e) => console.error('[EMAIL ERROR]', e))
   }
 
   return Response.json({ message: `Interest ${statusText}` })

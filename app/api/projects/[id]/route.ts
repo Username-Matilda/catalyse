@@ -327,14 +327,14 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         select: { name: true, email: true },
       })
       if (vol?.email) {
-        sendProjectNotificationEmail(
-          vol.email,
-          vol.name,
-          `'${project.title}' is now ${statusLabel}`,
-          `The project <strong>${project.title}</strong> has been updated to <strong>${statusLabel}</strong>.`,
-          project.title,
+        sendProjectNotificationEmail({
+          to: vol.email,
+          name: vol.name,
+          subject: `'${project.title}' is now ${statusLabel}`,
+          message: `The project <strong>${project.title}</strong> has been updated to <strong>${statusLabel}</strong>.`,
+          projectTitle: project.title,
           projectId,
-        ).catch((e) => console.error('[EMAIL ERROR]', e))
+        }).catch((e) => console.error('[EMAIL ERROR]', e))
       }
     }
   }

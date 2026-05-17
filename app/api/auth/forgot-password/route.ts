@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     data: { volunteerId: volunteer.id, token: resetToken, expiresAt },
   })
 
-  await sendPasswordResetEmail(volunteer.email, resetToken, volunteer.name)
+  await sendPasswordResetEmail({ to: volunteer.email, resetToken, name: volunteer.name })
 
   const result: Record<string, unknown> = { message: successMsg }
 

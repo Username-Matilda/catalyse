@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     },
   })
 
-  sendWelcomeAndConfirmEmail(volunteer.email, verificationToken.token, volunteer.name).catch((e) =>
+  sendWelcomeAndConfirmEmail({ to: volunteer.email, token: verificationToken.token, name: volunteer.name }).catch((e) =>
     console.error('[RESEND_VERIFICATION] Email failed:', e),
   )
 

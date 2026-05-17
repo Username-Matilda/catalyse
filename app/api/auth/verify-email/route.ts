@@ -61,16 +61,16 @@ export async function POST(request: NextRequest) {
         .catch(() => ({ requireApplicationApproval: true }))
 
       if (platformSettings.requireApplicationApproval) {
-        sendApplicationApprovedEmail(volunteer.email, volunteer.name).catch((e) =>
+        sendApplicationApprovedEmail({ to: volunteer.email, name: volunteer.name }).catch((e) =>
           console.error('[VERIFY_EMAIL] Application approved email failed:', e),
         )
       } else {
-        sendWelcomeEmail(volunteer.email, volunteer.name).catch((e) =>
+        sendWelcomeEmail({ to: volunteer.email, name: volunteer.name }).catch((e) =>
           console.error('[VERIFY_EMAIL] Welcome email failed:', e),
         )
       }
     } else if (volunteer.approvalStatus === 'PENDING') {
-      sendApplicationReceivedEmail(volunteer.email, volunteer.name).catch((e) =>
+      sendApplicationReceivedEmail({ to: volunteer.email, name: volunteer.name }).catch((e) =>
         console.error('[VERIFY_EMAIL] Application received email failed:', e),
       )
     }

@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
 
   let emailVerificationToken: string | undefined
   if (wasBootstrapped || wasInvited) {
-    sendWelcomeEmail(email, name).catch((e) => console.error('[SIGNUP] Welcome email failed:', e))
+    sendWelcomeEmail({ to: email, name }).catch((e) => console.error('[SIGNUP] Welcome email failed:', e))
   } else if (!platformSettings.requireApplicationApproval) {
     await prisma.volunteer.update({
       where: { id: volunteer.id },
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
       },
     })
     emailVerificationToken = verificationToken.token
-    sendWelcomeAndConfirmEmail(email, verificationToken.token, name).catch((e) =>
+    sendWelcomeAndConfirmEmail({ to: email, token: verificationToken.token, name }).catch((e) =>
       console.error('[SIGNUP] Email confirmation send failed:', e),
     )
   } else {
@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
       },
     })
     emailVerificationToken = verificationToken.token
-    sendWelcomeAndConfirmEmail(email, verificationToken.token, name).catch((e) =>
+    sendWelcomeAndConfirmEmail({ to: email, token: verificationToken.token, name }).catch((e) =>
       console.error('[SIGNUP] Email confirmation send failed:', e),
     )
   }

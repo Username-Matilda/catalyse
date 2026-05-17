@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     },
   })
 
-  const emailSent = await sendAdminInviteEmail(email, inviteToken, admin.name)
+  const emailSent = await sendAdminInviteEmail({ to: email, inviteToken, invitedBy: admin.name })
 
   const result: Record<string, unknown> = {
     message: `Invite ${emailSent ? 'sent' : 'created'} for ${email}`,

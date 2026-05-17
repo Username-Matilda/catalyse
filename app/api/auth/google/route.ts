@@ -111,11 +111,11 @@ export async function POST(request: NextRequest) {
   const isApproved = wasBootstrapped || wasInvited
 
   if (isApproved) {
-    sendWelcomeEmail(email, name).catch((e) =>
+    sendWelcomeEmail({ to: email, name }).catch((e) =>
       console.error('[GOOGLE_SIGNUP] Welcome email failed:', e),
     )
   } else {
-    sendApplicationReceivedEmail(email, name).catch((e) =>
+    sendApplicationReceivedEmail({ to: email, name }).catch((e) =>
       console.error('[GOOGLE_SIGNUP] Application received email failed:', e),
     )
   }

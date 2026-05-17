@@ -113,11 +113,15 @@ export function buildWelcomeAndConfirmHtml(name: string, confirmUrl: string): st
 </div></body></html>`
 }
 
-export async function sendWelcomeAndConfirmEmail(
-  to: string,
-  token: string,
-  name: string,
-): Promise<boolean> {
+export async function sendWelcomeAndConfirmEmail({
+  to,
+  token,
+  name,
+}: {
+  to: string
+  token: string
+  name: string
+}): Promise<boolean> {
   const confirmUrl = `${APP_URL}/verify-email?token=${token}`
   return sendEmail(
     to,
@@ -138,7 +142,13 @@ export function buildApplicationReceivedHtml(name: string): string {
 </div></body></html>`
 }
 
-export async function sendApplicationReceivedEmail(to: string, name: string): Promise<boolean> {
+export async function sendApplicationReceivedEmail({
+  to,
+  name,
+}: {
+  to: string
+  name: string
+}): Promise<boolean> {
   return sendEmail(
     to,
     'Your Catalyse application has been received',
@@ -159,7 +169,13 @@ export function buildApplicationApprovedHtml(name: string, appUrl: string): stri
 </div></body></html>`
 }
 
-export async function sendApplicationApprovedEmail(to: string, name: string): Promise<boolean> {
+export async function sendApplicationApprovedEmail({
+  to,
+  name,
+}: {
+  to: string
+  name: string
+}): Promise<boolean> {
   return sendEmail(
     to,
     'Your Catalyse application has been approved',
@@ -184,11 +200,15 @@ export function buildApplicationRejectedHtml(name: string, applicantNotes?: stri
 </div></body></html>`
 }
 
-export async function sendApplicationRejectedEmail(
-  to: string,
-  name: string,
-  applicantNotes?: string,
-): Promise<boolean> {
+export async function sendApplicationRejectedEmail({
+  to,
+  name,
+  applicantNotes,
+}: {
+  to: string
+  name: string
+  applicantNotes?: string
+}): Promise<boolean> {
   return sendEmail(
     to,
     'Update on your Catalyse application',
@@ -207,11 +227,15 @@ export function buildPendingApplicationsSummaryHtml(count: number, appUrl: strin
 </div></body></html>`
 }
 
-export async function sendPendingApplicationsSummaryEmail(
-  to: string,
-  name: string,
-  count: number,
-): Promise<boolean> {
+export async function sendPendingApplicationsSummaryEmail({
+  to,
+  name,
+  count,
+}: {
+  to: string
+  name: string
+  count: number
+}): Promise<boolean> {
   const plural = count === 1 ? 'application' : 'applications'
   return sendEmail(
     to,
@@ -234,11 +258,15 @@ export function buildPasswordResetHtml(resetUrl: string, name: string): string {
 </div></body></html>`
 }
 
-export async function sendPasswordResetEmail(
-  to: string,
-  resetToken: string,
+export async function sendPasswordResetEmail({
+  to,
+  resetToken,
   name = 'there',
-): Promise<boolean> {
+}: {
+  to: string
+  resetToken: string
+  name?: string
+}): Promise<boolean> {
   const resetUrl = `${APP_URL}/reset-password?token=${resetToken}`
   return sendEmail(to, 'Reset your Catalyse password', buildPasswordResetHtml(resetUrl, name))
 }
@@ -263,11 +291,15 @@ export function buildAdminInviteHtml(inviteUrl: string, invitedBy: string): stri
 </div></body></html>`
 }
 
-export async function sendAdminInviteEmail(
-  to: string,
-  inviteToken: string,
-  invitedBy: string,
-): Promise<boolean> {
+export async function sendAdminInviteEmail({
+  to,
+  inviteToken,
+  invitedBy,
+}: {
+  to: string
+  inviteToken: string
+  invitedBy: string
+}): Promise<boolean> {
   const inviteUrl = `${APP_URL}/accept-invite?token=${inviteToken}`
   return sendEmail(
     to,
@@ -293,7 +325,13 @@ export function buildWelcomeHtml(name: string, appUrl: string): string {
 </div></body></html>`
 }
 
-export async function sendWelcomeEmail(to: string, name: string): Promise<boolean> {
+export async function sendWelcomeEmail({
+  to,
+  name,
+}: {
+  to: string
+  name: string
+}): Promise<boolean> {
   return sendEmail(to, 'Welcome to Catalyse!', buildWelcomeHtml(name, APP_URL))
 }
 
@@ -319,15 +357,23 @@ export function buildProjectNotificationHtml(
 </div></body></html>`
 }
 
-export async function sendProjectNotificationEmail(
-  to: string,
-  name: string,
-  subject: string,
-  message: string,
-  projectTitle: string,
-  projectId: number,
+export async function sendProjectNotificationEmail({
+  to,
+  name,
+  subject,
+  message,
+  projectTitle,
+  projectId,
   extraHtml = '',
-): Promise<boolean> {
+}: {
+  to: string
+  name: string
+  subject: string
+  message: string
+  projectTitle: string
+  projectId: number
+  extraHtml?: string
+}): Promise<boolean> {
   return sendEmail(
     to,
     subject,
@@ -370,13 +416,19 @@ export function buildLocalGroupSuggestionHtml(
 </div></body></html>`
 }
 
-export async function sendLocalGroupSuggestionEmail(
-  to: string,
-  name: string,
-  action: string,
-  groupName: string,
-  adminNotes?: string | null,
-): Promise<boolean> {
+export async function sendLocalGroupSuggestionEmail({
+  to,
+  name,
+  action,
+  groupName,
+  adminNotes,
+}: {
+  to: string
+  name: string
+  action: string
+  groupName: string
+  adminNotes?: string | null
+}): Promise<boolean> {
   const subjects: Record<string, string> = {
     accepted: `Your local group suggestion "${groupName}" was accepted`,
     merge: `Your local group suggestion "${groupName}" has been merged`,
@@ -418,15 +470,23 @@ export function buildRelayMessageHtml(
 </div></body></html>`
 }
 
-export async function sendRelayMessage(
-  to: string,
-  toName: string,
-  fromName: string,
-  fromEmail: string,
-  subject: string,
-  message: string,
-  projectTitle?: string,
-): Promise<boolean> {
+export async function sendRelayMessage({
+  to,
+  toName,
+  fromName,
+  fromEmail,
+  subject,
+  message,
+  projectTitle,
+}: {
+  to: string
+  toName: string
+  fromName: string
+  fromEmail: string
+  subject: string
+  message: string
+  projectTitle?: string
+}): Promise<boolean> {
   return sendEmail(
     to,
     `[Catalyse] ${subject}`,
@@ -483,18 +543,23 @@ export function buildDigestHtml(
 </div></body></html>`
 }
 
-export async function sendDigestEmail(
-  to: string,
-  name: string,
+export async function sendDigestEmail({
+  to,
+  name,
+  projects,
+  isMatch = false,
+}: {
+  to: string
+  name: string
   projects: Array<{
     id: number
     title: string
     description?: string
     skill_names?: string[]
     match_percent?: number
-  }>,
-  isMatch = false,
-): Promise<boolean> {
+  }>
+  isMatch?: boolean
+}): Promise<boolean> {
   if (!projects.length) return false
   const html = buildDigestHtml(name, APP_URL, projects, isMatch)
   const subject = isMatch ? 'New projects matching your skills' : "What's new on Catalyse"
@@ -530,17 +595,27 @@ export function buildTaskNudgeHtml(
 </div></body></html>`
 }
 
-export async function sendTaskNudgeEmail(
-  to: string,
-  name: string,
-  taskTitle: string,
-  projectTitle: string,
-  projectId: number,
-  taskId: number,
-  daysInactive: number,
-  activityPhrase: string,
-  lastActivityDate: string,
-): Promise<boolean> {
+export async function sendTaskNudgeEmail({
+  to,
+  name,
+  taskTitle,
+  projectTitle,
+  projectId,
+  taskId,
+  daysInactive,
+  activityPhrase,
+  lastActivityDate,
+}: {
+  to: string
+  name: string
+  taskTitle: string
+  projectTitle: string
+  projectId: number
+  taskId: number
+  daysInactive: number
+  activityPhrase: string
+  lastActivityDate: string
+}): Promise<boolean> {
   const subject = `How's it going with ${taskTitle}?`
   return sendEmail(
     to,
@@ -591,18 +666,29 @@ export function buildTaskFinalWarningHtml(
 </div></body></html>`
 }
 
-export async function sendTaskFinalWarningEmail(
-  to: string,
-  name: string,
-  taskTitle: string,
-  projectTitle: string,
-  projectId: number,
-  taskId: number,
-  daysInactive: number,
-  activityPhrase: string,
-  lastActivityDate: string,
-  surrenderDate: string,
-): Promise<boolean> {
+export async function sendTaskFinalWarningEmail({
+  to,
+  name,
+  taskTitle,
+  projectTitle,
+  projectId,
+  taskId,
+  daysInactive,
+  activityPhrase,
+  lastActivityDate,
+  surrenderDate,
+}: {
+  to: string
+  name: string
+  taskTitle: string
+  projectTitle: string
+  projectId: number
+  taskId: number
+  daysInactive: number
+  activityPhrase: string
+  lastActivityDate: string
+  surrenderDate: string
+}): Promise<boolean> {
   const subject = `A quick nudge about ${taskTitle}`
   return sendEmail(
     to,
@@ -645,14 +731,21 @@ export function buildTaskSurrenderedOwnerHtml(
 </div></body></html>`
 }
 
-export async function sendTaskSurrenderedOwnerEmail(
-  to: string,
-  ownerName: string,
-  volunteerName: string,
-  taskTitle: string,
-  projectTitle: string,
-  projectId: number,
-): Promise<boolean> {
+export async function sendTaskSurrenderedOwnerEmail({
+  to,
+  ownerName,
+  volunteerName,
+  taskTitle,
+  projectTitle,
+  projectId,
+}: {
+  to: string
+  ownerName: string
+  volunteerName: string
+  taskTitle: string
+  projectTitle: string
+  projectId: number
+}): Promise<boolean> {
   const subject = `Task unassigned due to inactivity: ${taskTitle}`
   return sendEmail(
     to,
@@ -683,13 +776,19 @@ export function buildTaskSurrenderedAssigneeHtml(
 </div></body></html>`
 }
 
-export async function sendTaskSurrenderedAssigneeEmail(
-  to: string,
-  name: string,
-  taskTitle: string,
-  projectTitle: string,
-  projectId: number,
-): Promise<boolean> {
+export async function sendTaskSurrenderedAssigneeEmail({
+  to,
+  name,
+  taskTitle,
+  projectTitle,
+  projectId,
+}: {
+  to: string
+  name: string
+  taskTitle: string
+  projectTitle: string
+  projectId: number
+}): Promise<boolean> {
   const subject = `Update on your task: ${taskTitle}`
   return sendEmail(
     to,

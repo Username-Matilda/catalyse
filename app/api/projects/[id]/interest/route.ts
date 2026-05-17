@@ -90,15 +90,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         const extra = message
           ? `<div style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"><strong>Their message:</strong> ${message}</div>`
           : ''
-        sendProjectNotificationEmail(
-          owner.email,
-          owner.name,
-          `${volunteer.name} wants to ${interestLabel} '${project.title}'`,
-          `<strong>${volunteer.name}</strong> has expressed interest in your project <strong>${project.title}</strong>. Log in to review and accept or decline.`,
-          project.title,
+        sendProjectNotificationEmail({
+          to: owner.email,
+          name: owner.name,
+          subject: `${volunteer.name} wants to ${interestLabel} '${project.title}'`,
+          message: `<strong>${volunteer.name}</strong> has expressed interest in your project <strong>${project.title}</strong>. Log in to review and accept or decline.`,
+          projectTitle: project.title,
           projectId,
-          extra,
-        ).catch((e) => console.error('[EMAIL ERROR]', e))
+          extraHtml: extra,
+        }).catch((e) => console.error('[EMAIL ERROR]', e))
       }
     } catch (e) {
       console.error('[NOTIFY ERROR] Owner notification failed for interest:', e)
@@ -120,14 +120,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         `/projects/${projectId}`,
       ).catch((e) => console.error('[NOTIFY ERROR]', e))
       if (admin.email) {
-        sendProjectNotificationEmail(
-          admin.email,
-          admin.name,
-          `New interest: ${volunteer.name} → '${project.title}'`,
-          `<strong>${volunteer.name}</strong> wants to ${interestLabel} the project <strong>${project.title}</strong>.`,
-          project.title,
+        sendProjectNotificationEmail({
+          to: admin.email,
+          name: admin.name,
+          subject: `New interest: ${volunteer.name} → '${project.title}'`,
+          message: `<strong>${volunteer.name}</strong> wants to ${interestLabel} the project <strong>${project.title}</strong>.`,
+          projectTitle: project.title,
           projectId,
-        ).catch((e) => console.error('[EMAIL ERROR]', e))
+        }).catch((e) => console.error('[EMAIL ERROR]', e))
       }
     }
   } catch (e) {

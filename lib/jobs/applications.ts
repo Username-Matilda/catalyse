@@ -21,7 +21,7 @@ export async function runApplicationsSummaryJob(): Promise<Record<string, unknow
   let sent = 0
   for (const admin of admins) {
     if (admin.email) {
-      await sendPendingApplicationsSummaryEmail(admin.email, admin.name, count).catch((e) =>
+      await sendPendingApplicationsSummaryEmail({ to: admin.email, name: admin.name, count }).catch((e) =>
         console.error('[APPLICATIONS SUMMARY] Email failed:', e),
       )
       sent++

@@ -170,15 +170,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const resolvedApplicantNotes =
       applicantNotes ?? volunteer.applicationApplicantNotes ?? undefined
     if (action === 'approve') {
-      sendApplicationApprovedEmail(volunteer.email, volunteer.name).catch((e) =>
+      sendApplicationApprovedEmail({ to: volunteer.email, name: volunteer.name }).catch((e) =>
         console.error('[APPLICATIONS] Approved email failed:', e),
       )
     } else {
-      sendApplicationRejectedEmail(
-        volunteer.email,
-        volunteer.name,
-        resolvedApplicantNotes,
-      ).catch((e) => console.error('[APPLICATIONS] Rejected email failed:', e))
+      sendApplicationRejectedEmail({
+        to: volunteer.email,
+        name: volunteer.name,
+        applicantNotes: resolvedApplicantNotes,
+      }).catch((e) => console.error('[APPLICATIONS] Rejected email failed:', e))
     }
   }
 

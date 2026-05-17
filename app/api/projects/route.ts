@@ -253,14 +253,14 @@ export async function POST(request: NextRequest) {
     ).catch((e) => console.error('[NOTIFY ERROR]', e))
 
     if (admin.email) {
-      sendProjectNotificationEmail(
-        admin.email,
-        admin.name,
-        `New project proposal: ${project.title}`,
-        `<strong>${volunteer.name}</strong> has submitted a new project proposal: <strong>${project.title}</strong>. Please review it in the triage queue.`,
-        project.title,
-        project.id,
-      ).catch((e) => console.error('[EMAIL ERROR]', e))
+      sendProjectNotificationEmail({
+        to: admin.email,
+        name: admin.name,
+        subject: `New project proposal: ${project.title}`,
+        message: `<strong>${volunteer.name}</strong> has submitted a new project proposal: <strong>${project.title}</strong>. Please review it in the triage queue.`,
+        projectTitle: project.title,
+        projectId: project.id,
+      }).catch((e) => console.error('[EMAIL ERROR]', e))
     }
   }
 

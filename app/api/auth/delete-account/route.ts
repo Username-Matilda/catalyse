@@ -134,14 +134,14 @@ async function sendAccountDeletionNotifications(deletedId: number, deletedName: 
         msgParts.push(`<p>The following projects need a new owner:</p><ul>${rows}</ul>`)
       }
       try {
-        await sendProjectNotificationEmail(
-          r.email,
-          r.name,
-          `${deletedName} has deleted their account`,
-          msgParts.join(''),
-          allProjects[0].projectTitle,
-          allProjects[0].projectId,
-        )
+        await sendProjectNotificationEmail({
+          to: r.email,
+          name: r.name,
+          subject: `${deletedName} has deleted their account`,
+          message: msgParts.join(''),
+          projectTitle: allProjects[0].projectTitle,
+          projectId: allProjects[0].projectId,
+        })
       } catch (e) {
         console.error('[NOTIFY ERROR] Account deletion email failed:', e)
       }
