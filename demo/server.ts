@@ -2,6 +2,7 @@ import { execSync, spawn, ChildProcess } from 'child_process'
 import path from 'path'
 import fs from 'fs'
 import { DEMO_PORT, BASE_URL } from './data'
+import { buildNext } from '../scripts/next-build'
 
 const PROJECT_ROOT = path.resolve(__dirname, '..')
 const NEXT_BINARY = path.join(PROJECT_ROOT, 'node_modules', '.bin', 'next')
@@ -9,13 +10,7 @@ const NEXT_BINARY = path.join(PROJECT_ROOT, 'node_modules', '.bin', 'next')
 let demoServer: ChildProcess | null = null
 
 export async function buildForDemo(): Promise<void> {
-  console.log('  Cleaning previous build...')
-  fs.rmSync(path.join(PROJECT_ROOT, '.next'), { recursive: true, force: true })
-  console.log('  Building for demo...')
-  await new Promise<void>((resolve, reject) => {
-    const build = spawn(NEXT_BINARY, ['build'], { cwd: PROJECT_ROOT, stdio: 'inherit' })
-    build.on('close', (code) => code === 0 ? resolve() : reject(new Error(`next build failed (exit ${code})`)))
-  })
+  await buildNext()
 }
 
 /** Starts the server immediately (non-blocking). Returns a Promise that resolves when the server is healthy. */

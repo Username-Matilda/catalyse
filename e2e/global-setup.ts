@@ -13,6 +13,7 @@ import {
   workerAuthFile,
   SERVER_PIDS_FILE,
 } from './config'
+import { buildNext } from '../scripts/next-build'
 
 const PROJECT_ROOT = path.resolve(__dirname, '..')
 const NEXT_BINARY = path.join(PROJECT_ROOT, 'node_modules', '.bin', 'next')
@@ -28,13 +29,6 @@ function killServerOnPort(port: number): void {
 
 const IS_DEV_MODE = process.env.E2E_DEV === '1'
 
-function buildNextJs(): void {
-  execSync(`${NEXT_BINARY} build`, {
-    cwd: PROJECT_ROOT,
-    stdio: 'inherit',
-    env: { ...process.env },
-  })
-}
 
 function migrateWorkerDb(parallelIndex: number): void {
   const dbDir = workerDbDir(parallelIndex)
@@ -135,7 +129,7 @@ async function globalSetup(config: FullConfig): Promise<void> {
   const workerCount = config.workers
 
   if (IS_LOCAL) {
-    if (!IS_DEV_MODE) buildNextJs()
+    if (!IS_DEV_MODE) await buildNext()
 
     const pids: Record<string, number> = {}
     for (let i = 0; i < workerCount; i++) {
