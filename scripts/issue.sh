@@ -34,7 +34,7 @@ trap 'rm -rf "$LOCKDIR"' EXIT
 # Warn if working tree is dirty
 if ! git diff --quiet || ! git diff --cached --quiet; then
   echo "Warning: uncommitted changes in working tree"
-  read -r -p "Continue? [y/N] " confirm
+  read -r -t 30 -p "Continue? [y/N] " confirm || confirm="n"
   [[ "$confirm" =~ ^[Yy]$ ]] || exit 1
 fi
 
@@ -61,7 +61,11 @@ while IFS= read -r line; do
   expanded=$(echo "$line" | sed 's/#\([0-9]*\)[–-]\([0-9]*\)/\1-\2/g')
   while [[ "$expanded" =~ ([0-9]+)-([0-9]+) ]]; do
     start=${BASH_REMATCH[1]}; end=${BASH_REMATCH[2]}
-    for ((n=start; n<=end; n++)); do PREREQ_NUMBERS="$PREREQ_NUMBERS $n"; done
+    if (( end - start > 20 )); then
+      echo "Warning: ignoring large prerequisite range #${start}-#${end} (exceeds 20-issue limit)" >&2
+    else
+      for ((n=start; n<=end; n++)); do PREREQ_NUMBERS="$PREREQ_NUMBERS $n"; done
+    fi
     expanded="${expanded/${BASH_REMATCH[0]}/}"
   done
   # pick up any remaining individual #N references
@@ -115,7 +119,7 @@ $(echo -e "$PREREQ_SECTION")
 
 FIRST: run \`issue-session-canary\` and confirm it outputs 'issue-session-sandbox-active'. If the command is not found or outputs anything else, stop immediately and warn the user that the sandbox command wrappers are not active — do not proceed with any work.
 
-Before writing any code, propose a clear implementation plan and wait for the user to confirm. If there are open prerequisites above, flag them and ask whether to proceed anyway. Once confirmed, implement the changes. When all work is complete, run \`npm run check-all\` and report the results. Then push the branch and raise a PR using \`gh pr create\` with a clear title and description referencing the issue."
+Before writing any code, propose a clear implementation plan and wait for the user to confirm. If there are open prerequisites above, flag them and ask whether to proceed anyway. Once confirmed, implement the changes. When all work is complete, run \`npm run check-all\` and report the results. Then push the branch and raise a PR using \`gh pr create --base main\` (--base main must be the first flags) with a clear title and description referencing the issue."
 
 REAL_GIT=$(which git)
 REAL_GH=$(which gh)
@@ -136,28 +140,27 @@ done
 
 cat > "$TMPBIN/gh" << GHSCRIPT
 #!/bin/bash
+base_value() {
+  local next=0
+  for arg in "\$@"; do
+    [[ "\$next" == "1" ]] && { echo "\$arg"; return; }
+    [[ "\$arg" == "--base" ]] && next=1
+  done
+}
 if [[ "\$1" == "pr" && "\$2" == "view" ]]; then
   exec "$REAL_GH" "\$@"
 fi
 if [[ "\$1" == "pr" && "\$2" == "create" ]]; then
-  for arg in "\$@"; do
-    if [[ "\$arg" == "--base" ]]; then
-      NEXT_IS_BASE=1
-      continue
-    fi
-    if [[ "\$NEXT_IS_BASE" == "1" ]]; then
-      if [[ "\$arg" != "main" ]]; then
-        echo "gh pr create: can only target main branch" >&2
-        exit 1
-      fi
-      break
-    fi
-  done
+  if [[ "\$(base_value "\$@")" != "main" ]]; then
+    echo "gh pr create: --base main is required" >&2
+    exit 1
+  fi
   exec "$REAL_GH" "\$@"
 fi
 if [[ "\$1" == "pr" && "\$2" == "edit" ]]; then
-  if [[ "\$*" == *"--base"* ]]; then
-    echo "gh pr edit --base: not permitted in issue sessions" >&2
+  BASE="\$(base_value "\$@")"
+  if [[ -n "\$BASE" && "\$BASE" != "main" ]]; then
+    echo "gh pr edit: --base must target main" >&2
     exit 1
   fi
   exec "$REAL_GH" "\$@"
