@@ -13,13 +13,13 @@ import { CARD_GRID_CLASSES } from '@/components/ProjectCard'
 interface FlatSkill {
   id: number
   name: string
-  category_name: string
+  categoryName: string
 }
 
 interface Skill {
   id: number
   name: string
-  category_name: string
+  categoryName: string
 }
 
 interface Volunteer {
@@ -28,9 +28,9 @@ interface Volunteer {
   bio: string | null
   location: string | null
   country: string | null
-  local_group: string | null
-  availability_hours_per_week: number | null
-  created_at: string
+  localGroup: string | null
+  availabilityHoursPerWeek: number | null
+  createdAt: string
   skills: Skill[]
 }
 
@@ -177,15 +177,15 @@ export default function VolunteersPage() {
                       {v.name}
                     </Link>
                   </h3>
-                  {(v.location || v.country || v.local_group || v.availability_hours_per_week) && (
+                  {(v.location || v.country || v.localGroup || v.availabilityHoursPerWeek) && (
                     <div className="flex items-center gap-3 flex-wrap text-xs text-text-light mb-2">
-                      {(v.location || v.country || v.local_group) && (
+                      {(v.location || v.country || v.localGroup) && (
                         <span>
-                          📍 {[v.local_group, v.country ?? v.location].filter(Boolean).join(' · ')}
+                          📍 {[v.localGroup, v.country ?? v.location].filter(Boolean).join(' · ')}
                         </span>
                       )}
-                      {v.availability_hours_per_week && (
-                        <span>🕐 {v.availability_hours_per_week}h/week</span>
+                      {v.availabilityHoursPerWeek && (
+                        <span>🕐 {v.availabilityHoursPerWeek}h/week</span>
                       )}
                     </div>
                   )}
@@ -219,7 +219,7 @@ export default function VolunteersPage() {
                   <div className="flex justify-between items-center mt-auto pt-4 border-t border-brand-border">
                     <span className="text-sm text-text-light">
                       Joined{' '}
-                      {new Date(v.created_at).toLocaleDateString('en-GB', {
+                      {new Date(v.createdAt).toLocaleDateString('en-GB', {
                         month: 'short',
                         year: 'numeric',
                       })}

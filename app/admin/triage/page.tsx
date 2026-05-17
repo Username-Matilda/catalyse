@@ -21,7 +21,7 @@ interface Project extends CardProject {
   proposed_by_name?: string | null
   proposed_by_id?: number | null
   owner_id: number | null
-  review_notes: string | null
+  reviewNotes: string | null
 }
 
 interface Interest {
@@ -66,11 +66,11 @@ export default function TriagePage() {
 
   useEffect(() => {
     if (!loading && !user) router.push('/login')
-    if (!loading && user && !user.is_admin) router.push('/')
+    if (!loading && user && !user.isAdmin) router.push('/')
   }, [user, loading, router])
 
   useEffect(() => {
-    if (!user?.is_admin) return
+    if (!user?.isAdmin) return
     apiRequest<Project[]>('/api/admin/triage')
       .then((data) => {
         setProjects(data)
@@ -80,7 +80,7 @@ export default function TriagePage() {
   }, [user])
 
   useEffect(() => {
-    if (!user?.is_admin) return
+    if (!user?.isAdmin) return
     const params = interestStatusFilter ? `?status=${interestStatusFilter}` : ''
     apiRequest<Interest[]>(`/api/admin/interests${params}`)
       .then((data) => {
@@ -94,7 +94,7 @@ export default function TriagePage() {
     setModal({ project })
     setDecision('approved')
     setFeedback('')
-    setReviewNotes(project.review_notes || '')
+    setReviewNotes(project.reviewNotes || '')
   }
 
   function closeModal() {
@@ -110,9 +110,9 @@ export default function TriagePage() {
         method: 'POST',
         body: JSON.stringify({
           status: decision,
-          feedback_to_proposer: decision === 'needs_discussion' ? feedback : null,
-          review_notes: reviewNotes || null,
-          target_status: modal.project.owner_id ? 'seeking_help' : 'seeking_owner',
+          feedbackToProposer: decision === 'needs_discussion' ? feedback : null,
+          reviewNotes: reviewNotes || null,
+          targetStatus: modal.project.owner_id ? 'seeking_help' : 'seeking_owner',
         }),
       })
       setProjects((prev) => prev.filter((p) => p.id !== modal.project.id))
@@ -340,9 +340,9 @@ export default function TriagePage() {
                     key={p.id}
                     project={{
                       ...p,
-                      owner: p.proposed_by
+                      owner: p.proposedBy
                         ? {
-                            name: `Proposed by: ${typeof p.proposed_by === 'string' ? p.proposed_by : p.proposed_by.name}`,
+                            name: `Proposed by: ${typeof p.proposedBy === 'string' ? p.proposedBy : p.proposedBy.name}`,
                           }
                         : null,
                     }}

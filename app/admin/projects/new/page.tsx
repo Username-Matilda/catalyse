@@ -11,7 +11,7 @@ export default function AdminCreateProjectPage() {
 
   useEffect(() => {
     if (!loading && !user) router.push('/login')
-    if (!loading && user && !user.is_admin) router.push('/')
+    if (!loading && user && !user.isAdmin) router.push('/')
   }, [user, loading, router])
 
   if (loading || !user) return null

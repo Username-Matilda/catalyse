@@ -25,8 +25,8 @@ test.describe('GDPR & Privacy', () => {
     expect(data).toHaveProperty('profile')
     expect(data).toHaveProperty('skills')
     expect(data).toHaveProperty('interests')
-    expect(data).toHaveProperty('messages_sent')
-    expect(data).toHaveProperty('messages_received')
+    expect(data).toHaveProperty('messagesSent')
+    expect(data).toHaveProperty('messagesReceived')
   })
 
   test('Volunteer with contact sharing disabled does not expose contact handles', async ({

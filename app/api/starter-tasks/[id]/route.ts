@@ -23,13 +23,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const updated = await prisma.starterTask.update({
     where: { id: taskId },
     data: {
-      ...(body.title != null && { title: String(body.title).trim() }),
-      ...(body.description != null && { description: String(body.description).trim() }),
-      ...(Object.prototype.hasOwnProperty.call(body, 'skill_id') && {
-        skillId: body.skill_id as number | null,
+      ...(body.title !== null && { title: String(body.title).trim() }),
+      ...(body.description !== null && { description: String(body.description).trim() }),
+      ...(Object.prototype.hasOwnProperty.call(body, 'skillId') && {
+        skillId: body.skillId as number | null,
       }),
-      ...(Object.prototype.hasOwnProperty.call(body, 'estimated_hours') && {
-        estimatedHours: body.estimated_hours as number | null,
+      ...(Object.prototype.hasOwnProperty.call(body, 'estimatedHours') && {
+        estimatedHours: body.estimatedHours as number | null,
       }),
     },
   })

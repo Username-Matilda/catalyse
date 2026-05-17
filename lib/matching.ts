@@ -4,10 +4,10 @@ export interface ProjectSkillRow {
 }
 
 export interface MatchScore {
-  required_match_percent: number
-  matched_required_count: number
-  total_required: number
-  overall_score: number
+  requiredMatchPercent: number
+  matchedRequiredCount: number
+  totalRequired: number
+  overallScore: number
 }
 
 export function calculateMatchScore(
@@ -23,10 +23,10 @@ export function calculateMatchScore(
   const requiredScore = requiredIds.size > 0 ? (matchedRequired.size / requiredIds.size) * 100 : 100
 
   return {
-    required_match_percent: Math.round(requiredScore),
-    matched_required_count: matchedRequired.size,
-    total_required: requiredIds.size,
-    overall_score: Math.round(requiredScore),
+    requiredMatchPercent: Math.round(requiredScore),
+    matchedRequiredCount: matchedRequired.size,
+    totalRequired: requiredIds.size,
+    overallScore: Math.round(requiredScore),
   }
 }
 

@@ -49,12 +49,12 @@ function ResetPasswordForm() {
     try {
       await apiRequest('/api/auth/reset-password', {
         method: 'POST',
-        body: JSON.stringify({ token, new_password: password }),
+        body: JSON.stringify({ token, newPassword: password }),
       })
       router.push('/login')
     } catch (err: unknown) {
-      if (err instanceof ApiError && err.fieldErrors?.new_password) {
-        setFieldErrors({ password: err.fieldErrors.new_password })
+      if (err instanceof ApiError && err.fieldErrors?.newPassword) {
+        setFieldErrors({ password: err.fieldErrors.newPassword })
       } else {
         setError(err instanceof Error ? err.message : 'Reset failed')
       }

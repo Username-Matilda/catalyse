@@ -21,19 +21,19 @@ export async function GET(request: NextRequest) {
   return Response.json(
     reports.map((r) => ({
       id: r.id,
-      reporter_id: r.reporterId,
-      reporter_email: r.reporterEmail,
+      reporterId: r.reporterId,
+      reporterEmail: r.reporterEmail,
       title: r.title,
       description: r.description,
-      page_url: r.pageUrl,
+      pageUrl: r.pageUrl,
       category: r.category,
       severity: r.severity,
       status: r.status,
-      resolution_notes: r.resolutionNotes,
-      resolved_by_id: r.resolvedById,
-      resolved_at: r.resolvedAt,
-      created_at: r.createdAt,
-      reporter_name: r.reporter?.name ?? null,
+      resolutionNotes: r.resolutionNotes,
+      resolvedById: r.resolvedById,
+      resolvedAt: r.resolvedAt,
+      createdAt: r.createdAt,
+      reporterName: r.reporter?.name ?? null,
     })),
   )
 }

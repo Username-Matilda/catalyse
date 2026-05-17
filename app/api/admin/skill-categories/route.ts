@@ -16,9 +16,9 @@ export async function GET(request: NextRequest) {
       id: cat.id,
       name: cat.name,
       description: cat.description,
-      sort_order: cat.sortOrder,
-      created_at: cat.createdAt,
-      skill_count: cat._count.skills,
+      sortOrder: cat.sortOrder,
+      createdAt: cat.createdAt,
+      skillCount: cat._count.skills,
     })),
   )
 }
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
 
   const description = body.description ? String(body.description) : null
 
-  let sortOrder = body.sort_order != null ? Number(body.sort_order) : null
+  let sortOrder = body.sortOrder !== null ? Number(body.sortOrder) : null
   if (sortOrder === null) {
     const max = await prisma.skillCategory.aggregate({ _max: { sortOrder: true } })
     sortOrder = (max._max.sortOrder ?? 0) + 1
@@ -54,5 +54,5 @@ export async function POST(request: NextRequest) {
     data: { name, description, sortOrder },
   })
 
-  return Response.json({ id: category.id, name: category.name, sort_order: category.sortOrder })
+  return Response.json({ id: category.id, name: category.name, sortOrder: category.sortOrder })
 }

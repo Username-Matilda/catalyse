@@ -26,8 +26,8 @@ interface Skill {
   id: number
   name: string
   description: string | null
-  sort_order: number
-  category_id: number
+  sortOrder: number
+  categoryId: number
   category_name: string
 }
 
@@ -35,8 +35,8 @@ interface Category {
   id: number
   name: string
   description: string | null
-  sort_order: number
-  skill_count: number
+  sortOrder: number
+  skillCount: number
   skills: Skill[]
 }
 
@@ -145,7 +145,7 @@ function SortableCategory({
     onSkillsReorder(cat.id, reordered)
     apiRequest('/api/admin/skills/reorder', {
       method: 'PATCH',
-      body: JSON.stringify(reordered.map((s, i) => ({ id: s.id, sort_order: i + 1 }))),
+      body: JSON.stringify(reordered.map((s, i) => ({ id: s.id, sortOrder: i + 1 }))),
     }).catch(() => {})
   }
 
@@ -251,7 +251,7 @@ export default function AdminSkillsPage() {
 
   useEffect(() => {
     if (!loading && !user) router.push('/login')
-    if (!loading && user && !user.is_admin) router.push('/')
+    if (!loading && user && !user.isAdmin) router.push('/')
   }, [user, loading, router])
 
   const loadData = useCallback(
@@ -265,7 +265,7 @@ export default function AdminSkillsPage() {
           cats.map((c) => ({ ...c, skills: [] as Skill[] })).map((c) => [c.id, c]),
         )
         for (const s of skills) {
-          catMap.get(s.category_id)?.skills.push(s)
+          catMap.get(s.categoryId)?.skills.push(s)
         }
         setCategories(Array.from(catMap.values()))
       } catch {
@@ -278,7 +278,7 @@ export default function AdminSkillsPage() {
   )
 
   useEffect(() => {
-    if (!user?.is_admin) return
+    if (!user?.isAdmin) return
     // False positive: setState calls inside loadData are in .then()/.finally() callbacks,
     // never synchronously in the effect. Rule doesn't track async boundaries.
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -314,7 +314,7 @@ export default function AdminSkillsPage() {
     setCategories(reordered)
     apiRequest('/api/admin/skill-categories/reorder', {
       method: 'PATCH',
-      body: JSON.stringify(reordered.map((c, i) => ({ id: c.id, sort_order: i + 1 }))),
+      body: JSON.stringify(reordered.map((c, i) => ({ id: c.id, sortOrder: i + 1 }))),
     }).catch(() => {})
   }
 
@@ -366,7 +366,7 @@ export default function AdminSkillsPage() {
           body: JSON.stringify({
             name: inputName.trim(),
             description: inputDescription.trim() || null,
-            category_id: modal.categoryId,
+            categoryId: modal.categoryId,
           }),
         })
         showToast('Skill created!', 'success')

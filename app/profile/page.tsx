@@ -19,18 +19,18 @@ interface ProfileData {
   name: string
   bio: string | null
   location: string | null
-  availability_hours_per_week: number | null
-  consent_make_profile_visible_in_directory: boolean
-  consent_contactable_by_project_owners: boolean
-  consent_share_contact_info_with_project_owner: boolean
-  email_digest: string
-  other_skills: string | null
-  skills: Array<{ id: number; proficiency_level: string | null }>
-  discord_handle: string | null
-  signal_number: string | null
-  whatsapp_number: string | null
-  contact_preference: string | null
-  contact_notes: string | null
+  availabilityHoursPerWeek: number | null
+  consentMakeProfileVisibleInDirectory: boolean
+  consentContactableByProjectOwners: boolean
+  consentShareContactInfoWithProjectOwner: boolean
+  emailDigest: string
+  otherSkills: string | null
+  skills: Array<{ id: number; proficiencyLevel: string | null }>
+  discordHandle: string | null
+  signalNumber: string | null
+  whatsappNumber: string | null
+  contactPreference: string | null
+  contactNotes: string | null
 }
 
 export default function ProfilePage() {
@@ -68,23 +68,21 @@ export default function ProfilePage() {
         setName(d.name ?? '')
         setBio(d.bio ?? '')
         setLocation(d.location ?? '')
-        setHours(d.availability_hours_per_week != null ? String(d.availability_hours_per_week) : '')
-        setConsentMakeProfileVisibleInDirectory(!!d.consent_make_profile_visible_in_directory)
-        setConsentContactableByProjectOwners(!!d.consent_contactable_by_project_owners)
-        setConsentShareContactInfoWithProjectOwner(
-          !!d.consent_share_contact_info_with_project_owner,
-        )
-        setDiscordHandle(d.discord_handle ?? '')
-        setSignalNumber(d.signal_number ?? '')
-        setWhatsappNumber(d.whatsapp_number ?? '')
-        setContactPreference(d.contact_preference ?? '')
-        setContactNotes(d.contact_notes ?? '')
-        setEmailDigest(d.email_digest ?? 'none')
-        setOtherSkills(d.other_skills ?? '')
+        setHours(d.availabilityHoursPerWeek !== null ? String(d.availabilityHoursPerWeek) : '')
+        setConsentMakeProfileVisibleInDirectory(!!d.consentMakeProfileVisibleInDirectory)
+        setConsentContactableByProjectOwners(!!d.consentContactableByProjectOwners)
+        setConsentShareContactInfoWithProjectOwner(!!d.consentShareContactInfoWithProjectOwner)
+        setDiscordHandle(d.discordHandle ?? '')
+        setSignalNumber(d.signalNumber ?? '')
+        setWhatsappNumber(d.whatsappNumber ?? '')
+        setContactPreference(d.contactPreference ?? '')
+        setContactNotes(d.contactNotes ?? '')
+        setEmailDigest(d.emailDigest ?? 'none')
+        setOtherSkills(d.otherSkills ?? '')
         setSkills(
           (d.skills ?? []).map((s) => ({
             skillId: s.id,
-            proficiencyLevel: s.proficiency_level ?? 'intermediate',
+            proficiencyLevel: s.proficiencyLevel ?? 'intermediate',
           })),
         )
       })

@@ -12,16 +12,16 @@ interface Admin {
   id: number
   name: string
   email: string
-  created_at: string
+  createdAt: string
 }
 
 interface Invite {
   id: number
   email: string
   status: string
-  invited_by_name: string
-  created_at: string
-  expires_at: string
+  invitedByName: string
+  createdAt: string
+  expiresAt: string
 }
 
 export default function AdminTeamPage() {
@@ -40,7 +40,7 @@ export default function AdminTeamPage() {
 
   useEffect(() => {
     if (!loading && !user) router.push('/login')
-    if (!loading && user && !user.is_admin) router.push('/')
+    if (!loading && user && !user.isAdmin) router.push('/')
   }, [user, loading, router])
 
   const loadData = useCallback(
@@ -62,7 +62,7 @@ export default function AdminTeamPage() {
   )
 
   useEffect(() => {
-    if (!user?.is_admin) return
+    if (!user?.isAdmin) return
     // False positive: setState calls inside loadData are in .then()/.finally() callbacks,
     // never synchronously in the effect. Rule doesn't track async boundaries.
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -214,8 +214,8 @@ export default function AdminTeamPage() {
                         <div>
                           <strong>{inv.email}</strong>
                           <p className="text-text-light text-sm" style={{ margin: 0 }}>
-                            Invited by {inv.invited_by_name} · Expires{' '}
-                            {new Date(inv.expires_at).toLocaleDateString()}
+                            Invited by {inv.invitedByName} · Expires{' '}
+                            {new Date(inv.expiresAt).toLocaleDateString()}
                           </p>
                         </div>
                         <Button variant="secondary" size="sm" onClick={() => cancelInvite(inv.id)}>

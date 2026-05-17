@@ -7,12 +7,12 @@ import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
 
 interface Stats {
-  volunteers: { total: number; this_month: number }
+  volunteers: { total: number; thisMonth: number }
   projects: {
     total: number
-    pending_review: number
-    seeking_help: number
-    in_progress: number
+    pendingReview: number
+    seekingHelp: number
+    inProgress: number
     completed: number
   }
   interests: { total: number; pending: number }
@@ -26,11 +26,11 @@ export default function AdminStatsPage() {
 
   useEffect(() => {
     if (!loading && !user) router.push('/login')
-    if (!loading && user && !user.is_admin) router.push('/')
+    if (!loading && user && !user.isAdmin) router.push('/')
   }, [user, loading, router])
 
   useEffect(() => {
-    if (!user?.is_admin) return
+    if (!user?.isAdmin) return
     apiRequest<Stats>('/api/admin/stats')
       .then((data) => {
         setStats(data)
@@ -65,7 +65,7 @@ export default function AdminStatsPage() {
                 </div>
                 <div>
                   <div className="text-4xl font-bold text-success mb-1">
-                    {stats.volunteers.this_month}
+                    {stats.volunteers.thisMonth}
                   </div>
                   <div className="text-text-light">Joined This Month</div>
                 </div>
@@ -79,15 +79,15 @@ export default function AdminStatsPage() {
                   { label: 'Total', value: stats.projects.total, color: undefined },
                   {
                     label: 'Pending Review',
-                    value: stats.projects.pending_review,
+                    value: stats.projects.pendingReview,
                     color: 'text-warning',
                   },
                   {
                     label: 'Seeking Help',
-                    value: stats.projects.seeking_help,
+                    value: stats.projects.seekingHelp,
                     color: 'text-secondary',
                   },
-                  { label: 'In Progress', value: stats.projects.in_progress, color: undefined },
+                  { label: 'In Progress', value: stats.projects.inProgress, color: undefined },
                   { label: 'Completed', value: stats.projects.completed, color: 'text-success' },
                 ].map((row, i, arr) => (
                   <div
@@ -131,7 +131,7 @@ export default function AdminStatsPage() {
               <h2 className="mt-0">Quick Actions</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 16 }}>
                 <Button variant="outline" href="/admin/triage">
-                  Review Pending Projects ({stats.projects.pending_review})
+                  Review Pending Projects ({stats.projects.pendingReview})
                 </Button>
                 <Button variant="outline" href="/admin/projects/new">
                   Create New Org Project

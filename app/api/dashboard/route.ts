@@ -70,21 +70,21 @@ export async function GET(request: NextRequest) {
     ])
 
   return Response.json({
-    owned_projects: ownedProjects.map((p) => serializeProject(p as EnrichedProject)),
-    proposed_projects: proposedProjects.map((p) => serializeProject(p as EnrichedProject)),
-    my_interests: myInterests.map((i) => ({
-      interest_id: i.id,
-      interest_type: i.interestType,
-      interest_status: i.status,
-      interest_message: i.message,
-      interest_created_at: i.createdAt,
-      interest_response_message: i.responseMessage,
-      interest_responded_at: i.respondedAt,
+    ownedProjects: ownedProjects.map((p) => serializeProject(p as EnrichedProject)),
+    proposedProjects: proposedProjects.map((p) => serializeProject(p as EnrichedProject)),
+    myInterests: myInterests.map((i) => ({
+      interestId: i.id,
+      interestType: i.interestType,
+      interestStatus: i.status,
+      interestMessage: i.message,
+      interestCreatedAt: i.createdAt,
+      interestResponseMessage: i.responseMessage,
+      interestRespondedAt: i.respondedAt,
       ...serializeProject(i.project as EnrichedProject, volunteerSkillIds),
     })),
-    suggested_projects: suggestedProjects.map((p) =>
+    suggestedProjects: suggestedProjects.map((p) =>
       serializeProject(p as EnrichedProject, volunteerSkillIds),
     ),
-    unread_notification_count: unreadCount,
+    unreadNotificationCount: unreadCount,
   })
 }

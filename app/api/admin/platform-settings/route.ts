@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
 
   const settings = await getSettings()
   return Response.json({
-    require_application_approval: settings.requireApplicationApproval,
+    requireApplicationApproval: settings.requireApplicationApproval,
   })
 }
 
@@ -29,19 +29,19 @@ export async function PATCH(request: NextRequest) {
     return Response.json({ detail: 'Invalid JSON' }, { status: 400 })
   }
 
-  if (typeof body.require_application_approval !== 'boolean') {
+  if (typeof body.requireApplicationApproval !== 'boolean') {
     return Response.json(
-      { detail: 'require_application_approval must be a boolean' },
+      { detail: 'requireApplicationApproval must be a boolean' },
       { status: 400 },
     )
   }
 
   const settings = await prisma.platformSettings.update({
     where: { id: SINGLETON_ID },
-    data: { requireApplicationApproval: body.require_application_approval },
+    data: { requireApplicationApproval: body.requireApplicationApproval },
   })
 
   return Response.json({
-    require_application_approval: settings.requireApplicationApproval,
+    requireApplicationApproval: settings.requireApplicationApproval,
   })
 }

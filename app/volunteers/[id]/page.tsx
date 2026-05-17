@@ -10,13 +10,13 @@ import { apiRequest } from '@/lib/api'
 interface Skill {
   id: number
   name: string
-  category_name: string
+  categoryName: string
 }
 
 interface Endorsement {
   id: number
-  skill_id: number
-  skill_name: string
+  skillId: number
+  skillName: string
   rating: string
 }
 
@@ -29,10 +29,10 @@ interface Project {
 
 interface CompletedTask {
   title: string
-  review_rating: string
-  feedback_to_volunteer: string | null
-  reviewed_at: string | null
-  skill_name: string | null
+  reviewRating: string
+  feedbackToVolunteer: string | null
+  reviewedAt: string | null
+  skillName: string | null
 }
 
 interface VolunteerDetail {
@@ -40,19 +40,19 @@ interface VolunteerDetail {
   name: string
   bio: string | null
   location: string | null
-  local_group: string | null
-  availability_hours_per_week: number | null
-  other_skills: string | null
-  consent_share_contact_info_with_project_owner: boolean
+  localGroup: string | null
+  availabilityHoursPerWeek: number | null
+  otherSkills: string | null
+  consentShareContactInfoWithProjectOwner: boolean
   email: string | null
-  discord_handle: string | null
-  signal_number: string | null
-  whatsapp_number: string | null
-  contact_notes: string | null
+  discordHandle: string | null
+  signalNumber: string | null
+  whatsappNumber: string | null
+  contactNotes: string | null
   skills: Skill[]
   endorsements: Endorsement[]
   projects: Project[]
-  completed_tasks: CompletedTask[]
+  completedTasks: CompletedTask[]
 }
 
 export default function VolunteerDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -105,12 +105,9 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
     )
   }
 
-  const endorsedSkillIds = new Set(volunteer.endorsements.map((e) => e.skill_id))
+  const endorsedSkillIds = new Set(volunteer.endorsements.map((e) => e.skillId))
   const hasContact =
-    volunteer.email ||
-    volunteer.discord_handle ||
-    volunteer.signal_number ||
-    volunteer.whatsapp_number
+    volunteer.email || volunteer.discordHandle || volunteer.signalNumber || volunteer.whatsappNumber
 
   return (
     <>
@@ -127,9 +124,9 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
               {volunteer.name}
             </h1>
 
-            {(volunteer.location || volunteer.local_group) && (
+            {(volunteer.location || volunteer.localGroup) && (
               <p className="text-text-light mb-4 text-sm">
-                {[volunteer.location, volunteer.local_group].filter(Boolean).join(' · ')}
+                {[volunteer.location, volunteer.localGroup].filter(Boolean).join(' · ')}
               </p>
             )}
 
@@ -154,18 +151,18 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
               )}
             </div>
 
-            {volunteer.other_skills && (
+            {volunteer.otherSkills && (
               <div className="mb-5">
                 <h4 className="text-text-light">Other Skills</h4>
-                <p>{volunteer.other_skills}</p>
+                <p>{volunteer.otherSkills}</p>
               </div>
             )}
 
             <div className="grid grid-cols-2 gap-4 mt-5">
-              {volunteer.availability_hours_per_week && (
+              {volunteer.availabilityHoursPerWeek && (
                 <div>
                   <h4 className="text-text-light">Availability</h4>
-                  <p id="availabilityText">{volunteer.availability_hours_per_week} hours/week</p>
+                  <p id="availabilityText">{volunteer.availabilityHoursPerWeek} hours/week</p>
                 </div>
               )}
 
@@ -173,12 +170,12 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
                 <h4 className="text-text-light">Contact</h4>
                 <div>
                   {volunteer.email && <div>Email: {volunteer.email}</div>}
-                  {volunteer.discord_handle && <div>Discord: {volunteer.discord_handle}</div>}
-                  {volunteer.signal_number && <div>Signal: {volunteer.signal_number}</div>}
-                  {volunteer.whatsapp_number && <div>WhatsApp: {volunteer.whatsapp_number}</div>}
-                  {volunteer.contact_notes && (
+                  {volunteer.discordHandle && <div>Discord: {volunteer.discordHandle}</div>}
+                  {volunteer.signalNumber && <div>Signal: {volunteer.signalNumber}</div>}
+                  {volunteer.whatsappNumber && <div>WhatsApp: {volunteer.whatsappNumber}</div>}
+                  {volunteer.contactNotes && (
                     <div>
-                      <em>{volunteer.contact_notes}</em>
+                      <em>{volunteer.contactNotes}</em>
                     </div>
                   )}
                 </div>
@@ -204,7 +201,7 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
                       borderLeft: `3px solid ${e.rating === 'strong' ? 'var(--success)' : 'var(--secondary)'}`,
                     }}
                   >
-                    {e.skill_name}{' '}
+                    {e.skillName}{' '}
                     <small
                       style={{
                         color: e.rating === 'strong' ? 'var(--success)' : 'var(--secondary)',
@@ -218,27 +215,27 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
             </div>
           )}
 
-          {volunteer.completed_tasks.length > 0 && (
+          {volunteer.completedTasks.length > 0 && (
             <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word">
               <h2>Completed Starter Tasks</h2>
-              {volunteer.completed_tasks.map((t, i) => (
+              {volunteer.completedTasks.map((t, i) => (
                 <div key={i} className="py-3 border-b border-brand-border">
                   <div className="flex justify-between items-center">
                     <strong>{t.title}</strong>
                     <span
-                      className={`text-sm font-medium ${t.review_rating === 'excellent' ? 'text-[color:var(--success)]' : 'text-secondary'}`}
+                      className={`text-sm font-medium ${t.reviewRating === 'excellent' ? 'text-[color:var(--success)]' : 'text-secondary'}`}
                     >
-                      {t.review_rating}
+                      {t.reviewRating}
                     </span>
                   </div>
-                  {t.skill_name && (
+                  {t.skillName && (
                     <span className="inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-[#374151] dark:text-[#D1D5DB] mt-1">
-                      {t.skill_name}
+                      {t.skillName}
                     </span>
                   )}
-                  {t.feedback_to_volunteer && (
+                  {t.feedbackToVolunteer && (
                     <p className="mt-2 text-sm text-text-light italic">
-                      &ldquo;{t.feedback_to_volunteer}&rdquo;
+                      &ldquo;{t.feedbackToVolunteer}&rdquo;
                     </p>
                   )}
                 </div>

@@ -47,7 +47,7 @@ export async function PUT(
     return Response.json({ detail: 'Status must be accepted or declined' }, { status: 400 })
   }
 
-  const responseMessage = (body.response_message as string | null) ?? null
+  const responseMessage = (body.responseMessage as string | null) ?? null
 
   await prisma.projectInterest.update({
     where: { id: interestId },

@@ -58,15 +58,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   const errs: ReturnType<typeof fieldError>[] = []
-  if (!body.skill_id || typeof body.skill_id !== 'number') {
-    errs.push(fieldError('skill_id', 'skill_id is required'))
+  if (!body.skillId || typeof body.skillId !== 'number') {
+    errs.push(fieldError('skillId', 'skillId is required'))
   }
   if (errs.length) return validationError(errs)
 
-  const skillId = body.skill_id as number
+  const skillId = body.skillId as number
   const rating = (body.rating as string) || 'verified'
   const source = (body.source as string) || 'direct_observation'
-  const sourceId = (body.source_id as number | null) ?? null
+  const sourceId = (body.sourceId as number | null) ?? null
   const notes = (body.notes as string | null) ?? null
 
   await prisma.skillEndorsement.upsert({

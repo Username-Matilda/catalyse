@@ -25,7 +25,7 @@ async function createAdminInvite(adminPage: Page, email: string): Promise<string
   return data._dev_invite_token
 }
 
-async function getMe(page: Page): Promise<{ id: number; is_admin: boolean }> {
+async function getMe(page: Page): Promise<{ id: number; isAdmin: boolean }> {
   return page.evaluate(async () => {
     const token = localStorage.getItem('authToken')
     const resp = await fetch('/api/auth/me', {
@@ -111,7 +111,7 @@ test.describe('Admin: Admin Team Management', () => {
       await page.waitForURL(`${baseUrl}/dashboard`, { timeout: 15_000 })
 
       const me = await getMe(page)
-      expect(me.is_admin).toBeTruthy()
+      expect(me.isAdmin).toBeTruthy()
     } finally {
       await ctx.close()
     }
@@ -127,7 +127,7 @@ test.describe('Admin: Admin Team Management', () => {
     )
 
     const me = await getMe(volunteer.page)
-    expect(me.is_admin).toBeTruthy()
+    expect(me.isAdmin).toBeTruthy()
   })
 
   test("Admin revokes another admin's access", async ({ adminPage, volunteer, baseUrl }) => {

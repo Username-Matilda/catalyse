@@ -12,12 +12,12 @@ interface StarterTask {
   id: number
   title: string
   description: string
-  skill_name: string | null
-  project_title: string | null
+  skillName: string | null
+  projectTitle: string | null
   status: string
-  review_notes: string | null
-  feedback_to_volunteer: string | null
-  estimated_hours: number | null
+  reviewNotes: string | null
+  feedbackToVolunteer: string | null
+  estimatedHours: number | null
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -99,26 +99,26 @@ export default function StarterTasksPage() {
               </div>
 
               <div className="flex gap-2 mb-3 flex-wrap">
-                {task.skill_name && (
+                {task.skillName && (
                   <span className="inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-[#374151] dark:text-[#D1D5DB]">
-                    {task.skill_name}
+                    {task.skillName}
                   </span>
                 )}
-                {task.estimated_hours && (
-                  <span className="text-text-light text-sm">~{task.estimated_hours}h</span>
+                {task.estimatedHours && (
+                  <span className="text-text-light text-sm">~{task.estimatedHours}h</span>
                 )}
-                {task.project_title && (
-                  <span className="text-text-light text-sm">Related: {task.project_title}</span>
+                {task.projectTitle && (
+                  <span className="text-text-light text-sm">Related: {task.projectTitle}</span>
                 )}
               </div>
 
               <p className="whitespace-pre-wrap mb-4">{task.description}</p>
 
-              {task.feedback_to_volunteer && (
+              {task.feedbackToVolunteer && (
                 <div className="bg-surface rounded-lg p-3 mb-3">
                   <strong className="text-sm">Feedback:</strong>
                   <p className="mt-1 italic text-text-light">
-                    &ldquo;{task.feedback_to_volunteer}&rdquo;
+                    &ldquo;{task.feedbackToVolunteer}&rdquo;
                   </p>
                 </div>
               )}

@@ -25,10 +25,10 @@ interface Suggestion {
   name: string
   country: string
   status: 'pending' | 'on_hold' | 'declined'
-  admin_notes: string | null
-  created_at: string
-  suggested_by: { id: number; name: string; email: string }
-  merged_into: { id: number; name: string } | null
+  adminNotes: string | null
+  createdAt: string
+  suggestedBy: { id: number; name: string; email: string }
+  mergedInto: { id: number; name: string } | null
 }
 
 type DisplayGroup = { kind: 'group' } & LocalGroup
@@ -101,18 +101,18 @@ export default function AdminLocalGroupsPage() {
 
   useEffect(() => {
     if (!loading && !user) router.push('/login')
-    if (!loading && user && !user.is_admin) router.push('/')
+    if (!loading && user && !user.isAdmin) router.push('/')
   }, [user, loading, router])
 
   useEffect(() => {
-    if (!user?.is_admin) return
+    if (!user?.isAdmin) return
     apiRequest<{ groups: LocalGroup[] }>('/api/local-groups')
       .then((data) => setAllGroups(data.groups))
       .catch(() => {})
   }, [user])
 
   useEffect(() => {
-    if (!user?.is_admin) return
+    if (!user?.isAdmin) return
 
     // Intentional: spinner must appear synchronously before the async fetch begins.
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -272,9 +272,9 @@ export default function AdminLocalGroupsPage() {
         body.name = reviewEditName.trim()
         body.country = reviewEditCountry.trim()
       } else if (reviewAction === 'merge') {
-        body.merged_into_id = mergeTargetId
+        body.mergedIntoId = mergeTargetId
       }
-      if (adminNotes.trim()) body.admin_notes = adminNotes.trim()
+      if (adminNotes.trim()) body.adminNotes = adminNotes.trim()
 
       await apiRequest(`/api/admin/local-groups/suggestions/${reviewSuggestion.id}`, {
         method: 'PUT',
@@ -408,21 +408,21 @@ export default function AdminLocalGroupsPage() {
                       <p className="text-sm text-text-light m-0 mt-1">
                         Suggested by{' '}
                         <Link
-                          href={`/admin/volunteers/${item.suggested_by.id}`}
+                          href={`/admin/volunteers/${item.suggestedBy.id}`}
                           className="text-secondary-dark no-underline hover:text-primary"
                         >
-                          {item.suggested_by.name}
+                          {item.suggestedBy.name}
                         </Link>
                         {' · '}
-                        {new Date(item.created_at).toLocaleDateString('en-GB', {
+                        {new Date(item.createdAt).toLocaleDateString('en-GB', {
                           day: 'numeric',
                           month: 'short',
                           year: 'numeric',
                         })}
                       </p>
                     )}
-                    {item.kind === 'suggestion' && item.admin_notes && (
-                      <p className="text-sm text-text-light mt-2 mb-0 italic">{item.admin_notes}</p>
+                    {item.kind === 'suggestion' && item.adminNotes && (
+                      <p className="text-sm text-text-light mt-2 mb-0 italic">{item.adminNotes}</p>
                     )}
                   </div>
                   <div className="shrink-0 flex items-center gap-2">
@@ -579,7 +579,7 @@ export default function AdminLocalGroupsPage() {
 
             <div className="p-6">
               <p className="text-text-light mb-1 text-sm">
-                Suggested by {reviewSuggestion.suggested_by.name}
+                Suggested by {reviewSuggestion.suggestedBy.name}
               </p>
               <p className="font-semibold mb-5">
                 {reviewSuggestion.country} — {reviewSuggestion.name}

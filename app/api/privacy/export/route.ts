@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
   })
 
   return Response.json({
-    exported_at: new Date().toISOString(),
+    exportedAt: new Date().toISOString(),
     profile: serializedProfile,
     skills: profile.skills.map(serializeSkill),
     projects: projects.map((p) => ({
@@ -37,38 +37,38 @@ export async function GET(request: NextRequest) {
       title: p.title,
       description: p.description,
       status: p.status,
-      owner_id: p.ownerId,
-      proposed_by_id: p.proposedById,
+      ownerId: p.ownerId,
+      proposedById: p.proposedById,
       outcome: p.outcome,
-      outcome_notes: p.outcomeNotes,
-      created_at: p.createdAt,
-      updated_at: p.updatedAt,
+      outcomeNotes: p.outcomeNotes,
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
     })),
     interests: interests.map((i) => ({
       id: i.id,
-      project_id: i.projectId,
-      interest_type: i.interestType,
+      projectId: i.projectId,
+      interestType: i.interestType,
       message: i.message,
       status: i.status,
-      created_at: i.createdAt,
-      responded_at: i.respondedAt,
+      createdAt: i.createdAt,
+      respondedAt: i.respondedAt,
     })),
-    messages_sent: messagesSent.map((m) => ({
+    messagesSent: messagesSent.map((m) => ({
       id: m.id,
-      to_volunteer_id: m.toVolunteerId,
+      toVolunteerId: m.toVolunteerId,
       subject: m.subject,
       message: m.message,
-      related_project_id: m.relatedProjectId,
-      created_at: m.createdAt,
+      relatedProjectId: m.relatedProjectId,
+      createdAt: m.createdAt,
     })),
-    messages_received: messagesReceived.map((m) => ({
+    messagesReceived: messagesReceived.map((m) => ({
       id: m.id,
-      from_volunteer_id: m.fromVolunteerId,
+      fromVolunteerId: m.fromVolunteerId,
       subject: m.subject,
       message: m.message,
-      related_project_id: m.relatedProjectId,
-      read_at: m.readAt,
-      created_at: m.createdAt,
+      relatedProjectId: m.relatedProjectId,
+      readAt: m.readAt,
+      createdAt: m.createdAt,
     })),
   })
 }

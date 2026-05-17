@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
   }
 
   const errs: ReturnType<typeof fieldError>[] = []
-  if (!body.new_email) errs.push(fieldError('new_email', 'New email is required'))
+  if (!body.newEmail) errs.push(fieldError('newEmail', 'New email is required'))
   if (!body.password) errs.push(fieldError('password', 'Password is required'))
   if (errs.length) return validationError(errs)
 
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ detail: 'Password is incorrect' }, { status: 400 })
   }
 
-  const newEmail = String(body.new_email).toLowerCase().trim()
+  const newEmail = String(body.newEmail).toLowerCase().trim()
   const existing = await prisma.volunteer.findFirst({
     where: { email: newEmail, id: { not: volunteer.id } },
     select: { id: true },

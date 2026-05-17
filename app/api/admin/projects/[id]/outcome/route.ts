@@ -26,7 +26,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     return Response.json({ detail: 'Invalid outcome' }, { status: 400 })
   }
 
-  const outcomeNotes = (body.outcome_notes as string | null) ?? null
+  const outcomeNotes = (body.outcomeNotes as string | null) ?? null
 
   const project = await prisma.project.findUnique({ where: { id: projectId } })
   if (!project) {

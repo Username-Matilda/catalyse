@@ -53,9 +53,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return Response.json({ detail: 'Invalid JSON' }, { status: 400 })
   }
 
-  const interestType = body.interest_type as string
+  const interestType = body.interestType as string
   if (!interestType || !['want_to_contribute', 'want_to_own'].includes(interestType)) {
-    return Response.json({ detail: 'Invalid interest_type' }, { status: 400 })
+    return Response.json({ detail: 'Invalid interestType' }, { status: 400 })
   }
 
   const message = (body.message as string | null) ?? null
