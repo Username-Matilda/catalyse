@@ -80,24 +80,65 @@ Description:
 ${ISSUE_BODY}
 $(echo -e "$PREREQ_SECTION")
 
-Before writing any code, propose a clear implementation plan and wait for the user to confirm. If there are open prerequisites above, flag them and ask whether to proceed anyway. Once confirmed, implement the changes. When all work is complete, run \`npm run check-all\` and report the results."
+Before writing any code, propose a clear implementation plan and wait for the user to confirm. If there are open prerequisites above, flag them and ask whether to proceed anyway. Once confirmed, implement the changes. When all work is complete, run \`npm run check-all\` and report the results. Then push the branch and raise a PR using \`gh pr create\` with a clear title and description referencing the issue."
 
 REAL_GIT=$(which git)
 TMPBIN=$(mktemp -d)
 trap 'rm -rf "$TMPBIN"' EXIT
 
-for cmd in gh railway curl wget yarn pnpm bun ssh scp rsync prisma python python3 osascript; do
+for cmd in railway curl wget yarn pnpm bun ssh scp rsync prisma python python3 osascript; do
   printf '#!/bin/bash\necho "%s: not permitted in issue sessions" >&2\nexit 1\n' "$cmd" > "$TMPBIN/$cmd"
   chmod +x "$TMPBIN/$cmd"
 done
+
+REAL_GH=$(which gh)
+cat > "$TMPBIN/gh" << GHSCRIPT
+#!/bin/bash
+if [[ "\$1" == "pr" && "\$2" == "create" ]]; then
+  for arg in "\$@"; do
+    if [[ "\$arg" == "--base" ]]; then
+      NEXT_IS_BASE=1
+      continue
+    fi
+    if [[ "\$NEXT_IS_BASE" == "1" ]]; then
+      if [[ "\$arg" != "main" ]]; then
+        echo "gh pr create: can only target main branch" >&2
+        exit 1
+      fi
+      break
+    fi
+  done
+  exec "$REAL_GH" "\$@"
+fi
+if [[ "\$1" == "pr" && "\$2" == "edit" ]]; then
+  if [[ "\$*" == *"--base"* ]]; then
+    echo "gh pr edit --base: not permitted in issue sessions" >&2
+    exit 1
+  fi
+  exec "$REAL_GH" "\$@"
+fi
+echo "gh \$*: not permitted in issue sessions (only 'gh pr create' is allowed)" >&2
+exit 1
+GHSCRIPT
+chmod +x "$TMPBIN/gh"
 
 cat > "$TMPBIN/git" << GITSCRIPT
 #!/bin/bash
 SUBCMD=\$("$REAL_GIT" config --get "alias.\$1" 2>/dev/null || echo "\$1")
 case "\$SUBCMD" in
   push)
-    echo "git push: not permitted in issue sessions" >&2
-    exit 1
+    if [[ "\$*" == *"--force"* || "\$*" == *" -f"* ]]; then
+      echo "git push --force: not permitted in issue sessions" >&2
+      exit 1
+    fi
+    # allow push only if no branch specified, or branch matches the issue branch
+    for arg in "\$@"; do
+      if [[ "\$arg" != -* && "\$arg" != "origin" && "\$arg" != "" && "\$arg" != "$BRANCH_NAME" ]]; then
+        echo "git push to '\$arg': not permitted — can only push $BRANCH_NAME" >&2
+        exit 1
+      fi
+    done
+    exec "$REAL_GIT" "\$@"
     ;;
   checkout|switch)
     echo "git \$1: not permitted in issue sessions — stay on the issue branch" >&2
