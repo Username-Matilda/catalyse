@@ -21,8 +21,8 @@ export async function runApplicationsSummaryJob(): Promise<Record<string, unknow
   let sent = 0
   for (const admin of admins) {
     if (admin.email) {
-      await sendPendingApplicationsSummaryEmail(admin.email, admin.name, count).catch((e) =>
-        console.error('[APPLICATIONS SUMMARY] Email failed:', e),
+      await sendPendingApplicationsSummaryEmail({ to: admin.email, name: admin.name, count }).catch(
+        (e) => console.error('[APPLICATIONS SUMMARY] Email failed:', e),
       )
       sent++
     }
@@ -34,13 +34,15 @@ export async function runApplicationsSummaryJob(): Promise<Record<string, unknow
 export async function runApplicationsAnonymisationJob(): Promise<Record<string, unknown>> {
   const cutoff = new Date(Date.now() - APPLICATION_ANONYMISATION_MS)
 
-  const toAnonymise = await prisma.$queryRaw<Array<{
-    id: number
-    email: string | null
-    rejected_at: string | null
-    application_admin_notes: string | null
-    application_applicant_notes: string | null
-  }>>`
+  const toAnonymise = await prisma.$queryRaw<
+    Array<{
+      id: number
+      email: string | null
+      rejected_at: string | null
+      application_admin_notes: string | null
+      application_applicant_notes: string | null
+    }>
+  >`
     SELECT id, email, rejected_at, application_admin_notes, application_applicant_notes
     FROM volunteers
     WHERE approval_status = 'REJECTED'

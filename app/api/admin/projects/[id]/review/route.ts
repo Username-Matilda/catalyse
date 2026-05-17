@@ -71,14 +71,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         select: { name: true, email: true },
       })
       if (proposer?.email) {
-        sendProjectNotificationEmail(
-          proposer.email,
-          proposer.name,
-          `Your project '${project.title}' has been approved!`,
-          'Great news! Your project has been approved and is now visible to all volunteers. People can start expressing interest.',
-          project.title,
+        sendProjectNotificationEmail({
+          to: proposer.email,
+          name: proposer.name,
+          subject: `Your project '${project.title}' has been approved!`,
+          message:
+            'Great news! Your project has been approved and is now visible to all volunteers. People can start expressing interest.',
+          projectTitle: project.title,
           projectId,
-        ).catch((e) => console.error('[EMAIL ERROR]', e))
+        }).catch((e) => console.error('[EMAIL ERROR]', e))
       }
     }
   } else {
@@ -110,15 +111,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       })
       if (proposer?.email) {
         const extra = `<div style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"><strong>Feedback:</strong> ${feedback}</div>`
-        sendProjectNotificationEmail(
-          proposer.email,
-          proposer.name,
-          `Let's discuss your project '${project.title}'`,
-          'A team lead would like to discuss your project proposal before it goes live.',
-          project.title,
+        sendProjectNotificationEmail({
+          to: proposer.email,
+          name: proposer.name,
+          subject: `Let's discuss your project '${project.title}'`,
+          message: 'A team lead would like to discuss your project proposal before it goes live.',
+          projectTitle: project.title,
           projectId,
-          extra,
-        ).catch((e) => console.error('[EMAIL ERROR]', e))
+          extraHtml: extra,
+        }).catch((e) => console.error('[EMAIL ERROR]', e))
       }
     }
   }

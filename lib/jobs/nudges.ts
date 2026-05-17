@@ -58,39 +58,39 @@ export async function runNudgesJob(): Promise<Record<string, unknown>> {
           finalWarningSentAt: null,
         },
       })
-      await sendTaskSurrenderedAssigneeEmail(
-        assignee.email!,
-        assignee.name,
-        task.title,
-        task.project.title,
-        task.projectId,
-      )
+      await sendTaskSurrenderedAssigneeEmail({
+        to: assignee.email!,
+        name: assignee.name,
+        taskTitle: task.title,
+        projectTitle: task.project.title,
+        projectId: task.projectId,
+      })
       if (task.project.owner?.email) {
-        await sendTaskSurrenderedOwnerEmail(
-          task.project.owner.email,
-          task.project.owner.name,
-          assignee.name,
-          task.title,
-          task.project.title,
-          task.projectId,
-        )
+        await sendTaskSurrenderedOwnerEmail({
+          to: task.project.owner.email,
+          ownerName: task.project.owner.name,
+          volunteerName: assignee.name,
+          taskTitle: task.title,
+          projectTitle: task.project.title,
+          projectId: task.projectId,
+        })
       }
       surrendered++
       console.log(`[CRON NUDGES] Surrendered task ${task.id} (${daysInactive} days inactive)`)
     } else if (daysInactive >= 21 && !task.finalWarningSentAt) {
       const surrenderDate = formatDate(new Date(updatedAt.getTime() + 28 * DAY_MS))
-      const sent = await sendTaskFinalWarningEmail(
-        assignee.email!,
-        assignee.name,
-        task.title,
-        task.project.title,
-        task.projectId,
-        task.id,
+      const sent = await sendTaskFinalWarningEmail({
+        to: assignee.email!,
+        name: assignee.name,
+        taskTitle: task.title,
+        projectTitle: task.project.title,
+        projectId: task.projectId,
+        taskId: task.id,
         daysInactive,
-        'you last updated',
+        activityPhrase: 'you last updated',
         lastActivityDate,
         surrenderDate,
-      )
+      })
       if (sent) {
         await prisma.projectTask.update({
           where: { id: task.id },
@@ -100,17 +100,17 @@ export async function runNudgesJob(): Promise<Record<string, unknown>> {
         console.log(`[CRON NUDGES] Final warning sent for task ${task.id} (${daysInactive} days)`)
       }
     } else if (daysInactive >= 14 && !task.nudgeSentAt) {
-      const sent = await sendTaskNudgeEmail(
-        assignee.email!,
-        assignee.name,
-        task.title,
-        task.project.title,
-        task.projectId,
-        task.id,
+      const sent = await sendTaskNudgeEmail({
+        to: assignee.email!,
+        name: assignee.name,
+        taskTitle: task.title,
+        projectTitle: task.project.title,
+        projectId: task.projectId,
+        taskId: task.id,
         daysInactive,
-        'you last updated',
+        activityPhrase: 'you last updated',
         lastActivityDate,
-      )
+      })
       if (sent) {
         await prisma.projectTask.update({ where: { id: task.id }, data: { nudgeSentAt: now } })
         nudgesSent++

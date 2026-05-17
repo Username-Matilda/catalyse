@@ -101,13 +101,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     '/suggest-local-group',
   )
 
-  await sendLocalGroupSuggestionEmail(
-    suggestion.suggestedBy.email ?? '',
-    suggestion.suggestedBy.name ?? 'there',
-    notificationAction,
-    finalName,
+  await sendLocalGroupSuggestionEmail({
+    to: suggestion.suggestedBy.email ?? '',
+    name: suggestion.suggestedBy.name ?? 'there',
+    action: notificationAction,
+    groupName: finalName,
     adminNotes,
-  )
+  })
 
   return NextResponse.json({ message: 'Suggestion updated' })
 }

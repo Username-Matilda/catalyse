@@ -89,14 +89,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     ).catch((e) => console.error('[NOTIFY ERROR]', e))
 
     if (assignee.email) {
-      sendProjectNotificationEmail(
-        assignee.email,
-        assignee.name,
-        `You've been assigned to '${project.title}'`,
-        `<strong>${volunteer.name}</strong> has assigned you to the project <strong>${project.title}</strong>.`,
-        project.title,
+      sendProjectNotificationEmail({
+        to: assignee.email,
+        name: assignee.name,
+        subject: `You've been assigned to '${project.title}'`,
+        message: `<strong>${volunteer.name}</strong> has assigned you to the project <strong>${project.title}</strong>.`,
+        projectTitle: project.title,
         projectId,
-      ).catch((e) => console.error('[EMAIL ERROR]', e))
+      }).catch((e) => console.error('[EMAIL ERROR]', e))
     }
   }
 

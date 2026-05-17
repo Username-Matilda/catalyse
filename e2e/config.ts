@@ -8,7 +8,7 @@ export const ADMIN_EMAIL = 'admin@e2e-test.com'
 export const ADMIN_PASSWORD = 'adminpassword1'
 
 export const BASE_PORT = 4000
-export const WORKER_COUNT = 4
+export const WORKER_COUNT = process.env.WORKER_COUNT ? parseInt(process.env.WORKER_COUNT, 10) : 4
 
 export function workerBaseUrl(parallelIndex: number): string {
   if (IS_LOCAL) return `http://localhost:${BASE_PORT + parallelIndex}`

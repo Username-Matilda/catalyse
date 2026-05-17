@@ -8,8 +8,14 @@ import {
 } from '@/lib/auth'
 import { sendWelcomeEmail, sendWelcomeAndConfirmEmail } from '@/lib/email'
 import { validationError, fieldError } from '@/lib/errors'
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
+  const { allowed, retryAfterMs } = checkRateLimit(request, 'signup', {
+    limit: 10,
+    windowMs: 60 * 60 * 1000,
+  })
+  if (!allowed) return rateLimitResponse(retryAfterMs)
   let body: Record<string, unknown>
   try {
     body = await request.json()
@@ -117,7 +123,9 @@ export async function POST(request: NextRequest) {
 
   let emailVerificationToken: string | undefined
   if (wasBootstrapped || wasInvited) {
-    sendWelcomeEmail(email, name).catch((e) => console.error('[SIGNUP] Welcome email failed:', e))
+    sendWelcomeEmail({ to: email, name }).catch((e) =>
+      console.error('[SIGNUP] Welcome email failed:', e),
+    )
   } else if (!platformSettings.requireApplicationApproval) {
     await prisma.volunteer.update({
       where: { id: volunteer.id },
@@ -131,7 +139,7 @@ export async function POST(request: NextRequest) {
       },
     })
     emailVerificationToken = verificationToken.token
-    sendWelcomeAndConfirmEmail(email, verificationToken.token, name).catch((e) =>
+    sendWelcomeAndConfirmEmail({ to: email, token: verificationToken.token, name }).catch((e) =>
       console.error('[SIGNUP] Email confirmation send failed:', e),
     )
   } else {
@@ -143,7 +151,7 @@ export async function POST(request: NextRequest) {
       },
     })
     emailVerificationToken = verificationToken.token
-    sendWelcomeAndConfirmEmail(email, verificationToken.token, name).catch((e) =>
+    sendWelcomeAndConfirmEmail({ to: email, token: verificationToken.token, name }).catch((e) =>
       console.error('[SIGNUP] Email confirmation send failed:', e),
     )
   }
