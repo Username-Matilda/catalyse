@@ -8,6 +8,29 @@ if [ -z "$ISSUE_NUMBER" ] || ! [[ "$ISSUE_NUMBER" =~ ^[0-9]+$ ]]; then
   exit 1
 fi
 
+# Pre-flight: required commands
+for cmd in gh jq claude docker; do
+  if ! command -v "$cmd" >/dev/null 2>&1; then
+    echo "Error: '$cmd' is required but not installed or not in PATH" >&2
+    exit 1
+  fi
+done
+
+# Pre-flight: gh authenticated
+if ! gh auth status >/dev/null 2>&1; then
+  echo "Error: gh is not authenticated. Run 'gh auth login' first." >&2
+  exit 1
+fi
+
+# Pre-flight: prevent concurrent sessions
+LOCKDIR="/tmp/catalyse-issue-session.lock"
+if ! mkdir "$LOCKDIR" 2>/dev/null; then
+  echo "Error: another issue session is already running (lock at $LOCKDIR)." >&2
+  echo "If you're sure none is running, remove the lock: rm -rf $LOCKDIR" >&2
+  exit 1
+fi
+trap 'rm -rf "$LOCKDIR"' EXIT
+
 # Warn if working tree is dirty
 if ! git diff --quiet || ! git diff --cached --quiet; then
   echo "Warning: uncommitted changes in working tree"
@@ -87,7 +110,7 @@ REAL_GIT=$(which git)
 REAL_GH=$(which gh)
 REAL_NPM=$(which npm)
 TMPBIN=$(mktemp -d)
-trap 'rm -rf "$TMPBIN"' EXIT
+trap 'rm -rf "$LOCKDIR" "$TMPBIN"' EXIT
 
 for cmd in \
   railway aws gcloud az brew \
@@ -208,5 +231,10 @@ chmod +x "$TMPBIN/npm"
 # Note: --sandbox runs Claude in a Docker container. If the container does not
 # inherit the host PATH, the wrappers above will not apply inside the session.
 # The --sandbox flag still provides filesystem/network isolation independently.
+echo ""
+echo "Launching Claude session for issue #${ISSUE_NUMBER} on branch ${BRANCH_NAME}."
+echo "If the session ends unexpectedly, run 'claude --continue' from this directory to resume."
+echo ""
+
 unset RAILWAY_TOKEN RESEND_API_KEY GOOGLE_CLIENT_SECRET CRON_SECRET
 PATH="$TMPBIN:$PATH" claude --no-mcp --sandbox "$PROMPT"

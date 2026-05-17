@@ -134,6 +134,7 @@ The `test:dev` variants skip the build and use a dev server instead. These are f
 | Script             | Description                                                                        |
 | ------------------ | ---------------------------------------------------------------------------------- |
 | `local-setup`      | One-time local setup: install deps, browsers, fetch prod DB, run migrations        |
+| `issue <number>`   | Launch a sandboxed Claude session to work on a GitHub issue (creates branch, fetches issue, restricts CLI access). Usage: `npm run issue -- 84` |
 | `check-all`        | Run typecheck, lint, format check, and tests — use before committing               |
 | `dev`              | Start local dev server with Turbopack                                              |
 | `build`            | Generate Prisma client and run Next.js production build                            |
