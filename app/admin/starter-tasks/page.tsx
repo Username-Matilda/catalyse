@@ -291,7 +291,7 @@ export default function AdminStarterTasksPage() {
       await apiRequest(`/api/starter-tasks/${reviewModal.id}/review`, {
         method: 'POST',
         body: JSON.stringify({
-          reviewRating: reviewRating,
+          reviewRating,
           feedbackToVolunteer: reviewFeedback || null,
           reviewNotes: reviewNotes || null,
         }),
@@ -390,7 +390,7 @@ export default function AdminStarterTasksPage() {
                         style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: '0.8rem' }}
                       >
                         {task.skillName && <span>Skill: {task.skillName}</span>}
-                        {task.estimatedHours != null && <span>~{task.estimatedHours}h</span>}
+                        {task.estimatedHours !== null && <span>~{task.estimatedHours}h</span>}
                         {task.assignedToId && task.assignedToName && (
                           <span>
                             Assigned to:{' '}
@@ -789,7 +789,7 @@ export default function AdminStarterTasksPage() {
       )}
 
       {/* Review Task Modal */}
-      {reviewModal != null && (
+      {reviewModal !== null && (
         <div
           className="fixed inset-0 bg-[rgba(29,53,87,0.5)] flex items-center justify-center z-1000 p-5"
           onClick={(e) => {

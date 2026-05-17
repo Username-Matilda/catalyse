@@ -26,10 +26,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     sortOrder?: number
     categoryId?: number
   } = {}
-  if (body.name != null) data.name = String(body.name).trim()
+  if ('name' in body) data.name = String(body.name).trim()
   if ('description' in body) data.description = body.description ? String(body.description) : null
-  if (body.sortOrder != null) data.sortOrder = Number(body.sortOrder)
-  if (body.categoryId != null) {
+  if ('sortOrder' in body) data.sortOrder = Number(body.sortOrder)
+  if ('categoryId' in body) {
     const categoryId = parseInt(String(body.categoryId))
     const category = await prisma.skillCategory.findUnique({ where: { id: categoryId } })
     if (!category) return Response.json({ detail: 'Category not found' }, { status: 400 })

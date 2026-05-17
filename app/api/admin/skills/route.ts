@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const categoryId = body.categoryId != null ? parseInt(String(body.categoryId)) : NaN
+  const categoryId = body.categoryId !== null ? parseInt(String(body.categoryId)) : NaN
   if (isNaN(categoryId)) {
     return Response.json({ detail: 'categoryId is required' }, { status: 422 })
   }
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
 
   const description = body.description ? String(body.description) : null
 
-  let sortOrder = body.sortOrder != null ? Number(body.sortOrder) : null
+  let sortOrder = body.sortOrder !== null ? Number(body.sortOrder) : null
   if (sortOrder === null) {
     const max = await prisma.skill.aggregate({
       where: { categoryId },

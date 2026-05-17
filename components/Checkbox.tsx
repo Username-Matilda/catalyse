@@ -17,7 +17,7 @@ export default function Checkbox({ children, ...props }: CheckboxProps) {
           ✓
         </span>
       </span>
-      {children != null && <span>{children}</span>}
+      {children !== null && <span>{children}</span>}
     </label>
   )
 }

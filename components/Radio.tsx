@@ -17,7 +17,7 @@ export default function Radio({ children, ...props }: RadioProps) {
           <span className="w-2.5 h-2.5 rounded-full bg-primary" />
         </span>
       </span>
-      {children != null && <span>{children}</span>}
+      {children !== null && <span>{children}</span>}
     </label>
   )
 }

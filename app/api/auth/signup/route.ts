@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
       contactPreference: body.contactPreference ? String(body.contactPreference) : null,
       contactNotes: body.contactNotes ? String(body.contactNotes) : null,
       availabilityHoursPerWeek:
-        body.availabilityHoursPerWeek != null ? Number(body.availabilityHoursPerWeek) : null,
+        body.availabilityHoursPerWeek !== null ? Number(body.availabilityHoursPerWeek) : null,
       location: body.location ? String(body.location) : null,
       country: body.country ? String(body.country) : null,
       localGroup: body.localGroup ? String(body.localGroup) : null,

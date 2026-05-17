@@ -97,8 +97,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     )
   }
 
-  const adminNotes = body.adminNotes != null ? String(body.adminNotes) : undefined
-  const applicantNotes = body.applicantNotes != null ? String(body.applicantNotes) : undefined
+  const adminNotes = body.adminNotes !== null ? String(body.adminNotes) : undefined
+  const applicantNotes = body.applicantNotes !== null ? String(body.applicantNotes) : undefined
 
   const volunteer = await prisma.volunteer.findFirst({
     where: { id: volunteerId, deletedAt: null },

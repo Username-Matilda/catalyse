@@ -273,7 +273,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   }
   if (!project) return null
 
-  const isOwner = project.ownerId != null && project.ownerId === user.id
+  const isOwner = project.ownerId !== null && project.ownerId === user.id
   const isAdmin = user.isAdmin
   const isOwnerOrAdmin = isOwner || isAdmin
 
@@ -367,7 +367,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       await apiRequest(`/api/projects/${idParam}/interest`, {
         method: 'POST',
         body: JSON.stringify({
-          interestType: interestType,
+          interestType,
           message: interestMessage.trim() || null,
         }),
       })

@@ -15,7 +15,7 @@ export default function Toggle({ children, ...props }: ToggleProps) {
         <span className="block w-11 h-6 rounded-full bg-[var(--border)] peer-checked:bg-primary peer-focus-visible:ring-2 peer-focus-visible:ring-primary peer-focus-visible:ring-offset-2 peer-disabled:opacity-50 transition-colors" />
         <span className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm peer-checked:translate-x-5 transition-transform pointer-events-none" />
       </span>
-      {children != null && <span>{children}</span>}
+      {children !== null && <span>{children}</span>}
     </label>
   )
 }

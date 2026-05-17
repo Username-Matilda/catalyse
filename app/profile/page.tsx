@@ -68,7 +68,7 @@ export default function ProfilePage() {
         setName(d.name ?? '')
         setBio(d.bio ?? '')
         setLocation(d.location ?? '')
-        setHours(d.availabilityHoursPerWeek != null ? String(d.availabilityHoursPerWeek) : '')
+        setHours(d.availabilityHoursPerWeek !== null ? String(d.availabilityHoursPerWeek) : '')
         setConsentMakeProfileVisibleInDirectory(!!d.consentMakeProfileVisibleInDirectory)
         setConsentContactableByProjectOwners(!!d.consentContactableByProjectOwners)
         setConsentShareContactInfoWithProjectOwner(!!d.consentShareContactInfoWithProjectOwner)

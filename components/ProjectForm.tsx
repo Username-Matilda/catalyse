@@ -127,7 +127,7 @@ export default function ProjectForm({
           skillRequiredMap: Object.fromEntries(skills.map((s) => [s.skillId, true])),
           isSeekingHelp: seekingHelp,
           isSeekingOwner: !wantToOwn,
-          wantToOwn: wantToOwn,
+          wantToOwn,
           tasks: validTasks.map((t) => ({
             title: t.title.trim(),
             description: t.description.trim() || undefined,

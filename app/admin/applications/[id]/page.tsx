@@ -83,12 +83,12 @@ export default function ApplicationReviewPage() {
         method: 'PATCH',
         body: JSON.stringify({
           action: 'update_notes',
-          adminNotes: adminNotes,
-          applicantNotes: applicantNotes,
+          adminNotes,
+          applicantNotes,
         }),
       })
       showToast('Notes saved', 'success')
-      setApp({ ...app, adminNotes: adminNotes, applicantNotes: applicantNotes })
+      setApp({ ...app, adminNotes, applicantNotes })
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Failed to save notes', 'error')
     } finally {
@@ -105,8 +105,8 @@ export default function ApplicationReviewPage() {
         method: 'PATCH',
         body: JSON.stringify({
           action: confirmAction,
-          adminNotes: adminNotes,
-          applicantNotes: applicantNotes,
+          adminNotes,
+          applicantNotes,
         }),
       })
       showToast(

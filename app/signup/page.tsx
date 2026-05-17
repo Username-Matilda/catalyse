@@ -188,7 +188,7 @@ export default function SignupPage() {
           consentMakeProfileVisibleInDirectory: consentVisible,
           consentContactableByProjectOwners: consentContact,
           consentShareContactInfoWithProjectOwner: shareDirectly,
-          emailDigest: emailDigest,
+          emailDigest,
         }),
       })
       sessionStorage.removeItem('google_pending_token')
@@ -267,7 +267,7 @@ export default function SignupPage() {
           consentMakeProfileVisibleInDirectory: consentVisible,
           consentContactableByProjectOwners: consentContact,
           consentShareContactInfoWithProjectOwner: shareDirectly,
-          emailDigest: emailDigest,
+          emailDigest,
         }),
       })
       if (data.pending) {

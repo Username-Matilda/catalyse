@@ -21,9 +21,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (!existing) return Response.json({ detail: 'Category not found' }, { status: 404 })
 
   const data: { name?: string; description?: string | null; sortOrder?: number } = {}
-  if (body.name != null) data.name = String(body.name).trim()
+  if (body.name !== null) data.name = String(body.name).trim()
   if ('description' in body) data.description = body.description ? String(body.description) : null
-  if (body.sortOrder != null) data.sortOrder = Number(body.sortOrder)
+  if (body.sortOrder !== null) data.sortOrder = Number(body.sortOrder)
 
   await prisma.skillCategory.update({ where: { id: categoryId }, data })
 

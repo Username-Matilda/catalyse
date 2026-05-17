@@ -36,7 +36,7 @@ export default function SettingsPage() {
     try {
       const data = await apiRequest<{ message: string }>('/api/auth/change-email', {
         method: 'POST',
-        body: JSON.stringify({ newEmail: newEmail, password: emailPassword }),
+        body: JSON.stringify({ newEmail, password: emailPassword }),
       })
       showToast(data.message, 'success')
       setNewEmail('')
@@ -58,7 +58,7 @@ export default function SettingsPage() {
     try {
       const data = await apiRequest<{ message: string }>('/api/auth/change-password', {
         method: 'POST',
-        body: JSON.stringify({ currentPassword: currentPassword, newPassword: newPassword }),
+        body: JSON.stringify({ currentPassword, newPassword }),
       })
       showToast(data.message, 'success')
       setCurrentPassword('')

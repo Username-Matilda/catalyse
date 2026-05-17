@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
 
   const description = body.description ? String(body.description) : null
 
-  let sortOrder = body.sortOrder != null ? Number(body.sortOrder) : null
+  let sortOrder = body.sortOrder !== null ? Number(body.sortOrder) : null
   if (sortOrder === null) {
     const max = await prisma.skillCategory.aggregate({ _max: { sortOrder: true } })
     sortOrder = (max._max.sortOrder ?? 0) + 1
