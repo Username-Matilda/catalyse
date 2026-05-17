@@ -45,29 +45,29 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     name: v.name,
     email: v.email,
     bio: v.bio,
-    application_message: v.applicationMessage,
-    approval_status: v.approvalStatus,
-    created_at: v.createdAt,
-    rejected_at: v.rejectedAt,
-    anonymise_at: v.rejectedAt
+    applicationMessage: v.applicationMessage,
+    approvalStatus: v.approvalStatus,
+    createdAt: v.createdAt,
+    rejectedAt: v.rejectedAt,
+    anonymiseAt: v.rejectedAt
       ? new Date(v.rejectedAt.getTime() + APPLICATION_ANONYMISATION_MS).toISOString()
       : null,
-    admin_notes: v.applicationAdminNotes,
-    applicant_notes: v.applicationApplicantNotes,
+    adminNotes: v.applicationAdminNotes,
+    applicantNotes: v.applicationApplicantNotes,
     reviewer: v.reviewer ? { id: v.reviewer.id, name: v.reviewer.name } : null,
-    previous_rejections: previousRejections.map((r) => ({
-      rejected_at: r.rejectedAt,
-      admin_notes: r.adminNotes,
-      applicant_notes: r.applicantNotes,
+    previousRejections: previousRejections.map((r) => ({
+      rejectedAt: r.rejectedAt,
+      adminNotes: r.adminNotes,
+      applicantNotes: r.applicantNotes,
     })),
-    availability_hours_per_week: v.availabilityHoursPerWeek,
+    availabilityHoursPerWeek: v.availabilityHoursPerWeek,
     location: v.location,
     country: v.country,
-    local_group: v.localGroup,
-    signal_number: v.signalNumber,
-    whatsapp_number: v.whatsappNumber,
-    discord_handle: v.discordHandle,
-    contact_notes: v.contactNotes,
+    localGroup: v.localGroup,
+    signalNumber: v.signalNumber,
+    whatsappNumber: v.whatsappNumber,
+    discordHandle: v.discordHandle,
+    contactNotes: v.contactNotes,
     skills: v.skills.map(serializeSkill),
   })
 }
@@ -97,8 +97,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     )
   }
 
-  const adminNotes = body.admin_notes != null ? String(body.admin_notes) : undefined
-  const applicantNotes = body.applicant_notes != null ? String(body.applicant_notes) : undefined
+  const adminNotes = body.adminNotes != null ? String(body.adminNotes) : undefined
+  const applicantNotes = body.applicantNotes != null ? String(body.applicantNotes) : undefined
 
   const volunteer = await prisma.volunteer.findFirst({
     where: { id: volunteerId, deletedAt: null },

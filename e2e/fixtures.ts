@@ -104,7 +104,7 @@ export async function rejectVolunteer(
   await fetch(`${baseUrl}/api/admin/applications/${volunteerId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
-    body: JSON.stringify({ action: 'reject', ...(adminNotes && { admin_notes: adminNotes }) }),
+    body: JSON.stringify({ action: 'reject', ...(adminNotes && { adminNotes }) }),
   })
 }
 

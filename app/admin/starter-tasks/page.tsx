@@ -12,24 +12,24 @@ import { useToast } from '@/lib/toast'
 interface Skill {
   id: number
   name: string
-  category_name: string
+  categoryName: string
 }
 
 interface StarterTask {
   id: number
   title: string
   description: string
-  skill_id: number | null
-  skill_name: string | null
-  project_title: string | null
-  assigned_to_id: number | null
-  assigned_to_name: string | null
+  skillId: number | null
+  skillName: string | null
+  projectTitle: string | null
+  assignedToId: number | null
+  assignedToName: string | null
   status: string
-  review_rating: string | null
-  review_notes: string | null
-  feedback_to_volunteer: string | null
-  estimated_hours: number | null
-  created_at: string
+  reviewRating: string | null
+  reviewNotes: string | null
+  feedbackToVolunteer: string | null
+  estimatedHours: number | null
+  createdAt: string
 }
 
 interface Volunteer {
@@ -109,7 +109,7 @@ export default function AdminStarterTasksPage() {
 
   useEffect(() => {
     if (!loading && !user) router.push('/login')
-    if (!loading && user && !user.is_admin) router.push('/')
+    if (!loading && user && !user.isAdmin) router.push('/')
   }, [user, loading, router])
 
   const loadAll = useCallback(async () => {
@@ -132,7 +132,7 @@ export default function AdminStarterTasksPage() {
   }, [statusFilter, toast])
 
   useEffect(() => {
-    if (!user?.is_admin) return
+    if (!user?.isAdmin) return
     // False positive: setState calls inside loadAll are in async callbacks, not synchronously.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadAll()
@@ -177,8 +177,8 @@ export default function AdminStarterTasksPage() {
     setEditModal(task)
     setEditTitle(task.title)
     setEditDesc(task.description)
-    setEditSkillId(task.skill_id ? String(task.skill_id) : '')
-    setEditHours(task.estimated_hours ? String(task.estimated_hours) : '')
+    setEditSkillId(task.skillId ? String(task.skillId) : '')
+    setEditHours(task.estimatedHours ? String(task.estimatedHours) : '')
   }
 
   async function createTask(e: React.FormEvent) {
@@ -190,8 +190,8 @@ export default function AdminStarterTasksPage() {
         body: JSON.stringify({
           title: createTitle.trim(),
           description: createDesc.trim(),
-          skill_id: createSkillId ? parseInt(createSkillId) : null,
-          estimated_hours: createHours ? parseFloat(createHours) : null,
+          skillId: createSkillId ? parseInt(createSkillId) : null,
+          estimatedHours: createHours ? parseFloat(createHours) : null,
         }),
       })
       toast('Task created!', 'success')
@@ -218,8 +218,8 @@ export default function AdminStarterTasksPage() {
         body: JSON.stringify({
           title: editTitle.trim(),
           description: editDesc.trim(),
-          skill_id: editSkillId ? parseInt(editSkillId) : null,
-          estimated_hours: editHours ? parseFloat(editHours) : null,
+          skillId: editSkillId ? parseInt(editSkillId) : null,
+          estimatedHours: editHours ? parseFloat(editHours) : null,
         }),
       })
       toast('Task updated!', 'success')
@@ -239,7 +239,7 @@ export default function AdminStarterTasksPage() {
     try {
       await apiRequest(`/api/starter-tasks/${assignModal.id}/assign`, {
         method: 'POST',
-        body: JSON.stringify({ volunteer_id: parseInt(assignVolunteerId) }),
+        body: JSON.stringify({ volunteerId: parseInt(assignVolunteerId) }),
       })
       toast('Task assigned!', 'success')
       setAssignModal(null)
@@ -291,9 +291,9 @@ export default function AdminStarterTasksPage() {
       await apiRequest(`/api/starter-tasks/${reviewModal.id}/review`, {
         method: 'POST',
         body: JSON.stringify({
-          review_rating: reviewRating,
-          feedback_to_volunteer: reviewFeedback || null,
-          review_notes: reviewNotes || null,
+          reviewRating: reviewRating,
+          feedbackToVolunteer: reviewFeedback || null,
+          reviewNotes: reviewNotes || null,
         }),
       })
       toast('Task reviewed!', 'success')
@@ -389,22 +389,22 @@ export default function AdminStarterTasksPage() {
                         className="text-text-light"
                         style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: '0.8rem' }}
                       >
-                        {task.skill_name && <span>Skill: {task.skill_name}</span>}
-                        {task.estimated_hours != null && <span>~{task.estimated_hours}h</span>}
-                        {task.assigned_to_id && task.assigned_to_name && (
+                        {task.skillName && <span>Skill: {task.skillName}</span>}
+                        {task.estimatedHours != null && <span>~{task.estimatedHours}h</span>}
+                        {task.assignedToId && task.assignedToName && (
                           <span>
                             Assigned to:{' '}
                             <Link
-                              href={`/admin/volunteers/${task.assigned_to_id}`}
+                              href={`/admin/volunteers/${task.assignedToId}`}
                               onClick={(e) => e.stopPropagation()}
                             >
-                              {task.assigned_to_name}
+                              {task.assignedToName}
                             </Link>
                           </span>
                         )}
-                        {task.review_rating && (
-                          <span style={{ color: RATING_COLORS[task.review_rating] }}>
-                            {RATING_LABELS[task.review_rating]}
+                        {task.reviewRating && (
+                          <span style={{ color: RATING_COLORS[task.reviewRating] }}>
+                            {RATING_LABELS[task.reviewRating]}
                           </span>
                         )}
                       </div>
@@ -435,18 +435,18 @@ export default function AdminStarterTasksPage() {
                       {task.description}
                     </p>
 
-                    {task.review_rating && (
+                    {task.reviewRating && (
                       <p
                         style={{
                           marginBottom: 8,
                           fontWeight: 500,
-                          color: RATING_COLORS[task.review_rating],
+                          color: RATING_COLORS[task.reviewRating],
                         }}
                       >
-                        Rating: {RATING_LABELS[task.review_rating]}
+                        Rating: {RATING_LABELS[task.reviewRating]}
                       </p>
                     )}
-                    {task.review_notes && (
+                    {task.reviewNotes && (
                       <p
                         style={{
                           fontSize: '0.875rem',
@@ -454,10 +454,10 @@ export default function AdminStarterTasksPage() {
                           marginBottom: 8,
                         }}
                       >
-                        Notes: {task.review_notes}
+                        Notes: {task.reviewNotes}
                       </p>
                     )}
-                    {task.feedback_to_volunteer && (
+                    {task.feedbackToVolunteer && (
                       <div
                         style={{
                           background: 'var(--accent)',
@@ -467,7 +467,7 @@ export default function AdminStarterTasksPage() {
                           fontSize: '0.875rem',
                         }}
                       >
-                        <strong>Feedback to volunteer:</strong> {task.feedback_to_volunteer}
+                        <strong>Feedback to volunteer:</strong> {task.feedbackToVolunteer}
                       </div>
                     )}
 
@@ -482,7 +482,7 @@ export default function AdminStarterTasksPage() {
                       }}
                     >
                       <span style={{ fontSize: '0.875rem', color: 'var(--text-light)' }}>
-                        Created {formatDate(task.created_at)}
+                        Created {formatDate(task.createdAt)}
                       </span>
                       <div className="flex gap-2">
                         <Button
@@ -528,7 +528,7 @@ export default function AdminStarterTasksPage() {
                             Assign
                           </Button>
                         )}
-                        {task.assigned_to_id && (
+                        {task.assignedToId && (
                           <Button
                             variant="secondary"
                             size="sm"
@@ -619,7 +619,7 @@ export default function AdminStarterTasksPage() {
                         { value: '', label: 'None specific' },
                         ...skills.map((s) => ({
                           value: String(s.id),
-                          label: `${s.name} (${s.category_name})`,
+                          label: `${s.name} (${s.categoryName})`,
                         })),
                       ]}
                       onChange={(v) => setCreateSkillId(v)}
@@ -707,7 +707,7 @@ export default function AdminStarterTasksPage() {
                         { value: '', label: 'None specific' },
                         ...skills.map((s) => ({
                           value: String(s.id),
-                          label: `${s.name} (${s.category_name})`,
+                          label: `${s.name} (${s.categoryName})`,
                         })),
                       ]}
                       onChange={(v) => setEditSkillId(v)}
@@ -806,8 +806,8 @@ export default function AdminStarterTasksPage() {
             </div>
             <div className="p-6">
               <h3 style={{ marginBottom: 4 }}>{reviewModal.title}</h3>
-              {reviewModal.assigned_to_name && (
-                <p className="text-text-light mb-4">Submitted by: {reviewModal.assigned_to_name}</p>
+              {reviewModal.assignedToName && (
+                <p className="text-text-light mb-4">Submitted by: {reviewModal.assignedToName}</p>
               )}
               <form onSubmit={reviewTask}>
                 <div className="mb-5">
@@ -889,8 +889,8 @@ export default function AdminStarterTasksPage() {
             <div className="p-6">
               <p className="text-text-light mb-6">
                 Remove{' '}
-                <Link href={`/admin/volunteers/${unassignModal.assigned_to_id}`}>
-                  {unassignModal.assigned_to_name}
+                <Link href={`/admin/volunteers/${unassignModal.assignedToId}`}>
+                  {unassignModal.assignedToName}
                 </Link>{' '}
                 from &ldquo;{unassignModal.title}&rdquo;? The task will return to open.
               </p>
