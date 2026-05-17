@@ -237,4 +237,4 @@ echo "If the session ends unexpectedly, run 'claude --continue' from this direct
 echo ""
 
 unset RAILWAY_TOKEN RESEND_API_KEY GOOGLE_CLIENT_SECRET CRON_SECRET
-PATH="$TMPBIN:$PATH" claude --no-mcp --sandbox "$PROMPT"
+PATH="$TMPBIN:$PATH" claude --no-mcp --sandbox --dangerously-skip-permissions "$PROMPT"
