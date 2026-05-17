@@ -36,6 +36,10 @@ export default function PlatformSettingsPage() {
   }, [showToast])
 
   useEffect(() => {
+    // loadSettings is async; setState calls inside it are deferred past the
+    // await boundary. The rule can't trace async call graphs so flags this as a
+    // false positive.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (user?.is_super_admin) loadSettings()
   }, [user, loadSettings])
 

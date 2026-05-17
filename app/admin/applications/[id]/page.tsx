@@ -48,7 +48,6 @@ export default function ApplicationReviewPage() {
   const [applicantNotes, setApplicantNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | null>(null)
-
   useEffect(() => {
     if (!loading && !user) router.push('/login')
     if (!loading && user && !user.is_super_admin) router.push('/')
@@ -69,6 +68,10 @@ export default function ApplicationReviewPage() {
   }, [id, showToast])
 
   useEffect(() => {
+    // loadApplication is async; setState calls inside it are deferred past the
+    // await boundary. The rule can't trace async call graphs so flags this as a
+    // false positive.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (user?.is_super_admin) loadApplication()
   }, [user, loadApplication])
 
@@ -78,7 +81,11 @@ export default function ApplicationReviewPage() {
     try {
       await apiRequest(`/api/admin/applications/${app.id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ action: 'update_notes', admin_notes: adminNotes, applicant_notes: applicantNotes }),
+        body: JSON.stringify({
+          action: 'update_notes',
+          admin_notes: adminNotes,
+          applicant_notes: applicantNotes,
+        }),
       })
       showToast('Notes saved', 'success')
       setApp({ ...app, admin_notes: adminNotes, applicant_notes: applicantNotes })
@@ -102,7 +109,10 @@ export default function ApplicationReviewPage() {
           applicant_notes: applicantNotes,
         }),
       })
-      showToast(confirmAction === 'approve' ? 'Application approved' : 'Application rejected', 'success')
+      showToast(
+        confirmAction === 'approve' ? 'Application approved' : 'Application rejected',
+        'success',
+      )
       router.push('/admin/applications')
     } catch (err) {
       showToast(err instanceof Error ? err.message : `Failed to ${confirmAction}`, 'error')
@@ -129,8 +139,13 @@ export default function ApplicationReviewPage() {
   }
 
   const anonymiseDate = app.anonymise_at ? new Date(app.anonymise_at) : null
+  // Date.now() is intentionally impure here — we want the current wall-clock
+  // time to compute days remaining. Alternatives (prop drilling, context, ref)
+  // would be disproportionate for a read-only display calculation.
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now()
   const daysUntilAnonymise = anonymiseDate
-    ? Math.ceil((anonymiseDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    ? Math.ceil((anonymiseDate.getTime() - now) / (1000 * 60 * 60 * 24))
     : null
 
   const locationParts = [app.local_group, app.country ?? app.location].filter(Boolean)
@@ -154,8 +169,11 @@ export default function ApplicationReviewPage() {
       <p className="text-sm text-text-light mb-6">{meta.join(' · ')}</p>
 
       {app.approval_status === 'REJECTED' && anonymiseDate && (
-        <p className={`text-sm mb-4 ${daysUntilAnonymise !== null && daysUntilAnonymise <= 1 ? 'text-red-500' : 'text-amber-500'}`}>
-          Personally Identifiable Information will be anonymised on {anonymiseDate.toLocaleDateString()}
+        <p
+          className={`text-sm mb-4 ${daysUntilAnonymise !== null && daysUntilAnonymise <= 1 ? 'text-red-500' : 'text-amber-500'}`}
+        >
+          Personally Identifiable Information will be anonymised on{' '}
+          {anonymiseDate.toLocaleDateString()}
           {daysUntilAnonymise !== null && daysUntilAnonymise >= 0
             ? ` (${daysUntilAnonymise === 0 ? 'today' : `${daysUntilAnonymise} day${daysUntilAnonymise === 1 ? '' : 's'}`})`
             : ''}
@@ -198,7 +216,11 @@ export default function ApplicationReviewPage() {
               <p className="text-sm">{app.availability_hours_per_week} hours/week</p>
             </div>
           )}
-          {(app.email || app.signal_number || app.whatsapp_number || app.discord_handle || app.contact_notes) && (
+          {(app.email ||
+            app.signal_number ||
+            app.whatsapp_number ||
+            app.discord_handle ||
+            app.contact_notes) && (
             <div>
               <h2 className="text-base font-semibold mb-1">Contact</h2>
               <div className="text-sm">
@@ -206,7 +228,9 @@ export default function ApplicationReviewPage() {
                 {app.discord_handle && <div>Discord: {app.discord_handle}</div>}
                 {app.signal_number && <div>Signal: {app.signal_number}</div>}
                 {app.whatsapp_number && <div>WhatsApp: {app.whatsapp_number}</div>}
-                {app.contact_notes && <div className="text-text-light mt-1 italic">{app.contact_notes}</div>}
+                {app.contact_notes && (
+                  <div className="text-text-light mt-1 italic">{app.contact_notes}</div>
+                )}
               </div>
             </div>
           )}
@@ -223,23 +247,36 @@ export default function ApplicationReviewPage() {
       {app.previous_rejections.length > 0 && (
         <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg">
           <p className="text-sm font-semibold text-amber-800 dark:text-amber-300 mb-3">
-            {app.previous_rejections.length === 1 ? 'Previously rejected' : `Previously rejected ${app.previous_rejections.length} times`}
+            {app.previous_rejections.length === 1
+              ? 'Previously rejected'
+              : `Previously rejected ${app.previous_rejections.length} times`}
           </p>
           {app.previous_rejections.map((r, i) => (
-            <div key={i} className={i > 0 ? 'mt-3 pt-3 border-t border-amber-200 dark:border-amber-700' : ''}>
+            <div
+              key={i}
+              className={i > 0 ? 'mt-3 pt-3 border-t border-amber-200 dark:border-amber-700' : ''}
+            >
               <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide mb-1">
                 {new Date(r.rejected_at).toLocaleDateString()}
               </p>
               {r.admin_notes && (
                 <div className="mb-1">
-                  <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide mb-0.5">Admin notes</p>
-                  <p className="text-sm text-amber-700 dark:text-amber-400 whitespace-pre-wrap">{r.admin_notes}</p>
+                  <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide mb-0.5">
+                    Admin notes
+                  </p>
+                  <p className="text-sm text-amber-700 dark:text-amber-400 whitespace-pre-wrap">
+                    {r.admin_notes}
+                  </p>
                 </div>
               )}
               {r.applicant_notes && (
                 <div>
-                  <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide mb-0.5">Message sent to applicant</p>
-                  <p className="text-sm text-amber-700 dark:text-amber-400 whitespace-pre-wrap">{r.applicant_notes}</p>
+                  <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide mb-0.5">
+                    Message sent to applicant
+                  </p>
+                  <p className="text-sm text-amber-700 dark:text-amber-400 whitespace-pre-wrap">
+                    {r.applicant_notes}
+                  </p>
                 </div>
               )}
             </div>
@@ -265,7 +302,9 @@ export default function ApplicationReviewPage() {
 
         <label htmlFor="applicant-notes" className="block text-sm font-medium mb-1">
           Message to applicant
-          <span className="text-text-light font-normal ml-1">(only sent if applicant is rejected)</span>
+          <span className="text-text-light font-normal ml-1">
+            (only sent if applicant is rejected)
+          </span>
         </label>
         <textarea
           id="applicant-notes"
@@ -282,7 +321,11 @@ export default function ApplicationReviewPage() {
           </Button>
           {canAction && (
             <>
-              <Button variant="danger" onClick={() => setConfirmAction('reject')} disabled={submitting}>
+              <Button
+                variant="danger"
+                onClick={() => setConfirmAction('reject')}
+                disabled={submitting}
+              >
                 Reject
               </Button>
               <Button onClick={() => setConfirmAction('approve')} disabled={submitting}>

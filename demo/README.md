@@ -16,26 +16,35 @@ npm run demo:compare -- volunteer-signup-approval-flow
 ## Workflow
 
 ### First run
+
 ```
 npm run demo -- <flow>
 ```
+
 Builds the app, spins up a local server with a fresh SQLite DB, records the flow in a headed browser, then compiles clips into `demo/output/<flow>.webm`. Because no snapshot exists yet, it automatically saves one.
 
 ### Subsequent runs
+
 Re-record after making changes:
+
 ```
 npm run demo -- <flow>
 ```
+
 The existing snapshot is preserved. Run the compare viewer to see what changed:
+
 ```
 npm run demo:compare -- <flow>
 ```
 
 ### Promoting a run as the new reference
+
 Once happy with a new recording:
+
 ```
 npm run demo:snapshot -- <flow>
 ```
+
 This copies the clips and frames from `.scratch/` into `snapshots/<flow>/` and updates `manifest.json`.
 
 ## Directory structure
@@ -63,6 +72,7 @@ demo/
 The viewer (`compare-viewer.html`) is a static app served by `npm run demo:compare`. It fetches `results.json` from the snapshot's diff directory — **edit the HTML and refresh without re-running compare**.
 
 Each scene card shows:
+
 - Before / after video clips, synchronised with a shared scrubber
 - Waveform canvas (before = top half in blue, after = bottom half in green) — widths are proportional to each clip's duration, so length differences are immediately visible
 - `CHANGED` badge when pixel diff at start or end frames exceeds threshold

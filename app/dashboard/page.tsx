@@ -99,7 +99,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     document.title = `Catalyse | ${TAB_LABELS[activeTab]}`
-    return () => { document.title = 'Catalyse | Dashboard' }
+    return () => {
+      document.title = 'Catalyse | Dashboard'
+    }
   }, [activeTab])
 
   useEffect(() => {

@@ -118,6 +118,9 @@ export default function Header() {
   const [bugDialogOpen, setBugDialogOpen] = useState(false)
 
   useEffect(() => {
+    // Standard hydration guard: reveals browser-only UI (user menu, nav) after
+    // mount so it is hidden during SSR and appears in a single paint.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true)
   }, [])
 
@@ -164,8 +167,6 @@ export default function Header() {
     { href: '/starter-tasks', label: 'Quick Tasks' },
   ]
 
-  const isAdminPage = pathname.startsWith('/admin')
-
   return (
     <>
       <header className="bg-surface border-b border-brand-border py-4 sticky top-0 z-[100]">
@@ -196,7 +197,8 @@ export default function Header() {
           </nav>
 
           <div className="hidden xl:flex gap-2 items-center">
-            {mounted && !loading &&
+            {mounted &&
+              !loading &&
               (user ? (
                 <div className="relative">
                   <Button
@@ -425,7 +427,8 @@ export default function Header() {
                 </MobileNavLink>
               ))}
 
-            {mounted && !loading &&
+            {mounted &&
+              !loading &&
               (user ? (
                 <>
                   <MobileNavSection>Account</MobileNavSection>
@@ -445,17 +448,19 @@ export default function Header() {
                       <MobileNavSection admin>Admin</MobileNavSection>
                       <MobileNavLink href="/admin/triage">Triage Queue</MobileNavLink>
                       <MobileNavLink href="/admin/projects/new">Create Org Project</MobileNavLink>
-                      <MobileNavLink href="/admin/starter-tasks">
-                        Manage Quick Tasks
-                      </MobileNavLink>
+                      <MobileNavLink href="/admin/starter-tasks">Manage Quick Tasks</MobileNavLink>
                       <MobileNavLink href="/admin/skills">Manage Skills</MobileNavLink>
                       <MobileNavLink href="/admin/bugs">Bug Reports</MobileNavLink>
                       <MobileNavLink href="/admin/team">Admin Team</MobileNavLink>
                       <MobileNavLink href="/admin/stats">Platform Stats</MobileNavLink>
                       {user.is_super_admin && (
                         <>
-                          <MobileNavLink href="/admin/applications">Manage Applications</MobileNavLink>
-                          <MobileNavLink href="/admin/platform-settings">Platform Settings</MobileNavLink>
+                          <MobileNavLink href="/admin/applications">
+                            Manage Applications
+                          </MobileNavLink>
+                          <MobileNavLink href="/admin/platform-settings">
+                            Platform Settings
+                          </MobileNavLink>
                         </>
                       )}
                       <MobileNavLink href="/admin/local-groups">Manage Local Groups</MobileNavLink>

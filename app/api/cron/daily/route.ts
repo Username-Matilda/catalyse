@@ -3,29 +3,21 @@ import { checkCronAuth } from '@/lib/cron-auth'
 import { runBackupJob } from '@/lib/jobs/backup'
 import { runDigestJob } from '@/lib/jobs/digest'
 import { runNudgesJob } from '@/lib/jobs/nudges'
-import {
-  runApplicationsSummaryJob,
-  runApplicationsAnonymisationJob,
-} from '@/lib/jobs/applications'
+import { runApplicationsSummaryJob, runApplicationsAnonymisationJob } from '@/lib/jobs/applications'
 
 // Can be triggered manually: POST with Authorization: Bearer <CRON_SECRET>
 export async function POST(request: NextRequest) {
   const authError = checkCronAuth(request)
   if (authError) return authError
 
-  const [
-    backupResult,
-    digestResult,
-    nudgesResult,
-    applicationsResult,
-    anonymisationResult,
-  ] = await Promise.allSettled([
-    runBackupJob(),
-    runDigestJob(),
-    runNudgesJob(),
-    runApplicationsSummaryJob(),
-    runApplicationsAnonymisationJob(),
-  ])
+  const [backupResult, digestResult, nudgesResult, applicationsResult, anonymisationResult] =
+    await Promise.allSettled([
+      runBackupJob(),
+      runDigestJob(),
+      runNudgesJob(),
+      runApplicationsSummaryJob(),
+      runApplicationsAnonymisationJob(),
+    ])
 
   return NextResponse.json({
     backup:

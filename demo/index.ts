@@ -81,12 +81,20 @@ async function main() {
       const outputDir = path.join(process.cwd(), 'demo', 'output')
       fs.mkdirSync(outputDir, { recursive: true })
       await engine.compile(path.join(outputDir, `${flow.meta.name}.webm`))
-      const snapManifest = path.join(process.cwd(), 'demo', 'snapshots', flow.meta.name, 'manifest.json')
+      const snapManifest = path.join(
+        process.cwd(),
+        'demo',
+        'snapshots',
+        flow.meta.name,
+        'manifest.json',
+      )
       if (!fs.existsSync(snapManifest)) {
         console.log('  No snapshot found — saving initial snapshot...')
         extractSnapshot(flow.meta.name)
       } else {
-        console.log('  Snapshot exists — run `npm run demo:snapshot` to promote this run as new reference.')
+        console.log(
+          '  Snapshot exists — run `npm run demo:snapshot` to promote this run as new reference.',
+        )
       }
     } finally {
       stopDemoServer()

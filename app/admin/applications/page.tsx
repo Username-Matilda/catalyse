@@ -8,7 +8,6 @@ import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
 import { useToast } from '@/lib/toast'
 
-
 interface Application {
   id: number
   name: string
@@ -67,7 +66,9 @@ export default function ApplicationsPage() {
       setLoadingData(true)
       try {
         if (f === 'rejected_anonymised') {
-          const data = await apiRequest<AnonymisedApplication[]>(`/api/admin/applications?filter=${f}`)
+          const data = await apiRequest<AnonymisedApplication[]>(
+            `/api/admin/applications?filter=${f}`,
+          )
           setAnonymisedApplications(data)
           setApplications([])
         } else {
@@ -116,7 +117,9 @@ export default function ApplicationsPage() {
 
   const emptyLabel = filterOptions.find((o) => o.value === filter)?.label.toLowerCase() ?? ''
   const isEmpty =
-    filter === 'rejected_anonymised' ? anonymisedApplications.length === 0 : applications.length === 0
+    filter === 'rejected_anonymised'
+      ? anonymisedApplications.length === 0
+      : applications.length === 0
 
   return (
     <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
@@ -157,7 +160,6 @@ export default function ApplicationsPage() {
           ))}
         </div>
       )}
-
     </main>
   )
 }
@@ -174,8 +176,13 @@ function ApplicationCard({
   onNavigate: (id: number) => void
 }) {
   const anonymiseDate = app.anonymise_at ? new Date(app.anonymise_at) : null
+  // Date.now() is intentionally impure here — we want the current wall-clock
+  // time to compute days remaining. Alternatives (prop drilling, context, ref)
+  // would be disproportionate for a read-only display calculation.
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now()
   const daysUntilAnonymise = anonymiseDate
-    ? Math.ceil((anonymiseDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    ? Math.ceil((anonymiseDate.getTime() - now) / (1000 * 60 * 60 * 24))
     : null
 
   const locationParts = [app.local_group, app.country ?? app.location].filter(Boolean)
@@ -191,8 +198,11 @@ function ApplicationCard({
       <p className="text-sm text-text-light mb-4">{meta.join(' · ')}</p>
 
       {app.approval_status === 'REJECTED' && anonymiseDate && (
-        <p className={`text-sm mb-3 ${daysUntilAnonymise !== null && daysUntilAnonymise <= 1 ? 'text-red-500' : 'text-amber-500'}`}>
-          Personally Identifiable Information will be anonymised on {anonymiseDate.toLocaleDateString()}
+        <p
+          className={`text-sm mb-3 ${daysUntilAnonymise !== null && daysUntilAnonymise <= 1 ? 'text-red-500' : 'text-amber-500'}`}
+        >
+          Personally Identifiable Information will be anonymised on{' '}
+          {anonymiseDate.toLocaleDateString()}
           {daysUntilAnonymise !== null && daysUntilAnonymise >= 0
             ? ` (${daysUntilAnonymise === 0 ? 'today' : `${daysUntilAnonymise} day${daysUntilAnonymise === 1 ? '' : 's'}`})`
             : ''}
@@ -230,7 +240,11 @@ function ApplicationCard({
               <p className="text-sm">{app.availability_hours_per_week} hours/week</p>
             </div>
           )}
-          {(app.email || app.signal_number || app.whatsapp_number || app.discord_handle || app.contact_notes) && (
+          {(app.email ||
+            app.signal_number ||
+            app.whatsapp_number ||
+            app.discord_handle ||
+            app.contact_notes) && (
             <div>
               <h4 className="text-text-light">Contact</h4>
               <div className="text-sm">
@@ -238,7 +252,9 @@ function ApplicationCard({
                 {app.discord_handle && <div>Discord: {app.discord_handle}</div>}
                 {app.signal_number && <div>Signal: {app.signal_number}</div>}
                 {app.whatsapp_number && <div>WhatsApp: {app.whatsapp_number}</div>}
-                {app.contact_notes && <div className="text-text-light mt-1 italic">{app.contact_notes}</div>}
+                {app.contact_notes && (
+                  <div className="text-text-light mt-1 italic">{app.contact_notes}</div>
+                )}
               </div>
             </div>
           )}
@@ -261,7 +277,10 @@ function ApplicationCard({
 
       {app.applicant_notes && (
         <div className="mb-4">
-          <h4 className="text-text-light">Message to applicant <span className="font-normal normal-case text-xs">(sent on rejection only)</span></h4>
+          <h4 className="text-text-light">
+            Message to applicant{' '}
+            <span className="font-normal normal-case text-xs">(sent on rejection only)</span>
+          </h4>
           <p className="text-sm whitespace-pre-wrap">{app.applicant_notes}</p>
         </div>
       )}
@@ -269,23 +288,36 @@ function ApplicationCard({
       {app.previous_rejections.length > 0 && (
         <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg">
           <p className="text-sm font-medium text-amber-800 dark:text-amber-300 mb-3">
-            {app.previous_rejections.length === 1 ? 'Previously rejected' : `Previously rejected ${app.previous_rejections.length} times`}
+            {app.previous_rejections.length === 1
+              ? 'Previously rejected'
+              : `Previously rejected ${app.previous_rejections.length} times`}
           </p>
           {app.previous_rejections.map((r, i) => (
-            <div key={i} className={i > 0 ? 'mt-3 pt-3 border-t border-amber-200 dark:border-amber-700' : ''}>
+            <div
+              key={i}
+              className={i > 0 ? 'mt-3 pt-3 border-t border-amber-200 dark:border-amber-700' : ''}
+            >
               <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide mb-1">
                 {new Date(r.rejected_at).toLocaleDateString()}
               </p>
               {r.admin_notes && (
                 <div className="mb-1">
-                  <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide mb-0.5">Admin notes</p>
-                  <p className="text-sm text-amber-700 dark:text-amber-400 whitespace-pre-wrap">{r.admin_notes}</p>
+                  <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide mb-0.5">
+                    Admin notes
+                  </p>
+                  <p className="text-sm text-amber-700 dark:text-amber-400 whitespace-pre-wrap">
+                    {r.admin_notes}
+                  </p>
                 </div>
               )}
               {r.applicant_notes && (
                 <div>
-                  <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide mb-0.5">Message sent to applicant</p>
-                  <p className="text-sm text-amber-700 dark:text-amber-400 whitespace-pre-wrap">{r.applicant_notes}</p>
+                  <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide mb-0.5">
+                    Message sent to applicant
+                  </p>
+                  <p className="text-sm text-amber-700 dark:text-amber-400 whitespace-pre-wrap">
+                    {r.applicant_notes}
+                  </p>
                 </div>
               )}
             </div>
@@ -295,16 +327,11 @@ function ApplicationCard({
 
       <div className="flex gap-2 justify-end border-t border-brand-border pt-4 mt-2">
         {app.approval_status === 'PENDING' ? (
-          <Button
-            onClick={() => onStartReview(app.id)}
-            disabled={startingReview === app.id}
-          >
+          <Button onClick={() => onStartReview(app.id)} disabled={startingReview === app.id}>
             Start Review
           </Button>
         ) : app.approval_status === 'UNDER_REVIEW' ? (
-          <Button onClick={() => onNavigate(app.id)}>
-            Continue Review
-          </Button>
+          <Button onClick={() => onNavigate(app.id)}>Continue Review</Button>
         ) : (
           <Button variant="secondary" onClick={() => onNavigate(app.id)}>
             View
@@ -330,7 +357,8 @@ function AnonymisedCard({ app }: { app: AnonymisedApplication }) {
       {app.applicant_notes && (
         <div className="mb-4">
           <h4 className="text-text-light">
-            Message to applicant <span className="font-normal normal-case text-xs">(sent on rejection only)</span>
+            Message to applicant{' '}
+            <span className="font-normal normal-case text-xs">(sent on rejection only)</span>
           </h4>
           <p className="text-sm whitespace-pre-wrap">{app.applicant_notes}</p>
         </div>

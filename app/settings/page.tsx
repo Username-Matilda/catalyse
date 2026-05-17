@@ -208,8 +208,8 @@ export default function SettingsPage() {
               <div className="p-6">
                 {user.has_password && (
                   <p className="text-text-light mb-4">
-                    This action is permanent and cannot be undone. Please enter your password twice to
-                    confirm.
+                    This action is permanent and cannot be undone. Please enter your password twice
+                    to confirm.
                   </p>
                 )}
 

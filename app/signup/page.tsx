@@ -62,15 +62,20 @@ export default function SignupPage() {
   useEffect(() => {
     const pending = sessionStorage.getItem('google_pending_token')
     if (pending) {
+      // Can't use lazy initializers here because this effect also fires
+      // the concurrent apiRequest to prefetch the volunteer name. Splitting
+      // them would read sessionStorage twice with no benefit.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setGooglePendingToken(pending)
       setGoogleApplicationStep(true)
       apiRequest<{ name?: string }>('/api/volunteers/me', {
         headers: { Authorization: `Bearer ${pending}` },
       })
-        .then((vol) => { if (vol.name) setName(vol.name) })
+        .then((vol) => {
+          if (vol.name) setName(vol.name)
+        })
         .catch(() => {})
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Persist/clear pending token in sessionStorage
