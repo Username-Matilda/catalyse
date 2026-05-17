@@ -1,7 +1,8 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/auth'
-import { fieldError, validationError } from '@/lib/errors'
+import { parseBody } from '@/lib/errors'
+import { CreateStarterTaskSchema } from '@/lib/schemas'
 
 export async function GET(request: NextRequest) {
   const { error } = await requireAdmin(request.headers.get('authorization'))
@@ -58,33 +59,24 @@ export async function POST(request: NextRequest) {
   const { error } = await requireAdmin(request.headers.get('authorization'))
   if (error) return error
 
-  let body: Record<string, unknown>
+  let raw: unknown
   try {
-    body = await request.json()
+    raw = await request.json()
   } catch {
     return Response.json({ detail: 'Invalid JSON' }, { status: 400 })
   }
 
-  const errs: ReturnType<typeof fieldError>[] = []
-  if (!body.title || typeof body.title !== 'string' || body.title.trim().length === 0) {
-    errs.push(fieldError('title', 'Title is required'))
-  }
-  if (
-    !body.description ||
-    typeof body.description !== 'string' ||
-    body.description.trim().length === 0
-  ) {
-    errs.push(fieldError('description', 'Description is required'))
-  }
-  if (errs.length) return validationError(errs)
+  const parsed = parseBody(CreateStarterTaskSchema, raw)
+  if (!parsed.success) return parsed.response
+  const body = parsed.data
 
   const task = await prisma.starterTask.create({
     data: {
-      title: body.title as string,
-      description: body.description as string,
-      skillId: (body.skillId as number | null) ?? null,
-      projectId: (body.projectId as number | null) ?? null,
-      estimatedHours: (body.estimatedHours as number | null) ?? null,
+      title: body.title,
+      description: body.description,
+      skillId: body.skillId ?? null,
+      projectId: body.projectId ?? null,
+      estimatedHours: body.estimatedHours ?? null,
     },
   })
 

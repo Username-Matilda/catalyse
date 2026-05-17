@@ -1,8 +1,8 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/auth'
-
-const VALID_OUTCOMES = ['successful', 'partial', 'not_completed', 'ongoing']
+import { parseBody } from '@/lib/errors'
+import { OutcomeProjectSchema } from '@/lib/schemas'
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = await params
@@ -14,19 +14,16 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const { volunteer: admin, error } = await requireAdmin(request.headers.get('authorization'))
   if (error) return error
 
-  let body: Record<string, unknown>
+  let raw: unknown
   try {
-    body = await request.json()
+    raw = await request.json()
   } catch {
     return Response.json({ detail: 'Invalid JSON' }, { status: 400 })
   }
 
-  const outcome = body.outcome as string
-  if (!outcome || !VALID_OUTCOMES.includes(outcome)) {
-    return Response.json({ detail: 'Invalid outcome' }, { status: 400 })
-  }
-
-  const outcomeNotes = (body.outcomeNotes as string | null) ?? null
+  const parsed = parseBody(OutcomeProjectSchema, raw)
+  if (!parsed.success) return parsed.response
+  const { outcome, outcomeNotes = null } = parsed.data
 
   const project = await prisma.project.findUnique({ where: { id: projectId } })
   if (!project) {

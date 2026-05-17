@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { requireSuperAdmin, serializeSkill } from '@/lib/auth'
 import { sendApplicationApprovedEmail, sendApplicationRejectedEmail } from '@/lib/email'
 import { APPLICATION_ANONYMISATION_MS } from '@/lib/applications'
+import { parseBody } from '@/lib/errors'
+import { ApplicationActionSchema } from '@/lib/schemas'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { error } = await requireSuperAdmin(request.headers.get('authorization'))
@@ -82,23 +84,19 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return Response.json({ detail: 'Invalid volunteer ID' }, { status: 400 })
   }
 
-  let body: Record<string, unknown>
+  let raw: unknown
   try {
-    body = await request.json()
+    raw = await request.json()
   } catch {
     return Response.json({ detail: 'Invalid JSON' }, { status: 400 })
   }
 
-  const action = body.action as string
-  if (!['start_review', 'approve', 'reject', 'update_notes'].includes(action)) {
-    return Response.json(
-      { detail: 'action must be "start_review", "approve", "reject", or "update_notes"' },
-      { status: 400 },
-    )
-  }
+  const parsed = parseBody(ApplicationActionSchema, raw)
+  if (!parsed.success) return parsed.response
+  const { action, adminNotes: rawAdminNotes, applicantNotes: rawApplicantNotes } = parsed.data
 
-  const adminNotes = body.adminNotes !== null ? String(body.adminNotes) : undefined
-  const applicantNotes = body.applicantNotes !== null ? String(body.applicantNotes) : undefined
+  const adminNotes = rawAdminNotes !== null ? (rawAdminNotes ?? undefined) : undefined
+  const applicantNotes = rawApplicantNotes !== null ? (rawApplicantNotes ?? undefined) : undefined
 
   const volunteer = await prisma.volunteer.findFirst({
     where: { id: volunteerId, deletedAt: null },

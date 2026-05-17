@@ -2,7 +2,8 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/auth'
 import { sendAdminInviteEmail } from '@/lib/email'
-import { fieldError, validationError } from '@/lib/errors'
+import { parseBody } from '@/lib/errors'
+import { InviteAdminSchema } from '@/lib/schemas'
 import { randomBytes } from 'node:crypto'
 
 const APP_URL = process.env.APP_URL!
@@ -12,20 +13,17 @@ export async function POST(request: NextRequest) {
   const { volunteer: admin, error } = await requireAdmin(request.headers.get('authorization'))
   if (error) return error
 
-  let body: Record<string, unknown>
+  let raw: unknown
   try {
-    body = await request.json()
+    raw = await request.json()
   } catch {
     return Response.json({ detail: 'Invalid JSON' }, { status: 400 })
   }
 
-  const errs: ReturnType<typeof fieldError>[] = []
-  if (!body.email || typeof body.email !== 'string' || !body.email.includes('@')) {
-    errs.push(fieldError('email', 'A valid email address is required'))
-  }
-  if (errs.length) return validationError(errs)
+  const parsed = parseBody(InviteAdminSchema, raw)
+  if (!parsed.success) return parsed.response
 
-  const email = (body.email as string).trim().toLowerCase()
+  const email = parsed.data.email.trim().toLowerCase()
 
   const existing = await prisma.volunteer.findFirst({
     where: { email, isAdmin: true },

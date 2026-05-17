@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/auth'
 import { sendProjectNotificationEmail } from '@/lib/email'
 import { createNotification } from '@/lib/project'
+import { parseBody } from '@/lib/errors'
+import { ReviewProjectSchema } from '@/lib/schemas'
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = await params
@@ -19,21 +21,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return Response.json({ detail: 'Project not found' }, { status: 404 })
   }
 
-  let body: Record<string, unknown>
+  let raw: unknown
   try {
-    body = await request.json()
+    raw = await request.json()
   } catch {
     return Response.json({ detail: 'Invalid JSON' }, { status: 400 })
   }
 
-  const status = body.status as string
-  if (!status || !['approved', 'needs_discussion'].includes(status)) {
-    return Response.json({ detail: 'Status must be approved or needs_discussion' }, { status: 400 })
-  }
-
-  const reviewNotes = (body.reviewNotes as string | null) ?? null
-  const feedbackToProposer = (body.feedbackToProposer as string | null) ?? null
-  const targetStatus = (body.targetStatus as string) || 'seeking_owner'
+  const parsed = parseBody(ReviewProjectSchema, raw)
+  if (!parsed.success) return parsed.response
+  const { status, reviewNotes = null, feedbackToProposer = null, targetStatus } = parsed.data
 
   if (status === 'approved') {
     const hasOwner = project.ownerId !== null

@@ -6,6 +6,8 @@ import {
   serializeSkill,
   serializeEndorsement,
 } from '@/lib/auth'
+import { parseBody } from '@/lib/errors'
+import { UpdateVolunteerSchema } from '@/lib/schemas'
 
 export async function PUT(request: NextRequest) {
   const volunteer = await getCurrentVolunteer(request.headers.get('authorization'))
@@ -13,70 +15,57 @@ export async function PUT(request: NextRequest) {
     return Response.json({ detail: 'Authentication required' }, { status: 401 })
   }
 
-  let body: Record<string, unknown>
+  let raw: unknown
   try {
-    body = await request.json()
+    raw = await request.json()
   } catch {
     return Response.json({ detail: 'Invalid JSON' }, { status: 400 })
   }
 
-  const updatable = [
-    'name',
-    'bio',
-    'discord_handle',
-    'signal_number',
-    'whatsapp_number',
-    'contact_preference',
-    'contact_notes',
-    'availability_hours_per_week',
-    'location',
-    'country',
-    'local_group',
-    'other_skills',
-    'email_digest',
-    'application_message',
-  ] as const
-
-  const prismaFieldMap: Record<string, string> = {
-    discord_handle: 'discordHandle',
-    signal_number: 'signalNumber',
-    whatsapp_number: 'whatsappNumber',
-    contact_preference: 'contactPreference',
-    contact_notes: 'contactNotes',
-    availability_hours_per_week: 'availabilityHoursPerWeek',
-    local_group: 'localGroup',
-    other_skills: 'otherSkills',
-    email_digest: 'emailDigest',
-    application_message: 'applicationMessage',
-  }
+  const parsed = parseBody(UpdateVolunteerSchema, raw)
+  if (!parsed.success) return parsed.response
+  const body = parsed.data
 
   const data: Record<string, unknown> = { updatedAt: new Date() }
-  for (const field of updatable) {
+
+  const scalarFields = [
+    'name',
+    'bio',
+    'discordHandle',
+    'signalNumber',
+    'whatsappNumber',
+    'contactPreference',
+    'contactNotes',
+    'availabilityHoursPerWeek',
+    'location',
+    'country',
+    'localGroup',
+    'otherSkills',
+    'emailDigest',
+    'applicationMessage',
+  ] as const
+  for (const field of scalarFields) {
     if (Object.prototype.hasOwnProperty.call(body, field)) {
-      const prismaKey = prismaFieldMap[field] ?? field
-      data[prismaKey] = body[field]
+      data[field] = body[field]
     }
   }
 
-  if (Object.prototype.hasOwnProperty.call(body, 'consent_make_profile_visible_in_directory')) {
-    data.consentMakeProfileVisibleInDirectory = !!body.consent_make_profile_visible_in_directory
-    if (body.consent_make_profile_visible_in_directory) data.consentGivenAt = new Date()
+  if (body.consentMakeProfileVisibleInDirectory !== undefined) {
+    data.consentMakeProfileVisibleInDirectory = body.consentMakeProfileVisibleInDirectory
+    if (body.consentMakeProfileVisibleInDirectory) data.consentGivenAt = new Date()
   }
 
-  if (Object.prototype.hasOwnProperty.call(body, 'consent_contactable_by_project_owners')) {
-    data.consentContactableByProjectOwners = !!body.consent_contactable_by_project_owners
-    if (body.consent_contactable_by_project_owners) data.consentGivenAt = new Date()
+  if (body.consentContactableByProjectOwners !== undefined) {
+    data.consentContactableByProjectOwners = body.consentContactableByProjectOwners
+    if (body.consentContactableByProjectOwners) data.consentGivenAt = new Date()
   }
 
-  if (Object.prototype.hasOwnProperty.call(body, 'consent_share_contact_info_with_project_owner')) {
-    data.consentShareContactInfoWithProjectOwner =
-      !!body.consent_share_contact_info_with_project_owner
-    if (body.consent_share_contact_info_with_project_owner) data.consentGivenAt = new Date()
+  if (body.consentShareContactInfoWithProjectOwner !== undefined) {
+    data.consentShareContactInfoWithProjectOwner = body.consentShareContactInfoWithProjectOwner
+    if (body.consentShareContactInfoWithProjectOwner) data.consentGivenAt = new Date()
   }
 
-  const skillIds: number[] | undefined = Array.isArray(body.skill_ids)
-    ? (body.skill_ids as unknown[]).map((id) => Number(id)).filter((n) => !isNaN(n))
-    : undefined
+  const skillIds = body.skillIds
 
   const [vol] = await prisma.$transaction(async (tx) => {
     const updated = await tx.volunteer.update({

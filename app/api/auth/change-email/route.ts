@@ -1,7 +1,8 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentVolunteer, verifyPassword } from '@/lib/auth'
-import { fieldError, validationError } from '@/lib/errors'
+import { parseBody } from '@/lib/errors'
+import { ChangeEmailSchema } from '@/lib/schemas'
 
 export async function POST(request: NextRequest) {
   const volunteer = await getCurrentVolunteer(request.headers.get('authorization'))
@@ -9,17 +10,16 @@ export async function POST(request: NextRequest) {
     return Response.json({ detail: 'Authentication required' }, { status: 401 })
   }
 
-  let body: Record<string, unknown>
+  let raw: unknown
   try {
-    body = await request.json()
+    raw = await request.json()
   } catch {
     return Response.json({ detail: 'Invalid JSON' }, { status: 400 })
   }
 
-  const errs: ReturnType<typeof fieldError>[] = []
-  if (!body.newEmail) errs.push(fieldError('newEmail', 'New email is required'))
-  if (!body.password) errs.push(fieldError('password', 'Password is required'))
-  if (errs.length) return validationError(errs)
+  const parsed = parseBody(ChangeEmailSchema, raw)
+  if (!parsed.success) return parsed.response
+  const { newEmail: rawNewEmail, password } = parsed.data
 
   const vol = await prisma.volunteer.findUnique({
     where: { id: volunteer.id },
@@ -32,11 +32,11 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     )
   }
-  if (!verifyPassword(String(body.password), vol.passwordHash)) {
+  if (!verifyPassword(password, vol.passwordHash)) {
     return Response.json({ detail: 'Password is incorrect' }, { status: 400 })
   }
 
-  const newEmail = String(body.newEmail).toLowerCase().trim()
+  const newEmail = rawNewEmail.toLowerCase().trim()
   const existing = await prisma.volunteer.findFirst({
     where: { email: newEmail, id: { not: volunteer.id } },
     select: { id: true },

@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { getCurrentVolunteer } from '@/lib/auth'
 import { sendProjectNotificationEmail } from '@/lib/email'
 import { createNotification } from '@/lib/project'
+import { parseBody } from '@/lib/errors'
+import { ProjectInterestBodySchema } from '@/lib/schemas'
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = await params
@@ -46,19 +48,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return Response.json({ detail: "You've already expressed interest" }, { status: 400 })
   }
 
-  let body: Record<string, unknown>
+  let raw: unknown
   try {
-    body = await request.json()
+    raw = await request.json()
   } catch {
     return Response.json({ detail: 'Invalid JSON' }, { status: 400 })
   }
 
-  const interestType = body.interestType as string
-  if (!interestType || !['want_to_contribute', 'want_to_own'].includes(interestType)) {
-    return Response.json({ detail: 'Invalid interestType' }, { status: 400 })
-  }
-
-  const message = (body.message as string | null) ?? null
+  const parsed = parseBody(ProjectInterestBodySchema, raw)
+  if (!parsed.success) return parsed.response
+  const { interestType, message = null } = parsed.data
 
   if (existing) {
     await prisma.projectInterest.update({

@@ -9,7 +9,8 @@ import {
   EnrichedProject,
   createNotification,
 } from '@/lib/project'
-import { fieldError, validationError } from '@/lib/errors'
+import { parseBody } from '@/lib/errors'
+import { CreateProjectSchema } from '@/lib/schemas'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -163,24 +164,18 @@ export async function POST(request: NextRequest) {
     return Response.json({ detail: 'Your account is pending approval' }, { status: 403 })
   }
 
-  let body: Record<string, unknown>
+  let raw: unknown
   try {
-    body = await request.json()
+    raw = await request.json()
   } catch {
     return Response.json({ detail: 'Invalid JSON' }, { status: 400 })
   }
 
-  const errs: ReturnType<typeof fieldError>[] = []
-  if (!body.title || typeof body.title !== 'string' || body.title.trim().length === 0) {
-    errs.push(fieldError('title', 'Title is required'))
-  }
-  if (!body.description || typeof body.description !== 'string' || body.description.length < 10) {
-    errs.push(fieldError('description', 'Description must be at least 10 characters'))
-  }
-  const tasks = Array.isArray(body.tasks)
-    ? (body.tasks as Array<{ title: string; description?: string }>)
-    : []
-  if (errs.length) return validationError(errs)
+  const parsed = parseBody(CreateProjectSchema, raw)
+  if (!parsed.success) return parsed.response
+  const body = parsed.data
+
+  const { tasks, wantToOwn, skillIds, skillRequiredMap } = body
   if (tasks.length === 0) {
     return Response.json(
       { detail: 'At least one task is required to submit a project proposal' },
@@ -188,29 +183,22 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const wantToOwn = body.wantToOwn === true
-  const skillIds = Array.isArray(body.skillIds) ? (body.skillIds as number[]) : []
-  const skillRequiredMap =
-    body.skillRequiredMap && typeof body.skillRequiredMap === 'object'
-      ? (body.skillRequiredMap as Record<string | number, boolean>)
-      : {}
-
   const project = await prisma.$transaction(async (tx) => {
     const newProject = await tx.project.create({
       data: {
-        title: body.title as string,
-        description: body.description as string,
+        title: body.title,
+        description: body.description,
         status: 'pending_review',
         ownerId: wantToOwn ? volunteer.id : null,
         proposedById: volunteer.id,
         isOrgProposed: false,
-        projectType: (body.projectType as string | null) ?? null,
-        estimatedDuration: (body.estimatedDuration as string | null) ?? null,
-        timeCommitmentHoursPerWeek: (body.timeCommitmentHoursPerWeek as number | null) ?? null,
-        urgency: (body.urgency as string) || 'medium',
-        collaborationLink: (body.collaborationLink as string | null) ?? null,
-        country: (body.country as string | null) ?? null,
-        localGroup: (body.localGroup as string | null) ?? null,
+        projectType: body.projectType ?? null,
+        estimatedDuration: body.estimatedDuration ?? null,
+        timeCommitmentHoursPerWeek: body.timeCommitmentHoursPerWeek ?? null,
+        urgency: body.urgency ?? 'medium',
+        collaborationLink: body.collaborationLink ?? null,
+        country: body.country ?? null,
+        localGroup: body.localGroup ?? null,
         isSeekingHelp: body.isSeekingHelp !== false,
         isSeekingOwner: !wantToOwn,
       },

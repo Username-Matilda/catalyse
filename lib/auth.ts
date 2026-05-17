@@ -46,40 +46,37 @@ export function serializeVolunteer(
   opts: { showContact?: boolean; skills?: unknown[]; endorsements?: unknown[] } = {},
 ) {
   const { showContact = false, skills, endorsements } = opts
-  const result: Record<string, unknown> = {
-    id: vol.id,
-    name: vol.name,
-    bio: vol.bio,
-    location: vol.location,
-    country: vol.country,
-    localGroup: vol.localGroup,
-    availabilityHoursPerWeek: vol.availabilityHoursPerWeek,
-    otherSkills: vol.otherSkills,
-    consentMakeProfileVisibleInDirectory: vol.consentMakeProfileVisibleInDirectory,
-    consentContactableByProjectOwners: vol.consentContactableByProjectOwners,
-    consentShareContactInfoWithProjectOwner: vol.consentShareContactInfoWithProjectOwner,
-    consentGivenAt: vol.consentGivenAt,
-    isAdmin: vol.isAdmin,
+  return {
+    id: vol.id as number,
+    name: vol.name as string | null,
+    bio: vol.bio as string | null,
+    location: vol.location as string | null,
+    country: vol.country as string | null,
+    localGroup: vol.localGroup as string | null,
+    availabilityHoursPerWeek: vol.availabilityHoursPerWeek as number | null,
+    otherSkills: vol.otherSkills as string | null,
+    consentMakeProfileVisibleInDirectory: vol.consentMakeProfileVisibleInDirectory as boolean,
+    consentContactableByProjectOwners: vol.consentContactableByProjectOwners as boolean,
+    consentShareContactInfoWithProjectOwner: vol.consentShareContactInfoWithProjectOwner as boolean,
+    consentGivenAt: vol.consentGivenAt as Date | string | null,
+    isAdmin: vol.isAdmin as boolean,
     isSuperAdmin: isSuperAdmin(vol.email as string | null | undefined),
-    approvalStatus: vol.approvalStatus,
-    emailConfirmed: vol.emailConfirmed,
-    emailDigest: vol.emailDigest,
+    approvalStatus: vol.approvalStatus as string | null,
+    emailConfirmed: vol.emailConfirmed as boolean | null,
+    emailDigest: vol.emailDigest as string | null,
     hasPassword: Boolean(vol.passwordHash),
-    createdAt: vol.createdAt,
-    updatedAt: vol.updatedAt,
-    deletedAt: vol.deletedAt,
+    createdAt: vol.createdAt as Date | string | null,
+    updatedAt: vol.updatedAt as Date | string | null,
+    deletedAt: vol.deletedAt as Date | string | null,
+    email: showContact ? (vol.email as string | null) : undefined,
+    discordHandle: showContact ? (vol.discordHandle as string | null) : undefined,
+    signalNumber: showContact ? (vol.signalNumber as string | null) : undefined,
+    whatsappNumber: showContact ? (vol.whatsappNumber as string | null) : undefined,
+    contactPreference: showContact ? (vol.contactPreference as string | null) : undefined,
+    contactNotes: showContact ? (vol.contactNotes as string | null) : undefined,
+    skills: skills as unknown[] | undefined,
+    endorsements: endorsements as unknown[] | undefined,
   }
-  if (showContact) {
-    result.email = vol.email
-    result.discordHandle = vol.discordHandle
-    result.signalNumber = vol.signalNumber
-    result.whatsappNumber = vol.whatsappNumber
-    result.contactPreference = vol.contactPreference
-    result.contactNotes = vol.contactNotes
-  }
-  if (skills !== undefined) result.skills = skills
-  if (endorsements !== undefined) result.endorsements = endorsements
-  return result
 }
 
 export function serializeSkill(vs: {

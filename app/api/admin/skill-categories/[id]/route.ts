@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/auth'
+import { parseBody } from '@/lib/errors'
+import { UpdateSkillCategorySchema } from '@/lib/schemas'
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { error } = await requireAdmin(request.headers.get('authorization'))
@@ -10,20 +12,24 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const categoryId = parseInt(id)
   if (isNaN(categoryId)) return Response.json({ detail: 'Invalid id' }, { status: 400 })
 
-  let body: Record<string, unknown>
+  let raw: unknown
   try {
-    body = await request.json()
+    raw = await request.json()
   } catch {
     return Response.json({ detail: 'Invalid JSON' }, { status: 400 })
   }
+
+  const parsed = parseBody(UpdateSkillCategorySchema, raw)
+  if (!parsed.success) return parsed.response
+  const body = parsed.data
 
   const existing = await prisma.skillCategory.findUnique({ where: { id: categoryId } })
   if (!existing) return Response.json({ detail: 'Category not found' }, { status: 404 })
 
   const data: { name?: string; description?: string | null; sortOrder?: number } = {}
-  if ('name' in body) data.name = String(body.name).trim()
-  if ('description' in body) data.description = body.description ? String(body.description) : null
-  if ('sortOrder' in body) data.sortOrder = Number(body.sortOrder)
+  if ('name' in body && body.name !== undefined) data.name = String(body.name).trim()
+  if ('description' in body) data.description = body.description ?? null
+  if ('sortOrder' in body && body.sortOrder !== undefined) data.sortOrder = body.sortOrder
 
   await prisma.skillCategory.update({ where: { id: categoryId }, data })
 

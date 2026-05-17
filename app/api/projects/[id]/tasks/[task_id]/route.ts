@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentVolunteer } from '@/lib/auth'
+import { parseBody } from '@/lib/errors'
+import { UpdateProjectTaskSchema } from '@/lib/schemas'
 
 export async function PUT(
   request: NextRequest,
@@ -31,15 +33,19 @@ export async function PUT(
   const isAdmin = volunteer.isAdmin
   const isAssignee = task.assignedToId === volunteer.id
 
-  let body: Record<string, unknown>
+  let raw: unknown
   try {
-    body = await request.json()
+    raw = await request.json()
   } catch {
     return Response.json({ detail: 'Invalid JSON' }, { status: 400 })
   }
 
-  const newStatus = body.status as string | undefined
-  const newAssignedToId = body.assignedToId as number | undefined
+  const parsed = parseBody(UpdateProjectTaskSchema, raw)
+  if (!parsed.success) return parsed.response
+  const body = parsed.data
+
+  const newStatus = body.status
+  const newAssignedToId = body.assignedToId
 
   if (!isOwner && !isAdmin) {
     const isSelfClaim =

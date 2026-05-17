@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSuperAdmin } from '@/lib/auth'
+import { parseBody } from '@/lib/errors'
+import { PlatformSettingsSchema } from '@/lib/schemas'
 
 const SINGLETON_ID = 1
 
@@ -22,23 +24,19 @@ export async function PATCH(request: NextRequest) {
   const { error } = await requireSuperAdmin(request.headers.get('authorization'))
   if (error) return error
 
-  let body: Record<string, unknown>
+  let raw: unknown
   try {
-    body = await request.json()
+    raw = await request.json()
   } catch {
     return Response.json({ detail: 'Invalid JSON' }, { status: 400 })
   }
 
-  if (typeof body.requireApplicationApproval !== 'boolean') {
-    return Response.json(
-      { detail: 'requireApplicationApproval must be a boolean' },
-      { status: 400 },
-    )
-  }
+  const parsed = parseBody(PlatformSettingsSchema, raw)
+  if (!parsed.success) return parsed.response
 
   const settings = await prisma.platformSettings.update({
     where: { id: SINGLETON_ID },
-    data: { requireApplicationApproval: body.requireApplicationApproval },
+    data: { requireApplicationApproval: parsed.data.requireApplicationApproval },
   })
 
   return Response.json({

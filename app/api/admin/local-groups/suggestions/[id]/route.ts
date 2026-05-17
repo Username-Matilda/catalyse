@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/auth'
 import { createNotification } from '@/lib/project'
 import { sendLocalGroupSuggestionEmail } from '@/lib/email'
+import { parseBody } from '@/lib/errors'
+import { ReviewSuggestionSchema } from '@/lib/schemas'
 
 const NOTIFICATION_TITLES: Record<string, (name: string) => string> = {
   accepted: (n) => `Your local group suggestion "${n}" was accepted`,
@@ -21,17 +23,17 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ detail: 'Invalid ID' }, { status: 400 })
   }
 
-  let body: Record<string, unknown>
+  let raw: unknown
   try {
-    body = await request.json()
+    raw = await request.json()
   } catch {
     return NextResponse.json({ detail: 'Invalid JSON' }, { status: 400 })
   }
 
-  const action = typeof body.action === 'string' ? body.action : ''
-  if (!['accept', 'merge', 'on_hold', 'decline'].includes(action)) {
-    return NextResponse.json({ detail: 'Invalid action' }, { status: 400 })
-  }
+  const parsed = parseBody(ReviewSuggestionSchema, raw)
+  if (!parsed.success) return parsed.response
+  const body = parsed.data
+  const action = body.action
 
   const suggestion = await prisma.localGroupSuggestion.findUnique({
     where: { id: suggestionId },
@@ -44,11 +46,11 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const reviewBase = { reviewedById: admin.id, reviewedAt: now, updatedAt: now }
 
   let finalName = suggestion.name
-  let notificationAction = action
+  let notificationAction: string = action
 
   if (action === 'accept') {
-    const name = typeof body.name === 'string' ? body.name.trim() : suggestion.name
-    const country = typeof body.country === 'string' ? body.country.trim() : suggestion.country
+    const name = body.name?.trim() || suggestion.name
+    const country = body.country?.trim() || suggestion.country
     if (!name || !country) {
       return NextResponse.json({ detail: 'Name and country required' }, { status: 400 })
     }
@@ -63,7 +65,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     ])
     notificationAction = 'accepted'
   } else if (action === 'merge') {
-    const mergedIntoId = typeof body.mergedIntoId === 'number' ? body.mergedIntoId : null
+    const mergedIntoId = body.mergedIntoId ?? null
     if (!mergedIntoId) {
       return NextResponse.json({ detail: 'mergedIntoId required for merge' }, { status: 400 })
     }

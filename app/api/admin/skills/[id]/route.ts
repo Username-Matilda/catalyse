@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/auth'
+import { parseBody } from '@/lib/errors'
+import { UpdateSkillSchema } from '@/lib/schemas'
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { error } = await requireAdmin(request.headers.get('authorization'))
@@ -10,12 +12,16 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const skillId = parseInt(id)
   if (isNaN(skillId)) return Response.json({ detail: 'Invalid id' }, { status: 400 })
 
-  let body: Record<string, unknown>
+  let raw: unknown
   try {
-    body = await request.json()
+    raw = await request.json()
   } catch {
     return Response.json({ detail: 'Invalid JSON' }, { status: 400 })
   }
+
+  const parsed = parseBody(UpdateSkillSchema, raw)
+  if (!parsed.success) return parsed.response
+  const body = parsed.data
 
   const existing = await prisma.skill.findUnique({ where: { id: skillId } })
   if (!existing) return Response.json({ detail: 'Skill not found' }, { status: 404 })
@@ -26,14 +32,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     sortOrder?: number
     categoryId?: number
   } = {}
-  if ('name' in body) data.name = String(body.name).trim()
-  if ('description' in body) data.description = body.description ? String(body.description) : null
-  if ('sortOrder' in body) data.sortOrder = Number(body.sortOrder)
-  if ('categoryId' in body) {
-    const categoryId = parseInt(String(body.categoryId))
-    const category = await prisma.skillCategory.findUnique({ where: { id: categoryId } })
+  if ('name' in body) data.name = body.name ? String(body.name).trim() : body.name
+  if ('description' in body) data.description = body.description ?? null
+  if ('sortOrder' in body && body.sortOrder !== undefined) data.sortOrder = body.sortOrder
+  if ('categoryId' in body && body.categoryId !== undefined) {
+    const category = await prisma.skillCategory.findUnique({ where: { id: body.categoryId } })
     if (!category) return Response.json({ detail: 'Category not found' }, { status: 400 })
-    data.categoryId = categoryId
+    data.categoryId = body.categoryId
   }
 
   await prisma.skill.update({ where: { id: skillId }, data })

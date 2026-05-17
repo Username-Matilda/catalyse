@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentVolunteer } from '@/lib/auth'
-import { fieldError, validationError } from '@/lib/errors'
+import { parseBody, fieldError, validationError } from '@/lib/errors'
+import { LocalGroupSuggestionBodySchema } from '@/lib/schemas'
 import { BASE_LOCATION_OPTIONS } from '@/lib/filter-options'
 
 const VALID_COUNTRIES = new Set(
@@ -37,22 +38,20 @@ export async function POST(request: NextRequest) {
   const volunteer = await getCurrentVolunteer(request.headers.get('authorization'))
   if (!volunteer) return NextResponse.json({ detail: 'Authentication required' }, { status: 401 })
 
-  let body: Record<string, unknown>
+  let raw: unknown
   try {
-    body = await request.json()
+    raw = await request.json()
   } catch {
     return NextResponse.json({ detail: 'Invalid JSON' }, { status: 400 })
   }
 
-  const errors = []
-  const name = typeof body.name === 'string' ? body.name.trim() : ''
-  const country = typeof body.country === 'string' ? body.country.trim() : ''
+  const parsed = parseBody(LocalGroupSuggestionBodySchema, raw)
+  if (!parsed.success) return parsed.response
 
-  if (!name) errors.push(fieldError('name', 'Group name is required'))
-  if (!country) errors.push(fieldError('country', 'Country is required'))
-  else if (!VALID_COUNTRIES.has(country)) errors.push(fieldError('country', 'Invalid country'))
-
-  if (errors.length) return validationError(errors)
+  const { name, country } = parsed.data
+  if (!VALID_COUNTRIES.has(country)) {
+    return validationError([fieldError('country', 'Invalid country')])
+  }
 
   const suggestion = await prisma.localGroupSuggestion.create({
     data: { name, country, suggestedById: volunteer.id },

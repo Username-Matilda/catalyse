@@ -9,28 +9,11 @@ import SkillPicker from '@/components/SkillPicker'
 import { useAuth } from '@/lib/auth-context'
 import { apiRequest } from '@/lib/api'
 import { useToast } from '@/lib/toast'
+import type { SerializedVolunteer, SerializedSkill } from '@/lib/types'
 
 interface SelectedSkill {
   skillId: number
   proficiencyLevel: string
-}
-
-interface ProfileData {
-  name: string
-  bio: string | null
-  location: string | null
-  availabilityHoursPerWeek: number | null
-  consentMakeProfileVisibleInDirectory: boolean
-  consentContactableByProjectOwners: boolean
-  consentShareContactInfoWithProjectOwner: boolean
-  emailDigest: string
-  otherSkills: string | null
-  skills: Array<{ id: number; proficiencyLevel: string | null }>
-  discordHandle: string | null
-  signalNumber: string | null
-  whatsappNumber: string | null
-  contactPreference: string | null
-  contactNotes: string | null
 }
 
 export default function ProfilePage() {
@@ -63,7 +46,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!user) return
-    apiRequest<ProfileData>('/api/auth/me')
+    apiRequest<SerializedVolunteer>('/api/auth/me')
       .then((d) => {
         setName(d.name ?? '')
         setBio(d.bio ?? '')
@@ -80,7 +63,7 @@ export default function ProfilePage() {
         setEmailDigest(d.emailDigest ?? 'none')
         setOtherSkills(d.otherSkills ?? '')
         setSkills(
-          (d.skills ?? []).map((s) => ({
+          ((d.skills ?? []) as SerializedSkill[]).map((s) => ({
             skillId: s.id,
             proficiencyLevel: s.proficiencyLevel ?? 'intermediate',
           })),
@@ -100,18 +83,18 @@ export default function ProfilePage() {
           name: name.trim(),
           bio: bio.trim() || null,
           location: location.trim() || null,
-          availability_hours_per_week: hours ? Number(hours) : null,
-          consent_make_profile_visible_in_directory: consentMakeProfileVisibleInDirectory,
-          consent_contactable_by_project_owners: consentContactableByProjectOwners,
-          consent_share_contact_info_with_project_owner: consentShareContactInfoWithProjectOwner,
-          discord_handle: discordHandle.trim() || null,
-          signal_number: signalNumber.trim() || null,
-          whatsapp_number: whatsappNumber.trim() || null,
-          contact_preference: contactPreference || null,
-          contact_notes: contactNotes.trim() || null,
-          email_digest: emailDigest,
-          other_skills: otherSkills.trim() || null,
-          skill_ids: skills.map((s) => s.skillId),
+          availabilityHoursPerWeek: hours ? Number(hours) : null,
+          consentMakeProfileVisibleInDirectory,
+          consentContactableByProjectOwners,
+          consentShareContactInfoWithProjectOwner,
+          discordHandle: discordHandle.trim() || null,
+          signalNumber: signalNumber.trim() || null,
+          whatsappNumber: whatsappNumber.trim() || null,
+          contactPreference: contactPreference || null,
+          contactNotes: contactNotes.trim() || null,
+          emailDigest,
+          otherSkills: otherSkills.trim() || null,
+          skillIds: skills.map((s) => s.skillId),
         }),
       })
       await refreshUser()

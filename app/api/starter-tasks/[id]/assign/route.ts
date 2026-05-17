@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/auth'
 import { createNotification } from '@/lib/project'
+import { parseBody } from '@/lib/errors'
+import { AssignStarterTaskSchema } from '@/lib/schemas'
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = await params
@@ -18,17 +20,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return Response.json({ detail: 'Task not found' }, { status: 404 })
   }
 
-  let body: Record<string, unknown>
+  let raw: unknown
   try {
-    body = await request.json()
+    raw = await request.json()
   } catch {
     return Response.json({ detail: 'Invalid JSON' }, { status: 400 })
   }
 
-  const volunteerId = body.volunteerId as number
-  if (!volunteerId) {
-    return Response.json({ detail: 'volunteerId is required' }, { status: 400 })
-  }
+  const parsed = parseBody(AssignStarterTaskSchema, raw)
+  if (!parsed.success) return parsed.response
+  const { volunteerId } = parsed.data
 
   await prisma.starterTask.update({
     where: { id: taskId },

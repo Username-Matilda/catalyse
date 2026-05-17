@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/auth'
 import { createNotification } from '@/lib/project'
+import { parseBody } from '@/lib/errors'
+import { ReviewStarterTaskSchema } from '@/lib/schemas'
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = await params
@@ -21,23 +23,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return Response.json({ detail: 'Task is not in submitted status' }, { status: 400 })
   }
 
-  let body: Record<string, unknown>
+  let raw: unknown
   try {
-    body = await request.json()
+    raw = await request.json()
   } catch {
     return Response.json({ detail: 'Invalid JSON' }, { status: 400 })
   }
 
-  const reviewRating = body.reviewRating as string
-  if (!reviewRating || !['excellent', 'good', 'needs_improvement'].includes(reviewRating)) {
-    return Response.json(
-      { detail: 'reviewRating must be excellent, good, or needs_improvement' },
-      { status: 400 },
-    )
-  }
+  const parsed = parseBody(ReviewStarterTaskSchema, raw)
+  if (!parsed.success) return parsed.response
+  const { reviewRating, reviewNotes = null, feedbackToVolunteer = null } = parsed.data
 
-  const reviewNotes = (body.reviewNotes as string | null) ?? null
-  const feedbackToVolunteer = (body.feedbackToVolunteer as string | null) ?? null
   const newStatus = ['excellent', 'good'].includes(reviewRating) ? 'completed' : 'reviewed'
 
   await prisma.starterTask.update({

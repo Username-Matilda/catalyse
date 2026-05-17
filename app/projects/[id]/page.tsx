@@ -498,8 +498,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         method: 'POST',
         body: JSON.stringify({
           status: reviewStatus,
-          ...(reviewStatus === 'needs_discussion' ? { feedback_to_proposer: reviewMessage } : {}),
-          target_status: 'seeking_owner',
+          ...(reviewStatus === 'needs_discussion' ? { feedbackToProposer: reviewMessage } : {}),
+          targetStatus: 'seeking_owner',
         }),
       })
       await loadProject()

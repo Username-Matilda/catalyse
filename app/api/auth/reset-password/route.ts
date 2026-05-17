@@ -1,28 +1,24 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { hashPassword } from '@/lib/auth'
-import { fieldError, validationError } from '@/lib/errors'
+import { parseBody } from '@/lib/errors'
+import { ResetPasswordSchema } from '@/lib/schemas'
 
 export async function POST(request: NextRequest) {
-  let body: Record<string, unknown>
+  let raw: unknown
   try {
-    body = await request.json()
+    raw = await request.json()
   } catch {
     return Response.json({ detail: 'Invalid JSON' }, { status: 400 })
   }
 
-  const errs: ReturnType<typeof fieldError>[] = []
-  if (!body.token) errs.push(fieldError('token', 'Token is required'))
-  if (!body.newPassword) errs.push(fieldError('newPassword', 'New password is required'))
-  else if (String(body.newPassword).length < 8)
-    errs.push(fieldError('newPassword', 'New password must be at least 8 characters'))
-  else if (String(body.newPassword).length > 128)
-    errs.push(fieldError('newPassword', 'New password must be no more than 128 characters'))
-  if (errs.length) return validationError(errs)
+  const parsed = parseBody(ResetPasswordSchema, raw)
+  if (!parsed.success) return parsed.response
+  const { token, newPassword } = parsed.data
 
   const tokenRecord = await prisma.passwordResetToken.findFirst({
     where: {
-      token: String(body.token),
+      token,
       usedAt: null,
       expiresAt: { gt: new Date() },
       volunteer: { deletedAt: null },
@@ -34,7 +30,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ detail: 'Invalid or expired reset token' }, { status: 400 })
   }
 
-  const passwordHash = hashPassword(String(body.newPassword))
+  const passwordHash = hashPassword(newPassword)
 
   await prisma.volunteer.update({
     where: { id: tokenRecord.volunteerId },

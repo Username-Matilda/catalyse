@@ -7,7 +7,8 @@ import {
   acceptPendingInvite,
 } from '@/lib/auth'
 import { sendWelcomeEmail, sendWelcomeAndConfirmEmail } from '@/lib/email'
-import { validationError, fieldError } from '@/lib/errors'
+import { parseBody } from '@/lib/errors'
+import { SignupSchema } from '@/lib/schemas'
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
@@ -16,27 +17,20 @@ export async function POST(request: NextRequest) {
     windowMs: 60 * 60 * 1000,
   })
   if (!allowed) return rateLimitResponse(retryAfterMs)
-  let body: Record<string, unknown>
+  let raw: unknown
   try {
-    body = await request.json()
+    raw = await request.json()
   } catch {
     return Response.json({ detail: 'Invalid JSON' }, { status: 400 })
   }
 
-  // Validate required fields
-  const errs: ReturnType<typeof fieldError>[] = []
-  if (!body.name) errs.push(fieldError('name', 'Name is required'))
-  if (!body.email) errs.push(fieldError('email', 'Email is required'))
-  if (!body.password) errs.push(fieldError('password', 'Password is required'))
-  else if (String(body.password).length < 8)
-    errs.push(fieldError('password', 'Password must be at least 8 characters'))
-  else if (String(body.password).length > 128)
-    errs.push(fieldError('password', 'Password must be no more than 128 characters'))
-  if (errs.length) return validationError(errs)
+  const parsed = parseBody(SignupSchema, raw)
+  if (!parsed.success) return parsed.response
+  const body = parsed.data
 
-  const email = String(body.email).toLowerCase().trim()
-  const name = String(body.name)
-  const password = String(body.password)
+  const email = body.email.toLowerCase().trim()
+  const name = body.name
+  const password = body.password
 
   const existing = await prisma.volunteer.findFirst({
     where: { email },
@@ -62,35 +56,29 @@ export async function POST(request: NextRequest) {
       email,
       passwordHash,
       authToken,
-      applicationMessage: body.applicationMessage ? String(body.applicationMessage) : null,
-      bio: body.bio ? String(body.bio) : null,
-      discordHandle: body.discordHandle ? String(body.discordHandle) : null,
-      signalNumber: body.signalNumber ? String(body.signalNumber) : null,
-      whatsappNumber: body.whatsappNumber ? String(body.whatsappNumber) : null,
-      contactPreference: body.contactPreference ? String(body.contactPreference) : null,
-      contactNotes: body.contactNotes ? String(body.contactNotes) : null,
-      availabilityHoursPerWeek:
-        body.availabilityHoursPerWeek !== null ? Number(body.availabilityHoursPerWeek) : null,
-      location: body.location ? String(body.location) : null,
-      country: body.country ? String(body.country) : null,
-      localGroup: body.localGroup ? String(body.localGroup) : null,
-      otherSkills: body.otherSkills ? String(body.otherSkills) : null,
-      consentMakeProfileVisibleInDirectory: Boolean(
-        body.consentMakeProfileVisibleInDirectory ?? true,
-      ),
-      consentContactableByProjectOwners: Boolean(body.consentContactableByProjectOwners ?? true),
-      consentShareContactInfoWithProjectOwner: Boolean(
+      applicationMessage: body.applicationMessage ?? null,
+      bio: body.bio ?? null,
+      discordHandle: body.discordHandle ?? null,
+      signalNumber: body.signalNumber ?? null,
+      whatsappNumber: body.whatsappNumber ?? null,
+      contactPreference: body.contactPreference ?? null,
+      contactNotes: body.contactNotes ?? null,
+      availabilityHoursPerWeek: body.availabilityHoursPerWeek ?? null,
+      location: body.location ?? null,
+      country: body.country ?? null,
+      localGroup: body.localGroup ?? null,
+      otherSkills: body.otherSkills ?? null,
+      consentMakeProfileVisibleInDirectory: body.consentMakeProfileVisibleInDirectory ?? true,
+      consentContactableByProjectOwners: body.consentContactableByProjectOwners ?? true,
+      consentShareContactInfoWithProjectOwner:
         body.consentShareContactInfoWithProjectOwner ?? false,
-      ),
       consentGivenAt: new Date(),
-      emailDigest: body.emailDigest ? String(body.emailDigest) : 'none',
+      emailDigest: body.emailDigest ?? 'none',
     },
   })
 
   // Add skills
-  const skillIds: number[] = Array.isArray(body.skillIds)
-    ? body.skillIds.map(Number).filter(Boolean)
-    : []
+  const skillIds = body.skillIds ?? []
   for (const skillId of skillIds) {
     await prisma.volunteerSkill.upsert({
       where: { volunteerId_skillId: { volunteerId: volunteer.id, skillId } },

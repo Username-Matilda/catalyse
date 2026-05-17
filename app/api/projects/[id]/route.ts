@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentVolunteer } from '@/lib/auth'
 import { sendProjectNotificationEmail } from '@/lib/email'
+import { parseBody } from '@/lib/errors'
+import { UpdateProjectSchema } from '@/lib/schemas'
 import {
   serializeProject,
   projectInclude,
@@ -212,14 +214,18 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     return Response.json({ detail: 'Not authorized to edit this project' }, { status: 403 })
   }
 
-  let body: Record<string, unknown>
+  let raw: unknown
   try {
-    body = await request.json()
+    raw = await request.json()
   } catch {
     return Response.json({ detail: 'Invalid JSON' }, { status: 400 })
   }
 
-  const newStatus = body.status as string | undefined
+  const parsed = parseBody(UpdateProjectSchema, raw)
+  if (!parsed.success) return parsed.response
+  const body = parsed.data
+
+  const newStatus = body.status
 
   if (newStatus && newStatus === 'in_progress' && project.status !== 'in_progress') {
     const openTaskCount = await prisma.projectTask.count({

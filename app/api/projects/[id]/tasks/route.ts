@@ -2,7 +2,8 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentVolunteer } from '@/lib/auth'
 
-import { fieldError, validationError } from '@/lib/errors'
+import { parseBody } from '@/lib/errors'
+import { CreateProjectTaskSchema } from '@/lib/schemas'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = await params
@@ -75,25 +76,23 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     )
   }
 
-  let body: Record<string, unknown>
+  let raw: unknown
   try {
-    body = await request.json()
+    raw = await request.json()
   } catch {
     return Response.json({ detail: 'Invalid JSON' }, { status: 400 })
   }
 
-  const errs: ReturnType<typeof fieldError>[] = []
-  if (!body.title || typeof body.title !== 'string' || body.title.trim().length === 0) {
-    errs.push(fieldError('title', 'Title is required'))
-  }
-  if (errs.length) return validationError(errs)
+  const parsed = parseBody(CreateProjectTaskSchema, raw)
+  if (!parsed.success) return parsed.response
+  const body = parsed.data
 
   const task = await prisma.$transaction(async (tx) => {
     const newTask = await tx.projectTask.create({
       data: {
         projectId,
-        title: body.title as string,
-        description: (body.description as string | null) ?? null,
+        title: body.title,
+        description: body.description ?? null,
         createdById: volunteer.id,
       },
     })

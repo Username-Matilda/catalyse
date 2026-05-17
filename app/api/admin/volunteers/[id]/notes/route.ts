@@ -1,7 +1,8 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/auth'
-import { fieldError, validationError } from '@/lib/errors'
+import { parseBody } from '@/lib/errors'
+import { CreateNoteSchema } from '@/lib/schemas'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = await params
@@ -22,14 +23,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   return Response.json(
     notes.map((n) => ({
       id: n.id,
-      volunteer_id: n.volunteerId,
-      author_id: n.authorId,
+      volunteerId: n.volunteerId,
+      authorId: n.authorId,
       content: n.content,
       category: n.category,
-      related_project_id: n.relatedProjectId,
-      created_at: n.createdAt,
-      updated_at: n.updatedAt,
-      author_name: n.author.name,
+      relatedProjectId: n.relatedProjectId,
+      createdAt: n.createdAt,
+      updatedAt: n.updatedAt,
+      authorName: n.author.name,
     })),
   )
 }
@@ -44,18 +45,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const { volunteer: admin, error } = await requireAdmin(request.headers.get('authorization'))
   if (error) return error
 
-  let body: Record<string, unknown>
+  let raw: unknown
   try {
-    body = await request.json()
+    raw = await request.json()
   } catch {
     return Response.json({ detail: 'Invalid JSON' }, { status: 400 })
   }
 
-  const errs: ReturnType<typeof fieldError>[] = []
-  if (!body.content || typeof body.content !== 'string' || body.content.trim().length === 0) {
-    errs.push(fieldError('content', 'Content is required'))
-  }
-  if (errs.length) return validationError(errs)
+  const parsed = parseBody(CreateNoteSchema, raw)
+  if (!parsed.success) return parsed.response
+  const body = parsed.data
 
   const target = await prisma.volunteer.findUnique({
     where: { id: volunteerId },
@@ -69,9 +68,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     data: {
       volunteerId,
       authorId: admin.id,
-      content: (body.content as string).trim(),
-      category: (body.category as string) || 'general',
-      relatedProjectId: (body.relatedProjectId as number | null) ?? null,
+      content: body.content.trim(),
+      category: body.category ?? 'general',
+      relatedProjectId: body.relatedProjectId ?? null,
     },
   })
 
