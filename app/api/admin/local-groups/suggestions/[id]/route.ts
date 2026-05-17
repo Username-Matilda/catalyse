@@ -39,7 +39,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   })
   if (!suggestion) return NextResponse.json({ detail: 'Not found' }, { status: 404 })
 
-  const adminNotes = typeof body.admin_notes === 'string' ? body.admin_notes.trim() || null : null
+  const adminNotes = typeof body.adminNotes === 'string' ? body.adminNotes.trim() || null : null
   const now = new Date()
   const reviewBase = { reviewedById: admin.id, reviewedAt: now, updatedAt: now }
 
@@ -63,9 +63,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     ])
     notificationAction = 'accepted'
   } else if (action === 'merge') {
-    const mergedIntoId = typeof body.merged_into_id === 'number' ? body.merged_into_id : null
+    const mergedIntoId = typeof body.mergedIntoId === 'number' ? body.mergedIntoId : null
     if (!mergedIntoId) {
-      return NextResponse.json({ detail: 'merged_into_id required for merge' }, { status: 400 })
+      return NextResponse.json({ detail: 'mergedIntoId required for merge' }, { status: 400 })
     }
     const target = await prisma.localGroup.findUnique({ where: { id: mergedIntoId } })
     if (!target)

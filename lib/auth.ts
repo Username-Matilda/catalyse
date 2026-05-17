@@ -39,7 +39,7 @@ export async function getCurrentVolunteer(authorization: string | null | undefin
   })
 }
 
-// Convert a Prisma Volunteer to the snake_case response format the frontend expects.
+// Convert a Prisma Volunteer to a camelCase response format.
 // showContact controls whether email and direct contact fields are included.
 export function serializeVolunteer(
   vol: Record<string, unknown>,
@@ -52,30 +52,30 @@ export function serializeVolunteer(
     bio: vol.bio,
     location: vol.location,
     country: vol.country,
-    local_group: vol.localGroup,
-    availability_hours_per_week: vol.availabilityHoursPerWeek,
-    other_skills: vol.otherSkills,
-    consent_make_profile_visible_in_directory: vol.consentMakeProfileVisibleInDirectory,
-    consent_contactable_by_project_owners: vol.consentContactableByProjectOwners,
-    consent_share_contact_info_with_project_owner: vol.consentShareContactInfoWithProjectOwner,
-    consent_given_at: vol.consentGivenAt,
-    is_admin: vol.isAdmin,
-    is_super_admin: isSuperAdmin(vol.email as string | null | undefined),
-    approval_status: vol.approvalStatus,
-    email_confirmed: vol.emailConfirmed,
-    email_digest: vol.emailDigest,
-    has_password: Boolean(vol.passwordHash),
-    created_at: vol.createdAt,
-    updated_at: vol.updatedAt,
-    deleted_at: vol.deletedAt,
+    localGroup: vol.localGroup,
+    availabilityHoursPerWeek: vol.availabilityHoursPerWeek,
+    otherSkills: vol.otherSkills,
+    consentMakeProfileVisibleInDirectory: vol.consentMakeProfileVisibleInDirectory,
+    consentContactableByProjectOwners: vol.consentContactableByProjectOwners,
+    consentShareContactInfoWithProjectOwner: vol.consentShareContactInfoWithProjectOwner,
+    consentGivenAt: vol.consentGivenAt,
+    isAdmin: vol.isAdmin,
+    isSuperAdmin: isSuperAdmin(vol.email as string | null | undefined),
+    approvalStatus: vol.approvalStatus,
+    emailConfirmed: vol.emailConfirmed,
+    emailDigest: vol.emailDigest,
+    hasPassword: Boolean(vol.passwordHash),
+    createdAt: vol.createdAt,
+    updatedAt: vol.updatedAt,
+    deletedAt: vol.deletedAt,
   }
   if (showContact) {
     result.email = vol.email
-    result.discord_handle = vol.discordHandle
-    result.signal_number = vol.signalNumber
-    result.whatsapp_number = vol.whatsappNumber
-    result.contact_preference = vol.contactPreference
-    result.contact_notes = vol.contactNotes
+    result.discordHandle = vol.discordHandle
+    result.signalNumber = vol.signalNumber
+    result.whatsappNumber = vol.whatsappNumber
+    result.contactPreference = vol.contactPreference
+    result.contactNotes = vol.contactNotes
   }
   if (skills !== undefined) result.skills = skills
   if (endorsements !== undefined) result.endorsements = endorsements
@@ -96,13 +96,13 @@ export function serializeSkill(vs: {
 }) {
   return {
     id: vs.skill.id,
-    category_id: vs.skill.categoryId,
+    categoryId: vs.skill.categoryId,
     name: vs.skill.name,
     description: vs.skill.description,
-    sort_order: vs.skill.sortOrder,
-    created_at: vs.skill.createdAt,
-    category_name: vs.skill.category.name,
-    proficiency_level: vs.proficiencyLevel,
+    sortOrder: vs.skill.sortOrder,
+    createdAt: vs.skill.createdAt,
+    categoryName: vs.skill.category.name,
+    proficiencyLevel: vs.proficiencyLevel,
   }
 }
 
@@ -111,7 +111,7 @@ export function serializeEndorsement(se: {
   rating: string | null
   skill: { name: string }
 }) {
-  return { skill_id: se.skillId, rating: se.rating, skill_name: se.skill.name }
+  return { skillId: se.skillId, rating: se.rating, skillName: se.skill.name }
 }
 
 export async function requireAdmin(

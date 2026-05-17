@@ -8,7 +8,7 @@ import { useToast } from '@/lib/toast'
 import Toggle from '@/components/Toggle'
 
 interface PlatformSettings {
-  require_application_approval: boolean
+  requireApplicationApproval: boolean
 }
 
 export default function PlatformSettingsPage() {
@@ -21,7 +21,7 @@ export default function PlatformSettingsPage() {
 
   useEffect(() => {
     if (!loading && !user) router.push('/login')
-    if (!loading && user && !user.is_super_admin) router.push('/')
+    if (!loading && user && !user.isSuperAdmin) router.push('/')
   }, [user, loading, router])
 
   const loadSettings = useCallback(async () => {
@@ -40,7 +40,7 @@ export default function PlatformSettingsPage() {
     // await boundary. The rule can't trace async call graphs so flags this as a
     // false positive.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (user?.is_super_admin) loadSettings()
+    if (user?.isSuperAdmin) loadSettings()
   }, [user, loadSettings])
 
   async function handleToggle(value: boolean) {
@@ -49,7 +49,7 @@ export default function PlatformSettingsPage() {
     try {
       const updated = await apiRequest<PlatformSettings>('/api/admin/platform-settings', {
         method: 'PATCH',
-        body: JSON.stringify({ require_application_approval: value }),
+        body: JSON.stringify({ requireApplicationApproval: value }),
       })
       setSettings(updated)
       showToast('Settings saved', 'success')
@@ -60,7 +60,7 @@ export default function PlatformSettingsPage() {
     }
   }
 
-  if (loading || loadingData || !user?.is_super_admin) return null
+  if (loading || loadingData || !user?.isSuperAdmin) return null
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
@@ -70,7 +70,7 @@ export default function PlatformSettingsPage() {
         <div className="flex items-center justify-between gap-6 mb-3">
           <h2 className="text-lg font-semibold m-0!">Application Approval</h2>
           <Toggle
-            checked={settings?.require_application_approval ?? true}
+            checked={settings?.requireApplicationApproval ?? true}
             disabled={saving}
             onChange={(e) => handleToggle(e.target.checked)}
           />

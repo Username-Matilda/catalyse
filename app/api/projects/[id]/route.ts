@@ -75,9 +75,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     serialized = {
       ...serialized,
       owner: null,
-      owner_id: null,
-      proposed_by: null,
-      proposed_by_id: null,
+      ownerId: null,
+      proposedBy: null,
+      proposedById: null,
     }
   }
 
@@ -103,26 +103,26 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   serialized.updates = updates.map((u) => ({
     id: u.id,
-    project_id: u.projectId,
-    author_id: u.authorId,
+    projectId: u.projectId,
+    authorId: u.authorId,
     content: u.content,
-    created_at: u.createdAt,
-    author_name: u.author?.name ?? null,
+    createdAt: u.createdAt,
+    authorName: u.author?.name ?? null,
   }))
 
   serialized.tasks = sortedTasks.map((t) => ({
     id: t.id,
-    project_id: t.projectId,
+    projectId: t.projectId,
     title: t.title,
     description: t.description,
-    assigned_to_id: isPending ? null : t.assignedToId,
-    assigned_to_name: isPending ? null : (t.assignedTo?.name ?? null),
-    created_by_id: isPending ? null : t.createdById,
-    created_by_name: isPending ? null : (t.createdBy?.name ?? null),
+    assignedToId: isPending ? null : t.assignedToId,
+    assignedToName: isPending ? null : (t.assignedTo?.name ?? null),
+    createdById: isPending ? null : t.createdById,
+    createdByName: isPending ? null : (t.createdBy?.name ?? null),
     status: t.status,
-    completed_at: t.completedAt,
-    created_at: t.createdAt,
-    updated_at: t.updatedAt,
+    completedAt: t.completedAt,
+    createdAt: t.createdAt,
+    updatedAt: t.updatedAt,
   }))
 
   if (volunteer) {
@@ -147,21 +147,21 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
       serialized.interests = interests.map((i) => ({
         id: i.id,
-        volunteer_id: i.volunteerId,
-        project_id: i.projectId,
-        interest_type: i.interestType,
+        volunteerId: i.volunteerId,
+        projectId: i.projectId,
+        interestType: i.interestType,
         message: i.message,
         status: i.status,
-        response_message: i.responseMessage,
-        created_at: i.createdAt,
-        responded_at: i.respondedAt,
-        volunteer_name: i.volunteer.name,
-        volunteer_bio: i.volunteer.bio,
-        volunteer_skills: i.volunteer.skills.map((vs) => ({
+        responseMessage: i.responseMessage,
+        createdAt: i.createdAt,
+        respondedAt: i.respondedAt,
+        volunteerName: i.volunteer.name,
+        volunteerBio: i.volunteer.bio,
+        volunteerSkills: i.volunteer.skills.map((vs) => ({
           id: vs.skill.id,
           name: vs.skill.name,
-          category_name: vs.skill.category.name,
-          proficiency_level: vs.proficiencyLevel,
+          categoryName: vs.skill.category.name,
+          proficiencyLevel: vs.proficiencyLevel,
         })),
       }))
     }
@@ -169,17 +169,17 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const myInterest = await prisma.projectInterest.findFirst({
       where: { projectId, volunteerId: volunteer.id, status: { not: 'withdrawn' } },
     })
-    serialized.my_interest = myInterest
+    serialized.myInterest = myInterest
       ? {
           id: myInterest.id,
-          volunteer_id: myInterest.volunteerId,
-          project_id: myInterest.projectId,
-          interest_type: myInterest.interestType,
+          volunteerId: myInterest.volunteerId,
+          projectId: myInterest.projectId,
+          interestType: myInterest.interestType,
           message: myInterest.message,
           status: myInterest.status,
-          response_message: myInterest.responseMessage,
-          created_at: myInterest.createdAt,
-          responded_at: myInterest.respondedAt,
+          responseMessage: myInterest.responseMessage,
+          createdAt: myInterest.createdAt,
+          respondedAt: myInterest.respondedAt,
         }
       : null
   }
@@ -238,25 +238,24 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const stringFields = [
     'title',
     'description',
-    'project_type',
-    'estimated_duration',
+    'projectType',
+    'estimatedDuration',
     'urgency',
-    'collaboration_link',
+    'collaborationLink',
     'country',
-    'local_group',
+    'localGroup',
     'outcome',
-    'outcome_notes',
+    'outcomeNotes',
   ] as const
   for (const field of stringFields) {
-    if (body[field] !== undefined)
-      data[field.replace(/_([a-z])/g, (_, c) => c.toUpperCase())] = body[field]
+    if (body[field] !== undefined) data[field] = body[field]
   }
 
-  if (body.time_commitment_hours_per_week !== undefined) {
-    data.timeCommitmentHoursPerWeek = body.time_commitment_hours_per_week
+  if (body.timeCommitmentHoursPerWeek !== undefined) {
+    data.timeCommitmentHoursPerWeek = body.timeCommitmentHoursPerWeek
   }
-  if (body.owner_id !== undefined) {
-    data.ownerId = body.owner_id
+  if (body.ownerId !== undefined) {
+    data.ownerId = body.ownerId
   }
 
   if (newStatus !== undefined) {
@@ -267,8 +266,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     }
   }
 
-  if (body.is_seeking_help !== undefined) data.isSeekingHelp = body.is_seeking_help
-  if (body.is_seeking_owner !== undefined) data.isSeekingOwner = body.is_seeking_owner
+  if (body.isSeekingHelp !== undefined) data.isSeekingHelp = body.isSeekingHelp
+  if (body.isSeekingOwner !== undefined) data.isSeekingOwner = body.isSeekingOwner
 
   if (data.status === 'completed' || data.status === 'archived') {
     if (data.isSeekingHelp === undefined) data.isSeekingHelp = false
@@ -279,11 +278,11 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
   await prisma.project.update({ where: { id: projectId }, data })
 
-  if (body.skill_ids !== undefined) {
-    const skillIds = Array.isArray(body.skill_ids) ? (body.skill_ids as number[]) : []
+  if (body.skillIds !== undefined) {
+    const skillIds = Array.isArray(body.skillIds) ? (body.skillIds as number[]) : []
     const skillRequiredMap =
-      body.skill_required_map && typeof body.skill_required_map === 'object'
-        ? (body.skill_required_map as Record<string | number, boolean>)
+      body.skillRequiredMap && typeof body.skillRequiredMap === 'object'
+        ? (body.skillRequiredMap as Record<string | number, boolean>)
         : {}
     await prisma.projectSkill.deleteMany({ where: { projectId } })
     if (skillIds.length > 0) {

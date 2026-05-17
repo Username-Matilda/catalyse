@@ -24,14 +24,14 @@ export async function GET(request: NextRequest) {
   return Response.json(
     notifications.map((n) => ({
       id: n.id,
-      volunteer_id: n.volunteerId,
+      volunteerId: n.volunteerId,
       type: n.type,
       title: n.title,
       body: n.body,
       link: n.link,
-      read_at: n.readAt,
-      emailed_at: n.emailedAt,
-      created_at: n.createdAt,
+      readAt: n.readAt,
+      emailedAt: n.emailedAt,
+      createdAt: n.createdAt,
     })),
   )
 }

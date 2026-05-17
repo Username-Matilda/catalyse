@@ -138,16 +138,16 @@ export async function GET(request: NextRequest) {
         return {
           ...serialized,
           owner: null,
-          owner_id: null,
-          proposed_by: null,
-          proposed_by_id: null,
+          ownerId: null,
+          proposedBy: null,
+          proposedById: null,
         }
       }
       return serialized
     })
 
   if (sortBy === 'match' && volunteerSkillIds && volunteerSkillIds.size > 0) {
-    projects.sort((a, b) => (b.match?.overall_score ?? 0) - (a.match?.overall_score ?? 0))
+    projects.sort((a, b) => (b.match?.overallScore ?? 0) - (a.match?.overallScore ?? 0))
     return Response.json({ projects: projects.slice(offset, offset + limit), total })
   }
 
@@ -188,11 +188,11 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const wantToOwn = body.want_to_own === true
-  const skillIds = Array.isArray(body.skill_ids) ? (body.skill_ids as number[]) : []
+  const wantToOwn = body.wantToOwn === true
+  const skillIds = Array.isArray(body.skillIds) ? (body.skillIds as number[]) : []
   const skillRequiredMap =
-    body.skill_required_map && typeof body.skill_required_map === 'object'
-      ? (body.skill_required_map as Record<string | number, boolean>)
+    body.skillRequiredMap && typeof body.skillRequiredMap === 'object'
+      ? (body.skillRequiredMap as Record<string | number, boolean>)
       : {}
 
   const project = await prisma.$transaction(async (tx) => {
@@ -204,14 +204,14 @@ export async function POST(request: NextRequest) {
         ownerId: wantToOwn ? volunteer.id : null,
         proposedById: volunteer.id,
         isOrgProposed: false,
-        projectType: (body.project_type as string | null) ?? null,
-        estimatedDuration: (body.estimated_duration as string | null) ?? null,
-        timeCommitmentHoursPerWeek: (body.time_commitment_hours_per_week as number | null) ?? null,
+        projectType: (body.projectType as string | null) ?? null,
+        estimatedDuration: (body.estimatedDuration as string | null) ?? null,
+        timeCommitmentHoursPerWeek: (body.timeCommitmentHoursPerWeek as number | null) ?? null,
         urgency: (body.urgency as string) || 'medium',
-        collaborationLink: (body.collaboration_link as string | null) ?? null,
+        collaborationLink: (body.collaborationLink as string | null) ?? null,
         country: (body.country as string | null) ?? null,
-        localGroup: (body.local_group as string | null) ?? null,
-        isSeekingHelp: body.is_seeking_help !== false,
+        localGroup: (body.localGroup as string | null) ?? null,
+        isSeekingHelp: body.isSeekingHelp !== false,
         isSeekingOwner: !wantToOwn,
       },
     })

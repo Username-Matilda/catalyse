@@ -28,16 +28,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return Response.json({ detail: 'Invalid JSON' }, { status: 400 })
   }
 
-  const reviewRating = body.review_rating as string
+  const reviewRating = body.reviewRating as string
   if (!reviewRating || !['excellent', 'good', 'needs_improvement'].includes(reviewRating)) {
     return Response.json(
-      { detail: 'review_rating must be excellent, good, or needs_improvement' },
+      { detail: 'reviewRating must be excellent, good, or needs_improvement' },
       { status: 400 },
     )
   }
 
-  const reviewNotes = (body.review_notes as string | null) ?? null
-  const feedbackToVolunteer = (body.feedback_to_volunteer as string | null) ?? null
+  const reviewNotes = (body.reviewNotes as string | null) ?? null
+  const feedbackToVolunteer = (body.feedbackToVolunteer as string | null) ?? null
   const newStatus = ['excellent', 'good'].includes(reviewRating) ? 'completed' : 'reviewed'
 
   await prisma.starterTask.update({

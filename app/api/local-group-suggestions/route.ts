@@ -26,9 +26,9 @@ export async function GET(request: NextRequest) {
       name: s.name,
       country: s.country,
       status: s.status,
-      admin_notes: s.adminNotes,
-      created_at: s.createdAt,
-      merged_into: s.mergedInto ? { id: s.mergedInto.id, name: s.mergedInto.name } : null,
+      adminNotes: s.adminNotes,
+      createdAt: s.createdAt,
+      mergedInto: s.mergedInto ? { id: s.mergedInto.id, name: s.mergedInto.name } : null,
     })),
   })
 }
@@ -64,9 +64,9 @@ export async function POST(request: NextRequest) {
       name: suggestion.name,
       country: suggestion.country,
       status: suggestion.status,
-      admin_notes: null,
-      created_at: suggestion.createdAt,
-      merged_into: null,
+      adminNotes: null,
+      createdAt: suggestion.createdAt,
+      mergedInto: null,
     },
     { status: 201 },
   )

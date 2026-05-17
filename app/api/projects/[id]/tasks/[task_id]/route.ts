@@ -39,7 +39,7 @@ export async function PUT(
   }
 
   const newStatus = body.status as string | undefined
-  const newAssignedToId = body.assigned_to_id as number | undefined
+  const newAssignedToId = body.assignedToId as number | undefined
 
   if (!isOwner && !isAdmin) {
     const isSelfClaim =

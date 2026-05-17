@@ -71,7 +71,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       authorId: admin.id,
       content: (body.content as string).trim(),
       category: (body.category as string) || 'general',
-      relatedProjectId: (body.related_project_id as number | null) ?? null,
+      relatedProjectId: (body.relatedProjectId as number | null) ?? null,
     },
   })
 

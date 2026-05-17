@@ -99,18 +99,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }),
     projects: projects.map((p) => ({
       ...p,
-      owner_id: p.ownerId,
-      proposed_by_id: p.proposedById,
-      created_at: p.createdAt,
-      updated_at: p.updatedAt,
+      ownerId: p.ownerId,
+      proposedById: p.proposedById,
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
       role: p.ownerId === volunteerId ? 'owner' : 'proposer',
     })),
-    completed_tasks: completedTasks.map((t) => ({
+    completedTasks: completedTasks.map((t) => ({
       title: t.title,
-      review_rating: t.reviewRating,
-      feedback_to_volunteer: t.feedbackToVolunteer,
-      reviewed_at: t.reviewedAt,
-      skill_name: t.skill?.name ?? null,
+      reviewRating: t.reviewRating,
+      feedbackToVolunteer: t.feedbackToVolunteer,
+      reviewedAt: t.reviewedAt,
+      skillName: t.skill?.name ?? null,
     })),
   })
 }

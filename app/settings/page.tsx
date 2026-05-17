@@ -36,7 +36,7 @@ export default function SettingsPage() {
     try {
       const data = await apiRequest<{ message: string }>('/api/auth/change-email', {
         method: 'POST',
-        body: JSON.stringify({ new_email: newEmail, password: emailPassword }),
+        body: JSON.stringify({ newEmail: newEmail, password: emailPassword }),
       })
       showToast(data.message, 'success')
       setNewEmail('')
@@ -58,7 +58,7 @@ export default function SettingsPage() {
     try {
       const data = await apiRequest<{ message: string }>('/api/auth/change-password', {
         method: 'POST',
-        body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+        body: JSON.stringify({ currentPassword: currentPassword, newPassword: newPassword }),
       })
       showToast(data.message, 'success')
       setCurrentPassword('')
@@ -73,7 +73,7 @@ export default function SettingsPage() {
 
   async function handleDeleteAccount(e: FormEvent) {
     e.preventDefault()
-    if (user?.has_password) {
+    if (user?.hasPassword) {
       if (deletePassword !== deleteConfirmPassword) {
         showToast('Passwords do not match', 'error')
         return
@@ -88,7 +88,7 @@ export default function SettingsPage() {
     try {
       const data = await apiRequest<{ message: string }>('/api/auth/delete-account', {
         method: 'POST',
-        body: JSON.stringify(user?.has_password ? { password: deletePassword } : {}),
+        body: JSON.stringify(user?.hasPassword ? { password: deletePassword } : {}),
       })
       showToast(data.message, 'success')
       setTimeout(async () => {
@@ -116,10 +116,10 @@ export default function SettingsPage() {
 
           <form onSubmit={handleChangeEmail}>
             <div className="mb-5">
-              <label htmlFor="new_email">New Email Address</label>
+              <label htmlFor="newEmail">New Email Address</label>
               <input
                 type="email"
-                id="new_email"
+                id="newEmail"
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
                 required
@@ -147,20 +147,20 @@ export default function SettingsPage() {
 
           <form onSubmit={handleChangePassword}>
             <div className="mb-5">
-              <label htmlFor="current_password">Current Password</label>
+              <label htmlFor="currentPassword">Current Password</label>
               <input
                 type="password"
-                id="current_password"
+                id="currentPassword"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 required
               />
             </div>
             <div className="mb-5">
-              <label htmlFor="new_password">New Password</label>
+              <label htmlFor="newPassword">New Password</label>
               <input
                 type="password"
-                id="new_password"
+                id="newPassword"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 required
@@ -206,7 +206,7 @@ export default function SettingsPage() {
                 <h2 style={{ margin: 0, fontSize: '1.25rem' }}>Delete Your Account</h2>
               </div>
               <div className="p-6">
-                {user.has_password && (
+                {user.hasPassword && (
                   <p className="text-text-light mb-4">
                     This action is permanent and cannot be undone. Please enter your password twice
                     to confirm.
@@ -214,7 +214,7 @@ export default function SettingsPage() {
                 )}
 
                 <form onSubmit={handleDeleteAccount}>
-                  {user.has_password ? (
+                  {user.hasPassword ? (
                     <>
                       <div className="mb-5">
                         <label htmlFor="delete_password">Enter your password</label>

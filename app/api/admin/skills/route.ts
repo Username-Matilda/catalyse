@@ -21,9 +21,9 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const categoryId = body.category_id != null ? parseInt(String(body.category_id)) : NaN
+  const categoryId = body.categoryId != null ? parseInt(String(body.categoryId)) : NaN
   if (isNaN(categoryId)) {
-    return Response.json({ detail: 'category_id is required' }, { status: 422 })
+    return Response.json({ detail: 'categoryId is required' }, { status: 422 })
   }
 
   const category = await prisma.skillCategory.findUnique({ where: { id: categoryId } })
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
 
   const description = body.description ? String(body.description) : null
 
-  let sortOrder = body.sort_order != null ? Number(body.sort_order) : null
+  let sortOrder = body.sortOrder != null ? Number(body.sortOrder) : null
   if (sortOrder === null) {
     const max = await prisma.skill.aggregate({
       where: { categoryId },
@@ -44,5 +44,5 @@ export async function POST(request: NextRequest) {
     data: { categoryId, name, description, sortOrder },
   })
 
-  return Response.json({ id: skill.id, name: skill.name, category_id: skill.categoryId })
+  return Response.json({ id: skill.id, name: skill.name, categoryId: skill.categoryId })
 }

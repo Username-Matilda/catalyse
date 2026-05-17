@@ -31,9 +31,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return Response.json({ detail: 'Status must be approved or needs_discussion' }, { status: 400 })
   }
 
-  const reviewNotes = (body.review_notes as string | null) ?? null
-  const feedbackToProposer = (body.feedback_to_proposer as string | null) ?? null
-  const targetStatus = (body.target_status as string) || 'seeking_owner'
+  const reviewNotes = (body.reviewNotes as string | null) ?? null
+  const feedbackToProposer = (body.feedbackToProposer as string | null) ?? null
+  const targetStatus = (body.targetStatus as string) || 'seeking_owner'
 
   if (status === 'approved') {
     const hasOwner = project.ownerId !== null

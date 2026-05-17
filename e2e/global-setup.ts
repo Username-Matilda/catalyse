@@ -84,7 +84,9 @@ async function waitForServer(
     }
     await new Promise((r) => setTimeout(r, 500))
   }
-  throw new Error(`Server at ${baseUrl}${path} did not become ready within ${timeoutMs / 1000}s`)
+  throw new Error(
+    `Server at ${baseUrl}${path} did not become ready within ${timeoutMs / 1000}s. Check the build succeeded and no port conflicts exist.`,
+  )
 }
 
 async function setupAdminAuth(parallelIndex: number): Promise<void> {
@@ -130,6 +132,10 @@ async function globalSetup(config: FullConfig): Promise<void> {
   if (IS_LOCAL) {
     if (!IS_DEV_MODE) await buildNext()
 
+    const ports = Array.from({ length: workerCount }, (_, i) => BASE_PORT + i)
+    console.log(
+      `[setup] Starting ${workerCount} worker${workerCount > 1 ? 's' : ''} on ports ${ports.join(', ')}`,
+    )
     const pids: Record<string, number> = {}
     for (let i = 0; i < workerCount; i++) {
       pids[i] = startWorkerNextJs(i)

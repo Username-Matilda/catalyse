@@ -172,23 +172,23 @@ export default function SignupPage() {
         headers: { Authorization: `Bearer ${googlePendingToken}` },
         body: JSON.stringify({
           name,
-          application_message: googleApplicationMessage,
+          applicationMessage: googleApplicationMessage,
           bio: bio || undefined,
-          discord_handle: discord || undefined,
-          signal_number: signal || undefined,
-          whatsapp_number: whatsapp || undefined,
-          contact_preference: contactPref || undefined,
-          contact_notes: contactNotes || undefined,
-          availability_hours_per_week: availability ? Number(availability) : undefined,
+          discordHandle: discord || undefined,
+          signalNumber: signal || undefined,
+          whatsappNumber: whatsapp || undefined,
+          contactPreference: contactPref || undefined,
+          contactNotes: contactNotes || undefined,
+          availabilityHoursPerWeek: availability ? Number(availability) : undefined,
           location: location || undefined,
           country: country || undefined,
-          local_group: localGroup || undefined,
-          other_skills: otherSkills || undefined,
-          skill_ids: skills.map((s) => s.skillId),
-          consent_make_profile_visible_in_directory: consentVisible,
-          consent_contactable_by_project_owners: consentContact,
-          consent_share_contact_info_with_project_owner: shareDirectly,
-          email_digest: emailDigest,
+          localGroup: localGroup || undefined,
+          otherSkills: otherSkills || undefined,
+          skillIds: skills.map((s) => s.skillId),
+          consentMakeProfileVisibleInDirectory: consentVisible,
+          consentContactableByProjectOwners: consentContact,
+          consentShareContactInfoWithProjectOwner: shareDirectly,
+          emailDigest: emailDigest,
         }),
       })
       sessionStorage.removeItem('google_pending_token')
@@ -251,23 +251,23 @@ export default function SignupPage() {
           name,
           email: email.trim(),
           password,
-          application_message: applicationMessage || undefined,
+          applicationMessage: applicationMessage || undefined,
           bio: bio || undefined,
-          discord_handle: discord || undefined,
-          signal_number: signal || undefined,
-          whatsapp_number: whatsapp || undefined,
-          contact_preference: contactPref || undefined,
-          contact_notes: contactNotes || undefined,
-          availability_hours_per_week: availability ? Number(availability) : undefined,
+          discordHandle: discord || undefined,
+          signalNumber: signal || undefined,
+          whatsappNumber: whatsapp || undefined,
+          contactPreference: contactPref || undefined,
+          contactNotes: contactNotes || undefined,
+          availabilityHoursPerWeek: availability ? Number(availability) : undefined,
           location: location || undefined,
           country: country || undefined,
-          local_group: localGroup || undefined,
-          other_skills: otherSkills || undefined,
-          skill_ids: skills.map((s) => s.skillId),
-          consent_make_profile_visible_in_directory: consentVisible,
-          consent_contactable_by_project_owners: consentContact,
-          consent_share_contact_info_with_project_owner: shareDirectly,
-          email_digest: emailDigest,
+          localGroup: localGroup || undefined,
+          otherSkills: otherSkills || undefined,
+          skillIds: skills.map((s) => s.skillId),
+          consentMakeProfileVisibleInDirectory: consentVisible,
+          consentContactableByProjectOwners: consentContact,
+          consentShareContactInfoWithProjectOwner: shareDirectly,
+          emailDigest: emailDigest,
         }),
       })
       if (data.pending) {
@@ -331,7 +331,7 @@ export default function SignupPage() {
               </div>
 
               <div className="mb-5">
-                <label htmlFor="g_application_message" className="required">
+                <label htmlFor="g_applicationMessage" className="required">
                   Your Application
                 </label>
                 <aside className="bg-brand-bg border border-brand-border rounded-lg px-4 py-3 mb-2 text-sm text-text-light">
@@ -340,7 +340,7 @@ export default function SignupPage() {
                   shown on your public profile.
                 </aside>
                 <textarea
-                  id="g_application_message"
+                  id="g_applicationMessage"
                   required
                   rows={6}
                   placeholder="Your connection to PauseAI, motivation, and how you'd like to contribute…"
@@ -401,7 +401,7 @@ export default function SignupPage() {
                 </div>
                 <div className="mb-5">
                   <FilterDropdown
-                    id="g_contact_preference"
+                    id="g_contactPreference"
                     label="Preferred Contact Method"
                     ariaLabel="Preferred Contact Method"
                     value={contactPref}
@@ -418,10 +418,10 @@ export default function SignupPage() {
               </div>
 
               <div className="mb-5">
-                <label htmlFor="g_contact_notes">Contact Notes</label>
+                <label htmlFor="g_contactNotes">Contact Notes</label>
                 <input
                   type="text"
-                  id="g_contact_notes"
+                  id="g_contactNotes"
                   placeholder="e.g., Best to DM me on Discord first"
                   value={contactNotes}
                   onChange={(e) => setContactNotes(e.target.value)}
@@ -463,10 +463,10 @@ export default function SignupPage() {
                   />
                 </div>
                 <div className="mb-5">
-                  <label htmlFor="g_local_group">Local Group</label>
+                  <label htmlFor="g_localGroup">Local Group</label>
                   <input
                     type="text"
-                    id="g_local_group"
+                    id="g_localGroup"
                     placeholder="e.g., London"
                     value={localGroup}
                     onChange={(e) => setLocalGroup(e.target.value)}
@@ -481,10 +481,10 @@ export default function SignupPage() {
               <SkillPicker value={skills} onChange={setSkills} />
 
               <div className="mb-5" style={{ marginTop: 16 }}>
-                <label htmlFor="g_other_skills">Other Skills</label>
+                <label htmlFor="g_otherSkills">Other Skills</label>
                 <input
                   type="text"
-                  id="g_other_skills"
+                  id="g_otherSkills"
                   placeholder="Any skills not listed above…"
                   value={otherSkills}
                   onChange={(e) => setOtherSkills(e.target.value)}
@@ -540,7 +540,7 @@ export default function SignupPage() {
               <h3 style={{ marginTop: 24 }}>Email Notifications</h3>
               <div className="mb-5">
                 <FilterDropdown
-                  id="g_email_digest"
+                  id="g_emailDigest"
                   label="Keep me in the loop about new projects"
                   ariaLabel="Keep me in the loop about new projects"
                   value={emailDigest}
@@ -780,7 +780,7 @@ export default function SignupPage() {
             </div>
 
             <div className="mb-5">
-              <label htmlFor="application_message" className="required">
+              <label htmlFor="applicationMessage" className="required">
                 Your Application
               </label>
               <aside className="bg-brand-bg border border-brand-border rounded-lg px-4 py-3 mb-2 text-sm text-text-light">
@@ -789,8 +789,8 @@ export default function SignupPage() {
                 shown on your public profile.
               </aside>
               <textarea
-                id="application_message"
-                name="application_message"
+                id="applicationMessage"
+                name="applicationMessage"
                 required
                 rows={6}
                 placeholder="Your connection to PauseAI, motivation, and how you'd like to contribute…"
@@ -825,7 +825,7 @@ export default function SignupPage() {
                 <input
                   type="text"
                   id="discord"
-                  name="discord_handle"
+                  name="discordHandle"
                   placeholder="username#1234"
                   value={discord}
                   onChange={(e) => setDiscord(e.target.value)}
@@ -836,7 +836,7 @@ export default function SignupPage() {
                 <input
                   type="text"
                   id="signal"
-                  name="signal_number"
+                  name="signalNumber"
                   placeholder="+44…"
                   value={signal}
                   onChange={(e) => setSignal(e.target.value)}
@@ -847,7 +847,7 @@ export default function SignupPage() {
                 <input
                   type="text"
                   id="whatsapp"
-                  name="whatsapp_number"
+                  name="whatsappNumber"
                   placeholder="+44…"
                   value={whatsapp}
                   onChange={(e) => setWhatsapp(e.target.value)}
@@ -855,7 +855,7 @@ export default function SignupPage() {
               </div>
               <div className="mb-5">
                 <FilterDropdown
-                  id="contact_preference"
+                  id="contactPreference"
                   label="Preferred Contact Method"
                   ariaLabel="Preferred Contact Method"
                   value={contactPref}
@@ -872,11 +872,11 @@ export default function SignupPage() {
             </div>
 
             <div className="mb-5">
-              <label htmlFor="contact_notes">Contact Notes</label>
+              <label htmlFor="contactNotes">Contact Notes</label>
               <input
                 type="text"
-                id="contact_notes"
-                name="contact_notes"
+                id="contactNotes"
+                name="contactNotes"
                 placeholder="e.g., Best to DM me on Discord first"
                 value={contactNotes}
                 onChange={(e) => setContactNotes(e.target.value)}
@@ -890,7 +890,7 @@ export default function SignupPage() {
                 <input
                   type="number"
                   id="availability"
-                  name="availability_hours_per_week"
+                  name="availabilityHoursPerWeek"
                   min={1}
                   max={40}
                   placeholder="e.g., 5"
@@ -921,11 +921,11 @@ export default function SignupPage() {
                 />
               </div>
               <div className="mb-5">
-                <label htmlFor="local_group">Local Group</label>
+                <label htmlFor="localGroup">Local Group</label>
                 <input
                   type="text"
-                  id="local_group"
-                  name="local_group"
+                  id="localGroup"
+                  name="localGroup"
                   placeholder="e.g., London"
                   value={localGroup}
                   onChange={(e) => setLocalGroup(e.target.value)}
@@ -940,11 +940,11 @@ export default function SignupPage() {
             <SkillPicker value={skills} onChange={setSkills} />
 
             <div className="mb-5" style={{ marginTop: 16 }}>
-              <label htmlFor="other_skills">Other Skills</label>
+              <label htmlFor="otherSkills">Other Skills</label>
               <input
                 type="text"
-                id="other_skills"
-                name="other_skills"
+                id="otherSkills"
+                name="otherSkills"
                 placeholder="Any skills not listed above…"
                 value={otherSkills}
                 onChange={(e) => setOtherSkills(e.target.value)}
@@ -1000,7 +1000,7 @@ export default function SignupPage() {
             <h3 style={{ marginTop: 24 }}>Email Notifications</h3>
             <div className="mb-5">
               <FilterDropdown
-                id="email_digest"
+                id="emailDigest"
                 label="Keep me in the loop about new projects"
                 ariaLabel="Keep me in the loop about new projects"
                 value={emailDigest}

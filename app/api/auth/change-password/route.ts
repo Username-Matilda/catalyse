@@ -17,13 +17,13 @@ export async function POST(request: NextRequest) {
   }
 
   const errs: ReturnType<typeof fieldError>[] = []
-  if (!body.current_password)
-    errs.push(fieldError('current_password', 'Current password is required'))
-  if (!body.new_password) errs.push(fieldError('new_password', 'New password is required'))
-  else if (String(body.new_password).length < 8)
-    errs.push(fieldError('new_password', 'New password must be at least 8 characters'))
-  else if (String(body.new_password).length > 128)
-    errs.push(fieldError('new_password', 'New password must be no more than 128 characters'))
+  if (!body.currentPassword)
+    errs.push(fieldError('currentPassword', 'Current password is required'))
+  if (!body.newPassword) errs.push(fieldError('newPassword', 'New password is required'))
+  else if (String(body.newPassword).length < 8)
+    errs.push(fieldError('newPassword', 'New password must be at least 8 characters'))
+  else if (String(body.newPassword).length > 128)
+    errs.push(fieldError('newPassword', 'New password must be no more than 128 characters'))
   if (errs.length) return validationError(errs)
 
   const vol = await prisma.volunteer.findUnique({
@@ -31,13 +31,13 @@ export async function POST(request: NextRequest) {
     select: { passwordHash: true },
   })
 
-  if (!vol?.passwordHash || !verifyPassword(String(body.current_password), vol.passwordHash)) {
+  if (!vol?.passwordHash || !verifyPassword(String(body.currentPassword), vol.passwordHash)) {
     return Response.json({ detail: 'Current password is incorrect' }, { status: 400 })
   }
 
   await prisma.volunteer.update({
     where: { id: volunteer.id },
-    data: { passwordHash: hashPassword(String(body.new_password)), updatedAt: new Date() },
+    data: { passwordHash: hashPassword(String(body.newPassword)), updatedAt: new Date() },
   })
 
   return Response.json({ message: 'Password changed successfully' })

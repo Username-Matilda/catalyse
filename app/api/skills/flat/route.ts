@@ -9,12 +9,12 @@ export async function GET() {
   return Response.json(
     skills.map((s) => ({
       id: s.id,
-      category_id: s.categoryId,
+      categoryId: s.categoryId,
       name: s.name,
       description: s.description,
-      sort_order: s.sortOrder,
-      created_at: s.createdAt,
-      category_name: s.category.name,
+      sortOrder: s.sortOrder,
+      createdAt: s.createdAt,
+      categoryName: s.category.name,
     })),
   )
 }

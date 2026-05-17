@@ -11,13 +11,13 @@ import { type Project, ProjectList, statusBadgeClasses } from '@/components/Proj
 import Tabs from '@/components/Tabs'
 
 interface Interest extends Project {
-  interest_id: number
-  interest_type: string
-  interest_status: string
-  interest_message: string | null
-  interest_created_at: string
-  interest_response_message: string | null
-  interest_responded_at: string | null
+  interestId: number
+  interestType: string
+  interestStatus: string
+  interestMessage: string | null
+  interestCreatedAt: string
+  interestResponseMessage: string | null
+  interestRespondedAt: string | null
 }
 
 interface Notification {
@@ -25,26 +25,26 @@ interface Notification {
   title: string
   body: string
   link: string | null
-  read_at: string | null
-  created_at: string
+  readAt: string | null
+  createdAt: string
 }
 
 interface DashboardData {
-  owned_projects: Project[]
-  proposed_projects: Project[]
-  my_interests: Interest[]
-  suggested_projects: Project[]
-  unread_notification_count: number
+  ownedProjects: Project[]
+  proposedProjects: Project[]
+  myInterests: Interest[]
+  suggestedProjects: Project[]
+  unreadNotificationCount: number
 }
 
 interface StarterTask {
   id: number
   title: string
   description: string
-  skill_name: string | null
-  estimated_hours: number | null
+  skillName: string | null
+  estimatedHours: number | null
   status: string
-  feedback_to_volunteer: string | null
+  feedbackToVolunteer: string | null
 }
 
 type TabKey = 'owned' | 'interests' | 'proposed' | 'suggested' | 'notifications'
@@ -109,7 +109,7 @@ export default function DashboardPage() {
     apiRequest<DashboardData>('/api/dashboard')
       .then((d) => {
         setData(d)
-        setUnreadCount(d.unread_notification_count)
+        setUnreadCount(d.unreadNotificationCount)
       })
       .catch(() => {})
       .finally(() => setLoadingData(false))
@@ -164,7 +164,7 @@ export default function DashboardPage() {
     try {
       await apiRequest('/api/notifications/read-all', { method: 'PUT' })
       setUnreadCount(0)
-      setNotifications((prev) => prev.map((n) => ({ ...n, read_at: new Date().toISOString() })))
+      setNotifications((prev) => prev.map((n) => ({ ...n, readAt: new Date().toISOString() })))
     } catch {}
   }
 
@@ -180,7 +180,7 @@ export default function DashboardPage() {
     )
   }
 
-  const showEmailBanner = !user.email_digest && !emailBannerDismissed
+  const showEmailBanner = !user.emailDigest && !emailBannerDismissed
 
   const tabs: { key: TabKey; label: React.ReactNode; 'data-tab'?: string }[] = [
     { key: 'owned', label: TAB_LABELS.owned },
@@ -209,7 +209,7 @@ export default function DashboardPage() {
         <h1 role="heading">Welcome back, {user.name}!</h1>
 
         {/* Pending approval banner */}
-        {user.approval_status === 'PENDING' && (
+        {user.approvalStatus === 'PENDING' && (
           <div className="flex items-center gap-3 p-4 rounded-lg mb-5 bg-[#FEF9C3] text-[#854D0E] border border-[#FDE047] dark:bg-[#422006] dark:text-[#FDE047] dark:border-[#854D0E]">
             <span>
               Your account is pending approval. You can browse the platform, but some actions are
@@ -255,8 +255,8 @@ export default function DashboardPage() {
                 >
                   <div>
                     <strong>{task.title}</strong>
-                    {task.skill_name && (
-                      <span className="ml-2 text-sm text-text-light">{task.skill_name}</span>
+                    {task.skillName && (
+                      <span className="ml-2 text-sm text-text-light">{task.skillName}</span>
                     )}
                   </div>
                   <span role="status" className={statusBadgeClasses(task.status)}>
@@ -266,9 +266,9 @@ export default function DashboardPage() {
                 {expandedTasks.has(task.id) && (
                   <div className="mt-3">
                     <p className="text-text-light text-sm mb-3">{task.description}</p>
-                    {task.feedback_to_volunteer && (
+                    {task.feedbackToVolunteer && (
                       <p className="text-sm mb-3">
-                        <strong>Feedback:</strong> {task.feedback_to_volunteer}
+                        <strong>Feedback:</strong> {task.feedbackToVolunteer}
                       </p>
                     )}
                     {task.status === 'assigned' && (
@@ -292,13 +292,13 @@ export default function DashboardPage() {
           {/* [test hook] card, stat-number classes used as test selectors */}
           <div className="card bg-surface rounded-xl shadow p-6 text-center">
             <div className="stat-number text-4xl font-bold text-primary mb-1">
-              {data?.owned_projects.length ?? 0}
+              {data?.ownedProjects.length ?? 0}
             </div>
             <div className="text-text-light text-sm">Owned Projects</div>
           </div>
           <div className="card bg-surface rounded-xl shadow p-6 text-center">
             <div className="stat-number text-4xl font-bold text-primary mb-1">
-              {data?.my_interests.length ?? 0}
+              {data?.myInterests.length ?? 0}
             </div>
             <div className="text-text-light text-sm">Active Interests</div>
           </div>
@@ -315,23 +315,23 @@ export default function DashboardPage() {
         {/* Tab content */}
         {activeTab === 'owned' && (
           <div>
-            {!data?.owned_projects.length ? (
+            {!data?.ownedProjects.length ? (
               <p className="text-text-light">You don&apos;t own any projects yet.</p>
             ) : (
-              <ProjectList projects={data.owned_projects} />
+              <ProjectList projects={data.ownedProjects} />
             )}
           </div>
         )}
 
         {activeTab === 'interests' && (
           <div>
-            {!data?.my_interests.length ? (
+            {!data?.myInterests.length ? (
               <p className="text-text-light">
                 You haven&apos;t expressed interest in any projects yet.
               </p>
             ) : (
               <ProjectList
-                projects={data.my_interests}
+                projects={data.myInterests}
                 userSkillIds={new Set(user.skills?.map((s) => s.id) ?? [])}
               />
             )}
@@ -340,17 +340,17 @@ export default function DashboardPage() {
 
         {activeTab === 'proposed' && (
           <div>
-            {!data?.proposed_projects.length ? (
+            {!data?.proposedProjects.length ? (
               <p className="text-text-light">You haven&apos;t proposed any projects yet.</p>
             ) : (
-              <ProjectList projects={data.proposed_projects} />
+              <ProjectList projects={data.proposedProjects} />
             )}
           </div>
         )}
 
         {activeTab === 'suggested' && (
           <div>
-            {!data?.suggested_projects.length ? (
+            {!data?.suggestedProjects.length ? (
               <p className="text-text-light">
                 No suggested projects matching your skills right now.
               </p>
@@ -360,7 +360,7 @@ export default function DashboardPage() {
                   Based on your skills, these projects might be a good fit:
                 </p>
                 <ProjectList
-                  projects={data.suggested_projects}
+                  projects={data.suggestedProjects}
                   userSkillIds={new Set(user.skills?.map((s) => s.id) ?? [])}
                 />
               </>
@@ -381,9 +381,9 @@ export default function DashboardPage() {
               notifications.map((n) => (
                 <div
                   key={n.id}
-                  className={`bg-surface rounded-xl shadow p-5 mb-3 wrap-break-word ${!n.read_at ? 'border-l-4 border-primary' : ''}`}
+                  className={`bg-surface rounded-xl shadow p-5 mb-3 wrap-break-word ${!n.readAt ? 'border-l-4 border-primary' : ''}`}
                 >
-                  <strong className={!n.read_at ? 'text-brand-text' : 'text-text-light'}>
+                  <strong className={!n.readAt ? 'text-brand-text' : 'text-text-light'}>
                     {n.title}
                   </strong>
                   <p className="text-sm mt-1 mb-0">{n.body}</p>

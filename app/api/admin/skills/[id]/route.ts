@@ -28,9 +28,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   } = {}
   if (body.name != null) data.name = String(body.name).trim()
   if ('description' in body) data.description = body.description ? String(body.description) : null
-  if (body.sort_order != null) data.sortOrder = Number(body.sort_order)
-  if (body.category_id != null) {
-    const categoryId = parseInt(String(body.category_id))
+  if (body.sortOrder != null) data.sortOrder = Number(body.sortOrder)
+  if (body.categoryId != null) {
+    const categoryId = parseInt(String(body.categoryId))
     const category = await prisma.skillCategory.findUnique({ where: { id: categoryId } })
     if (!category) return Response.json({ detail: 'Category not found' }, { status: 400 })
     data.categoryId = categoryId
@@ -61,5 +61,5 @@ export async function DELETE(
   // Delete skill — Prisma cascades VolunteerSkill, ProjectSkill, SkillEndorsement
   await prisma.skill.delete({ where: { id: skillId } })
 
-  return Response.json({ success: true, deleted_skill: { id: skill.id, name: skill.name } })
+  return Response.json({ success: true, deletedSkill: { id: skill.id, name: skill.name } })
 }
