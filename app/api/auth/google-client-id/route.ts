@@ -1,5 +1,4 @@
-const STUB_GOOGLE =
-  !process.env.GOOGLE_CLIENT_ID && process.env.NODE_ENV !== 'production'
+const STUB_GOOGLE = !process.env.GOOGLE_CLIENT_ID && process.env.NODE_ENV !== 'production'
 
 export async function GET() {
   return Response.json({

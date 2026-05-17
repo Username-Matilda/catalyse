@@ -141,7 +141,10 @@ export function ProjectCard({
         )
       })()}
       <div className="row-start-6 flex justify-between items-center pt-2">
-        {p.match && (p.skills?.length ?? 0) > 0 && userSkillIds.size > 0 && matchGradeLabel(p.match.matched_required_count) ? (
+        {p.match &&
+        (p.skills?.length ?? 0) > 0 &&
+        userSkillIds.size > 0 &&
+        matchGradeLabel(p.match.matched_required_count) ? (
           <span className="text-xs font-semibold text-primary">
             {matchGradeLabel(p.match.matched_required_count)}
           </span>
@@ -160,8 +163,7 @@ export function ProjectCard({
   )
 }
 
-export const CARD_GRID_CLASSES =
-  'grid grid-cols-2 gap-x-5 gap-y-5 max-[600px]:grid-cols-1'
+export const CARD_GRID_CLASSES = 'grid grid-cols-2 gap-x-5 gap-y-5 max-[600px]:grid-cols-1'
 export const CARD_GRID_SINGLE_CLASSES = 'flex flex-col gap-5'
 
 export function ProjectList({

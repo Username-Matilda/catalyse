@@ -14,7 +14,9 @@ function removeEmptyMigrationDirs() {
     const dir = join(migrationsDir, entry.name)
     const files = readdirSync(dir)
     if (!files.includes('migration.sql')) {
-      console.warn(`[MIGRATE] Warning: migration dir "${entry.name}" has no migration.sql — removing`)
+      console.warn(
+        `[MIGRATE] Warning: migration dir "${entry.name}" has no migration.sql — removing`,
+      )
       rmdirSync(dir)
     }
   }

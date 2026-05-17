@@ -165,7 +165,13 @@ export default function ProfilePage() {
               Shown to other volunteers in the directory if you choose to make your profile visible
               below.
             </aside>
-            <textarea id="bio" rows={4} value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Your background and what brings you to PauseAI…" />
+            <textarea
+              id="bio"
+              rows={4}
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              placeholder="Your background and what brings you to PauseAI…"
+            />
           </div>
 
           {/* Contact Information */}

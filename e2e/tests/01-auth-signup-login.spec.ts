@@ -1,4 +1,11 @@
-import { test, expect, getAlert, confirmVolunteerEmail, approveVolunteer, rejectVolunteer } from '../fixtures'
+import {
+  test,
+  expect,
+  getAlert,
+  confirmVolunteerEmail,
+  approveVolunteer,
+  rejectVolunteer,
+} from '../fixtures'
 import { signup, login } from '../actions/auth'
 import { fake } from '../fake'
 
@@ -314,7 +321,9 @@ test.describe('Authentication: Signup & Login', () => {
     await expect(adminPage).toHaveURL(/\/admin\/applications\/\d+/, { timeout: 10_000 })
 
     await adminPage.getByPlaceholder('Notes visible only to admins…').fill('Spam account')
-    await adminPage.getByPlaceholder('Optional message to applicant…').fill('Your application did not meet our requirements.')
+    await adminPage
+      .getByPlaceholder('Optional message to applicant…')
+      .fill('Your application did not meet our requirements.')
     await adminPage.getByRole('button', { name: 'Reject' }).click()
 
     const modal = adminPage.getByRole('dialog')
@@ -330,13 +339,12 @@ test.describe('Authentication: Signup & Login', () => {
     const rejectedCard = adminPage.getByRole('article').filter({ hasText: person.name })
     await expect(rejectedCard).toBeVisible({ timeout: 5_000 })
     await expect(rejectedCard.getByText('Spam account')).toBeVisible()
-    await expect(rejectedCard.getByText('Your application did not meet our requirements.')).toBeVisible()
+    await expect(
+      rejectedCard.getByText('Your application did not meet our requirements.'),
+    ).toBeVisible()
   })
 
-  test('Rejected application shows anonymisation countdown', async ({
-    adminPage,
-    baseUrl,
-  }) => {
+  test('Rejected application shows anonymisation countdown', async ({ adminPage, baseUrl }) => {
     const person = fake.person()
     const signupResp = await fetch(`${baseUrl}/api/auth/signup`, {
       method: 'POST',
@@ -355,7 +363,9 @@ test.describe('Authentication: Signup & Login', () => {
     await rejectVolunteer(baseUrl, volunteerId, 'Test rejection')
 
     await adminPage.goto(`${baseUrl}/admin/applications`)
-    await expect(adminPage.getByRole('heading', { name: 'Applications' })).toBeVisible({ timeout: 10_000 })
+    await expect(adminPage.getByRole('heading', { name: 'Applications' })).toBeVisible({
+      timeout: 10_000,
+    })
     await adminPage.getByRole('button', { name: 'Filter applications' }).click()
     await adminPage.getByRole('option', { name: 'Rejected', exact: true }).click()
     const card = adminPage.getByRole('article').filter({ hasText: person.name })
@@ -393,10 +403,7 @@ test.describe('Authentication: Signup & Login', () => {
     expect(verifyResp.ok).toBeTruthy()
   })
 
-  test.skip('Re-applicant shows full prior rejection history on admin card', async ({
-    adminPage,
-    baseUrl,
-  }) => {
+  test.skip('Re-applicant shows full prior rejection history on admin card', async () => {
     // Scenario:
     // 1. Person signs up with email A, admin rejects them with notes + applicant message.
     // 2. After 7 days the anonymisation job runs: creates AnonymisedEmail + RejectedApplication
@@ -408,6 +415,5 @@ test.describe('Authentication: Signup & Login', () => {
     //
     // Skipped: triggering anonymisation requires backdating rejected_at by 7 days,
     // which needs a test-only seed endpoint that doesn't yet exist.
-    void adminPage, baseUrl
   })
 })

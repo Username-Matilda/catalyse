@@ -52,7 +52,10 @@ export function extractSnapshot(flowName: string): void {
   for (const i of clipIndices) {
     const name = `clip-${i.toString().padStart(2, '0')}.webm`
     const src = path.join(scratch, name)
-    if (!fs.existsSync(src)) { console.warn(`Missing ${src}`); continue }
+    if (!fs.existsSync(src)) {
+      console.warn(`Missing ${src}`)
+      continue
+    }
     fs.copyFileSync(src, path.join(out, 'clips', name))
     console.log(`  Copied ${name}`)
   }
@@ -61,12 +64,19 @@ export function extractSnapshot(flowName: string): void {
   for (const entry of entries) {
     const clipPath = path.join(scratch, `clip-${entry.clipIndex.toString().padStart(2, '0')}.webm`)
     if (!fs.existsSync(clipPath)) continue
-    const key = entry.key.slice(0, 60).replace(/[^a-z0-9]+/gi, '-').toLowerCase()
+    const key = entry.key
+      .slice(0, 60)
+      .replace(/[^a-z0-9]+/gi, '-')
+      .toLowerCase()
     const startSec = Math.max(0, (entry.clipMs + 300) / 1000)
     const duration = entry.durationMs > 0 ? entry.durationMs : 3000
     const endSec = Math.max(startSec + 0.5, (entry.clipMs + duration - 300) / 1000)
-    execSync(`ffmpeg -y -ss ${startSec.toFixed(3)} -i "${clipPath}" -vframes 1 "${path.join(out, 'frames', `${key}-start.png`)}" 2>/dev/null`)
-    execSync(`ffmpeg -y -ss ${endSec.toFixed(3)} -i "${clipPath}" -vframes 1 "${path.join(out, 'frames', `${key}-end.png`)}" 2>/dev/null`)
+    execSync(
+      `ffmpeg -y -ss ${startSec.toFixed(3)} -i "${clipPath}" -vframes 1 "${path.join(out, 'frames', `${key}-start.png`)}" 2>/dev/null`,
+    )
+    execSync(
+      `ffmpeg -y -ss ${endSec.toFixed(3)} -i "${clipPath}" -vframes 1 "${path.join(out, 'frames', `${key}-end.png`)}" 2>/dev/null`,
+    )
   }
 
   // Copy manifest

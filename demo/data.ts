@@ -19,7 +19,8 @@ export const APPLICANT = {
   localGroup: 'London',
   availability: '8',
   preferredContact: 'Discord',
-  adminNotes: 'Strong application. ML background, two years following the org, clear on the mission.',
+  adminNotes:
+    'Strong application. ML background, two years following the org, clear on the mission.',
   skills: new Set([
     'Software Engineering',
     'Writing',
@@ -32,7 +33,8 @@ export const REJECT_APPLICANT = {
   name: 'Jordan Smith',
   email: 'jordan.smith@example.com',
   password: 'DemoPassword1',
-  applicationMessage: "I'm building an AI startup and care deeply about doing it responsibly. I'd love to connect with like-minded people — and if any of you are interested in trying our product, even better!",
+  applicationMessage:
+    "I'm building an AI startup and care deeply about doing it responsibly. I'd love to connect with like-minded people — and if any of you are interested in trying our product, even better!",
   bio: 'Founder of Meridian AI. Building responsible AI tools for enterprise. Always looking for early adopters.',
   discordHandle: 'jordansmith#7734',
   contactPreference: 'discord',
@@ -41,5 +43,6 @@ export const REJECT_APPLICANT = {
   location: 'San Francisco, CA',
   country: 'United States',
   adminNotes: 'Seems that the application is mostly about finding users for their startup.',
-  rejectionMessage: "Thank you for applying. After careful review, we don't think this is the right fit at this time.",
+  rejectionMessage:
+    "Thank you for applying. After careful review, we don't think this is the right fit at this time.",
 }

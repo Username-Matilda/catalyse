@@ -24,16 +24,23 @@ function afterManifestPath(flowName: string): string {
 }
 
 function sanitizeKey(key: string): string {
-  return key.slice(0, 60).replace(/[^a-z0-9]+/gi, '-').toLowerCase()
+  return key
+    .slice(0, 60)
+    .replace(/[^a-z0-9]+/gi, '-')
+    .toLowerCase()
 }
 
 function meanLuma(imagePath: string): number {
   try {
     const out = execSync(
       `ffprobe -f lavfi -i "movie=${imagePath},signalstats" -show_entries frame_tags=lavfi.signalstats.YAVG -of default=nk=1 2>/dev/null`,
-    ).toString().trim()
+    )
+      .toString()
+      .trim()
     return parseFloat(out)
-  } catch { return 0 }
+  } catch {
+    return 0
+  }
 }
 
 export type SceneResult = {
@@ -90,32 +97,50 @@ function compareFlow(flowName: string): string {
     const afterEntry = afterByKey.get(beforeEntry.key) ?? beforeEntry
 
     // Extract before scene clip
-    const beforeClipPath = path.join(refDir, 'clips', `clip-${beforeEntry.clipIndex.toString().padStart(2, '0')}.webm`)
+    const beforeClipPath = path.join(
+      refDir,
+      'clips',
+      `clip-${beforeEntry.clipIndex.toString().padStart(2, '0')}.webm`,
+    )
     const beforeScenePath = path.join(scenesBeforeDir, `${safeKey}.webm`)
     if (fs.existsSync(beforeClipPath)) {
       const ss = (beforeEntry.clipMs / 1000).toFixed(3)
       const t = Math.max(0.1, beforeEntry.durationMs / 1000).toFixed(3)
-      execSync(`ffmpeg -y -ss ${ss} -t ${t} -i "${beforeClipPath}" -c copy "${beforeScenePath}" 2>/dev/null`)
+      execSync(
+        `ffmpeg -y -ss ${ss} -t ${t} -i "${beforeClipPath}" -c copy "${beforeScenePath}" 2>/dev/null`,
+      )
     }
 
     // Extract after scene clip using after manifest timestamps
-    const afterClipPath = path.join(scratch, `clip-${afterEntry.clipIndex.toString().padStart(2, '0')}.webm`)
+    const afterClipPath = path.join(
+      scratch,
+      `clip-${afterEntry.clipIndex.toString().padStart(2, '0')}.webm`,
+    )
     const afterScenePath = path.join(scenesAfterDir, `${safeKey}.webm`)
     if (fs.existsSync(afterClipPath)) {
       const ss = (afterEntry.clipMs / 1000).toFixed(3)
       const t = Math.max(0.1, afterEntry.durationMs / 1000).toFixed(3)
-      execSync(`ffmpeg -y -ss ${ss} -t ${t} -i "${afterClipPath}" -c copy "${afterScenePath}" 2>/dev/null`)
+      execSync(
+        `ffmpeg -y -ss ${ss} -t ${t} -i "${afterClipPath}" -c copy "${afterScenePath}" 2>/dev/null`,
+      )
     }
 
     // Extract after start+end frames for pixel diff
     const afterStartSec = Math.max(0, (afterEntry.clipMs + 300) / 1000)
-    const afterEndSec = Math.max(afterStartSec + 0.5, (afterEntry.clipMs + afterEntry.durationMs - 300) / 1000)
+    const afterEndSec = Math.max(
+      afterStartSec + 0.5,
+      (afterEntry.clipMs + afterEntry.durationMs - 300) / 1000,
+    )
     const afterStartImg = path.join(afterFrameDir, `${safeKey}-start.png`)
     const afterEndImg = path.join(afterFrameDir, `${safeKey}-end.png`)
 
     if (fs.existsSync(afterClipPath)) {
-      execSync(`ffmpeg -y -ss ${afterStartSec.toFixed(3)} -i "${afterClipPath}" -vframes 1 "${afterStartImg}" 2>/dev/null`)
-      execSync(`ffmpeg -y -ss ${afterEndSec.toFixed(3)} -i "${afterClipPath}" -vframes 1 "${afterEndImg}" 2>/dev/null`)
+      execSync(
+        `ffmpeg -y -ss ${afterStartSec.toFixed(3)} -i "${afterClipPath}" -vframes 1 "${afterStartImg}" 2>/dev/null`,
+      )
+      execSync(
+        `ffmpeg -y -ss ${afterEndSec.toFixed(3)} -i "${afterClipPath}" -vframes 1 "${afterEndImg}" 2>/dev/null`,
+      )
     }
 
     const beforeStartImg = path.join(refDir, 'frames', `${safeKey}-start.png`)
@@ -123,8 +148,14 @@ function compareFlow(flowName: string): string {
 
     // Pixel diff to detect visual changes
     let changed = false
-    for (const [b, a] of [[beforeStartImg, afterStartImg], [beforeEndImg, afterEndImg]]) {
-      if (!fs.existsSync(b) || !fs.existsSync(a)) { changed = true; continue }
+    for (const [b, a] of [
+      [beforeStartImg, afterStartImg],
+      [beforeEndImg, afterEndImg],
+    ]) {
+      if (!fs.existsSync(b) || !fs.existsSync(a)) {
+        changed = true
+        continue
+      }
       const diffPath = path.join(diffDir, `diff-${path.basename(a)}`)
       execSync(
         `ffmpeg -y -i "${b}" -i "${a}" -filter_complex "[0:v]format=rgb24[x];[1:v]format=rgb24[y];[x][y]blend=all_mode=difference" "${diffPath}" 2>/dev/null`,
@@ -185,14 +216,22 @@ const server = http.createServer((req, res) => {
   const afterScene = url.match(/^\/scene\/after\/([^/]+)$/)
   if (beforeScene) {
     const p = path.join(serveDiffDir, 'scenes', 'before', `${beforeScene[1]}.webm`)
-    if (!fs.existsSync(p)) { res.writeHead(404); res.end(); return }
+    if (!fs.existsSync(p)) {
+      res.writeHead(404)
+      res.end()
+      return
+    }
     res.writeHead(200, { 'Content-Type': 'video/webm' })
     fs.createReadStream(p).pipe(res)
     return
   }
   if (afterScene) {
     const p = path.join(serveDiffDir, 'scenes', 'after', `${afterScene[1]}.webm`)
-    if (!fs.existsSync(p)) { res.writeHead(404); res.end(); return }
+    if (!fs.existsSync(p)) {
+      res.writeHead(404)
+      res.end()
+      return
+    }
     res.writeHead(200, { 'Content-Type': 'video/webm' })
     fs.createReadStream(p).pipe(res)
     return
@@ -203,14 +242,22 @@ const server = http.createServer((req, res) => {
   const afterFrame = url.match(/^\/frame\/after\/([^/]+)$/)
   if (beforeFrame) {
     const p = path.join(serveRefDir, 'frames', beforeFrame[1])
-    if (!fs.existsSync(p)) { res.writeHead(404); res.end(); return }
+    if (!fs.existsSync(p)) {
+      res.writeHead(404)
+      res.end()
+      return
+    }
     res.writeHead(200, { 'Content-Type': 'image/png' })
     fs.createReadStream(p).pipe(res)
     return
   }
   if (afterFrame) {
     const p = path.join(serveDiffDir, 'frames', afterFrame[1])
-    if (!fs.existsSync(p)) { res.writeHead(404); res.end(); return }
+    if (!fs.existsSync(p)) {
+      res.writeHead(404)
+      res.end()
+      return
+    }
     res.writeHead(200, { 'Content-Type': 'image/png' })
     fs.createReadStream(p).pipe(res)
     return
@@ -219,7 +266,11 @@ const server = http.createServer((req, res) => {
   // results.json from diffDir
   if (url === '/results.json') {
     const p = path.join(serveDiffDir, 'results.json')
-    if (!fs.existsSync(p)) { res.writeHead(404); res.end(); return }
+    if (!fs.existsSync(p)) {
+      res.writeHead(404)
+      res.end()
+      return
+    }
     res.writeHead(200, { 'Content-Type': 'application/json' })
     fs.createReadStream(p).pipe(res)
     return
@@ -227,18 +278,25 @@ const server = http.createServer((req, res) => {
 
   // Root → serve the static viewer from repo (reads fresh on each request)
   if (url === '/' || url === '/index.html') {
-    if (!fs.existsSync(viewerPath)) { res.writeHead(404); res.end('compare-viewer.html not found'); return }
+    if (!fs.existsSync(viewerPath)) {
+      res.writeHead(404)
+      res.end('compare-viewer.html not found')
+      return
+    }
     res.writeHead(200, { 'Content-Type': 'text/html' })
     fs.createReadStream(viewerPath).pipe(res)
     return
   }
 
-  res.writeHead(404); res.end('Not found')
+  res.writeHead(404)
+  res.end('Not found')
 })
 
 server.listen(PORT, () => {
   const url = `http://localhost:${PORT}/`
   console.log(`\nServing at ${url}`)
   execSync(`open "${url}"`)
-  console.log('Ctrl-C to stop.\nEdit demo/compare-viewer.html and refresh to update the viewer without re-running compare.')
+  console.log(
+    'Ctrl-C to stop.\nEdit demo/compare-viewer.html and refresh to update the viewer without re-running compare.',
+  )
 })

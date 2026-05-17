@@ -1,4 +1,4 @@
-import { Browser, Locator, Page } from '@playwright/test'
+import { Browser, Locator } from '@playwright/test'
 import { DemoEngine } from '../engine'
 import { buildTitleCardHtml } from '../html'
 import { apiSignup, apiVerifyEmail } from '../api'
@@ -211,10 +211,7 @@ async function recordApplicantPending(engine: DemoEngine, browser: Browser): Pro
   await engine.narrate(
     'Pending applicants can browse the platform with restricted access',
     async () => {
-      await engine.readText(
-        page.locator('text=Your account is pending approval').first(),
-        320,
-      )
+      await engine.readText(page.locator('text=Your account is pending approval').first(), 320)
     },
   )
 
@@ -300,7 +297,10 @@ async function recordAdminReview(engine: DemoEngine, browser: Browser): Promise<
     'The detail view shows the full application, with the message, bio, skills, and contact details',
     async () => {
       await engine.readText(
-        page.locator('h2').filter({ hasText: /Application message/i }).locator('+ p'),
+        page
+          .locator('h2')
+          .filter({ hasText: /Application message/i })
+          .locator('+ p'),
         220,
       )
     },
@@ -338,7 +338,10 @@ async function recordAdminReview(engine: DemoEngine, browser: Browser): Promise<
       })
       await engine.pause(400)
       await engine.readText(
-        page.locator('h2').filter({ hasText: /Application message/i }).locator('+ p'),
+        page
+          .locator('h2')
+          .filter({ hasText: /Application message/i })
+          .locator('+ p'),
         220,
       )
     },

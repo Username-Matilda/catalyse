@@ -28,7 +28,7 @@ const ANIM_STEP_MS = 50 // real wall-clock ms per animation step; long enough fo
 
 function mulberry32(seed: number): () => number {
   return () => {
-    seed = (seed + 0x6D2B79F5) | 0
+    seed = (seed + 0x6d2b79f5) | 0
     let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296
@@ -42,12 +42,24 @@ const CAPTION_FADE_MS = 240
 const SCROLL_PX_PER_SEC = 500 * SPEED // scale with SPEED so slower mode = slower scroll
 
 const CAPTION_CSS = [
-  'position:fixed', 'bottom:32px', 'left:50%', 'transform:translateX(-50%)',
-  'background:#000', 'color:#fff', 'padding:10px 28px',
-  'border-radius:8px', 'font-size:17px', 'font-family:system-ui,sans-serif',
-  'font-weight:500', 'z-index:2147483647', 'pointer-events:none',
-  'max-width:75%', 'text-align:center', 'box-shadow:0 4px 16px rgba(0,0,0,0.5)',
-  'opacity:0', 'transition:opacity 220ms ease',
+  'position:fixed',
+  'bottom:32px',
+  'left:50%',
+  'transform:translateX(-50%)',
+  'background:#000',
+  'color:#fff',
+  'padding:10px 28px',
+  'border-radius:8px',
+  'font-size:17px',
+  'font-family:system-ui,sans-serif',
+  'font-weight:500',
+  'z-index:2147483647',
+  'pointer-events:none',
+  'max-width:75%',
+  'text-align:center',
+  'box-shadow:0 4px 16px rgba(0,0,0,0.5)',
+  'opacity:0',
+  'transition:opacity 220ms ease',
 ].join(';')
 
 // Cursor overlay — SVG arrow positioned via transform so updates hit the compositor layer.
@@ -94,7 +106,8 @@ export class DemoEngine {
   private rng: () => number = Math.random
   private narrationKeys: string[] = []
   private narrationKeyIndex = 0
-  private manifest: Array<{ key: string; clipIndex: number; clipMs: number; durationMs: number }> = []
+  private manifest: Array<{ key: string; clipIndex: number; clipMs: number; durationMs: number }> =
+    []
 
   constructor(opts: { detectMode?: boolean; scratchDir?: string } = {}) {
     this.scratchDir = opts.scratchDir ?? path.join(process.cwd(), 'demo', '.scratch')
@@ -151,7 +164,11 @@ export class DemoEngine {
   }
 
   private ttsCachePath(text: string): string {
-    const hash = crypto.createHash('sha256').update(`${TTS_VOICE}:${text}`).digest('hex').slice(0, 32)
+    const hash = crypto
+      .createHash('sha256')
+      .update(`${TTS_VOICE}:${text}`)
+      .digest('hex')
+      .slice(0, 32)
     return path.join(TTS_CACHE_DIR, `${hash}.wav`)
   }
 
@@ -178,23 +195,26 @@ export class DemoEngine {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private makeStub(): any {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const make = (): any => new Proxy(function stub() {}, {
-      get(_t, prop) {
-        if (prop === 'then') return undefined  // don't treat as Promise/thenable
-        if (prop === Symbol.toPrimitive) return () => ''
-        if (prop === 'toString') return () => ''
-        if (prop === 'valueOf') return () => 0
-        if (prop === 'all') return async () => []
-        if (prop === 'isVisible') return async () => false
-        if (prop === 'textContent') return async () => ''
-        if (prop === 'boundingBox') return async () => null
-        if (prop === 'json') return async () => make()
-        if (prop === 'close') return async () => {}
-        if (prop === 'video') return () => ({ path: async () => undefined })
-        return make()
-      },
-      apply(_t, _this, _args) { return make() },
-    })
+    const make = (): any =>
+      new Proxy(function stub() {}, {
+        get(_t, prop) {
+          if (prop === 'then') return undefined // don't treat as Promise/thenable
+          if (prop === Symbol.toPrimitive) return () => ''
+          if (prop === 'toString') return () => ''
+          if (prop === 'valueOf') return () => 0
+          if (prop === 'all') return async () => []
+          if (prop === 'isVisible') return async () => false
+          if (prop === 'textContent') return async () => ''
+          if (prop === 'boundingBox') return async () => null
+          if (prop === 'json') return async () => make()
+          if (prop === 'close') return async () => {}
+          if (prop === 'video') return () => ({ path: async () => undefined })
+          return make()
+        },
+        apply() {
+          return make()
+        },
+      })
     return make()
   }
 
@@ -247,19 +267,21 @@ export class DemoEngine {
 
   private buildWAV(events: SoundEvent[], narration: NarrationClip[], videoPath: string): string {
     const durSec = parseFloat(
-      execSync(`ffprobe -v error -show_entries format=duration -of csv=p=0 "${videoPath}"`).toString().trim()
+      execSync(`ffprobe -v error -show_entries format=duration -of csv=p=0 "${videoPath}"`)
+        .toString()
+        .trim(),
     )
     const total = Math.ceil(durSec * SR) + SR
     const pcm = new Float32Array(total)
 
     // Clicks: overlay each individually
-    for (const ev of events.filter(e => e.kind === 'click')) {
+    for (const ev of events.filter((e) => e.kind === 'click')) {
       this.overlayClip(pcm, this.CLICK_CLIP, Math.floor((ev.ms / 1000) * SR))
     }
 
     // Typing: group consecutive events (gap < 600 ms = same session), overlay one
     // continuous slice of TYPE_CLIP per session so it sounds like real sustained typing
-    const typeEvents = events.filter(e => e.kind === 'type').sort((a, b) => a.ms - b.ms)
+    const typeEvents = events.filter((e) => e.kind === 'type').sort((a, b) => a.ms - b.ms)
     let clipCursor = 0
     let i = 0
     while (i < typeEvents.length) {
@@ -272,7 +294,10 @@ export class DemoEngine {
       const tailMs = 220 // let the last keypress ring out a little
       const durationSamples = Math.floor(((sessionEnd - sessionStart + tailMs) / 1000) * SR)
       const available = this.TYPE_CLIP.length - clipCursor
-      const sliceSamples = Math.min(durationSamples, available > 0 ? available : this.TYPE_CLIP.length)
+      const sliceSamples = Math.min(
+        durationSamples,
+        available > 0 ? available : this.TYPE_CLIP.length,
+      )
       if (available <= 0) clipCursor = 0 // wrap if we exhaust the file
       const slice = this.TYPE_CLIP.slice(clipCursor, clipCursor + sliceSamples)
       this.overlayClip(pcm, slice, Math.floor((sessionStart / 1000) * SR))
@@ -293,12 +318,18 @@ export class DemoEngine {
       data.writeInt16LE(Math.round(Math.max(-1, Math.min(1, pcm[i])) * 32767), i * 2)
 
     const hdr = Buffer.alloc(44)
-    hdr.write('RIFF', 0);          hdr.writeUInt32LE(36 + data.length, 4)
-    hdr.write('WAVE', 8);          hdr.write('fmt ', 12)
-    hdr.writeUInt32LE(16, 16);     hdr.writeUInt16LE(1, 20)   // PCM
-    hdr.writeUInt16LE(1, 22);      hdr.writeUInt32LE(SR, 24)  // mono
-    hdr.writeUInt32LE(SR * 2, 28); hdr.writeUInt16LE(2, 32)
-    hdr.writeUInt16LE(16, 34);     hdr.write('data', 36)
+    hdr.write('RIFF', 0)
+    hdr.writeUInt32LE(36 + data.length, 4)
+    hdr.write('WAVE', 8)
+    hdr.write('fmt ', 12)
+    hdr.writeUInt32LE(16, 16)
+    hdr.writeUInt16LE(1, 20) // PCM
+    hdr.writeUInt16LE(1, 22)
+    hdr.writeUInt32LE(SR, 24) // mono
+    hdr.writeUInt32LE(SR * 2, 28)
+    hdr.writeUInt16LE(2, 32)
+    hdr.writeUInt16LE(16, 34)
+    hdr.write('data', 36)
     hdr.writeUInt32LE(data.length, 40)
 
     const wavPath = videoPath.replace('.webm', '-sfx.wav')
@@ -490,15 +521,20 @@ export class DemoEngine {
 
   async showCaption(text: string): Promise<void> {
     if (this.detectMode || !this.activePage) return
-    await this.activePage.evaluate(([msg, css]: [string, string]) => {
-      document.getElementById('__demo-caption__')?.remove()
-      const div = document.createElement('div')
-      div.id = '__demo-caption__'
-      div.textContent = msg
-      div.style.cssText = css
-      document.body.appendChild(div)
-      requestAnimationFrame(() => { div.style.opacity = '1' })
-    }, [text, CAPTION_CSS] as [string, string])
+    await this.activePage.evaluate(
+      ([msg, css]: [string, string]) => {
+        document.getElementById('__demo-caption__')?.remove()
+        const div = document.createElement('div')
+        div.id = '__demo-caption__'
+        div.textContent = msg
+        div.style.cssText = css
+        document.body.appendChild(div)
+        requestAnimationFrame(() => {
+          div.style.opacity = '1'
+        })
+      },
+      [text, CAPTION_CSS] as [string, string],
+    )
   }
 
   async hideCaption(): Promise<void> {
@@ -551,14 +587,22 @@ export class DemoEngine {
       this.pregeneratedCache.set(text, wavPath)
     }
 
-    const ttsDurationMs = parseFloat(
-      execSync(`ffprobe -v error -show_entries format=duration -of csv=p=0 "${wavPath}"`).toString().trim(),
-    ) * 1000
+    const ttsDurationMs =
+      parseFloat(
+        execSync(`ffprobe -v error -show_entries format=duration -of csv=p=0 "${wavPath}"`)
+          .toString()
+          .trim(),
+      ) * 1000
 
     await this.showCaption(text)
     const captionStartMs = Date.now() - this.phaseStartMs
     this.narrationClips.push({ wavPath, ms: captionStartMs, pregenerated })
-    this.manifest.push({ key, clipIndex: this.segments.length, clipMs: captionStartMs, durationMs: ttsDurationMs })
+    this.manifest.push({
+      key,
+      clipIndex: this.segments.length,
+      clipMs: captionStartMs,
+      durationMs: ttsDurationMs,
+    })
 
     if (!process.env.DEMO_HEADLESS) {
       spawn('afplay', [wavPath], { stdio: 'ignore' }).unref()
@@ -602,7 +646,8 @@ export class DemoEngine {
       const iframe = document.createElement('iframe')
       iframe.id = '__demo-title-card__'
       iframe.srcdoc = htmlContent
-      iframe.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;border:none;z-index:2147483647;pointer-events:none;opacity:1'
+      iframe.style.cssText =
+        'position:fixed;inset:0;width:100%;height:100%;border:none;z-index:2147483647;pointer-events:none;opacity:1'
       document.body.appendChild(iframe)
       document.getElementById('__demo-tc-cover__')?.remove()
     }, html)
@@ -658,14 +703,16 @@ export class DemoEngine {
 
     // Skip scroll if element is inside a fixed-position ancestor (e.g. modal) —
     // document scrollTop won't change its viewport position
-    const isFixed: boolean = await locator.evaluate((el: Element) => {
-      let node: Element | null = el
-      while (node) {
-        if (window.getComputedStyle(node).position === 'fixed') return true
-        node = node.parentElement
-      }
-      return false
-    }).catch(() => false)
+    const isFixed: boolean = await locator
+      .evaluate((el: Element) => {
+        let node: Element | null = el
+        while (node) {
+          if (window.getComputedStyle(node).position === 'fixed') return true
+          node = node.parentElement
+        }
+        return false
+      })
+      .catch(() => false)
     if (isFixed) return
 
     const by = box.y
@@ -698,7 +745,11 @@ export class DemoEngine {
   }
 
   /** Smooth-scroll the page by up to maxPx in the given direction, over durationMs of real time. */
-  async scrollPage(maxPx = 1200, durationMs = 3000, direction: 'down' | 'up' = 'down'): Promise<void> {
+  async scrollPage(
+    maxPx = 1200,
+    durationMs = 3000,
+    direction: 'down' | 'up' = 'down',
+  ): Promise<void> {
     if (this.detectMode || !this.activePage) return
     const startY: number = await this.activePage.evaluate(
       `(document.scrollingElement || document.documentElement).scrollTop`,
@@ -775,7 +826,8 @@ export class DemoEngine {
     void this.clickRipple()
     // Move cursor clear of the field so typed text is visible
     const box = await locator.boundingBox()
-    if (box) await this.moveCursorToXY(box.x + box.width * 0.75, box.y + box.height + 40 + this.rng() * 20)
+    if (box)
+      await this.moveCursorToXY(box.x + box.width * 0.75, box.y + box.height + 40 + this.rng() * 20)
     await this.pause(400)
     // Pre-schedule a keypress sound per character relative to now
     const typeStartMs = Date.now() - this.phaseStartMs
@@ -808,10 +860,12 @@ export class DemoEngine {
     }
 
     // Read tag + href before clicking — element may leave the DOM after click (e.g. dropdown option)
-    const { tag, href } = await locator.evaluate((el: Element) => ({
-      tag: el.tagName.toLowerCase(),
-      href: el instanceof HTMLAnchorElement ? el.href : '',
-    })).catch(() => ({ tag: '', href: '' }))
+    const { tag, href } = await locator
+      .evaluate((el: Element) => ({
+        tag: el.tagName.toLowerCase(),
+        href: el instanceof HTMLAnchorElement ? el.href : '',
+      }))
+      .catch(() => ({ tag: '', href: '' }))
     const box = await locator.boundingBox()
     await locator.click()
     await this.clickRipple()
@@ -866,7 +920,10 @@ export class DemoEngine {
     ctx: BrowserContext,
     options: { transition?: 'fade-out' | 'cut'; transitionDurationMs?: number } = {},
   ): Promise<void> {
-    if (this.detectMode) { this.activePage = null; return }
+    if (this.detectMode) {
+      this.activePage = null
+      return
+    }
     const { transition = 'fade-out', transitionDurationMs = 600 } = options
 
     if (transition === 'fade-out' && this.activePage) {
@@ -897,7 +954,9 @@ export class DemoEngine {
     const concatFile = path.join(this.scratchDir, 'concat.txt')
     fs.writeFileSync(concatFile, this.segments.map((f) => `file '${f}'`).join('\n'))
     console.log(`\nMerging ${this.segments.length} segment(s) → ${outputPath}`)
-    execSync(`ffmpeg -y -f concat -safe 0 -i "${concatFile}" -c copy "${outputPath}"`, { stdio: 'pipe' })
+    execSync(`ffmpeg -y -f concat -safe 0 -i "${concatFile}" -c copy "${outputPath}"`, {
+      stdio: 'pipe',
+    })
 
     const mp4Path = outputPath.replace(/\.webm$/, '.mp4')
     console.log(`Transcoding → ${mp4Path}`)

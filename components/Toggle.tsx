@@ -6,7 +6,10 @@ type ToggleProps = Omit<ComponentPropsWithoutRef<'input'>, 'type'> & {
 
 export default function Toggle({ children, ...props }: ToggleProps) {
   return (
-    <label className="flex items-center gap-3 cursor-pointer" style={{ fontWeight: 400, marginBottom: 0 }}>
+    <label
+      className="flex items-center gap-3 cursor-pointer"
+      style={{ fontWeight: 400, marginBottom: 0 }}
+    >
       <span className="relative flex-shrink-0">
         <input type="checkbox" className="sr-only peer" {...props} />
         <span className="block w-11 h-6 rounded-full bg-[var(--border)] peer-checked:bg-primary peer-focus-visible:ring-2 peer-focus-visible:ring-primary peer-focus-visible:ring-offset-2 peer-disabled:opacity-50 transition-colors" />

@@ -35,7 +35,9 @@ test.describe('Dashboard', () => {
     })
 
     // Owned Projects tab is active by default
-    await expect(volunteer.page.getByRole('tab', { name: 'Owned Projects' })).toHaveClass(/\bactive\b/)
+    await expect(volunteer.page.getByRole('tab', { name: 'Owned Projects' })).toHaveClass(
+      /\bactive\b/,
+    )
 
     // Interested Projects tab
     await volunteer.page.getByRole('tab', { name: 'Interested Projects' }).click()
