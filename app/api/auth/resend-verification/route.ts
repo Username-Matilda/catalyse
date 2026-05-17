@@ -8,11 +8,10 @@ const STUB_EMAIL = ['1', 'true', 'yes'].includes((process.env.STUB_EMAIL ?? '').
 const OK_MESSAGE = 'If that email is registered and unconfirmed, a new link has been sent.'
 
 export async function POST(request: NextRequest) {
-  const { allowed, retryAfterMs } = checkRateLimit(
-    request,
-    'resend-verification',
-    { limit: 5, windowMs: 15 * 60 * 1000 },
-  )
+  const { allowed, retryAfterMs } = checkRateLimit(request, 'resend-verification', {
+    limit: 5,
+    windowMs: 15 * 60 * 1000,
+  })
   if (!allowed) return rateLimitResponse(retryAfterMs)
   let body: Record<string, unknown>
   try {
@@ -46,9 +45,11 @@ export async function POST(request: NextRequest) {
     },
   })
 
-  sendWelcomeAndConfirmEmail({ to: volunteer.email, token: verificationToken.token, name: volunteer.name }).catch((e) =>
-    console.error('[RESEND_VERIFICATION] Email failed:', e),
-  )
+  sendWelcomeAndConfirmEmail({
+    to: volunteer.email,
+    token: verificationToken.token,
+    name: volunteer.name,
+  }).catch((e) => console.error('[RESEND_VERIFICATION] Email failed:', e))
 
   const response: Record<string, unknown> = { detail: OK_MESSAGE }
   if (STUB_EMAIL) response.email_verification_token = verificationToken.token

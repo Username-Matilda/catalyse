@@ -75,7 +75,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           to: proposer.email,
           name: proposer.name,
           subject: `Your project '${project.title}' has been approved!`,
-          message: 'Great news! Your project has been approved and is now visible to all volunteers. People can start expressing interest.',
+          message:
+            'Great news! Your project has been approved and is now visible to all volunteers. People can start expressing interest.',
           projectTitle: project.title,
           projectId,
         }).catch((e) => console.error('[EMAIL ERROR]', e))

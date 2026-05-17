@@ -34,11 +34,10 @@ async function verifyGoogleToken(credential: string) {
 }
 
 export async function POST(request: NextRequest) {
-  const { allowed, retryAfterMs } = checkRateLimit(
-    request,
-    'google',
-    { limit: 20, windowMs: 5 * 60 * 1000 },
-  )
+  const { allowed, retryAfterMs } = checkRateLimit(request, 'google', {
+    limit: 20,
+    windowMs: 5 * 60 * 1000,
+  })
   if (!allowed) return rateLimitResponse(retryAfterMs)
 
   if (!GOOGLE_CLIENT_ID && !STUB_GOOGLE) {

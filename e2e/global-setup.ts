@@ -29,7 +29,6 @@ function killServerOnPort(port: number): void {
 
 const IS_DEV_MODE = process.env.E2E_DEV === '1'
 
-
 function migrateWorkerDb(parallelIndex: number): void {
   const dbDir = workerDbDir(parallelIndex)
   const dbUrl = `file:${path.join(dbDir, 'catalyse.db')}`

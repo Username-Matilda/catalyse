@@ -130,7 +130,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (action === 'start_review') {
     if (!['PENDING', 'UNDER_REVIEW'].includes(volunteer.approvalStatus)) {
       return Response.json(
-        { detail: `Cannot start review on a ${volunteer.approvalStatus.toLowerCase()} application` },
+        {
+          detail: `Cannot start review on a ${volunteer.approvalStatus.toLowerCase()} application`,
+        },
         { status: 400 },
       )
     }

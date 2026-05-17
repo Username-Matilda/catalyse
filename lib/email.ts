@@ -24,7 +24,6 @@ export function isEmailConfigured(): boolean {
   return STUB_EMAIL || Boolean(RESEND_API_KEY)
 }
 
-
 const STUB_EMAIL_DIR = '/tmp/catalyse-emails'
 
 async function sendEmail(
@@ -229,7 +228,6 @@ export function buildPendingApplicationsSummaryHtml(count: number, appUrl: strin
 
 export async function sendPendingApplicationsSummaryEmail({
   to,
-  name,
   count,
 }: {
   to: string
@@ -362,7 +360,6 @@ export async function sendProjectNotificationEmail({
   name,
   subject,
   message,
-  projectTitle,
   projectId,
   extraHtml = '',
 }: {
@@ -512,10 +509,7 @@ export function buildDigestHtml(
     : "Here's what's new on Catalyse:"
   const projectHtml = projects
     .map((p) => {
-      const skillsHtml = (p.skill_names || [])
-        .slice(0, 5)
-        .map(escapeHtml)
-        .join(', ')
+      const skillsHtml = (p.skill_names || []).slice(0, 5).map(escapeHtml).join(', ')
       const matchBadge = p.match_percent
         ? ` <span style="background: #D1FAE5; color: #065F46; padding: 2px 8px; border-radius: 10px; font-size: 12px;">${p.match_percent}% match</span>`
         : ''

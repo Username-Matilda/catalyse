@@ -15,7 +15,10 @@ export function validateEnv(): void {
 
   const stubEmail = ['1', 'true', 'yes'].includes((process.env.STUB_EMAIL ?? '').toLowerCase())
   if (!stubEmail && !process.env.RESEND_API_KEY) {
-    errors.push({ var: 'RESEND_API_KEY', reason: 'required to send emails (or set STUB_EMAIL=true)' })
+    errors.push({
+      var: 'RESEND_API_KEY',
+      reason: 'required to send emails (or set STUB_EMAIL=true)',
+    })
   }
 
   const b2Vars = ['B2_KEY_ID', 'B2_APP_KEY', 'B2_BUCKET_NAME'] as const

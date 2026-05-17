@@ -1,6 +1,10 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { sendApplicationReceivedEmail, sendApplicationApprovedEmail, sendWelcomeEmail } from '@/lib/email'
+import {
+  sendApplicationReceivedEmail,
+  sendApplicationApprovedEmail,
+  sendWelcomeEmail,
+} from '@/lib/email'
 
 export async function POST(request: NextRequest) {
   let body: Record<string, unknown>

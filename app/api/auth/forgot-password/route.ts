@@ -7,11 +7,10 @@ import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
 const STUB_EMAIL = ['1', 'true', 'yes'].includes((process.env.STUB_EMAIL ?? '').toLowerCase())
 
 export async function POST(request: NextRequest) {
-  const { allowed, retryAfterMs } = checkRateLimit(
-    request,
-    'forgot-password',
-    { limit: 5, windowMs: 15 * 60 * 1000 },
-  )
+  const { allowed, retryAfterMs } = checkRateLimit(request, 'forgot-password', {
+    limit: 5,
+    windowMs: 15 * 60 * 1000,
+  })
   if (!allowed) return rateLimitResponse(retryAfterMs)
   let body: Record<string, unknown>
   try {
