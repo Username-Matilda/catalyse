@@ -3,7 +3,7 @@ set -e
 
 ISSUE_NUMBER=$1
 
-if [ -z "$ISSUE_NUMBER" ]; then
+if [ -z "$ISSUE_NUMBER" ] || ! [[ "$ISSUE_NUMBER" =~ ^[0-9]+$ ]]; then
   echo "Usage: $0 <issue-number>"
   exit 1
 fi
@@ -17,6 +17,7 @@ fi
 
 git checkout main
 git pull
+
 npm run local-setup
 
 echo "Fetching issue #${ISSUE_NUMBER}..."
@@ -66,7 +67,7 @@ BRANCH_SLUG=$(echo "$ISSUE_TITLE" \
   | sed 's/-\{2,\}/-/g' \
   | sed 's/^-//;s/-$//' \
   | cut -c1-50)
-BRANCH_NAME="issue-${ISSUE_NUMBER}/${BRANCH_SLUG}"
+BRANCH_NAME="issue-${ISSUE_NUMBER}-${BRANCH_SLUG}"
 
 git checkout -b "$BRANCH_NAME"
 echo "Created branch: $BRANCH_NAME"
@@ -83,17 +84,27 @@ $(echo -e "$PREREQ_SECTION")
 Before writing any code, propose a clear implementation plan and wait for the user to confirm. If there are open prerequisites above, flag them and ask whether to proceed anyway. Once confirmed, implement the changes. When all work is complete, run \`npm run check-all\` and report the results. Then push the branch and raise a PR using \`gh pr create\` with a clear title and description referencing the issue."
 
 REAL_GIT=$(which git)
+REAL_GH=$(which gh)
+REAL_NPM=$(which npm)
 TMPBIN=$(mktemp -d)
 trap 'rm -rf "$TMPBIN"' EXIT
 
-for cmd in railway curl wget yarn pnpm bun ssh scp rsync prisma python python3 osascript; do
+for cmd in \
+  railway aws gcloud az brew \
+  curl wget nc netcat socat ftp sftp telnet \
+  yarn pnpm bun npx pip pip3 gem cargo \
+  ssh scp rsync \
+  prisma python python3 ruby perl go \
+  open osascript docker; do
   printf '#!/bin/bash\necho "%s: not permitted in issue sessions" >&2\nexit 1\n' "$cmd" > "$TMPBIN/$cmd"
   chmod +x "$TMPBIN/$cmd"
 done
 
-REAL_GH=$(which gh)
 cat > "$TMPBIN/gh" << GHSCRIPT
 #!/bin/bash
+if [[ "\$1" == "pr" && "\$2" == "view" ]]; then
+  exec "$REAL_GH" "\$@"
+fi
 if [[ "\$1" == "pr" && "\$2" == "create" ]]; then
   for arg in "\$@"; do
     if [[ "\$arg" == "--base" ]]; then
@@ -117,7 +128,7 @@ if [[ "\$1" == "pr" && "\$2" == "edit" ]]; then
   fi
   exec "$REAL_GH" "\$@"
 fi
-echo "gh \$*: not permitted in issue sessions (only 'gh pr create' is allowed)" >&2
+echo "gh \$*: not permitted in issue sessions (only 'gh pr create' and 'gh pr edit' are allowed)" >&2
 exit 1
 GHSCRIPT
 chmod +x "$TMPBIN/gh"
@@ -127,8 +138,8 @@ cat > "$TMPBIN/git" << GITSCRIPT
 SUBCMD=\$("$REAL_GIT" config --get "alias.\$1" 2>/dev/null || echo "\$1")
 case "\$SUBCMD" in
   push)
-    if [[ "\$*" == *"--force"* || "\$*" == *" -f"* ]]; then
-      echo "git push --force: not permitted in issue sessions" >&2
+    if [[ "\$*" == *"--force"* || "\$*" == *" -f"* || "\$*" == *"--tags"* ]]; then
+      echo "git push --force/--tags: not permitted in issue sessions" >&2
       exit 1
     fi
     # allow push only if no branch specified, or branch matches the issue branch
@@ -144,6 +155,17 @@ case "\$SUBCMD" in
     echo "git \$1: not permitted in issue sessions — stay on the issue branch" >&2
     exit 1
     ;;
+  worktree)
+    echo "git worktree: not permitted in issue sessions" >&2
+    exit 1
+    ;;
+  config)
+    if [[ "\$*" == *"--global"* || "\$*" == *"--system"* ]]; then
+      echo "git config --global/--system: not permitted in issue sessions" >&2
+      exit 1
+    fi
+    exec "$REAL_GIT" "\$@"
+    ;;
   reset)
     if [[ "\$*" == *"--hard"* ]]; then
       echo "git reset --hard: not permitted in issue sessions" >&2
@@ -158,7 +180,6 @@ esac
 GITSCRIPT
 chmod +x "$TMPBIN/git"
 
-REAL_NPM=$(which npm)
 cat > "$TMPBIN/npm" << NPMSCRIPT
 #!/bin/bash
 case "\$1" in
@@ -184,4 +205,8 @@ esac
 NPMSCRIPT
 chmod +x "$TMPBIN/npm"
 
+# Note: --sandbox runs Claude in a Docker container. If the container does not
+# inherit the host PATH, the wrappers above will not apply inside the session.
+# The --sandbox flag still provides filesystem/network isolation independently.
+unset RAILWAY_TOKEN RESEND_API_KEY GOOGLE_CLIENT_SECRET CRON_SECRET
 PATH="$TMPBIN:$PATH" claude --no-mcp --sandbox "$PROMPT"
