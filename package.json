@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "issue": "bash scripts/issue.sh",
-    "local-setup": "cp -n .env.local.example .env.local; npm install && npm run install:browsers && npm run fetch-prod-db && npm run migrate",
+    "local-setup": "cp -n .env.local.example .env.local; npm install && npm run install:browsers && npm run fetch-prod-db && npm run migrate && npm run generate",
     "check-all": "npm run typecheck && npm run lint && npm run format:check && npm test",
     "dev": "next dev --turbo",
     "build": "prisma generate && next build",

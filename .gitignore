@@ -21,11 +21,8 @@ next-env.d.ts
 # TypeScript
 *.tsbuildinfo
 
-# Prisma generated client
-/app/generated/prisma
-
-# Zod schemas generated from Prisma
-/lib/zod
+# Generated from Prisma schema (prisma client + zod schemas)
+/app/generated
 
 # Testing
 /coverage
