@@ -35,10 +35,22 @@ export async function buildNext(): Promise<void> {
     console.log('[build] Fresh — skipping next build')
     return
   }
+  console.log('[build] Building...')
   await new Promise<void>((resolve, reject) => {
-    const build = spawn(NEXT_BINARY, ['build'], { cwd: PROJECT_ROOT, stdio: 'inherit' })
-    build.on('close', (code) =>
-      code === 0 ? resolve() : reject(new Error(`next build failed (exit ${code})`)),
-    )
+    const build = spawn(NEXT_BINARY, ['build'], { cwd: PROJECT_ROOT, stdio: 'pipe' })
+    const chunks: Buffer[] = []
+    build.stdout.on('data', (d) => chunks.push(d))
+    build.stderr.on('data', (d) => chunks.push(d))
+    build.on('close', (code) => {
+      if (code === 0) {
+        console.log('[build] Success')
+        return resolve()
+      }
+      console.error(
+        '[build] FAILED — next build runs before tests start. Tests did not run. Build output:',
+      )
+      process.stdout.write(Buffer.concat(chunks))
+      reject(new Error(`next build failed (exit ${code})`))
+    })
   })
 }

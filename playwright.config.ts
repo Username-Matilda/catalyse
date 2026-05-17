@@ -5,6 +5,7 @@ export default defineConfig({
   testDir: './e2e/tests',
   fullyParallel: true,
   workers: WORKER_COUNT,
+  reporter: process.env.CI ? 'github' : 'line',
   retries: 0,
   timeout: 30_000,
   globalSetup: require.resolve('./e2e/global-setup'),

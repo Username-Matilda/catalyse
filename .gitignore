@@ -17,6 +17,9 @@ e2e/.auth/
 # testing
 /coverage
 
+# linting
+.eslintcache
+
 # next.js
 /.next/
 /out/
@@ -40,7 +43,8 @@ next-env.d.ts
 
 /app/generated/prisma
 
-.vscode/settings.json
+# VSCode
+.vscode/
 
 # demo
 demo/.tts-cache/
