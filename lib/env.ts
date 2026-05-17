@@ -3,10 +3,7 @@ type EnvError = { var: string; reason: string }
 export function validateEnv(): void {
   if (process.env.NODE_ENV !== 'production') return
   // Railway PR deployments run as NODE_ENV=production but aren't the live environment
-  if (
-    process.env.RAILWAY_ENVIRONMENT_NAME &&
-    process.env.RAILWAY_ENVIRONMENT_NAME !== 'production'
-  )
+  if (process.env.RAILWAY_ENVIRONMENT_NAME && process.env.RAILWAY_ENVIRONMENT_NAME !== 'production')
     return
 
   const errors: EnvError[] = []
