@@ -6,6 +6,7 @@ import { ToastProvider } from '@/lib/toast'
 import FloatingActions from '@/components/FloatingActions'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import CookieConsentBanner from '@/components/CookieConsentBanner'
 import Script from 'next/script'
 import './globals.css'
 
@@ -60,6 +61,7 @@ export default function RootLayout({
               {children}
               <Footer />
               <FloatingActions />
+              <CookieConsentBanner />
             </ToastProvider>
           </AuthProvider>
         </ThemeProvider>

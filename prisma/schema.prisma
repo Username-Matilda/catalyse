@@ -408,6 +408,7 @@ model Volunteer {
   consentContactableByProjectOwners       Boolean?             @default(false) @map("consent_contactable_by_project_owners")
   consentShareContactInfoWithProjectOwner Boolean?             @default(false) @map("consent_share_contact_info_with_project_owner")
   consentGivenAt                          DateTime?            @map("consent_given_at")
+  cookieConsentAnalytics                  Boolean?             @map("cookie_consent_analytics")
   authToken                               String?              @unique(map: "sqlite_autoindex_volunteers_2") @map("auth_token")
   authTokenExpiresAt                      DateTime?            @map("auth_token_expires_at")
   passwordHash                            String?              @map("password_hash")

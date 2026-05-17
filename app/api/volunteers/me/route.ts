@@ -74,6 +74,11 @@ export async function PUT(request: NextRequest) {
     if (body.consent_share_contact_info_with_project_owner) data.consentGivenAt = new Date()
   }
 
+  if (Object.prototype.hasOwnProperty.call(body, 'cookie_consent_analytics')) {
+    data.cookieConsentAnalytics =
+      body.cookie_consent_analytics === null ? null : !!body.cookie_consent_analytics
+  }
+
   const skillIds: number[] | undefined = Array.isArray(body.skill_ids)
     ? (body.skill_ids as unknown[]).map((id) => Number(id)).filter((n) => !isNaN(n))
     : undefined

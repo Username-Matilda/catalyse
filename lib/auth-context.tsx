@@ -13,6 +13,7 @@ interface User {
   volunteer_id?: number
   has_password: boolean
   email_digest: string | null
+  cookie_consent_analytics: boolean | null
   skills: Array<{ id: number; name: string }>
 }
 
@@ -37,7 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   )
   const router = useRouter()
 
-  const fetchMe = useCallback(async (t: string) => {
+  const fetchMe = useCallback(async (t: string): Promise<User | null> => {
     try {
       const res = await fetch(`/api/auth/me`, {
         headers: { Authorization: `Bearer ${t}` },
@@ -46,12 +47,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem('authToken')
         setTokenState(null)
         setUser(null)
-        return
+        return null
       }
-      const data = await res.json()
+      const data: User = await res.json()
       setUser(data)
+      return data
     } catch {
       setUser(null)
+      return null
     }
   }, [])
 
@@ -80,7 +83,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (t: string) => {
       localStorage.setItem('authToken', t)
       setTokenState(t)
-      await fetchMe(t)
+      const vol = await fetchMe(t)
+      if (vol && vol.cookie_consent_analytics === null) {
+        const stored = localStorage.getItem('cookieConsent')
+        if (stored !== null) {
+          await fetch('/api/volunteers/me', {
+            method: 'PUT',
+            headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cookie_consent_analytics: stored === 'true' }),
+          }).catch(() => {})
+        }
+      }
     },
     [fetchMe],
   )
