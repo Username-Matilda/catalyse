@@ -127,10 +127,10 @@ export default function Header() {
   const fetchNotifications = useCallback(async () => {
     if (!user) return
     try {
-      const data = await apiRequest<{ notifications: { read_at: string | null }[] }>(
+      const data = await apiRequest<{ notifications: { readAt: string | null }[] }>(
         '/api/notifications',
       )
-      const unread = data.notifications.filter((n) => !n.read_at).length
+      const unread = data.notifications.filter((n) => !n.readAt).length
       setUnreadCount(unread)
     } catch {}
   }, [user])
@@ -237,7 +237,7 @@ export default function Header() {
                       >
                         Privacy &amp; Data
                       </Link>
-                      {user.is_admin && (
+                      {user.isAdmin && (
                         <>
                           <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-light)] border-t border-brand-border mt-1">
                             Admin
@@ -284,7 +284,7 @@ export default function Header() {
                           >
                             Platform Stats
                           </Link>
-                          {user.is_super_admin && (
+                          {user.isSuperAdmin && (
                             <>
                               <Link
                                 href="/admin/applications"
@@ -443,7 +443,7 @@ export default function Header() {
                   <MobileNavLink href="/profile">My Profile</MobileNavLink>
                   <MobileNavLink href="/settings">Account Settings</MobileNavLink>
 
-                  {user.is_admin && (
+                  {user.isAdmin && (
                     <>
                       <MobileNavSection admin>Admin</MobileNavSection>
                       <MobileNavLink href="/admin/triage">Triage Queue</MobileNavLink>
@@ -453,7 +453,7 @@ export default function Header() {
                       <MobileNavLink href="/admin/bugs">Bug Reports</MobileNavLink>
                       <MobileNavLink href="/admin/team">Admin Team</MobileNavLink>
                       <MobileNavLink href="/admin/stats">Platform Stats</MobileNavLink>
-                      {user.is_super_admin && (
+                      {user.isSuperAdmin && (
                         <>
                           <MobileNavLink href="/admin/applications">
                             Manage Applications

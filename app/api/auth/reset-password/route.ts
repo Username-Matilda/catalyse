@@ -13,11 +13,11 @@ export async function POST(request: NextRequest) {
 
   const errs: ReturnType<typeof fieldError>[] = []
   if (!body.token) errs.push(fieldError('token', 'Token is required'))
-  if (!body.new_password) errs.push(fieldError('new_password', 'New password is required'))
-  else if (String(body.new_password).length < 8)
-    errs.push(fieldError('new_password', 'New password must be at least 8 characters'))
-  else if (String(body.new_password).length > 128)
-    errs.push(fieldError('new_password', 'New password must be no more than 128 characters'))
+  if (!body.newPassword) errs.push(fieldError('newPassword', 'New password is required'))
+  else if (String(body.newPassword).length < 8)
+    errs.push(fieldError('newPassword', 'New password must be at least 8 characters'))
+  else if (String(body.newPassword).length > 128)
+    errs.push(fieldError('newPassword', 'New password must be no more than 128 characters'))
   if (errs.length) return validationError(errs)
 
   const tokenRecord = await prisma.passwordResetToken.findFirst({
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ detail: 'Invalid or expired reset token' }, { status: 400 })
   }
 
-  const passwordHash = hashPassword(String(body.new_password))
+  const passwordHash = hashPassword(String(body.newPassword))
 
   await prisma.volunteer.update({
     where: { id: tokenRecord.volunteerId },

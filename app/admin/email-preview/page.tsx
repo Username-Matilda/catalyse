@@ -280,11 +280,11 @@ export default function EmailPreviewPage() {
 
   useEffect(() => {
     if (!loading && !user) router.push('/login')
-    if (!loading && user && !user.is_admin) router.push('/')
+    if (!loading && user && !user.isAdmin) router.push('/')
   }, [user, loading, router])
 
   useEffect(() => {
-    if (!user?.is_admin) return
+    if (!user?.isAdmin) return
     const token = localStorage.getItem('authToken')
     const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
     for (const t of EMAIL_TYPES) {
@@ -295,7 +295,7 @@ export default function EmailPreviewPage() {
     }
   }, [user])
 
-  if (loading || !user?.is_admin) return null
+  if (loading || !user?.isAdmin) return null
 
   return (
     <>

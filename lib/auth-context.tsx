@@ -7,13 +7,12 @@ interface User {
   id: number
   email: string
   name: string
-  is_admin: boolean
-  is_super_admin: boolean
-  approval_status: string
-  volunteer_id?: number
-  has_password: boolean
-  email_digest: string | null
-  cookie_consent_analytics: boolean | null
+  isAdmin: boolean
+  isSuperAdmin: boolean
+  approvalStatus: string
+  hasPassword: boolean
+  emailDigest: string | null
+  cookieConsentAnalytics: boolean | null
   skills: Array<{ id: number; name: string }>
 }
 
@@ -84,7 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem('authToken', t)
       setTokenState(t)
       const vol = await fetchMe(t)
-      if (vol && vol.cookie_consent_analytics === null) {
+      if (vol && vol.cookieConsentAnalytics === null) {
         const stored = localStorage.getItem('cookieConsent')
         if (stored !== null) {
           await fetch('/api/volunteers/me', {

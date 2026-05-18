@@ -18,9 +18,9 @@ interface Suggestion {
   name: string
   country: string
   status: string
-  admin_notes: string | null
-  created_at: string
-  merged_into: { id: number; name: string } | null
+  adminNotes: string | null
+  createdAt: string
+  mergedInto: { id: number; name: string } | null
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -166,23 +166,23 @@ export default function SuggestLocalGroupPage() {
                     <div>
                       <p className="font-semibold m-0">
                         {s.country} — {s.name}
-                        {s.merged_into && (
+                        {s.mergedInto && (
                           <span className="text-text-light font-normal text-sm">
                             {' '}
-                            (merged into {s.merged_into.name})
+                            (merged into {s.mergedInto.name})
                           </span>
                         )}
                       </p>
                       <p className="text-xs text-text-light m-0 mt-1">
                         Submitted{' '}
-                        {new Date(s.created_at).toLocaleDateString('en-GB', {
+                        {new Date(s.createdAt).toLocaleDateString('en-GB', {
                           day: 'numeric',
                           month: 'short',
                           year: 'numeric',
                         })}
                       </p>
-                      {s.admin_notes && (
-                        <p className="text-sm text-text-light mt-2 mb-0 italic">{s.admin_notes}</p>
+                      {s.adminNotes && (
+                        <p className="text-sm text-text-light mt-2 mb-0 italic">{s.adminNotes}</p>
                       )}
                     </div>
                     <span

@@ -12,28 +12,28 @@ interface Application {
   name: string
   email: string | null
   bio: string | null
-  application_message: string | null
-  approval_status: string
-  created_at: string
-  rejected_at: string | null
-  anonymise_at: string | null
-  admin_notes: string | null
-  applicant_notes: string | null
+  applicationMessage: string | null
+  approvalStatus: string
+  createdAt: string
+  rejectedAt: string | null
+  anonymiseAt: string | null
+  adminNotes: string | null
+  applicantNotes: string | null
   reviewer: { id: number; name: string } | null
-  previous_rejections: Array<{
-    rejected_at: string
-    admin_notes: string | null
-    applicant_notes: string | null
+  previousRejections: Array<{
+    rejectedAt: string
+    adminNotes: string | null
+    applicantNotes: string | null
   }>
-  availability_hours_per_week: number | null
+  availabilityHoursPerWeek: number | null
   location: string | null
   country: string | null
-  local_group: string | null
-  signal_number: string | null
-  whatsapp_number: string | null
-  discord_handle: string | null
-  contact_notes: string | null
-  skills: Array<{ id: number; name: string; category_name: string }>
+  localGroup: string | null
+  signalNumber: string | null
+  whatsappNumber: string | null
+  discordHandle: string | null
+  contactNotes: string | null
+  skills: Array<{ id: number; name: string; categoryName: string }>
 }
 
 export default function ApplicationReviewPage() {
@@ -50,7 +50,7 @@ export default function ApplicationReviewPage() {
   const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | null>(null)
   useEffect(() => {
     if (!loading && !user) router.push('/login')
-    if (!loading && user && !user.is_super_admin) router.push('/')
+    if (!loading && user && !user.isSuperAdmin) router.push('/')
   }, [user, loading, router])
 
   const loadApplication = useCallback(async () => {
@@ -58,8 +58,8 @@ export default function ApplicationReviewPage() {
     try {
       const data = await apiRequest<Application>(`/api/admin/applications/${id}`)
       setApp(data)
-      setAdminNotes(data.admin_notes ?? '')
-      setApplicantNotes(data.applicant_notes ?? '')
+      setAdminNotes(data.adminNotes ?? '')
+      setApplicantNotes(data.applicantNotes ?? '')
     } catch {
       showToast('Failed to load application', 'error')
     } finally {
@@ -72,7 +72,7 @@ export default function ApplicationReviewPage() {
     // await boundary. The rule can't trace async call graphs so flags this as a
     // false positive.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (user?.is_super_admin) loadApplication()
+    if (user?.isSuperAdmin) loadApplication()
   }, [user, loadApplication])
 
   async function handleSaveNotes() {
@@ -83,12 +83,12 @@ export default function ApplicationReviewPage() {
         method: 'PATCH',
         body: JSON.stringify({
           action: 'update_notes',
-          admin_notes: adminNotes,
-          applicant_notes: applicantNotes,
+          adminNotes,
+          applicantNotes,
         }),
       })
       showToast('Notes saved', 'success')
-      setApp({ ...app, admin_notes: adminNotes, applicant_notes: applicantNotes })
+      setApp({ ...app, adminNotes, applicantNotes })
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Failed to save notes', 'error')
     } finally {
@@ -105,8 +105,8 @@ export default function ApplicationReviewPage() {
         method: 'PATCH',
         body: JSON.stringify({
           action: confirmAction,
-          admin_notes: adminNotes,
-          applicant_notes: applicantNotes,
+          adminNotes,
+          applicantNotes,
         }),
       })
       showToast(
@@ -138,7 +138,7 @@ export default function ApplicationReviewPage() {
     )
   }
 
-  const anonymiseDate = app.anonymise_at ? new Date(app.anonymise_at) : null
+  const anonymiseDate = app.anonymiseAt ? new Date(app.anonymiseAt) : null
   // Date.now() is intentionally impure here — we want the current wall-clock
   // time to compute days remaining. Alternatives (prop drilling, context, ref)
   // would be disproportionate for a read-only display calculation.
@@ -148,14 +148,14 @@ export default function ApplicationReviewPage() {
     ? Math.ceil((anonymiseDate.getTime() - now) / (1000 * 60 * 60 * 24))
     : null
 
-  const locationParts = [app.local_group, app.country ?? app.location].filter(Boolean)
+  const locationParts = [app.localGroup, app.country ?? app.location].filter(Boolean)
   const meta = [
     locationParts.length ? locationParts.join(' · ') : null,
-    `Applied ${new Date(app.created_at).toLocaleDateString()}`,
+    `Applied ${new Date(app.createdAt).toLocaleDateString()}`,
     app.reviewer ? `Reviewer: ${app.reviewer.name}` : null,
   ].filter(Boolean)
 
-  const canAction = app.approval_status === 'PENDING' || app.approval_status === 'UNDER_REVIEW'
+  const canAction = app.approvalStatus === 'PENDING' || app.approvalStatus === 'UNDER_REVIEW'
 
   return (
     <main className="w-full max-w-2xl mx-auto px-6 py-5 pb-15">
@@ -168,7 +168,7 @@ export default function ApplicationReviewPage() {
       <h1 className="mb-1">{app.name}</h1>
       <p className="text-sm text-text-light mb-6">{meta.join(' · ')}</p>
 
-      {app.approval_status === 'REJECTED' && anonymiseDate && (
+      {app.approvalStatus === 'REJECTED' && anonymiseDate && (
         <p
           className={`text-sm mb-4 ${daysUntilAnonymise !== null && daysUntilAnonymise <= 1 ? 'text-red-500' : 'text-amber-500'}`}
         >
@@ -203,33 +203,33 @@ export default function ApplicationReviewPage() {
         </div>
       )}
 
-      {(app.availability_hours_per_week ||
+      {(app.availabilityHoursPerWeek ||
         app.email ||
-        app.signal_number ||
-        app.whatsapp_number ||
-        app.discord_handle ||
-        app.contact_notes) && (
+        app.signalNumber ||
+        app.whatsappNumber ||
+        app.discordHandle ||
+        app.contactNotes) && (
         <div className="grid grid-cols-2 gap-4 mb-6">
-          {app.availability_hours_per_week && (
+          {app.availabilityHoursPerWeek && (
             <div>
               <h2 className="text-base font-semibold mb-1">Availability</h2>
-              <p className="text-sm">{app.availability_hours_per_week} hours/week</p>
+              <p className="text-sm">{app.availabilityHoursPerWeek} hours/week</p>
             </div>
           )}
           {(app.email ||
-            app.signal_number ||
-            app.whatsapp_number ||
-            app.discord_handle ||
-            app.contact_notes) && (
+            app.signalNumber ||
+            app.whatsappNumber ||
+            app.discordHandle ||
+            app.contactNotes) && (
             <div>
               <h2 className="text-base font-semibold mb-1">Contact</h2>
               <div className="text-sm">
                 {app.email && <div>Email: {app.email}</div>}
-                {app.discord_handle && <div>Discord: {app.discord_handle}</div>}
-                {app.signal_number && <div>Signal: {app.signal_number}</div>}
-                {app.whatsapp_number && <div>WhatsApp: {app.whatsapp_number}</div>}
-                {app.contact_notes && (
-                  <div className="text-text-light mt-1 italic">{app.contact_notes}</div>
+                {app.discordHandle && <div>Discord: {app.discordHandle}</div>}
+                {app.signalNumber && <div>Signal: {app.signalNumber}</div>}
+                {app.whatsappNumber && <div>WhatsApp: {app.whatsappNumber}</div>}
+                {app.contactNotes && (
+                  <div className="text-text-light mt-1 italic">{app.contactNotes}</div>
                 )}
               </div>
             </div>
@@ -237,45 +237,45 @@ export default function ApplicationReviewPage() {
         </div>
       )}
 
-      {app.application_message && (
+      {app.applicationMessage && (
         <div className="mb-6">
           <h2 className="text-base font-semibold mb-1">Application message</h2>
-          <p className="text-sm whitespace-pre-wrap">{app.application_message}</p>
+          <p className="text-sm whitespace-pre-wrap">{app.applicationMessage}</p>
         </div>
       )}
 
-      {app.previous_rejections.length > 0 && (
+      {app.previousRejections.length > 0 && (
         <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg">
           <p className="text-sm font-semibold text-amber-800 dark:text-amber-300 mb-3">
-            {app.previous_rejections.length === 1
+            {app.previousRejections.length === 1
               ? 'Previously rejected'
-              : `Previously rejected ${app.previous_rejections.length} times`}
+              : `Previously rejected ${app.previousRejections.length} times`}
           </p>
-          {app.previous_rejections.map((r, i) => (
+          {app.previousRejections.map((r, i) => (
             <div
               key={i}
               className={i > 0 ? 'mt-3 pt-3 border-t border-amber-200 dark:border-amber-700' : ''}
             >
               <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide mb-1">
-                {new Date(r.rejected_at).toLocaleDateString()}
+                {new Date(r.rejectedAt).toLocaleDateString()}
               </p>
-              {r.admin_notes && (
+              {r.adminNotes && (
                 <div className="mb-1">
                   <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide mb-0.5">
                     Admin notes
                   </p>
                   <p className="text-sm text-amber-700 dark:text-amber-400 whitespace-pre-wrap">
-                    {r.admin_notes}
+                    {r.adminNotes}
                   </p>
                 </div>
               )}
-              {r.applicant_notes && (
+              {r.applicantNotes && (
                 <div>
                   <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide mb-0.5">
                     Message sent to applicant
                   </p>
                   <p className="text-sm text-amber-700 dark:text-amber-400 whitespace-pre-wrap">
-                    {r.applicant_notes}
+                    {r.applicantNotes}
                   </p>
                 </div>
               )}

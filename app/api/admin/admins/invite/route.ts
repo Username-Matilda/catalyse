@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
 
   const result: Record<string, unknown> = {
     message: `Invite ${emailSent ? 'sent' : 'created'} for ${email}`,
-    expires_at: expiresAt.toISOString(),
+    expiresAt: expiresAt.toISOString(),
   }
 
   if (STUB_EMAIL) {

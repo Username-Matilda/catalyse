@@ -15,10 +15,10 @@ export async function GET() {
       id: t.id,
       title: t.title,
       description: t.description,
-      estimated_hours: t.estimatedHours,
-      skill_name: t.skill?.name ?? null,
-      skill_category: t.skill?.category?.name ?? null,
-      project_title: t.project?.title ?? null,
+      estimatedHours: t.estimatedHours,
+      skillName: t.skill?.name ?? null,
+      skillCategory: t.skill?.category?.name ?? null,
+      projectTitle: t.project?.title ?? null,
     })),
   )
 }

@@ -38,12 +38,12 @@ export async function GET(request: NextRequest) {
   const volunteersThisMonth = Number(volunteersThisMonthRaw)
 
   return Response.json({
-    volunteers: { total: totalVolunteers, this_month: volunteersThisMonth },
+    volunteers: { total: totalVolunteers, thisMonth: volunteersThisMonth },
     projects: {
       total: totalProjects,
-      pending_review: pendingReviewProjects,
-      seeking_help: seekingProjects,
-      in_progress: inProgressProjects,
+      pendingReview: pendingReviewProjects,
+      seekingHelp: seekingProjects,
+      inProgress: inProgressProjects,
       completed: completedProjects,
     },
     interests: { total: totalInterests, pending: pendingInterests },

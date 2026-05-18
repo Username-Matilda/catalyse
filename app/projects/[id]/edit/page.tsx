@@ -20,18 +20,18 @@ interface ProjectData {
   id: number
   title: string
   description: string
-  collaboration_link: string | null
-  owner_id: number | null
-  proposed_by_id: number | null
-  project_type: string | null
-  time_commitment_hours_per_week: number | null
+  collaborationLink: string | null
+  ownerId: number | null
+  proposedById: number | null
+  projectType: string | null
+  timeCommitmentHoursPerWeek: number | null
   urgency: string | null
   country: string | null
-  local_group: string | null
-  estimated_duration: string | null
-  is_seeking_help: boolean
-  is_seeking_owner: boolean
-  skills: Array<{ id: number; name: string; is_required: boolean | null }>
+  localGroup: string | null
+  estimatedDuration: string | null
+  isSeekingHelp: boolean
+  isSeekingOwner: boolean
+  skills: Array<{ id: number; name: string; isRequired: boolean | null }>
 }
 
 const URGENCY_OPTIONS = [
@@ -91,21 +91,21 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
         setProject(data)
         setTitle(data.title)
         setDescription(data.description)
-        setCollaborationLink(data.collaboration_link ?? '')
+        setCollaborationLink(data.collaborationLink ?? '')
         setSkills(
           (data.skills ?? []).map((s) => ({ skillId: s.id, proficiencyLevel: 'intermediate' })),
         )
-        setProjectType(data.project_type ?? '')
-        setHoursPerWeek(data.time_commitment_hours_per_week?.toString() ?? '')
+        setProjectType(data.projectType ?? '')
+        setHoursPerWeek(data.timeCommitmentHoursPerWeek?.toString() ?? '')
         setUrgency(data.urgency ?? 'medium')
         const country = data.country ?? ''
-        const localGroup = data.local_group ?? ''
+        const localGroup = data.localGroup ?? ''
         setLocationValue(country && localGroup ? `${country}:${localGroup}` : country)
-        setEstimatedDuration(data.estimated_duration ?? '')
-        setSeekingHelp(data.is_seeking_help)
-        setSeekingOwner(data.is_seeking_owner)
-        const isOwner = data.owner_id === user.id || data.proposed_by_id === user.id
-        setCanEdit(isOwner || user.is_admin)
+        setEstimatedDuration(data.estimatedDuration ?? '')
+        setSeekingHelp(data.isSeekingHelp)
+        setSeekingOwner(data.isSeekingOwner)
+        const isOwner = data.ownerId === user.id || data.proposedById === user.id
+        setCanEdit(isOwner || user.isAdmin)
         setPermissionChecked(true)
       })
       .catch(() => setPermissionChecked(true))
@@ -123,16 +123,16 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
         body: JSON.stringify({
           title: title.trim(),
           description: description.trim(),
-          collaboration_link: collaborationLink.trim() || null,
-          skill_ids: skills.map((s) => s.skillId),
-          project_type: projectType || null,
-          time_commitment_hours_per_week: hoursPerWeek ? Number(hoursPerWeek) : null,
+          collaborationLink: collaborationLink.trim() || null,
+          skillIds: skills.map((s) => s.skillId),
+          projectType: projectType || null,
+          timeCommitmentHoursPerWeek: hoursPerWeek ? Number(hoursPerWeek) : null,
           urgency,
           country: country || null,
-          local_group: localGroup || null,
-          estimated_duration: estimatedDuration.trim() || null,
-          is_seeking_help: seekingHelp,
-          is_seeking_owner: seekingOwner,
+          localGroup: localGroup || null,
+          estimatedDuration: estimatedDuration.trim() || null,
+          isSeekingHelp: seekingHelp,
+          isSeekingOwner: seekingOwner,
         }),
       })
       router.push(`/projects/${idParam}`)
@@ -316,7 +316,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
               {submitting ? 'Saving…' : 'Save Changes'}
             </Button>
 
-            {user.is_admin && project && (
+            {user.isAdmin && project && (
               <Button type="button" variant="danger" onClick={handleDelete} disabled={deleting}>
                 {deleting ? 'Deleting…' : 'Delete Project'}
               </Button>

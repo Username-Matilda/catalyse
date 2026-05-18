@@ -8,24 +8,24 @@ export interface Project {
   title: string
   status: string
   description: string | null
-  updated_at?: string
-  pending_interest_count?: number
-  is_seeking_help?: boolean | null
-  is_seeking_owner?: boolean | null
-  is_org_proposed?: boolean | null
-  project_type?: string | null
+  updatedAt?: string
+  pendingInterestCount?: number
+  isSeekingHelp?: boolean | null
+  isSeekingOwner?: boolean | null
+  isOrgProposed?: boolean | null
+  projectType?: string | null
   country?: string | null
-  local_group?: string | null
-  time_commitment_hours_per_week?: number | null
+  localGroup?: string | null
+  timeCommitmentHoursPerWeek?: number | null
   urgency?: string | null
   owner?: { name: string } | null
-  proposed_by?: { id?: number; name: string } | string | null
-  skills?: Array<{ id: number; name: string; is_required: boolean }>
+  proposedBy?: { id?: number; name: string } | string | null
+  skills?: Array<{ id: number; name: string; isRequired: boolean }>
   match?: {
-    required_match_percent: number
-    matched_required_count: number
-    total_required: number
-    overall_score: number
+    requiredMatchPercent: number
+    matchedRequiredCount: number
+    totalRequired: number
+    overallScore: number
   } | null
 }
 
@@ -92,22 +92,20 @@ export function ProjectCard({
             {STATUS_LABELS[p.status] ?? p.status.replace(/_/g, ' ')}
           </span>
         )}
-        {p.is_seeking_help && (
+        {p.isSeekingHelp && (
           <span className={statusBadgeClasses('seeking_help')}>Seeking Help</span>
         )}
-        {p.is_seeking_owner && (
+        {p.isSeekingOwner && (
           <span className={statusBadgeClasses('seeking_owner')}>Seeking Owner</span>
         )}
       </div>
       <div className="row-start-3 flex items-center gap-3 flex-wrap text-xs text-text-light self-start">
         <span>👤 {p.owner ? p.owner.name : 'No owner yet'}</span>
-        {(p.local_group || p.country) && (
-          <span>📍 {[p.country, p.local_group].filter(Boolean).join(' · ')}</span>
+        {(p.localGroup || p.country) && (
+          <span>📍 {[p.country, p.localGroup].filter(Boolean).join(' · ')}</span>
         )}
-        {p.project_type && <span>📋 {PROJECT_TYPE_LABELS[p.project_type] ?? p.project_type}</span>}
-        {p.time_commitment_hours_per_week && (
-          <span>🕐 {p.time_commitment_hours_per_week}h/week</span>
-        )}
+        {p.projectType && <span>📋 {PROJECT_TYPE_LABELS[p.projectType] ?? p.projectType}</span>}
+        {p.timeCommitmentHoursPerWeek && <span>🕐 {p.timeCommitmentHoursPerWeek}h/week</span>}
         {p.urgency && <span>⚡ {p.urgency} priority</span>}
       </div>
       <p className="row-start-4 text-text-light text-sm m-0">
@@ -144,9 +142,9 @@ export function ProjectCard({
         {p.match &&
         (p.skills?.length ?? 0) > 0 &&
         userSkillIds.size > 0 &&
-        matchGradeLabel(p.match.matched_required_count) ? (
+        matchGradeLabel(p.match.matchedRequiredCount) ? (
           <span className="text-xs font-semibold text-primary">
-            {matchGradeLabel(p.match.matched_required_count)}
+            {matchGradeLabel(p.match.matchedRequiredCount)}
           </span>
         ) : (
           <div />

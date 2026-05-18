@@ -15,14 +15,14 @@ export async function GET(request: NextRequest) {
     invites.map((i) => ({
       id: i.id,
       email: i.email,
-      invite_token: i.inviteToken,
-      invited_by_id: i.invitedById,
+      inviteToken: i.inviteToken,
+      invitedById: i.invitedById,
       status: i.status,
-      accepted_by_id: i.acceptedById,
-      accepted_at: i.acceptedAt,
-      expires_at: i.expiresAt,
-      created_at: i.createdAt,
-      invited_by_name: i.invitedBy.name,
+      acceptedById: i.acceptedById,
+      acceptedAt: i.acceptedAt,
+      expiresAt: i.expiresAt,
+      createdAt: i.createdAt,
+      invitedByName: i.invitedBy.name,
     })),
   )
 }

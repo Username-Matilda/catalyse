@@ -34,17 +34,17 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   return Response.json(
     tasks.map((t) => ({
       id: t.id,
-      project_id: t.projectId,
+      projectId: t.projectId,
       title: t.title,
       description: t.description,
-      assigned_to_id: isPending ? null : t.assignedToId,
-      assigned_to_name: isPending ? null : (t.assignedTo?.name ?? null),
-      created_by_id: isPending ? null : t.createdById,
-      created_by_name: isPending ? null : (t.createdBy?.name ?? null),
+      assignedToId: isPending ? null : t.assignedToId,
+      assignedToName: isPending ? null : (t.assignedTo?.name ?? null),
+      createdById: isPending ? null : t.createdById,
+      createdByName: isPending ? null : (t.createdBy?.name ?? null),
       status: t.status,
-      completed_at: t.completedAt,
-      created_at: t.createdAt,
-      updated_at: t.updatedAt,
+      completedAt: t.completedAt,
+      createdAt: t.createdAt,
+      updatedAt: t.updatedAt,
     })),
   )
 }

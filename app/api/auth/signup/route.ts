@@ -62,36 +62,34 @@ export async function POST(request: NextRequest) {
       email,
       passwordHash,
       authToken,
-      applicationMessage: body.application_message ? String(body.application_message) : null,
+      applicationMessage: body.applicationMessage ? String(body.applicationMessage) : null,
       bio: body.bio ? String(body.bio) : null,
-      discordHandle: body.discord_handle ? String(body.discord_handle) : null,
-      signalNumber: body.signal_number ? String(body.signal_number) : null,
-      whatsappNumber: body.whatsapp_number ? String(body.whatsapp_number) : null,
-      contactPreference: body.contact_preference ? String(body.contact_preference) : null,
-      contactNotes: body.contact_notes ? String(body.contact_notes) : null,
+      discordHandle: body.discordHandle ? String(body.discordHandle) : null,
+      signalNumber: body.signalNumber ? String(body.signalNumber) : null,
+      whatsappNumber: body.whatsappNumber ? String(body.whatsappNumber) : null,
+      contactPreference: body.contactPreference ? String(body.contactPreference) : null,
+      contactNotes: body.contactNotes ? String(body.contactNotes) : null,
       availabilityHoursPerWeek:
-        body.availability_hours_per_week != null ? Number(body.availability_hours_per_week) : null,
+        body.availabilityHoursPerWeek !== null ? Number(body.availabilityHoursPerWeek) : null,
       location: body.location ? String(body.location) : null,
       country: body.country ? String(body.country) : null,
-      localGroup: body.local_group ? String(body.local_group) : null,
-      otherSkills: body.other_skills ? String(body.other_skills) : null,
+      localGroup: body.localGroup ? String(body.localGroup) : null,
+      otherSkills: body.otherSkills ? String(body.otherSkills) : null,
       consentMakeProfileVisibleInDirectory: Boolean(
-        body.consent_make_profile_visible_in_directory ?? true,
+        body.consentMakeProfileVisibleInDirectory ?? true,
       ),
-      consentContactableByProjectOwners: Boolean(
-        body.consent_contactable_by_project_owners ?? true,
-      ),
+      consentContactableByProjectOwners: Boolean(body.consentContactableByProjectOwners ?? true),
       consentShareContactInfoWithProjectOwner: Boolean(
-        body.consent_share_contact_info_with_project_owner ?? false,
+        body.consentShareContactInfoWithProjectOwner ?? false,
       ),
       consentGivenAt: new Date(),
-      emailDigest: body.email_digest ? String(body.email_digest) : 'none',
+      emailDigest: body.emailDigest ? String(body.emailDigest) : 'none',
     },
   })
 
   // Add skills
-  const skillIds: number[] = Array.isArray(body.skill_ids)
-    ? body.skill_ids.map(Number).filter(Boolean)
+  const skillIds: number[] = Array.isArray(body.skillIds)
+    ? body.skillIds.map(Number).filter(Boolean)
     : []
   for (const skillId of skillIds) {
     await prisma.volunteerSkill.upsert({

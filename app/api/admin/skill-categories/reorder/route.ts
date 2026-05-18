@@ -14,12 +14,12 @@ export async function PATCH(request: NextRequest) {
   }
 
   if (!Array.isArray(body)) {
-    return Response.json({ detail: 'Expected array of {id, sort_order}' }, { status: 422 })
+    return Response.json({ detail: 'Expected array of {id, sortOrder}' }, { status: 422 })
   }
 
   await prisma.$transaction(
-    body.map(({ id, sort_order }: { id: number; sort_order: number }) =>
-      prisma.skillCategory.update({ where: { id }, data: { sortOrder: sort_order } }),
+    body.map(({ id, sortOrder }: { id: number; sortOrder: number }) =>
+      prisma.skillCategory.update({ where: { id }, data: { sortOrder } }),
     ),
   )
 

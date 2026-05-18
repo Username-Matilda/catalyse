@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
       id: a.id,
       name: a.name,
       email: a.email,
-      created_at: a.createdAt,
+      createdAt: a.createdAt,
     })),
   )
 }

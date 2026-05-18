@@ -13,39 +13,39 @@ import { useToast } from '@/lib/toast'
 interface Skill {
   id: number
   name: string
-  category_name: string
+  categoryName: string
 }
 interface Endorsement {
   id: number
-  skill_id: number
-  skill_name: string
-  skill_category: string
-  endorsed_by_name: string
+  skillId: number
+  skillName: string
+  skillCategory: string
+  endorsedByName: string
   rating: string
   notes: string | null
-  created_at: string
+  createdAt: string
 }
 interface AdminNote {
   id: number
   content: string
   category: string
-  author_name: string
-  created_at: string
-  updated_at: string
+  authorName: string
+  createdAt: string
+  updatedAt: string
 }
 interface StarterTask {
   id: number
   title: string
   status: string
-  skill_name: string | null
-  review_rating: string | null
+  skillName: string | null
+  reviewRating: string | null
 }
 interface ProjectHistory {
   id: number
   title: string
   status: string
-  owner_id: number | null
-  proposed_by_id: number | null
+  ownerId: number | null
+  proposedById: number | null
 }
 interface VolunteerDetail {
   id: number
@@ -53,19 +53,19 @@ interface VolunteerDetail {
   email: string
   bio: string | null
   location: string | null
-  local_group: string | null
-  availability_hours_per_week: number | null
-  discord_handle: string | null
-  signal_number: string | null
-  whatsapp_number: string | null
-  consent_make_profile_visible_in_directory: boolean
-  is_admin: boolean
-  created_at: string
+  localGroup: string | null
+  availabilityHoursPerWeek: number | null
+  discordHandle: string | null
+  signalNumber: string | null
+  whatsappNumber: string | null
+  consentMakeProfileVisibleInDirectory: boolean
+  isAdmin: boolean
+  createdAt: string
   skills: Skill[]
   endorsements: Endorsement[]
-  admin_notes: AdminNote[]
-  starter_tasks: StarterTask[]
-  project_history: ProjectHistory[]
+  adminNotes: AdminNote[]
+  starterTasks: StarterTask[]
+  projectHistory: ProjectHistory[]
 }
 
 const NOTE_CATEGORIES = [
@@ -115,11 +115,11 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
 
   useEffect(() => {
     if (!loading && !user) router.push('/login')
-    if (!loading && user && !user.is_admin) router.push('/')
+    if (!loading && user && !user.isAdmin) router.push('/')
   }, [user, loading, router])
 
   useEffect(() => {
-    if (!user?.is_admin) return
+    if (!user?.isAdmin) return
     Promise.all([
       apiRequest<VolunteerDetail>(`/api/admin/volunteers/${id}`),
       apiRequest<Skill[]>('/api/skills/flat'),
@@ -177,7 +177,7 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
       await apiRequest(`/api/admin/notes/${noteId}`, { method: 'DELETE' })
       showToast('Note deleted.', 'success')
       setVol((prev) =>
-        prev ? { ...prev, admin_notes: prev.admin_notes.filter((n) => n.id !== noteId) } : prev,
+        prev ? { ...prev, adminNotes: prev.adminNotes.filter((n) => n.id !== noteId) } : prev,
       )
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Failed', 'error')
@@ -191,7 +191,7 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
       await apiRequest(`/api/admin/volunteers/${id}/endorsements`, {
         method: 'POST',
         body: JSON.stringify({
-          skill_id: parseInt(endorseSkillId),
+          skillId: parseInt(endorseSkillId),
           rating: endorseRating,
           source: endorseBasedOn,
         }),
@@ -263,7 +263,7 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
               </p>
             </div>
             <div className="flex gap-2">
-              {vol.is_admin && (
+              {vol.isAdmin && (
                 <span
                   style={{
                     padding: '2px 8px',
@@ -275,7 +275,7 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
                   Admin
                 </span>
               )}
-              {!vol.consent_make_profile_visible_in_directory && (
+              {!vol.consentMakeProfileVisibleInDirectory && (
                 <span
                   style={{
                     padding: '2px 8px',
@@ -327,7 +327,7 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
                     fontSize: '0.875rem',
                   }}
                 >
-                  <strong>{e.skill_name}</strong> — {e.rating} · by {e.endorsed_by_name}
+                  <strong>{e.skillName}</strong> — {e.rating} · by {e.endorsedByName}
                 </div>
               ))
             ) : (
@@ -345,29 +345,29 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
                 <strong>Location:</strong> {vol.location}
               </p>
             )}
-            {vol.local_group && (
+            {vol.localGroup && (
               <p style={{ margin: '4px 0' }}>
-                <strong>Local Group:</strong> {vol.local_group}
+                <strong>Local Group:</strong> {vol.localGroup}
               </p>
             )}
-            {vol.availability_hours_per_week && (
+            {vol.availabilityHoursPerWeek && (
               <p style={{ margin: '4px 0' }}>
-                <strong>Availability:</strong> {vol.availability_hours_per_week}h/week
+                <strong>Availability:</strong> {vol.availabilityHoursPerWeek}h/week
               </p>
             )}
-            {vol.discord_handle && (
+            {vol.discordHandle && (
               <p style={{ margin: '4px 0' }}>
-                <strong>Discord:</strong> {vol.discord_handle}
+                <strong>Discord:</strong> {vol.discordHandle}
               </p>
             )}
-            {vol.signal_number && (
+            {vol.signalNumber && (
               <p style={{ margin: '4px 0' }}>
-                <strong>Signal:</strong> {vol.signal_number}
+                <strong>Signal:</strong> {vol.signalNumber}
               </p>
             )}
-            {vol.whatsapp_number && (
+            {vol.whatsappNumber && (
               <p style={{ margin: '4px 0' }}>
-                <strong>WhatsApp:</strong> {vol.whatsapp_number}
+                <strong>WhatsApp:</strong> {vol.whatsappNumber}
               </p>
             )}
           </div>
@@ -393,12 +393,12 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
           {activeTab === 'admin_notes' && (
             <div>
               <div id="notesList">
-                {vol.admin_notes.length === 0 && (
+                {vol.adminNotes.length === 0 && (
                   <p className="text-text-light" style={{ marginBottom: 16 }}>
                     No notes yet.
                   </p>
                 )}
-                {vol.admin_notes.map((n) => (
+                {vol.adminNotes.map((n) => (
                   <div
                     key={n.id}
                     style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}
@@ -464,7 +464,7 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
                               className="text-text-light"
                               style={{ fontSize: '0.8rem', marginLeft: 8 }}
                             >
-                              by {n.author_name}
+                              by {n.authorName}
                             </span>
                           </div>
                           <div className="flex gap-2">
@@ -525,10 +525,10 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
           {/* Starter Tasks tab */}
           {activeTab === 'starter_tasks' && (
             <div>
-              {vol.starter_tasks.length === 0 ? (
+              {vol.starterTasks.length === 0 ? (
                 <p className="text-text-light">No starter tasks assigned yet.</p>
               ) : (
-                vol.starter_tasks.map((t) => (
+                vol.starterTasks.map((t) => (
                   <div
                     key={t.id}
                     className="text-sm"
@@ -541,11 +541,11 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
                   >
                     <span>
                       {t.title}
-                      {t.skill_name && ` (${t.skill_name})`}
+                      {t.skillName && ` (${t.skillName})`}
                     </span>
                     <span className="text-text-light">
                       {t.status}
-                      {t.review_rating && ` · ${t.review_rating}`}
+                      {t.reviewRating && ` · ${t.reviewRating}`}
                     </span>
                   </div>
                 ))
@@ -556,10 +556,10 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
           {/* Project History tab */}
           {activeTab === 'project_history' && (
             <div>
-              {vol.project_history.length === 0 ? (
+              {vol.projectHistory.length === 0 ? (
                 <p className="text-text-light">No project history.</p>
               ) : (
-                vol.project_history.map((p) => (
+                vol.projectHistory.map((p) => (
                   <div
                     key={p.id}
                     style={{
@@ -573,7 +573,7 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
                       {p.title}
                     </Link>
                     <div className="text-sm text-text-light">
-                      {p.owner_id === vol.id ? 'owner' : 'proposer'} · {p.status.replace(/_/g, ' ')}
+                      {p.ownerId === vol.id ? 'owner' : 'proposer'} · {p.status.replace(/_/g, ' ')}
                     </div>
                   </div>
                 ))
@@ -599,7 +599,7 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
                       { value: '', label: 'Select skill…' },
                       ...flatSkills.map((s) => ({
                         value: String(s.id),
-                        label: `${s.name} (${s.category_name})`,
+                        label: `${s.name} (${s.categoryName})`,
                       })),
                     ]}
                     onChange={(v) => setEndorseSkillId(v)}

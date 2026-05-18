@@ -15,11 +15,11 @@ interface BugReport {
   category: string | null
   severity: string | null
   status: string
-  page_url: string | null
-  reporter_name: string | null
-  reporter_email: string | null
-  resolution_notes: string | null
-  created_at: string
+  pageUrl: string | null
+  reporterName: string | null
+  reporterEmail: string | null
+  resolutionNotes: string | null
+  createdAt: string
 }
 
 const STATUS_OPTIONS = [
@@ -62,7 +62,7 @@ export default function AdminBugsPage() {
 
   useEffect(() => {
     if (!loading && !user) router.push('/login')
-    if (!loading && user && !user.is_admin) router.push('/')
+    if (!loading && user && !user.isAdmin) router.push('/')
   }, [user, loading, router])
 
   const loadReports = useCallback(async () => {
@@ -82,7 +82,7 @@ export default function AdminBugsPage() {
   }, [statusFilter, categoryFilter, showToast])
 
   useEffect(() => {
-    if (!user?.is_admin) return
+    if (!user?.isAdmin) return
     // False positive: setState calls inside loadReports are in async callbacks, not synchronously.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadReports()
@@ -91,7 +91,7 @@ export default function AdminBugsPage() {
   function openEdit(report: BugReport) {
     setEditModal(report)
     setEditStatus(report.status)
-    setEditNotes(report.resolution_notes ?? '')
+    setEditNotes(report.resolutionNotes ?? '')
   }
 
   async function handleUpdate() {
@@ -100,7 +100,7 @@ export default function AdminBugsPage() {
     try {
       await apiRequest(`/api/admin/bug-reports/${editModal.id}`, {
         method: 'PUT',
-        body: JSON.stringify({ status: editStatus, resolution_notes: editNotes || null }),
+        body: JSON.stringify({ status: editStatus, resolutionNotes: editNotes || null }),
       })
       showToast('Report updated!', 'success')
       setEditModal(null)
@@ -167,15 +167,15 @@ export default function AdminBugsPage() {
                   >
                     {r.category && <span>{r.category}</span>}
                     {r.severity && <span>· {r.severity}</span>}
-                    {r.reporter_name && <span>· {r.reporter_name}</span>}
-                    <span>· {new Date(r.created_at).toLocaleDateString()}</span>
-                    {r.page_url &&
+                    {r.reporterName && <span>· {r.reporterName}</span>}
+                    <span>· {new Date(r.createdAt).toLocaleDateString()}</span>
+                    {r.pageUrl &&
                       (() => {
                         let path: string
                         try {
-                          path = new URL(r.page_url).pathname + new URL(r.page_url).search
+                          path = new URL(r.pageUrl).pathname + new URL(r.pageUrl).search
                         } catch {
-                          path = r.page_url
+                          path = r.pageUrl
                         }
                         return (
                           <span>
@@ -203,9 +203,9 @@ export default function AdminBugsPage() {
                 {r.description}
               </p>
 
-              {r.resolution_notes && (
+              {r.resolutionNotes && (
                 <p style={{ margin: '0 0 12px', fontSize: '0.875rem', fontStyle: 'italic' }}>
-                  Resolution: {r.resolution_notes}
+                  Resolution: {r.resolutionNotes}
                 </p>
               )}
             </div>

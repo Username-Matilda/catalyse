@@ -45,9 +45,10 @@ Catalyse connects volunteers with projects, matching skills to needs and enablin
 ### Installation
 
 ```bash
-npm ci                   # install all dependencies
-npm run install:browsers # install Playwright browser
+npm run local-setup
 ```
+
+This installs dependencies, Playwright browsers, downloads the anonymised prod database, and runs migrations.
 
 ### Environment
 
@@ -99,17 +100,12 @@ npm run fetch-prod-db && npm run migrate
 Do **not** use `prisma migrate dev` — it checks for schema drift against the live DB and will fail. The correct workflow:
 
 1. Edit `prisma/schema.prisma`
-2. Generate the SQL:
+2. Generate the migration file:
    ```bash
-   npx prisma migrate diff \
-     --from-schema-datasource prisma/schema.prisma \
-     --to-schema-datamodel prisma/schema.prisma \
-     --script
+   npm run new-migration your_migration_name
    ```
-3. Create a new timestamped directory under `prisma/migrations/` and save the relevant SQL as `migration.sql`:
-   ```
-   prisma/migrations/YYYYMMDDHHMMSS_your_migration_name/migration.sql
-   ```
+   This creates `prisma/migrations/YYYYMMDDHHMMSS_your_migration_name/migration.sql` with the diff SQL.
+3. **Review the generated SQL** — the diff may include unrelated pending changes from other branches. Remove any statements not relevant to your change.
 4. Apply it:
    ```bash
    npm run migrate
@@ -118,8 +114,6 @@ Do **not** use `prisma migrate dev` — it checks for schema drift against the l
    ```bash
    npx prisma generate
    ```
-
-The `migrate diff` command compares the actual database against the schema model and outputs Prisma-authoritative SQL. Extract only the statements relevant to your change (the output may include unrelated pending changes from other branches).
 
 ## Testing
 
@@ -132,6 +126,39 @@ npm run test:ui        # Open Playwright UI mode
 ```
 
 Tests spin up an isolated Next.js server with a fresh database — your dev server doesn't need to be running.
+
+The `test:dev` variants skip the build and use a dev server instead. These are for interactive development only — do not use them to verify correctness, as they skip type checking and build validation.
+
+## Scripts Reference
+
+| Script             | Description                                                                                                                                     |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `local-setup`      | One-time local setup: install deps, browsers, fetch prod DB, run migrations                                                                     |
+| `issue <number>`   | Launch a sandboxed Claude session to work on a GitHub issue (creates branch, fetches issue, restricts CLI access). Usage: `npm run issue -- 84` |
+| `check-all`        | Run typecheck, lint, format check, and tests — use before committing                                                                            |
+| `dev`              | Start local dev server with Turbopack                                                                                                           |
+| `build`            | Generate Prisma client and run Next.js production build                                                                                         |
+| `start`            | Start production server (requires prior `build`)                                                                                                |
+| `typecheck`        | Run TypeScript type checking without emitting files                                                                                             |
+| `lint`             | Run ESLint                                                                                                                                      |
+| `lint:fix`         | Run ESLint with auto-fix                                                                                                                        |
+| `format`           | Format all files with Prettier                                                                                                                  |
+| `format:check`     | Check formatting without writing                                                                                                                |
+| `generate`         | Regenerate Prisma client and run post-generation script                                                                                         |
+| `build:railway`    | Production build entrypoint used by Railway CI                                                                                                  |
+| `new-migration`    | Create a new migration SQL file from schema diff                                                                                                |
+| `migrate`          | Apply pending migration files to the local database                                                                                             |
+| `fetch-prod-db`    | Download latest prod backup and anonymise PII for local use                                                                                     |
+| `install:browsers` | Install Playwright's Chromium browser                                                                                                           |
+| `test`             | Run all e2e tests (builds first, then spins up isolated servers)                                                                                |
+| `test:dev`         | Run e2e tests against a dev server — skips build, for interactive development only                                                              |
+| `test:log`         | Run tests and save full output to `test-output.txt`                                                                                             |
+| `test:headed`      | Run tests with a visible browser, single worker                                                                                                 |
+| `test:ui`          | Open Playwright UI mode for interactive test debugging                                                                                          |
+| `cron:backup`      | Run the database backup cron job                                                                                                                |
+| `demo`             | Run the demo data seeding script                                                                                                                |
+| `demo:snapshot`    | Take a snapshot of the current demo state                                                                                                       |
+| `demo:compare`     | Compare current demo state against snapshot                                                                                                     |
 
 ## Project Structure
 

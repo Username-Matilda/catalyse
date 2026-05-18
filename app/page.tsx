@@ -69,7 +69,7 @@ export default function ProjectsPage() {
 
   useEffect(() => {
     if (!user) return
-    if (user.is_admin) {
+    if (user.isAdmin) {
       apiRequest<Project[]>('/api/admin/triage')
         .then((list) => setPendingCount(list.length))
         .catch(() => {})
@@ -133,26 +133,26 @@ export default function ProjectsPage() {
   }
 
   function byMatchScore(a: Project, b: Project) {
-    const scoreA = a.match?.matched_required_count ?? 0
-    const scoreB = b.match?.matched_required_count ?? 0
+    const scoreA = a.match?.matchedRequiredCount ?? 0
+    const scoreB = b.match?.matchedRequiredCount ?? 0
     return scoreB - scoreA
   }
   const sortGroup = (list: Project[]) =>
     userSkillIds.size > 0 ? [...list].sort(byMatchScore) : list
 
-  const seeking = sortGroup(projects.filter((p) => p.is_seeking_help || p.is_seeking_owner))
+  const seeking = sortGroup(projects.filter((p) => p.isSeekingHelp || p.isSeekingOwner))
   const inProgress = sortGroup(
-    projects.filter((p) => !p.is_seeking_help && !p.is_seeking_owner && p.status === 'in_progress'),
+    projects.filter((p) => !p.isSeekingHelp && !p.isSeekingOwner && p.status === 'in_progress'),
   )
   const onHold = sortGroup(
-    projects.filter((p) => !p.is_seeking_help && !p.is_seeking_owner && p.status === 'on_hold'),
+    projects.filter((p) => !p.isSeekingHelp && !p.isSeekingOwner && p.status === 'on_hold'),
   )
   const completed = sortGroup(projects.filter((p) => p.status === 'completed'))
   const other = sortGroup(
     projects.filter(
       (p) =>
-        !p.is_seeking_help &&
-        !p.is_seeking_owner &&
+        !p.isSeekingHelp &&
+        !p.isSeekingOwner &&
         !['in_progress', 'on_hold', 'completed'].includes(p.status),
     ),
   )
@@ -196,7 +196,7 @@ export default function ProjectsPage() {
       <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
         <h1 role="heading">Projects</h1>
 
-        {user.is_admin && pendingCount > 0 && (
+        {user.isAdmin && pendingCount > 0 && (
           <div className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEF3C7] text-[#92400E] border border-[#FCD34D] dark:bg-[#78350F] dark:text-[#FDE68A] dark:border-[#D97706]">
             <strong>
               {pendingCount} project{pendingCount !== 1 ? 's' : ''} pending review.
@@ -206,7 +206,7 @@ export default function ProjectsPage() {
             </Link>
           </div>
         )}
-        {user.is_admin && pendingApplicationsCount > 0 && (
+        {user.isAdmin && pendingApplicationsCount > 0 && (
           <div className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#EDE9FE] text-[#5B21B6] border border-[#C4B5FD] dark:bg-[#2E1065] dark:text-[#C4B5FD] dark:border-[#7C3AED]">
             <strong>
               {pendingApplicationsCount} application{pendingApplicationsCount !== 1 ? 's' : ''}{' '}

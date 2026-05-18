@@ -40,8 +40,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const subject = (body.subject as string).trim()
   const message = body.message as string
-  const relatedProjectId =
-    typeof body.related_project_id === 'number' ? body.related_project_id : null
+  const relatedProjectId = typeof body.relatedProjectId === 'number' ? body.relatedProjectId : null
 
   const recipient = await prisma.volunteer.findFirst({
     where: { id: recipientId, deletedAt: null, consentContactableByProjectOwners: true },

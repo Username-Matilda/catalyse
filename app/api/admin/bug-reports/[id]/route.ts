@@ -34,8 +34,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     }
   }
 
-  if (body.resolution_notes !== undefined) {
-    data.resolutionNotes = body.resolution_notes as string | null
+  if (body.resolutionNotes !== undefined) {
+    data.resolutionNotes = body.resolutionNotes as string | null
   }
 
   if (Object.keys(data).length > 0) {

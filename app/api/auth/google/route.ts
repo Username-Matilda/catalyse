@@ -14,11 +14,11 @@ async function verifyGoogleToken(credential: string) {
     if (!resp.ok) return null
     const data = (await resp.json()) as Record<string, string>
     if (data.aud !== GOOGLE_CLIENT_ID) {
-      console.log(`[GOOGLE_AUTH] Token audience mismatch: ${data.aud}`)
+      console.error(`[GOOGLE_AUTH] Token audience mismatch: ${data.aud}`)
       return null
     }
     if (data.email_verified !== 'true') {
-      console.log(`[GOOGLE_AUTH] Email not verified: ${data.email}`)
+      console.error(`[GOOGLE_AUTH] Email not verified: ${data.email}`)
       return null
     }
     return {

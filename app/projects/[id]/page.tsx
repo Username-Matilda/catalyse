@@ -14,42 +14,42 @@ import { useToast } from '@/lib/toast'
 interface Skill {
   id: number
   name: string
-  category_name: string
-  is_required: boolean | null
+  categoryName: string
+  isRequired: boolean | null
 }
 
 interface Task {
   id: number
   title: string
   status: string
-  assigned_to_id: number | null
-  assigned_to_name: string | null
+  assignedToId: number | null
+  assignedToName: string | null
 }
 
 interface Interest {
   id: number
-  volunteer_id: number
-  volunteer_name: string
-  volunteer_bio: string | null
-  volunteer_skills: Array<{ id: number; name: string }>
-  interest_type: string
+  volunteerId: number
+  volunteerName: string
+  volunteerBio: string | null
+  volunteerSkills: Array<{ id: number; name: string }>
+  interestType: string
   message: string | null
   status: string
-  response_message: string | null
+  responseMessage: string | null
 }
 
 interface MyInterest {
   id: number
-  interest_type: string
+  interestType: string
   status: string
-  response_message: string | null
+  responseMessage: string | null
 }
 
 interface Update {
   id: number
   content: string
-  author_name: string | null
-  created_at: string
+  authorName: string | null
+  createdAt: string
 }
 
 interface Volunteer {
@@ -58,11 +58,10 @@ interface Volunteer {
 }
 
 interface MatchScore {
-  required_matched: number
-  optional_matched: number
-  required_total: number
-  optional_total: number
-  overall_score: number
+  requiredMatchPercent: number
+  matchedRequiredCount: number
+  totalRequired: number
+  overallScore: number
 }
 
 interface ProjectDetail {
@@ -70,29 +69,29 @@ interface ProjectDetail {
   title: string
   description: string
   status: string
-  owner_id: number | null
+  ownerId: number | null
   owner: { id: number; name: string } | null
-  proposed_by_id: number | null
-  is_org_proposed: boolean | null
-  collaboration_link: string | null
-  is_seeking_help: boolean | null
-  is_seeking_owner: boolean | null
+  proposedById: number | null
+  isOrgProposed: boolean | null
+  collaborationLink: string | null
+  isSeekingHelp: boolean | null
+  isSeekingOwner: boolean | null
   outcome: string | null
-  outcome_notes: string | null
-  feedback_to_proposer: string | null
+  outcomeNotes: string | null
+  feedbackToProposer: string | null
   skills: Skill[]
   tasks: Task[]
   updates: Update[]
   interests: Interest[] | undefined
-  my_interest: MyInterest | null | undefined
+  myInterest: MyInterest | null | undefined
   match?: MatchScore
 }
 
 interface OwnerContact {
-  discord_handle?: string | null
-  signal_number?: string | null
-  whatsapp_number?: string | null
-  contact_preference?: string | null
+  discordHandle?: string | null
+  signalNumber?: string | null
+  whatsappNumber?: string | null
+  contactPreference?: string | null
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -221,7 +220,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   }, [user, loadProject])
 
   useEffect(() => {
-    if (!user?.is_admin || !project) return
+    if (!user?.isAdmin || !project) return
     apiRequest<{ volunteers: Volunteer[] }>('/api/volunteers?limit=100')
       .then((d) => setVolunteers(d.volunteers))
       .catch(() => {})
@@ -229,23 +228,23 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   // Fetch owner contact info when contact modal opens
   useEffect(() => {
-    if (!showContactModal || !project?.owner_id) return
-    apiRequest<OwnerContact>(`/api/volunteers/${project.owner_id}`)
+    if (!showContactModal || !project?.ownerId) return
+    apiRequest<OwnerContact>(`/api/volunteers/${project.ownerId}`)
       .then((v) => setOwnerContact(v))
       .catch(() => setOwnerContact(null))
-  }, [showContactModal, project?.owner_id])
+  }, [showContactModal, project?.ownerId])
 
   async function handleContactOwner(e: React.FormEvent) {
     e.preventDefault()
-    if (!project?.owner_id) return
+    if (!project?.ownerId) return
     setContactSubmitting(true)
     try {
-      await apiRequest(`/api/contact/${project.owner_id}`, {
+      await apiRequest(`/api/contact/${project.ownerId}`, {
         method: 'POST',
         body: JSON.stringify({
           subject: contactSubject.trim(),
           message: contactBody.trim(),
-          related_project_id: project.id,
+          relatedProjectId: project.id,
         }),
       })
       setShowContactModal(false)
@@ -274,13 +273,13 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   }
   if (!project) return null
 
-  const isOwner = project.owner_id != null && project.owner_id === user.id
-  const isAdmin = user.is_admin
+  const isOwner = project.ownerId !== null && project.ownerId === user.id
+  const isAdmin = user.isAdmin
   const isOwnerOrAdmin = isOwner || isAdmin
 
   const canSeeInterest =
     !isOwnerOrAdmin &&
-    (project.is_seeking_help || project.is_seeking_owner) &&
+    (project.isSeekingHelp || project.isSeekingOwner) &&
     !['completed', 'archived'].includes(project.status)
 
   const statusOptions = isAdmin ? [...OWNER_STATUSES, ...ADMIN_EXTRA_STATUSES] : OWNER_STATUSES
@@ -311,7 +310,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     try {
       await apiRequest(`/api/projects/${idParam}/tasks/${taskId}`, {
         method: 'PUT',
-        body: JSON.stringify({ status: 'assigned', assigned_to_id: user!.id }),
+        body: JSON.stringify({ status: 'assigned', assignedToId: user!.id }),
       })
       await loadProject()
       showToast('Task claimed!', 'success')
@@ -368,7 +367,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       await apiRequest(`/api/projects/${idParam}/interest`, {
         method: 'POST',
         body: JSON.stringify({
-          interest_type: interestType,
+          interestType,
           message: interestMessage.trim() || null,
         }),
       })
@@ -410,7 +409,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     try {
       await apiRequest(`/api/projects/${idParam}/interest/${interestId}`, {
         method: 'PUT',
-        body: JSON.stringify({ status: 'declined', response_message: msg || null }),
+        body: JSON.stringify({ status: 'declined', responseMessage: msg || null }),
       })
       await loadProject()
       showToast('Interest declined', 'success')
@@ -426,7 +425,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     try {
       await apiRequest(`/api/projects/${idParam}/assign`, {
         method: 'POST',
-        body: JSON.stringify({ volunteer_id: parseInt(assignTo, 10) }),
+        body: JSON.stringify({ volunteerId: parseInt(assignTo, 10) }),
       })
       await loadProject()
       showToast('Volunteer assigned!', 'success')
@@ -445,7 +444,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     try {
       await apiRequest(`/api/projects/${idParam}`, {
         method: 'PUT',
-        body: JSON.stringify({ owner_id: parseInt(transferTo, 10) }),
+        body: JSON.stringify({ ownerId: parseInt(transferTo, 10) }),
       })
       await loadProject()
       showToast('Ownership transferred!', 'success')
@@ -462,7 +461,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     try {
       await apiRequest(`/api/admin/projects/${idParam}/outcome`, {
         method: 'PUT',
-        body: JSON.stringify({ outcome: outcomeValue, outcome_notes: outcomeNotes.trim() || null }),
+        body: JSON.stringify({ outcome: outcomeValue, outcomeNotes: outcomeNotes.trim() || null }),
       })
       await loadProject()
       showToast('Outcome recorded!', 'success')
@@ -520,7 +519,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   const hasDirectContact =
     ownerContact &&
-    (ownerContact.discord_handle || ownerContact.signal_number || ownerContact.whatsapp_number)
+    (ownerContact.discordHandle || ownerContact.signalNumber || ownerContact.whatsappNumber)
 
   return (
     <>
@@ -541,9 +540,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           {project.title}
         </h1>
 
-        {project.feedback_to_proposer && (
+        {project.feedbackToProposer && (
           <div className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEF3C7] text-[#92400E] border border-[#FCD34D] dark:bg-[#78350F] dark:text-[#FDE68A] dark:border-[#D97706]">
-            <strong>Feedback from review:</strong> {project.feedback_to_proposer}
+            <strong>Feedback from review:</strong> {project.feedbackToProposer}
           </div>
         )}
 
@@ -559,13 +558,13 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   <span
                     key={s.id}
                     className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                      s.is_required
+                      s.isRequired
                         ? 'bg-secondary text-white dark:bg-[#4B5563]'
                         : 'bg-accent text-secondary-dark dark:bg-[#374151] dark:text-[#D1D5DB]'
                     }`}
                   >
                     {s.name}
-                    {s.is_required ? ' *' : ''}
+                    {s.isRequired ? ' *' : ''}
                   </span>
                 ))}
               </div>
@@ -574,11 +573,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           )}
 
           {/* Match score */}
-          {!isOwner && project.match && project.match.overall_score > 0 && (
+          {!isOwner && project.match && project.match.overallScore > 0 && (
             <div className="mt-3 flex items-center gap-2">
               <span className="text-sm text-text-light">Your skill match:</span>
               <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-[#D1FAE5] text-[#065F46] dark:bg-[#064E3B] dark:text-[#6EE7B7]">
-                {project.match.overall_score}%
+                {project.match.overallScore}%
               </span>
             </div>
           )}
@@ -592,7 +591,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             </p>
           )}
 
-          {project.owner_id && !isOwner && !isAdmin && (
+          {project.ownerId && !isOwner && !isAdmin && (
             <Button
               variant="secondary"
               size="sm"
@@ -603,10 +602,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             </Button>
           )}
 
-          {project.collaboration_link && (
+          {project.collaborationLink && (
             <p className="mt-2 text-sm">
               <a
-                href={project.collaboration_link}
+                href={project.collaborationLink}
                 target="_blank"
                 rel="noopener noreferrer"
                 role="link"
@@ -634,7 +633,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   : project.outcome === 'ongoing'
                     ? 'Ongoing'
                     : project.outcome}
-            {project.outcome_notes && <p className="mt-1 text-sm">{project.outcome_notes}</p>}
+            {project.outcomeNotes && <p className="mt-1 text-sm">{project.outcomeNotes}</p>}
           </div>
         )}
 
@@ -642,7 +641,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         {canSeeInterest && (
           <div className={card}>
             <h2>Interested in this project?</h2>
-            {!project.my_interest ? (
+            {!project.myInterest ? (
               <form onSubmit={handleExpressInterest}>
                 <div className="mb-5">
                   <label
@@ -691,13 +690,13 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 <p>
                   Your interest status:{' '}
                   <span aria-label="interest status" className="font-semibold">
-                    {project.my_interest.status}
+                    {project.myInterest.status}
                   </span>
                 </p>
-                {project.my_interest.response_message && (
-                  <p className="text-text-light text-sm">{project.my_interest.response_message}</p>
+                {project.myInterest.responseMessage && (
+                  <p className="text-text-light text-sm">{project.myInterest.responseMessage}</p>
                 )}
-                {project.my_interest.status === 'pending' && (
+                {project.myInterest.status === 'pending' && (
                   <Button variant="secondary" className="mt-2" onClick={handleWithdrawInterest}>
                     Withdraw Interest
                   </Button>
@@ -758,15 +757,15 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   {task.status === 'done' && (
                     <span className="text-success text-sm font-semibold">done</span>
                   )}
-                  {task.assigned_to_name && task.status !== 'done' && (
-                    <span className="text-text-light text-sm">→ {task.assigned_to_name}</span>
+                  {task.assignedToName && task.status !== 'done' && (
+                    <span className="text-text-light text-sm">→ {task.assignedToName}</span>
                   )}
                   {task.status === 'open' && (
                     <Button variant="secondary" size="sm" onClick={() => handleClaimTask(task.id)}>
                       Claim
                     </Button>
                   )}
-                  {task.status === 'assigned' && task.assigned_to_id === user.id && (
+                  {task.status === 'assigned' && task.assignedToId === user.id && (
                     <Button variant="secondary" size="sm" onClick={() => handleDoneTask(task.id)}>
                       Done
                     </Button>
@@ -821,9 +820,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   >
                     <div className="flex justify-between items-start flex-wrap gap-2">
                       <div>
-                        <strong>{interest.volunteer_name}</strong>
+                        <strong>{interest.volunteerName}</strong>
                         <span className="ml-2 text-text-light text-sm">
-                          {interest.interest_type === 'want_to_own'
+                          {interest.interestType === 'want_to_own'
                             ? 'wants to own'
                             : 'wants to help'}
                         </span>
@@ -1025,7 +1024,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 <li key={u.id} className="py-3 border-b border-brand-border last:border-0">
                   <p className="m-0 mb-1">{u.content}</p>
                   <span className="text-xs text-text-light">
-                    {u.author_name} · {new Date(u.created_at).toLocaleDateString()}
+                    {u.authorName} · {new Date(u.createdAt).toLocaleDateString()}
                   </span>
                 </li>
               ))}
@@ -1065,22 +1064,22 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 <div className="mb-5">
                   <p className="text-sm font-medium mb-2">Contact directly:</p>
                   <div className="flex flex-col gap-2">
-                    {ownerContact!.discord_handle && (
+                    {ownerContact!.discordHandle && (
                       <div className="flex items-center gap-2 text-sm">
                         <span className="text-text-light">Discord:</span>
-                        <span className="font-medium">{ownerContact!.discord_handle}</span>
+                        <span className="font-medium">{ownerContact!.discordHandle}</span>
                       </div>
                     )}
-                    {ownerContact!.signal_number && (
+                    {ownerContact!.signalNumber && (
                       <div className="flex items-center gap-2 text-sm">
                         <span className="text-text-light">Signal:</span>
-                        <span className="font-medium">{ownerContact!.signal_number}</span>
+                        <span className="font-medium">{ownerContact!.signalNumber}</span>
                       </div>
                     )}
-                    {ownerContact!.whatsapp_number && (
+                    {ownerContact!.whatsappNumber && (
                       <div className="flex items-center gap-2 text-sm">
                         <span className="text-text-light">WhatsApp:</span>
-                        <span className="font-medium">{ownerContact!.whatsapp_number}</span>
+                        <span className="font-medium">{ownerContact!.whatsappNumber}</span>
                       </div>
                     )}
                   </div>

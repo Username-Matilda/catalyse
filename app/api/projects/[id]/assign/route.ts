@@ -37,11 +37,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return Response.json({ detail: 'Invalid JSON' }, { status: 400 })
   }
 
-  const volunteerId = body.volunteer_id as number
-  const interestType = (body.interest_type as string) || 'want_to_contribute'
+  const volunteerId = body.volunteerId as number
+  const interestType = (body.interestType as string) || 'want_to_contribute'
 
   if (!volunteerId) {
-    return Response.json({ detail: 'volunteer_id is required' }, { status: 400 })
+    return Response.json({ detail: 'volunteerId is required' }, { status: 400 })
   }
 
   const existing = await prisma.projectInterest.findFirst({
