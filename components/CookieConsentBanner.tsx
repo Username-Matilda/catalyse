@@ -65,7 +65,8 @@ export default function CookieConsentBanner() {
       )}
 
       {resolved && consent === null && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-[var(--border)] bg-[var(--surface)] p-4 shadow-lg sm:flex sm:items-center sm:justify-between sm:gap-4">
+        {/* xl:pr-40 avoids overlap with the FloatingActions button group (fixed bottom-6 right-6) */}
+        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-[var(--border)] bg-[var(--surface)] p-4 shadow-lg sm:flex sm:items-center sm:justify-between sm:gap-4 xl:pr-40">
           <p className="text-sm text-[var(--text-light)]">
             We use Google Analytics to understand how the site is used. You can decline and it won&apos;t load.{' '}
             <a href="/privacy" className="underline">
