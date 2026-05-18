@@ -59,6 +59,7 @@ export function serializeVolunteer(
     consentContactableByProjectOwners: vol.consentContactableByProjectOwners,
     consentShareContactInfoWithProjectOwner: vol.consentShareContactInfoWithProjectOwner,
     consentGivenAt: vol.consentGivenAt,
+    cookieConsentAnalytics: vol.cookieConsentAnalytics ?? null,
     isAdmin: vol.isAdmin,
     isSuperAdmin: isSuperAdmin(vol.email as string | null | undefined),
     approvalStatus: vol.approvalStatus,

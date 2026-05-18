@@ -19,7 +19,7 @@ export default function Footer() {
   }, [])
 
   return (
-    <footer className="border-t border-brand-border mt-auto py-6 text-sm text-muted">
+    <footer className="border-t border-brand-border mt-auto py-6 text-sm text-muted xl:h-16 xl:py-0 xl:flex xl:items-center">
       <div className="container flex flex-wrap justify-center gap-x-6 gap-y-1">
         <Link href="/privacy" className="underline hover:text-foreground transition-colors">
           Privacy &amp; Data

@@ -3,9 +3,11 @@ import { Montserrat, Roboto_Slab, Saira_Condensed } from 'next/font/google'
 import { AuthProvider } from '@/lib/auth-context'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { ToastProvider } from '@/lib/toast'
+import { CookieConsentProvider } from '@/lib/cookie-consent-context'
 import FloatingActions from '@/components/FloatingActions'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import CookieConsentBanner from '@/components/CookieConsentBanner'
 import Script from 'next/script'
 import './globals.css'
 
@@ -56,10 +58,13 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>
             <ToastProvider>
-              <Header />
-              {children}
-              <Footer />
-              <FloatingActions />
+              <CookieConsentProvider>
+                <Header />
+                {children}
+                <Footer />
+                <FloatingActions />
+                <CookieConsentBanner />
+              </CookieConsentProvider>
             </ToastProvider>
           </AuthProvider>
         </ThemeProvider>
