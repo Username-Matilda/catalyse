@@ -5,14 +5,16 @@ import { ThemeToggle } from './ThemeToggle'
 import BugReportDialog from './BugReportDialog'
 import Button from '@/components/Button'
 import { useToast } from '@/lib/toast'
+import { useCookieConsent } from '@/lib/cookie-consent-context'
 
 export default function FloatingActions() {
   const [bugDialogOpen, setBugDialogOpen] = useState(false)
   const toast = useToast()
+  const { bannerVisible } = useCookieConsent()
 
   return (
     <>
-      <div className="fixed bottom-6 right-6 z-[200] hidden xl:flex items-center bg-surface border border-brand-border rounded-[var(--radius)] shadow-lg overflow-hidden">
+      <div className={`fixed right-6 z-[200] hidden xl:flex items-center bg-surface border border-brand-border rounded-[var(--radius)] shadow-lg overflow-hidden ${bannerVisible ? 'bottom-20' : 'bottom-6'}`}>
         <ThemeToggle icon={false} className="rounded-none self-stretch" />
         {process.env.NODE_ENV === 'development' && (
           <>

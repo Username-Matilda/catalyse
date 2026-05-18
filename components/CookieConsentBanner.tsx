@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Script from 'next/script'
 import { useAuth } from '@/lib/auth-context'
+import { useCookieConsent } from '@/lib/cookie-consent-context'
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID
 
@@ -10,6 +11,7 @@ type ConsentState = boolean | null
 
 export default function CookieConsentBanner() {
   const { user, token, loading } = useAuth()
+  const { setBannerVisible } = useCookieConsent()
   const [consent, setConsent] = useState<ConsentState>(null)
   const [resolved, setResolved] = useState(false)
 
@@ -33,6 +35,10 @@ export default function CookieConsentBanner() {
 
     setResolved(true)
   }, [loading, user])
+
+  useEffect(() => {
+    setBannerVisible(resolved && consent === null)
+  }, [resolved, consent, setBannerVisible])
 
   async function saveConsent(value: boolean) {
     localStorage.setItem('cookieConsent', String(value))
@@ -65,7 +71,7 @@ export default function CookieConsentBanner() {
       )}
 
       {resolved && consent === null && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-[var(--border)] bg-[var(--surface)] p-4 shadow-lg sm:flex sm:items-center sm:justify-between sm:gap-4 xl:pr-40">{/* xl:pr-40 avoids overlap with the FloatingActions button group (fixed bottom-6 right-6) */}
+        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-[var(--border)] bg-[var(--surface)] p-4 shadow-lg sm:flex sm:items-center sm:justify-between sm:gap-4">
           <p className="text-sm text-[var(--text-light)]">
             We use Google Analytics to understand how the site is used. You can decline and it won&apos;t load.{' '}
             <a href="/privacy" className="underline">
