@@ -1,9 +1,7 @@
-import { NextRequest } from 'next/server'
-
 const store = new Map<string, number[]>()
 const DISABLED = ['1', 'true', 'yes'].includes((process.env.DISABLE_RATE_LIMIT ?? '').toLowerCase())
 
-function getClientIp(request: NextRequest): string {
+function getClientIp(request: Request): string {
   return (
     request.headers.get('x-forwarded-for')?.split(',')[0].trim() ??
     request.headers.get('x-real-ip') ??
@@ -12,7 +10,7 @@ function getClientIp(request: NextRequest): string {
 }
 
 export function checkRateLimit(
-  request: NextRequest,
+  request: Request,
   route: string,
   config: { limit: number; windowMs: number },
 ): { allowed: boolean; retryAfterMs: number } {

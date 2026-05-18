@@ -1,4 +1,3 @@
-import { os } from '@orpc/server'
 import { authRouter } from './routers/auth'
 import { skillsRouter } from './routers/skills'
 import { projectsRouter } from './routers/projects'
@@ -29,7 +28,7 @@ import { adminTriageRouter } from './routers/admin/triage'
 import { adminInterestsRouter } from './routers/admin/interests'
 import { adminEmailPreviewRouter } from './routers/admin/emailPreview'
 
-export const appRouter = os.router({
+export const appRouter = {
   auth: authRouter,
   skills: skillsRouter,
   projects: projectsRouter,
@@ -45,7 +44,7 @@ export const appRouter = os.router({
   privacy: privacyRouter,
   health: healthRouter,
   contact: contactRouter,
-  admin: os.router({
+  admin: {
     applications: adminApplicationsRouter,
     volunteers: adminVolunteersRouter,
     notes: adminNotesRouter,
@@ -60,7 +59,7 @@ export const appRouter = os.router({
     triage: adminTriageRouter,
     interests: adminInterestsRouter,
     emailPreview: adminEmailPreviewRouter,
-  }),
-})
+  },
+}
 
 export type AppRouter = typeof appRouter

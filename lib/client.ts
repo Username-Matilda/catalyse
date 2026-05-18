@@ -1,6 +1,7 @@
 import { createORPCClient } from '@orpc/client'
 import { RPCLink } from '@orpc/client/fetch'
-import type { AppRouter } from '@/server/router'
+import type { RouterClient } from '@orpc/server'
+import type { appRouter } from '@/server/router'
 
 const link = new RPCLink({
   url: '/api',
@@ -10,4 +11,4 @@ const link = new RPCLink({
   },
 })
 
-export const client = createORPCClient<AppRouter>(link)
+export const client = createORPCClient<RouterClient<typeof appRouter>>(link)
