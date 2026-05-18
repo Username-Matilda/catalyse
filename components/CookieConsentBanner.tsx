@@ -72,7 +72,7 @@ export default function CookieConsentBanner() {
       )}
 
       {resolved && consent === null && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-[var(--border)] bg-[var(--surface)] p-4 shadow-lg sm:flex sm:items-center sm:justify-between sm:gap-4">
+        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-[var(--border)] bg-[var(--surface)] p-4 shadow-lg sm:flex sm:items-center sm:justify-between sm:gap-4 xl:h-16 xl:py-0 xl:px-4">
           <p className="text-sm text-[var(--text-light)]">
             We use Google Analytics to understand how the site is used. You can decline and it won&apos;t load.{' '}
             <a href="/privacy" className="underline">
@@ -81,7 +81,7 @@ export default function CookieConsentBanner() {
             .
           </p>
           <div className="mt-3 flex gap-2 sm:mt-0 sm:shrink-0">
-            <Button variant="ghost" size="sm" onClick={() => saveConsent(false)}>
+            <Button variant="outline" size="sm" onClick={() => saveConsent(false)}>
               Decline
             </Button>
             <Button variant="primary" size="sm" onClick={() => saveConsent(true)}>
