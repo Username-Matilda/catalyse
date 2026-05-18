@@ -17,8 +17,8 @@ export default function CookieConsentBanner() {
     if (loading) return
 
     if (user) {
-      if (user.cookie_consent_analytics !== null) {
-        setConsent(user.cookie_consent_analytics)
+      if (user.cookieConsentAnalytics !== null) {
+        setConsent(user.cookieConsentAnalytics)
         setResolved(true)
         return
       }
