@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Script from 'next/script'
 import { useAuth } from '@/lib/auth-context'
 import { useCookieConsent } from '@/lib/cookie-consent-context'
+import Button from '@/components/Button'
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID
 
@@ -80,18 +81,12 @@ export default function CookieConsentBanner() {
             .
           </p>
           <div className="mt-3 flex gap-2 sm:mt-0 sm:shrink-0">
-            <button
-              onClick={() => saveConsent(false)}
-              className="rounded border border-[var(--border)] px-4 py-2 text-sm hover:bg-[var(--accent)]"
-            >
+            <Button variant="ghost" size="sm" onClick={() => saveConsent(false)}>
               Decline
-            </button>
-            <button
-              onClick={() => saveConsent(true)}
-              className="rounded bg-[var(--primary)] px-4 py-2 text-sm text-white hover:bg-[var(--primary-dark)]"
-            >
+            </Button>
+            <Button variant="primary" size="sm" onClick={() => saveConsent(true)}>
               Accept
-            </button>
+            </Button>
           </div>
         </div>
       )}
