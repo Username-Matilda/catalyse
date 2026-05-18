@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkCronAuth } from '@/lib/cron-auth'
-import { runApplicationsAnonymisationJob } from '@/lib/jobs/applications'
+import { runApplicationsAnonymisationJob } from '@/jobs/applications'
 
 // Can be triggered manually: POST with Authorization: Bearer <CRON_SECRET>
 export async function POST(request: NextRequest) {

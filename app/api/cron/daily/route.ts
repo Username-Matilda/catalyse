@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkCronAuth } from '@/lib/cron-auth'
-import { runBackupJob } from '@/lib/jobs/backup'
-import { runDigestJob } from '@/lib/jobs/digest'
-import { runNudgesJob } from '@/lib/jobs/nudges'
-import { runApplicationsSummaryJob, runApplicationsAnonymisationJob } from '@/lib/jobs/applications'
+import { runBackupJob } from '@/jobs/backup'
+import { runDigestJob } from '@/jobs/digest'
+import { runNudgesJob } from '@/jobs/nudges'
+import { runApplicationsSummaryJob, runApplicationsAnonymisationJob } from '@/jobs/applications'
 
 // Can be triggered manually: POST with Authorization: Bearer <CRON_SECRET>
 export async function POST(request: NextRequest) {
