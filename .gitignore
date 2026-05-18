@@ -22,7 +22,7 @@ next-env.d.ts
 *.tsbuildinfo
 
 # Generated from Prisma schema (prisma client + zod schemas)
-/app/generated
+/generated
 
 # Testing
 /coverage
