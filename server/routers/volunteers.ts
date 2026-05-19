@@ -232,6 +232,9 @@ export const volunteersRouter = {
       data.consentShareContactInfoWithProjectOwner = input.consentShareContactInfoWithProjectOwner
       if (input.consentShareContactInfoWithProjectOwner) data.consentGivenAt = new Date()
     }
+    if (Object.prototype.hasOwnProperty.call(input, 'cookieConsentAnalytics')) {
+      data.cookieConsentAnalytics = input.cookieConsentAnalytics ?? null
+    }
 
     const skillIds = input.skillIds
 

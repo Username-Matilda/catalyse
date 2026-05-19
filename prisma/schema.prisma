@@ -418,6 +418,7 @@ model Volunteer {
   consentContactableByProjectOwners       Boolean?             @default(false) @map("consent_contactable_by_project_owners")
   consentShareContactInfoWithProjectOwner Boolean?             @default(false) @map("consent_share_contact_info_with_project_owner")
   consentGivenAt                          DateTime?            @map("consent_given_at")
+  cookieConsentAnalytics                  Boolean?             @map("cookie_consent_analytics")
   /// @zod.custom.omit([model])
   authToken                               String?              @unique(map: "sqlite_autoindex_volunteers_2") @map("auth_token")
   /// @zod.custom.omit([model])

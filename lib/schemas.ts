@@ -306,5 +306,6 @@ export const UpdateVolunteerSchema = z.object({
   consentMakeProfileVisibleInDirectory: z.boolean().optional(),
   consentContactableByProjectOwners: z.boolean().optional(),
   consentShareContactInfoWithProjectOwner: z.boolean().optional(),
+  cookieConsentAnalytics: z.boolean().nullable().optional(),
   skillIds: z.array(z.number().int()).optional(),
 })

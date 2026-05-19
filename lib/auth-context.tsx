@@ -13,6 +13,7 @@ interface User {
   approvalStatus: string
   hasPassword: boolean
   emailDigest: string | null
+  cookieConsentAnalytics: boolean | null
   skills: Array<{ id: number; name: string }>
 }
 
@@ -37,14 +38,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   )
   const router = useRouter()
 
-  const fetchMe = useCallback(async () => {
+  const fetchMe = useCallback(async (): Promise<User | null> => {
     try {
       const data = await client.auth.me()
-      setUser(data as User)
+      const u = data as User
+      setUser(u)
+      return u
     } catch {
       localStorage.removeItem('authToken')
       setTokenState(null)
       setUser(null)
+      return null
     }
   }, [])
 
@@ -73,7 +77,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (t: string) => {
       localStorage.setItem('authToken', t)
       setTokenState(t)
-      await fetchMe()
+      const vol = await fetchMe()
+      if (vol && vol.cookieConsentAnalytics === null) {
+        const stored = localStorage.getItem('cookieConsent')
+        if (stored !== null) {
+          await client.volunteers
+            .updateMe({ cookieConsentAnalytics: stored === 'true' })
+            .catch(() => {})
+        }
+      }
     },
     [fetchMe],
   )
