@@ -8,6 +8,7 @@ import {
 } from '../fixtures'
 import { signup, login } from '../actions/auth'
 import { fake } from '../fake'
+import { createApiClient } from '../client'
 
 test.describe('Authentication: Signup & Login', () => {
   test('Visitor signs up successfully', async ({ browser, baseUrl }) => {
@@ -111,24 +112,23 @@ test.describe('Authentication: Signup & Login', () => {
   }) => {
     const person = fake.person()
 
-    const signupResp = await fetch(`${baseUrl}/api/auth/signup`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    const api = createApiClient(baseUrl)
+    const signupResult = await api.auth.signup({
+      body: {
         name: person.name,
         email: person.email,
         password: 'testpassword1',
-        application_message: 'I want to contribute to AI safety',
-        consent_make_profile_visible_in_directory: true,
-        consent_contactable_by_project_owners: true,
-      }),
+        applicationMessage: 'I want to contribute to AI safety',
+        consentMakeProfileVisibleInDirectory: true,
+        consentContactableByProjectOwners: true,
+      },
     })
-    expect(signupResp.ok).toBeTruthy()
-    const { pending, email_verification_token } = await signupResp.json()
+    expect(signupResult.status).toBe(200)
+    const { pending, emailVerificationToken } = signupResult.body
     expect(pending).toBe(true)
 
-    if (email_verification_token) {
-      await confirmVolunteerEmail(baseUrl, email_verification_token)
+    if (emailVerificationToken) {
+      await confirmVolunteerEmail(baseUrl, emailVerificationToken)
     }
 
     await adminPage.goto(`${baseUrl}/admin/applications`)
@@ -187,64 +187,50 @@ test.describe('Authentication: Signup & Login', () => {
 
   test('Resend invalidates old confirmation token', async ({ baseUrl }) => {
     const person = fake.person()
-    const signupResp = await fetch(`${baseUrl}/api/auth/signup`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    const api = createApiClient(baseUrl)
+    const signupResult = await api.auth.signup({
+      body: {
         name: person.name,
         email: person.email,
         password: 'testpassword1',
-        consent_make_profile_visible_in_directory: true,
-        consent_contactable_by_project_owners: true,
-      }),
+        consentMakeProfileVisibleInDirectory: true,
+        consentContactableByProjectOwners: true,
+      },
     })
-    expect(signupResp.ok).toBeTruthy()
-    const { email_verification_token: oldToken } = await signupResp.json()
+    expect(signupResult.status).toBe(200)
+    const { token: authToken, emailVerificationToken: oldToken } = signupResult.body
     expect(oldToken).toBeTruthy()
 
-    await fetch(`${baseUrl}/api/auth/resend-verification`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: person.email }),
-    })
+    const authedApi = createApiClient(baseUrl, authToken)
+    await authedApi.auth.resendVerification({ body: {} })
 
-    const verifyResp = await fetch(`${baseUrl}/api/auth/verify-email`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: oldToken }),
-    })
-    expect(verifyResp.status).toBe(400)
+    const verifyResult = await api.auth.verifyEmail({ body: { token: oldToken! } })
+    expect(verifyResult.status).toBe(400)
   })
 
   test('New token from resend confirms email successfully', async ({ baseUrl }) => {
     const person = fake.person()
-    await fetch(`${baseUrl}/api/auth/signup`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    const api = createApiClient(baseUrl)
+    const signupResult = await api.auth.signup({
+      body: {
         name: person.name,
         email: person.email,
         password: 'testpassword1',
-        consent_make_profile_visible_in_directory: true,
-        consent_contactable_by_project_owners: true,
-      }),
+        consentMakeProfileVisibleInDirectory: true,
+        consentContactableByProjectOwners: true,
+      },
     })
+    expect(signupResult.status).toBe(200)
+    const { token: authToken } = signupResult.body
 
-    const resendResp = await fetch(`${baseUrl}/api/auth/resend-verification`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: person.email }),
-    })
-    expect(resendResp.ok).toBeTruthy()
-    const { email_verification_token: newToken } = await resendResp.json()
+    const authedApi = createApiClient(baseUrl, authToken)
+    const resendResult = await authedApi.auth.resendVerification({ body: {} })
+    expect(resendResult.status).toBe(200)
+    const { emailVerificationToken: newToken } = resendResult.body
     expect(newToken).toBeTruthy()
 
-    const verifyResp = await fetch(`${baseUrl}/api/auth/verify-email`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: newToken }),
-    })
-    expect(verifyResp.ok).toBeTruthy()
+    const verifyResult = await api.auth.verifyEmail({ body: { token: newToken! } })
+    expect(verifyResult.status).toBe(200)
   })
 
   test('Admin can start review; application moves to Under Review tab', async ({
@@ -252,16 +238,14 @@ test.describe('Authentication: Signup & Login', () => {
     baseUrl,
   }) => {
     const person = fake.person()
-    await fetch(`${baseUrl}/api/auth/signup`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    await createApiClient(baseUrl).auth.signup({
+      body: {
         name: person.name,
         email: person.email,
         password: 'testpassword1',
-        consent_make_profile_visible_in_directory: true,
-        consent_contactable_by_project_owners: true,
-      }),
+        consentMakeProfileVisibleInDirectory: true,
+        consentContactableByProjectOwners: true,
+      },
     })
 
     await adminPage.goto(`${baseUrl}/admin/applications`)
@@ -298,16 +282,14 @@ test.describe('Authentication: Signup & Login', () => {
     baseUrl,
   }) => {
     const person = fake.person()
-    await fetch(`${baseUrl}/api/auth/signup`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    await createApiClient(baseUrl).auth.signup({
+      body: {
         name: person.name,
         email: person.email,
         password: 'testpassword1',
-        consent_make_profile_visible_in_directory: true,
-        consent_contactable_by_project_owners: true,
-      }),
+        consentMakeProfileVisibleInDirectory: true,
+        consentContactableByProjectOwners: true,
+      },
     })
 
     await adminPage.goto(`${baseUrl}/admin/applications`)
@@ -346,18 +328,17 @@ test.describe('Authentication: Signup & Login', () => {
 
   test('Rejected application shows anonymisation countdown', async ({ adminPage, baseUrl }) => {
     const person = fake.person()
-    const signupResp = await fetch(`${baseUrl}/api/auth/signup`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    const signupResult = await createApiClient(baseUrl).auth.signup({
+      body: {
         name: person.name,
         email: person.email,
         password: 'testpassword1',
-        consent_make_profile_visible_in_directory: true,
-        consent_contactable_by_project_owners: true,
-      }),
+        consentMakeProfileVisibleInDirectory: true,
+        consentContactableByProjectOwners: true,
+      },
     })
-    const { id: volunteerId } = await signupResp.json()
+    expect(signupResult.status).toBe(200)
+    const { id: volunteerId } = signupResult.body
 
     // Reject via API using the same helper pattern as approveVolunteer
     await rejectVolunteer(baseUrl, volunteerId, 'Test rejection')
@@ -376,31 +357,26 @@ test.describe('Authentication: Signup & Login', () => {
 
   test('Admin approved before email confirmation; verify-email succeeds', async ({ baseUrl }) => {
     const person = fake.person()
-    const signupResp = await fetch(`${baseUrl}/api/auth/signup`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    const api = createApiClient(baseUrl)
+    const signupResult = await api.auth.signup({
+      body: {
         name: person.name,
         email: person.email,
         password: 'testpassword1',
-        consent_make_profile_visible_in_directory: true,
-        consent_contactable_by_project_owners: true,
-      }),
+        consentMakeProfileVisibleInDirectory: true,
+        consentContactableByProjectOwners: true,
+      },
     })
-    expect(signupResp.ok).toBeTruthy()
-    const { id: volunteerId, email_verification_token } = await signupResp.json()
-    expect(email_verification_token).toBeTruthy()
+    expect(signupResult.status).toBe(200)
+    const { id: volunteerId, emailVerificationToken } = signupResult.body
+    expect(emailVerificationToken).toBeTruthy()
 
     // Admin approves before user confirms email
     await approveVolunteer(baseUrl, volunteerId)
 
     // User then confirms email — should still succeed
-    const verifyResp = await fetch(`${baseUrl}/api/auth/verify-email`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: email_verification_token }),
-    })
-    expect(verifyResp.ok).toBeTruthy()
+    const verifyResult = await api.auth.verifyEmail({ body: { token: emailVerificationToken! } })
+    expect(verifyResult.status).toBe(200)
   })
 
   test.skip('Re-applicant shows full prior rejection history on admin card', async () => {

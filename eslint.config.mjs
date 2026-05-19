@@ -22,20 +22,6 @@ const eslintConfig = defineConfig([
       'no-console': ['warn', { allow: ['warn', 'error'] }],
     },
   },
-  {
-    files: ['app/api/**/route.ts'],
-    ignores: ['app/api/cron/**'],
-    rules: {
-      'no-restricted-syntax': [
-        'error',
-        {
-          selector: 'ExportNamedDeclaration > FunctionDeclaration[async=true]',
-          message:
-            'Use createAppRouteHandler from @/lib/ts-rest-app-router — plain exported async functions bypass the contract.',
-        },
-      ],
-    },
-  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

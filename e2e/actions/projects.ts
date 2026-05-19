@@ -46,13 +46,11 @@ export async function proposeProject(
   // Ideally we'd extract the project ID from the dashboard UI after redirect, but that
   // races against the async render. Intercepting the API response is more reliable for now.
   const [response] = await Promise.all([
-    page.waitForResponse(
-      (resp) => resp.url().includes('/api/projects') && resp.request().method() === 'POST',
-    ),
+    page.waitForResponse((resp) => resp.url().includes('/api/rpc/projects/create')),
     page.getByRole('button', { name: 'Submit Project Proposal' }).click(),
   ])
   if (!response.ok()) throw new Error(`Project creation failed: ${await response.text()}`)
-  const { id } = await response.json()
+  const { id } = (await response.json()).json as { id: number }
   await page.waitForURL(`${baseUrl}/dashboard**`, { timeout: 15_000 })
   return id
 }

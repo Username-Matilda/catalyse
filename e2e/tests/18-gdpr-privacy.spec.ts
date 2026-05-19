@@ -3,6 +3,7 @@ import { test, expect, getAlert, approveVolunteer } from '../fixtures'
 import { fake } from '../fake'
 import { createSkill } from '../actions/skills'
 import { adminCreateProject, transferProjectOwnership } from '../actions/projects'
+import { createApiClient } from '../client'
 
 test.describe('GDPR & Privacy', () => {
   test('Volunteer exports their personal data', async ({
@@ -43,27 +44,26 @@ test.describe('GDPR & Privacy', () => {
       'GDPR test seeking-help project',
     )
     await volunteer.page.goto(`${baseUrl}/projects/${seekingProjectId}`)
-    await expect(
-      volunteer.page.getByRole('button', { name: 'Express Interest' }),
-    ).toBeVisible({ timeout: 10_000 })
+    await expect(volunteer.page.getByRole('button', { name: 'Express Interest' })).toBeVisible({
+      timeout: 10_000,
+    })
     await volunteer.page.getByRole('button', { name: 'Express Interest' }).click()
     await expect(getAlert(volunteer.page)).toContainText('Interest expressed!', { timeout: 10_000 })
 
     // Sign up a second volunteer (vol2) — used as owner for the contact project and as the inbound sender
     const vol2 = fake.person()
-    const vol2SignupResp = await fetch(`${baseUrl}/api/auth/signup`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    const vol2SignupResult = await createApiClient(baseUrl).auth.signup({
+      body: {
         name: vol2.name,
         email: vol2.email,
         password: 'testpassword1',
-        consent_make_profile_visible_in_directory: true,
-        consent_contactable_by_project_owners: true,
-      }),
+        consentMakeProfileVisibleInDirectory: true,
+        consentContactableByProjectOwners: true,
+      },
     })
-    if (!vol2SignupResp.ok) throw new Error(`vol2 signup failed: ${await vol2SignupResp.text()}`)
-    const { id: vol2Id, auth_token: vol2Token } = await vol2SignupResp.json()
+    if (vol2SignupResult.status !== 200)
+      throw new Error(`vol2 signup failed: ${JSON.stringify(vol2SignupResult.body)}`)
+    const { id: vol2Id, token: vol2Token } = vol2SignupResult.body
     await approveVolunteer(baseUrl, vol2Id)
 
     // Admin creates a project and transfers ownership to vol2 so it has a contactable owner
@@ -77,9 +77,9 @@ test.describe('GDPR & Privacy', () => {
 
     // Volunteer contacts vol2 on that project — creates a messagesSent record
     await volunteer.page.goto(`${baseUrl}/projects/${contactProjectId}`)
-    await expect(
-      volunteer.page.getByRole('button', { name: 'Contact Owner' }),
-    ).toBeVisible({ timeout: 10_000 })
+    await expect(volunteer.page.getByRole('button', { name: 'Contact Owner' })).toBeVisible({
+      timeout: 10_000,
+    })
     await volunteer.page.getByRole('button', { name: 'Contact Owner' }).click()
     const outboundDialog = volunteer.page.getByRole('dialog')
     await expect(outboundDialog.getByLabel('Subject')).toBeVisible({ timeout: 10_000 })
@@ -145,19 +145,18 @@ test.describe('GDPR & Privacy', () => {
     const signalNumber = fake.phoneNumber()
     const whatsappNumber = fake.phoneNumber()
 
-    const signupResp = await fetch(`${baseUrl}/api/auth/signup`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    const signupResult = await createApiClient(baseUrl).auth.signup({
+      body: {
         name: vol2.name,
         email: vol2.email,
         password: 'testpassword1',
-        consent_make_profile_visible_in_directory: true,
-        consent_contactable_by_project_owners: true,
-      }),
+        consentMakeProfileVisibleInDirectory: true,
+        consentContactableByProjectOwners: true,
+      },
     })
-    if (!signupResp.ok) throw new Error(`vol2 signup failed: ${await signupResp.text()}`)
-    const { id: vol2Id, auth_token: vol2Token } = await signupResp.json()
+    if (signupResult.status !== 200)
+      throw new Error(`vol2 signup failed: ${JSON.stringify(signupResult.body)}`)
+    const { id: vol2Id, token: vol2Token } = signupResult.body
     await approveVolunteer(baseUrl, vol2Id)
     const ctx2 = await browser.newContext()
     await ctx2.addInitScript((token: string) => {

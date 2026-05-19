@@ -2,15 +2,13 @@ import { test, expect, getAlert } from '../fixtures'
 import { Page } from '@playwright/test'
 import { fake } from '../fake'
 import { selectFilterDropdown } from '../actions/ui'
+import { createApiClient } from '../client'
 
-async function getVolunteerId(page: Page): Promise<number> {
-  return page.evaluate(async () => {
-    const token = localStorage.getItem('authToken')
-    const resp = await fetch('/api/auth/me', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    return (await resp.json()).id
-  })
+async function getVolunteerId(page: Page, baseUrl: string): Promise<number> {
+  const token = await page.evaluate(() => localStorage.getItem('authToken'))
+  const api = createApiClient(baseUrl, token)
+  const result = await api.auth.me()
+  return (result.body as { id: number }).id
 }
 
 async function setCheckbox(page: Page, id: string, checked: boolean) {
@@ -36,7 +34,7 @@ test.describe('Volunteer Profile', () => {
     await expect(getAlert(volunteer.page)).toBeVisible({ timeout: 10_000 })
     await expect(getAlert(volunteer.page)).toContainText('Profile updated!')
 
-    const volunteerId = await getVolunteerId(volunteer.page)
+    const volunteerId = await getVolunteerId(volunteer.page, baseUrl)
     await volunteer.page.goto(`${baseUrl}/volunteers/${volunteerId}`)
     await expect(volunteer.page.locator('#profileContent')).toBeVisible({ timeout: 10_000 })
     await expect(volunteer.page.locator('#volunteerName')).toContainText(uniqueName)
@@ -54,7 +52,7 @@ test.describe('Volunteer Profile', () => {
     await expect(getAlert(volunteer.page)).toBeVisible({ timeout: 10_000 })
     await expect(getAlert(volunteer.page)).toContainText('Profile updated!')
 
-    const volunteerId = await getVolunteerId(volunteer.page)
+    const volunteerId = await getVolunteerId(volunteer.page, baseUrl)
     await volunteer.page.goto(`${baseUrl}/volunteers/${volunteerId}`)
     await expect(volunteer.page.locator('#profileContent')).toBeVisible({ timeout: 10_000 })
     await expect(volunteer.page.locator('#volunteerSkills')).toContainText('Fundraising')
@@ -165,20 +163,18 @@ test.describe('Volunteer Profile', () => {
   }) => {
     const vol2 = fake.person()
 
-    const signupResp = await fetch(`${baseUrl}/api/auth/signup`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    const signupResult = await createApiClient(baseUrl).auth.signup({
+      body: {
         name: vol2.name,
         email: vol2.email,
         password: 'testpassword1',
-        consent_make_profile_visible_in_directory: true,
-        consent_contactable_by_project_owners: true,
-      }),
+        consentMakeProfileVisibleInDirectory: true,
+        consentContactableByProjectOwners: true,
+      },
     })
-    if (!signupResp.ok)
-      throw new Error(`Second volunteer signup failed: ${await signupResp.text()}`)
-    const { auth_token: vol2Token } = await signupResp.json()
+    if (signupResult.status !== 200)
+      throw new Error(`Second volunteer signup failed: ${JSON.stringify(signupResult.body)}`)
+    const { token: vol2Token } = signupResult.body
 
     const ctx2 = await browser.newContext()
     await ctx2.addInitScript((token: string) => {
@@ -196,7 +192,7 @@ test.describe('Volunteer Profile', () => {
       await page2.getByRole('button', { name: 'Save Changes' }).click()
       await expect(getAlert(page2)).toBeVisible({ timeout: 10_000 })
 
-      const vol2Id = await getVolunteerId(page2)
+      const vol2Id = await getVolunteerId(page2, baseUrl)
 
       // View the second volunteer's profile as the first volunteer
       await volunteer.page.goto(`${baseUrl}/volunteers/${vol2Id}`)

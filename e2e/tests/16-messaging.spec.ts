@@ -1,6 +1,7 @@
 import { test, expect, getAlert, approveVolunteer } from '../fixtures'
 import { adminCreateProject, transferProjectOwnership } from '../actions/projects'
 import { fake } from '../fake'
+import { createApiClient } from '../client'
 
 test.describe('Messaging', () => {
   test('Volunteer sends a contact message to another volunteer', async ({
@@ -20,19 +21,19 @@ test.describe('Messaging', () => {
     )
     await transferProjectOwnership(baseUrl, adminPage, projectId, volunteer.name)
 
-    const senderSignupResp = await fetch(`${baseUrl}/api/auth/signup`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...fake.person(),
+    const sender = fake.person()
+    const senderSignupResult = await createApiClient(baseUrl).auth.signup({
+      body: {
+        name: sender.name,
+        email: sender.email,
         password: 'testpassword1',
-        consent_make_profile_visible_in_directory: true,
-        consent_contactable_by_project_owners: true,
-      }),
+        consentMakeProfileVisibleInDirectory: true,
+        consentContactableByProjectOwners: true,
+      },
     })
-    if (!senderSignupResp.ok)
-      throw new Error(`Sender signup failed: ${await senderSignupResp.text()}`)
-    const { id: senderId, auth_token: senderToken } = await senderSignupResp.json()
+    if (senderSignupResult.status !== 200)
+      throw new Error(`Sender signup failed: ${JSON.stringify(senderSignupResult.body)}`)
+    const { id: senderId, token: senderToken } = senderSignupResult.body
     await approveVolunteer(baseUrl, senderId)
     const senderCtx = await browser.newContext()
     await senderCtx.addInitScript((token: string) => {
@@ -87,19 +88,19 @@ test.describe('Messaging', () => {
     await expect(notifTab.locator('.notification-badge')).not.toBeVisible()
 
     // Sender sends the message.
-    const senderSignupResp = await fetch(`${baseUrl}/api/auth/signup`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...fake.person(),
+    const sender = fake.person()
+    const senderSignupResult = await createApiClient(baseUrl).auth.signup({
+      body: {
+        name: sender.name,
+        email: sender.email,
         password: 'testpassword1',
-        consent_make_profile_visible_in_directory: true,
-        consent_contactable_by_project_owners: true,
-      }),
+        consentMakeProfileVisibleInDirectory: true,
+        consentContactableByProjectOwners: true,
+      },
     })
-    if (!senderSignupResp.ok)
-      throw new Error(`Sender signup failed: ${await senderSignupResp.text()}`)
-    const { id: senderId, auth_token: senderToken } = await senderSignupResp.json()
+    if (senderSignupResult.status !== 200)
+      throw new Error(`Sender signup failed: ${JSON.stringify(senderSignupResult.body)}`)
+    const { id: senderId, token: senderToken } = senderSignupResult.body
     await approveVolunteer(baseUrl, senderId)
     const senderCtx = await browser.newContext()
     await senderCtx.addInitScript((token: string) => {
