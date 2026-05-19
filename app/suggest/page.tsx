@@ -2,14 +2,17 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useMutation } from '@tanstack/react-query'
 import ProjectForm from '@/components/ProjectForm'
 import { useAuth } from '@/lib/auth-context'
 import { useToast } from '@/lib/toast'
+import { orpc } from '@/lib/orpc'
 
 export default function SuggestPage() {
   const router = useRouter()
   const { user, loading } = useAuth()
   const toast = useToast()
+  const createMutation = useMutation({ ...orpc.projects.create.mutationOptions() })
 
   useEffect(() => {
     if (!loading && !user) router.replace('/login')
@@ -27,7 +30,7 @@ export default function SuggestPage() {
         </p>
         <div className="max-w-4xl">
           <ProjectForm
-            action="/api/projects"
+            onSubmitForm={(data) => createMutation.mutateAsync(data)}
             submitLabel="Submit Project Proposal"
             showReviewNotice
             requireTasks

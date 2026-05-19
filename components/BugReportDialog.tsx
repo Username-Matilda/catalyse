@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { apiRequest, ApiError } from '@/lib/api'
+import { useMutation } from '@tanstack/react-query'
 import Button from '@/components/Button'
-import FilterDropdown from '@/components/FilterDropdown'
+import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import { useAuth } from '@/lib/auth-context'
+import { orpc } from '@/lib/orpc'
 
 interface BugReportDialogProps {
   isOpen: boolean
@@ -24,11 +25,25 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [email, setEmail] = useState('')
-  const [severity, setSeverity] = useState('medium')
-  const [submitting, setSubmitting] = useState(false)
+  const {
+    value: severity,
+    onChange: setSeverity,
+    options: severityOptions,
+  } = useFilterOptions(
+    [
+      { value: 'low', label: 'Low — minor inconvenience' },
+      { value: 'medium', label: 'Medium — affects workflow' },
+      { value: 'high', label: 'High — blocking' },
+      { value: 'critical', label: 'Critical — site is broken' },
+    ],
+    'medium',
+  )
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [descriptionInvalid, setDescriptionInvalid] = useState(false)
+  const createMutation = useMutation({ ...orpc.bugReports.create.mutationOptions() })
+
+  const submitting = createMutation.isPending
 
   function reset() {
     setCategory('bug')
@@ -38,7 +53,7 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
     setSeverity('medium')
     setSuccess(false)
     setError('')
-    setFieldErrors({})
+    setDescriptionInvalid(false)
   }
 
   function handleClose() {
@@ -46,32 +61,27 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
     onClose()
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setSubmitting(true)
-    setError('')
-    setFieldErrors({})
-    try {
-      await apiRequest('/api/bug-reports', {
-        method: 'POST',
-        body: JSON.stringify({
-          category,
-          title,
-          description,
-          email: user?.email ?? (email || undefined),
-          severity,
-        }),
-      })
-      setSuccess(true)
-    } catch (err) {
-      if (err instanceof ApiError && err.fieldErrors && Object.keys(err.fieldErrors).length > 0) {
-        setFieldErrors(err.fieldErrors)
-      } else {
-        setError(err instanceof ApiError ? err.message : 'Something went wrong')
-      }
-    } finally {
-      setSubmitting(false)
+    if (description.length < 10) {
+      setDescriptionInvalid(true)
+      return
     }
+    setDescriptionInvalid(false)
+    setError('')
+    createMutation.mutate(
+      {
+        category,
+        title,
+        description,
+        reporterEmail: user?.email ?? (email || undefined),
+        severity,
+      },
+      {
+        onSuccess: () => setSuccess(true),
+        onError: (err) => setError(err instanceof Error ? err.message : 'Something went wrong'),
+      },
+    )
   }
 
   if (!isOpen) return null
@@ -137,19 +147,10 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
                   id="bug-title"
                   type="text"
                   value={title}
-                  onChange={(e) => {
-                    setTitle(e.target.value)
-                    if (fieldErrors.title) setFieldErrors((f) => ({ ...f, title: '' }))
-                  }}
-                  aria-invalid={fieldErrors.title ? true : undefined}
+                  onChange={(e) => setTitle(e.target.value)}
                   required
                   placeholder="Brief summary"
                 />
-                {fieldErrors.title && (
-                  <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
-                    {fieldErrors.title}
-                  </p>
-                )}
               </div>
 
               <div className="mb-5">
@@ -161,10 +162,11 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
                   value={description}
                   onChange={(e) => {
                     setDescription(e.target.value)
-                    if (fieldErrors.description) setFieldErrors((f) => ({ ...f, description: '' }))
+                    if (descriptionInvalid && e.target.value.length >= 10)
+                      setDescriptionInvalid(false)
                   }}
-                  aria-invalid={fieldErrors.description ? true : undefined}
                   required
+                  aria-invalid={descriptionInvalid || undefined}
                   placeholder={
                     {
                       bug: 'What happened? What did you expect?',
@@ -173,11 +175,6 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
                     }[category]
                   }
                 />
-                {fieldErrors.description && (
-                  <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
-                    {fieldErrors.description}
-                  </p>
-                )}
               </div>
 
               {!user && (
@@ -199,13 +196,8 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
                   label="How urgent is this?"
                   ariaLabel="How urgent is this?"
                   value={severity}
-                  options={[
-                    { value: 'low', label: 'Low — minor inconvenience' },
-                    { value: 'medium', label: 'Medium — affects workflow' },
-                    { value: 'high', label: 'High — blocking' },
-                    { value: 'critical', label: 'Critical — site is broken' },
-                  ]}
-                  onChange={(v) => setSeverity(v)}
+                  options={severityOptions}
+                  onChange={setSeverity}
                 />
               </div>
 

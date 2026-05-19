@@ -1,22 +1,18 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useQuery } from '@tanstack/react-query'
+import { orpc } from '@/lib/orpc'
 
 export default function Footer() {
-  const [sha, setSha] = useState<string | null>(null)
-  const [prNumber, setPrNumber] = useState<number | null>(null)
-
-  useEffect(() => {
-    fetch('/api/version')
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.sha && d.sha !== 'dev') setSha(d.sha.slice(0, 7))
-        const match = typeof d.env === 'string' && d.env.match(/^catalyse-pr-(\d+)$/)
-        if (match) setPrNumber(parseInt(match[1]))
-      })
-      .catch(() => {})
-  }, [])
+  const { data: versionData } = useQuery({
+    ...orpc.version.get.queryOptions(),
+    staleTime: Infinity,
+  })
+  const sha = versionData?.sha && versionData.sha !== 'dev' ? versionData.sha.slice(0, 7) : null
+  const prMatch =
+    typeof versionData?.env === 'string' ? versionData.env.match(/^catalyse-pr-(\d+)$/) : null
+  const prNumber = prMatch ? parseInt(prMatch[1]) : null
 
   return (
     <footer className="border-t border-brand-border mt-auto py-6 text-sm text-muted xl:h-16 xl:py-0 xl:flex xl:items-center">

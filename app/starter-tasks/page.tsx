@@ -1,24 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
+import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
-
-interface StarterTask {
-  id: number
-  title: string
-  description: string
-  skillName: string | null
-  projectTitle: string | null
-  status: string
-  reviewNotes: string | null
-  feedbackToVolunteer: string | null
-  estimatedHours: number | null
-}
 
 const STATUS_LABELS: Record<string, string> = {
   assigned: 'Assigned',
@@ -31,36 +20,27 @@ export default function StarterTasksPage() {
   const router = useRouter()
   const { user, loading } = useAuth()
   const showToast = useToast()
-  const [tasks, setTasks] = useState<StarterTask[]>([])
-  const [loadingTasks, setLoadingTasks] = useState(true)
-  const [submitting, setSubmitting] = useState<number | null>(null)
+  const queryClient = useQueryClient()
 
   useEffect(() => {
     if (!loading && !user) router.replace('/login')
   }, [user, loading, router])
 
-  useEffect(() => {
-    if (!user) return
-    apiRequest<StarterTask[]>('/api/my/starter-tasks')
-      .then((data) => {
-        setTasks(data)
-        setLoadingTasks(false)
-      })
-      .catch(() => setLoadingTasks(false))
-  }, [user])
+  const { data: tasks = [], isLoading: loadingTasks } = useQuery({
+    ...orpc.my.starterTasks.queryOptions(),
+    enabled: !!user,
+  })
 
-  async function submitTask(taskId: number) {
-    setSubmitting(taskId)
-    try {
-      await apiRequest(`/api/starter-tasks/${taskId}/submit`, { method: 'PUT' })
-      setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status: 'submitted' } : t)))
+  const submitMutation = useMutation({
+    ...orpc.starterTasks.submit.mutationOptions(),
+    onSuccess: () => {
       showToast('Task submitted for review!', 'success')
-    } catch (err: unknown) {
+      void queryClient.invalidateQueries({ queryKey: orpc.my.starterTasks.key() })
+    },
+    onError: (err: unknown) => {
       showToast(err instanceof Error ? err.message : 'Failed to submit task', 'error')
-    } finally {
-      setSubmitting(null)
-    }
-  }
+    },
+  })
 
   if (loading || !user) return null
 
@@ -124,8 +104,13 @@ export default function StarterTasksPage() {
               )}
 
               {task.status === 'assigned' && (
-                <Button onClick={() => submitTask(task.id)} disabled={submitting === task.id}>
-                  {submitting === task.id ? 'Submitting…' : 'Mark as Complete'}
+                <Button
+                  onClick={() => submitMutation.mutate({ id: task.id })}
+                  disabled={submitMutation.isPending && submitMutation.variables?.id === task.id}
+                >
+                  {submitMutation.isPending && submitMutation.variables?.id === task.id
+                    ? 'Submitting…'
+                    : 'Mark as Complete'}
                 </Button>
               )}
             </div>

@@ -3,7 +3,8 @@
 import { useState, FormEvent, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSearchParams } from 'next/navigation'
-import { apiRequest, ApiError } from '@/lib/api'
+import { useMutation } from '@tanstack/react-query'
+import { orpc } from '@/lib/orpc'
 import Button from '@/components/Button'
 
 function ResetPasswordForm() {
@@ -13,9 +14,12 @@ function ResetPasswordForm() {
 
   const [password, setPassword] = useState('')
   const [passwordConfirm, setPasswordConfirm] = useState('')
-  const [error, setError] = useState('')
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
-  const [submitting, setSubmitting] = useState(false)
+  const [clientError, setClientError] = useState('')
+
+  const mutation = useMutation({
+    ...orpc.auth.resetPassword.mutationOptions(),
+    onSuccess: () => router.push('/login'),
+  })
 
   if (!token) {
     return (
@@ -31,36 +35,29 @@ function ResetPasswordForm() {
     )
   }
 
-  async function handleSubmit(e: FormEvent) {
+  function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    setError('')
-    setFieldErrors({})
+    setClientError('')
 
     if (password !== passwordConfirm) {
-      setError('Passwords do not match')
+      setClientError('Passwords do not match')
       return
     }
     if (password.length < 8) {
-      setError('Password must be at least 8 characters')
+      setClientError('Password must be at least 8 characters')
       return
     }
 
-    setSubmitting(true)
-    try {
-      await apiRequest('/api/auth/reset-password', {
-        method: 'POST',
-        body: JSON.stringify({ token, newPassword: password }),
-      })
-      router.push('/login')
-    } catch (err: unknown) {
-      if (err instanceof ApiError && err.fieldErrors?.newPassword) {
-        setFieldErrors({ password: err.fieldErrors.newPassword })
-      } else {
-        setError(err instanceof Error ? err.message : 'Reset failed')
-      }
-      setSubmitting(false)
-    }
+    mutation.mutate({ token: token!, newPassword: password })
   }
+
+  const error =
+    clientError ||
+    (mutation.error instanceof Error
+      ? mutation.error.message
+      : mutation.error
+        ? 'Reset failed'
+        : '')
 
   return (
     <form
@@ -89,17 +86,8 @@ function ResetPasswordForm() {
           autoFocus
           placeholder="At least 8 characters"
           value={password}
-          onChange={(e) => {
-            setPassword(e.target.value)
-            if (fieldErrors.password) setFieldErrors({})
-          }}
-          aria-invalid={fieldErrors.password ? true : undefined}
+          onChange={(e) => setPassword(e.target.value)}
         />
-        {fieldErrors.password && (
-          <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
-            {fieldErrors.password}
-          </p>
-        )}
       </div>
 
       <div className="mb-5">
@@ -118,8 +106,8 @@ function ResetPasswordForm() {
         />
       </div>
 
-      <Button type="submit" className="w-full" disabled={submitting}>
-        {submitting ? 'Resetting…' : 'Reset Password'}
+      <Button type="submit" className="w-full" disabled={mutation.isPending}>
+        {mutation.isPending ? 'Resetting…' : 'Reset Password'}
       </Button>
     </form>
   )

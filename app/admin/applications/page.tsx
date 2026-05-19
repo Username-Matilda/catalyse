@@ -1,59 +1,34 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useQuery, useMutation } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import Button from '@/components/Button'
-import FilterDropdown from '@/components/FilterDropdown'
+import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
+import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
-
-interface Application {
-  id: number
-  name: string
-  email: string | null
-  bio: string | null
-  applicationMessage: string | null
-  approvalStatus: string
-  createdAt: string
-  rejectedAt: string | null
-  anonymiseAt: string | null
-  adminNotes: string | null
-  applicantNotes: string | null
-  reviewer: { id: number; name: string } | null
-  previousRejections: Array<{
-    rejectedAt: string
-    adminNotes: string | null
-    applicantNotes: string | null
-  }>
-  availabilityHoursPerWeek: number | null
-  location: string | null
-  country: string | null
-  localGroup: string | null
-  signalNumber: string | null
-  whatsappNumber: string | null
-  discordHandle: string | null
-  contactNotes: string | null
-  skills: Array<{ id: number; name: string; categoryName: string }>
-}
-
-type FilterKey = 'mine' | 'others' | 'approved' | 'rejected' | 'rejected_anonymised'
-
-interface AnonymisedApplication {
-  id: number
-  rejectedAt: string
-  adminNotes: string | null
-  applicantNotes: string | null
-}
+import { InferRouterOutputs } from '@orpc/server'
+import { AppRouter } from '@/server/router'
 
 export default function ApplicationsPage() {
   const router = useRouter()
   const { user, loading } = useAuth()
   const showToast = useToast()
-  const [applications, setApplications] = useState<Application[]>([])
-  const [anonymisedApplications, setAnonymisedApplications] = useState<AnonymisedApplication[]>([])
-  const [loadingData, setLoadingData] = useState(true)
-  const [filter, setFilter] = useState<FilterKey>('mine')
+  const {
+    value: filter,
+    onChange: setFilter,
+    options: filterOptions,
+  } = useFilterOptions(
+    [
+      { value: 'mine', label: 'Pending & Under Review by Me' },
+      { value: 'others', label: 'Under Review by Others' },
+      { value: 'approved', label: 'Approved' },
+      { value: 'rejected', label: 'Rejected' },
+      { value: 'rejected_anonymised', label: 'Rejected – Anonymised' },
+    ],
+    'mine',
+  )
   const [startingReview, setStartingReview] = useState<number | null>(null)
 
   useEffect(() => {
@@ -61,42 +36,32 @@ export default function ApplicationsPage() {
     if (!loading && user && !user.isSuperAdmin) router.push('/')
   }, [user, loading, router])
 
-  const loadApplications = useCallback(
-    async function (f: FilterKey) {
-      setLoadingData(true)
-      try {
-        if (f === 'rejected_anonymised') {
-          const data = await apiRequest<AnonymisedApplication[]>(
-            `/api/admin/applications?filter=${f}`,
-          )
-          setAnonymisedApplications(data)
-          setApplications([])
-        } else {
-          const data = await apiRequest<Application[]>(`/api/admin/applications?filter=${f}`)
-          setApplications(data)
-          setAnonymisedApplications([])
-        }
-      } catch {
-        showToast('Failed to load applications', 'error')
-      } finally {
-        setLoadingData(false)
-      }
-    },
-    [showToast],
-  )
+  const isAnonymised = filter === 'rejected_anonymised'
+  const applicationFilter = filter === 'rejected_anonymised' ? 'mine' : filter
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (user?.isAdmin) loadApplications(filter)
-  }, [user, filter, loadApplications])
+  const { data: applications = [], isLoading: loadingApplications } = useQuery({
+    ...orpc.admin.applications.list.queryOptions({
+      input: { filter: applicationFilter },
+    }),
+    enabled: !!user?.isAdmin && !isAnonymised,
+  })
+
+  const { data: anonymisedApplications = [], isLoading: loadingAnonymised } = useQuery({
+    ...orpc.admin.rejectedApplications.list.queryOptions(),
+    enabled: !!user?.isAdmin && isAnonymised,
+  })
+
+  const loadingData = isAnonymised ? loadingAnonymised : loadingApplications
+
+  const actionMutation = useMutation({
+    ...orpc.admin.applications.action.mutationOptions(),
+    onError: () => showToast('Failed to start review', 'error'),
+  })
 
   async function handleStartReview(id: number) {
     setStartingReview(id)
     try {
-      await apiRequest(`/api/admin/applications/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ action: 'start_review' }),
-      })
+      await actionMutation.mutateAsync({ id, action: 'start_review' })
     } catch {
       // ignore — navigate anyway, page will show current status
     } finally {
@@ -107,19 +72,8 @@ export default function ApplicationsPage() {
 
   if (loading || !user) return null
 
-  const filterOptions = [
-    { value: 'mine', label: 'Pending & Under Review by Me' },
-    { value: 'others', label: 'Under Review by Others' },
-    { value: 'approved', label: 'Approved' },
-    { value: 'rejected', label: 'Rejected' },
-    { value: 'rejected_anonymised', label: 'Rejected – Anonymised' },
-  ]
-
   const emptyLabel = filterOptions.find((o) => o.value === filter)?.label.toLowerCase() ?? ''
-  const isEmpty =
-    filter === 'rejected_anonymised'
-      ? anonymisedApplications.length === 0
-      : applications.length === 0
+  const isEmpty = isAnonymised ? anonymisedApplications.length === 0 : applications.length === 0
 
   return (
     <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
@@ -133,7 +87,7 @@ export default function ApplicationsPage() {
           ariaLabel="Filter applications"
           value={filter}
           options={filterOptions}
-          onChange={(v) => setFilter(v as FilterKey)}
+          onChange={setFilter}
         />
       </div>
 
@@ -141,7 +95,7 @@ export default function ApplicationsPage() {
         <p className="text-text-light mt-6">Loading…</p>
       ) : isEmpty ? (
         <p className="text-text-light mt-6">No applications in &ldquo;{emptyLabel}&rdquo;.</p>
-      ) : filter === 'rejected_anonymised' ? (
+      ) : isAnonymised ? (
         <div className="flex flex-col gap-4 mt-6">
           {anonymisedApplications.map((a) => (
             <AnonymisedCard key={a.id} app={a} />
@@ -163,6 +117,8 @@ export default function ApplicationsPage() {
     </main>
   )
 }
+
+type Application = InferRouterOutputs<AppRouter>['admin']['applications']['list'][number]
 
 function ApplicationCard({
   app,
@@ -188,7 +144,7 @@ function ApplicationCard({
   const locationParts = [app.localGroup, app.country ?? app.location].filter(Boolean)
   const meta = [
     locationParts.length ? locationParts.join(' · ') : null,
-    `Applied ${new Date(app.createdAt).toLocaleDateString()}`,
+    `Applied ${new Date(app.createdAt!).toLocaleDateString()}`,
     app.reviewer ? `Reviewer: ${app.reviewer.name}` : null,
   ].filter(Boolean)
 
@@ -341,6 +297,9 @@ function ApplicationCard({
     </div>
   )
 }
+
+type AnonymisedApplication =
+  InferRouterOutputs<AppRouter>['admin']['rejectedApplications']['list'][number]
 
 function AnonymisedCard({ app }: { app: AnonymisedApplication }) {
   return (

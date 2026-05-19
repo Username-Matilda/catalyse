@@ -1,9 +1,9 @@
+import { InferRouterOutputs } from '@orpc/server'
 import { FilterOption } from '@/components/FilterDropdown'
+import { AppRouter } from '@/server/router'
 
-export interface LocalGroupOption {
-  name: string
-  country: string
-}
+export type LocalGroupOption =
+  InferRouterOutputs<AppRouter>['localGroups']['list']['groups'][number]
 
 export const BASE_LOCATION_OPTIONS: FilterOption[] = [
   { value: '', label: 'Any country' },
@@ -42,7 +42,9 @@ export const BASE_LOCATION_OPTIONS: FilterOption[] = [
   { value: 'Other', label: 'Other' },
 ]
 
-export function buildLocationOptions(groups: LocalGroupOption[]): FilterOption[] {
+export function buildLocationOptions(
+  groups: Pick<LocalGroupOption, 'name' | 'country'>[],
+): FilterOption[] {
   const result: FilterOption[] = []
   for (const option of BASE_LOCATION_OPTIONS) {
     result.push(option)

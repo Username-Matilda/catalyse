@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Button from '@/components/Button'
-import FilterDropdown from '@/components/FilterDropdown'
+import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import {
   ProjectCard,
   type Project as CardProject,
@@ -14,30 +15,12 @@ import {
 } from '@/components/ProjectCard'
 import Tabs from '@/components/Tabs'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
+import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 
 interface Project extends CardProject {
-  proposed_by_name?: string | null
-  proposed_by_id?: number | null
-  owner_id: number | null
+  ownerId: number | null
   reviewNotes: string | null
-}
-
-interface Interest {
-  id: number
-  volunteer_id: number
-  project_id: number
-  interest_type: string
-  message: string | null
-  status: string
-  response_message: string | null
-  created_at: string
-  project_title: string
-  project_status: string
-  volunteer_name: string
-  owner_name: string | null
-  volunteer_skills: Array<{ id: number; name: string }>
 }
 
 interface ReviewModal {
@@ -48,8 +31,7 @@ export default function TriagePage() {
   const router = useRouter()
   const { user, loading } = useAuth()
   const showToast = useToast()
-  const [projects, setProjects] = useState<Project[]>([])
-  const [loadingProjects, setLoadingProjects] = useState(true)
+  const queryClient = useQueryClient()
   const [tab, setTab] = useState<'pending_review' | 'needs_discussion' | 'interests'>(
     'pending_review',
   )
@@ -57,38 +39,63 @@ export default function TriagePage() {
   const [decision, setDecision] = useState<'approved' | 'needs_discussion'>('approved')
   const [feedback, setFeedback] = useState('')
   const [reviewNotes, setReviewNotes] = useState('')
-  const [submitting, setSubmitting] = useState(false)
 
-  const [interests, setInterests] = useState<Interest[]>([])
-  const [loadingInterests, setLoadingInterests] = useState(true)
-  const [interestStatusFilter, setInterestStatusFilter] = useState('pending')
-  const [respondingId, setRespondingId] = useState<number | null>(null)
+  const {
+    value: interestStatusFilter,
+    onChange: setInterestStatusFilter,
+    options: interestStatusOptions,
+  } = useFilterOptions(
+    [
+      { value: 'pending', label: 'Pending' },
+      { value: 'accepted', label: 'Accepted' },
+      { value: 'declined', label: 'Declined' },
+      { value: 'withdrawn', label: 'Withdrawn' },
+      { value: '', label: 'All' },
+    ],
+    'pending',
+  )
 
   useEffect(() => {
     if (!loading && !user) router.push('/login')
     if (!loading && user && !user.isAdmin) router.push('/')
   }, [user, loading, router])
 
-  useEffect(() => {
-    if (!user?.isAdmin) return
-    apiRequest<Project[]>('/api/admin/triage')
-      .then((data) => {
-        setProjects(data)
-        setLoadingProjects(false)
-      })
-      .catch(() => setLoadingProjects(false))
-  }, [user])
+  const { data: projects = [], isLoading: loadingProjects } = useQuery({
+    ...orpc.admin.triage.list.queryOptions(),
+    enabled: !!user?.isAdmin,
+  })
 
-  useEffect(() => {
-    if (!user?.isAdmin) return
-    const params = interestStatusFilter ? `?status=${interestStatusFilter}` : ''
-    apiRequest<Interest[]>(`/api/admin/interests${params}`)
-      .then((data) => {
-        setInterests(data)
-        setLoadingInterests(false)
-      })
-      .catch(() => setLoadingInterests(false))
-  }, [user, interestStatusFilter])
+  const { data: interests = [], isLoading: loadingInterests } = useQuery({
+    ...orpc.admin.interests.list.queryOptions({
+      input: interestStatusFilter ? { status: interestStatusFilter } : {},
+    }),
+    enabled: !!user?.isAdmin,
+  })
+
+  const reviewMutation = useMutation({
+    ...orpc.admin.projects.review.mutationOptions(),
+    onSuccess: (_, variables) => {
+      showToast(
+        `Project ${variables.status === 'approved' ? 'approved' : 'moved to discussion'}!`,
+        'success',
+      )
+      setModal(null)
+      void queryClient.invalidateQueries({ queryKey: orpc.admin.triage.list.key() })
+    },
+    onError: (err: unknown) => {
+      showToast(err instanceof Error ? err.message : 'Failed to submit review', 'error')
+    },
+  })
+
+  const respondInterestMutation = useMutation({
+    ...orpc.projects.respondToInterest.mutationOptions(),
+    onError: (err: unknown) => {
+      showToast(err instanceof Error ? err.message : 'Failed to respond to interest', 'error')
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: orpc.admin.interests.list.key() })
+    },
+  })
 
   function openReview(project: Project) {
     setModal({ project })
@@ -101,52 +108,24 @@ export default function TriagePage() {
     setModal(null)
   }
 
-  async function submitReview(e: React.FormEvent) {
+  function submitReview(e: React.FormEvent) {
     e.preventDefault()
     if (!modal) return
-    setSubmitting(true)
-    try {
-      await apiRequest(`/api/admin/projects/${modal.project.id}/review`, {
-        method: 'POST',
-        body: JSON.stringify({
-          status: decision,
-          feedbackToProposer: decision === 'needs_discussion' ? feedback : null,
-          reviewNotes: reviewNotes || null,
-          targetStatus: modal.project.owner_id ? 'seeking_help' : 'seeking_owner',
-        }),
-      })
-      setProjects((prev) => prev.filter((p) => p.id !== modal.project.id))
-      showToast(
-        `Project ${decision === 'approved' ? 'approved' : 'moved to discussion'}!`,
-        'success',
-      )
-      setModal(null)
-    } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Failed to submit review', 'error')
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  async function respondInterest(interest: Interest, status: 'accepted' | 'declined') {
-    setRespondingId(interest.id)
-    try {
-      await apiRequest(`/api/projects/${interest.project_id}/interest/${interest.id}`, {
-        method: 'PUT',
-        body: JSON.stringify({ status }),
-      })
-      setInterests((prev) => prev.map((i) => (i.id === interest.id ? { ...i, status } : i)))
-    } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Failed to respond to interest', 'error')
-    } finally {
-      setRespondingId(null)
-    }
+    reviewMutation.mutate({
+      id: modal.project.id,
+      status: decision,
+      feedbackToProposer: decision === 'needs_discussion' ? feedback : null,
+      reviewNotes: reviewNotes || null,
+      targetStatus: modal.project.ownerId ? 'seeking_help' : 'seeking_owner',
+    })
   }
 
   if (loading || !user) return null
 
-  const pending = projects.filter((p) => p.status === 'pending_review')
-  const discussion = projects.filter((p) => p.status === 'needs_discussion')
+  const pending = (projects as unknown as Project[]).filter((p) => p.status === 'pending_review')
+  const discussion = (projects as unknown as Project[]).filter(
+    (p) => p.status === 'needs_discussion',
+  )
   const pendingInterests = interests.filter((i) => i.status === 'pending')
   const visible = tab === 'pending_review' ? pending : discussion
 
@@ -209,17 +188,8 @@ export default function TriagePage() {
                 label="Status"
                 ariaLabel="Status"
                 value={interestStatusFilter}
-                options={[
-                  { value: 'pending', label: 'Pending' },
-                  { value: 'accepted', label: 'Accepted' },
-                  { value: 'declined', label: 'Declined' },
-                  { value: 'withdrawn', label: 'Withdrawn' },
-                  { value: '', label: 'All' },
-                ]}
-                onChange={(v) => {
-                  setLoadingInterests(true)
-                  setInterestStatusFilter(v)
-                }}
+                options={interestStatusOptions}
+                onChange={setInterestStatusFilter}
               />
             </div>
 
@@ -238,33 +208,35 @@ export default function TriagePage() {
                       <div>
                         <p className="font-semibold m-0">
                           <Link
-                            href={`/admin/volunteers/${i.volunteer_id}`}
+                            href={`/admin/volunteers/${i.volunteerId}`}
                             className="text-secondary-dark no-underline hover:text-primary"
                           >
-                            {i.volunteer_name}
+                            {i.volunteerName}
                           </Link>
                           <span className="font-normal text-sm text-text-light">
                             {' '}
                             wants to{' '}
-                            {i.interest_type === 'want_to_own' ? 'own' : 'contribute to'}{' '}
+                            {i.interestType === 'want_to_own' ? 'own' : 'contribute to'}{' '}
                           </span>
                           <Link
-                            href={`/projects/${i.project_id}`}
+                            href={`/projects/${i.projectId}`}
                             className="text-primary no-underline hover:underline"
                           >
-                            {i.project_title}
+                            {i.projectTitle}
                           </Link>
                         </p>
                         <p className="text-xs text-text-light m-0 mt-1">
-                          {new Date(i.created_at).toLocaleDateString('en-GB', {
-                            day: 'numeric',
-                            month: 'short',
-                            year: 'numeric',
-                          })}
-                          {' · '}Owner: {i.owner_name ?? 'None'}
+                          {i.createdAt
+                            ? new Date(i.createdAt).toLocaleDateString('en-GB', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                              })
+                            : ''}
+                          {' · '}Owner: {i.ownerName ?? 'None'}
                           {' · '}Project:{' '}
-                          <span className={statusBadgeClasses(i.project_status)}>
-                            {STATUS_LABELS[i.project_status] ?? i.project_status}
+                          <span className={statusBadgeClasses(i.projectStatus)}>
+                            {STATUS_LABELS[i.projectStatus] ?? i.projectStatus}
                           </span>
                         </p>
                       </div>
@@ -287,9 +259,9 @@ export default function TriagePage() {
                       </p>
                     )}
 
-                    {i.volunteer_skills.length > 0 && (
+                    {i.volunteerSkills.length > 0 && (
                       <div className="flex flex-wrap gap-1 my-2">
-                        {i.volunteer_skills.map((s) => (
+                        {i.volunteerSkills.map((s: { id: number; name: string }) => (
                           <span
                             key={s.id}
                             className="inline-flex items-center px-2 py-0.5 bg-accent text-secondary-dark rounded-full text-xs font-medium dark:bg-[#374151] dark:text-[#D1D5DB]"
@@ -304,20 +276,32 @@ export default function TriagePage() {
                       <div className="flex gap-2 mt-3">
                         <Button
                           size="sm"
-                          onClick={() => respondInterest(i, 'accepted')}
-                          disabled={respondingId === i.id}
+                          onClick={() =>
+                            respondInterestMutation.mutate({
+                              projectId: i.projectId,
+                              interestId: i.id,
+                              status: 'accepted',
+                            })
+                          }
+                          disabled={respondInterestMutation.isPending}
                         >
                           Accept
                         </Button>
                         <Button
                           size="sm"
                           variant="secondary"
-                          onClick={() => respondInterest(i, 'declined')}
-                          disabled={respondingId === i.id}
+                          onClick={() =>
+                            respondInterestMutation.mutate({
+                              projectId: i.projectId,
+                              interestId: i.id,
+                              status: 'declined',
+                            })
+                          }
+                          disabled={respondInterestMutation.isPending}
                         >
                           Decline
                         </Button>
-                        <Button size="sm" variant="ghost" href={`/projects/${i.project_id}`}>
+                        <Button size="sm" variant="ghost" href={`/projects/${i.projectId}`}>
                           View Project
                         </Button>
                       </div>
@@ -454,8 +438,8 @@ export default function TriagePage() {
                   <Button type="button" variant="secondary" onClick={closeModal}>
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={submitting}>
-                    {submitting ? 'Submitting…' : 'Submit Review'}
+                  <Button type="submit" disabled={reviewMutation.isPending}>
+                    {reviewMutation.isPending ? 'Submitting…' : 'Submit Review'}
                   </Button>
                 </div>
               </form>

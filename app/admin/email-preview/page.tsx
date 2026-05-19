@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQueries } from '@tanstack/react-query'
 import { useAuth } from '@/lib/auth-context'
+import { orpc } from '@/lib/orpc'
 
 type Param = string | number | boolean
 
@@ -276,24 +278,18 @@ function EmailRow({
 export default function EmailPreviewPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
-  const [htmlMap, setHtmlMap] = useState<Record<string, { subject: string; html: string }>>({})
 
   useEffect(() => {
     if (!loading && !user) router.push('/login')
     if (!loading && user && !user.isAdmin) router.push('/')
   }, [user, loading, router])
 
-  useEffect(() => {
-    if (!user?.isAdmin) return
-    const token = localStorage.getItem('authToken')
-    const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
-    for (const t of EMAIL_TYPES) {
-      fetch(`/api/admin/email-preview?type=${t.value}`, { headers })
-        .then((r) => r.json())
-        .then((preview) => setHtmlMap((prev) => ({ ...prev, [t.value]: preview })))
-        .catch(() => {})
-    }
-  }, [user])
+  const results = useQueries({
+    queries: EMAIL_TYPES.map((t) => ({
+      ...orpc.admin.emailPreview.preview.queryOptions({ input: { type: t.value } }),
+      enabled: !!user?.isAdmin,
+    })),
+  })
 
   if (loading || !user?.isAdmin) return null
 
@@ -304,8 +300,8 @@ export default function EmailPreviewPage() {
         <p style={{ color: '#718096', marginBottom: 0 }}>
           All transactional emails rendered with sample data.
         </p>
-        {EMAIL_TYPES.map((t) => (
-          <EmailRow key={t.value} type={t} preview={htmlMap[t.value]} />
+        {EMAIL_TYPES.map((t, i) => (
+          <EmailRow key={t.value} type={t} preview={results[i].data} />
         ))}
       </main>
     </>

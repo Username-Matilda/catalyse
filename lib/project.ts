@@ -1,4 +1,4 @@
-import { Prisma } from '@/app/generated/prisma/client'
+import { Prisma } from '@/generated/prisma/client'
 import { calculateMatchScore } from './matching'
 import { prisma } from './prisma'
 
@@ -13,19 +13,6 @@ export type ProjectSkillWithRelations = {
     sortOrder: number | null
     createdAt: Date | null
     category: { name: string }
-  }
-}
-
-export function serializeProjectSkill(ps: ProjectSkillWithRelations) {
-  return {
-    id: ps.skill.id,
-    categoryId: ps.skill.categoryId,
-    name: ps.skill.name,
-    description: ps.skill.description,
-    sortOrder: ps.skill.sortOrder,
-    createdAt: ps.skill.createdAt,
-    categoryName: ps.skill.category.name,
-    isRequired: ps.isRequired,
   }
 }
 
@@ -61,7 +48,7 @@ export type EnrichedProject = {
   _count: { interests: number }
 }
 
-export function serializeProject(p: EnrichedProject, volunteerSkillIds?: Set<number>) {
+export function withProjectExtras(p: EnrichedProject, volunteerSkillIds?: Set<number>) {
   const matchInput = p.skills.map((ps) => ({ id: ps.skillId, isRequired: ps.isRequired }))
   const match =
     volunteerSkillIds !== undefined ? calculateMatchScore(volunteerSkillIds, matchInput) : undefined
@@ -92,7 +79,16 @@ export function serializeProject(p: EnrichedProject, volunteerSkillIds?: Set<num
     isSeekingHelp: p.isSeekingHelp,
     isSeekingOwner: p.isSeekingOwner,
     localGroup: p.localGroup,
-    skills: p.skills.map(serializeProjectSkill),
+    skills: p.skills.map((ps) => ({
+      id: ps.skill.id,
+      categoryId: ps.skill.categoryId,
+      name: ps.skill.name,
+      description: ps.skill.description,
+      sortOrder: ps.skill.sortOrder,
+      createdAt: ps.skill.createdAt,
+      categoryName: ps.skill.category.name,
+      isRequired: ps.isRequired,
+    })),
     owner: p.owner,
     proposedBy: p.proposedBy,
     pendingInterestCount: p._count.interests,

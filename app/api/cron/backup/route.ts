@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkCronAuth } from '@/lib/cron-auth'
-import { runBackupJob } from '@/lib/jobs/backup'
+import { runBackupJob } from '@/jobs/backup'
 
 // Can be triggered manually: POST with Authorization: Bearer <CRON_SECRET>
 export async function POST(request: NextRequest) {

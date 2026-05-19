@@ -1,6 +1,6 @@
 .claude/
 .next/
 node_modules/
-app/generated/
+generated/
 db/
 prisma/migrations/

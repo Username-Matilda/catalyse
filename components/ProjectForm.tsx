@@ -1,6 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import type { InferRouterInputs } from '@orpc/server'
 import Button from '@/components/Button'
 import Checkbox from '@/components/Checkbox'
 import Radio from '@/components/Radio'
@@ -9,7 +11,8 @@ import DescriptionTips from '@/components/DescriptionTips'
 import SkillPicker from '@/components/SkillPicker'
 import { buildLocationOptions, type LocalGroupOption } from '@/lib/filter-options'
 import { useToast } from '@/lib/toast'
-import { apiRequest, ApiError } from '@/lib/api'
+import { orpc } from '@/lib/orpc'
+import type { AppRouter } from '@/server/router'
 
 interface SelectedSkill {
   skillId: number
@@ -35,8 +38,10 @@ const PROJECT_TYPES = [
   { value: 'one_off', label: 'One-off task - Single deliverable, minimal coordination' },
 ]
 
+type ProjectCreateInput = InferRouterInputs<AppRouter>['projects']['create']
+
 interface ProjectFormProps {
-  action: string
+  onSubmitForm: (data: ProjectCreateInput) => Promise<{ id: number }>
   submitLabel?: string
   showReviewNotice?: boolean
   requireTasks?: boolean
@@ -45,7 +50,7 @@ interface ProjectFormProps {
 }
 
 export default function ProjectForm({
-  action,
+  onSubmitForm,
   submitLabel = 'Submit',
   showReviewNotice = false,
   requireTasks = false,
@@ -66,15 +71,11 @@ export default function ProjectForm({
   const [seekingHelp, setSeekingHelp] = useState(true)
   const [wantToOwn, setWantToOwn] = useState(false)
   const [tasks, setTasks] = useState<Task[]>([{ title: '', description: '' }])
-  const [allLocalGroups, setAllLocalGroups] = useState<LocalGroupOption[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
-  useEffect(() => {
-    apiRequest<{ groups: LocalGroupOption[] }>('/api/local-groups')
-      .then((data) => setAllLocalGroups(data.groups))
-      .catch(() => {})
-  }, [])
+  const { data: localGroupsData } = useQuery(orpc.localGroups.list.queryOptions({ input: {} }))
+  const allLocalGroups: LocalGroupOption[] = localGroupsData?.groups ?? []
 
   function clearFieldError(field: string) {
     setFieldErrors((prev) => {
@@ -111,37 +112,29 @@ export default function ProjectForm({
     setSubmitting(true)
     const [country, localGroup] = locationValue.split(':')
     try {
-      const result = await apiRequest<{ id: number }>(action, {
-        method: 'POST',
-        body: JSON.stringify({
-          title: title.trim(),
-          description: description.trim(),
-          projectType: projectType || null,
-          timeCommitmentHoursPerWeek: hoursPerWeek ? Number(hoursPerWeek) : null,
-          urgency,
-          country: country || null,
-          localGroup: localGroup || null,
-          estimatedDuration: duration.trim() || null,
-          collaborationLink: collaborationLink.trim() || null,
-          skillIds: skills.map((s) => s.skillId),
-          skillRequiredMap: Object.fromEntries(skills.map((s) => [s.skillId, true])),
-          isSeekingHelp: seekingHelp,
-          isSeekingOwner: !wantToOwn,
-          wantToOwn,
-          tasks: validTasks.map((t) => ({
-            title: t.title.trim(),
-            description: t.description.trim() || undefined,
-          })),
-        }),
+      const result = await onSubmitForm({
+        title: title.trim(),
+        description: description.trim(),
+        projectType: projectType || null,
+        timeCommitmentHoursPerWeek: hoursPerWeek ? Number(hoursPerWeek) : null,
+        urgency,
+        country: country || null,
+        localGroup: localGroup || null,
+        estimatedDuration: duration.trim() || null,
+        collaborationLink: collaborationLink.trim() || null,
+        skillIds: skills.map((s) => s.skillId),
+        skillRequiredMap: Object.fromEntries(skills.map((s) => [s.skillId, true])),
+        isSeekingHelp: seekingHelp,
+        isSeekingOwner: !wantToOwn,
+        wantToOwn,
+        tasks: validTasks.map((t) => ({
+          title: t.title.trim(),
+          description: t.description.trim() || undefined,
+        })),
       })
       onSuccess(result.id)
     } catch (err: unknown) {
-      if (err instanceof ApiError && err.fieldErrors) {
-        setFieldErrors(err.fieldErrors)
-        toast('Please correct the highlighted fields.', 'error')
-      } else {
-        toast(err instanceof Error ? err.message : 'Failed to submit', 'error')
-      }
+      toast(err instanceof Error ? err.message : 'Failed to submit', 'error')
       setSubmitting(false)
     }
   }

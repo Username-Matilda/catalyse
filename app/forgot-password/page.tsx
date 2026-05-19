@@ -2,36 +2,24 @@
 
 import { useState, FormEvent } from 'react'
 import Link from 'next/link'
-import { apiRequest } from '@/lib/api'
+import { useMutation } from '@tanstack/react-query'
+import { orpc } from '@/lib/orpc'
 import Button from '@/components/Button'
-
-interface ForgotResponse {
-  message: string
-  _dev_reset_url?: string
-}
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
-  const [error, setError] = useState('')
-  const [submitted, setSubmitted] = useState(false)
   const [devUrl, setDevUrl] = useState('')
-  const [submitting, setSubmitting] = useState(false)
 
-  async function handleSubmit(e: FormEvent) {
+  const mutation = useMutation({
+    ...orpc.auth.forgotPassword.mutationOptions(),
+    onSuccess: (data) => {
+      if (data._devResetUrl) setDevUrl(data._devResetUrl)
+    },
+  })
+
+  function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    setError('')
-    setSubmitting(true)
-    try {
-      const data = await apiRequest<ForgotResponse>('/api/auth/forgot-password', {
-        method: 'POST',
-        body: JSON.stringify({ email: email.trim() }),
-      })
-      setSubmitted(true)
-      if (data._dev_reset_url) setDevUrl(data._dev_reset_url)
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Something went wrong')
-      setSubmitting(false)
-    }
+    mutation.mutate({ email: email.trim() })
   }
 
   return (
@@ -43,16 +31,16 @@ export default function ForgotPasswordPage() {
             Enter your email and we&apos;ll send you a reset link.
           </p>
 
-          {error && (
+          {mutation.isError && (
             <div
               role="alert"
               className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]"
             >
-              {error}
+              {mutation.error instanceof Error ? mutation.error.message : 'Something went wrong'}
             </div>
           )}
 
-          {!submitted ? (
+          {!mutation.isSuccess ? (
             <form
               className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
               onSubmit={handleSubmit}
@@ -73,8 +61,8 @@ export default function ForgotPasswordPage() {
                 />
               </div>
 
-              <Button type="submit" className="w-full" disabled={submitting}>
-                {submitting ? 'Sending…' : 'Send Reset Link'}
+              <Button type="submit" className="w-full" disabled={mutation.isPending}>
+                {mutation.isPending ? 'Sending…' : 'Send Reset Link'}
               </Button>
 
               <p className="text-center text-text-light" style={{ marginTop: 20 }}>

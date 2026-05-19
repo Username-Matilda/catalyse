@@ -14,6 +14,7 @@ import {
   SERVER_PIDS_FILE,
 } from './config'
 import { buildNext } from '../scripts/next-build'
+import { createApiClient } from './client'
 
 const PROJECT_ROOT = path.resolve(__dirname, '..')
 const NEXT_BINARY = path.join(PROJECT_ROOT, 'node_modules', '.bin', 'next')
@@ -93,19 +94,20 @@ async function setupAdminAuth(parallelIndex: number): Promise<void> {
   const baseUrl = workerBaseUrl(parallelIndex)
 
   if (IS_LOCAL) {
-    const resp = await fetch(`${baseUrl}/api/auth/signup`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    const api = createApiClient(baseUrl)
+    const result = await api.auth.signup({
+      body: {
         name: 'Test Admin',
         email: ADMIN_EMAIL,
         password: ADMIN_PASSWORD,
-        consent_make_profile_visible_in_directory: true,
-        consent_contactable_by_project_owners: true,
-      }),
+        consentMakeProfileVisibleInDirectory: true,
+        consentContactableByProjectOwners: true,
+      },
     })
-    if (!resp.ok) {
-      throw new Error(`Admin signup failed for worker ${parallelIndex}: ${await resp.text()}`)
+    if (result.status !== 200) {
+      throw new Error(
+        `Admin signup failed for worker ${parallelIndex}: ${JSON.stringify(result.body)}`,
+      )
     }
   }
 

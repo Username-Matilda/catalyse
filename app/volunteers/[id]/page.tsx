@@ -1,84 +1,30 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
+import { use, useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
-
-interface Skill {
-  id: number
-  name: string
-  categoryName: string
-}
-
-interface Endorsement {
-  id: number
-  skillId: number
-  skillName: string
-  rating: string
-}
-
-interface Project {
-  id: number
-  title: string
-  status: string
-  role: string
-}
-
-interface CompletedTask {
-  title: string
-  reviewRating: string
-  feedbackToVolunteer: string | null
-  reviewedAt: string | null
-  skillName: string | null
-}
-
-interface VolunteerDetail {
-  id: number
-  name: string
-  bio: string | null
-  location: string | null
-  localGroup: string | null
-  availabilityHoursPerWeek: number | null
-  otherSkills: string | null
-  consentShareContactInfoWithProjectOwner: boolean
-  email: string | null
-  discordHandle: string | null
-  signalNumber: string | null
-  whatsappNumber: string | null
-  contactNotes: string | null
-  skills: Skill[]
-  endorsements: Endorsement[]
-  projects: Project[]
-  completedTasks: CompletedTask[]
-}
+import { orpc } from '@/lib/orpc'
 
 export default function VolunteerDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
   const { user, loading } = useAuth()
-  const [volunteer, setVolunteer] = useState<VolunteerDetail | null>(null)
-  const [loadingProfile, setLoadingProfile] = useState(true)
-  const [notFound, setNotFound] = useState(false)
 
   useEffect(() => {
     if (!loading && !user) router.replace('/login')
   }, [user, loading, router])
 
-  useEffect(() => {
-    if (!user) return
-    apiRequest<VolunteerDetail>(`/api/volunteers/${id}`)
-      .then((data) => {
-        setVolunteer(data)
-        setLoadingProfile(false)
-      })
-      .catch(() => {
-        setNotFound(true)
-        setLoadingProfile(false)
-      })
-  }, [user, id])
+  const {
+    data: volunteer,
+    isLoading: loadingProfile,
+    isError,
+  } = useQuery({
+    ...orpc.volunteers.getById.queryOptions({ input: { id: parseInt(id, 10) } }),
+    enabled: !!user,
+  })
 
   if (loading || !user) return null
 
@@ -92,7 +38,7 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
     )
   }
 
-  if (notFound || !volunteer) {
+  if (isError || !volunteer) {
     return (
       <>
         <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
@@ -105,7 +51,9 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
     )
   }
 
-  const endorsedSkillIds = new Set(volunteer.endorsements.map((e) => e.skillId))
+  const skills = volunteer.skills ?? []
+  const endorsements = volunteer.endorsements ?? []
+  const endorsedSkillIds = new Set(endorsements.map((e) => e.skillId))
   const hasContact =
     volunteer.email || volunteer.discordHandle || volunteer.signalNumber || volunteer.whatsappNumber
 
@@ -136,8 +84,8 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
 
             <h3>Skills</h3>
             <div id="volunteerSkills" className="flex flex-wrap gap-1.5 mb-5">
-              {volunteer.skills.length > 0 ? (
-                volunteer.skills.map((s) => (
+              {skills.length > 0 ? (
+                skills.map((s) => (
                   <span
                     key={s.id}
                     className={`inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-[#374151] dark:text-[#D1D5DB]${endorsedSkillIds.has(s.id) ? ' matched' : ''}`}
@@ -183,7 +131,7 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
             </div>
           </div>
 
-          {volunteer.endorsements.length > 0 && (
+          {endorsements.length > 0 && (
             <div
               id="endorsementsSection"
               className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
@@ -193,9 +141,9 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
                 Skills verified through completed work on the platform.
               </p>
               <div id="endorsementsList" className="flex flex-wrap gap-1.5">
-                {volunteer.endorsements.map((e) => (
+                {endorsements.map((e) => (
                   <span
-                    key={e.id}
+                    key={e.skillId}
                     className="inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-[#374151] dark:text-[#D1D5DB]"
                     style={{
                       borderLeft: `3px solid ${e.rating === 'strong' ? 'var(--success)' : 'var(--secondary)'}`,

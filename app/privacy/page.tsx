@@ -1,25 +1,19 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useMutation } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
+import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 
 export default function PrivacyPage() {
   const { user, loading } = useAuth()
   const showToast = useToast()
-  const [exporting, setExporting] = useState(false)
 
-  useEffect(() => {
-    // no redirect — page is public
-  }, [])
-
-  async function handleExport() {
-    setExporting(true)
-    try {
-      const data = await apiRequest<unknown>('/api/privacy/export')
+  const exportMutation = useMutation({
+    ...orpc.privacy.export.mutationOptions(),
+    onSuccess: (data) => {
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -30,12 +24,11 @@ export default function PrivacyPage() {
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
       showToast('Data exported successfully!', 'success')
-    } catch (err: unknown) {
+    },
+    onError: (err: unknown) => {
       showToast(err instanceof Error ? err.message : 'Export failed', 'error')
-    } finally {
-      setExporting(false)
-    }
-  }
+    },
+  })
 
   if (loading) return null
 
@@ -57,8 +50,12 @@ export default function PrivacyPage() {
                   Download all your data in JSON format. This includes your profile, skills, project
                   interests, and messages.
                 </p>
-                <Button variant="secondary" onClick={handleExport} disabled={exporting}>
-                  {exporting ? 'Preparing…' : 'Download My Data'}
+                <Button
+                  variant="secondary"
+                  onClick={() => exportMutation.mutate({})}
+                  disabled={exportMutation.isPending}
+                >
+                  {exportMutation.isPending ? 'Preparing…' : 'Download My Data'}
                 </Button>
               </div>
 

@@ -1,7 +1,7 @@
 import { Browser, Locator } from '@playwright/test'
 import { DemoEngine } from '../engine'
 import { buildTitleCardHtml } from '../html'
-import { apiSignup, apiVerifyEmail } from '../api'
+import { createDemoApiClient } from '../api'
 import { showEmailClient } from '../helpers'
 import {
   APPLICANT,
@@ -233,22 +233,23 @@ async function recordAdminReview(engine: DemoEngine, browser: Browser): Promise<
   console.log('  Setting up second applicant to reject...')
 
   if (!engine.isDetecting) {
-    const { email_verification_token: rejectVerifyToken } = await apiSignup(
-      REJECT_APPLICANT.name,
-      REJECT_APPLICANT.email,
-      REJECT_APPLICANT.password,
-      {
-        applicationMessage: REJECT_APPLICANT.applicationMessage,
-        bio: REJECT_APPLICANT.bio,
-        discordHandle: REJECT_APPLICANT.discordHandle,
-        contactPreference: REJECT_APPLICANT.contactPreference,
-        contactNotes: REJECT_APPLICANT.contactNotes,
-        availabilityHoursPerWeek: REJECT_APPLICANT.availabilityHoursPerWeek,
-        location: REJECT_APPLICANT.location,
-        country: REJECT_APPLICANT.country,
-      },
-    )
-    if (rejectVerifyToken) await apiVerifyEmail(rejectVerifyToken)
+    const api = createDemoApiClient()
+    const { emailVerificationToken: rejectVerifyToken } = await api.auth.signup({
+      name: REJECT_APPLICANT.name,
+      email: REJECT_APPLICANT.email,
+      password: REJECT_APPLICANT.password,
+      applicationMessage: REJECT_APPLICANT.applicationMessage,
+      bio: REJECT_APPLICANT.bio,
+      discordHandle: REJECT_APPLICANT.discordHandle,
+      contactPreference: REJECT_APPLICANT.contactPreference,
+      contactNotes: REJECT_APPLICANT.contactNotes,
+      availabilityHoursPerWeek: REJECT_APPLICANT.availabilityHoursPerWeek
+        ? Number(REJECT_APPLICANT.availabilityHoursPerWeek)
+        : undefined,
+      location: REJECT_APPLICANT.location,
+      country: REJECT_APPLICANT.country,
+    })
+    if (rejectVerifyToken) await api.auth.verifyEmail({ token: rejectVerifyToken })
   }
 
   console.log('  Recording admin review flow...')

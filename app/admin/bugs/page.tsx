@@ -1,26 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import Button from '@/components/Button'
-import FilterDropdown from '@/components/FilterDropdown'
+import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
+import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
-
-interface BugReport {
-  id: number
-  title: string
-  description: string
-  category: string | null
-  severity: string | null
-  status: string
-  pageUrl: string | null
-  reporterName: string | null
-  reporterEmail: string | null
-  resolutionNotes: string | null
-  createdAt: string
-}
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All' },
@@ -28,13 +15,13 @@ const STATUS_OPTIONS = [
   { value: 'in_progress', label: 'In Progress' },
   { value: 'resolved', label: 'Resolved' },
   { value: 'wont_fix', label: "Won't Fix" },
-]
+] as const
 const CATEGORY_OPTIONS = [
   { value: 'all', label: 'All' },
   { value: 'bug', label: 'Bug' },
   { value: 'feature', label: 'Feature' },
   { value: 'ux', label: 'UX Issue' },
-]
+] as const
 
 const BUG_STATUS_CLASSES: Record<string, string> = {
   open: 'bg-[#FED7AA] text-[#92400E] dark:bg-[#78350F] dark:text-[#FED7AA]',
@@ -51,65 +38,60 @@ export default function AdminBugsPage() {
   const router = useRouter()
   const { user, loading } = useAuth()
   const showToast = useToast()
-  const [reports, setReports] = useState<BugReport[]>([])
-  const [loadingData, setLoadingData] = useState(true)
-  const [statusFilter, setStatusFilter] = useState('open')
-  const [categoryFilter, setCategoryFilter] = useState('all')
-  const [editModal, setEditModal] = useState<BugReport | null>(null)
+  const queryClient = useQueryClient()
+  const { value: statusFilter, onChange: setStatusFilter } = useFilterOptions(
+    STATUS_OPTIONS,
+    'open',
+  )
+  const { value: categoryFilter, onChange: setCategoryFilter } = useFilterOptions(
+    CATEGORY_OPTIONS,
+    'all',
+  )
+
+  const { data: reports = [], isLoading: loadingData } = useQuery({
+    ...orpc.admin.bugReports.list.queryOptions({
+      input: {
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+        category: categoryFilter !== 'all' ? categoryFilter : undefined,
+      },
+    }),
+    enabled: !!user?.isAdmin,
+  })
+
+  const [editModal, setEditModal] = useState<(typeof reports)[number] | null>(null)
   const [editStatus, setEditStatus] = useState('')
   const [editNotes, setEditNotes] = useState('')
-  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     if (!loading && !user) router.push('/login')
     if (!loading && user && !user.isAdmin) router.push('/')
   }, [user, loading, router])
 
-  const loadReports = useCallback(async () => {
-    setLoadingData(true)
-    try {
-      const params = new URLSearchParams()
-      if (statusFilter !== 'all') params.set('status', statusFilter)
-      if (categoryFilter !== 'all') params.set('category', categoryFilter)
-      const query = params.toString() ? `?${params.toString()}` : ''
-      const data = await apiRequest<BugReport[]>(`/api/admin/bug-reports${query}`)
-      setReports(data)
-    } catch {
-      showToast('Failed to load reports', 'error')
-    } finally {
-      setLoadingData(false)
-    }
-  }, [statusFilter, categoryFilter, showToast])
+  const updateMutation = useMutation({
+    ...orpc.admin.bugReports.update.mutationOptions(),
+    onSuccess: () => {
+      showToast('Report updated!', 'success')
+      setEditModal(null)
+      void queryClient.invalidateQueries({ queryKey: orpc.admin.bugReports.list.key() })
+    },
+    onError: (err: unknown) => {
+      showToast(err instanceof Error ? err.message : 'Failed to update', 'error')
+    },
+  })
 
-  useEffect(() => {
-    if (!user?.isAdmin) return
-    // False positive: setState calls inside loadReports are in async callbacks, not synchronously.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadReports()
-  }, [user, loadReports])
-
-  function openEdit(report: BugReport) {
+  function openEdit(report: (typeof reports)[number]) {
     setEditModal(report)
     setEditStatus(report.status)
     setEditNotes(report.resolutionNotes ?? '')
   }
 
-  async function handleUpdate() {
+  function handleUpdate() {
     if (!editModal) return
-    setSubmitting(true)
-    try {
-      await apiRequest(`/api/admin/bug-reports/${editModal.id}`, {
-        method: 'PUT',
-        body: JSON.stringify({ status: editStatus, resolutionNotes: editNotes || null }),
-      })
-      showToast('Report updated!', 'success')
-      setEditModal(null)
-      await loadReports()
-    } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Failed to update', 'error')
-    } finally {
-      setSubmitting(false)
-    }
+    updateMutation.mutate({
+      id: editModal.id,
+      status: editStatus,
+      resolutionNotes: editNotes || null,
+    })
   }
 
   if (loading || !user) return null
@@ -168,7 +150,7 @@ export default function AdminBugsPage() {
                     {r.category && <span>{r.category}</span>}
                     {r.severity && <span>· {r.severity}</span>}
                     {r.reporterName && <span>· {r.reporterName}</span>}
-                    <span>· {new Date(r.createdAt).toLocaleDateString()}</span>
+                    <span>· {r.createdAt?.toLocaleDateString()}</span>
                     {r.pageUrl &&
                       (() => {
                         let path: string
@@ -259,7 +241,7 @@ export default function AdminBugsPage() {
                 <Button variant="secondary" onClick={() => setEditModal(null)}>
                   Cancel
                 </Button>
-                <Button disabled={submitting} onClick={handleUpdate}>
+                <Button disabled={updateMutation.isPending} onClick={handleUpdate}>
                   Update
                 </Button>
               </div>

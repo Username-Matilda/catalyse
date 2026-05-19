@@ -2,6 +2,7 @@ import { test as base, Browser, Page, WorkerInfo } from '@playwright/test'
 import { workerAuthFile, workerBaseUrl, parallelIndexFromBaseUrl } from './config'
 import { fake } from './fake'
 import fs from 'fs'
+import { createApiClient } from './client'
 
 interface Volunteer {
   page: Page
@@ -45,22 +46,22 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
       email: person.email,
       password: 'testpassword1',
     }
-    const resp = await fetch(`${baseUrl}/api/auth/signup`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    const api = createApiClient(baseUrl)
+    const result = await api.auth.signup({
+      body: {
         name: credentials.name,
         email: credentials.email,
         password: credentials.password,
-        consent_make_profile_visible_in_directory: true,
-        consent_contactable_by_project_owners: true,
-      }),
+        consentMakeProfileVisibleInDirectory: true,
+        consentContactableByProjectOwners: true,
+      },
     })
-    if (!resp.ok) throw new Error(`Volunteer signup failed: ${await resp.text()}`)
-    const { id: volunteerId, auth_token, email_verification_token } = await resp.json()
+    if (result.status !== 200)
+      throw new Error(`Volunteer signup failed: ${JSON.stringify(result.body)}`)
+    const { id: volunteerId, token: auth_token, emailVerificationToken } = result.body
 
-    if (email_verification_token) {
-      await confirmVolunteerEmail(baseUrl, email_verification_token)
+    if (emailVerificationToken) {
+      await confirmVolunteerEmail(baseUrl, emailVerificationToken)
     }
     await approveVolunteer(baseUrl, volunteerId)
 
@@ -77,11 +78,22 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
 export { expect } from '@playwright/test'
 
 export async function confirmVolunteerEmail(baseUrl: string, token: string): Promise<void> {
-  await fetch(`${baseUrl}/api/auth/verify-email`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token }),
-  })
+  const api = createApiClient(baseUrl)
+  await api.auth.verifyEmail({ body: { token } })
+}
+
+function readAdminToken(baseUrl: string): string | null {
+  const parallelIndex = parallelIndexFromBaseUrl(baseUrl)
+  const authFile = workerAuthFile(parallelIndex)
+  try {
+    const data = JSON.parse(fs.readFileSync(authFile, 'utf-8'))
+    const origin = data.origins?.find((o: { origin: string }) => o.origin === baseUrl)
+    return (
+      origin?.localStorage?.find((ls: { name: string }) => ls.name === 'authToken')?.value ?? null
+    )
+  } catch {
+    return null
+  }
 }
 
 export async function rejectVolunteer(
@@ -89,42 +101,22 @@ export async function rejectVolunteer(
   volunteerId: number,
   adminNotes?: string,
 ): Promise<void> {
-  const parallelIndex = parallelIndexFromBaseUrl(baseUrl)
-  const authFile = workerAuthFile(parallelIndex)
-  let adminToken: string | null = null
-  try {
-    const data = JSON.parse(fs.readFileSync(authFile, 'utf-8'))
-    const origin = data.origins?.find((o: { origin: string }) => o.origin === baseUrl)
-    adminToken =
-      origin?.localStorage?.find((ls: { name: string }) => ls.name === 'authToken')?.value ?? null
-  } catch {
-    return
-  }
+  const adminToken = readAdminToken(baseUrl)
   if (!adminToken) return
-  await fetch(`${baseUrl}/api/admin/applications/${volunteerId}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
-    body: JSON.stringify({ action: 'reject', ...(adminNotes && { adminNotes }) }),
+  const api = createApiClient(baseUrl, adminToken)
+  await api.admin.applications.action({
+    params: { id: volunteerId },
+    body: { action: 'reject', ...(adminNotes && { adminNotes }) },
   })
 }
 
 export async function approveVolunteer(baseUrl: string, volunteerId: number): Promise<void> {
-  const parallelIndex = parallelIndexFromBaseUrl(baseUrl)
-  const authFile = workerAuthFile(parallelIndex)
-  let adminToken: string | null = null
-  try {
-    const data = JSON.parse(fs.readFileSync(authFile, 'utf-8'))
-    const origin = data.origins?.find((o: { origin: string }) => o.origin === baseUrl)
-    adminToken =
-      origin?.localStorage?.find((ls: { name: string }) => ls.name === 'authToken')?.value ?? null
-  } catch {
-    return
-  }
+  const adminToken = readAdminToken(baseUrl)
   if (!adminToken) return
-  await fetch(`${baseUrl}/api/admin/applications/${volunteerId}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
-    body: JSON.stringify({ action: 'approve' }),
+  const api = createApiClient(baseUrl, adminToken)
+  await api.admin.applications.action({
+    params: { id: volunteerId },
+    body: { action: 'approve' },
   })
 }
 

@@ -2,25 +2,29 @@
 
 import { useEffect, useState } from 'react'
 import Script from 'next/script'
+import { useMutation } from '@tanstack/react-query'
 import { useAuth } from '@/lib/auth-context'
 import { useCookieConsent } from '@/lib/cookie-consent-context'
 import Button from '@/components/Button'
+import { orpc } from '@/lib/orpc'
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID
 
 type ConsentState = boolean | null
 
 export default function CookieConsentBanner() {
-  const { user, token, loading } = useAuth()
+  const { user, loading } = useAuth()
   const { setBannerVisible } = useCookieConsent()
   const [consent, setConsent] = useState<ConsentState>(null)
   const [resolved, setResolved] = useState(false)
+  const updateMeMutation = useMutation({ ...orpc.volunteers.updateMe.mutationOptions() })
 
   useEffect(() => {
     if (loading) return
 
     if (user) {
       if (user.cookieConsentAnalytics !== null) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setConsent(user.cookieConsentAnalytics)
         setResolved(true)
         return
@@ -41,16 +45,12 @@ export default function CookieConsentBanner() {
     setBannerVisible(resolved && consent === null)
   }, [resolved, consent, setBannerVisible])
 
-  async function saveConsent(value: boolean) {
+  function saveConsent(value: boolean) {
     localStorage.setItem('cookieConsent', String(value))
     setConsent(value)
 
-    if (token) {
-      await fetch('/api/volunteers/me', {
-        method: 'PUT',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cookie_consent_analytics: value }),
-      }).catch(() => {})
+    if (user) {
+      updateMeMutation.mutate({ cookieConsentAnalytics: value })
     }
   }
 
@@ -75,7 +75,8 @@ export default function CookieConsentBanner() {
         <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-[var(--border)] bg-[var(--surface)] shadow-lg xl:h-16">
           <div className="container flex flex-wrap items-center justify-between gap-4 py-4 xl:h-full xl:py-0">
             <p className="text-sm text-[var(--text-light)]">
-              We use Google Analytics to understand how the site is used. You can decline and it won&apos;t load.{' '}
+              We use Google Analytics to understand how the site is used. You can decline and it
+              won&apos;t load.{' '}
               <a href="/privacy" className="underline">
                 Privacy policy
               </a>

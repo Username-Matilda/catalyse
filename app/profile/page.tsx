@@ -2,35 +2,18 @@
 
 import { useEffect, useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQuery, useMutation } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import Checkbox from '@/components/Checkbox'
-import FilterDropdown from '@/components/FilterDropdown'
+import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import SkillPicker from '@/components/SkillPicker'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
+import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 
 interface SelectedSkill {
   skillId: number
   proficiencyLevel: string
-}
-
-interface ProfileData {
-  name: string
-  bio: string | null
-  location: string | null
-  availabilityHoursPerWeek: number | null
-  consentMakeProfileVisibleInDirectory: boolean
-  consentContactableByProjectOwners: boolean
-  consentShareContactInfoWithProjectOwner: boolean
-  emailDigest: string
-  otherSkills: string | null
-  skills: Array<{ id: number; proficiencyLevel: string | null }>
-  discordHandle: string | null
-  signalNumber: string | null
-  whatsappNumber: string | null
-  contactPreference: string | null
-  contactNotes: string | null
 }
 
 export default function ProfilePage() {
@@ -49,78 +32,102 @@ export default function ProfilePage() {
   const [discordHandle, setDiscordHandle] = useState('')
   const [signalNumber, setSignalNumber] = useState('')
   const [whatsappNumber, setWhatsappNumber] = useState('')
-  const [contactPreference, setContactPreference] = useState('')
+  const {
+    value: contactPreference,
+    onChange: setContactPreference,
+    options: contactPrefOptions,
+  } = useFilterOptions(
+    [
+      { value: '', label: 'Select…' },
+      { value: 'email', label: 'Email' },
+      { value: 'discord', label: 'Discord' },
+      { value: 'signal', label: 'Signal' },
+      { value: 'whatsapp', label: 'WhatsApp' },
+    ],
+    '',
+  )
   const [contactNotes, setContactNotes] = useState('')
-  const [emailDigest, setEmailDigest] = useState('none')
+  const {
+    value: emailDigest,
+    onChange: setEmailDigest,
+    options: emailDigestOptions,
+  } = useFilterOptions(
+    [
+      { value: 'none', label: "Don't email me" },
+      { value: 'match', label: 'Email me when a project matches my skills' },
+      { value: 'fortnightly', label: 'Send me a fortnightly digest' },
+    ],
+    'none',
+  )
   const [skills, setSkills] = useState<SelectedSkill[]>([])
   const [otherSkills, setOtherSkills] = useState('')
-  const [loadingProfile, setLoadingProfile] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
+  const [initialized, setInitialized] = useState(false)
 
   useEffect(() => {
     if (!loading && !user) router.replace('/login')
   }, [user, loading, router])
 
-  useEffect(() => {
-    if (!user) return
-    apiRequest<ProfileData>('/api/auth/me')
-      .then((d) => {
-        setName(d.name ?? '')
-        setBio(d.bio ?? '')
-        setLocation(d.location ?? '')
-        setHours(d.availabilityHoursPerWeek !== null ? String(d.availabilityHoursPerWeek) : '')
-        setConsentMakeProfileVisibleInDirectory(!!d.consentMakeProfileVisibleInDirectory)
-        setConsentContactableByProjectOwners(!!d.consentContactableByProjectOwners)
-        setConsentShareContactInfoWithProjectOwner(!!d.consentShareContactInfoWithProjectOwner)
-        setDiscordHandle(d.discordHandle ?? '')
-        setSignalNumber(d.signalNumber ?? '')
-        setWhatsappNumber(d.whatsappNumber ?? '')
-        setContactPreference(d.contactPreference ?? '')
-        setContactNotes(d.contactNotes ?? '')
-        setEmailDigest(d.emailDigest ?? 'none')
-        setOtherSkills(d.otherSkills ?? '')
-        setSkills(
-          (d.skills ?? []).map((s) => ({
-            skillId: s.id,
-            proficiencyLevel: s.proficiencyLevel ?? 'intermediate',
-          })),
-        )
-      })
-      .catch(() => {})
-      .finally(() => setLoadingProfile(false))
-  }, [user])
+  const { data: me, isPending: loadingProfile } = useQuery({
+    ...orpc.auth.me.queryOptions(),
+    enabled: !!user,
+  })
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault()
-    setSubmitting(true)
-    try {
-      await apiRequest('/api/volunteers/me', {
-        method: 'PUT',
-        body: JSON.stringify({
-          name: name.trim(),
-          bio: bio.trim() || null,
-          location: location.trim() || null,
-          availability_hours_per_week: hours ? Number(hours) : null,
-          consent_make_profile_visible_in_directory: consentMakeProfileVisibleInDirectory,
-          consent_contactable_by_project_owners: consentContactableByProjectOwners,
-          consent_share_contact_info_with_project_owner: consentShareContactInfoWithProjectOwner,
-          discord_handle: discordHandle.trim() || null,
-          signal_number: signalNumber.trim() || null,
-          whatsapp_number: whatsappNumber.trim() || null,
-          contact_preference: contactPreference || null,
-          contact_notes: contactNotes.trim() || null,
-          email_digest: emailDigest,
-          other_skills: otherSkills.trim() || null,
-          skill_ids: skills.map((s) => s.skillId),
-        }),
-      })
+  useEffect(() => {
+    if (!me || initialized) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setInitialized(true)
+    setName(me.name ?? '')
+    setBio(me.bio ?? '')
+    setLocation(me.location ?? '')
+    setHours(me.availabilityHoursPerWeek !== null ? String(me.availabilityHoursPerWeek) : '')
+    setConsentMakeProfileVisibleInDirectory(!!me.consentMakeProfileVisibleInDirectory)
+    setConsentContactableByProjectOwners(!!me.consentContactableByProjectOwners)
+    setConsentShareContactInfoWithProjectOwner(!!me.consentShareContactInfoWithProjectOwner)
+    setDiscordHandle(me.discordHandle ?? '')
+    setSignalNumber(me.signalNumber ?? '')
+    setWhatsappNumber(me.whatsappNumber ?? '')
+    setContactPreference(me.contactPreference ?? '')
+    setContactNotes(me.contactNotes ?? '')
+    setEmailDigest(me.emailDigest ?? 'none')
+    setOtherSkills(me.otherSkills ?? '')
+    setSkills(
+      ((me.skills ?? []) as { id: number; proficiencyLevel?: string | null }[]).map((s) => ({
+        skillId: s.id,
+        proficiencyLevel: s.proficiencyLevel ?? 'intermediate',
+      })),
+    )
+  }, [me, initialized, setContactPreference, setEmailDigest])
+
+  const updateMutation = useMutation({
+    ...orpc.volunteers.updateMe.mutationOptions(),
+    onSuccess: async () => {
       await refreshUser()
       showToast('Profile updated!', 'success')
-    } catch (err: unknown) {
+    },
+    onError: (err: unknown) => {
       showToast(err instanceof Error ? err.message : 'Failed to save profile', 'error')
-    } finally {
-      setSubmitting(false)
-    }
+    },
+  })
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    updateMutation.mutate({
+      name: name.trim(),
+      bio: bio.trim() || null,
+      location: location.trim() || null,
+      availabilityHoursPerWeek: hours ? Number(hours) : null,
+      consentMakeProfileVisibleInDirectory,
+      consentContactableByProjectOwners,
+      consentShareContactInfoWithProjectOwner,
+      discordHandle: discordHandle.trim() || null,
+      signalNumber: signalNumber.trim() || null,
+      whatsappNumber: whatsappNumber.trim() || null,
+      contactPreference: contactPreference || null,
+      contactNotes: contactNotes.trim() || null,
+      emailDigest,
+      otherSkills: otherSkills.trim() || null,
+      skillIds: skills.map((s) => s.skillId),
+    })
   }
 
   if (loading || !user) return null
@@ -211,14 +218,8 @@ export default function ProfilePage() {
                 label="Preferred Contact Method"
                 ariaLabel="Preferred Contact Method"
                 value={contactPreference}
-                options={[
-                  { value: '', label: 'Select…' },
-                  { value: 'email', label: 'Email' },
-                  { value: 'discord', label: 'Discord' },
-                  { value: 'signal', label: 'Signal' },
-                  { value: 'whatsapp', label: 'WhatsApp' },
-                ]}
-                onChange={(v) => setContactPreference(v)}
+                options={contactPrefOptions}
+                onChange={setContactPreference}
               />
             </div>
           </div>
@@ -315,17 +316,13 @@ export default function ProfilePage() {
               label="Keep me in the loop about new projects"
               ariaLabel="Keep me in the loop about new projects"
               value={emailDigest}
-              options={[
-                { value: 'none', label: "Don't email me" },
-                { value: 'match', label: 'Email me when a project matches my skills' },
-                { value: 'fortnightly', label: 'Send me a fortnightly digest' },
-              ]}
-              onChange={(v) => setEmailDigest(v)}
+              options={emailDigestOptions}
+              onChange={setEmailDigest}
             />
           </div>
 
-          <Button type="submit" disabled={submitting}>
-            {submitting ? 'Saving…' : 'Save Changes'}
+          <Button type="submit" disabled={updateMutation.isPending}>
+            {updateMutation.isPending ? 'Saving…' : 'Save Changes'}
           </Button>
         </form>
 

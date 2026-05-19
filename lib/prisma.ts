@@ -1,4 +1,4 @@
-import { PrismaClient } from '@/app/generated/prisma/client'
+import { PrismaClient } from '@/generated/prisma/client'
 import { resolveDbUrl } from '@/lib/db-url'
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }

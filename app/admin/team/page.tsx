@@ -1,40 +1,22 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import Button from '@/components/Button'
 import Tabs from '@/components/Tabs'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
+import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
-
-interface Admin {
-  id: number
-  name: string
-  email: string
-  createdAt: string
-}
-
-interface Invite {
-  id: number
-  email: string
-  status: string
-  invitedByName: string
-  createdAt: string
-  expiresAt: string
-}
 
 export default function AdminTeamPage() {
   const router = useRouter()
   const { user, loading } = useAuth()
   const showToast = useToast()
-  const [admins, setAdmins] = useState<Admin[]>([])
-  const [invites, setInvites] = useState<Invite[]>([])
-  const [loadingData, setLoadingData] = useState(true)
+  const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<'admins' | 'invites'>('admins')
   const [showInviteDialog, setShowInviteDialog] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
-  const [submitting, setSubmitting] = useState(false)
   const [inviteSuccess, setInviteSuccess] = useState('')
   const dialogRef = useRef<HTMLDivElement>(null)
 
@@ -43,31 +25,53 @@ export default function AdminTeamPage() {
     if (!loading && user && !user.isAdmin) router.push('/')
   }, [user, loading, router])
 
-  const loadData = useCallback(
-    async function () {
-      try {
-        const [a, i] = await Promise.all([
-          apiRequest<Admin[]>('/api/admin/admins'),
-          apiRequest<Invite[]>('/api/admin/invites'),
-        ])
-        setAdmins(a)
-        setInvites(i.filter((i) => i.status === 'pending'))
-      } catch {
-        showToast('Failed to load team data', 'error')
-      } finally {
-        setLoadingData(false)
-      }
-    },
-    [showToast],
-  )
+  const { data: admins = [], isLoading: loadingAdmins } = useQuery({
+    ...orpc.admin.admins.list.queryOptions(),
+    enabled: !!user?.isAdmin,
+  })
 
-  useEffect(() => {
-    if (!user?.isAdmin) return
-    // False positive: setState calls inside loadData are in .then()/.finally() callbacks,
-    // never synchronously in the effect. Rule doesn't track async boundaries.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadData()
-  }, [user, loadData])
+  const { data: allInvites = [], isLoading: loadingInvites } = useQuery({
+    ...orpc.admin.admins.listInvites.queryOptions(),
+    enabled: !!user?.isAdmin,
+  })
+
+  const invites = allInvites.filter((i) => i.status === 'pending')
+  const loadingData = loadingAdmins || loadingInvites
+
+  const inviteMutation = useMutation({
+    ...orpc.admin.admins.invite.mutationOptions(),
+    onSuccess: () => {
+      setInviteSuccess(`Invite sent to ${inviteEmail}`)
+      setInviteEmail('')
+      void queryClient.invalidateQueries({ queryKey: orpc.admin.admins.listInvites.key() })
+    },
+    onError: (err: unknown) => {
+      showToast(err instanceof Error ? err.message : 'Failed to send invite', 'error')
+      closeInviteDialog()
+    },
+  })
+
+  const revokeInviteMutation = useMutation({
+    ...orpc.admin.admins.revokeInvite.mutationOptions(),
+    onSuccess: () => {
+      showToast('Invite cancelled', 'success')
+      void queryClient.invalidateQueries({ queryKey: orpc.admin.admins.listInvites.key() })
+    },
+    onError: (err: unknown) => {
+      showToast(err instanceof Error ? err.message : 'Failed to cancel invite', 'error')
+    },
+  })
+
+  const revokeAdminMutation = useMutation({
+    ...orpc.admin.admins.revoke.mutationOptions(),
+    onSuccess: () => {
+      showToast('Admin access revoked', 'success')
+      void queryClient.invalidateQueries({ queryKey: orpc.admin.admins.list.key() })
+    },
+    onError: (err: unknown) => {
+      showToast(err instanceof Error ? err.message : 'Failed to revoke admin', 'error')
+    },
+  })
 
   function openInviteDialog() {
     setInviteEmail('')
@@ -81,44 +85,18 @@ export default function AdminTeamPage() {
     setInviteEmail('')
   }
 
-  async function sendInvite(e: React.FormEvent) {
+  function sendInvite(e: React.FormEvent) {
     e.preventDefault()
-    setSubmitting(true)
-    try {
-      await apiRequest('/api/admin/admins/invite', {
-        method: 'POST',
-        body: JSON.stringify({ email: inviteEmail.trim() }),
-      })
-      setInviteSuccess(`Invite sent to ${inviteEmail}`)
-      setInviteEmail('')
-      await loadData()
-    } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Failed to send invite', 'error')
-      closeInviteDialog()
-    } finally {
-      setSubmitting(false)
-    }
+    inviteMutation.mutate({ email: inviteEmail.trim() })
   }
 
-  async function cancelInvite(id: number) {
-    try {
-      await apiRequest(`/api/admin/invites/${id}`, { method: 'DELETE' })
-      showToast('Invite cancelled', 'success')
-      setInvites((prev) => prev.filter((i) => i.id !== id))
-    } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Failed to cancel invite', 'error')
-    }
+  function cancelInvite(id: number) {
+    revokeInviteMutation.mutate({ id })
   }
 
-  async function revokeAdmin(id: number, name: string) {
+  function revokeAdmin(id: number, name: string) {
     if (!confirm(`Revoke admin access for ${name}?`)) return
-    try {
-      await apiRequest(`/api/admin/admins/${id}`, { method: 'DELETE' })
-      showToast('Admin access revoked', 'success')
-      setAdmins((prev) => prev.filter((a) => a.id !== id))
-    } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Failed to revoke admin', 'error')
-    }
+    revokeAdminMutation.mutate({ id })
   }
 
   if (loading || !user) return null
@@ -270,8 +248,8 @@ export default function AdminTeamPage() {
                       <Button type="button" variant="secondary" onClick={closeInviteDialog}>
                         Cancel
                       </Button>
-                      <Button type="submit" disabled={submitting}>
-                        {submitting ? 'Sending…' : 'Send Invite'}
+                      <Button type="submit" disabled={inviteMutation.isPending}>
+                        {inviteMutation.isPending ? 'Sending…' : 'Send Invite'}
                       </Button>
                     </div>
                   </form>

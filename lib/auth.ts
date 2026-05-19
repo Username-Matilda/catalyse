@@ -1,4 +1,5 @@
 import { randomBytes, pbkdf2Sync, timingSafeEqual } from 'crypto'
+import type { Volunteer } from '@/generated/prisma/client'
 import { prisma } from './prisma'
 
 // PBKDF2-SHA256 password hashing — matches the Python implementation exactly:
@@ -39,14 +40,26 @@ export async function getCurrentVolunteer(authorization: string | null | undefin
   })
 }
 
-// Convert a Prisma Volunteer to a camelCase response format.
 // showContact controls whether email and direct contact fields are included.
-export function serializeVolunteer(
-  vol: Record<string, unknown>,
-  opts: { showContact?: boolean; skills?: unknown[]; endorsements?: unknown[] } = {},
+export function redactVolunteer(
+  vol: Volunteer,
+  opts: {
+    showContact?: boolean
+    skills?: Array<{
+      id: number
+      categoryId: number
+      name: string
+      description: string | null
+      sortOrder: number | null
+      createdAt: Date | null
+      categoryName: string
+      proficiencyLevel: string | null
+    }>
+    endorsements?: Array<{ skillId: number; rating: string | null; skillName: string }>
+  } = {},
 ) {
   const { showContact = false, skills, endorsements } = opts
-  const result: Record<string, unknown> = {
+  return {
     id: vol.id,
     name: vol.name,
     bio: vol.bio,
@@ -61,7 +74,7 @@ export function serializeVolunteer(
     consentGivenAt: vol.consentGivenAt,
     cookieConsentAnalytics: vol.cookieConsentAnalytics ?? null,
     isAdmin: vol.isAdmin,
-    isSuperAdmin: isSuperAdmin(vol.email as string | null | undefined),
+    isSuperAdmin: isSuperAdmin(vol.email),
     approvalStatus: vol.approvalStatus,
     emailConfirmed: vol.emailConfirmed,
     emailDigest: vol.emailDigest,
@@ -69,50 +82,15 @@ export function serializeVolunteer(
     createdAt: vol.createdAt,
     updatedAt: vol.updatedAt,
     deletedAt: vol.deletedAt,
+    email: showContact ? vol.email : undefined,
+    discordHandle: showContact ? vol.discordHandle : undefined,
+    signalNumber: showContact ? vol.signalNumber : undefined,
+    whatsappNumber: showContact ? vol.whatsappNumber : undefined,
+    contactPreference: showContact ? vol.contactPreference : undefined,
+    contactNotes: showContact ? vol.contactNotes : undefined,
+    skills,
+    endorsements,
   }
-  if (showContact) {
-    result.email = vol.email
-    result.discordHandle = vol.discordHandle
-    result.signalNumber = vol.signalNumber
-    result.whatsappNumber = vol.whatsappNumber
-    result.contactPreference = vol.contactPreference
-    result.contactNotes = vol.contactNotes
-  }
-  if (skills !== undefined) result.skills = skills
-  if (endorsements !== undefined) result.endorsements = endorsements
-  return result
-}
-
-export function serializeSkill(vs: {
-  proficiencyLevel: string | null
-  skill: {
-    id: number
-    categoryId: number
-    name: string
-    description: string | null
-    sortOrder: number | null
-    createdAt: Date | null
-    category: { name: string }
-  }
-}) {
-  return {
-    id: vs.skill.id,
-    categoryId: vs.skill.categoryId,
-    name: vs.skill.name,
-    description: vs.skill.description,
-    sortOrder: vs.skill.sortOrder,
-    createdAt: vs.skill.createdAt,
-    categoryName: vs.skill.category.name,
-    proficiencyLevel: vs.proficiencyLevel,
-  }
-}
-
-export function serializeEndorsement(se: {
-  skillId: number
-  rating: string | null
-  skill: { name: string }
-}) {
-  return { skillId: se.skillId, rating: se.rating, skillName: se.skill.name }
 }
 
 export async function requireAdmin(

@@ -3,36 +3,23 @@ import { fake } from '../fake'
 import { ADMIN_EMAIL } from '../config'
 import { signup } from '../actions/auth'
 import { Page } from '@playwright/test'
+import { createApiClient } from '../client'
 
-async function createAdminInvite(adminPage: Page, email: string): Promise<string> {
-  const data: { _dev_invite_token?: string } = await adminPage.evaluate(
-    async (inviteEmail: string) => {
-      const token = localStorage.getItem('authToken')
-      const resp = await fetch('/api/admin/admins/invite', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email: inviteEmail }),
-      })
-      if (!resp.ok) throw new Error(await resp.text())
-      return resp.json()
-    },
-    email,
-  )
+async function createAdminInvite(adminPage: Page, baseUrl: string, email: string): Promise<string> {
+  const token = await adminPage.evaluate(() => localStorage.getItem('authToken'))
+  const api = createApiClient(baseUrl, token)
+  const result = await api.admin.admins.invite({ body: { email } })
+  if (result.status !== 200) throw new Error(`Invite failed: ${JSON.stringify(result.body)}`)
+  const data = result.body as { message: string; _dev_invite_token?: string }
   if (!data._dev_invite_token) throw new Error('No dev invite token in response')
   return data._dev_invite_token
 }
 
-async function getMe(page: Page): Promise<{ id: number; isAdmin: boolean }> {
-  return page.evaluate(async () => {
-    const token = localStorage.getItem('authToken')
-    const resp = await fetch('/api/auth/me', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    return resp.json()
-  })
+async function getMe(page: Page, baseUrl: string): Promise<{ id: number; isAdmin: boolean }> {
+  const token = await page.evaluate(() => localStorage.getItem('authToken'))
+  const api = createApiClient(baseUrl, token)
+  const result = await api.auth.me()
+  return result.body as { id: number; isAdmin: boolean }
 }
 
 test.describe('Admin: Admin Team Management', () => {
@@ -63,7 +50,7 @@ test.describe('Admin: Admin Team Management', () => {
     const inviteEmail = fake.uniqueEmail()
 
     await adminPage.goto(`${baseUrl}/admin/team`)
-    await createAdminInvite(adminPage, inviteEmail)
+    await createAdminInvite(adminPage, baseUrl, inviteEmail)
 
     await adminPage.goto(`${baseUrl}/admin/team`)
     await adminPage.getByRole('tab', { name: 'Pending Invites' }).click()
@@ -75,7 +62,7 @@ test.describe('Admin: Admin Team Management', () => {
     const inviteEmail = fake.uniqueEmail()
 
     await adminPage.goto(`${baseUrl}/admin/team`)
-    await createAdminInvite(adminPage, inviteEmail)
+    await createAdminInvite(adminPage, baseUrl, inviteEmail)
 
     await adminPage.goto(`${baseUrl}/admin/team`)
     await adminPage.getByRole('tab', { name: 'Pending Invites' }).click()
@@ -92,7 +79,7 @@ test.describe('Admin: Admin Team Management', () => {
     const person = fake.person()
 
     await adminPage.goto(`${baseUrl}/admin/team`)
-    const token = await createAdminInvite(adminPage, person.email)
+    const token = await createAdminInvite(adminPage, baseUrl, person.email)
 
     const ctx = await browser.newContext()
     const page = await ctx.newPage()
@@ -110,7 +97,7 @@ test.describe('Admin: Admin Team Management', () => {
       await signup(baseUrl, page, person.name, person.email, 'testpassword1')
       await page.waitForURL(`${baseUrl}/dashboard`, { timeout: 15_000 })
 
-      const me = await getMe(page)
+      const me = await getMe(page, baseUrl)
       expect(me.isAdmin).toBeTruthy()
     } finally {
       await ctx.close()
@@ -119,33 +106,32 @@ test.describe('Admin: Admin Team Management', () => {
 
   test('Existing user accepts an admin invite', async ({ adminPage, volunteer, baseUrl }) => {
     await adminPage.goto(`${baseUrl}/admin/team`)
-    const token = await createAdminInvite(adminPage, volunteer.email)
+    const token = await createAdminInvite(adminPage, baseUrl, volunteer.email)
 
     await volunteer.page.goto(`${baseUrl}/accept-invite?token=${token}`)
     await expect(volunteer.page.getByRole('heading', { name: 'Welcome to the Team!' })).toBeVisible(
       { timeout: 10_000 },
     )
 
-    const me = await getMe(volunteer.page)
+    const me = await getMe(volunteer.page, baseUrl)
     expect(me.isAdmin).toBeTruthy()
   })
 
   test("Admin revokes another admin's access", async ({ adminPage, volunteer, baseUrl }) => {
     await adminPage.goto(`${baseUrl}/admin/team`)
-    const token = await createAdminInvite(adminPage, volunteer.email)
+    const token = await createAdminInvite(adminPage, baseUrl, volunteer.email)
 
     // Navigate to a real page first so the volunteer's localStorage is accessible
     await volunteer.page.goto(`${baseUrl}/dashboard`)
 
     // Accept invite as the volunteer directly via API
-    await volunteer.page.evaluate(async (inviteToken: string) => {
-      const authToken = localStorage.getItem('authToken')
-      const resp = await fetch(`/api/admin/admins/accept-invite?invite_token=${inviteToken}`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${authToken}` },
-      })
-      if (!resp.ok) throw new Error(await resp.text())
-    }, token)
+    const volunteerToken = await volunteer.page.evaluate(() => localStorage.getItem('authToken'))
+    const volunteerApi = createApiClient(baseUrl, volunteerToken)
+    const acceptResult = await volunteerApi.admin.admins.acceptInvite({
+      body: { inviteToken: token },
+    })
+    if (acceptResult.status !== 200)
+      throw new Error(`Accept invite failed: ${JSON.stringify(acceptResult.body)}`)
 
     // Reload team page to see updated admin list
     await adminPage.goto(`${baseUrl}/admin/team`)
@@ -159,13 +145,7 @@ test.describe('Admin: Admin Team Management', () => {
     await expect(adminCard).not.toBeVisible({ timeout: 10_000 })
 
     // Volunteer should no longer have admin access
-    const status = await volunteer.page.evaluate(async () => {
-      const authToken = localStorage.getItem('authToken')
-      const resp = await fetch('/api/admin/triage', {
-        headers: { Authorization: `Bearer ${authToken}` },
-      })
-      return resp.status
-    })
-    expect(status).toBe(403)
+    const triageResult = await volunteerApi.admin.triage.list()
+    expect(triageResult.status).toBe(403)
   })
 })

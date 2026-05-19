@@ -1,6 +1,13 @@
 generator client {
   provider = "prisma-client"
-  output   = "../app/generated/prisma"
+  output   = "../generated/prisma"
+}
+
+generator zod {
+  provider                         = "zod-prisma-types"
+  output                           = "../generated/zod"
+  createInputTypes                 = false
+  createOptionalDefaultValuesTypes = true
 }
 
 datasource db {
@@ -10,10 +17,12 @@ datasource db {
 
 model AdminInvite {
   id           Int        @id @default(autoincrement())
+  /// @zod.string.email({ message: "A valid email address is required" })
   email        String
+  /// @zod.custom.omit([model])
   inviteToken  String     @unique(map: "sqlite_autoindex_admin_invites_1") @map("invite_token")
   invitedById  Int        @map("invited_by_id")
-  status       String     @default("pending")
+  status       String     @default("pending") // TODO: enum — pending, accepted, expired
   acceptedById Int?       @map("accepted_by_id")
   acceptedAt   DateTime?  @map("accepted_at")
   expiresAt    DateTime   @map("expires_at")
@@ -30,8 +39,9 @@ model AdminNote {
   id               Int       @id @default(autoincrement())
   volunteerId      Int       @map("volunteer_id")
   authorId         Int       @map("author_id")
+  /// @zod.string.min(1, { message: "Content is required" })
   content          String
-  category         String?   @default("general")
+  category         String?   @default("general") // TODO: enum — general (others unknown)
   relatedProjectId Int?      @map("related_project_id")
   createdAt        DateTime? @default(now()) @map("created_at")
   updatedAt        DateTime? @default(now()) @map("updated_at")
@@ -47,12 +57,14 @@ model BugReport {
   id              Int        @id @default(autoincrement())
   reporterId      Int?       @map("reporter_id")
   reporterEmail   String?    @map("reporter_email")
+  /// @zod.string.min(1, { message: "Title is required" }).max(300, { message: "Title must be 300 characters or fewer" })
   title           String
+  /// @zod.string.min(10, { message: "Description must be at least 10 characters" })
   description     String
   pageUrl         String?    @map("page_url")
-  category        String?    @default("bug")
-  severity        String?    @default("medium")
-  status          String     @default("open")
+  category        String?    @default("bug") // TODO: enum — bug, feature, ui (others unknown)
+  severity        String?    @default("medium") // TODO: enum — low, medium, high, critical
+  status          String     @default("open") // TODO: enum — open, in_progress, resolved, closed
   resolutionNotes String?    @map("resolution_notes")
   resolvedById    Int?       @map("resolved_by_id")
   resolvedAt      DateTime?  @map("resolved_at")
@@ -87,7 +99,7 @@ model DeletionRequest {
   id             Int       @id @default(autoincrement())
   volunteerId    Int       @map("volunteer_id")
   volunteerEmail String?   @map("volunteer_email")
-  status         String    @default("pending")
+  status         String    @default("pending") // TODO: enum — pending, completed
   requestedAt    DateTime? @default(now()) @map("requested_at")
   completedAt    DateTime? @map("completed_at")
 
@@ -97,7 +109,7 @@ model DeletionRequest {
 model Notification {
   id          Int       @id @default(autoincrement())
   volunteerId Int       @map("volunteer_id")
-  type        String
+  type        String // TODO: enum — new_project_proposal, project_approved, project_needs_discussion, project_status_changed, new_interest, interest_accepted, interest_declined, interest_withdrawn, assigned_to_project, new_bug_report, starter_task_assigned, starter_task_submitted, starter_task_reviewed, local_group_suggestion
   title       String
   body        String?
   link        String?
@@ -114,6 +126,7 @@ model Notification {
 model PasswordResetToken {
   id          Int       @id @default(autoincrement())
   volunteerId Int       @map("volunteer_id")
+  /// @zod.custom.omit([model])
   token       String    @unique(map: "sqlite_autoindex_password_reset_tokens_1")
   expiresAt   DateTime  @map("expires_at")
   usedAt      DateTime? @map("used_at")
@@ -128,6 +141,7 @@ model PasswordResetToken {
 model EmailVerificationToken {
   id          Int       @id @default(autoincrement())
   volunteerId Int       @map("volunteer_id")
+  /// @zod.custom.omit([model])
   token       String    @unique(map: "sqlite_autoindex_email_verification_tokens_1")
   expiresAt   DateTime  @map("expires_at")
   usedAt      DateTime? @map("used_at")
@@ -143,9 +157,9 @@ model ProjectInterest {
   id              Int       @id @default(autoincrement())
   volunteerId     Int       @map("volunteer_id")
   projectId       Int       @map("project_id")
-  interestType    String    @map("interest_type")
+  interestType    String    @map("interest_type") // TODO: enum — want_to_contribute, want_to_own
   message         String?
-  status          String    @default("pending")
+  status          String    @default("pending") // TODO: enum — pending, accepted, declined, withdrawn
   responseMessage String?   @map("response_message")
   createdAt       DateTime? @default(now()) @map("created_at")
   respondedAt     DateTime? @map("responded_at")
@@ -174,10 +188,11 @@ model ProjectSkill {
 model ProjectTask {
   id           Int        @id @default(autoincrement())
   projectId    Int        @map("project_id")
+  /// @zod.string.min(1, { message: "Title is required" })
   title        String
   description  String?
   assignedToId Int?       @map("assigned_to_id")
-  status       String     @default("open")
+  status       String     @default("open") // TODO: enum — open, assigned, done
   createdById  Int        @map("created_by_id")
   completedAt          DateTime?  @map("completed_at")
   nudgeSentAt          DateTime?  @map("nudge_sent_at")
@@ -197,6 +212,7 @@ model ProjectUpdate {
   id        Int        @id @default(autoincrement())
   projectId Int        @map("project_id")
   authorId  Int?       @map("author_id")
+  /// @zod.string.min(1, { message: "Content is required" })
   content   String
   createdAt DateTime?  @default(now()) @map("created_at")
   author    Volunteer? @relation(fields: [authorId], references: [id], onUpdate: NoAction)
@@ -208,22 +224,24 @@ model ProjectUpdate {
 
 model Project {
   id                         Int               @id @default(autoincrement())
+  /// @zod.string.min(1, { message: "Title is required" })
   title                      String
+  /// @zod.string.min(10, { message: "Description must be at least 10 characters" })
   description                String
-  status                     String            @default("pending_review")
+  status                     String            @default("pending_review") // TODO: enum — pending_review, seeking_owner, seeking_help, needs_tasks, in_progress, on_hold, completed, archived, needs_discussion
   ownerId                    Int?              @map("owner_id")
   proposedById               Int?              @map("proposed_by_id")
   isOrgProposed              Boolean?          @default(false) @map("is_org_proposed")
-  projectType                String?           @map("project_type")
+  projectType                String?           @map("project_type") // TODO: enum — sprint, container, ongoing, one_off
   estimatedDuration          String?           @map("estimated_duration")
   timeCommitmentHoursPerWeek Int?              @map("time_commitment_hours_per_week")
-  urgency                    String?           @default("medium")
+  urgency                    String?           @default("medium") // TODO: enum — low, medium, high
   reviewNotes                String?           @map("review_notes")
   reviewedById               Int?              @map("reviewed_by_id")
   reviewedAt                 DateTime?         @map("reviewed_at")
   feedbackToProposer         String?           @map("feedback_to_proposer")
   collaborationLink          String?           @map("collaboration_link")
-  outcome                    String?
+  outcome                    String? // TODO: enum — successful, partial, not_completed, ongoing
   outcomeNotes               String?           @map("outcome_notes")
   completedAt                DateTime?         @map("completed_at")
   createdAt                  DateTime?         @default(now()) @map("created_at")
@@ -253,7 +271,9 @@ model Project {
 
 model LocalGroup {
   id          Int                    @id @default(autoincrement())
+  /// @zod.string.min(1, { message: "Group name is required" })
   name        String
+  /// @zod.string.min(1, { message: "Country is required" })
   country     String
   suggestions LocalGroupSuggestion[]
 
@@ -263,9 +283,11 @@ model LocalGroup {
 
 model LocalGroupSuggestion {
   id            Int        @id @default(autoincrement())
+  /// @zod.string.min(1, { message: "Group name is required" })
   name          String
+  /// @zod.string.min(1, { message: "Country is required" })
   country       String
-  status        String     @default("pending")
+  status        String     @default("pending") // TODO: enum — pending, accepted, merged, on_hold, declined
   suggestedById Int        @map("suggested_by_id")
   reviewedById  Int?       @map("reviewed_by_id")
   reviewedAt    DateTime?  @map("reviewed_at")
@@ -285,7 +307,7 @@ model LocalGroupSuggestion {
 
 model DigestRun {
   id     Int      @id @default(autoincrement())
-  type   String
+  type   String // TODO: enum — fortnightly
   sentAt DateTime @default(now()) @map("sent_at")
 
   @@index([type], map: "idx_digest_runs_type")
@@ -303,6 +325,7 @@ model SchemaMigration {
 
 model SkillCategory {
   id          Int       @id @default(autoincrement())
+  /// @zod.string.min(1, { message: "Name is required" }).max(100, { message: "Name must be at most 100 characters" })
   name        String    @unique(map: "sqlite_autoindex_skill_categories_1")
   description String?
   sortOrder   Int?      @default(0) @map("sort_order")
@@ -317,9 +340,9 @@ model SkillEndorsement {
   volunteerId  Int       @map("volunteer_id")
   skillId      Int       @map("skill_id")
   endorsedById Int       @map("endorsed_by_id")
-  source       String?   @default("direct_observation")
+  source       String?   @default("direct_observation") // TODO: enum — direct_observation, starter_task (others unknown)
   sourceId     Int?      @map("source_id")
-  rating       String?   @default("verified")
+  rating       String?   @default("verified") // TODO: enum — verified (others unknown)
   notes        String?
   createdAt    DateTime? @default(now()) @map("created_at")
   endorsedBy   Volunteer @relation("SkillEndorsementEndorsedBy", fields: [endorsedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -334,6 +357,7 @@ model SkillEndorsement {
 model Skill {
   id              Int                @id @default(autoincrement())
   categoryId      Int                @map("category_id")
+  /// @zod.string.min(1, { message: "Name is required" }).max(100, { message: "Name must be at most 100 characters" })
   name            String
   description     String?
   sortOrder       Int?               @default(0) @map("sort_order")
@@ -352,13 +376,15 @@ model Skill {
 model StarterTask {
   id                  Int        @id @default(autoincrement())
   projectId           Int?       @map("project_id")
+  /// @zod.string.min(1, { message: "Title is required" })
   title               String
+  /// @zod.string.min(1, { message: "Description is required" })
   description         String
   skillId             Int?       @map("skill_id")
   assignedToId        Int?       @map("assigned_to_id")
   assignedById        Int?       @map("assigned_by_id")
-  status              String     @default("open")
-  reviewRating        String?    @map("review_rating")
+  status              String     @default("open") // TODO: enum — open, assigned, submitted, approved, rejected
+  reviewRating        String?    @map("review_rating") // TODO: enum — excellent, good, needs_improvement
   reviewNotes         String?    @map("review_notes")
   feedbackToVolunteer String?    @map("feedback_to_volunteer")
   reviewedById        Int?       @map("reviewed_by_id")
@@ -381,7 +407,7 @@ model StarterTask {
 model VolunteerSkill {
   volunteerId      Int       @map("volunteer_id")
   skillId          Int       @map("skill_id")
-  proficiencyLevel String?   @default("intermediate") @map("proficiency_level")
+  proficiencyLevel String?   @default("intermediate") @map("proficiency_level") // TODO: enum — beginner, intermediate, advanced, expert
   createdAt        DateTime? @default(now()) @map("created_at")
   skill            Skill     @relation(fields: [skillId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   volunteer        Volunteer @relation(fields: [volunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -393,13 +419,15 @@ model VolunteerSkill {
 
 model Volunteer {
   id                                      Int                  @id @default(autoincrement())
+  /// @zod.string.min(1, { message: "Name is required" })
   name                                    String
+  /// @zod.string.email({ message: "A valid email address is required" })
   email                                   String?              @unique(map: "sqlite_autoindex_volunteers_1")
   bio                                     String?
   discordHandle                           String?              @map("discord_handle")
   signalNumber                            String?              @map("signal_number")
   whatsappNumber                          String?              @map("whatsapp_number")
-  contactPreference                       String?              @map("contact_preference")
+  contactPreference                       String?              @map("contact_preference") // TODO: enum — email, discord, signal, whatsapp (others unknown)
   contactNotes                            String?              @map("contact_notes")
   availabilityHoursPerWeek                Int?                 @map("availability_hours_per_week")
   location                                String?
@@ -409,17 +437,20 @@ model Volunteer {
   consentShareContactInfoWithProjectOwner Boolean?             @default(false) @map("consent_share_contact_info_with_project_owner")
   consentGivenAt                          DateTime?            @map("consent_given_at")
   cookieConsentAnalytics                  Boolean?             @map("cookie_consent_analytics")
+  /// @zod.custom.omit([model])
   authToken                               String?              @unique(map: "sqlite_autoindex_volunteers_2") @map("auth_token")
+  /// @zod.custom.omit([model])
   authTokenExpiresAt                      DateTime?            @map("auth_token_expires_at")
+  /// @zod.custom.omit([model])
   passwordHash                            String?              @map("password_hash")
   isAdmin                                 Boolean?             @default(false) @map("is_admin")
   createdAt                               DateTime?            @default(now()) @map("created_at")
   updatedAt                               DateTime?            @default(now()) @map("updated_at")
   deletedAt                               DateTime?            @map("deleted_at")
   country                                 String?
-  emailDigest                             String?              @default("none") @map("email_digest")
+  emailDigest                             String?              @default("none") @map("email_digest") // TODO: enum — none, daily, weekly
   localGroup                              String?              @map("local_group")
-  approvalStatus                          String               @default("PENDING") @map("approval_status")
+  approvalStatus                          String               @default("PENDING") @map("approval_status") // TODO: enum — PENDING, REVIEWING, APPROVED, REJECTED
   applicationMessage                      String?              @map("application_message")
   applicationAdminNotes                   String?              @map("application_admin_notes")
   applicationApplicantNotes               String?              @map("application_applicant_notes")

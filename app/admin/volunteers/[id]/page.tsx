@@ -3,11 +3,12 @@
 import { use, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
-import FilterDropdown from '@/components/FilterDropdown'
+import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import Tabs from '@/components/Tabs'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
+import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 
 interface Skill {
@@ -73,19 +74,19 @@ const NOTE_CATEGORIES = [
   { value: 'skill_feedback', label: 'Skill Feedback' },
   { value: 'reliability', label: 'Reliability' },
   { value: 'fit', label: 'Fit' },
-]
+] as const
 
 const RATING_OPTIONS = [
   { value: 'verified', label: 'Verified - Can deliver' },
   { value: 'strong', label: 'Strong - Highly skilled' },
-]
+] as const
 
 const BASED_ON_OPTIONS = [
   { value: 'direct_observation', label: 'Direct Observation' },
   { value: 'project_work', label: 'Project Work' },
   { value: 'interview', label: 'Interview' },
   { value: 'reference', label: 'Reference' },
-]
+] as const
 
 type Tab = 'admin_notes' | 'starter_tasks' | 'project_history' | 'endorse_skill'
 
@@ -94,15 +95,16 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
   const router = useRouter()
   const { user, loading } = useAuth()
   const showToast = useToast()
-  const [vol, setVol] = useState<VolunteerDetail | null>(null)
-  const [loadingData, setLoadingData] = useState(true)
-  const [flatSkills, setFlatSkills] = useState<Skill[]>([])
+  const queryClient = useQueryClient()
   const [submitting, setSubmitting] = useState(false)
   const [activeTab, setActiveTab] = useState<Tab>('admin_notes')
 
   // Note add form
   const [noteContent, setNoteContent] = useState('')
-  const [noteCategory, setNoteCategory] = useState('general')
+  const { value: noteCategory, onChange: setNoteCategory } = useFilterOptions(
+    NOTE_CATEGORIES,
+    'general',
+  )
 
   // Note inline edit
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null)
@@ -110,41 +112,57 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
 
   // Endorsement form
   const [endorseSkillId, setEndorseSkillId] = useState('')
-  const [endorseRating, setEndorseRating] = useState('verified')
-  const [endorseBasedOn, setEndorseBasedOn] = useState('direct_observation')
+  const { value: endorseRating, onChange: setEndorseRating } = useFilterOptions(
+    RATING_OPTIONS,
+    'verified',
+  )
+  const { value: endorseBasedOn, onChange: setEndorseBasedOn } = useFilterOptions(
+    BASED_ON_OPTIONS,
+    'direct_observation',
+  )
 
   useEffect(() => {
     if (!loading && !user) router.push('/login')
     if (!loading && user && !user.isAdmin) router.push('/')
   }, [user, loading, router])
 
-  useEffect(() => {
-    if (!user?.isAdmin) return
-    Promise.all([
-      apiRequest<VolunteerDetail>(`/api/admin/volunteers/${id}`),
-      apiRequest<Skill[]>('/api/skills/flat'),
-    ])
-      .then(([v, s]) => {
-        setVol(v)
-        setFlatSkills(s)
-        setLoadingData(false)
-      })
-      .catch(() => setLoadingData(false))
-  }, [user, id])
+  const { data: vol, isPending: loadingData } = useQuery({
+    ...orpc.admin.volunteers.getById.queryOptions({ input: { id: Number(id) } }),
+    enabled: !!user?.isAdmin,
+    select: (d) => d as unknown as VolunteerDetail,
+  })
+  const { data: flatSkills = [] } = useQuery({
+    ...orpc.skills.list.queryOptions({ input: {} }),
+    enabled: !!user?.isAdmin,
+    select: (cats) =>
+      cats.flatMap((cat) =>
+        cat.skills.map((s) => ({ id: s.id, name: s.name, categoryName: cat.name })),
+      ),
+  })
+
+  const volQueryKey = orpc.admin.volunteers.getById.key({ input: { id: Number(id) } })
+  const invalidateVol = () => queryClient.invalidateQueries({ queryKey: volQueryKey })
+
+  const createNoteMutation = useMutation({ ...orpc.admin.notes.create.mutationOptions() })
+  const updateNoteMutation = useMutation({ ...orpc.admin.notes.update.mutationOptions() })
+  const deleteNoteMutation = useMutation({ ...orpc.admin.notes.delete.mutationOptions() })
+  const addEndorsementMutation = useMutation({
+    ...orpc.admin.volunteers.addEndorsement.mutationOptions(),
+  })
 
   async function addNote(e: React.FormEvent) {
     e.preventDefault()
     setSubmitting(true)
     try {
-      await apiRequest(`/api/admin/volunteers/${id}/notes`, {
-        method: 'POST',
-        body: JSON.stringify({ content: noteContent, category: noteCategory }),
+      await createNoteMutation.mutateAsync({
+        volunteerId: Number(id),
+        content: noteContent,
+        category: noteCategory,
       })
       showToast('Note added.', 'success')
       setNoteContent('')
       setNoteCategory('general')
-      const updated = await apiRequest<VolunteerDetail>(`/api/admin/volunteers/${id}`)
-      setVol(updated)
+      await invalidateVol()
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Failed', 'error')
     } finally {
@@ -155,15 +173,11 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
   async function saveEditedNote(noteId: number) {
     setSubmitting(true)
     try {
-      await apiRequest(`/api/admin/notes/${noteId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ content: editingNoteContent }),
-      })
+      await updateNoteMutation.mutateAsync({ id: noteId, content: editingNoteContent })
       showToast('Note updated.', 'success')
       setEditingNoteId(null)
       setEditingNoteContent('')
-      const updated = await apiRequest<VolunteerDetail>(`/api/admin/volunteers/${id}`)
-      setVol(updated)
+      await invalidateVol()
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Failed', 'error')
     } finally {
@@ -174,11 +188,9 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
   async function deleteNote(noteId: number) {
     if (!confirm('Delete this note?')) return
     try {
-      await apiRequest(`/api/admin/notes/${noteId}`, { method: 'DELETE' })
+      await deleteNoteMutation.mutateAsync({ id: noteId })
       showToast('Note deleted.', 'success')
-      setVol((prev) =>
-        prev ? { ...prev, adminNotes: prev.adminNotes.filter((n) => n.id !== noteId) } : prev,
-      )
+      await invalidateVol()
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Failed', 'error')
     }
@@ -188,20 +200,17 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
     e.preventDefault()
     setSubmitting(true)
     try {
-      await apiRequest(`/api/admin/volunteers/${id}/endorsements`, {
-        method: 'POST',
-        body: JSON.stringify({
-          skillId: parseInt(endorseSkillId),
-          rating: endorseRating,
-          source: endorseBasedOn,
-        }),
+      await addEndorsementMutation.mutateAsync({
+        volunteerId: Number(id),
+        skillId: parseInt(endorseSkillId),
+        rating: endorseRating,
+        source: endorseBasedOn,
       })
       showToast('Skill endorsed!', 'success')
       setEndorseSkillId('')
       setEndorseRating('verified')
       setEndorseBasedOn('direct_observation')
-      const updated = await apiRequest<VolunteerDetail>(`/api/admin/volunteers/${id}`)
-      setVol(updated)
+      await invalidateVol()
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Failed', 'error')
     } finally {

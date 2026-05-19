@@ -1,11 +1,12 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
 import Button from '@/components/Button'
+import { orpc } from '@/lib/orpc'
 import { ThemeToggle } from './ThemeToggle'
 import BugReportDialog from './BugReportDialog'
 
@@ -111,8 +112,8 @@ function DashboardNavButtons({ unreadCount }: { unreadCount: number }) {
 export default function Header() {
   const { user, loading, logout } = useAuth()
   const pathname = usePathname()
+  const queryClient = useQueryClient()
   const [mounted, setMounted] = useState(false)
-  const [unreadCount, setUnreadCount] = useState(0)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [bugDialogOpen, setBugDialogOpen] = useState(false)
@@ -124,23 +125,15 @@ export default function Header() {
     setMounted(true)
   }, [])
 
-  const fetchNotifications = useCallback(async () => {
-    if (!user) return
-    try {
-      const data = await apiRequest<{ notifications: { readAt: string | null }[] }>(
-        '/api/notifications',
-      )
-      const unread = data.notifications.filter((n) => !n.readAt).length
-      setUnreadCount(unread)
-    } catch {}
-  }, [user])
+  const { data: notificationsData } = useQuery({
+    ...orpc.notifications.list.queryOptions({ input: {} }),
+    enabled: !!user,
+  })
+  const unreadCount = notificationsData?.filter((n) => !n.readAt).length ?? 0
 
   useEffect(() => {
-    // False positive: fetchNotifications is async; setUnreadCount only runs after
-    // await apiRequest(), never synchronously. Rule traces call graph without async boundaries.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchNotifications()
-  }, [fetchNotifications, pathname])
+    if (user) void queryClient.invalidateQueries({ queryKey: orpc.notifications.list.key() })
+  }, [pathname, user, queryClient])
 
   useEffect(() => {
     if (mobileMenuOpen) {

@@ -10,6 +10,10 @@ const eslintConfig = defineConfig([
       'object-shorthand': 'error',
       eqeqeq: ['error', 'always'],
       '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
+      ],
     },
   },
   {
@@ -26,6 +30,8 @@ const eslintConfig = defineConfig([
     'out/**',
     'build/**',
     'next-env.d.ts',
+    // Generated files — do not lint
+    'generated/**',
   ]),
 ])
 

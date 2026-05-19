@@ -21,8 +21,8 @@ next-env.d.ts
 # TypeScript
 *.tsbuildinfo
 
-# Prisma generated client
-/app/generated/prisma
+# Generated from Prisma schema (prisma client + zod schemas)
+/generated
 
 # Testing
 /coverage
@@ -52,3 +52,6 @@ yarn-error.log*
 
 # Editors
 .vscode/
+
+# Claude Code
+.claude/

@@ -1,97 +1,75 @@
 'use client'
 
-import { useCallback, useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useQuery } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import FilterDropdown from '@/components/FilterDropdown'
 import { buildLocationOptions, type LocalGroupOption } from '@/lib/filter-options'
+import { InferRouterOutputs } from '@orpc/server'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
+import { orpc } from '@/lib/orpc'
+import { AppRouter } from '@/server/router'
 import { CARD_GRID_CLASSES } from '@/components/ProjectCard'
 
-interface FlatSkill {
-  id: number
-  name: string
-  categoryName: string
-}
+type SkillCategory = InferRouterOutputs<AppRouter>['skills']['list'][number]
+type FlatSkill = SkillCategory['skills'][number] & { categoryName: string }
 
-interface Skill {
-  id: number
-  name: string
-  categoryName: string
-}
-
-interface Volunteer {
-  id: number
-  name: string
-  bio: string | null
-  location: string | null
-  country: string | null
-  localGroup: string | null
-  availabilityHoursPerWeek: number | null
-  createdAt: string
-  skills: Skill[]
-}
+type Volunteer = InferRouterOutputs<AppRouter>['volunteers']['list']['volunteers'][number]
 
 export default function VolunteersPage() {
   const router = useRouter()
   const { user, loading } = useAuth()
-  const [volunteers, setVolunteers] = useState<Volunteer[]>([])
-  const [loadingVolunteers, setLoadingVolunteers] = useState(true)
-  const [allSkills, setAllSkills] = useState<FlatSkill[]>([])
   const [search, setSearch] = useState('')
   const [skillFilter, setSkillFilter] = useState('')
   const [locationFilter, setLocationFilter] = useState('')
-  const [localGroups, setLocalGroups] = useState<LocalGroupOption[]>([])
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [debouncedLocationFilter, setDebouncedLocationFilter] = useState('')
 
   useEffect(() => {
     if (!loading && !user) router.replace('/login')
   }, [user, loading, router])
 
   useEffect(() => {
-    apiRequest<FlatSkill[]>('/api/skills/flat')
-      .then((s) => setAllSkills(s))
-      .catch(() => {})
-  }, [])
+    const t = setTimeout(
+      () => {
+        setDebouncedSearch(search)
+        setDebouncedLocationFilter(locationFilter)
+      },
+      search || locationFilter ? 300 : 0,
+    )
+    return () => clearTimeout(t)
+  }, [search, locationFilter])
 
-  useEffect(() => {
-    apiRequest<{ groups: LocalGroupOption[] }>('/api/local-groups')
-      .then((data) => setLocalGroups(data.groups))
-      .catch(() => {})
-  }, [])
+  const { data: skillsData } = useQuery({
+    ...orpc.skills.list.queryOptions({ input: {} }),
+    enabled: !!user,
+  })
+  const allSkills: FlatSkill[] = (skillsData ?? []).flatMap((cat) =>
+    cat.skills.map((s) => ({ ...s, categoryName: cat.name })),
+  )
 
-  const fetchVolunteers = useCallback(async () => {
-    setLoadingVolunteers(true)
-    try {
-      const params = new URLSearchParams()
-      if (search) params.set('search', search)
-      if (skillFilter) params.set('skill_ids', skillFilter)
-      if (locationFilter) {
-        const [country, localGroup] = locationFilter.split(':')
-        params.set('country', country)
-        if (localGroup) params.set('local_group', localGroup)
-      }
-      const data = await apiRequest<{ volunteers: Volunteer[]; total: number }>(
-        `/api/volunteers?${params}`,
-      )
-      setVolunteers(data.volunteers)
-    } catch {
-      setVolunteers([])
-    } finally {
-      setLoadingVolunteers(false)
-    }
-  }, [search, skillFilter, locationFilter])
+  const { data: localGroupsData } = useQuery({
+    ...orpc.localGroups.list.queryOptions({ input: {} }),
+    enabled: !!user,
+  })
+  const localGroups: LocalGroupOption[] = localGroupsData?.groups ?? []
 
-  useEffect(() => {
-    if (!user) return
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(fetchVolunteers, search || locationFilter ? 300 : 0)
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current)
-    }
-  }, [user, fetchVolunteers, search, locationFilter])
+  const { data: volunteersData, isPending: loadingVolunteers } = useQuery({
+    ...orpc.volunteers.list.queryOptions({
+      input: {
+        ...(debouncedSearch ? { search: debouncedSearch } : {}),
+        ...(skillFilter ? { skillIds: [parseInt(skillFilter, 10)] } : {}),
+        ...(debouncedLocationFilter ? { country: debouncedLocationFilter.split(':')[0] } : {}),
+        ...(debouncedLocationFilter && debouncedLocationFilter.split(':')[1]
+          ? { localGroup: debouncedLocationFilter.split(':')[1] }
+          : {}),
+      },
+    }),
+    enabled: !!user,
+  })
+  const volunteers: Volunteer[] = volunteersData?.volunteers ?? []
 
   function clearFilters() {
     setSearch('')
@@ -219,10 +197,12 @@ export default function VolunteersPage() {
                   <div className="flex justify-between items-center mt-auto pt-4 border-t border-brand-border">
                     <span className="text-sm text-text-light">
                       Joined{' '}
-                      {new Date(v.createdAt).toLocaleDateString('en-GB', {
-                        month: 'short',
-                        year: 'numeric',
-                      })}
+                      {v.createdAt
+                        ? new Date(v.createdAt).toLocaleDateString('en-GB', {
+                            month: 'short',
+                            year: 'numeric',
+                          })
+                        : '—'}
                     </span>
                     <Button href={`/volunteers/${v.id}`} variant="secondary" size="sm">
                       View Profile
