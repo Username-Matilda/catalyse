@@ -6,23 +6,11 @@ import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
-import { InferRouterOutputs } from '@orpc/server'
 import { useAuth } from '@/lib/auth-context'
 import { orpc } from '@/lib/orpc'
-import { AppRouter } from '@/server/router'
 import { useToast } from '@/lib/toast'
 
 // ── Types ────────────────────────────────────────────────────────────────────
-
-type ProjectDetail = InferRouterOutputs<AppRouter>['projects']['getById']
-type Task = ProjectDetail['tasks'][number]
-type Update = ProjectDetail['updates'][number]
-type Interest = NonNullable<ProjectDetail['interests']>[number]
-type MyInterest = NonNullable<ProjectDetail['myInterest']>
-type Skill = ProjectDetail['skills'][number]
-type MatchScore = NonNullable<ProjectDetail['match']>
-type Volunteer = InferRouterOutputs<AppRouter>['volunteers']['list']['volunteers'][number]
-type OwnerContact = InferRouterOutputs<AppRouter>['volunteers']['getById']
 
 const STATUS_LABELS: Record<string, string> = {
   seeking_owner: 'Seeking Owner',

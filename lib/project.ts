@@ -16,7 +16,6 @@ export type ProjectSkillWithRelations = {
   }
 }
 
-
 export type EnrichedProject = {
   id: number
   title: string

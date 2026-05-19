@@ -42,7 +42,9 @@ export const BASE_LOCATION_OPTIONS: FilterOption[] = [
   { value: 'Other', label: 'Other' },
 ]
 
-export function buildLocationOptions(groups: Pick<LocalGroupOption, 'name' | 'country'>[]): FilterOption[] {
+export function buildLocationOptions(
+  groups: Pick<LocalGroupOption, 'name' | 'country'>[],
+): FilterOption[] {
   const result: FilterOption[] = []
   for (const option of BASE_LOCATION_OPTIONS) {
     result.push(option)
