@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { client } from '@/lib/client'
 
 interface User {
   id: number
@@ -36,20 +37,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   )
   const router = useRouter()
 
-  const fetchMe = useCallback(async (t: string) => {
+  const fetchMe = useCallback(async () => {
     try {
-      const res = await fetch(`/api/auth/me`, {
-        headers: { Authorization: `Bearer ${t}` },
-      })
-      if (!res.ok) {
-        localStorage.removeItem('authToken')
-        setTokenState(null)
-        setUser(null)
-        return
-      }
-      const data = await res.json()
-      setUser(data)
+      const data = await client.auth.me()
+      setUser(data as User)
     } catch {
+      localStorage.removeItem('authToken')
+      setTokenState(null)
       setUser(null)
     }
   }, [])
@@ -57,9 +51,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!token) return
     // False positive: rule traces call graph without modelling async boundaries.
-    // setState inside fetchMe only runs after await fetch(), never synchronously in the effect.
+    // setState inside fetchMe only runs after await, never synchronously in the effect.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchMe(token).finally(() => setLoading(false))
+    fetchMe().finally(() => setLoading(false))
     // Intentionally omit `token` from deps: only fetch on mount. setToken() already
     // calls fetchMe() explicitly, so including token here would double-fetch on login.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -79,19 +73,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (t: string) => {
       localStorage.setItem('authToken', t)
       setTokenState(t)
-      await fetchMe(t)
+      await fetchMe()
     },
     [fetchMe],
   )
 
   const logout = useCallback(async () => {
-    const t = localStorage.getItem('authToken')
-    if (t) {
-      await fetch(`/api/auth/logout`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${t}` },
-      }).catch(() => {})
-    }
+    await client.auth.logout().catch(() => {})
     localStorage.removeItem('authToken')
     setTokenState(null)
     setUser(null)
@@ -100,7 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshUser = useCallback(async () => {
     const t = localStorage.getItem('authToken')
-    if (t) await fetchMe(t)
+    if (t) await fetchMe()
   }, [fetchMe])
 
   return (

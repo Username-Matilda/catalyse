@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import ProjectForm from '@/components/ProjectForm'
 import { useAuth } from '@/lib/auth-context'
+import { client } from '@/lib/client'
 import { useToast } from '@/lib/toast'
 
 export default function SuggestPage() {
@@ -27,7 +28,7 @@ export default function SuggestPage() {
         </p>
         <div className="max-w-4xl">
           <ProjectForm
-            action="/api/projects"
+            onSubmitForm={(data) => client.projects.create(data)}
             submitLabel="Submit Project Proposal"
             showReviewNotice
             requireTasks

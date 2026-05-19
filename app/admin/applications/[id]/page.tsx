@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
+import { client } from '@/lib/client'
 import { useToast } from '@/lib/toast'
 
 interface Application {
@@ -56,7 +56,9 @@ export default function ApplicationReviewPage() {
   const loadApplication = useCallback(async () => {
     setLoadingData(true)
     try {
-      const data = await apiRequest<Application>(`/api/admin/applications/${id}`)
+      const data = (await client.admin.applications.getById({
+        id: Number(id),
+      })) as unknown as Application
       setApp(data)
       setAdminNotes(data.adminNotes ?? '')
       setApplicantNotes(data.applicantNotes ?? '')
@@ -79,13 +81,11 @@ export default function ApplicationReviewPage() {
     if (!app) return
     setSubmitting(true)
     try {
-      await apiRequest(`/api/admin/applications/${app.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          action: 'update_notes',
-          adminNotes,
-          applicantNotes,
-        }),
+      await client.admin.applications.action({
+        id: app.id,
+        action: 'update_notes',
+        adminNotes,
+        applicantNotes,
       })
       showToast('Notes saved', 'success')
       setApp({ ...app, adminNotes, applicantNotes })
@@ -101,13 +101,11 @@ export default function ApplicationReviewPage() {
     setSubmitting(true)
     setConfirmAction(null)
     try {
-      await apiRequest(`/api/admin/applications/${app.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          action: confirmAction,
-          adminNotes,
-          applicantNotes,
-        }),
+      await client.admin.applications.action({
+        id: app.id,
+        action: confirmAction,
+        adminNotes,
+        applicantNotes,
       })
       showToast(
         confirmAction === 'approve' ? 'Application approved' : 'Application rejected',

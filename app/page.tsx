@@ -7,13 +7,8 @@ import Button from '@/components/Button'
 import FilterDropdown from '@/components/FilterDropdown'
 import { buildLocationOptions, type LocalGroupOption } from '@/lib/filter-options'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
+import { client } from '@/lib/client'
 import { type Project, ProjectList, statusBadgeClasses } from '@/components/ProjectCard'
-
-interface ProjectsResponse {
-  projects: Project[]
-  total: number
-}
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All Active' },
@@ -70,17 +65,20 @@ export default function ProjectsPage() {
   useEffect(() => {
     if (!user) return
     if (user.isAdmin) {
-      apiRequest<Project[]>('/api/admin/triage')
+      client.admin.triage
+        .list()
         .then((list) => setPendingCount(list.length))
         .catch(() => {})
-      apiRequest<unknown[]>('/api/admin/applications?status=PENDING')
+      client.admin.applications
+        .list({ filter: 'PENDING' })
         .then((list) => setPendingApplicationsCount(list.length))
         .catch(() => {})
     }
   }, [user])
 
   useEffect(() => {
-    apiRequest<{ groups: LocalGroupOption[] }>('/api/local-groups')
+    client.localGroups
+      .list({})
       .then((data) => setLocalGroups(data.groups))
       .catch(() => {})
   }, [])
@@ -88,21 +86,21 @@ export default function ProjectsPage() {
   const fetchProjects = useCallback(async () => {
     setLoadingProjects(true)
     try {
-      const params = new URLSearchParams()
-      if (search) params.set('search', search)
-      if (statusFilter) params.set('status', statusFilter)
-      if (needsFilter === 'looking_for_people') params.set('is_seeking_any', 'true')
-      else if (needsFilter === 'seeking_help') params.set('is_seeking_help', 'true')
-      else if (needsFilter === 'seeking_owner') params.set('is_seeking_owner', 'true')
-      else if (needsFilter === 'not_seeking') params.set('not_seeking', 'true')
-      if (urgencyFilter) params.set('urgency', urgencyFilter)
+      const input: Parameters<typeof client.projects.list>[0] = {}
+      if (search) input.search = search
+      if (statusFilter) input.status = statusFilter
+      if (needsFilter === 'looking_for_people') input.isSeekingAny = true
+      else if (needsFilter === 'seeking_help') input.isSeekingHelp = true
+      else if (needsFilter === 'seeking_owner') input.isSeekingOwner = true
+      else if (needsFilter === 'not_seeking') input.notSeeking = true
+      if (urgencyFilter) input.urgency = urgencyFilter
       if (locationFilter) {
         const [country, localGroup] = locationFilter.split(':')
-        params.set('country', country)
-        if (localGroup) params.set('local_group', localGroup)
+        input.country = country
+        if (localGroup) input.localGroup = localGroup
       }
-      if (sortBy) params.set('sort_by', sortBy)
-      const data = await apiRequest<ProjectsResponse>(`/api/projects?${params}`)
+      if (sortBy) input.sortBy = sortBy
+      const data = await client.projects.list(input)
       setProjects(data.projects)
     } catch {
       setProjects([])

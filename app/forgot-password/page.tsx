@@ -2,13 +2,8 @@
 
 import { useState, FormEvent } from 'react'
 import Link from 'next/link'
-import { apiRequest } from '@/lib/api'
+import { client } from '@/lib/client'
 import Button from '@/components/Button'
-
-interface ForgotResponse {
-  message: string
-  _dev_reset_url?: string
-}
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
@@ -22,12 +17,9 @@ export default function ForgotPasswordPage() {
     setError('')
     setSubmitting(true)
     try {
-      const data = await apiRequest<ForgotResponse>('/api/auth/forgot-password', {
-        method: 'POST',
-        body: JSON.stringify({ email: email.trim() }),
-      })
+      const data = await client.auth.forgotPassword({ email: email.trim() })
       setSubmitted(true)
-      if (data._dev_reset_url) setDevUrl(data._dev_reset_url)
+      if (data._devResetUrl) setDevUrl(data._devResetUrl)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
       setSubmitting(false)

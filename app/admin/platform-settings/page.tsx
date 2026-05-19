@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
+import { client } from '@/lib/client'
 import { useToast } from '@/lib/toast'
 import Toggle from '@/components/Toggle'
 
@@ -26,8 +26,8 @@ export default function PlatformSettingsPage() {
 
   const loadSettings = useCallback(async () => {
     try {
-      const data = await apiRequest<PlatformSettings>('/api/admin/platform-settings')
-      setSettings(data)
+      const data = await client.admin.platformSettings.get()
+      setSettings(data as unknown as PlatformSettings)
     } catch {
       showToast('Failed to load settings', 'error')
     } finally {
@@ -47,11 +47,10 @@ export default function PlatformSettingsPage() {
     if (!settings) return
     setSaving(true)
     try {
-      const updated = await apiRequest<PlatformSettings>('/api/admin/platform-settings', {
-        method: 'PATCH',
-        body: JSON.stringify({ requireApplicationApproval: value }),
+      const updated = await client.admin.platformSettings.update({
+        requireApplicationApproval: value,
       })
-      setSettings(updated)
+      setSettings(updated as unknown as PlatformSettings)
       showToast('Settings saved', 'success')
     } catch {
       showToast('Failed to save settings', 'error')

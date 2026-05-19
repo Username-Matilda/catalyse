@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
+import { client } from '@/lib/client'
 import { useToast } from '@/lib/toast'
 import { type Project, ProjectList, statusBadgeClasses } from '@/components/ProjectCard'
 import Tabs from '@/components/Tabs'
@@ -15,18 +15,18 @@ interface Interest extends Project {
   interestType: string
   interestStatus: string
   interestMessage: string | null
-  interestCreatedAt: string
+  interestCreatedAt: Date | null
   interestResponseMessage: string | null
-  interestRespondedAt: string | null
+  interestRespondedAt: Date | null
 }
 
 interface Notification {
   id: number
   title: string
-  body: string
+  body: string | null
   link: string | null
-  readAt: string | null
-  createdAt: string
+  readAt: Date | null
+  createdAt: Date | null
 }
 
 interface DashboardData {
@@ -88,7 +88,8 @@ export default function DashboardPage() {
         : 'owned'
       setActiveTab(tab)
       if (tab === 'notifications') {
-        apiRequest<Notification[]>('/api/notifications')
+        client.notifications
+          .list({})
           .then(setNotifications)
           .catch(() => {})
       }
@@ -106,14 +107,16 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!user) return
-    apiRequest<DashboardData>('/api/dashboard')
+    client.dashboard
+      .get()
       .then((d) => {
         setData(d)
         setUnreadCount(d.unreadNotificationCount)
       })
       .catch(() => {})
       .finally(() => setLoadingData(false))
-    apiRequest<StarterTask[]>('/api/my/starter-tasks')
+    client.my
+      .starterTasks()
       .then((t) =>
         setStarterTasks(t.filter((t) => t.status === 'assigned' || t.status === 'submitted')),
       )
@@ -132,7 +135,7 @@ export default function DashboardPage() {
   async function submitTask(taskId: number) {
     setSubmittingTask(true)
     try {
-      await apiRequest(`/api/starter-tasks/${taskId}/submit`, { method: 'PUT' })
+      await client.starterTasks.submit({ id: taskId })
       showToast('Task submitted for review!', 'success')
       setStarterTasks((prev) =>
         prev.map((t) => (t.id === taskId ? { ...t, status: 'submitted' } : t)),
@@ -154,7 +157,7 @@ export default function DashboardPage() {
     }
     if (tab === 'notifications') {
       try {
-        const notifs = await apiRequest<Notification[]>('/api/notifications')
+        const notifs = await client.notifications.list({})
         setNotifications(notifs)
       } catch {}
     }
@@ -162,9 +165,9 @@ export default function DashboardPage() {
 
   async function markAllRead() {
     try {
-      await apiRequest('/api/notifications/read-all', { method: 'PUT' })
+      await client.notifications.readAll()
       setUnreadCount(0)
-      setNotifications((prev) => prev.map((n) => ({ ...n, readAt: new Date().toISOString() })))
+      setNotifications((prev) => prev.map((n) => ({ ...n, readAt: new Date() })))
     } catch {}
   }
 

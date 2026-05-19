@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
+import { client } from '@/lib/client'
 import { useToast } from '@/lib/toast'
 
 interface StarterTask {
@@ -41,7 +41,8 @@ export default function StarterTasksPage() {
 
   useEffect(() => {
     if (!user) return
-    apiRequest<StarterTask[]>('/api/my/starter-tasks')
+    client.my
+      .starterTasks()
       .then((data) => {
         setTasks(data)
         setLoadingTasks(false)
@@ -52,7 +53,7 @@ export default function StarterTasksPage() {
   async function submitTask(taskId: number) {
     setSubmitting(taskId)
     try {
-      await apiRequest(`/api/starter-tasks/${taskId}/submit`, { method: 'PUT' })
+      await client.starterTasks.submit({ id: taskId })
       setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status: 'submitted' } : t)))
       showToast('Task submitted for review!', 'success')
     } catch (err: unknown) {

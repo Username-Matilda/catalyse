@@ -14,7 +14,7 @@ import {
 } from '@/components/ProjectCard'
 import Tabs from '@/components/Tabs'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
+import { client } from '@/lib/client'
 import { useToast } from '@/lib/toast'
 
 interface Project extends CardProject {
@@ -71,9 +71,10 @@ export default function TriagePage() {
 
   useEffect(() => {
     if (!user?.isAdmin) return
-    apiRequest<Project[]>('/api/admin/triage')
+    client.admin.triage
+      .list()
       .then((data) => {
-        setProjects(data)
+        setProjects(data as unknown as Project[])
         setLoadingProjects(false)
       })
       .catch(() => setLoadingProjects(false))
@@ -81,10 +82,10 @@ export default function TriagePage() {
 
   useEffect(() => {
     if (!user?.isAdmin) return
-    const params = interestStatusFilter ? `?status=${interestStatusFilter}` : ''
-    apiRequest<Interest[]>(`/api/admin/interests${params}`)
+    client.admin.interests
+      .list(interestStatusFilter ? { status: interestStatusFilter } : {})
       .then((data) => {
-        setInterests(data)
+        setInterests(data as unknown as Interest[])
         setLoadingInterests(false)
       })
       .catch(() => setLoadingInterests(false))
@@ -106,14 +107,12 @@ export default function TriagePage() {
     if (!modal) return
     setSubmitting(true)
     try {
-      await apiRequest(`/api/admin/projects/${modal.project.id}/review`, {
-        method: 'POST',
-        body: JSON.stringify({
-          status: decision,
-          feedbackToProposer: decision === 'needs_discussion' ? feedback : null,
-          reviewNotes: reviewNotes || null,
-          targetStatus: modal.project.owner_id ? 'seeking_help' : 'seeking_owner',
-        }),
+      await client.admin.projects.review({
+        id: modal.project.id,
+        status: decision,
+        feedbackToProposer: decision === 'needs_discussion' ? feedback : null,
+        reviewNotes: reviewNotes || null,
+        targetStatus: modal.project.owner_id ? 'seeking_help' : 'seeking_owner',
       })
       setProjects((prev) => prev.filter((p) => p.id !== modal.project.id))
       showToast(
@@ -131,9 +130,10 @@ export default function TriagePage() {
   async function respondInterest(interest: Interest, status: 'accepted' | 'declined') {
     setRespondingId(interest.id)
     try {
-      await apiRequest(`/api/projects/${interest.project_id}/interest/${interest.id}`, {
-        method: 'PUT',
-        body: JSON.stringify({ status }),
+      await client.projects.respondToInterest({
+        projectId: interest.project_id,
+        interestId: interest.id,
+        status,
       })
       setInterests((prev) => prev.map((i) => (i.id === interest.id ? { ...i, status } : i)))
     } catch (err: unknown) {

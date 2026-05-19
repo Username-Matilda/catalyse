@@ -4,7 +4,7 @@ import { useEffect, useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
+import { client } from '@/lib/client'
 import { useToast } from '@/lib/toast'
 
 export default function SettingsPage() {
@@ -34,10 +34,7 @@ export default function SettingsPage() {
     e.preventDefault()
     setChangingEmail(true)
     try {
-      const data = await apiRequest<{ message: string }>('/api/auth/change-email', {
-        method: 'POST',
-        body: JSON.stringify({ newEmail, password: emailPassword }),
-      })
+      const data = await client.auth.changeEmail({ newEmail, password: emailPassword })
       showToast(data.message, 'success')
       setNewEmail('')
       setEmailPassword('')
@@ -56,10 +53,7 @@ export default function SettingsPage() {
     }
     setChangingPassword(true)
     try {
-      const data = await apiRequest<{ message: string }>('/api/auth/change-password', {
-        method: 'POST',
-        body: JSON.stringify({ currentPassword, newPassword }),
-      })
+      const data = await client.auth.changePassword({ currentPassword, newPassword })
       showToast(data.message, 'success')
       setCurrentPassword('')
       setNewPassword('')
@@ -86,10 +80,9 @@ export default function SettingsPage() {
     }
     setDeleting(true)
     try {
-      const data = await apiRequest<{ message: string }>('/api/auth/delete-account', {
-        method: 'POST',
-        body: JSON.stringify(user?.hasPassword ? { password: deletePassword } : {}),
-      })
+      const data = await client.auth.deleteAccount(
+        user?.hasPassword ? { password: deletePassword } : {},
+      )
       showToast(data.message, 'success')
       setTimeout(async () => {
         await logout()

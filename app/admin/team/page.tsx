@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Button from '@/components/Button'
 import Tabs from '@/components/Tabs'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
+import { client } from '@/lib/client'
 import { useToast } from '@/lib/toast'
 
 interface Admin {
@@ -47,8 +47,8 @@ export default function AdminTeamPage() {
     async function () {
       try {
         const [a, i] = await Promise.all([
-          apiRequest<Admin[]>('/api/admin/admins'),
-          apiRequest<Invite[]>('/api/admin/invites'),
+          client.admin.admins.list() as unknown as Promise<Admin[]>,
+          client.admin.admins.listInvites() as unknown as Promise<Invite[]>,
         ])
         setAdmins(a)
         setInvites(i.filter((i) => i.status === 'pending'))
@@ -85,10 +85,7 @@ export default function AdminTeamPage() {
     e.preventDefault()
     setSubmitting(true)
     try {
-      await apiRequest('/api/admin/admins/invite', {
-        method: 'POST',
-        body: JSON.stringify({ email: inviteEmail.trim() }),
-      })
+      await client.admin.admins.invite({ email: inviteEmail.trim() })
       setInviteSuccess(`Invite sent to ${inviteEmail}`)
       setInviteEmail('')
       await loadData()
@@ -102,7 +99,7 @@ export default function AdminTeamPage() {
 
   async function cancelInvite(id: number) {
     try {
-      await apiRequest(`/api/admin/invites/${id}`, { method: 'DELETE' })
+      await client.admin.admins.revokeInvite({ id })
       showToast('Invite cancelled', 'success')
       setInvites((prev) => prev.filter((i) => i.id !== id))
     } catch (err: unknown) {
@@ -113,7 +110,7 @@ export default function AdminTeamPage() {
   async function revokeAdmin(id: number, name: string) {
     if (!confirm(`Revoke admin access for ${name}?`)) return
     try {
-      await apiRequest(`/api/admin/admins/${id}`, { method: 'DELETE' })
+      await client.admin.admins.revoke({ id })
       showToast('Admin access revoked', 'success')
       setAdmins((prev) => prev.filter((a) => a.id !== id))
     } catch (err: unknown) {

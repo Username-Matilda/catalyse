@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Button from '@/components/Button'
 import FilterDropdown from '@/components/FilterDropdown'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
+import { client } from '@/lib/client'
 import { useToast } from '@/lib/toast'
 
 interface Application {
@@ -66,14 +66,12 @@ export default function ApplicationsPage() {
       setLoadingData(true)
       try {
         if (f === 'rejected_anonymised') {
-          const data = await apiRequest<AnonymisedApplication[]>(
-            `/api/admin/applications?filter=${f}`,
-          )
-          setAnonymisedApplications(data)
+          const data = await client.admin.applications.list({ filter: f })
+          setAnonymisedApplications(data as unknown as AnonymisedApplication[])
           setApplications([])
         } else {
-          const data = await apiRequest<Application[]>(`/api/admin/applications?filter=${f}`)
-          setApplications(data)
+          const data = await client.admin.applications.list({ filter: f })
+          setApplications(data as unknown as Application[])
           setAnonymisedApplications([])
         }
       } catch {
@@ -93,10 +91,7 @@ export default function ApplicationsPage() {
   async function handleStartReview(id: number) {
     setStartingReview(id)
     try {
-      await apiRequest(`/api/admin/applications/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ action: 'start_review' }),
-      })
+      await client.admin.applications.action({ id: Number(id), action: 'start_review' })
     } catch {
       // ignore — navigate anyway, page will show current status
     } finally {

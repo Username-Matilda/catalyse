@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Button from '@/components/Button'
 import FilterDropdown from '@/components/FilterDropdown'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
+import { client } from '@/lib/client'
 import { useToast } from '@/lib/toast'
 
 interface BugReport {
@@ -68,12 +68,11 @@ export default function AdminBugsPage() {
   const loadReports = useCallback(async () => {
     setLoadingData(true)
     try {
-      const params = new URLSearchParams()
-      if (statusFilter !== 'all') params.set('status', statusFilter)
-      if (categoryFilter !== 'all') params.set('category', categoryFilter)
-      const query = params.toString() ? `?${params.toString()}` : ''
-      const data = await apiRequest<BugReport[]>(`/api/admin/bug-reports${query}`)
-      setReports(data)
+      const data = await client.admin.bugReports.list({
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+        category: categoryFilter !== 'all' ? categoryFilter : undefined,
+      })
+      setReports(data as unknown as BugReport[])
     } catch {
       showToast('Failed to load reports', 'error')
     } finally {
@@ -98,9 +97,10 @@ export default function AdminBugsPage() {
     if (!editModal) return
     setSubmitting(true)
     try {
-      await apiRequest(`/api/admin/bug-reports/${editModal.id}`, {
-        method: 'PUT',
-        body: JSON.stringify({ status: editStatus, resolutionNotes: editNotes || null }),
+      await client.admin.bugReports.update({
+        id: editModal.id,
+        status: editStatus,
+        resolutionNotes: editNotes || null,
       })
       showToast('Report updated!', 'success')
       setEditModal(null)

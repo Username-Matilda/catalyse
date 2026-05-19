@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
+import { client } from '@/lib/client'
 import Button from '@/components/Button'
 import { ThemeToggle } from './ThemeToggle'
 import BugReportDialog from './BugReportDialog'
@@ -127,10 +127,8 @@ export default function Header() {
   const fetchNotifications = useCallback(async () => {
     if (!user) return
     try {
-      const data = await apiRequest<{ notifications: { readAt: string | null }[] }>(
-        '/api/notifications',
-      )
-      const unread = data.notifications.filter((n) => !n.readAt).length
+      const notifications = await client.notifications.list({})
+      const unread = notifications.filter((n) => !n.readAt).length
       setUnreadCount(unread)
     } catch {}
   }, [user])

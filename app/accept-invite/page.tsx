@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
+import { client } from '@/lib/client'
 import Button from '@/components/Button'
 
 function AcceptInviteContent() {
@@ -27,9 +27,8 @@ function AcceptInviteContent() {
 
   useEffect(() => {
     if (loading || !token || !user) return
-    apiRequest('/api/admin/admins/accept-invite?invite_token=' + encodeURIComponent(token), {
-      method: 'POST',
-    })
+    client.admin.admins
+      .acceptInvite({ inviteToken: token })
       .then(() => setApiStatus('success'))
       .catch((err) => {
         setApiStatus('error')

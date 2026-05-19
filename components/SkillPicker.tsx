@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { apiRequest } from '@/lib/api'
+import { client } from '@/lib/client'
 import FilterDropdown from '@/components/FilterDropdown'
 
 interface Skill {
@@ -35,7 +35,8 @@ export default function SkillPicker({
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    apiRequest<SkillCategory[]>('/api/skills')
+    client.skills
+      .list()
       .then(setCategories)
       .catch(() => {})
       .finally(() => setLoading(false))

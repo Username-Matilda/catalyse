@@ -8,7 +8,7 @@ import Button from '@/components/Button'
 import FilterDropdown from '@/components/FilterDropdown'
 import SkillPicker from '@/components/SkillPicker'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest, ApiError } from '@/lib/api'
+import { client } from '@/lib/client'
 
 interface SelectedSkill {
   skillId: number
@@ -19,7 +19,6 @@ export default function SignupPage() {
   const router = useRouter()
   const { user, loading, setToken } = useAuth()
   const [error, setError] = useState('')
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
   const [googleClientId, setGoogleClientId] = useState('')
   const [googleStub, setGoogleStub] = useState(false)
@@ -68,9 +67,8 @@ export default function SignupPage() {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setGooglePendingToken(pending)
       setGoogleApplicationStep(true)
-      apiRequest<{ name?: string }>('/api/volunteers/me', {
-        headers: { Authorization: `Bearer ${pending}` },
-      })
+      client.auth
+        .me()
         .then((vol) => {
           if (vol.name) setName(vol.name)
         })
@@ -115,9 +113,10 @@ export default function SignupPage() {
   }
 
   useEffect(() => {
-    apiRequest<{ client_id: string; stub?: boolean }>('/api/auth/google-client-id')
+    client.auth
+      .googleClientId()
       .then((d) => {
-        setGoogleClientId(d.client_id)
+        setGoogleClientId(d.clientId)
         if (d.stub) setGoogleStub(true)
       })
       .catch(() => {})
@@ -125,17 +124,15 @@ export default function SignupPage() {
 
   const handleGoogleResponse = useCallback(
     (response: { credential: string }) => {
-      apiRequest<{ auth_token: string; is_pending?: boolean; name?: string }>('/api/auth/google', {
-        method: 'POST',
-        body: JSON.stringify({ credential: response.credential }),
-      })
+      client.auth
+        .google({ credential: response.credential })
         .then(async (data) => {
-          if (data.is_pending) {
-            setGooglePendingToken(data.auth_token)
+          if (data.isPending) {
+            setGooglePendingToken(data.token)
             if (data.name) setName(data.name)
             setGoogleApplicationStep(true)
           } else {
-            await setToken(data.auth_token)
+            await setToken(data.token)
             router.push('/dashboard')
           }
         })
@@ -145,17 +142,15 @@ export default function SignupPage() {
   )
 
   function handleGoogleStub() {
-    apiRequest<{ auth_token: string; is_pending?: boolean; name?: string }>('/api/auth/google', {
-      method: 'POST',
-      body: JSON.stringify({ stub: true }),
-    })
+    client.auth
+      .google({ stub: true })
       .then(async (data) => {
-        if (data.is_pending) {
-          setGooglePendingToken(data.auth_token)
+        if (data.isPending) {
+          setGooglePendingToken(data.token)
           if (data.name) setName(data.name)
           setGoogleApplicationStep(true)
         } else {
-          await setToken(data.auth_token)
+          await setToken(data.token)
           router.push('/dashboard')
         }
       })
@@ -167,29 +162,25 @@ export default function SignupPage() {
     if (!googlePendingToken) return
     setGoogleApplicationSubmitting(true)
     try {
-      await apiRequest('/api/volunteers/me', {
-        method: 'PUT',
-        headers: { Authorization: `Bearer ${googlePendingToken}` },
-        body: JSON.stringify({
-          name,
-          applicationMessage: googleApplicationMessage,
-          bio: bio || undefined,
-          discordHandle: discord || undefined,
-          signalNumber: signal || undefined,
-          whatsappNumber: whatsapp || undefined,
-          contactPreference: contactPref || undefined,
-          contactNotes: contactNotes || undefined,
-          availabilityHoursPerWeek: availability ? Number(availability) : undefined,
-          location: location || undefined,
-          country: country || undefined,
-          localGroup: localGroup || undefined,
-          otherSkills: otherSkills || undefined,
-          skillIds: skills.map((s) => s.skillId),
-          consentMakeProfileVisibleInDirectory: consentVisible,
-          consentContactableByProjectOwners: consentContact,
-          consentShareContactInfoWithProjectOwner: shareDirectly,
-          emailDigest,
-        }),
+      await client.volunteers.updateMe({
+        name,
+        applicationMessage: googleApplicationMessage,
+        bio: bio || undefined,
+        discordHandle: discord || undefined,
+        signalNumber: signal || undefined,
+        whatsappNumber: whatsapp || undefined,
+        contactPreference: contactPref || undefined,
+        contactNotes: contactNotes || undefined,
+        availabilityHoursPerWeek: availability ? Number(availability) : undefined,
+        location: location || undefined,
+        country: country || undefined,
+        localGroup: localGroup || undefined,
+        otherSkills: otherSkills || undefined,
+        skillIds: skills.map((s) => s.skillId),
+        consentMakeProfileVisibleInDirectory: consentVisible,
+        consentContactableByProjectOwners: consentContact,
+        consentShareContactInfoWithProjectOwner: shareDirectly,
+        emailDigest,
       })
       sessionStorage.removeItem('google_pending_token')
       setGoogleApplicationStep(false)
@@ -232,7 +223,6 @@ export default function SignupPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError('')
-    setFieldErrors({})
 
     if (password !== passwordConfirm) {
       setError('Passwords do not match')
@@ -245,43 +235,36 @@ export default function SignupPage() {
 
     setSubmitting(true)
     try {
-      const data = await apiRequest<{ auth_token: string; pending?: boolean }>('/api/auth/signup', {
-        method: 'POST',
-        body: JSON.stringify({
-          name,
-          email: email.trim(),
-          password,
-          applicationMessage: applicationMessage || undefined,
-          bio: bio || undefined,
-          discordHandle: discord || undefined,
-          signalNumber: signal || undefined,
-          whatsappNumber: whatsapp || undefined,
-          contactPreference: contactPref || undefined,
-          contactNotes: contactNotes || undefined,
-          availabilityHoursPerWeek: availability ? Number(availability) : undefined,
-          location: location || undefined,
-          country: country || undefined,
-          localGroup: localGroup || undefined,
-          otherSkills: otherSkills || undefined,
-          skillIds: skills.map((s) => s.skillId),
-          consentMakeProfileVisibleInDirectory: consentVisible,
-          consentContactableByProjectOwners: consentContact,
-          consentShareContactInfoWithProjectOwner: shareDirectly,
-          emailDigest,
-        }),
+      const data = await client.auth.signup({
+        name,
+        email: email.trim(),
+        password,
+        applicationMessage: applicationMessage || undefined,
+        bio: bio || undefined,
+        discordHandle: discord || undefined,
+        signalNumber: signal || undefined,
+        whatsappNumber: whatsapp || undefined,
+        contactPreference: contactPref || undefined,
+        contactNotes: contactNotes || undefined,
+        availabilityHoursPerWeek: availability ? Number(availability) : undefined,
+        location: location || undefined,
+        country: country || undefined,
+        localGroup: localGroup || undefined,
+        otherSkills: otherSkills || undefined,
+        skillIds: skills.map((s) => s.skillId),
+        consentMakeProfileVisibleInDirectory: consentVisible,
+        consentContactableByProjectOwners: consentContact,
+        consentShareContactInfoWithProjectOwner: shareDirectly,
+        emailDigest,
       })
       if (data.pending) {
         setApplicationPending(true)
       } else {
-        await setToken(data.auth_token)
+        await setToken(data.token)
         router.push('/dashboard')
       }
     } catch (err: unknown) {
-      if (err instanceof ApiError && err.fieldErrors && Object.keys(err.fieldErrors).length > 0) {
-        setFieldErrors(err.fieldErrors)
-      } else {
-        setError(err instanceof Error ? err.message : 'Signup failed')
-      }
+      setError(err instanceof Error ? err.message : 'Signup failed')
       setSubmitting(false)
     }
   }
@@ -697,17 +680,8 @@ export default function SignupPage() {
                 required
                 placeholder="How should we call you?"
                 value={name}
-                onChange={(e) => {
-                  setName(e.target.value)
-                  if (fieldErrors.name) setFieldErrors((f) => ({ ...f, name: '' }))
-                }}
-                aria-invalid={fieldErrors.name ? true : undefined}
+                onChange={(e) => setName(e.target.value)}
               />
-              {fieldErrors.name && (
-                <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
-                  {fieldErrors.name}
-                </p>
-              )}
             </div>
 
             <div className="mb-5">
@@ -721,21 +695,11 @@ export default function SignupPage() {
                 required
                 placeholder="you@example.com"
                 value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value)
-                  if (fieldErrors.email) setFieldErrors((f) => ({ ...f, email: '' }))
-                }}
-                aria-invalid={fieldErrors.email ? true : undefined}
+                onChange={(e) => setEmail(e.target.value)}
               />
-              {fieldErrors.email ? (
-                <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
-                  {fieldErrors.email}
-                </p>
-              ) : (
-                <p className="text-sm text-text-light mt-1">
-                  Used for login and notifications. Not shown publicly — see contact settings below.
-                </p>
-              )}
+              <p className="text-sm text-text-light mt-1">
+                Used for login and notifications. Not shown publicly — see contact settings below.
+              </p>
             </div>
 
             <div className="mb-5">
@@ -750,17 +714,8 @@ export default function SignupPage() {
                 minLength={8}
                 placeholder="At least 8 characters"
                 value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value)
-                  if (fieldErrors.password) setFieldErrors((f) => ({ ...f, password: '' }))
-                }}
-                aria-invalid={fieldErrors.password ? true : undefined}
+                onChange={(e) => setPassword(e.target.value)}
               />
-              {fieldErrors.password && (
-                <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
-                  {fieldErrors.password}
-                </p>
-              )}
             </div>
 
             <div className="mb-5">

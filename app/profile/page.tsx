@@ -7,9 +7,8 @@ import Checkbox from '@/components/Checkbox'
 import FilterDropdown from '@/components/FilterDropdown'
 import SkillPicker from '@/components/SkillPicker'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
+import { client } from '@/lib/client'
 import { useToast } from '@/lib/toast'
-import type { SerializedVolunteer, SerializedSkill } from '@/lib/types'
 
 interface SelectedSkill {
   skillId: number
@@ -46,7 +45,8 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!user) return
-    apiRequest<SerializedVolunteer>('/api/auth/me')
+    client.auth
+      .me()
       .then((d) => {
         setName(d.name ?? '')
         setBio(d.bio ?? '')
@@ -63,7 +63,7 @@ export default function ProfilePage() {
         setEmailDigest(d.emailDigest ?? 'none')
         setOtherSkills(d.otherSkills ?? '')
         setSkills(
-          ((d.skills ?? []) as SerializedSkill[]).map((s) => ({
+          ((d.skills ?? []) as { id: number; proficiencyLevel?: string | null }[]).map((s) => ({
             skillId: s.id,
             proficiencyLevel: s.proficiencyLevel ?? 'intermediate',
           })),
@@ -77,25 +77,22 @@ export default function ProfilePage() {
     e.preventDefault()
     setSubmitting(true)
     try {
-      await apiRequest('/api/volunteers/me', {
-        method: 'PUT',
-        body: JSON.stringify({
-          name: name.trim(),
-          bio: bio.trim() || null,
-          location: location.trim() || null,
-          availabilityHoursPerWeek: hours ? Number(hours) : null,
-          consentMakeProfileVisibleInDirectory,
-          consentContactableByProjectOwners,
-          consentShareContactInfoWithProjectOwner,
-          discordHandle: discordHandle.trim() || null,
-          signalNumber: signalNumber.trim() || null,
-          whatsappNumber: whatsappNumber.trim() || null,
-          contactPreference: contactPreference || null,
-          contactNotes: contactNotes.trim() || null,
-          emailDigest,
-          otherSkills: otherSkills.trim() || null,
-          skillIds: skills.map((s) => s.skillId),
-        }),
+      await client.volunteers.updateMe({
+        name: name.trim(),
+        bio: bio.trim() || null,
+        location: location.trim() || null,
+        availabilityHoursPerWeek: hours ? Number(hours) : null,
+        consentMakeProfileVisibleInDirectory,
+        consentContactableByProjectOwners,
+        consentShareContactInfoWithProjectOwner,
+        discordHandle: discordHandle.trim() || null,
+        signalNumber: signalNumber.trim() || null,
+        whatsappNumber: whatsappNumber.trim() || null,
+        contactPreference: contactPreference || null,
+        contactNotes: contactNotes.trim() || null,
+        emailDigest,
+        otherSkills: otherSkills.trim() || null,
+        skillIds: skills.map((s) => s.skillId),
       })
       await refreshUser()
       showToast('Profile updated!', 'success')

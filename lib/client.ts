@@ -4,7 +4,10 @@ import type { RouterClient } from '@orpc/server'
 import type { appRouter } from '@/server/router'
 
 const link = new RPCLink({
-  url: '/api',
+  url:
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/api/rpc`
+      : 'http://localhost/api/rpc',
   headers: () => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null
     return token ? { Authorization: `Bearer ${token}` } : {}

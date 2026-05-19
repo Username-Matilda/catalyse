@@ -7,7 +7,7 @@ import Button from '@/components/Button'
 import FilterDropdown from '@/components/FilterDropdown'
 import Tabs from '@/components/Tabs'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
+import { client } from '@/lib/client'
 import { useToast } from '@/lib/toast'
 
 interface Skill {
@@ -121,8 +121,8 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
   useEffect(() => {
     if (!user?.isAdmin) return
     Promise.all([
-      apiRequest<VolunteerDetail>(`/api/admin/volunteers/${id}`),
-      apiRequest<Skill[]>('/api/skills/flat'),
+      client.admin.volunteers.getById({ id: Number(id) }) as unknown as Promise<VolunteerDetail>,
+      client.skills.flat() as unknown as Promise<Skill[]>,
     ])
       .then(([v, s]) => {
         setVol(v)
@@ -136,14 +136,17 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
     e.preventDefault()
     setSubmitting(true)
     try {
-      await apiRequest(`/api/admin/volunteers/${id}/notes`, {
-        method: 'POST',
-        body: JSON.stringify({ content: noteContent, category: noteCategory }),
+      await client.admin.notes.create({
+        volunteerId: Number(id),
+        content: noteContent,
+        category: noteCategory,
       })
       showToast('Note added.', 'success')
       setNoteContent('')
       setNoteCategory('general')
-      const updated = await apiRequest<VolunteerDetail>(`/api/admin/volunteers/${id}`)
+      const updated = (await client.admin.volunteers.getById({
+        id: Number(id),
+      })) as unknown as VolunteerDetail
       setVol(updated)
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Failed', 'error')
@@ -155,14 +158,13 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
   async function saveEditedNote(noteId: number) {
     setSubmitting(true)
     try {
-      await apiRequest(`/api/admin/notes/${noteId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ content: editingNoteContent }),
-      })
+      await client.admin.notes.update({ id: noteId, content: editingNoteContent })
       showToast('Note updated.', 'success')
       setEditingNoteId(null)
       setEditingNoteContent('')
-      const updated = await apiRequest<VolunteerDetail>(`/api/admin/volunteers/${id}`)
+      const updated = (await client.admin.volunteers.getById({
+        id: Number(id),
+      })) as unknown as VolunteerDetail
       setVol(updated)
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Failed', 'error')
@@ -174,7 +176,7 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
   async function deleteNote(noteId: number) {
     if (!confirm('Delete this note?')) return
     try {
-      await apiRequest(`/api/admin/notes/${noteId}`, { method: 'DELETE' })
+      await client.admin.notes.delete({ id: noteId })
       showToast('Note deleted.', 'success')
       setVol((prev) =>
         prev ? { ...prev, adminNotes: prev.adminNotes.filter((n) => n.id !== noteId) } : prev,
@@ -188,19 +190,19 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
     e.preventDefault()
     setSubmitting(true)
     try {
-      await apiRequest(`/api/admin/volunteers/${id}/endorsements`, {
-        method: 'POST',
-        body: JSON.stringify({
-          skillId: parseInt(endorseSkillId),
-          rating: endorseRating,
-          source: endorseBasedOn,
-        }),
+      await client.admin.volunteers.addEndorsement({
+        volunteerId: Number(id),
+        skillId: parseInt(endorseSkillId),
+        rating: endorseRating,
+        source: endorseBasedOn,
       })
       showToast('Skill endorsed!', 'success')
       setEndorseSkillId('')
       setEndorseRating('verified')
       setEndorseBasedOn('direct_observation')
-      const updated = await apiRequest<VolunteerDetail>(`/api/admin/volunteers/${id}`)
+      const updated = (await client.admin.volunteers.getById({
+        id: Number(id),
+      })) as unknown as VolunteerDetail
       setVol(updated)
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Failed', 'error')

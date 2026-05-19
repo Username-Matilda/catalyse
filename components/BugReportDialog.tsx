@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { apiRequest, ApiError } from '@/lib/api'
+import { client } from '@/lib/client'
 import Button from '@/components/Button'
 import FilterDropdown from '@/components/FilterDropdown'
 import { useAuth } from '@/lib/auth-context'
@@ -28,7 +28,7 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [descriptionInvalid, setDescriptionInvalid] = useState(false)
 
   function reset() {
     setCategory('bug')
@@ -38,7 +38,7 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
     setSeverity('medium')
     setSuccess(false)
     setError('')
-    setFieldErrors({})
+    setDescriptionInvalid(false)
   }
 
   function handleClose() {
@@ -48,27 +48,24 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (description.length < 10) {
+      setDescriptionInvalid(true)
+      return
+    }
+    setDescriptionInvalid(false)
     setSubmitting(true)
     setError('')
-    setFieldErrors({})
     try {
-      await apiRequest('/api/bug-reports', {
-        method: 'POST',
-        body: JSON.stringify({
-          category,
-          title,
-          description,
-          email: user?.email ?? (email || undefined),
-          severity,
-        }),
+      await client.bugReports.create({
+        category,
+        title,
+        description,
+        reporterEmail: user?.email ?? (email || undefined),
+        severity,
       })
       setSuccess(true)
     } catch (err) {
-      if (err instanceof ApiError && err.fieldErrors && Object.keys(err.fieldErrors).length > 0) {
-        setFieldErrors(err.fieldErrors)
-      } else {
-        setError(err instanceof ApiError ? err.message : 'Something went wrong')
-      }
+      setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
       setSubmitting(false)
     }
@@ -137,19 +134,10 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
                   id="bug-title"
                   type="text"
                   value={title}
-                  onChange={(e) => {
-                    setTitle(e.target.value)
-                    if (fieldErrors.title) setFieldErrors((f) => ({ ...f, title: '' }))
-                  }}
-                  aria-invalid={fieldErrors.title ? true : undefined}
+                  onChange={(e) => setTitle(e.target.value)}
                   required
                   placeholder="Brief summary"
                 />
-                {fieldErrors.title && (
-                  <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
-                    {fieldErrors.title}
-                  </p>
-                )}
               </div>
 
               <div className="mb-5">
@@ -161,10 +149,11 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
                   value={description}
                   onChange={(e) => {
                     setDescription(e.target.value)
-                    if (fieldErrors.description) setFieldErrors((f) => ({ ...f, description: '' }))
+                    if (descriptionInvalid && e.target.value.length >= 10)
+                      setDescriptionInvalid(false)
                   }}
-                  aria-invalid={fieldErrors.description ? true : undefined}
                   required
+                  aria-invalid={descriptionInvalid || undefined}
                   placeholder={
                     {
                       bug: 'What happened? What did you expect?',
@@ -173,11 +162,6 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
                     }[category]
                   }
                 />
-                {fieldErrors.description && (
-                  <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
-                    {fieldErrors.description}
-                  </p>
-                )}
               </div>
 
               {!user && (

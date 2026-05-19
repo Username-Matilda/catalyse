@@ -7,7 +7,7 @@ import Checkbox from '@/components/Checkbox'
 import FilterDropdown from '@/components/FilterDropdown'
 import SkillPicker from '@/components/SkillPicker'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
+import { client } from '@/lib/client'
 import { useToast } from '@/lib/toast'
 import { buildLocationOptions, type LocalGroupOption } from '@/lib/filter-options'
 
@@ -79,15 +79,18 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
   }, [user, loading, router])
 
   useEffect(() => {
-    apiRequest<{ groups: LocalGroupOption[] }>('/api/local-groups')
-      .then((d) => setAllLocalGroups(d.groups))
+    client.localGroups
+      .list({})
+      .then((d) => setAllLocalGroups(d.groups as LocalGroupOption[]))
       .catch(() => {})
   }, [])
 
   useEffect(() => {
     if (!user) return
-    apiRequest<ProjectData>(`/api/projects/${idParam}`)
-      .then((data) => {
+    client.projects
+      .getById({ id: parseInt(idParam, 10) })
+      .then((rawData) => {
+        const data = rawData as unknown as ProjectData
         setProject(data)
         setTitle(data.title)
         setDescription(data.description)
@@ -118,22 +121,20 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
     setSubmitting(true)
     const [country, localGroup] = locationValue.split(':')
     try {
-      await apiRequest(`/api/projects/${idParam}`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          title: title.trim(),
-          description: description.trim(),
-          collaborationLink: collaborationLink.trim() || null,
-          skillIds: skills.map((s) => s.skillId),
-          projectType: projectType || null,
-          timeCommitmentHoursPerWeek: hoursPerWeek ? Number(hoursPerWeek) : null,
-          urgency,
-          country: country || null,
-          localGroup: localGroup || null,
-          estimatedDuration: estimatedDuration.trim() || null,
-          isSeekingHelp: seekingHelp,
-          isSeekingOwner: seekingOwner,
-        }),
+      await client.projects.update({
+        id: parseInt(idParam, 10),
+        title: title.trim(),
+        description: description.trim(),
+        collaborationLink: collaborationLink.trim() || null,
+        skillIds: skills.map((s) => s.skillId),
+        projectType: projectType || null,
+        timeCommitmentHoursPerWeek: hoursPerWeek ? Number(hoursPerWeek) : null,
+        urgency,
+        country: country || null,
+        localGroup: localGroup || null,
+        estimatedDuration: estimatedDuration.trim() || null,
+        isSeekingHelp: seekingHelp,
+        isSeekingOwner: seekingOwner,
       })
       router.push(`/projects/${idParam}`)
     } catch (err: unknown) {
@@ -147,7 +148,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
       return
     setDeleting(true)
     try {
-      await apiRequest(`/api/projects/${idParam}`, { method: 'DELETE' })
+      await client.projects.delete({ id: parseInt(idParam, 10) })
       router.push('/')
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Failed to delete project', 'error')

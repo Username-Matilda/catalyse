@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import ProjectForm from '@/components/ProjectForm'
 import { useAuth } from '@/lib/auth-context'
+import { client } from '@/lib/client'
 
 export default function AdminCreateProjectPage() {
   const router = useRouter()
@@ -25,7 +26,7 @@ export default function AdminCreateProjectPage() {
         </p>
         <div className="max-w-4xl">
           <ProjectForm
-            action="/api/admin/projects"
+            onSubmitForm={(data) => client.admin.projects.create(data)}
             submitLabel="Create Project"
             onSuccess={(id) => router.push(`/projects/${id}`)}
             onCancel={() => router.back()}

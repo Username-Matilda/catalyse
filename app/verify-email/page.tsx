@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense, FormEvent } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { apiRequest } from '@/lib/api'
+import { client } from '@/lib/client'
 import Button from '@/components/Button'
 
 function VerifyEmailContent() {
@@ -39,10 +39,8 @@ function VerifyEmailContent() {
   useEffect(() => {
     if (!token) return
 
-    apiRequest('/api/auth/verify-email', {
-      method: 'POST',
-      body: JSON.stringify({ token }),
-    })
+    client.auth
+      .verifyEmail({ token })
       .then(() => setStatus('success'))
       .catch((err: unknown) => {
         setErrorMessage(err instanceof Error ? err.message : 'Email confirmation failed')

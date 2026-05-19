@@ -7,7 +7,7 @@ import Button from '@/components/Button'
 import FilterDropdown from '@/components/FilterDropdown'
 import { buildLocationOptions, type LocalGroupOption } from '@/lib/filter-options'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
+import { client } from '@/lib/client'
 import { CARD_GRID_CLASSES } from '@/components/ProjectCard'
 
 interface FlatSkill {
@@ -51,32 +51,30 @@ export default function VolunteersPage() {
   }, [user, loading, router])
 
   useEffect(() => {
-    apiRequest<FlatSkill[]>('/api/skills/flat')
-      .then((s) => setAllSkills(s))
+    client.skills
+      .flat()
+      .then((s) => setAllSkills(s as FlatSkill[]))
       .catch(() => {})
   }, [])
 
   useEffect(() => {
-    apiRequest<{ groups: LocalGroupOption[] }>('/api/local-groups')
-      .then((data) => setLocalGroups(data.groups))
+    client.localGroups
+      .list({})
+      .then((data) => setLocalGroups(data.groups as LocalGroupOption[]))
       .catch(() => {})
   }, [])
 
   const fetchVolunteers = useCallback(async () => {
     setLoadingVolunteers(true)
     try {
-      const params = new URLSearchParams()
-      if (search) params.set('search', search)
-      if (skillFilter) params.set('skill_ids', skillFilter)
-      if (locationFilter) {
-        const [country, localGroup] = locationFilter.split(':')
-        params.set('country', country)
-        if (localGroup) params.set('local_group', localGroup)
-      }
-      const data = await apiRequest<{ volunteers: Volunteer[]; total: number }>(
-        `/api/volunteers?${params}`,
-      )
-      setVolunteers(data.volunteers)
+      const [locationCountry, locationLocalGroup] = locationFilter.split(':')
+      const data = await client.volunteers.list({
+        ...(search ? { search } : {}),
+        ...(skillFilter ? { skillIds: [parseInt(skillFilter, 10)] } : {}),
+        ...(locationFilter ? { country: locationCountry } : {}),
+        ...(locationFilter && locationLocalGroup ? { localGroup: locationLocalGroup } : {}),
+      })
+      setVolunteers(data.volunteers as unknown as Volunteer[])
     } catch {
       setVolunteers([])
     } finally {

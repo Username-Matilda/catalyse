@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
+import { client } from '@/lib/client'
 
 interface Skill {
   id: number
@@ -69,9 +69,10 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
 
   useEffect(() => {
     if (!user) return
-    apiRequest<VolunteerDetail>(`/api/volunteers/${id}`)
+    client.volunteers
+      .getById({ id: parseInt(id, 10) })
       .then((data) => {
-        setVolunteer(data)
+        setVolunteer(data as VolunteerDetail)
         setLoadingProfile(false)
       })
       .catch(() => {

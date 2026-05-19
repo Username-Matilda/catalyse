@@ -19,7 +19,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
+import { client } from '@/lib/client'
 import { useToast } from '@/lib/toast'
 
 interface Skill {
@@ -143,10 +143,9 @@ function SortableCategory({
     const newIndex = cat.skills.findIndex((s) => s.id === over.id)
     const reordered = arrayMove(cat.skills, oldIndex, newIndex)
     onSkillsReorder(cat.id, reordered)
-    apiRequest('/api/admin/skills/reorder', {
-      method: 'PATCH',
-      body: JSON.stringify(reordered.map((s, i) => ({ id: s.id, sortOrder: i + 1 }))),
-    }).catch(() => {})
+    client.admin.skills
+      .reorder(reordered.map((s, i) => ({ id: s.id, sortOrder: i + 1 })))
+      .catch(() => {})
   }
 
   return (
@@ -258,8 +257,8 @@ export default function AdminSkillsPage() {
     async function () {
       try {
         const [cats, skills] = await Promise.all([
-          apiRequest<Category[]>('/api/admin/skill-categories'),
-          apiRequest<Skill[]>('/api/skills/flat'),
+          client.admin.skillCategories.list() as unknown as Promise<Category[]>,
+          client.skills.flat() as unknown as Promise<Skill[]>,
         ])
         const catMap = new Map(
           cats.map((c) => ({ ...c, skills: [] as Skill[] })).map((c) => [c.id, c]),
@@ -312,10 +311,9 @@ export default function AdminSkillsPage() {
     const newIndex = categories.findIndex((c) => c.id === over.id)
     const reordered = arrayMove(categories, oldIndex, newIndex)
     setCategories(reordered)
-    apiRequest('/api/admin/skill-categories/reorder', {
-      method: 'PATCH',
-      body: JSON.stringify(reordered.map((c, i) => ({ id: c.id, sortOrder: i + 1 }))),
-    }).catch(() => {})
+    client.admin.skillCategories
+      .reorder(reordered.map((c, i) => ({ id: c.id, sortOrder: i + 1 })))
+      .catch(() => {})
   }
 
   function handleSkillsReorder(categoryId: number, newSkills: Skill[]) {
@@ -334,16 +332,10 @@ export default function AdminSkillsPage() {
         description: inputDescription.trim() || null,
       }
       if (modal.type === 'edit-category') {
-        await apiRequest(`/api/admin/skill-categories/${modal.category.id}`, {
-          method: 'PUT',
-          body: JSON.stringify(body),
-        })
+        await client.admin.skillCategories.update({ id: modal.category.id, ...body })
         showToast('Category updated!', 'success')
       } else {
-        await apiRequest('/api/admin/skill-categories', {
-          method: 'POST',
-          body: JSON.stringify(body),
-        })
+        await client.admin.skillCategories.create(body)
         showToast('Category created!', 'success')
       }
       closeModal()
@@ -361,22 +353,17 @@ export default function AdminSkillsPage() {
     setSubmitting(true)
     try {
       if (modal.type === 'add-skill') {
-        await apiRequest('/api/admin/skills', {
-          method: 'POST',
-          body: JSON.stringify({
-            name: inputName.trim(),
-            description: inputDescription.trim() || null,
-            categoryId: modal.categoryId,
-          }),
+        await client.admin.skills.create({
+          name: inputName.trim(),
+          description: inputDescription.trim() || null,
+          categoryId: modal.categoryId,
         })
         showToast('Skill created!', 'success')
       } else if (modal.type === 'edit-skill') {
-        await apiRequest(`/api/admin/skills/${modal.skill.id}`, {
-          method: 'PUT',
-          body: JSON.stringify({
-            name: inputName.trim(),
-            description: inputDescription.trim() || null,
-          }),
+        await client.admin.skills.update({
+          id: modal.skill.id,
+          name: inputName.trim(),
+          description: inputDescription.trim() || null,
         })
         showToast('Skill updated!', 'success')
       }
@@ -394,10 +381,10 @@ export default function AdminSkillsPage() {
     setSubmitting(true)
     try {
       if (modal.type === 'delete-category') {
-        await apiRequest(`/api/admin/skill-categories/${modal.id}`, { method: 'DELETE' })
+        await client.admin.skillCategories.delete({ id: modal.id })
         showToast('Category deleted!', 'success')
       } else if (modal.type === 'delete-skill') {
-        await apiRequest(`/api/admin/skills/${modal.id}`, { method: 'DELETE' })
+        await client.admin.skills.delete({ id: modal.id })
         showToast('Skill deleted!', 'success')
       }
       closeModal()

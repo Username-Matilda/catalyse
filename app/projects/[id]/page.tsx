@@ -6,7 +6,7 @@ import Link from 'next/link'
 import Button from '@/components/Button'
 import FilterDropdown from '@/components/FilterDropdown'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
+import { client } from '@/lib/client'
 import { useToast } from '@/lib/toast'
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -202,7 +202,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const loadProject = useCallback(async () => {
     setLoadingProject(true)
     try {
-      const data = await apiRequest<ProjectDetail>(`/api/projects/${idParam}`)
+      const data = (await client.projects.getById({
+        id: parseInt(idParam, 10),
+      })) as unknown as ProjectDetail
       setProject(data)
       setNewStatus(data.status)
     } catch {
@@ -221,16 +223,18 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   useEffect(() => {
     if (!user?.isAdmin || !project) return
-    apiRequest<{ volunteers: Volunteer[] }>('/api/volunteers?limit=100')
-      .then((d) => setVolunteers(d.volunteers))
+    client.volunteers
+      .list({ limit: 100 })
+      .then((d) => setVolunteers(d.volunteers as unknown as Volunteer[]))
       .catch(() => {})
   }, [user, project])
 
   // Fetch owner contact info when contact modal opens
   useEffect(() => {
     if (!showContactModal || !project?.ownerId) return
-    apiRequest<OwnerContact>(`/api/volunteers/${project.ownerId}`)
-      .then((v) => setOwnerContact(v))
+    client.volunteers
+      .getById({ id: project.ownerId })
+      .then((v) => setOwnerContact(v as OwnerContact))
       .catch(() => setOwnerContact(null))
   }, [showContactModal, project?.ownerId])
 
@@ -239,13 +243,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     if (!project?.ownerId) return
     setContactSubmitting(true)
     try {
-      await apiRequest(`/api/contact/${project.ownerId}`, {
-        method: 'POST',
-        body: JSON.stringify({
-          subject: contactSubject.trim(),
-          message: contactBody.trim(),
-          relatedProjectId: project.id,
-        }),
+      await client.messages.send({
+        recipientId: project.ownerId,
+        subject: contactSubject.trim(),
+        message: contactBody.trim(),
+        relatedProjectId: project.id,
       })
       setShowContactModal(false)
       setContactSubject('')
@@ -291,9 +293,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     if (!newTaskTitle.trim()) return
     setTaskSubmitting(true)
     try {
-      await apiRequest(`/api/projects/${idParam}/tasks`, {
-        method: 'POST',
-        body: JSON.stringify({ title: newTaskTitle.trim() }),
+      await client.projects.createTask({
+        projectId: parseInt(idParam, 10),
+        title: newTaskTitle.trim(),
       })
       setNewTaskTitle('')
       setShowTaskForm(false)
@@ -308,9 +310,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   async function handleClaimTask(taskId: number) {
     try {
-      await apiRequest(`/api/projects/${idParam}/tasks/${taskId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ status: 'assigned', assignedToId: user!.id }),
+      await client.projects.updateTask({
+        projectId: parseInt(idParam, 10),
+        taskId,
+        data: { status: 'assigned', assignedToId: user!.id },
       })
       await loadProject()
       showToast('Task claimed!', 'success')
@@ -321,9 +324,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   async function handleDoneTask(taskId: number) {
     try {
-      await apiRequest(`/api/projects/${idParam}/tasks/${taskId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ status: 'done' }),
+      await client.projects.updateTask({
+        projectId: parseInt(idParam, 10),
+        taskId,
+        data: { status: 'done' },
       })
       await loadProject()
       showToast('Task completed!', 'success')
@@ -335,7 +339,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   async function handleDeleteTask(taskId: number) {
     if (!window.confirm('Delete this task?')) return
     try {
-      await apiRequest(`/api/projects/${idParam}/tasks/${taskId}`, { method: 'DELETE' })
+      await client.projects.deleteTask({ projectId: parseInt(idParam, 10), taskId })
       await loadProject()
       showToast('Task deleted!', 'success')
     } catch (err: unknown) {
@@ -347,10 +351,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     e.preventDefault()
     setStatusSubmitting(true)
     try {
-      await apiRequest(`/api/projects/${idParam}`, {
-        method: 'PUT',
-        body: JSON.stringify({ status: newStatus }),
-      })
+      await client.projects.update({ id: parseInt(idParam, 10), status: newStatus })
       await loadProject()
       showToast('Status updated!', 'success')
     } catch (err: unknown) {
@@ -364,12 +365,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     e.preventDefault()
     setInterestSubmitting(true)
     try {
-      await apiRequest(`/api/projects/${idParam}/interest`, {
-        method: 'POST',
-        body: JSON.stringify({
-          interestType,
-          message: interestMessage.trim() || null,
-        }),
+      await client.projects.expressInterest({
+        projectId: parseInt(idParam, 10),
+        interestType: interestType as 'want_to_contribute' | 'want_to_own',
+        message: interestMessage.trim() || null,
       })
       await loadProject()
       showToast('Interest expressed!', 'success')
@@ -383,7 +382,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   async function handleWithdrawInterest() {
     if (!window.confirm('Withdraw your interest?')) return
     try {
-      await apiRequest(`/api/projects/${idParam}/interest`, { method: 'DELETE' })
+      await client.projects.withdrawInterest({ projectId: parseInt(idParam, 10) })
       await loadProject()
       showToast('Interest withdrawn', 'success')
     } catch (err: unknown) {
@@ -393,9 +392,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   async function handleAcceptInterest(interestId: number) {
     try {
-      await apiRequest(`/api/projects/${idParam}/interest/${interestId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ status: 'accepted' }),
+      await client.projects.respondToInterest({
+        projectId: parseInt(idParam, 10),
+        interestId,
+        status: 'accepted',
       })
       await loadProject()
       showToast('Interest accepted', 'success')
@@ -407,9 +407,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   async function handleDeclineInterest(interestId: number) {
     const msg = window.prompt('Optional message for the volunteer:') ?? ''
     try {
-      await apiRequest(`/api/projects/${idParam}/interest/${interestId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ status: 'declined', responseMessage: msg || null }),
+      await client.projects.respondToInterest({
+        projectId: parseInt(idParam, 10),
+        interestId,
+        status: 'declined',
+        responseMessage: msg || null,
       })
       await loadProject()
       showToast('Interest declined', 'success')
@@ -423,9 +425,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     if (!assignTo) return
     setAssignSubmitting(true)
     try {
-      await apiRequest(`/api/projects/${idParam}/assign`, {
-        method: 'POST',
-        body: JSON.stringify({ volunteerId: parseInt(assignTo, 10) }),
+      await client.projects.assign({
+        projectId: parseInt(idParam, 10),
+        volunteerId: parseInt(assignTo, 10),
       })
       await loadProject()
       showToast('Volunteer assigned!', 'success')
@@ -442,10 +444,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     if (!window.confirm('Transfer ownership to this volunteer?')) return
     setTransferSubmitting(true)
     try {
-      await apiRequest(`/api/projects/${idParam}`, {
-        method: 'PUT',
-        body: JSON.stringify({ ownerId: parseInt(transferTo, 10) }),
-      })
+      await client.projects.update({ id: parseInt(idParam, 10), ownerId: parseInt(transferTo, 10) })
       await loadProject()
       showToast('Ownership transferred!', 'success')
     } catch (err: unknown) {
@@ -459,9 +458,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     e.preventDefault()
     setOutcomeSubmitting(true)
     try {
-      await apiRequest(`/api/admin/projects/${idParam}/outcome`, {
-        method: 'PUT',
-        body: JSON.stringify({ outcome: outcomeValue, outcomeNotes: outcomeNotes.trim() || null }),
+      await client.admin.projects.setOutcome({
+        id: parseInt(idParam, 10),
+        outcome: outcomeValue as 'successful' | 'partial' | 'not_completed' | 'ongoing',
+        outcomeNotes: outcomeNotes.trim() || null,
       })
       await loadProject()
       showToast('Outcome recorded!', 'success')
@@ -477,9 +477,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     if (!updateContent.trim()) return
     setUpdateSubmitting(true)
     try {
-      await apiRequest(`/api/projects/${idParam}/updates`, {
-        method: 'POST',
-        body: JSON.stringify({ content: updateContent.trim() }),
+      await client.projects.createUpdate({
+        projectId: parseInt(idParam, 10),
+        content: updateContent.trim(),
       })
       setUpdateContent('')
       await loadProject()
@@ -494,13 +494,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     e.preventDefault()
     setReviewSubmitting(true)
     try {
-      await apiRequest(`/api/admin/projects/${idParam}/review`, {
-        method: 'POST',
-        body: JSON.stringify({
-          status: reviewStatus,
-          ...(reviewStatus === 'needs_discussion' ? { feedbackToProposer: reviewMessage } : {}),
-          targetStatus: 'seeking_owner',
-        }),
+      await client.admin.projects.review({
+        id: parseInt(idParam, 10),
+        status: reviewStatus as 'approved' | 'needs_discussion',
+        ...(reviewStatus === 'needs_discussion' ? { feedbackToProposer: reviewMessage } : {}),
+        targetStatus: 'seeking_owner',
       })
       await loadProject()
       showToast(

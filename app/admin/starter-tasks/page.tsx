@@ -6,7 +6,7 @@ import Link from 'next/link'
 import Button from '@/components/Button'
 import FilterDropdown from '@/components/FilterDropdown'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
+import { client } from '@/lib/client'
 import { useToast } from '@/lib/toast'
 
 interface Skill {
@@ -115,15 +115,16 @@ export default function AdminStarterTasksPage() {
   const loadAll = useCallback(async () => {
     setLoadingData(true)
     try {
-      const params = statusFilter ? `?status=${statusFilter}` : ''
       const [t, s, v] = await Promise.all([
-        apiRequest<StarterTask[]>(`/api/starter-tasks${params}`),
-        apiRequest<Skill[]>('/api/skills/flat'),
-        apiRequest<{ volunteers: Volunteer[] }>('/api/volunteers'),
+        client.starterTasks.list(
+          statusFilter ? { status: statusFilter } : {},
+        ) as unknown as Promise<StarterTask[]>,
+        client.skills.flat() as unknown as Promise<Skill[]>,
+        client.volunteers.list({ limit: 100 }),
       ])
       setTasks(t)
       setSkills(s)
-      setVolunteers(v.volunteers)
+      setVolunteers(v.volunteers as unknown as Volunteer[])
     } catch {
       toast('Failed to load data', 'error')
     } finally {
@@ -185,14 +186,11 @@ export default function AdminStarterTasksPage() {
     e.preventDefault()
     setSubmitting(true)
     try {
-      await apiRequest('/api/starter-tasks', {
-        method: 'POST',
-        body: JSON.stringify({
-          title: createTitle.trim(),
-          description: createDesc.trim(),
-          skillId: createSkillId ? parseInt(createSkillId) : null,
-          estimatedHours: createHours ? parseFloat(createHours) : null,
-        }),
+      await client.starterTasks.create({
+        title: createTitle.trim(),
+        description: createDesc.trim(),
+        skillId: createSkillId ? parseInt(createSkillId) : null,
+        estimatedHours: createHours ? parseFloat(createHours) : null,
       })
       toast('Task created!', 'success')
       setCreateTitle('')
@@ -213,14 +211,12 @@ export default function AdminStarterTasksPage() {
     if (!editModal) return
     setSubmitting(true)
     try {
-      await apiRequest(`/api/starter-tasks/${editModal.id}`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          title: editTitle.trim(),
-          description: editDesc.trim(),
-          skillId: editSkillId ? parseInt(editSkillId) : null,
-          estimatedHours: editHours ? parseFloat(editHours) : null,
-        }),
+      await client.starterTasks.update({
+        id: editModal.id,
+        title: editTitle.trim(),
+        description: editDesc.trim(),
+        skillId: editSkillId ? parseInt(editSkillId) : null,
+        estimatedHours: editHours ? parseFloat(editHours) : null,
       })
       toast('Task updated!', 'success')
       setEditModal(null)
@@ -237,9 +233,9 @@ export default function AdminStarterTasksPage() {
     if (!assignModal) return
     setSubmitting(true)
     try {
-      await apiRequest(`/api/starter-tasks/${assignModal.id}/assign`, {
-        method: 'POST',
-        body: JSON.stringify({ volunteerId: parseInt(assignVolunteerId) }),
+      await client.starterTasks.assign({
+        id: assignModal.id,
+        volunteerId: parseInt(assignVolunteerId),
       })
       toast('Task assigned!', 'success')
       setAssignModal(null)
@@ -255,7 +251,7 @@ export default function AdminStarterTasksPage() {
     if (!unassignModal) return
     setSubmitting(true)
     try {
-      await apiRequest(`/api/starter-tasks/${unassignModal.id}/unassign`, { method: 'POST' })
+      await client.starterTasks.unassign({ id: unassignModal.id })
       toast('Assignee removed', 'success')
       setUnassignModal(null)
       await loadAll()
@@ -269,7 +265,7 @@ export default function AdminStarterTasksPage() {
   async function deleteTask(task: StarterTask) {
     if (!confirm(`Delete "${task.title}"? This cannot be undone.`)) return
     try {
-      await apiRequest(`/api/starter-tasks/${task.id}`, { method: 'DELETE' })
+      await client.starterTasks.delete({ id: task.id })
       toast('Task deleted', 'success')
       await loadAll()
     } catch (err: unknown) {
@@ -288,13 +284,11 @@ export default function AdminStarterTasksPage() {
     if (!reviewModal) return
     setSubmitting(true)
     try {
-      await apiRequest(`/api/starter-tasks/${reviewModal.id}/review`, {
-        method: 'POST',
-        body: JSON.stringify({
-          reviewRating,
-          feedbackToVolunteer: reviewFeedback || null,
-          reviewNotes: reviewNotes || null,
-        }),
+      await client.starterTasks.review({
+        id: reviewModal.id,
+        reviewRating,
+        feedbackToVolunteer: reviewFeedback || null,
+        reviewNotes: reviewNotes || null,
       })
       toast('Task reviewed!', 'success')
       setReviewModal(null)

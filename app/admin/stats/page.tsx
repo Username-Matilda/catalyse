@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
+import { client } from '@/lib/client'
 
 interface Stats {
   volunteers: { total: number; thisMonth: number }
@@ -31,9 +31,10 @@ export default function AdminStatsPage() {
 
   useEffect(() => {
     if (!user?.isAdmin) return
-    apiRequest<Stats>('/api/admin/stats')
+    client.admin.stats
+      .get()
       .then((data) => {
-        setStats(data)
+        setStats(data as unknown as Stats)
         setLoadingData(false)
       })
       .catch(() => setLoadingData(false))

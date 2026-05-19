@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import Button from '@/components/Button'
 import FilterDropdown from '@/components/FilterDropdown'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest, ApiError } from '@/lib/api'
+import { ORPCError } from '@orpc/client'
+import { client } from '@/lib/client'
 import { COUNTRY_OPTIONS } from '@/lib/filter-options'
 import { useToast } from '@/lib/toast'
 
@@ -19,7 +20,7 @@ interface Suggestion {
   country: string
   status: string
   adminNotes: string | null
-  createdAt: string
+  createdAt: Date | string | null
   mergedInto: { id: number; name: string } | null
 }
 
@@ -56,7 +57,8 @@ export default function SuggestLocalGroupPage() {
 
   useEffect(() => {
     if (!user) return
-    apiRequest<{ suggestions: Suggestion[] }>('/api/local-group-suggestions')
+    client.localGroupSuggestions
+      .list()
       .then((data) => setSuggestions(data.suggestions))
       .catch(() => {})
       .finally(() => setLoadingSuggestions(false))
@@ -75,17 +77,14 @@ export default function SuggestLocalGroupPage() {
     e.preventDefault()
     setSubmitting(true)
     try {
-      const result = await apiRequest<Suggestion>('/api/local-group-suggestions', {
-        method: 'POST',
-        body: JSON.stringify({ name: name.trim(), country }),
-      })
+      const result = await client.localGroupSuggestions.create({ name: name.trim(), country })
       setSuggestions((prev) => [result, ...prev])
       setCountry('')
       setName('')
       showToast('Suggestion submitted!', 'success')
     } catch (err) {
-      if (err instanceof ApiError && err.fieldErrors) {
-        setFieldErrors(err.fieldErrors)
+      if (err instanceof ORPCError) {
+        showToast(err.message, 'error')
       } else {
         showToast(err instanceof Error ? err.message : 'Failed to submit suggestion', 'error')
       }
@@ -175,11 +174,13 @@ export default function SuggestLocalGroupPage() {
                       </p>
                       <p className="text-xs text-text-light m-0 mt-1">
                         Submitted{' '}
-                        {new Date(s.createdAt).toLocaleDateString('en-GB', {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric',
-                        })}
+                        {s.createdAt
+                          ? new Date(s.createdAt).toLocaleDateString('en-GB', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                            })
+                          : ''}
                       </p>
                       {s.adminNotes && (
                         <p className="text-sm text-text-light mt-2 mb-0 italic">{s.adminNotes}</p>

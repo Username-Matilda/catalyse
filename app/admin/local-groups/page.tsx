@@ -7,7 +7,7 @@ import Button from '@/components/Button'
 import Radio from '@/components/Radio'
 import FilterDropdown from '@/components/FilterDropdown'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
+import { client } from '@/lib/client'
 import { COUNTRY_OPTIONS } from '@/lib/filter-options'
 import { useToast } from '@/lib/toast'
 
@@ -106,8 +106,9 @@ export default function AdminLocalGroupsPage() {
 
   useEffect(() => {
     if (!user?.isAdmin) return
-    apiRequest<{ groups: LocalGroup[] }>('/api/local-groups')
-      .then((data) => setAllGroups(data.groups))
+    client.localGroups
+      .list({})
+      .then((data) => setAllGroups(data.groups as LocalGroup[]))
       .catch(() => {})
   }, [user])
 
@@ -132,15 +133,20 @@ export default function AdminLocalGroupsPage() {
 
       await Promise.all([
         fetchGroups
-          ? apiRequest<{ groups: LocalGroup[] }>('/api/admin/local-groups').then((d) => {
-              groups.push(...d.groups.map((g) => ({ kind: 'group' as const, ...g })))
+          ? client.admin.localGroups.list({}).then((d) => {
+              groups.push(
+                ...(d.groups as LocalGroup[]).map((g) => ({ kind: 'group' as const, ...g })),
+              )
             })
           : Promise.resolve(),
         ...suggestionStatuses.map((s) =>
-          apiRequest<{ suggestions: Suggestion[] }>(
-            `/api/admin/local-groups/suggestions?status=${s}`,
-          ).then((d) => {
-            suggestions.push(...d.suggestions.map((sg) => ({ kind: 'suggestion' as const, ...sg })))
+          client.admin.localGroups.listSuggestions({ status: s }).then((d) => {
+            suggestions.push(
+              ...(d.suggestions as unknown as Suggestion[]).map((sg) => ({
+                kind: 'suggestion' as const,
+                ...sg,
+              })),
+            )
           }),
         ),
       ])
@@ -167,9 +173,8 @@ export default function AdminLocalGroupsPage() {
       return
     }
     setLoadingDeleteProjects(true)
-    apiRequest<{ projects: { id: number; title: string }[]; total: number }>(
-      `/api/projects?local_group=${encodeURIComponent(deleteTarget.name)}&limit=100`,
-    )
+    client.projects
+      .list({ localGroup: deleteTarget.name, limit: 100 })
       .then((d) => setDeleteTargetProjects(d.projects))
       .catch(() => setDeleteTargetProjects([]))
       .finally(() => setLoadingDeleteProjects(false))
@@ -214,10 +219,10 @@ export default function AdminLocalGroupsPage() {
     e.preventDefault()
     setAddSubmitting(true)
     try {
-      const group = await apiRequest<LocalGroup>('/api/admin/local-groups', {
-        method: 'POST',
-        body: JSON.stringify({ name: addName.trim(), country: addCountry }),
-      })
+      const group = (await client.admin.localGroups.create({
+        name: addName.trim(),
+        country: addCountry,
+      })) as unknown as LocalGroup
       const newItem: DisplayGroup = { kind: 'group', ...group }
       setItems((prev) => {
         if (statusFilter === 'active' || statusFilter === 'all') {
@@ -243,10 +248,11 @@ export default function AdminLocalGroupsPage() {
     if (!editGroup) return
     setEditSubmitting(true)
     try {
-      const group = await apiRequest<LocalGroup>(`/api/admin/local-groups/${editGroup.id}`, {
-        method: 'PUT',
-        body: JSON.stringify({ name: editName.trim(), country: editCountry }),
-      })
+      const group = (await client.admin.localGroups.update({
+        id: editGroup.id,
+        name: editName.trim(),
+        country: editCountry,
+      })) as unknown as LocalGroup
       setItems((prev) =>
         prev.map((item) =>
           item.kind === 'group' && item.id === group.id ? { kind: 'group', ...group } : item,
@@ -276,10 +282,10 @@ export default function AdminLocalGroupsPage() {
       }
       if (adminNotes.trim()) body.adminNotes = adminNotes.trim()
 
-      await apiRequest(`/api/admin/local-groups/suggestions/${reviewSuggestion.id}`, {
-        method: 'PUT',
-        body: JSON.stringify(body),
-      })
+      await client.admin.localGroups.reviewSuggestion({
+        id: reviewSuggestion.id,
+        ...body,
+      } as Parameters<typeof client.admin.localGroups.reviewSuggestion>[0])
 
       setItems((prev) =>
         prev.filter((i) => !(i.kind === 'suggestion' && i.id === reviewSuggestion.id)),
@@ -324,12 +330,12 @@ export default function AdminLocalGroupsPage() {
   async function deleteItem() {
     if (!deleteTarget) return
     const item = deleteTarget
-    const url =
-      item.kind === 'group'
-        ? `/api/admin/local-groups/${item.id}`
-        : `/api/admin/local-groups/suggestions/${item.id}`
     try {
-      await apiRequest(url, { method: 'DELETE' })
+      if (item.kind === 'group') {
+        await client.admin.localGroups.delete({ id: item.id })
+      } else {
+        await client.admin.localGroups.deleteSuggestion({ id: item.id })
+      }
       setItems((prev) => prev.filter((i) => !(i.kind === item.kind && i.id === item.id)))
       if (item.kind === 'group') {
         setAllGroups((prev) => prev.filter((g) => g.id !== item.id))

@@ -6,7 +6,7 @@ import Link from 'next/link'
 import Script from 'next/script'
 import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
-import { apiRequest } from '@/lib/api'
+import { client } from '@/lib/client'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -22,8 +22,9 @@ export default function LoginPage() {
   }, [user, loading, router])
 
   useEffect(() => {
-    apiRequest<{ client_id: string }>('/api/auth/google-client-id')
-      .then((d) => setGoogleClientId(d.client_id))
+    client.auth
+      .googleClientId()
+      .then((d) => setGoogleClientId(d.clientId))
       .catch(() => {})
   }, [])
 
@@ -32,11 +33,8 @@ export default function LoginPage() {
     setError('')
     setSubmitting(true)
     try {
-      const data = await apiRequest<{ auth_token: string }>('/api/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email: email.trim(), password }),
-      })
-      await setToken(data.auth_token)
+      const data = await client.auth.login({ email: email.trim(), password })
+      await setToken(data.token)
       router.push('/dashboard')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Login failed')
@@ -46,13 +44,11 @@ export default function LoginPage() {
 
   const handleGoogleResponse = useCallback(
     (response: { credential: string }) => {
-      apiRequest<{ auth_token: string; is_new_user?: boolean }>('/api/auth/google', {
-        method: 'POST',
-        body: JSON.stringify({ credential: response.credential }),
-      })
+      client.auth
+        .google({ credential: response.credential })
         .then(async (data) => {
-          await setToken(data.auth_token)
-          router.push(data.is_new_user ? '/profile' : '/dashboard')
+          await setToken(data.token)
+          router.push(data.isNewUser ? '/profile' : '/dashboard')
         })
         .catch((err) => setError(err instanceof Error ? err.message : 'Google sign-in failed'))
     },

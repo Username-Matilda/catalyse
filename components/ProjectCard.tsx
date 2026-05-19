@@ -8,7 +8,7 @@ export interface Project {
   title: string
   status: string
   description: string | null
-  updatedAt?: string
+  updatedAt?: string | Date | null
   pendingInterestCount?: number
   isSeekingHelp?: boolean | null
   isSeekingOwner?: boolean | null
@@ -20,7 +20,7 @@ export interface Project {
   urgency?: string | null
   owner?: { name: string } | null
   proposedBy?: { id?: number; name: string } | string | null
-  skills?: Array<{ id: number; name: string; isRequired: boolean }>
+  skills?: Array<{ id: number; name: string; isRequired: boolean | null }>
   match?: {
     requiredMatchPercent: number
     matchedRequiredCount: number

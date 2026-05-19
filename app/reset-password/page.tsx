@@ -3,7 +3,7 @@
 import { useState, FormEvent, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSearchParams } from 'next/navigation'
-import { apiRequest, ApiError } from '@/lib/api'
+import { client } from '@/lib/client'
 import Button from '@/components/Button'
 
 function ResetPasswordForm() {
@@ -14,7 +14,6 @@ function ResetPasswordForm() {
   const [password, setPassword] = useState('')
   const [passwordConfirm, setPasswordConfirm] = useState('')
   const [error, setError] = useState('')
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
 
   if (!token) {
@@ -34,7 +33,6 @@ function ResetPasswordForm() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError('')
-    setFieldErrors({})
 
     if (password !== passwordConfirm) {
       setError('Passwords do not match')
@@ -47,17 +45,10 @@ function ResetPasswordForm() {
 
     setSubmitting(true)
     try {
-      await apiRequest('/api/auth/reset-password', {
-        method: 'POST',
-        body: JSON.stringify({ token, newPassword: password }),
-      })
+      await client.auth.resetPassword({ token: token!, newPassword: password })
       router.push('/login')
     } catch (err: unknown) {
-      if (err instanceof ApiError && err.fieldErrors?.newPassword) {
-        setFieldErrors({ password: err.fieldErrors.newPassword })
-      } else {
-        setError(err instanceof Error ? err.message : 'Reset failed')
-      }
+      setError(err instanceof Error ? err.message : 'Reset failed')
       setSubmitting(false)
     }
   }
@@ -89,17 +80,8 @@ function ResetPasswordForm() {
           autoFocus
           placeholder="At least 8 characters"
           value={password}
-          onChange={(e) => {
-            setPassword(e.target.value)
-            if (fieldErrors.password) setFieldErrors({})
-          }}
-          aria-invalid={fieldErrors.password ? true : undefined}
+          onChange={(e) => setPassword(e.target.value)}
         />
-        {fieldErrors.password && (
-          <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
-            {fieldErrors.password}
-          </p>
-        )}
       </div>
 
       <div className="mb-5">
