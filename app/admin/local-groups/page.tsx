@@ -10,6 +10,7 @@ import FilterDropdown, { FilterOption, useFilterOptions } from '@/components/Fil
 import { orpc } from '@/lib/orpc'
 import { COUNTRY_OPTIONS } from '@/lib/filter-options'
 import { useToast } from '@/lib/toast'
+import { LocalGroupSuggestionStatus } from '@/generated/prisma/enums'
 
 type StatusFilter = 'all' | 'active' | 'pending' | 'on_hold' | 'declined'
 type ReviewAction = 'accept' | 'merge' | 'on_hold' | 'decline'
@@ -95,8 +96,8 @@ export default function AdminLocalGroupsPage() {
   const [reviewSubmitting, setReviewSubmitting] = useState(false)
 
   const fetchGroups = statusFilter === 'all' || statusFilter === 'active'
-  const fetchPending = statusFilter === 'all' || statusFilter === 'pending'
-  const fetchOnHold = statusFilter === 'all' || statusFilter === 'on_hold'
+  const fetchPending = statusFilter === 'all' || statusFilter === LocalGroupSuggestionStatus.pending
+  const fetchOnHold = statusFilter === 'all' || statusFilter === LocalGroupSuggestionStatus.on_hold
   const fetchDeclined = statusFilter === 'all' || statusFilter === 'declined'
 
   const { data: allGroupsData } = useQuery({
@@ -112,11 +113,15 @@ export default function AdminLocalGroupsPage() {
         enabled: !!user?.isAdmin && fetchGroups,
       },
       {
-        ...orpc.admin.localGroups.listSuggestions.queryOptions({ input: { status: 'pending' } }),
+        ...orpc.admin.localGroups.listSuggestions.queryOptions({
+          input: { status: LocalGroupSuggestionStatus.pending },
+        }),
         enabled: !!user?.isAdmin && fetchPending,
       },
       {
-        ...orpc.admin.localGroups.listSuggestions.queryOptions({ input: { status: 'on_hold' } }),
+        ...orpc.admin.localGroups.listSuggestions.queryOptions({
+          input: { status: LocalGroupSuggestionStatus.on_hold },
+        }),
         enabled: !!user?.isAdmin && fetchOnHold,
       },
       {
@@ -412,7 +417,8 @@ export default function AdminLocalGroupsPage() {
                     )}
                     {item.kind === 'suggestion' && (
                       <Button size="sm" onClick={() => openReview(item)}>
-                        {item.status === 'declined' || item.status === 'on_hold'
+                        {item.status === LocalGroupSuggestionStatus.declined ||
+                        item.status === LocalGroupSuggestionStatus.on_hold
                           ? 'Re-review'
                           : 'Review'}
                       </Button>

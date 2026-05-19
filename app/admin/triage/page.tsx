@@ -16,6 +16,7 @@ import {
 import Tabs from '@/components/Tabs'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
+import { InterestStatus, ProjectStatus } from '@/generated/prisma/enums'
 
 interface Project extends CardProject {
   ownerId: number | null
@@ -115,11 +116,13 @@ export default function TriagePage() {
 
   if (loading || !user) return null
 
-  const pending = (projects as unknown as Project[]).filter((p) => p.status === 'pending_review')
-  const discussion = (projects as unknown as Project[]).filter(
-    (p) => p.status === 'needs_discussion',
+  const pending = (projects as unknown as Project[]).filter(
+    (p) => p.status === ProjectStatus.pending_review,
   )
-  const pendingInterests = interests.filter((i) => i.status === 'pending')
+  const discussion = (projects as unknown as Project[]).filter(
+    (p) => p.status === ProjectStatus.needs_discussion,
+  )
+  const pendingInterests = interests.filter((i) => i.status === InterestStatus.pending)
   const visible = tab === 'pending_review' ? pending : discussion
 
   return (
@@ -235,9 +238,9 @@ export default function TriagePage() {
                       </div>
                       <span
                         className={statusBadgeClasses(
-                          i.status === 'pending'
+                          i.status === InterestStatus.pending
                             ? 'seeking_help'
-                            : i.status === 'accepted'
+                            : i.status === InterestStatus.accepted
                               ? 'completed'
                               : 'on_hold',
                         )}
@@ -265,7 +268,7 @@ export default function TriagePage() {
                       </div>
                     )}
 
-                    {i.status === 'pending' && (
+                    {i.status === InterestStatus.pending && (
                       <div className="flex gap-2 mt-3">
                         <Button
                           size="sm"
@@ -273,7 +276,7 @@ export default function TriagePage() {
                             respondInterestMutation.mutate({
                               projectId: i.projectId,
                               interestId: i.id,
-                              status: 'accepted',
+                              status: InterestStatus.accepted,
                             })
                           }
                           disabled={respondInterestMutation.isPending}

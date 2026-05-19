@@ -6,6 +6,7 @@ import Link from 'next/link'
 import Button from '@/components/Button'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
+import { StarterTaskStatus } from '@/generated/prisma/enums'
 
 const STATUS_LABELS: Record<string, string> = {
   assigned: 'Assigned',
@@ -65,7 +66,7 @@ export default function StarterTasksPage() {
               <div className="flex justify-between items-start mb-2">
                 <h3 className="m-0">{task.title}</h3>
                 <span
-                  className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${task.status === 'completed' || task.status === 'reviewed' ? 'bg-[#D1FAE5] text-[#065F46] dark:bg-[#064E3B] dark:text-[#6EE7B7]' : 'bg-[#FEF3C7] text-[#92400E] dark:bg-[#78350F] dark:text-[#FDE68A]'}`}
+                  className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${task.status === StarterTaskStatus.completed || task.status === StarterTaskStatus.reviewed ? 'bg-[#D1FAE5] text-[#065F46] dark:bg-[#064E3B] dark:text-[#6EE7B7]' : 'bg-[#FEF3C7] text-[#92400E] dark:bg-[#78350F] dark:text-[#FDE68A]'}`}
                 >
                   {STATUS_LABELS[task.status] ?? task.status}
                 </span>
@@ -96,7 +97,7 @@ export default function StarterTasksPage() {
                 </div>
               )}
 
-              {task.status === 'assigned' && (
+              {task.status === StarterTaskStatus.assigned && (
                 <Button
                   onClick={() => submitMutation.mutate({ id: task.id })}
                   disabled={submitMutation.isPending && submitMutation.variables?.id === task.id}

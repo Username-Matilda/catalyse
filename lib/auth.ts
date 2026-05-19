@@ -2,6 +2,7 @@ import { randomBytes, pbkdf2Sync, timingSafeEqual } from 'crypto'
 import type { Volunteer } from '@/generated/prisma/client'
 import { prisma } from './prisma'
 import { env } from './env'
+import { ApprovalStatus } from '@/generated/prisma/enums'
 
 // PBKDF2-SHA256 password hashing — matches the Python implementation exactly:
 // salt = secrets.token_bytes(32); key = hashlib.pbkdf2_hmac('sha256', pw, salt, 100000)
@@ -154,7 +155,7 @@ export async function checkAdminBootstrap(email: string, volunteerId: number): P
   if (!allowed.includes(email.toLowerCase())) return false
   await prisma.volunteer.updateMany({
     where: { id: volunteerId, isAdmin: false },
-    data: { isAdmin: true, approvalStatus: 'APPROVED', emailConfirmed: true },
+    data: { isAdmin: true, approvalStatus: ApprovalStatus.approved, emailConfirmed: true },
   })
   return true
 }
@@ -179,7 +180,7 @@ export async function acceptPendingInvite(email: string, volunteerId: number): P
   if (!invite) return false
   await prisma.volunteer.update({
     where: { id: volunteerId },
-    data: { isAdmin: true, approvalStatus: 'APPROVED', emailConfirmed: true },
+    data: { isAdmin: true, approvalStatus: ApprovalStatus.approved, emailConfirmed: true },
   })
   await prisma.adminInvite.update({
     where: { id: invite.id },

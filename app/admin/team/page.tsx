@@ -7,6 +7,7 @@ import Button from '@/components/Button'
 import Tabs from '@/components/Tabs'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
+import { InviteStatus } from '@/generated/prisma/enums'
 
 export default function AdminTeamPage() {
   const { user, loading } = useRequireAdmin()
@@ -28,7 +29,7 @@ export default function AdminTeamPage() {
     enabled: !!user?.isAdmin,
   })
 
-  const invites = allInvites.filter((i) => i.status === 'pending')
+  const invites = allInvites.filter((i) => i.status === InviteStatus.pending)
   const loadingData = loadingAdmins || loadingInvites
 
   const inviteMutation = useMutation({

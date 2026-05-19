@@ -1,6 +1,7 @@
 import { execSync } from 'child_process'
 import { mkdirSync, writeFileSync } from 'fs'
 import { join } from 'path'
+import { resolveDbUrl } from '../lib/db-url'
 
 const name = process.argv[2]
 if (!name) {
@@ -23,8 +24,9 @@ const dirPath = join(process.cwd(), 'prisma', 'migrations', dirName)
 
 mkdirSync(dirPath, { recursive: true })
 
+const dbUrl = resolveDbUrl()
 const sql = execSync(
-  'npx prisma migrate diff --from-schema-datasource prisma/schema.prisma --to-schema-datamodel prisma/schema.prisma --script',
+  `npx prisma migrate diff --from-url "${dbUrl}" --to-schema-datamodel prisma/schema.prisma --script`,
   { encoding: 'utf8' },
 )
 

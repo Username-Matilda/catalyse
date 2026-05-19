@@ -15,6 +15,63 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum ProjectStatus {
+  pending_review
+  needs_discussion
+  in_progress
+  needs_tasks
+  seeking_help
+  seeking_owner
+  on_hold
+  completed
+  archived
+}
+
+enum TaskStatus {
+  open
+  assigned
+  done
+}
+
+enum StarterTaskStatus {
+  open
+  assigned
+  submitted
+  approved
+  rejected
+  completed
+  reviewed
+}
+
+enum InterestStatus {
+  pending
+  accepted
+  declined
+  withdrawn
+}
+
+enum ApprovalStatus {
+  pending
+  under_review
+  approved
+  rejected
+}
+
+enum InviteStatus {
+  pending
+  accepted
+  expired
+  revoked
+}
+
+enum LocalGroupSuggestionStatus {
+  pending
+  accepted
+  merged
+  on_hold
+  declined
+}
+
 model AdminInvite {
   id           Int        @id @default(autoincrement())
   /// @zod.string.email({ message: "A valid email address is required" })
@@ -22,7 +79,7 @@ model AdminInvite {
   /// @zod.custom.omit([model])
   inviteToken  String     @unique(map: "sqlite_autoindex_admin_invites_1") @map("invite_token")
   invitedById  Int        @map("invited_by_id")
-  status       String     @default("pending") // TODO: enum — pending, accepted, expired
+  status       InviteStatus @default(pending)
   acceptedById Int?       @map("accepted_by_id")
   acceptedAt   DateTime?  @map("accepted_at")
   expiresAt    DateTime   @map("expires_at")
@@ -159,7 +216,7 @@ model ProjectInterest {
   projectId       Int       @map("project_id")
   interestType    String    @map("interest_type") // TODO: enum — want_to_contribute, want_to_own
   message         String?
-  status          String    @default("pending") // TODO: enum — pending, accepted, declined, withdrawn
+  status          InterestStatus @default(pending)
   responseMessage String?   @map("response_message")
   createdAt       DateTime? @default(now()) @map("created_at")
   respondedAt     DateTime? @map("responded_at")
@@ -192,7 +249,7 @@ model ProjectTask {
   title        String
   description  String?
   assignedToId Int?       @map("assigned_to_id")
-  status       String     @default("open") // TODO: enum — open, assigned, done
+  status       TaskStatus @default(open)
   createdById  Int        @map("created_by_id")
   completedAt          DateTime?  @map("completed_at")
   nudgeSentAt          DateTime?  @map("nudge_sent_at")
@@ -228,7 +285,7 @@ model Project {
   title                      String
   /// @zod.string.min(10, { message: "Description must be at least 10 characters" })
   description                String
-  status                     String            @default("pending_review") // TODO: enum — pending_review, seeking_owner, seeking_help, needs_tasks, in_progress, on_hold, completed, archived, needs_discussion
+  status                     ProjectStatus     @default(pending_review)
   ownerId                    Int?              @map("owner_id")
   proposedById               Int?              @map("proposed_by_id")
   isOrgProposed              Boolean?          @default(false) @map("is_org_proposed")
@@ -287,7 +344,7 @@ model LocalGroupSuggestion {
   name          String
   /// @zod.string.min(1, { message: "Country is required" })
   country       String
-  status        String     @default("pending") // TODO: enum — pending, accepted, merged, on_hold, declined
+  status        LocalGroupSuggestionStatus @default(pending)
   suggestedById Int        @map("suggested_by_id")
   reviewedById  Int?       @map("reviewed_by_id")
   reviewedAt    DateTime?  @map("reviewed_at")
@@ -383,7 +440,7 @@ model StarterTask {
   skillId             Int?       @map("skill_id")
   assignedToId        Int?       @map("assigned_to_id")
   assignedById        Int?       @map("assigned_by_id")
-  status              String     @default("open") // TODO: enum — open, assigned, submitted, approved, rejected
+  status              StarterTaskStatus @default(open)
   reviewRating        String?    @map("review_rating") // TODO: enum — excellent, good, needs_improvement
   reviewNotes         String?    @map("review_notes")
   feedbackToVolunteer String?    @map("feedback_to_volunteer")
@@ -450,7 +507,7 @@ model Volunteer {
   country                                 String?
   emailDigest                             String?              @default("none") @map("email_digest") // TODO: enum — none, daily, weekly
   localGroup                              String?              @map("local_group")
-  approvalStatus                          String               @default("PENDING") @map("approval_status") // TODO: enum — PENDING, REVIEWING, APPROVED, REJECTED
+  approvalStatus                          ApprovalStatus       @default(pending) @map("approval_status")
   applicationMessage                      String?              @map("application_message")
   applicationAdminNotes                   String?              @map("application_admin_notes")
   applicationApplicantNotes               String?              @map("application_applicant_notes")

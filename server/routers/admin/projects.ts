@@ -5,6 +5,7 @@ import { withProjectExtras, projectInclude, EnrichedProject } from '@/lib/projec
 import { notifyVolunteer } from '@/lib/notify'
 import { AdminCreateProjectSchema, ReviewProjectSchema, OutcomeProjectSchema } from '@/lib/schemas'
 import { adminProcedure } from '../../procedures'
+import { ProjectStatus } from '@/generated/prisma/enums'
 
 export const adminProjectsRouter = {
   create: adminProcedure.input(AdminCreateProjectSchema).handler(async ({ input, context }) => {
@@ -213,7 +214,7 @@ export const adminProjectsRouter = {
 
   triage: adminProcedure.handler(async () => {
     const projects = await prisma.project.findMany({
-      where: { status: { in: ['pending_review', 'needs_discussion'] } },
+      where: { status: { in: [ProjectStatus.pending_review, ProjectStatus.needs_discussion] } },
       include: projectInclude,
       orderBy: { createdAt: 'asc' },
     })

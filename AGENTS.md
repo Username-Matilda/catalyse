@@ -14,10 +14,10 @@ Do **not** run `prisma migrate dev` — it checks for schema drift and will fail
 2. `npm run new-migration your_migration_name` — generates the SQL diff file
 3. Review the generated SQL and remove any unrelated statements
 4. `npm run migrate` — applies it
-5. `npx prisma generate` — regenerates the client
+5. `npm run generate` — regenerates the client and zod schema
 
 ## Verifying changes
 
-Run `npm run check-all` before committing to verify typecheck, lint, formatting, and tests all pass. This takes several minutes — lint is ~3s cached (~70s cold), tests are ~2.5–3 min. Do not abort early.
+Run `npm run check-all` when work is complete and before raising a PR, to verify typecheck, lint, formatting, and tests all pass. This takes several minutes — lint is ~3s cached (~70s cold), tests are ~2.5–3 min. Do not abort early.
 
 If `format:check` fails, run `npm run format` to fix all files at once — do not run `prettier --write` on individual files.

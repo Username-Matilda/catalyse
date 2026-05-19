@@ -11,6 +11,7 @@ import { ProjectList, statusBadgeClasses } from '@/components/ProjectCard'
 import Tabs from '@/components/Tabs'
 import type { InferRouterOutputs } from '@orpc/server'
 import type { AppRouter } from '@/server/router'
+import { ApprovalStatus, StarterTaskStatus } from '@/generated/prisma/enums'
 
 type Interest = InferRouterOutputs<AppRouter>['dashboard']['get']['myInterests'][number]
 
@@ -66,7 +67,7 @@ export default function DashboardPage() {
     enabled: !!user,
   })
   const starterTasks = starterTasksRaw.filter(
-    (t) => t.status === 'assigned' || t.status === 'submitted',
+    (t) => t.status === StarterTaskStatus.assigned || t.status === StarterTaskStatus.submitted,
   )
 
   const { data: notifications = [] } = useQuery({
@@ -154,7 +155,7 @@ export default function DashboardPage() {
         <h1 role="heading">Welcome back, {user.name}!</h1>
 
         {/* Pending approval banner */}
-        {user.approvalStatus === 'PENDING' && (
+        {user.approvalStatus === ApprovalStatus.pending && (
           <div className="flex items-center gap-3 p-4 rounded-lg mb-5 bg-[#FEF9C3] text-[#854D0E] border border-[#FDE047] dark:bg-[#422006] dark:text-[#FDE047] dark:border-[#854D0E]">
             <span>
               Your account is pending approval. You can browse the platform, but some actions are
@@ -216,7 +217,7 @@ export default function DashboardPage() {
                         <strong>Feedback:</strong> {task.feedbackToVolunteer}
                       </p>
                     )}
-                    {task.status === 'assigned' && (
+                    {task.status === StarterTaskStatus.assigned && (
                       <Button
                         size="sm"
                         disabled={submitTaskMutation.isPending}

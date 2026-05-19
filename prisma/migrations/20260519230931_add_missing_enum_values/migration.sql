@@ -1,0 +1,4 @@
+-- Add completed and reviewed to StarterTaskStatus enum
+-- Add revoked to InviteStatus enum
+-- SQLite does not enforce enum constraints at the database level;
+-- these values are validated by Prisma at the application layer only.

@@ -6,14 +6,13 @@ import { BASE_LOCATION_OPTIONS } from '@/lib/filter-options'
 import { createNotification } from '@/lib/project'
 import { LocalGroupBodySchema, ReviewSuggestionSchema } from '@/lib/schemas'
 import { adminProcedure } from '../../procedures'
+import { LocalGroupSuggestionStatus } from '@/generated/prisma/enums'
 
 const VALID_COUNTRIES = new Set(
   BASE_LOCATION_OPTIONS.filter((o) => o.value && o.value !== 'Remote' && o.value !== 'Other').map(
     (o) => o.value,
   ),
 )
-
-const VALID_STATUSES = ['pending', 'on_hold', 'accepted', 'declined']
 
 const NOTIFICATION_TITLES: Record<string, (name: string) => string> = {
   accepted: (n) => `Your local group suggestion "${n}" was accepted`,
@@ -79,12 +78,12 @@ export const adminLocalGroupsRouter = {
   }),
 
   listSuggestions: adminProcedure
-    .input(z.object({ status: z.string().optional().default('pending') }))
+    .input(
+      z.object({
+        status: z.enum(['pending', 'on_hold', 'accepted', 'declined'] as const).default('pending'),
+      }),
+    )
     .handler(async ({ input }) => {
-      if (!VALID_STATUSES.includes(input.status)) {
-        throw new ORPCError('BAD_REQUEST', { message: 'Invalid status' })
-      }
-
       const suggestions = await prisma.localGroupSuggestion.findMany({
         where: { status: input.status },
         orderBy: { createdAt: 'asc' },
@@ -142,10 +141,16 @@ export const adminLocalGroupsRouter = {
           prisma.localGroup.create({ data: { name, country } }),
           prisma.localGroupSuggestion.update({
             where: { id: input.id },
-            data: { ...reviewBase, status: 'accepted', name, country, adminNotes },
+            data: {
+              ...reviewBase,
+              status: LocalGroupSuggestionStatus.accepted,
+              name,
+              country,
+              adminNotes,
+            },
           }),
         ])
-        notificationAction = 'accepted'
+        notificationAction = LocalGroupSuggestionStatus.accepted
       } else if (action === 'merge') {
         const mergedIntoId = body.mergedIntoId ?? null
         if (!mergedIntoId) {
@@ -156,20 +161,25 @@ export const adminLocalGroupsRouter = {
 
         await prisma.localGroupSuggestion.update({
           where: { id: input.id },
-          data: { ...reviewBase, status: 'accepted', mergedIntoId, adminNotes },
+          data: {
+            ...reviewBase,
+            status: LocalGroupSuggestionStatus.accepted,
+            mergedIntoId,
+            adminNotes,
+          },
         })
         notificationAction = 'merge'
       } else if (action === 'on_hold') {
         await prisma.localGroupSuggestion.update({
           where: { id: input.id },
-          data: { ...reviewBase, status: 'on_hold', adminNotes },
+          data: { ...reviewBase, status: LocalGroupSuggestionStatus.on_hold, adminNotes },
         })
       } else if (action === 'decline') {
         await prisma.localGroupSuggestion.update({
           where: { id: input.id },
-          data: { ...reviewBase, status: 'declined', adminNotes },
+          data: { ...reviewBase, status: LocalGroupSuggestionStatus.declined, adminNotes },
         })
-        notificationAction = 'declined'
+        notificationAction = LocalGroupSuggestionStatus.declined
       }
 
       const titleFn = NOTIFICATION_TITLES[notificationAction]

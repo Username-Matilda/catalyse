@@ -6,6 +6,7 @@ import { sendApplicationApprovedEmail, sendApplicationRejectedEmail } from '@/li
 import { APPLICATION_ANONYMISATION_MS } from '@/lib/applications'
 import { ApplicationActionSchema } from '@/lib/schemas'
 import { superAdminProcedure } from '../../procedures'
+import { ApprovalStatus } from '@/generated/prisma/enums'
 
 export const adminApplicationsRouter = {
   list: superAdminProcedure
@@ -23,19 +24,19 @@ export const adminApplicationsRouter = {
           case 'mine':
             return {
               deletedAt: null,
-              approvalStatus: { in: ['PENDING', 'UNDER_REVIEW'] },
+              approvalStatus: { in: [ApprovalStatus.pending, ApprovalStatus.under_review] },
               OR: [{ reviewerId: null }, { reviewerId: admin.id }],
             }
           case 'others':
             return {
               deletedAt: null,
-              approvalStatus: 'UNDER_REVIEW',
+              approvalStatus: ApprovalStatus.under_review,
               reviewerId: { not: admin.id },
             }
           case 'approved':
-            return { deletedAt: null, approvalStatus: 'APPROVED' }
+            return { deletedAt: null, approvalStatus: ApprovalStatus.approved }
           case 'rejected':
-            return { deletedAt: null, approvalStatus: 'REJECTED' }
+            return { deletedAt: null, approvalStatus: ApprovalStatus.rejected }
         }
       })()
 
@@ -234,15 +235,18 @@ export const adminApplicationsRouter = {
       }
 
       if (action === 'start_review') {
-        if (!['PENDING', 'UNDER_REVIEW'].includes(volunteer.approvalStatus)) {
+        if (
+          volunteer.approvalStatus !== ApprovalStatus.pending &&
+          volunteer.approvalStatus !== ApprovalStatus.under_review
+        ) {
           throw new ORPCError('BAD_REQUEST', {
-            message: `Cannot start review on a ${volunteer.approvalStatus.toLowerCase()} application`,
+            message: `Cannot start review on a ${volunteer.approvalStatus} application`,
           })
         }
         await prisma.volunteer.update({
           where: { id: input.id },
           data: {
-            approvalStatus: 'UNDER_REVIEW',
+            approvalStatus: ApprovalStatus.under_review,
             reviewerId: admin.id,
             ...(adminNotes !== undefined && { applicationAdminNotes: adminNotes }),
             ...(applicantNotes !== undefined && { applicationApplicantNotes: applicantNotes }),
@@ -251,13 +255,16 @@ export const adminApplicationsRouter = {
         return { message: 'Review started' }
       }
 
-      if (volunteer.approvalStatus !== 'PENDING' && volunteer.approvalStatus !== 'UNDER_REVIEW') {
+      if (
+        volunteer.approvalStatus !== ApprovalStatus.pending &&
+        volunteer.approvalStatus !== ApprovalStatus.under_review
+      ) {
         throw new ORPCError('BAD_REQUEST', {
-          message: `Application already ${volunteer.approvalStatus.toLowerCase()}`,
+          message: `Application already ${volunteer.approvalStatus}`,
         })
       }
 
-      const newStatus = action === 'approve' ? 'APPROVED' : 'REJECTED'
+      const newStatus = action === 'approve' ? ApprovalStatus.approved : ApprovalStatus.rejected
 
       await prisma.volunteer.update({
         where: { id: input.id },

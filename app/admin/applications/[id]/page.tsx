@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
+import { ApprovalStatus } from '@/generated/prisma/enums'
 
 export default function ApplicationReviewPage() {
   const { id } = useParams<{ id: string }>()
@@ -107,7 +108,9 @@ export default function ApplicationReviewPage() {
     app.reviewer ? `Reviewer: ${app.reviewer.name}` : null,
   ].filter(Boolean)
 
-  const canAction = app.approvalStatus === 'PENDING' || app.approvalStatus === 'UNDER_REVIEW'
+  const canAction =
+    app.approvalStatus === ApprovalStatus.pending ||
+    app.approvalStatus === ApprovalStatus.under_review
 
   return (
     <main className="w-full max-w-2xl mx-auto px-6 py-5 pb-15">
@@ -120,7 +123,7 @@ export default function ApplicationReviewPage() {
       <h1 className="mb-1">{app.name}</h1>
       <p className="text-sm text-text-light mb-6">{meta.join(' · ')}</p>
 
-      {app.approvalStatus === 'REJECTED' && anonymiseDate && (
+      {app.approvalStatus === ApprovalStatus.rejected && anonymiseDate && (
         <p
           className={`text-sm mb-4 ${daysUntilAnonymise !== null && daysUntilAnonymise <= 1 ? 'text-red-500' : 'text-amber-500'}`}
         >

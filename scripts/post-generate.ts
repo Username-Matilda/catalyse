@@ -39,31 +39,3 @@ if (dirty) {
 } else {
   console.log(`${file}: no changes needed`)
 }
-
-// ─── Zod generated file patches ──────────────────────────────────────────────
-
-const zodFile = 'generated/zod/index.ts'
-let zodContent: string = readFileSync(zodFile, 'utf8')
-let zodDirty = false
-
-// Strip the ENUMS section (Prisma internals: ScalarFieldEnum, SortOrder, etc.)
-// These duplicate types already in generated/prisma and aren't useful for validation.
-const ENUMS_MARKER = '/////////////////////////////////////////\n// ENUMS\n'
-const MODELS_MARKER = '/////////////////////////////////////////\n// MODELS\n'
-const enumsStart = zodContent.indexOf(ENUMS_MARKER)
-const modelsStart = zodContent.indexOf(MODELS_MARKER)
-
-if (enumsStart !== -1 && modelsStart !== -1 && enumsStart < modelsStart) {
-  zodContent = zodContent.slice(0, enumsStart) + zodContent.slice(modelsStart)
-  zodDirty = true
-  console.log('  patched: strip Prisma internal enum schemas from zod output')
-} else {
-  console.log('  already applied or not found: zod enum strip')
-}
-
-if (zodDirty) {
-  writeFileSync(zodFile, zodContent)
-  console.log(`Wrote ${zodFile}`)
-} else {
-  console.log(`${zodFile}: no changes needed`)
-}

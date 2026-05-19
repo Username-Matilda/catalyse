@@ -26,6 +26,7 @@ import {
 } from '@/lib/schemas'
 import { publicProcedure, authedProcedure } from '../procedures'
 import { env } from '@/lib/env'
+import { ApprovalStatus } from '@/generated/prisma/enums'
 
 const STUB_EMAIL = env.STUB_EMAIL
 const GOOGLE_CLIENT_ID = env.GOOGLE_CLIENT_ID
@@ -285,7 +286,7 @@ export const authRouter = {
       if (!platformSettings.requireApplicationApproval) {
         await prisma.volunteer.update({
           where: { id: volunteer.id },
-          data: { approvalStatus: 'APPROVED' },
+          data: { approvalStatus: ApprovalStatus.approved },
         })
       }
       sendWelcomeAndConfirmEmail({ to: email, token: vt.token, name: input.name }).catch((e) =>
@@ -491,7 +492,7 @@ export const authRouter = {
       ])
 
       if (!volunteer.emailConfirmed && volunteer.email) {
-        if (volunteer.approvalStatus === 'APPROVED') {
+        if (volunteer.approvalStatus === ApprovalStatus.approved) {
           const settings = await prisma.platformSettings
             .upsert({
               where: { id: 1 },
@@ -508,7 +509,7 @@ export const authRouter = {
               console.error('[VERIFY_EMAIL]', e),
             )
           }
-        } else if (volunteer.approvalStatus === 'PENDING') {
+        } else if (volunteer.approvalStatus === ApprovalStatus.pending) {
           sendApplicationReceivedEmail({ to: volunteer.email, name: volunteer.name }).catch((e) =>
             console.error('[VERIFY_EMAIL]', e),
           )

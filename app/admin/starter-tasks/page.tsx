@@ -8,6 +8,7 @@ import Button from '@/components/Button'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
+import { StarterTaskStatus } from '@/generated/prisma/enums'
 
 interface Skill {
   id: number
@@ -510,7 +511,7 @@ export default function AdminStarterTasksPage() {
                         >
                           Delete
                         </Button>
-                        {task.status === 'open' && (
+                        {task.status === StarterTaskStatus.open && (
                           <Button
                             variant="secondary"
                             size="sm"
@@ -535,7 +536,7 @@ export default function AdminStarterTasksPage() {
                             Unassign
                           </Button>
                         )}
-                        {task.status === 'submitted' && (
+                        {task.status === StarterTaskStatus.submitted && (
                           <Button
                             size="sm"
                             onClick={(e) => {

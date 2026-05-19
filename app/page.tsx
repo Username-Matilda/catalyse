@@ -11,6 +11,7 @@ import { InferRouterInputs } from '@orpc/server'
 import { orpc } from '@/lib/orpc'
 import { AppRouter } from '@/server/router'
 import { type Project, ProjectList, statusBadgeClasses } from '@/components/ProjectCard'
+import { ProjectStatus } from '@/generated/prisma/enums'
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All Active' },
@@ -127,12 +128,16 @@ export default function ProjectsPage() {
 
   const seeking = sortGroup(projects.filter((p) => p.isSeekingHelp || p.isSeekingOwner))
   const inProgress = sortGroup(
-    projects.filter((p) => !p.isSeekingHelp && !p.isSeekingOwner && p.status === 'in_progress'),
+    projects.filter(
+      (p) => !p.isSeekingHelp && !p.isSeekingOwner && p.status === ProjectStatus.in_progress,
+    ),
   )
   const onHold = sortGroup(
-    projects.filter((p) => !p.isSeekingHelp && !p.isSeekingOwner && p.status === 'on_hold'),
+    projects.filter(
+      (p) => !p.isSeekingHelp && !p.isSeekingOwner && p.status === ProjectStatus.on_hold,
+    ),
   )
-  const completed = sortGroup(projects.filter((p) => p.status === 'completed'))
+  const completed = sortGroup(projects.filter((p) => p.status === ProjectStatus.completed))
   const other = sortGroup(
     projects.filter(
       (p) =>
