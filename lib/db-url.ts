@@ -21,6 +21,12 @@ function loadEnvFile(filePath: string): void {
 loadEnvFile(path.join(process.cwd(), '.env'))
 loadEnvFile(path.join(process.cwd(), '.env.local'))
 
+export function resolveDbPath(): string | null {
+  const url = resolveDbUrl()
+  if (!url.startsWith('file:')) return null
+  return url.slice(5)
+}
+
 export function resolveDbUrl(fallback = 'file:./db/catalyse.db'): string {
   const mountPath = process.env.RAILWAY_VOLUME_MOUNT_PATH
   const isProduction = process.env.RAILWAY_ENVIRONMENT_NAME === 'production'

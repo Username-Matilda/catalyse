@@ -2,18 +2,10 @@ import { createHash } from 'node:crypto'
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync } from 'node:fs'
 import { statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { resolveDbPath } from '@/lib/db-url'
 
 const LOCAL_RETENTION_DAYS = 7
 const B2_RETENTION_DAYS = 30
-
-function getDbPath(): string | null {
-  const mountPath = process.env.RAILWAY_VOLUME_MOUNT_PATH
-  const isProduction = process.env.RAILWAY_ENVIRONMENT_NAME === 'production'
-  if (mountPath && isProduction) return join(mountPath, 'catalyse.db')
-  const dbUrl = process.env.DATABASE_URL
-  if (dbUrl?.startsWith('file:')) return dbUrl.slice(5)
-  return null
-}
 
 function timestamp(): string {
   return new Date().toISOString().slice(0, 19).replace('T', '_').replace(/:/g, '')
@@ -182,7 +174,7 @@ async function cleanupB2Backups() {
 }
 
 export async function runBackupJob(): Promise<{ local: boolean; b2: boolean }> {
-  const dbPath = getDbPath()
+  const dbPath = resolveDbPath()
   if (!dbPath || !existsSync(dbPath)) {
     console.log('[BACKUP] Database not found, skipping')
     return { local: false, b2: false }
