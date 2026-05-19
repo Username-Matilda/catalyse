@@ -4,6 +4,7 @@ import { AuthProvider } from '@/lib/auth-context'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { ToastProvider } from '@/lib/toast'
 import { CookieConsentProvider } from '@/lib/cookie-consent-context'
+import Providers from '@/components/Providers'
 import FloatingActions from '@/components/FloatingActions'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
@@ -55,19 +56,21 @@ export default function RootLayout({
         >{`try{var t=localStorage.getItem('theme');document.documentElement.setAttribute('data-theme',t==='dark'?'dark':t==='light'?'light':window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')}catch(e){}`}</Script>
       </head>
       <body className="min-h-screen flex flex-col">
-        <ThemeProvider>
-          <AuthProvider>
-            <ToastProvider>
-              <CookieConsentProvider>
-                <Header />
-                {children}
-                <Footer />
-                <FloatingActions />
-                <CookieConsentBanner />
-              </CookieConsentProvider>
-            </ToastProvider>
-          </AuthProvider>
-        </ThemeProvider>
+        <Providers>
+          <ThemeProvider>
+            <AuthProvider>
+              <ToastProvider>
+                <CookieConsentProvider>
+                  <Header />
+                  {children}
+                  <Footer />
+                  <FloatingActions />
+                  <CookieConsentBanner />
+                </CookieConsentProvider>
+              </ToastProvider>
+            </AuthProvider>
+          </ThemeProvider>
+        </Providers>
       </body>
     </html>
   )
