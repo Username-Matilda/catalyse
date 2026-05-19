@@ -1,13 +1,15 @@
 'use client'
 
-import { useCallback, useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useQuery } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import { buildLocationOptions, type LocalGroupOption } from '@/lib/filter-options'
 import { useAuth } from '@/lib/auth-context'
 import { client } from '@/lib/client'
+import { orpc } from '@/lib/orpc'
 import { type Project, ProjectList, statusBadgeClasses } from '@/components/ProjectCard'
 
 const STATUS_OPTIONS = [
@@ -44,79 +46,69 @@ export default function ProjectsPage() {
   const router = useRouter()
   const { user, loading } = useAuth()
   const userSkillIds = new Set(user?.skills?.map((s) => s.id) ?? [])
-  const [projects, setProjects] = useState<Project[]>([])
-  const [loadingProjects, setLoadingProjects] = useState(true)
   const [search, setSearch] = useState('')
   const { value: statusFilter, onChange: setStatusFilter } = useFilterOptions(STATUS_OPTIONS, '')
   const { value: needsFilter, onChange: setNeedsFilter } = useFilterOptions(NEEDS_OPTIONS, '')
   const { value: urgencyFilter, onChange: setUrgencyFilter } = useFilterOptions(URGENCY_OPTIONS, '')
   const [locationFilter, setLocationFilter] = useState('')
   const { value: sortBy, onChange: setSortBy } = useFilterOptions(SORT_OPTIONS, '')
-  const [pendingCount, setPendingCount] = useState(0)
-  const [pendingApplicationsCount, setPendingApplicationsCount] = useState(0)
   const [completedOpen, setCompletedOpen] = useState(false)
-  const [localGroups, setLocalGroups] = useState<LocalGroupOption[]>([])
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [debouncedLocationFilter, setDebouncedLocationFilter] = useState('')
 
   useEffect(() => {
     if (!loading && !user) router.replace('/login')
   }, [user, loading, router])
 
   useEffect(() => {
-    if (!user) return
-    if (user.isAdmin) {
-      client.admin.triage
-        .list()
-        .then((list) => setPendingCount(list.length))
-        .catch(() => {})
-      client.admin.applications
-        .list({ filter: 'mine' })
-        .then((list) => setPendingApplicationsCount(list.length))
-        .catch(() => {})
-    }
-  }, [user])
+    const t = setTimeout(
+      () => {
+        setDebouncedSearch(search)
+        setDebouncedLocationFilter(locationFilter)
+      },
+      search || locationFilter ? 300 : 0,
+    )
+    return () => clearTimeout(t)
+  }, [search, locationFilter])
 
-  useEffect(() => {
-    client.localGroups
-      .list({})
-      .then((data) => setLocalGroups(data.groups))
-      .catch(() => {})
-  }, [])
+  const { data: pendingTriageList = [] } = useQuery({
+    ...orpc.admin.triage.list.queryOptions(),
+    enabled: !!user?.isAdmin,
+  })
+  const pendingCount = pendingTriageList.length
 
-  const fetchProjects = useCallback(async () => {
-    setLoadingProjects(true)
-    try {
-      const input: Parameters<typeof client.projects.list>[0] = {}
-      if (search) input.search = search
-      if (statusFilter) input.status = statusFilter
-      if (needsFilter === 'looking_for_people') input.isSeekingAny = true
-      else if (needsFilter === 'seeking_help') input.isSeekingHelp = true
-      else if (needsFilter === 'seeking_owner') input.isSeekingOwner = true
-      else if (needsFilter === 'not_seeking') input.notSeeking = true
-      if (urgencyFilter) input.urgency = urgencyFilter
-      if (locationFilter) {
-        const [country, localGroup] = locationFilter.split(':')
-        input.country = country
-        if (localGroup) input.localGroup = localGroup
-      }
-      if (sortBy) input.sortBy = sortBy
-      const data = await client.projects.list(input)
-      setProjects(data.projects)
-    } catch {
-      setProjects([])
-    } finally {
-      setLoadingProjects(false)
-    }
-  }, [search, statusFilter, needsFilter, urgencyFilter, locationFilter, sortBy])
+  const { data: pendingApplicationsList = [] } = useQuery({
+    ...orpc.admin.applications.list.queryOptions({ input: { filter: 'mine' } }),
+    enabled: !!user?.isAdmin,
+  })
+  const pendingApplicationsCount = pendingApplicationsList.length
 
-  useEffect(() => {
-    if (!user) return
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(fetchProjects, search || locationFilter ? 300 : 0)
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current)
-    }
-  }, [user, fetchProjects, search, locationFilter])
+  const { data: localGroupsData } = useQuery({
+    ...orpc.localGroups.list.queryOptions({ input: {} }),
+    enabled: true,
+  })
+  const localGroups: LocalGroupOption[] = localGroupsData?.groups ?? []
+
+  const projectsInput: Parameters<typeof client.projects.list>[0] = {}
+  if (debouncedSearch) projectsInput.search = debouncedSearch
+  if (statusFilter) projectsInput.status = statusFilter
+  if (needsFilter === 'looking_for_people') projectsInput.isSeekingAny = true
+  else if (needsFilter === 'seeking_help') projectsInput.isSeekingHelp = true
+  else if (needsFilter === 'seeking_owner') projectsInput.isSeekingOwner = true
+  else if (needsFilter === 'not_seeking') projectsInput.notSeeking = true
+  if (urgencyFilter) projectsInput.urgency = urgencyFilter
+  if (debouncedLocationFilter) {
+    const [country, localGroup] = debouncedLocationFilter.split(':')
+    projectsInput.country = country
+    if (localGroup) projectsInput.localGroup = localGroup
+  }
+  if (sortBy) projectsInput.sortBy = sortBy
+
+  const { data: projectsData, isPending: loadingProjects } = useQuery({
+    ...orpc.projects.list.queryOptions({ input: projectsInput }),
+    enabled: !!user,
+  })
+  const projects = projectsData?.projects ?? []
 
   const hasFilters =
     search || statusFilter || needsFilter || urgencyFilter || locationFilter || sortBy

@@ -1,95 +1,71 @@
 'use client'
 
-import { useCallback, useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useQuery } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import FilterDropdown from '@/components/FilterDropdown'
 import { buildLocationOptions, type LocalGroupOption } from '@/lib/filter-options'
 import { useAuth } from '@/lib/auth-context'
 import { client } from '@/lib/client'
+import { orpc } from '@/lib/orpc'
 import { CARD_GRID_CLASSES } from '@/components/ProjectCard'
 
-interface FlatSkill {
-  id: number
-  name: string
-  categoryName: string
-}
+type FlatSkill = Awaited<ReturnType<typeof client.skills.flat>>[number]
 
-interface Skill {
-  id: number
-  name: string
-  categoryName: string
-}
-
-interface Volunteer {
-  id: number
-  name: string
-  bio: string | null
-  location: string | null
-  country: string | null
-  localGroup: string | null
-  availabilityHoursPerWeek: number | null
-  createdAt: string
-  skills: Skill[]
-}
+type Volunteer = Awaited<ReturnType<typeof client.volunteers.list>>['volunteers'][number]
 
 export default function VolunteersPage() {
   const router = useRouter()
   const { user, loading } = useAuth()
-  const [volunteers, setVolunteers] = useState<Volunteer[]>([])
-  const [loadingVolunteers, setLoadingVolunteers] = useState(true)
-  const [allSkills, setAllSkills] = useState<FlatSkill[]>([])
   const [search, setSearch] = useState('')
   const [skillFilter, setSkillFilter] = useState('')
   const [locationFilter, setLocationFilter] = useState('')
-  const [localGroups, setLocalGroups] = useState<LocalGroupOption[]>([])
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [debouncedLocationFilter, setDebouncedLocationFilter] = useState('')
 
   useEffect(() => {
     if (!loading && !user) router.replace('/login')
   }, [user, loading, router])
 
   useEffect(() => {
-    client.skills
-      .flat()
-      .then((s) => setAllSkills(s as FlatSkill[]))
-      .catch(() => {})
-  }, [])
+    const t = setTimeout(
+      () => {
+        setDebouncedSearch(search)
+        setDebouncedLocationFilter(locationFilter)
+      },
+      search || locationFilter ? 300 : 0,
+    )
+    return () => clearTimeout(t)
+  }, [search, locationFilter])
 
-  useEffect(() => {
-    client.localGroups
-      .list({})
-      .then((data) => setLocalGroups(data.groups as LocalGroupOption[]))
-      .catch(() => {})
-  }, [])
+  const { data: skillsData } = useQuery({
+    ...orpc.skills.flat.queryOptions(),
+    enabled: !!user,
+  })
+  const allSkills: FlatSkill[] = skillsData ?? []
 
-  const fetchVolunteers = useCallback(async () => {
-    setLoadingVolunteers(true)
-    try {
-      const [locationCountry, locationLocalGroup] = locationFilter.split(':')
-      const data = await client.volunteers.list({
-        ...(search ? { search } : {}),
+  const { data: localGroupsData } = useQuery({
+    ...orpc.localGroups.list.queryOptions({ input: {} }),
+    enabled: !!user,
+  })
+  const localGroups: LocalGroupOption[] = (localGroupsData?.groups ?? []) as LocalGroupOption[]
+
+  const { data: volunteersData, isPending: loadingVolunteers } = useQuery({
+    ...orpc.volunteers.list.queryOptions({
+      input: {
+        ...(debouncedSearch ? { search: debouncedSearch } : {}),
         ...(skillFilter ? { skillIds: [parseInt(skillFilter, 10)] } : {}),
-        ...(locationFilter ? { country: locationCountry } : {}),
-        ...(locationFilter && locationLocalGroup ? { localGroup: locationLocalGroup } : {}),
-      })
-      setVolunteers(data.volunteers as unknown as Volunteer[])
-    } catch {
-      setVolunteers([])
-    } finally {
-      setLoadingVolunteers(false)
-    }
-  }, [search, skillFilter, locationFilter])
-
-  useEffect(() => {
-    if (!user) return
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(fetchVolunteers, search || locationFilter ? 300 : 0)
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current)
-    }
-  }, [user, fetchVolunteers, search, locationFilter])
+        ...(debouncedLocationFilter ? { country: debouncedLocationFilter.split(':')[0] } : {}),
+        ...(debouncedLocationFilter && debouncedLocationFilter.split(':')[1]
+          ? { localGroup: debouncedLocationFilter.split(':')[1] }
+          : {}),
+      },
+    }),
+    enabled: !!user,
+  })
+  const volunteers: Volunteer[] = volunteersData?.volunteers ?? []
 
   function clearFilters() {
     setSearch('')
@@ -217,10 +193,12 @@ export default function VolunteersPage() {
                   <div className="flex justify-between items-center mt-auto pt-4 border-t border-brand-border">
                     <span className="text-sm text-text-light">
                       Joined{' '}
-                      {new Date(v.createdAt).toLocaleDateString('en-GB', {
-                        month: 'short',
-                        year: 'numeric',
-                      })}
+                      {v.createdAt
+                        ? new Date(v.createdAt).toLocaleDateString('en-GB', {
+                            month: 'short',
+                            year: 'numeric',
+                          })
+                        : '—'}
                     </span>
                     <Button href={`/volunteers/${v.id}`} variant="secondary" size="sm">
                       View Profile

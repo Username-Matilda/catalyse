@@ -2,19 +2,14 @@
 
 import { useEffect, useState, Suspense, FormEvent } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { client } from '@/lib/client'
+import { useMutation } from '@tanstack/react-query'
+import { orpc } from '@/lib/orpc'
 import Button from '@/components/Button'
 
 function VerifyEmailContent() {
   const searchParams = useSearchParams()
   const token = searchParams.get('token')
 
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>(() =>
-    token ? 'loading' : 'error',
-  )
-  const [errorMessage, setErrorMessage] = useState(() =>
-    token ? '' : 'No confirmation token found. Please use the link from your email.',
-  )
   const [resendEmail, setResendEmail] = useState('')
   const [resendSent, setResendSent] = useState(false)
   const [resendCooldown, setResendCooldown] = useState(0)
@@ -25,26 +20,30 @@ function VerifyEmailContent() {
     return () => clearTimeout(t)
   }, [resendCooldown])
 
-  async function handleResend(e: FormEvent) {
-    e.preventDefault()
-    await client.auth.resendVerification({ email: resendEmail }).catch(() => {})
-    setResendSent(true)
-    setResendCooldown(60)
-  }
+  const verifyMutation = useMutation({
+    ...orpc.auth.verifyEmail.mutationOptions(),
+  })
+
+  const resendMutation = useMutation({
+    ...orpc.auth.resendVerification.mutationOptions(),
+    onSettled: () => {
+      setResendSent(true)
+      setResendCooldown(60)
+    },
+  })
 
   useEffect(() => {
     if (!token) return
-
-    client.auth
-      .verifyEmail({ token })
-      .then(() => setStatus('success'))
-      .catch((err: unknown) => {
-        setErrorMessage(err instanceof Error ? err.message : 'Email confirmation failed')
-        setStatus('error')
-      })
+    verifyMutation.mutate({ token })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
 
-  if (status === 'loading') {
+  function handleResend(e: FormEvent) {
+    e.preventDefault()
+    resendMutation.mutate({ email: resendEmail })
+  }
+
+  if (!token || (verifyMutation.isPending && !verifyMutation.isSuccess)) {
     return (
       <div className="bg-surface rounded-xl shadow p-8 text-center">
         <p className="text-text-light">Confirming your email address…</p>
@@ -52,7 +51,7 @@ function VerifyEmailContent() {
     )
   }
 
-  if (status === 'success') {
+  if (verifyMutation.isSuccess) {
     return (
       <div className="bg-surface rounded-xl shadow p-8 text-center">
         <h1>Email confirmed!</h1>
@@ -65,6 +64,13 @@ function VerifyEmailContent() {
       </div>
     )
   }
+
+  const errorMessage =
+    verifyMutation.error instanceof Error
+      ? verifyMutation.error.message
+      : token
+        ? 'Email confirmation failed'
+        : 'No confirmation token found. Please use the link from your email.'
 
   const alreadyUsed = errorMessage.includes('already been used')
 

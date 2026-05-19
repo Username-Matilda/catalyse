@@ -3,7 +3,8 @@
 import { useState, FormEvent, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSearchParams } from 'next/navigation'
-import { client } from '@/lib/client'
+import { useMutation } from '@tanstack/react-query'
+import { orpc } from '@/lib/orpc'
 import Button from '@/components/Button'
 
 function ResetPasswordForm() {
@@ -13,8 +14,12 @@ function ResetPasswordForm() {
 
   const [password, setPassword] = useState('')
   const [passwordConfirm, setPasswordConfirm] = useState('')
-  const [error, setError] = useState('')
-  const [submitting, setSubmitting] = useState(false)
+  const [clientError, setClientError] = useState('')
+
+  const mutation = useMutation({
+    ...orpc.auth.resetPassword.mutationOptions(),
+    onSuccess: () => router.push('/login'),
+  })
 
   if (!token) {
     return (
@@ -30,28 +35,29 @@ function ResetPasswordForm() {
     )
   }
 
-  async function handleSubmit(e: FormEvent) {
+  function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    setError('')
+    setClientError('')
 
     if (password !== passwordConfirm) {
-      setError('Passwords do not match')
+      setClientError('Passwords do not match')
       return
     }
     if (password.length < 8) {
-      setError('Password must be at least 8 characters')
+      setClientError('Password must be at least 8 characters')
       return
     }
 
-    setSubmitting(true)
-    try {
-      await client.auth.resetPassword({ token: token!, newPassword: password })
-      router.push('/login')
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Reset failed')
-      setSubmitting(false)
-    }
+    mutation.mutate({ token: token!, newPassword: password })
   }
+
+  const error =
+    clientError ||
+    (mutation.error instanceof Error
+      ? mutation.error.message
+      : mutation.error
+        ? 'Reset failed'
+        : '')
 
   return (
     <form
@@ -100,8 +106,8 @@ function ResetPasswordForm() {
         />
       </div>
 
-      <Button type="submit" className="w-full" disabled={submitting}>
-        {submitting ? 'Resetting…' : 'Reset Password'}
+      <Button type="submit" className="w-full" disabled={mutation.isPending}>
+        {mutation.isPending ? 'Resetting…' : 'Reset Password'}
       </Button>
     </form>
   )

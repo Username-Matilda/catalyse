@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSearchParams } from 'next/navigation'
+import { useMutation } from '@tanstack/react-query'
 import { useAuth } from '@/lib/auth-context'
-import { client } from '@/lib/client'
+import { orpc } from '@/lib/orpc'
 import Button from '@/components/Button'
 
 function AcceptInviteContent() {
@@ -12,28 +13,25 @@ function AcceptInviteContent() {
   const searchParams = useSearchParams()
   const token = searchParams.get('token')
   const { user, loading } = useAuth()
-  const [apiStatus, setApiStatus] = useState<'idle' | 'success' | 'error'>('idle')
-  const [errorMsg, setErrorMsg] = useState('')
 
-  const status = loading
-    ? 'loading'
-    : !token
-      ? 'error'
-      : !user
-        ? 'needs-login'
-        : apiStatus === 'idle'
-          ? 'loading'
-          : apiStatus
+  const mutation = useMutation({
+    ...orpc.admin.admins.acceptInvite.mutationOptions(),
+  })
+
+  function getStatus() {
+    if (loading) return 'loading'
+    if (!token) return 'error'
+    if (!user) return 'needs-login'
+    if (mutation.isPending || mutation.isIdle) return 'loading'
+    if (mutation.isSuccess) return 'success'
+    return 'error'
+  }
+  const status = getStatus()
 
   useEffect(() => {
     if (loading || !token || !user) return
-    client.admin.admins
-      .acceptInvite({ inviteToken: token })
-      .then(() => setApiStatus('success'))
-      .catch((err) => {
-        setApiStatus('error')
-        setErrorMsg(err instanceof Error ? err.message : 'Failed to accept invite')
-      })
+    mutation.mutate({ inviteToken: token })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, user, token])
 
   useEffect(() => {
@@ -83,6 +81,9 @@ function AcceptInviteContent() {
       </div>
     )
   }
+
+  const errorMsg =
+    mutation.error instanceof Error ? mutation.error.message : 'Failed to accept invite'
 
   return (
     <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word text-center">

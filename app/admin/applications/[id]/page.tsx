@@ -1,121 +1,80 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
-import { client } from '@/lib/client'
+import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
-
-interface Application {
-  id: number
-  name: string
-  email: string | null
-  bio: string | null
-  applicationMessage: string | null
-  approvalStatus: string
-  createdAt: string
-  rejectedAt: string | null
-  anonymiseAt: string | null
-  adminNotes: string | null
-  applicantNotes: string | null
-  reviewer: { id: number; name: string } | null
-  previousRejections: Array<{
-    rejectedAt: string
-    adminNotes: string | null
-    applicantNotes: string | null
-  }>
-  availabilityHoursPerWeek: number | null
-  location: string | null
-  country: string | null
-  localGroup: string | null
-  signalNumber: string | null
-  whatsappNumber: string | null
-  discordHandle: string | null
-  contactNotes: string | null
-  skills: Array<{ id: number; name: string; categoryName: string }>
-}
 
 export default function ApplicationReviewPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const { user, loading } = useAuth()
   const showToast = useToast()
+  const queryClient = useQueryClient()
 
-  const [app, setApp] = useState<Application | null>(null)
-  const [loadingData, setLoadingData] = useState(true)
   const [adminNotes, setAdminNotes] = useState('')
   const [applicantNotes, setApplicantNotes] = useState('')
-  const [submitting, setSubmitting] = useState(false)
+  const [initialized, setInitialized] = useState(false)
   const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | null>(null)
+
   useEffect(() => {
     if (!loading && !user) router.push('/login')
     if (!loading && user && !user.isSuperAdmin) router.push('/')
   }, [user, loading, router])
 
-  const loadApplication = useCallback(async () => {
-    setLoadingData(true)
-    try {
-      const data = (await client.admin.applications.getById({
-        id: Number(id),
-      })) as unknown as Application
-      setApp(data)
-      setAdminNotes(data.adminNotes ?? '')
-      setApplicantNotes(data.applicantNotes ?? '')
-    } catch {
-      showToast('Failed to load application', 'error')
-    } finally {
-      setLoadingData(false)
-    }
-  }, [id, showToast])
+  const { data: app, isPending: loadingData } = useQuery({
+    ...orpc.admin.applications.getById.queryOptions({ input: { id: Number(id) } }),
+    enabled: !!user?.isSuperAdmin,
+  })
 
   useEffect(() => {
-    // loadApplication is async; setState calls inside it are deferred past the
-    // await boundary. The rule can't trace async call graphs so flags this as a
-    // false positive.
+    if (!app || initialized) return
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (user?.isSuperAdmin) loadApplication()
-  }, [user, loadApplication])
+    setInitialized(true)
+    setAdminNotes(app.adminNotes ?? '')
+    setApplicantNotes(app.applicantNotes ?? '')
+  }, [app, initialized])
 
-  async function handleSaveNotes() {
-    if (!app) return
-    setSubmitting(true)
-    try {
-      await client.admin.applications.action({
-        id: app.id,
-        action: 'update_notes',
-        adminNotes,
-        applicantNotes,
-      })
+  const saveNotesMutation = useMutation({
+    ...orpc.admin.applications.action.mutationOptions(),
+    onSuccess: () => {
       showToast('Notes saved', 'success')
-      setApp({ ...app, adminNotes, applicantNotes })
-    } catch (err) {
+      void queryClient.invalidateQueries({ queryKey: orpc.admin.applications.getById.key() })
+    },
+    onError: (err: unknown) => {
       showToast(err instanceof Error ? err.message : 'Failed to save notes', 'error')
-    } finally {
-      setSubmitting(false)
-    }
-  }
+    },
+  })
 
-  async function handleConfirm() {
-    if (!app || !confirmAction) return
-    setSubmitting(true)
-    setConfirmAction(null)
-    try {
-      await client.admin.applications.action({
-        id: app.id,
-        action: confirmAction,
-        adminNotes,
-        applicantNotes,
-      })
+  const actionMutation = useMutation({
+    ...orpc.admin.applications.action.mutationOptions(),
+    onSuccess: (_, variables) => {
       showToast(
-        confirmAction === 'approve' ? 'Application approved' : 'Application rejected',
+        variables.action === 'approve' ? 'Application approved' : 'Application rejected',
         'success',
       )
       router.push('/admin/applications')
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : `Failed to ${confirmAction}`, 'error')
-      setSubmitting(false)
-    }
+    },
+    onError: (err: unknown) => {
+      showToast(err instanceof Error ? err.message : 'Failed to action application', 'error')
+    },
+  })
+
+  const submitting = saveNotesMutation.isPending || actionMutation.isPending
+
+  function handleSaveNotes() {
+    if (!app) return
+    saveNotesMutation.mutate({ id: app.id, action: 'update_notes', adminNotes, applicantNotes })
+  }
+
+  function handleConfirm() {
+    if (!app || !confirmAction) return
+    const action = confirmAction
+    setConfirmAction(null)
+    actionMutation.mutate({ id: app.id, action, adminNotes, applicantNotes })
   }
 
   if (loading || !user) return null
@@ -149,7 +108,7 @@ export default function ApplicationReviewPage() {
   const locationParts = [app.localGroup, app.country ?? app.location].filter(Boolean)
   const meta = [
     locationParts.length ? locationParts.join(' · ') : null,
-    `Applied ${new Date(app.createdAt).toLocaleDateString()}`,
+    app.createdAt ? `Applied ${app.createdAt.toLocaleDateString()}` : null,
     app.reviewer ? `Reviewer: ${app.reviewer.name}` : null,
   ].filter(Boolean)
 

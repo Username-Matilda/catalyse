@@ -2,9 +2,10 @@
 
 import { useEffect, useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
+import { useMutation } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
-import { client } from '@/lib/client'
+import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 
 export default function SettingsPage() {
@@ -14,58 +15,72 @@ export default function SettingsPage() {
 
   const [newEmail, setNewEmail] = useState('')
   const [emailPassword, setEmailPassword] = useState('')
-  const [changingEmail, setChangingEmail] = useState(false)
 
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [changingPassword, setChangingPassword] = useState(false)
 
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deletePassword, setDeletePassword] = useState('')
   const [deleteConfirmPassword, setDeleteConfirmPassword] = useState('')
-  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     if (!loading && !user) router.replace('/login')
   }, [user, loading, router])
 
-  async function handleChangeEmail(e: FormEvent) {
-    e.preventDefault()
-    setChangingEmail(true)
-    try {
-      const data = await client.auth.changeEmail({ newEmail, password: emailPassword })
+  const changeEmailMutation = useMutation({
+    ...orpc.auth.changeEmail.mutationOptions(),
+    onSuccess: (data) => {
       showToast(data.message, 'success')
       setNewEmail('')
       setEmailPassword('')
-    } catch (err: unknown) {
+    },
+    onError: (err: unknown) => {
       showToast(err instanceof Error ? err.message : 'Email change failed', 'error')
-    } finally {
-      setChangingEmail(false)
-    }
+    },
+  })
+
+  const changePasswordMutation = useMutation({
+    ...orpc.auth.changePassword.mutationOptions(),
+    onSuccess: (data) => {
+      showToast(data.message, 'success')
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+    },
+    onError: (err: unknown) => {
+      showToast(err instanceof Error ? err.message : 'Password change failed', 'error')
+    },
+  })
+
+  const deleteAccountMutation = useMutation({
+    ...orpc.auth.deleteAccount.mutationOptions(),
+    onSuccess: (data) => {
+      showToast(data.message, 'success')
+      setTimeout(async () => {
+        await logout()
+      }, 1500)
+    },
+    onError: (err: unknown) => {
+      showToast(err instanceof Error ? err.message : 'Account deletion failed', 'error')
+    },
+  })
+
+  function handleChangeEmail(e: FormEvent) {
+    e.preventDefault()
+    changeEmailMutation.mutate({ newEmail, password: emailPassword })
   }
 
-  async function handleChangePassword(e: FormEvent) {
+  function handleChangePassword(e: FormEvent) {
     e.preventDefault()
     if (newPassword !== confirmPassword) {
       showToast('New passwords do not match', 'error')
       return
     }
-    setChangingPassword(true)
-    try {
-      const data = await client.auth.changePassword({ currentPassword, newPassword })
-      showToast(data.message, 'success')
-      setCurrentPassword('')
-      setNewPassword('')
-      setConfirmPassword('')
-    } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Password change failed', 'error')
-    } finally {
-      setChangingPassword(false)
-    }
+    changePasswordMutation.mutate({ currentPassword, newPassword })
   }
 
-  async function handleDeleteAccount(e: FormEvent) {
+  function handleDeleteAccount(e: FormEvent) {
     e.preventDefault()
     if (user?.hasPassword) {
       if (deletePassword !== deleteConfirmPassword) {
@@ -78,19 +93,7 @@ export default function SettingsPage() {
         return
       }
     }
-    setDeleting(true)
-    try {
-      const data = await client.auth.deleteAccount(
-        user?.hasPassword ? { password: deletePassword } : {},
-      )
-      showToast(data.message, 'success')
-      setTimeout(async () => {
-        await logout()
-      }, 1500)
-    } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Account deletion failed', 'error')
-      setDeleting(false)
-    }
+    deleteAccountMutation.mutate(user?.hasPassword ? { password: deletePassword } : {})
   }
 
   if (loading || !user) return null
@@ -128,8 +131,8 @@ export default function SettingsPage() {
                 required
               />
             </div>
-            <Button type="submit" disabled={changingEmail}>
-              {changingEmail ? 'Changing…' : 'Change Email'}
+            <Button type="submit" disabled={changeEmailMutation.isPending}>
+              {changeEmailMutation.isPending ? 'Changing…' : 'Change Email'}
             </Button>
           </form>
         </div>
@@ -169,8 +172,8 @@ export default function SettingsPage() {
                 required
               />
             </div>
-            <Button type="submit" disabled={changingPassword}>
-              {changingPassword ? 'Changing…' : 'Change Password'}
+            <Button type="submit" disabled={changePasswordMutation.isPending}>
+              {changePasswordMutation.isPending ? 'Changing…' : 'Change Password'}
             </Button>
           </form>
         </div>
@@ -250,8 +253,12 @@ export default function SettingsPage() {
                     </>
                   )}
                   <div className="flex gap-2">
-                    <Button type="submit" variant="danger" disabled={deleting}>
-                      {deleting ? 'Deleting…' : 'Permanently Delete Account'}
+                    <Button
+                      type="submit"
+                      variant="danger"
+                      disabled={deleteAccountMutation.isPending}
+                    >
+                      {deleteAccountMutation.isPending ? 'Deleting…' : 'Permanently Delete Account'}
                     </Button>
                     <Button
                       type="button"

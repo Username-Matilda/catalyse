@@ -291,19 +291,7 @@ export const projectsRouter = {
         volunteerSkillIds = new Set((v?.skills ?? []).map((s) => s.skillId))
       }
 
-      let serialized = serializeProject(project as EnrichedProject, volunteerSkillIds) as Record<
-        string,
-        unknown
-      >
-      if (isPending) {
-        serialized = {
-          ...serialized,
-          owner: null,
-          ownerId: null,
-          proposedBy: null,
-          proposedById: null,
-        }
-      }
+      const base = serializeProject(project as EnrichedProject, volunteerSkillIds)
 
       const [updates, tasks] = await Promise.all([
         prisma.projectUpdate.findMany({
@@ -326,7 +314,7 @@ export const projectsRouter = {
         (a, b) => (taskOrder[a.status] ?? 0) - (taskOrder[b.status] ?? 0),
       )
 
-      serialized.updates = updates.map((u) => ({
+      const mappedUpdates = updates.map((u) => ({
         id: u.id,
         projectId: u.projectId,
         authorId: u.authorId,
@@ -335,7 +323,7 @@ export const projectsRouter = {
         authorName: u.author?.name ?? null,
       }))
 
-      serialized.tasks = sortedTasks.map((t) => ({
+      const mappedTasks = sortedTasks.map((t) => ({
         id: t.id,
         projectId: t.projectId,
         title: t.title,
@@ -350,10 +338,46 @@ export const projectsRouter = {
         updatedAt: t.updatedAt,
       }))
 
+      let interests:
+        | Array<{
+            id: number
+            volunteerId: number
+            projectId: number
+            interestType: string
+            message: string | null
+            status: string
+            responseMessage: string | null
+            createdAt: Date | null
+            respondedAt: Date | null
+            volunteerName: string
+            volunteerBio: string | null
+            volunteerSkills: Array<{
+              id: number
+              name: string
+              categoryName: string
+              proficiencyLevel: string | null
+            }>
+          }>
+        | undefined
+      let myInterest:
+        | {
+            id: number
+            volunteerId: number
+            projectId: number
+            interestType: string
+            message: string | null
+            status: string
+            responseMessage: string | null
+            createdAt: Date | null
+            respondedAt: Date | null
+          }
+        | null
+        | undefined
+
       if (volunteer) {
         const isOwner = project.ownerId === volunteer.id
         if (isOwner || volunteer.isAdmin) {
-          const interests = await prisma.projectInterest.findMany({
+          const rawInterests = await prisma.projectInterest.findMany({
             where: { projectId: input.id },
             include: {
               volunteer: {
@@ -367,7 +391,7 @@ export const projectsRouter = {
             },
             orderBy: { createdAt: 'desc' },
           })
-          serialized.interests = interests.map((i) => ({
+          interests = rawInterests.map((i) => ({
             id: i.id,
             volunteerId: i.volunteerId,
             projectId: i.projectId,
@@ -388,25 +412,32 @@ export const projectsRouter = {
           }))
         }
 
-        const myInterest = await prisma.projectInterest.findFirst({
+        const rawMyInterest = await prisma.projectInterest.findFirst({
           where: { projectId: input.id, volunteerId: volunteer.id, status: { not: 'withdrawn' } },
         })
-        serialized.myInterest = myInterest
+        myInterest = rawMyInterest
           ? {
-              id: myInterest.id,
-              volunteerId: myInterest.volunteerId,
-              projectId: myInterest.projectId,
-              interestType: myInterest.interestType,
-              message: myInterest.message,
-              status: myInterest.status,
-              responseMessage: myInterest.responseMessage,
-              createdAt: myInterest.createdAt,
-              respondedAt: myInterest.respondedAt,
+              id: rawMyInterest.id,
+              volunteerId: rawMyInterest.volunteerId,
+              projectId: rawMyInterest.projectId,
+              interestType: rawMyInterest.interestType,
+              message: rawMyInterest.message,
+              status: rawMyInterest.status,
+              responseMessage: rawMyInterest.responseMessage,
+              createdAt: rawMyInterest.createdAt,
+              respondedAt: rawMyInterest.respondedAt,
             }
           : null
       }
 
-      return serialized
+      return {
+        ...base,
+        ...(isPending && { owner: null, ownerId: null, proposedBy: null, proposedById: null }),
+        updates: mappedUpdates,
+        tasks: mappedTasks,
+        interests,
+        myInterest,
+      }
     }),
 
   update: authedProcedure

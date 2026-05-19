@@ -6,9 +6,10 @@ import { useRouter } from 'next/navigation'
 import Button from '@/components/Button'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import { useAuth } from '@/lib/auth-context'
-import { client } from '@/lib/client'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
+import { InferRouterOutputs } from '@orpc/server'
+import { AppRouter } from '@/server/router'
 
 export default function ApplicationsPage() {
   const router = useRouter()
@@ -117,7 +118,7 @@ export default function ApplicationsPage() {
   )
 }
 
-type Application = Awaited<ReturnType<typeof client.admin.applications.list>>[number]
+type Application = InferRouterOutputs<AppRouter>['admin']['applications']['list'][number]
 
 function ApplicationCard({
   app,
@@ -297,9 +298,7 @@ function ApplicationCard({
   )
 }
 
-type AnonymisedApplication = Awaited<
-  ReturnType<typeof client.admin.rejectedApplications.list>
->[number]
+type AnonymisedApplication = InferRouterOutputs<AppRouter>['admin']['rejectedApplications']['list'][number]
 
 function AnonymisedCard({ app }: { app: AnonymisedApplication }) {
   return (

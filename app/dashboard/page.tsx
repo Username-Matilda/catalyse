@@ -3,49 +3,17 @@
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
-import { client } from '@/lib/client'
+import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
-import { type Project, ProjectList, statusBadgeClasses } from '@/components/ProjectCard'
+import { ProjectList, statusBadgeClasses } from '@/components/ProjectCard'
 import Tabs from '@/components/Tabs'
+import type { InferRouterOutputs } from '@orpc/server'
+import type { AppRouter } from '@/server/router'
 
-interface Interest extends Project {
-  interestId: number
-  interestType: string
-  interestStatus: string
-  interestMessage: string | null
-  interestCreatedAt: Date | null
-  interestResponseMessage: string | null
-  interestRespondedAt: Date | null
-}
-
-interface Notification {
-  id: number
-  title: string
-  body: string | null
-  link: string | null
-  readAt: Date | null
-  createdAt: Date | null
-}
-
-interface DashboardData {
-  ownedProjects: Project[]
-  proposedProjects: Project[]
-  myInterests: Interest[]
-  suggestedProjects: Project[]
-  unreadNotificationCount: number
-}
-
-interface StarterTask {
-  id: number
-  title: string
-  description: string
-  skillName: string | null
-  estimatedHours: number | null
-  status: string
-  feedbackToVolunteer: string | null
-}
+type Interest = InferRouterOutputs<AppRouter>['dashboard']['get']['myInterests'][number]
 
 type TabKey = 'owned' | 'interests' | 'proposed' | 'suggested' | 'notifications'
 
@@ -60,20 +28,15 @@ const TAB_LABELS: Record<TabKey, string> = {
 export default function DashboardPage() {
   const router = useRouter()
   const { user, loading } = useAuth()
-  const [data, setData] = useState<DashboardData | null>(null)
-  const [notifications, setNotifications] = useState<Notification[]>([])
+  const showToast = useToast()
+  const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<TabKey>(() => {
     if (typeof window === 'undefined') return 'owned'
     const hash = window.location.hash
     if (hash.startsWith('#tab-')) return (hash.slice('#tab-'.length) as TabKey) || 'owned'
     return 'owned'
   })
-  const [unreadCount, setUnreadCount] = useState(0)
-  const [loadingData, setLoadingData] = useState(true)
-  const [starterTasks, setStarterTasks] = useState<StarterTask[]>([])
   const [expandedTasks, setExpandedTasks] = useState<Set<number>>(new Set())
-  const showToast = useToast()
-  const [submittingTask, setSubmittingTask] = useState(false)
   const [emailBannerDismissed, setEmailBannerDismissed] = useState(false)
 
   useEffect(() => {
@@ -87,12 +50,6 @@ export default function DashboardPage() {
         ? (hash.slice('#tab-'.length) as TabKey) || 'owned'
         : 'owned'
       setActiveTab(tab)
-      if (tab === 'notifications') {
-        client.notifications
-          .list({})
-          .then(setNotifications)
-          .catch(() => {})
-      }
     }
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
@@ -105,23 +62,42 @@ export default function DashboardPage() {
     }
   }, [activeTab])
 
-  useEffect(() => {
-    if (!user) return
-    client.dashboard
-      .get()
-      .then((d) => {
-        setData(d)
-        setUnreadCount(d.unreadNotificationCount)
-      })
-      .catch(() => {})
-      .finally(() => setLoadingData(false))
-    client.my
-      .starterTasks()
-      .then((t) =>
-        setStarterTasks(t.filter((t) => t.status === 'assigned' || t.status === 'submitted')),
-      )
-      .catch(() => {})
-  }, [user])
+  const { data, isPending: loadingData } = useQuery({
+    ...orpc.dashboard.get.queryOptions(),
+    enabled: !!user,
+  })
+
+  const { data: starterTasksRaw = [] } = useQuery({
+    ...orpc.my.starterTasks.queryOptions(),
+    enabled: !!user,
+  })
+  const starterTasks = starterTasksRaw.filter(
+    (t) => t.status === 'assigned' || t.status === 'submitted',
+  )
+
+  const { data: notifications = [] } = useQuery({
+    ...orpc.notifications.list.queryOptions({ input: {} }),
+    enabled: !!user && activeTab === 'notifications',
+  })
+
+  const submitTaskMutation = useMutation({
+    ...orpc.starterTasks.submit.mutationOptions(),
+    onSuccess: () => {
+      showToast('Task submitted for review!', 'success')
+      void queryClient.invalidateQueries({ queryKey: orpc.my.starterTasks.key() })
+    },
+    onError: (err: unknown) => {
+      showToast(err instanceof Error ? err.message : 'Failed to submit task', 'error')
+    },
+  })
+
+  const readAllMutation = useMutation({
+    ...orpc.notifications.readAll.mutationOptions(),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: orpc.notifications.list.key() })
+      void queryClient.invalidateQueries({ queryKey: orpc.dashboard.get.key() })
+    },
+  })
 
   function toggleTask(id: number) {
     setExpandedTasks((prev) => {
@@ -132,22 +108,7 @@ export default function DashboardPage() {
     })
   }
 
-  async function submitTask(taskId: number) {
-    setSubmittingTask(true)
-    try {
-      await client.starterTasks.submit({ id: taskId })
-      showToast('Task submitted for review!', 'success')
-      setStarterTasks((prev) =>
-        prev.map((t) => (t.id === taskId ? { ...t, status: 'submitted' } : t)),
-      )
-    } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Failed to submit task', 'error')
-    } finally {
-      setSubmittingTask(false)
-    }
-  }
-
-  async function handleTabClick(tab: TabKey) {
+  function handleTabClick(tab: TabKey) {
     setActiveTab(tab)
     if (tab === 'owned') {
       history.replaceState(null, '', '/dashboard')
@@ -155,20 +116,6 @@ export default function DashboardPage() {
     } else {
       window.location.hash = `tab-${tab}`
     }
-    if (tab === 'notifications') {
-      try {
-        const notifs = await client.notifications.list({})
-        setNotifications(notifs)
-      } catch {}
-    }
-  }
-
-  async function markAllRead() {
-    try {
-      await client.notifications.readAll()
-      setUnreadCount(0)
-      setNotifications((prev) => prev.map((n) => ({ ...n, readAt: new Date() })))
-    } catch {}
   }
 
   if (loading || !user) return null
@@ -183,6 +130,7 @@ export default function DashboardPage() {
     )
   }
 
+  const unreadCount = data?.unreadNotificationCount ?? 0
   const showEmailBanner = !user.emailDigest && !emailBannerDismissed
 
   const tabs: { key: TabKey; label: React.ReactNode; 'data-tab'?: string }[] = [
@@ -277,8 +225,8 @@ export default function DashboardPage() {
                     {task.status === 'assigned' && (
                       <Button
                         size="sm"
-                        disabled={submittingTask}
-                        onClick={() => submitTask(task.id)}
+                        disabled={submitTaskMutation.isPending}
+                        onClick={() => submitTaskMutation.mutate({ id: task.id })}
                       >
                         Mark as Complete
                       </Button>
@@ -334,7 +282,7 @@ export default function DashboardPage() {
               </p>
             ) : (
               <ProjectList
-                projects={data.myInterests}
+                projects={data.myInterests as unknown as Interest[]}
                 userSkillIds={new Set(user.skills?.map((s) => s.id) ?? [])}
               />
             )}
@@ -374,7 +322,7 @@ export default function DashboardPage() {
         {activeTab === 'notifications' && (
           <div>
             {unreadCount > 0 && (
-              <Button className="mb-4" onClick={markAllRead}>
+              <Button className="mb-4" onClick={() => readAllMutation.mutate({})}>
                 Mark all as read
               </Button>
             )}

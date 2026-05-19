@@ -2,43 +2,26 @@
 
 import React, { use, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQuery, useMutation } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import Checkbox from '@/components/Checkbox'
 import FilterDropdown from '@/components/FilterDropdown'
 import SkillPicker from '@/components/SkillPicker'
 import { useAuth } from '@/lib/auth-context'
-import { client } from '@/lib/client'
+import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
-import { buildLocationOptions, type LocalGroupOption } from '@/lib/filter-options'
+import { buildLocationOptions } from '@/lib/filter-options'
 
 interface SelectedSkill {
   skillId: number
   proficiencyLevel: string
 }
 
-interface ProjectData {
-  id: number
-  title: string
-  description: string
-  collaborationLink: string | null
-  ownerId: number | null
-  proposedById: number | null
-  projectType: string | null
-  timeCommitmentHoursPerWeek: number | null
-  urgency: string | null
-  country: string | null
-  localGroup: string | null
-  estimatedDuration: string | null
-  isSeekingHelp: boolean
-  isSeekingOwner: boolean
-  skills: Array<{ id: number; name: string; isRequired: boolean | null }>
-}
-
 const URGENCY_OPTIONS = [
   { value: 'low', label: 'Low - Nice to have' },
   { value: 'medium', label: 'Medium - Should do soon' },
   { value: 'high', label: 'High - Urgent / time-sensitive' },
-]
+] as const
 
 const PROJECT_TYPES = [
   { value: '', label: 'Select a project type…' },
@@ -46,7 +29,7 @@ const PROJECT_TYPES = [
   { value: 'container', label: 'Time-boxed (1-3 months)' },
   { value: 'ongoing', label: 'Ongoing' },
   { value: 'one_off', label: 'One-off task' },
-]
+] as const
 
 export default function EditProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = use(params)
@@ -54,12 +37,9 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
   const { user, loading } = useAuth()
   const showToast = useToast()
 
-  const [project, setProject] = useState<ProjectData | null>(null)
-  const [loadingProject, setLoadingProject] = useState(true)
   const [canEdit, setCanEdit] = useState(false)
   const [permissionChecked, setPermissionChecked] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
-  const [deleting, setDeleting] = useState(false)
+  const [initialized, setInitialized] = useState(false)
 
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -72,88 +52,86 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
   const [estimatedDuration, setEstimatedDuration] = useState('')
   const [seekingHelp, setSeekingHelp] = useState(true)
   const [seekingOwner, setSeekingOwner] = useState(true)
-  const [allLocalGroups, setAllLocalGroups] = useState<LocalGroupOption[]>([])
 
   useEffect(() => {
     if (!loading && !user) router.replace('/login')
   }, [user, loading, router])
 
-  useEffect(() => {
-    client.localGroups
-      .list({})
-      .then((d) => setAllLocalGroups(d.groups as LocalGroupOption[]))
-      .catch(() => {})
-  }, [])
+  const { data: localGroupsData } = useQuery({
+    ...orpc.localGroups.list.queryOptions({ input: {} }),
+    enabled: true,
+  })
+  const allLocalGroups = localGroupsData?.groups ?? []
+
+  const { data: projectData, isPending: loadingProject } = useQuery({
+    ...orpc.projects.getById.queryOptions({ input: { id: parseInt(idParam, 10) } }),
+    enabled: !!user,
+  })
 
   useEffect(() => {
-    if (!user) return
-    client.projects
-      .getById({ id: parseInt(idParam, 10) })
-      .then((rawData) => {
-        const data = rawData as unknown as ProjectData
-        setProject(data)
-        setTitle(data.title)
-        setDescription(data.description)
-        setCollaborationLink(data.collaborationLink ?? '')
-        setSkills(
-          (data.skills ?? []).map((s) => ({ skillId: s.id, proficiencyLevel: 'intermediate' })),
-        )
-        setProjectType(data.projectType ?? '')
-        setHoursPerWeek(data.timeCommitmentHoursPerWeek?.toString() ?? '')
-        setUrgency(data.urgency ?? 'medium')
-        const country = data.country ?? ''
-        const localGroup = data.localGroup ?? ''
-        setLocationValue(country && localGroup ? `${country}:${localGroup}` : country)
-        setEstimatedDuration(data.estimatedDuration ?? '')
-        setSeekingHelp(data.isSeekingHelp)
-        setSeekingOwner(data.isSeekingOwner)
-        const isOwner = data.ownerId === user.id || data.proposedById === user.id
-        setCanEdit(isOwner || user.isAdmin)
-        setPermissionChecked(true)
-      })
-      .catch(() => setPermissionChecked(true))
-      .finally(() => setLoadingProject(false))
-  }, [user, idParam])
+    if (!projectData || initialized) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setInitialized(true)
+    const data = projectData
+    setTitle(data.title)
+    setDescription(data.description)
+    setCollaborationLink(data.collaborationLink ?? '')
+    setSkills((data.skills ?? []).map((s) => ({ skillId: s.id, proficiencyLevel: 'intermediate' })))
+    setProjectType(data.projectType ?? '')
+    setHoursPerWeek(data.timeCommitmentHoursPerWeek?.toString() ?? '')
+    setUrgency(data.urgency ?? 'medium')
+    const country = data.country ?? ''
+    const localGroup = data.localGroup ?? ''
+    setLocationValue(country && localGroup ? `${country}:${localGroup}` : country)
+    setEstimatedDuration(data.estimatedDuration ?? '')
+    setSeekingHelp(data.isSeekingHelp ?? false)
+    setSeekingOwner(data.isSeekingOwner ?? false)
+    const isOwner = data.ownerId === user?.id || data.proposedById === user?.id
+    setCanEdit(isOwner || (user?.isAdmin ?? false))
+    setPermissionChecked(true)
+  }, [projectData, initialized, user])
 
-  async function handleSubmit(e: React.FormEvent) {
+  const updateMutation = useMutation({
+    ...orpc.projects.update.mutationOptions(),
+    onSuccess: () => router.push(`/projects/${idParam}`),
+    onError: (err: unknown) => {
+      showToast(err instanceof Error ? err.message : 'Failed to save changes', 'error')
+    },
+  })
+
+  const deleteMutation = useMutation({
+    ...orpc.projects.delete.mutationOptions(),
+    onSuccess: () => router.push('/'),
+    onError: (err: unknown) => {
+      showToast(err instanceof Error ? err.message : 'Failed to delete project', 'error')
+    },
+  })
+
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!canEdit) return
-    setSubmitting(true)
     const [country, localGroup] = locationValue.split(':')
-    try {
-      await client.projects.update({
-        id: parseInt(idParam, 10),
-        title: title.trim(),
-        description: description.trim(),
-        collaborationLink: collaborationLink.trim() || null,
-        skillIds: skills.map((s) => s.skillId),
-        projectType: projectType || null,
-        timeCommitmentHoursPerWeek: hoursPerWeek ? Number(hoursPerWeek) : null,
-        urgency,
-        country: country || null,
-        localGroup: localGroup || null,
-        estimatedDuration: estimatedDuration.trim() || null,
-        isSeekingHelp: seekingHelp,
-        isSeekingOwner: seekingOwner,
-      })
-      router.push(`/projects/${idParam}`)
-    } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Failed to save changes', 'error')
-      setSubmitting(false)
-    }
+    updateMutation.mutate({
+      id: parseInt(idParam, 10),
+      title: title.trim(),
+      description: description.trim(),
+      collaborationLink: collaborationLink.trim() || null,
+      skillIds: skills.map((s) => s.skillId),
+      projectType: projectType || null,
+      timeCommitmentHoursPerWeek: hoursPerWeek ? Number(hoursPerWeek) : null,
+      urgency,
+      country: country || null,
+      localGroup: localGroup || null,
+      estimatedDuration: estimatedDuration.trim() || null,
+      isSeekingHelp: seekingHelp,
+      isSeekingOwner: seekingOwner,
+    })
   }
 
-  async function handleDelete() {
+  function handleDelete() {
     if (!window.confirm('Are you sure you want to delete this project? This cannot be undone.'))
       return
-    setDeleting(true)
-    try {
-      await client.projects.delete({ id: parseInt(idParam, 10) })
-      router.push('/')
-    } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Failed to delete project', 'error')
-      setDeleting(false)
-    }
+    deleteMutation.mutate({ id: parseInt(idParam, 10) })
   }
 
   if (loading || !user) return null
@@ -313,13 +291,18 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
           </div>
 
           <div className="flex gap-3 flex-wrap">
-            <Button type="submit" disabled={!canEdit || submitting}>
-              {submitting ? 'Saving…' : 'Save Changes'}
+            <Button type="submit" disabled={!canEdit || updateMutation.isPending}>
+              {updateMutation.isPending ? 'Saving…' : 'Save Changes'}
             </Button>
 
-            {user.isAdmin && project && (
-              <Button type="button" variant="danger" onClick={handleDelete} disabled={deleting}>
-                {deleting ? 'Deleting…' : 'Delete Project'}
+            {user.isAdmin && projectData && (
+              <Button
+                type="button"
+                variant="danger"
+                onClick={handleDelete}
+                disabled={deleteMutation.isPending}
+              >
+                {deleteMutation.isPending ? 'Deleting…' : 'Delete Project'}
               </Button>
             )}
           </div>

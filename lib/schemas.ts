@@ -1,30 +1,65 @@
 import { z } from 'zod'
+import {
+  AdminInviteSchema,
+  AdminNoteSchema,
+  BugReportSchema,
+  LocalGroupSchema,
+  LocalGroupSuggestionSchema,
+  ProjectSchema,
+  ProjectTaskSchema,
+  ProjectUpdateSchema,
+  SkillSchema,
+  SkillCategorySchema,
+  StarterTaskSchema,
+  VolunteerSchema,
+} from '@/generated/zod'
+
+const BASE_OMIT = { id: true, createdAt: true, updatedAt: true } as const
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
-export const SignupSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
+export const SignupSchema = VolunteerSchema.pick({
+  name: true,
+  bio: true,
+  discordHandle: true,
+  signalNumber: true,
+  whatsappNumber: true,
+  contactPreference: true,
+  contactNotes: true,
+  availabilityHoursPerWeek: true,
+  location: true,
+  country: true,
+  localGroup: true,
+  otherSkills: true,
+  consentMakeProfileVisibleInDirectory: true,
+  consentContactableByProjectOwners: true,
+  consentShareContactInfoWithProjectOwner: true,
+  emailDigest: true,
+  applicationMessage: true,
+}).partial({
+  bio: true,
+  discordHandle: true,
+  signalNumber: true,
+  whatsappNumber: true,
+  contactPreference: true,
+  contactNotes: true,
+  availabilityHoursPerWeek: true,
+  location: true,
+  country: true,
+  localGroup: true,
+  otherSkills: true,
+  consentMakeProfileVisibleInDirectory: true,
+  consentContactableByProjectOwners: true,
+  consentShareContactInfoWithProjectOwner: true,
+  emailDigest: true,
+  applicationMessage: true,
+}).extend({
+  // email is nullable on Volunteer (Google OAuth accounts have none), but required at signup
   email: z.string().email('A valid email address is required'),
   password: z
     .string()
     .min(8, 'Password must be at least 8 characters')
     .max(128, 'Password must be no more than 128 characters'),
-  applicationMessage: z.string().optional().nullable(),
-  bio: z.string().optional().nullable(),
-  discordHandle: z.string().optional().nullable(),
-  signalNumber: z.string().optional().nullable(),
-  whatsappNumber: z.string().optional().nullable(),
-  contactPreference: z.string().optional().nullable(),
-  contactNotes: z.string().optional().nullable(),
-  availabilityHoursPerWeek: z.number().int().optional().nullable(),
-  location: z.string().optional().nullable(),
-  country: z.string().optional().nullable(),
-  localGroup: z.string().optional().nullable(),
-  otherSkills: z.string().optional().nullable(),
-  consentMakeProfileVisibleInDirectory: z.boolean().optional(),
-  consentContactableByProjectOwners: z.boolean().optional(),
-  consentShareContactInfoWithProjectOwner: z.boolean().optional(),
-  emailDigest: z.string().optional(),
   skillIds: z.array(z.number().int()).optional(),
 })
 
@@ -56,40 +91,35 @@ const TaskInputSchema = z.object({
   description: z.string().optional(),
 })
 
-export const CreateProjectSchema = z.object({
-  title: z.string().min(1, 'Title is required'),
-  description: z.string().min(10, 'Description must be at least 10 characters'),
+export const CreateProjectSchema = ProjectSchema.pick({
+  title: true,
+  description: true,
+  projectType: true,
+  estimatedDuration: true,
+  timeCommitmentHoursPerWeek: true,
+  urgency: true,
+  collaborationLink: true,
+  country: true,
+  localGroup: true,
+  isSeekingHelp: true,
+  isSeekingOwner: true,
+}).extend({
   tasks: z.array(TaskInputSchema).optional().default([]),
   wantToOwn: z.boolean().optional().default(false),
   skillIds: z.array(z.number().int()).optional().default([]),
   skillRequiredMap: z.record(z.string(), z.boolean()).optional().default({}),
-  projectType: z.string().optional().nullable(),
-  estimatedDuration: z.string().optional().nullable(),
-  timeCommitmentHoursPerWeek: z.number().int().optional().nullable(),
-  urgency: z.string().optional().nullable(),
-  collaborationLink: z.string().optional().nullable(),
-  country: z.string().optional().nullable(),
-  localGroup: z.string().optional().nullable(),
-  isSeekingHelp: z.boolean().optional(),
-  isSeekingOwner: z.boolean().optional(),
 })
 
-export const UpdateProjectSchema = z.object({
-  title: z.string().optional(),
-  description: z.string().optional(),
-  status: z.string().optional(),
-  projectType: z.string().optional().nullable(),
-  estimatedDuration: z.string().optional().nullable(),
-  timeCommitmentHoursPerWeek: z.number().int().optional().nullable(),
-  urgency: z.string().optional().nullable(),
-  collaborationLink: z.string().optional().nullable(),
-  country: z.string().optional().nullable(),
-  localGroup: z.string().optional().nullable(),
-  outcome: z.string().optional().nullable(),
-  outcomeNotes: z.string().optional().nullable(),
-  isSeekingHelp: z.boolean().optional(),
-  isSeekingOwner: z.boolean().optional(),
-  ownerId: z.number().int().optional().nullable(),
+export const UpdateProjectSchema = ProjectSchema.omit({
+  ...BASE_OMIT,
+  proposedById: true,
+  isOrgProposed: true,
+  reviewNotes: true,
+  reviewedById: true,
+  reviewedAt: true,
+  feedbackToProposer: true,
+  completedAt: true,
+}).partial().extend({
   skillIds: z.array(z.number().int()).optional(),
   skillRequiredMap: z.record(z.string(), z.boolean()).optional(),
 })
@@ -101,40 +131,41 @@ export const ProjectInterestBodySchema = z.object({
   message: z.string().optional().nullable(),
 })
 
-export const CreateProjectTaskSchema = z.object({
-  title: z.string().min(1, 'Title is required'),
-  description: z.string().optional().nullable(),
-})
+export const CreateProjectTaskSchema = ProjectTaskSchema.pick({
+  title: true,
+  description: true,
+}).partial({ description: true })
 
-export const UpdateProjectTaskSchema = z.object({
-  title: z.string().optional(),
-  description: z.string().optional().nullable(),
-  status: z.string().optional(),
-  assignedToId: z.number().int().optional().nullable(),
-})
+export const UpdateProjectTaskSchema = ProjectTaskSchema.pick({
+  title: true,
+  description: true,
+  status: true,
+  assignedToId: true,
+}).partial()
 
-export const CreateProjectUpdateSchema = z.object({
-  content: z.string().min(1, 'Content is required'),
+export const CreateProjectUpdateSchema = ProjectUpdateSchema.pick({
+  content: true,
 })
 
 // ─── Admin: projects ──────────────────────────────────────────────────────────
 
-export const AdminCreateProjectSchema = z.object({
-  title: z.string().min(1, 'Title is required'),
-  description: z.string().min(10, 'Description must be at least 10 characters'),
+export const AdminCreateProjectSchema = ProjectSchema.pick({
+  title: true,
+  description: true,
+  projectType: true,
+  estimatedDuration: true,
+  timeCommitmentHoursPerWeek: true,
+  urgency: true,
+  collaborationLink: true,
+  country: true,
+  localGroup: true,
+  isSeekingHelp: true,
+  isSeekingOwner: true,
+}).extend({
   tasks: z.array(TaskInputSchema).optional().default([]),
   wantToOwn: z.boolean().optional().default(false),
   skillIds: z.array(z.number().int()).optional().default([]),
   skillRequiredMap: z.record(z.string(), z.boolean()).optional().default({}),
-  projectType: z.string().optional().nullable(),
-  estimatedDuration: z.string().optional().nullable(),
-  timeCommitmentHoursPerWeek: z.number().int().optional().nullable(),
-  urgency: z.string().optional().nullable(),
-  collaborationLink: z.string().optional().nullable(),
-  country: z.string().optional().nullable(),
-  localGroup: z.string().optional().nullable(),
-  isSeekingHelp: z.boolean().optional(),
-  isSeekingOwner: z.boolean().optional(),
 })
 
 export const ReviewProjectSchema = z.object({
@@ -165,60 +196,60 @@ export const ApplicationActionSchema = z.object({
 
 // ─── Admin: notes ─────────────────────────────────────────────────────────────
 
-export const CreateNoteSchema = z.object({
-  content: z.string().min(1, 'Content is required'),
-  category: z.string().optional(),
-  relatedProjectId: z.number().int().optional().nullable(),
-})
+export const CreateNoteSchema = AdminNoteSchema.pick({
+  content: true,
+  category: true,
+  relatedProjectId: true,
+}).partial({ category: true, relatedProjectId: true })
 
-export const UpdateNoteSchema = z.object({
-  content: z.string().optional(),
-  category: z.string().optional(),
-})
+export const UpdateNoteSchema = AdminNoteSchema.pick({
+  content: true,
+  category: true,
+}).partial()
 
 // ─── Admin: skills ────────────────────────────────────────────────────────────
 
-export const CreateSkillSchema = z.object({
-  name: z.string().min(1, 'Name is required').max(100, 'Name must be at most 100 characters'),
-  categoryId: z.number().int({ message: 'categoryId is required' }),
-  description: z.string().optional().nullable(),
-  sortOrder: z.number().int().optional().nullable(),
-})
+export const CreateSkillSchema = SkillSchema.pick({
+  name: true,
+  categoryId: true,
+  description: true,
+  sortOrder: true,
+}).partial({ description: true, sortOrder: true })
 
-export const UpdateSkillSchema = z.object({
-  name: z.string().optional(),
-  description: z.string().optional().nullable(),
-  sortOrder: z.number().optional(),
-  categoryId: z.number().int().optional(),
-})
+export const UpdateSkillSchema = SkillSchema.pick({
+  name: true,
+  description: true,
+  sortOrder: true,
+  categoryId: true,
+}).partial()
 
 // ─── Admin: skill categories ──────────────────────────────────────────────────
 
-export const CreateSkillCategorySchema = z.object({
-  name: z.string().min(1, 'Name is required').max(100, 'Name must be at most 100 characters'),
-  description: z.string().optional().nullable(),
-  sortOrder: z.number().int().optional().nullable(),
-})
+export const CreateSkillCategorySchema = SkillCategorySchema.pick({
+  name: true,
+  description: true,
+  sortOrder: true,
+}).partial({ description: true, sortOrder: true })
 
-export const UpdateSkillCategorySchema = z.object({
-  name: z.string().optional(),
-  description: z.string().optional().nullable(),
-  sortOrder: z.number().optional(),
-})
+export const UpdateSkillCategorySchema = SkillCategorySchema.pick({
+  name: true,
+  description: true,
+  sortOrder: true,
+}).partial()
 
 // ─── Admin: local groups ──────────────────────────────────────────────────────
 
-export const LocalGroupBodySchema = z.object({
-  name: z.string().min(1, 'Group name is required'),
-  country: z.string().min(1, 'Country is required'),
+export const LocalGroupBodySchema = LocalGroupSchema.pick({
+  name: true,
+  country: true,
 })
 
 // ─── Admin: bug reports ───────────────────────────────────────────────────────
 
-export const UpdateBugReportSchema = z.object({
-  status: z.string().optional(),
-  resolutionNotes: z.string().optional().nullable(),
-})
+export const UpdateBugReportSchema = BugReportSchema.pick({
+  status: true,
+  resolutionNotes: true,
+}).partial()
 
 // ─── Admin: local group suggestions ──────────────────────────────────────────
 
@@ -234,8 +265,8 @@ export const ReviewSuggestionSchema = z.object({
 
 // ─── Admin: invite ────────────────────────────────────────────────────────────
 
-export const InviteAdminSchema = z.object({
-  email: z.string().email('A valid email address is required'),
+export const InviteAdminSchema = AdminInviteSchema.pick({
+  email: true,
 })
 
 // ─── Admin: platform settings ─────────────────────────────────────────────────
@@ -248,13 +279,13 @@ export const PlatformSettingsSchema = z.object({
 
 // ─── Starter tasks ────────────────────────────────────────────────────────────
 
-export const CreateStarterTaskSchema = z.object({
-  title: z.string().min(1, 'Title is required'),
-  description: z.string().min(1, 'Description is required'),
-  skillId: z.number().int().optional().nullable(),
-  projectId: z.number().int().optional().nullable(),
-  estimatedHours: z.number().optional().nullable(),
-})
+export const CreateStarterTaskSchema = StarterTaskSchema.pick({
+  title: true,
+  description: true,
+  skillId: true,
+  projectId: true,
+  estimatedHours: true,
+}).partial({ skillId: true, projectId: true, estimatedHours: true })
 
 export const AssignStarterTaskSchema = z.object({
   volunteerId: z.number().int({ message: 'volunteerId is required' }),
@@ -270,42 +301,36 @@ export const ReviewStarterTaskSchema = z.object({
 
 // ─── Bug reports ──────────────────────────────────────────────────────────────
 
-export const CreateBugReportSchema = z.object({
-  title: z.string().min(1, 'Title is required').max(300, 'Title must be 300 characters or fewer'),
-  description: z.string().min(10, 'Description must be at least 10 characters'),
-  pageUrl: z.string().optional().nullable(),
-  category: z.string().optional(),
-  severity: z.string().optional(),
-  reporterEmail: z.string().optional().nullable(),
-})
+export const CreateBugReportSchema = BugReportSchema.pick({
+  title: true,
+  description: true,
+  pageUrl: true,
+  category: true,
+  severity: true,
+  reporterEmail: true,
+}).partial({ pageUrl: true, category: true, severity: true, reporterEmail: true })
 
 // ─── Local group suggestions ──────────────────────────────────────────────────
 
-export const LocalGroupSuggestionBodySchema = z.object({
-  name: z.string().min(1, 'Group name is required'),
-  country: z.string().min(1, 'Country is required'),
+export const LocalGroupSuggestionBodySchema = LocalGroupSuggestionSchema.pick({
+  name: true,
+  country: true,
 })
 
 // ─── Volunteer profile ────────────────────────────────────────────────────────
 
-export const UpdateVolunteerSchema = z.object({
-  name: z.string().optional(),
-  bio: z.string().optional().nullable(),
-  discordHandle: z.string().optional().nullable(),
-  signalNumber: z.string().optional().nullable(),
-  whatsappNumber: z.string().optional().nullable(),
-  contactPreference: z.string().optional().nullable(),
-  contactNotes: z.string().optional().nullable(),
-  availabilityHoursPerWeek: z.number().int().optional().nullable(),
-  location: z.string().optional().nullable(),
-  country: z.string().optional().nullable(),
-  localGroup: z.string().optional().nullable(),
-  otherSkills: z.string().optional().nullable(),
-  emailDigest: z.string().optional(),
-  applicationMessage: z.string().optional().nullable(),
-  consentMakeProfileVisibleInDirectory: z.boolean().optional(),
-  consentContactableByProjectOwners: z.boolean().optional(),
-  consentShareContactInfoWithProjectOwner: z.boolean().optional(),
-  cookieConsentAnalytics: z.boolean().nullable().optional(),
+export const UpdateVolunteerSchema = VolunteerSchema.omit({
+  ...BASE_OMIT,
+  email: true,
+  isAdmin: true,
+  approvalStatus: true,
+  applicationAdminNotes: true,
+  applicationApplicantNotes: true,
+  consentGivenAt: true,
+  rejectedAt: true,
+  reviewerId: true,
+  emailConfirmed: true,
+  deletedAt: true,
+}).partial().extend({
   skillIds: z.array(z.number().int()).optional(),
 })
