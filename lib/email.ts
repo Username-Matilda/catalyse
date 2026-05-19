@@ -1,4 +1,5 @@
 import { Resend } from 'resend'
+import { env } from './env'
 
 function escapeHtml(s: string): string {
   return s
@@ -9,19 +10,10 @@ function escapeHtml(s: string): string {
     .replace(/'/g, '&#39;')
 }
 
-const RESEND_API_KEY = process.env.RESEND_API_KEY
-const FROM_EMAIL = process.env.FROM_EMAIL || 'Catalyse <noreply@pauseai.uk>'
-const REPLY_TO_EMAIL = process.env.REPLY_TO_EMAIL
-const APP_URL = process.env.APP_URL!
-const STUB_EMAIL_DEFAULT = process.env.NODE_ENV === 'production' ? '' : 'true'
-const STUB_EMAIL = ['1', 'true', 'yes'].includes(
-  (process.env.STUB_EMAIL || STUB_EMAIL_DEFAULT).toLowerCase(),
-)
-
-const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null
+const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null
 
 export function isEmailConfigured(): boolean {
-  return STUB_EMAIL || Boolean(RESEND_API_KEY)
+  return env.STUB_EMAIL || Boolean(env.RESEND_API_KEY)
 }
 
 const STUB_EMAIL_DIR = '/tmp/catalyse-emails'
@@ -32,7 +24,7 @@ async function sendEmail(
   html: string,
   replyTo?: string,
 ): Promise<boolean> {
-  if (STUB_EMAIL) {
+  if (env.STUB_EMAIL) {
     const fs = await import('fs/promises')
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
     const slug = subject
@@ -52,12 +44,12 @@ async function sendEmail(
   }
   try {
     const payload: Parameters<typeof resend.emails.send>[0] = {
-      from: FROM_EMAIL,
+      from: env.FROM_EMAIL,
       to: [to],
       subject,
       html,
     }
-    const effectiveReplyTo = replyTo || REPLY_TO_EMAIL
+    const effectiveReplyTo = replyTo || env.REPLY_TO_EMAIL
     if (effectiveReplyTo) payload.replyTo = effectiveReplyTo
     const { error } = await resend.emails.send(payload)
     if (error) {
@@ -88,7 +80,7 @@ function footer(buttons: Array<[string, string]> = []): string {
   return `<div class="footer">
     <p>Catalyse - PauseAI Volunteer Platform - This is an automated email</p>
     ${fallbacks}
-    <p style="font-size: 12px;"><a href="${APP_URL}/profile">Manage notification preferences</a></p>
+    <p style="font-size: 12px;"><a href="${env.APP_URL}/profile">Manage notification preferences</a></p>
   </div>`
 }
 
@@ -121,7 +113,7 @@ export async function sendWelcomeAndConfirmEmail({
   token: string
   name: string
 }): Promise<boolean> {
-  const confirmUrl = `${APP_URL}/verify-email?token=${token}`
+  const confirmUrl = `${env.APP_URL}/verify-email?token=${token}`
   return sendEmail(
     to,
     'Welcome to Catalyse — please confirm your email',
@@ -178,7 +170,7 @@ export async function sendApplicationApprovedEmail({
   return sendEmail(
     to,
     'Your Catalyse application has been approved',
-    buildApplicationApprovedHtml(name, APP_URL),
+    buildApplicationApprovedHtml(name, env.APP_URL),
   )
 }
 
@@ -238,7 +230,7 @@ export async function sendPendingApplicationsSummaryEmail({
   return sendEmail(
     to,
     `${count} pending ${plural} on Catalyse`,
-    buildPendingApplicationsSummaryHtml(count, APP_URL),
+    buildPendingApplicationsSummaryHtml(count, env.APP_URL),
   )
 }
 
@@ -265,7 +257,7 @@ export async function sendPasswordResetEmail({
   resetToken: string
   name?: string
 }): Promise<boolean> {
-  const resetUrl = `${APP_URL}/reset-password?token=${resetToken}`
+  const resetUrl = `${env.APP_URL}/reset-password?token=${resetToken}`
   return sendEmail(to, 'Reset your Catalyse password', buildPasswordResetHtml(resetUrl, name))
 }
 
@@ -298,7 +290,7 @@ export async function sendAdminInviteEmail({
   inviteToken: string
   invitedBy: string
 }): Promise<boolean> {
-  const inviteUrl = `${APP_URL}/accept-invite?token=${inviteToken}`
+  const inviteUrl = `${env.APP_URL}/accept-invite?token=${inviteToken}`
   return sendEmail(
     to,
     `${invitedBy} invited you to be a Catalyse admin`,
@@ -330,7 +322,7 @@ export async function sendWelcomeEmail({
   to: string
   name: string
 }): Promise<boolean> {
-  return sendEmail(to, 'Welcome to Catalyse!', buildWelcomeHtml(name, APP_URL))
+  return sendEmail(to, 'Welcome to Catalyse!', buildWelcomeHtml(name, env.APP_URL))
 }
 
 export function buildProjectNotificationHtml(
@@ -374,7 +366,7 @@ export async function sendProjectNotificationEmail({
   return sendEmail(
     to,
     subject,
-    buildProjectNotificationHtml(name, subject, message, projectId, APP_URL, extraHtml),
+    buildProjectNotificationHtml(name, subject, message, projectId, env.APP_URL, extraHtml),
   )
 }
 
@@ -408,7 +400,7 @@ export function buildLocalGroupSuggestionHtml(
   <p>Hi ${n},</p>
   <p>${message}</p>
   ${notesHtml}
-  <p style="text-align: center; margin: 32px 0;"><a href="${APP_URL}" class="button">Visit Catalyse</a></p>
+  <p style="text-align: center; margin: 32px 0;"><a href="${env.APP_URL}" class="button">Visit Catalyse</a></p>
   ${footer()}
 </div></body></html>`
 }
@@ -555,7 +547,7 @@ export async function sendDigestEmail({
   isMatch?: boolean
 }): Promise<boolean> {
   if (!projects.length) return false
-  const html = buildDigestHtml(name, APP_URL, projects, isMatch)
+  const html = buildDigestHtml(name, env.APP_URL, projects, isMatch)
   const subject = isMatch ? 'New projects matching your skills' : "What's new on Catalyse"
   return sendEmail(to, subject, html)
 }
@@ -573,7 +565,7 @@ export function buildTaskNudgeHtml(
   const n = escapeHtml(name)
   const tt = escapeHtml(taskTitle)
   const pt = escapeHtml(projectTitle)
-  const taskUrl = `${APP_URL}/projects/${projectId}#task-${taskId}`
+  const taskUrl = `${env.APP_URL}/projects/${projectId}#task-${taskId}`
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
 <body><div class="container">
   <h2>How's it going?</h2>
@@ -641,7 +633,7 @@ export function buildTaskFinalWarningHtml(
   const n = escapeHtml(name)
   const tt = escapeHtml(taskTitle)
   const pt = escapeHtml(projectTitle)
-  const taskUrl = `${APP_URL}/projects/${projectId}#task-${taskId}`
+  const taskUrl = `${env.APP_URL}/projects/${projectId}#task-${taskId}`
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
   ${baseStyle}
   .warning { background: #FFF3CD; border-left: 4px solid #FF9416; padding: 12px 16px; border-radius: 4px; margin: 16px 0; }
@@ -712,7 +704,7 @@ export function buildTaskSurrenderedOwnerHtml(
   const vn = escapeHtml(volunteerName)
   const tt = escapeHtml(taskTitle)
   const pt = escapeHtml(projectTitle)
-  const projectUrl = `${APP_URL}/projects/${projectId}`
+  const projectUrl = `${env.APP_URL}/projects/${projectId}`
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
 <body><div class="container">
   <h2>Task unassigned due to inactivity</h2>
@@ -757,7 +749,7 @@ export function buildTaskSurrenderedAssigneeHtml(
   const n = escapeHtml(name)
   const tt = escapeHtml(taskTitle)
   const pt = escapeHtml(projectTitle)
-  const projectUrl = `${APP_URL}/projects/${projectId}`
+  const projectUrl = `${env.APP_URL}/projects/${projectId}`
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
 <body><div class="container">
   <h2>Task now open to other contributors</h2>

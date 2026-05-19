@@ -5,9 +5,10 @@ import { prisma } from '@/lib/prisma'
 import { sendAdminInviteEmail } from '@/lib/email'
 import { InviteAdminSchema } from '@/lib/schemas'
 import { adminProcedure, authedProcedure } from '../../procedures'
+import { env } from '@/lib/env'
 
-const APP_URL = process.env.APP_URL!
-const STUB_EMAIL = ['1', 'true', 'yes'].includes((process.env.STUB_EMAIL ?? '').toLowerCase())
+const APP_URL = env.APP_URL
+const STUB_EMAIL = env.STUB_EMAIL
 
 export const adminAdminsRouter = {
   list: adminProcedure.handler(async () => {

@@ -1,5 +1,7 @@
+import { env } from './env'
+
 const store = new Map<string, number[]>()
-const DISABLED = ['1', 'true', 'yes'].includes((process.env.DISABLE_RATE_LIMIT ?? '').toLowerCase())
+const DISABLED = env.DISABLE_RATE_LIMIT
 
 function getClientIp(request: Request): string {
   return (

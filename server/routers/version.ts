@@ -1,8 +1,9 @@
 import { publicProcedure } from '../procedures'
+import { env } from '@/lib/env'
 
 export const versionRouter = {
   get: publicProcedure.handler(async () => ({
-    sha: process.env.RAILWAY_GIT_COMMIT_SHA ?? 'dev',
-    env: process.env.RAILWAY_ENVIRONMENT_NAME ?? null,
+    sha: env.RAILWAY_GIT_COMMIT_SHA ?? 'dev',
+    env: env.RAILWAY_ENVIRONMENT_NAME ?? null,
   })),
 }

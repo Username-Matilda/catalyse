@@ -25,10 +25,11 @@ import {
   ResetPasswordSchema,
 } from '@/lib/schemas'
 import { publicProcedure, authedProcedure } from '../procedures'
+import { env } from '@/lib/env'
 
-const STUB_EMAIL = ['1', 'true', 'yes'].includes((process.env.STUB_EMAIL ?? '').toLowerCase())
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID
-const STUB_GOOGLE = !GOOGLE_CLIENT_ID && process.env.NODE_ENV !== 'production'
+const STUB_EMAIL = env.STUB_EMAIL
+const GOOGLE_CLIENT_ID = env.GOOGLE_CLIENT_ID
+const STUB_GOOGLE = !GOOGLE_CLIENT_ID && env.NODE_ENV !== 'production'
 
 async function verifyGoogleToken(credential: string) {
   if (!GOOGLE_CLIENT_ID) return null
