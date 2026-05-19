@@ -2,7 +2,6 @@ import { createHash } from 'crypto'
 import { z } from 'zod'
 import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
-import { serializeSkill } from '@/lib/auth'
 import { sendApplicationApprovedEmail, sendApplicationRejectedEmail } from '@/lib/email'
 import { APPLICATION_ANONYMISATION_MS } from '@/lib/applications'
 import { ApplicationActionSchema } from '@/lib/schemas'
@@ -113,7 +112,16 @@ export const adminApplicationsRouter = {
           whatsappNumber: v.whatsappNumber,
           discordHandle: v.discordHandle,
           contactNotes: v.contactNotes,
-          skills: v.skills.map(serializeSkill),
+          skills: v.skills.map((vs) => ({
+            id: vs.skill.id,
+            categoryId: vs.skill.categoryId,
+            name: vs.skill.name,
+            description: vs.skill.description,
+            sortOrder: vs.skill.sortOrder,
+            createdAt: vs.skill.createdAt,
+            categoryName: vs.skill.category.name,
+            proficiencyLevel: vs.proficiencyLevel,
+          })),
         }
       })
     }),
@@ -177,7 +185,16 @@ export const adminApplicationsRouter = {
         whatsappNumber: v.whatsappNumber,
         discordHandle: v.discordHandle,
         contactNotes: v.contactNotes,
-        skills: v.skills.map(serializeSkill),
+        skills: v.skills.map((vs) => ({
+          id: vs.skill.id,
+          categoryId: vs.skill.categoryId,
+          name: vs.skill.name,
+          description: vs.skill.description,
+          sortOrder: vs.skill.sortOrder,
+          createdAt: vs.skill.createdAt,
+          categoryName: vs.skill.category.name,
+          proficiencyLevel: vs.proficiencyLevel,
+        })),
       }
     }),
 

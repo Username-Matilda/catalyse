@@ -1,6 +1,5 @@
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
-import { serializeSkill } from '@/lib/auth'
 import { adminProcedure } from '../../procedures'
 
 export const adminInterestsRouter = {
@@ -45,7 +44,16 @@ export const adminInterestsRouter = {
         volunteerName: i.volunteer.name,
         volunteerEmail: i.volunteer.email,
         ownerName: i.project.owner?.name ?? null,
-        volunteerSkills: i.volunteer.skills.map(serializeSkill),
+        volunteerSkills: i.volunteer.skills.map((vs) => ({
+          id: vs.skill.id,
+          categoryId: vs.skill.categoryId,
+          name: vs.skill.name,
+          description: vs.skill.description,
+          sortOrder: vs.skill.sortOrder,
+          createdAt: vs.skill.createdAt,
+          categoryName: vs.skill.category.name,
+          proficiencyLevel: vs.proficiencyLevel,
+        })),
       }))
     }),
 }

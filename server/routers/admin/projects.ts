@@ -3,7 +3,7 @@ import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
 import { sendProjectNotificationEmail } from '@/lib/email'
 import {
-  serializeProject,
+  withProjectExtras,
   projectInclude,
   EnrichedProject,
   createNotification,
@@ -243,6 +243,6 @@ export const adminProjectsRouter = {
       include: projectInclude,
       orderBy: { createdAt: 'asc' },
     })
-    return projects.map((p) => serializeProject(p as EnrichedProject))
+    return projects.map((p) => withProjectExtras(p as EnrichedProject))
   }),
 }

@@ -1,12 +1,13 @@
 'use client'
 
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import { useAuth } from '@/lib/auth-context'
-import { client } from '@/lib/client'
+import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 
 interface Skill {
@@ -68,10 +69,7 @@ function formatDate(iso: string) {
 export default function AdminStarterTasksPage() {
   const router = useRouter()
   const { user, loading } = useAuth()
-  const [tasks, setTasks] = useState<StarterTask[]>([])
-  const [skills, setSkills] = useState<Skill[]>([])
-  const [volunteers, setVolunteers] = useState<Volunteer[]>([])
-  const [loadingData, setLoadingData] = useState(true)
+  const queryClient = useQueryClient()
   const {
     value: statusFilter,
     onChange: setStatusFilter,
@@ -88,7 +86,6 @@ export default function AdminStarterTasksPage() {
     '',
   )
   const toast = useToast()
-  const [submitting, setSubmitting] = useState(false)
   const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set())
   // useRef so the hash is captured client-side in a useEffect (useState initializer runs on server)
   const deepLinkHash = useRef('')
@@ -126,32 +123,27 @@ export default function AdminStarterTasksPage() {
     if (!loading && user && !user.isAdmin) router.push('/')
   }, [user, loading, router])
 
-  const loadAll = useCallback(async () => {
-    setLoadingData(true)
-    try {
-      const [t, s, v] = await Promise.all([
-        client.starterTasks.list(
-          statusFilter ? { status: statusFilter } : {},
-        ) as unknown as Promise<StarterTask[]>,
-        client.skills.flat() as unknown as Promise<Skill[]>,
-        client.volunteers.list({ limit: 100 }),
-      ])
-      setTasks(t)
-      setSkills(s)
-      setVolunteers(v.volunteers as unknown as Volunteer[])
-    } catch {
-      toast('Failed to load data', 'error')
-    } finally {
-      setLoadingData(false)
-    }
-  }, [statusFilter, toast])
+  const { data: tasksRaw = [], isPending: loadingData } = useQuery({
+    ...orpc.starterTasks.list.queryOptions({
+      input: statusFilter ? { status: statusFilter } : {},
+    }),
+    enabled: !!user?.isAdmin,
+  })
+  const tasks = tasksRaw as unknown as StarterTask[]
 
-  useEffect(() => {
-    if (!user?.isAdmin) return
-    // False positive: setState calls inside loadAll are in async callbacks, not synchronously.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadAll()
-  }, [user, loadAll])
+  const { data: skillCats = [] } = useQuery({
+    ...orpc.skills.list.queryOptions(),
+    enabled: !!user?.isAdmin,
+  })
+  const skills: Skill[] = skillCats.flatMap((cat) =>
+    cat.skills.map((s) => ({ ...s, categoryName: cat.name })),
+  )
+
+  const { data: volunteersData } = useQuery({
+    ...orpc.volunteers.list.queryOptions({ input: { limit: 100 } }),
+    enabled: !!user?.isAdmin,
+  })
+  const volunteers: Volunteer[] = (volunteersData?.volunteers ?? []) as Volunteer[]
 
   useEffect(() => {
     function expandFromHash(hash: string) {
@@ -188,6 +180,75 @@ export default function AdminStarterTasksPage() {
     })
   }
 
+  const createTaskMutation = useMutation({
+    ...orpc.starterTasks.create.mutationOptions(),
+    onSuccess: () => {
+      toast('Task created!', 'success')
+      setShowCreate(false)
+      setCreateTitle('')
+      setCreateDesc('')
+      setCreateSkillId('')
+      setCreateHours('')
+      void queryClient.invalidateQueries({ queryKey: orpc.starterTasks.list.key() })
+    },
+    onError: (err: unknown) =>
+      toast(err instanceof Error ? err.message : 'Failed to create task', 'error'),
+  })
+
+  const editTaskMutation = useMutation({
+    ...orpc.starterTasks.update.mutationOptions(),
+    onSuccess: () => {
+      toast('Task updated!', 'success')
+      setEditModal(null)
+      void queryClient.invalidateQueries({ queryKey: orpc.starterTasks.list.key() })
+    },
+    onError: (err: unknown) =>
+      toast(err instanceof Error ? err.message : 'Failed to update task', 'error'),
+  })
+
+  const assignTaskMutation = useMutation({
+    ...orpc.starterTasks.assign.mutationOptions(),
+    onSuccess: () => {
+      toast('Task assigned!', 'success')
+      setAssignModal(null)
+      void queryClient.invalidateQueries({ queryKey: orpc.starterTasks.list.key() })
+    },
+    onError: (err: unknown) =>
+      toast(err instanceof Error ? err.message : 'Failed to assign', 'error'),
+  })
+
+  const unassignTaskMutation = useMutation({
+    ...orpc.starterTasks.unassign.mutationOptions(),
+    onSuccess: () => {
+      toast('Assignee removed', 'success')
+      setUnassignModal(null)
+      void queryClient.invalidateQueries({ queryKey: orpc.starterTasks.list.key() })
+    },
+    onError: (err: unknown) =>
+      toast(err instanceof Error ? err.message : 'Failed to unassign', 'error'),
+  })
+
+  const deleteTaskMutation = useMutation({
+    ...orpc.starterTasks.delete.mutationOptions(),
+    onSuccess: () => {
+      toast('Task deleted', 'success')
+      void queryClient.invalidateQueries({ queryKey: orpc.starterTasks.list.key() })
+    },
+    onError: (err: unknown) =>
+      toast(err instanceof Error ? err.message : 'Failed to delete task', 'error'),
+  })
+
+  const reviewTaskMutation = useMutation({
+    ...orpc.starterTasks.review.mutationOptions(),
+    onSuccess: () => {
+      toast('Task reviewed!', 'success')
+      setReviewModal(null)
+      void queryClient.invalidateQueries({ queryKey: orpc.starterTasks.list.key() })
+    },
+    onError: (err: unknown) =>
+      toast(err instanceof Error ? err.message : 'Failed to review', 'error'),
+  })
+
   function openEdit(task: StarterTask) {
     setEditModal(task)
     setEditTitle(task.title)
@@ -196,95 +257,45 @@ export default function AdminStarterTasksPage() {
     setEditHours(task.estimatedHours ? String(task.estimatedHours) : '')
   }
 
-  async function createTask(e: React.FormEvent) {
+  function createTask(e: React.FormEvent) {
     e.preventDefault()
-    setSubmitting(true)
-    try {
-      await client.starterTasks.create({
-        title: createTitle.trim(),
-        description: createDesc.trim(),
-        skillId: createSkillId ? parseInt(createSkillId) : null,
-        estimatedHours: createHours ? parseFloat(createHours) : null,
-      })
-      toast('Task created!', 'success')
-      setCreateTitle('')
-      setCreateDesc('')
-      setCreateSkillId('')
-      setCreateHours('')
-      setShowCreate(false)
-      await loadAll()
-    } catch (err: unknown) {
-      toast(err instanceof Error ? err.message : 'Failed to create task', 'error')
-    } finally {
-      setSubmitting(false)
-    }
+    createTaskMutation.mutate({
+      title: createTitle.trim(),
+      description: createDesc.trim(),
+      skillId: createSkillId ? parseInt(createSkillId) : null,
+      estimatedHours: createHours ? parseFloat(createHours) : null,
+    })
   }
 
-  async function editTask(e: React.FormEvent) {
+  function editTask(e: React.FormEvent) {
     e.preventDefault()
     if (!editModal) return
-    setSubmitting(true)
-    try {
-      await client.starterTasks.update({
-        id: editModal.id,
-        title: editTitle.trim(),
-        description: editDesc.trim(),
-        skillId: editSkillId ? parseInt(editSkillId) : null,
-        estimatedHours: editHours ? parseFloat(editHours) : null,
-      })
-      toast('Task updated!', 'success')
-      setEditModal(null)
-      await loadAll()
-    } catch (err: unknown) {
-      toast(err instanceof Error ? err.message : 'Failed to update task', 'error')
-    } finally {
-      setSubmitting(false)
-    }
+    editTaskMutation.mutate({
+      id: editModal.id,
+      title: editTitle.trim(),
+      description: editDesc.trim(),
+      skillId: editSkillId ? parseInt(editSkillId) : null,
+      estimatedHours: editHours ? parseFloat(editHours) : null,
+    })
   }
 
-  async function assignTask(e: React.FormEvent) {
+  function assignTask(e: React.FormEvent) {
     e.preventDefault()
     if (!assignModal) return
-    setSubmitting(true)
-    try {
-      await client.starterTasks.assign({
-        id: assignModal.id,
-        volunteerId: parseInt(assignVolunteerId),
-      })
-      toast('Task assigned!', 'success')
-      setAssignModal(null)
-      await loadAll()
-    } catch (err: unknown) {
-      toast(err instanceof Error ? err.message : 'Failed to assign', 'error')
-    } finally {
-      setSubmitting(false)
-    }
+    assignTaskMutation.mutate({
+      id: assignModal.id,
+      volunteerId: parseInt(assignVolunteerId),
+    })
   }
 
-  async function unassignTask() {
+  function unassignTask() {
     if (!unassignModal) return
-    setSubmitting(true)
-    try {
-      await client.starterTasks.unassign({ id: unassignModal.id })
-      toast('Assignee removed', 'success')
-      setUnassignModal(null)
-      await loadAll()
-    } catch (err: unknown) {
-      toast(err instanceof Error ? err.message : 'Failed to unassign', 'error')
-    } finally {
-      setSubmitting(false)
-    }
+    unassignTaskMutation.mutate({ id: unassignModal.id })
   }
 
-  async function deleteTask(task: StarterTask) {
+  function deleteTask(task: StarterTask) {
     if (!confirm(`Delete "${task.title}"? This cannot be undone.`)) return
-    try {
-      await client.starterTasks.delete({ id: task.id })
-      toast('Task deleted', 'success')
-      await loadAll()
-    } catch (err: unknown) {
-      toast(err instanceof Error ? err.message : 'Failed to delete task', 'error')
-    }
+    deleteTaskMutation.mutate({ id: task.id })
   }
 
   function copyLink(taskId: number) {
@@ -293,25 +304,15 @@ export default function AdminStarterTasksPage() {
     toast('Link copied!', 'success')
   }
 
-  async function reviewTask(e: React.FormEvent) {
+  function reviewTask(e: React.FormEvent) {
     e.preventDefault()
     if (!reviewModal) return
-    setSubmitting(true)
-    try {
-      await client.starterTasks.review({
-        id: reviewModal.id,
-        reviewRating,
-        feedbackToVolunteer: reviewFeedback || null,
-        reviewNotes: reviewNotes || null,
-      })
-      toast('Task reviewed!', 'success')
-      setReviewModal(null)
-      await loadAll()
-    } catch (err: unknown) {
-      toast(err instanceof Error ? err.message : 'Failed to review', 'error')
-    } finally {
-      setSubmitting(false)
-    }
+    reviewTaskMutation.mutate({
+      id: reviewModal.id,
+      reviewRating,
+      feedbackToVolunteer: reviewFeedback || null,
+      reviewNotes: reviewNotes || null,
+    })
   }
 
   if (loading || !user) return null
@@ -645,8 +646,8 @@ export default function AdminStarterTasksPage() {
                   <Button type="button" variant="secondary" onClick={() => setShowCreate(false)}>
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={submitting}>
-                    {submitting ? 'Creating…' : 'Create Task'}
+                  <Button type="submit" disabled={createTaskMutation.isPending}>
+                    {createTaskMutation.isPending ? 'Creating…' : 'Create Task'}
                   </Button>
                 </div>
               </form>
@@ -732,8 +733,8 @@ export default function AdminStarterTasksPage() {
                   <Button type="button" variant="secondary" onClick={() => setEditModal(null)}>
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={submitting}>
-                    {submitting ? 'Saving…' : 'Save Changes'}
+                  <Button type="submit" disabled={editTaskMutation.isPending}>
+                    {editTaskMutation.isPending ? 'Saving…' : 'Save Changes'}
                   </Button>
                 </div>
               </form>
@@ -779,7 +780,7 @@ export default function AdminStarterTasksPage() {
                   <Button type="button" variant="secondary" onClick={() => setAssignModal(null)}>
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={submitting}>
+                  <Button type="submit" disabled={assignTaskMutation.isPending}>
                     Assign
                   </Button>
                 </div>
@@ -861,7 +862,7 @@ export default function AdminStarterTasksPage() {
                   <Button type="button" variant="secondary" onClick={() => setReviewModal(null)}>
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={submitting}>
+                  <Button type="submit" disabled={reviewTaskMutation.isPending}>
                     Submit Review
                   </Button>
                 </div>
@@ -899,8 +900,8 @@ export default function AdminStarterTasksPage() {
                 <Button variant="secondary" onClick={() => setUnassignModal(null)}>
                   Cancel
                 </Button>
-                <Button onClick={unassignTask} disabled={submitting}>
-                  {submitting ? 'Removing…' : 'Unassign'}
+                <Button onClick={unassignTask} disabled={unassignTaskMutation.isPending}>
+                  {unassignTaskMutation.isPending ? 'Removing…' : 'Unassign'}
                 </Button>
               </div>
             </div>

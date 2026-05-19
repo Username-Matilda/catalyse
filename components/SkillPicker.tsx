@@ -1,19 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { client } from '@/lib/client'
+import { useQuery } from '@tanstack/react-query'
 import FilterDropdown from '@/components/FilterDropdown'
-
-interface Skill {
-  id: number
-  name: string
-}
-
-interface SkillCategory {
-  id: number
-  name: string
-  skills: Skill[]
-}
+import { orpc } from '@/lib/orpc'
 
 interface SelectedSkill {
   skillId: number
@@ -31,16 +20,7 @@ export default function SkillPicker({
   onChange,
   showProficiency = false,
 }: SkillPickerProps) {
-  const [categories, setCategories] = useState<SkillCategory[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    client.skills
-      .list()
-      .then(setCategories)
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
+  const { data: categories = [], isPending: loading } = useQuery(orpc.skills.list.queryOptions())
 
   function toggle(skillId: number) {
     const existing = value.find((s) => s.skillId === skillId)

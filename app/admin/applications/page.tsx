@@ -298,7 +298,8 @@ function ApplicationCard({
   )
 }
 
-type AnonymisedApplication = InferRouterOutputs<AppRouter>['admin']['rejectedApplications']['list'][number]
+type AnonymisedApplication =
+  InferRouterOutputs<AppRouter>['admin']['rejectedApplications']['list'][number]
 
 function AnonymisedCard({ app }: { app: AnonymisedApplication }) {
   return (

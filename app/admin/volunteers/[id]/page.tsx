@@ -3,11 +3,12 @@
 import { use, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import Tabs from '@/components/Tabs'
 import { useAuth } from '@/lib/auth-context'
-import { client } from '@/lib/client'
+import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 
 interface Skill {
@@ -94,9 +95,7 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
   const router = useRouter()
   const { user, loading } = useAuth()
   const showToast = useToast()
-  const [vol, setVol] = useState<VolunteerDetail | null>(null)
-  const [loadingData, setLoadingData] = useState(true)
-  const [flatSkills, setFlatSkills] = useState<Skill[]>([])
+  const queryClient = useQueryClient()
   const [submitting, setSubmitting] = useState(false)
   const [activeTab, setActiveTab] = useState<Tab>('admin_notes')
 
@@ -127,25 +126,35 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
     if (!loading && user && !user.isAdmin) router.push('/')
   }, [user, loading, router])
 
-  useEffect(() => {
-    if (!user?.isAdmin) return
-    Promise.all([
-      client.admin.volunteers.getById({ id: Number(id) }) as unknown as Promise<VolunteerDetail>,
-      client.skills.flat() as unknown as Promise<Skill[]>,
-    ])
-      .then(([v, s]) => {
-        setVol(v)
-        setFlatSkills(s)
-        setLoadingData(false)
-      })
-      .catch(() => setLoadingData(false))
-  }, [user, id])
+  const { data: vol, isPending: loadingData } = useQuery({
+    ...orpc.admin.volunteers.getById.queryOptions({ input: { id: Number(id) } }),
+    enabled: !!user?.isAdmin,
+    select: (d) => d as unknown as VolunteerDetail,
+  })
+  const { data: flatSkills = [] } = useQuery({
+    ...orpc.skills.list.queryOptions({ input: {} }),
+    enabled: !!user?.isAdmin,
+    select: (cats) =>
+      cats.flatMap((cat) =>
+        cat.skills.map((s) => ({ id: s.id, name: s.name, categoryName: cat.name })),
+      ),
+  })
+
+  const volQueryKey = orpc.admin.volunteers.getById.key({ input: { id: Number(id) } })
+  const invalidateVol = () => queryClient.invalidateQueries({ queryKey: volQueryKey })
+
+  const createNoteMutation = useMutation({ ...orpc.admin.notes.create.mutationOptions() })
+  const updateNoteMutation = useMutation({ ...orpc.admin.notes.update.mutationOptions() })
+  const deleteNoteMutation = useMutation({ ...orpc.admin.notes.delete.mutationOptions() })
+  const addEndorsementMutation = useMutation({
+    ...orpc.admin.volunteers.addEndorsement.mutationOptions(),
+  })
 
   async function addNote(e: React.FormEvent) {
     e.preventDefault()
     setSubmitting(true)
     try {
-      await client.admin.notes.create({
+      await createNoteMutation.mutateAsync({
         volunteerId: Number(id),
         content: noteContent,
         category: noteCategory,
@@ -153,10 +162,7 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
       showToast('Note added.', 'success')
       setNoteContent('')
       setNoteCategory('general')
-      const updated = (await client.admin.volunteers.getById({
-        id: Number(id),
-      })) as unknown as VolunteerDetail
-      setVol(updated)
+      await invalidateVol()
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Failed', 'error')
     } finally {
@@ -167,14 +173,11 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
   async function saveEditedNote(noteId: number) {
     setSubmitting(true)
     try {
-      await client.admin.notes.update({ id: noteId, content: editingNoteContent })
+      await updateNoteMutation.mutateAsync({ id: noteId, content: editingNoteContent })
       showToast('Note updated.', 'success')
       setEditingNoteId(null)
       setEditingNoteContent('')
-      const updated = (await client.admin.volunteers.getById({
-        id: Number(id),
-      })) as unknown as VolunteerDetail
-      setVol(updated)
+      await invalidateVol()
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Failed', 'error')
     } finally {
@@ -185,11 +188,9 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
   async function deleteNote(noteId: number) {
     if (!confirm('Delete this note?')) return
     try {
-      await client.admin.notes.delete({ id: noteId })
+      await deleteNoteMutation.mutateAsync({ id: noteId })
       showToast('Note deleted.', 'success')
-      setVol((prev) =>
-        prev ? { ...prev, adminNotes: prev.adminNotes.filter((n) => n.id !== noteId) } : prev,
-      )
+      await invalidateVol()
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Failed', 'error')
     }
@@ -199,7 +200,7 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
     e.preventDefault()
     setSubmitting(true)
     try {
-      await client.admin.volunteers.addEndorsement({
+      await addEndorsementMutation.mutateAsync({
         volunteerId: Number(id),
         skillId: parseInt(endorseSkillId),
         rating: endorseRating,
@@ -209,10 +210,7 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
       setEndorseSkillId('')
       setEndorseRating('verified')
       setEndorseBasedOn('direct_observation')
-      const updated = (await client.admin.volunteers.getById({
-        id: Number(id),
-      })) as unknown as VolunteerDetail
-      setVol(updated)
+      await invalidateVol()
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Failed', 'error')
     } finally {

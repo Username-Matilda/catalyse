@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { client } from '@/lib/client'
+import { useMutation } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import { useAuth } from '@/lib/auth-context'
+import { orpc } from '@/lib/orpc'
 
 interface BugReportDialogProps {
   isOpen: boolean
@@ -37,10 +38,12 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
     ],
     'medium',
   )
-  const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
   const [descriptionInvalid, setDescriptionInvalid] = useState(false)
+  const createMutation = useMutation({ ...orpc.bugReports.create.mutationOptions() })
+
+  const submitting = createMutation.isPending
 
   function reset() {
     setCategory('bug')
@@ -58,29 +61,27 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
     onClose()
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (description.length < 10) {
       setDescriptionInvalid(true)
       return
     }
     setDescriptionInvalid(false)
-    setSubmitting(true)
     setError('')
-    try {
-      await client.bugReports.create({
+    createMutation.mutate(
+      {
         category,
         title,
         description,
         reporterEmail: user?.email ?? (email || undefined),
         severity,
-      })
-      setSuccess(true)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong')
-    } finally {
-      setSubmitting(false)
-    }
+      },
+      {
+        onSuccess: () => setSuccess(true),
+        onError: (err) => setError(err instanceof Error ? err.message : 'Something went wrong'),
+      },
+    )
   }
 
   if (!isOpen) return null

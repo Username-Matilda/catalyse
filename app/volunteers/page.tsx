@@ -7,14 +7,16 @@ import { useQuery } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import FilterDropdown from '@/components/FilterDropdown'
 import { buildLocationOptions, type LocalGroupOption } from '@/lib/filter-options'
+import { InferRouterOutputs } from '@orpc/server'
 import { useAuth } from '@/lib/auth-context'
-import { client } from '@/lib/client'
 import { orpc } from '@/lib/orpc'
+import { AppRouter } from '@/server/router'
 import { CARD_GRID_CLASSES } from '@/components/ProjectCard'
 
-type FlatSkill = Awaited<ReturnType<typeof client.skills.flat>>[number]
+type SkillCategory = InferRouterOutputs<AppRouter>['skills']['list'][number]
+type FlatSkill = SkillCategory['skills'][number] & { categoryName: string }
 
-type Volunteer = Awaited<ReturnType<typeof client.volunteers.list>>['volunteers'][number]
+type Volunteer = InferRouterOutputs<AppRouter>['volunteers']['list']['volunteers'][number]
 
 export default function VolunteersPage() {
   const router = useRouter()
@@ -41,16 +43,18 @@ export default function VolunteersPage() {
   }, [search, locationFilter])
 
   const { data: skillsData } = useQuery({
-    ...orpc.skills.flat.queryOptions(),
+    ...orpc.skills.list.queryOptions({ input: {} }),
     enabled: !!user,
   })
-  const allSkills: FlatSkill[] = skillsData ?? []
+  const allSkills: FlatSkill[] = (skillsData ?? []).flatMap((cat) =>
+    cat.skills.map((s) => ({ ...s, categoryName: cat.name })),
+  )
 
   const { data: localGroupsData } = useQuery({
     ...orpc.localGroups.list.queryOptions({ input: {} }),
     enabled: !!user,
   })
-  const localGroups: LocalGroupOption[] = (localGroupsData?.groups ?? []) as LocalGroupOption[]
+  const localGroups: LocalGroupOption[] = localGroupsData?.groups ?? []
 
   const { data: volunteersData, isPending: loadingVolunteers } = useQuery({
     ...orpc.volunteers.list.queryOptions({

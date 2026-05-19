@@ -4,9 +4,10 @@ import { useState, useEffect, useCallback, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Script from 'next/script'
+import { useQuery, useMutation } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
-import { client } from '@/lib/client'
+import { orpc } from '@/lib/orpc'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -14,45 +15,47 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [googleClientId, setGoogleClientId] = useState('')
 
   useEffect(() => {
     if (!loading && user) router.replace('/dashboard')
   }, [user, loading, router])
 
-  useEffect(() => {
-    client.auth
-      .googleClientId()
-      .then((d) => setGoogleClientId(d.clientId))
-      .catch(() => {})
-  }, [])
+  const { data: googleClientIdData } = useQuery({
+    ...orpc.auth.googleClientId.queryOptions(),
+    staleTime: Infinity,
+  })
+  const googleClientId = googleClientIdData?.clientId ?? ''
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault()
-    setError('')
-    setSubmitting(true)
-    try {
-      const data = await client.auth.login({ email: email.trim(), password })
+  const loginMutation = useMutation({
+    ...orpc.auth.login.mutationOptions(),
+    onSuccess: async (data) => {
       await setToken(data.token)
       router.push('/dashboard')
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Login failed')
-      setSubmitting(false)
-    }
+    },
+    onError: (err) => setError(err instanceof Error ? err.message : 'Login failed'),
+  })
+  const submitting = loginMutation.isPending
+
+  const googleSignInMutation = useMutation({
+    ...orpc.auth.google.mutationOptions(),
+    onSuccess: async (data) => {
+      await setToken(data.token)
+      router.push(data.isNewUser ? '/profile' : '/dashboard')
+    },
+    onError: (err) => setError(err instanceof Error ? err.message : 'Google sign-in failed'),
+  })
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    setError('')
+    loginMutation.mutate({ email: email.trim(), password })
   }
 
   const handleGoogleResponse = useCallback(
     (response: { credential: string }) => {
-      client.auth
-        .google({ credential: response.credential })
-        .then(async (data) => {
-          await setToken(data.token)
-          router.push(data.isNewUser ? '/profile' : '/dashboard')
-        })
-        .catch((err) => setError(err instanceof Error ? err.message : 'Google sign-in failed'))
+      googleSignInMutation.mutate({ credential: response.credential })
     },
-    [setToken, router],
+    [googleSignInMutation],
   )
 
   const initGoogleButton = useCallback(() => {

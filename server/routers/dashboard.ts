@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { serializeProject, projectInclude, EnrichedProject } from '@/lib/project'
+import { withProjectExtras, projectInclude, EnrichedProject } from '@/lib/project'
 import { authedProcedure } from '../procedures'
 
 export const dashboardRouter = {
@@ -67,8 +67,8 @@ export const dashboardRouter = {
       ])
 
     return {
-      ownedProjects: ownedProjects.map((p) => serializeProject(p as EnrichedProject)),
-      proposedProjects: proposedProjects.map((p) => serializeProject(p as EnrichedProject)),
+      ownedProjects: ownedProjects.map((p) => withProjectExtras(p as EnrichedProject)),
+      proposedProjects: proposedProjects.map((p) => withProjectExtras(p as EnrichedProject)),
       myInterests: myInterests.map((i) => ({
         interestId: i.id,
         interestType: i.interestType,
@@ -77,10 +77,10 @@ export const dashboardRouter = {
         interestCreatedAt: i.createdAt,
         interestResponseMessage: i.responseMessage,
         interestRespondedAt: i.respondedAt,
-        ...serializeProject(i.project as EnrichedProject, volunteerSkillIds),
+        ...withProjectExtras(i.project as EnrichedProject, volunteerSkillIds),
       })),
       suggestedProjects: suggestedProjects.map((p) =>
-        serializeProject(p as EnrichedProject, volunteerSkillIds),
+        withProjectExtras(p as EnrichedProject, volunteerSkillIds),
       ),
       unreadNotificationCount: unreadCount,
     }

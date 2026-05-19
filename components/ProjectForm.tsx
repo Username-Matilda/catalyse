@@ -1,6 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import type { InferRouterInputs } from '@orpc/server'
 import Button from '@/components/Button'
 import Checkbox from '@/components/Checkbox'
 import Radio from '@/components/Radio'
@@ -9,7 +11,8 @@ import DescriptionTips from '@/components/DescriptionTips'
 import SkillPicker from '@/components/SkillPicker'
 import { buildLocationOptions, type LocalGroupOption } from '@/lib/filter-options'
 import { useToast } from '@/lib/toast'
-import { client } from '@/lib/client'
+import { orpc } from '@/lib/orpc'
+import type { AppRouter } from '@/server/router'
 
 interface SelectedSkill {
   skillId: number
@@ -35,8 +38,10 @@ const PROJECT_TYPES = [
   { value: 'one_off', label: 'One-off task - Single deliverable, minimal coordination' },
 ]
 
+type ProjectCreateInput = InferRouterInputs<AppRouter>['projects']['create']
+
 interface ProjectFormProps {
-  onSubmitForm: (data: Parameters<typeof client.projects.create>[0]) => Promise<{ id: number }>
+  onSubmitForm: (data: ProjectCreateInput) => Promise<{ id: number }>
   submitLabel?: string
   showReviewNotice?: boolean
   requireTasks?: boolean
@@ -66,16 +71,11 @@ export default function ProjectForm({
   const [seekingHelp, setSeekingHelp] = useState(true)
   const [wantToOwn, setWantToOwn] = useState(false)
   const [tasks, setTasks] = useState<Task[]>([{ title: '', description: '' }])
-  const [allLocalGroups, setAllLocalGroups] = useState<LocalGroupOption[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
-  useEffect(() => {
-    client.localGroups
-      .list({})
-      .then((data) => setAllLocalGroups(data.groups))
-      .catch(() => {})
-  }, [])
+  const { data: localGroupsData } = useQuery(orpc.localGroups.list.queryOptions({ input: {} }))
+  const allLocalGroups: LocalGroupOption[] = localGroupsData?.groups ?? []
 
   function clearFieldError(field: string) {
     setFieldErrors((prev) => {

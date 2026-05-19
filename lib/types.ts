@@ -32,8 +32,8 @@ import type {
   LocalGroupSuggestionBodySchema,
   UpdateVolunteerSchema,
 } from './schemas'
-import type { serializeProject, serializeProjectSkill } from './project'
-import type { serializeVolunteer, serializeSkill, serializeEndorsement } from './auth'
+import type { withProjectExtras } from './project'
+import type { redactVolunteer } from './auth'
 
 // ─── Request body types ───────────────────────────────────────────────────────
 
@@ -76,8 +76,5 @@ export type UpdateVolunteerBody = z.infer<typeof UpdateVolunteerSchema>
 
 // ─── Response / serializer types ─────────────────────────────────────────────
 
-export type SerializedProject = ReturnType<typeof serializeProject>
-export type SerializedProjectSkill = ReturnType<typeof serializeProjectSkill>
-export type SerializedVolunteer = ReturnType<typeof serializeVolunteer>
-export type SerializedSkill = ReturnType<typeof serializeSkill>
-export type SerializedEndorsement = ReturnType<typeof serializeEndorsement>
+export type SerializedProject = ReturnType<typeof withProjectExtras>
+export type SerializedVolunteer = ReturnType<typeof redactVolunteer>

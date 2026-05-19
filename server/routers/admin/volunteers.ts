@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
-import { serializeVolunteer, serializeSkill, serializeEndorsement } from '@/lib/auth'
+import { redactVolunteer } from '@/lib/auth'
 import { adminProcedure } from '../../procedures'
 
 const EndorsementInputSchema = z.object({
@@ -54,11 +54,24 @@ export const adminVolunteersRouter = {
       }),
     ])
 
-    const skills = vol.skills.map(serializeSkill)
-    const publicEndorsements = vol.skillEndorsementsReceived.map(serializeEndorsement)
+    const skills = vol.skills.map((vs) => ({
+      id: vs.skill.id,
+      categoryId: vs.skill.categoryId,
+      name: vs.skill.name,
+      description: vs.skill.description,
+      sortOrder: vs.skill.sortOrder,
+      createdAt: vs.skill.createdAt,
+      categoryName: vs.skill.category.name,
+      proficiencyLevel: vs.proficiencyLevel,
+    }))
+    const publicEndorsements = vol.skillEndorsementsReceived.map((se) => ({
+      skillId: se.skillId,
+      rating: se.rating,
+      skillName: se.skill.name,
+    }))
 
     return {
-      ...serializeVolunteer(vol, {
+      ...redactVolunteer(vol, {
         showContact: true,
         skills,
         endorsements: publicEndorsements,

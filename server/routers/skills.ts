@@ -25,20 +25,4 @@ export const skillsRouter = {
       })),
     }))
   }),
-
-  flat: publicProcedure.handler(async () => {
-    const skills = await prisma.skill.findMany({
-      include: { category: true },
-      orderBy: [{ category: { sortOrder: 'asc' } }, { sortOrder: 'asc' }],
-    })
-    return skills.map((s) => ({
-      id: s.id,
-      categoryId: s.categoryId,
-      categoryName: s.category.name,
-      name: s.name,
-      description: s.description,
-      sortOrder: s.sortOrder,
-      createdAt: s.createdAt,
-    }))
-  }),
 }

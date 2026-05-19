@@ -36,32 +36,34 @@ export const SignupSchema = VolunteerSchema.pick({
   consentShareContactInfoWithProjectOwner: true,
   emailDigest: true,
   applicationMessage: true,
-}).partial({
-  bio: true,
-  discordHandle: true,
-  signalNumber: true,
-  whatsappNumber: true,
-  contactPreference: true,
-  contactNotes: true,
-  availabilityHoursPerWeek: true,
-  location: true,
-  country: true,
-  localGroup: true,
-  otherSkills: true,
-  consentMakeProfileVisibleInDirectory: true,
-  consentContactableByProjectOwners: true,
-  consentShareContactInfoWithProjectOwner: true,
-  emailDigest: true,
-  applicationMessage: true,
-}).extend({
-  // email is nullable on Volunteer (Google OAuth accounts have none), but required at signup
-  email: z.string().email('A valid email address is required'),
-  password: z
-    .string()
-    .min(8, 'Password must be at least 8 characters')
-    .max(128, 'Password must be no more than 128 characters'),
-  skillIds: z.array(z.number().int()).optional(),
 })
+  .partial({
+    bio: true,
+    discordHandle: true,
+    signalNumber: true,
+    whatsappNumber: true,
+    contactPreference: true,
+    contactNotes: true,
+    availabilityHoursPerWeek: true,
+    location: true,
+    country: true,
+    localGroup: true,
+    otherSkills: true,
+    consentMakeProfileVisibleInDirectory: true,
+    consentContactableByProjectOwners: true,
+    consentShareContactInfoWithProjectOwner: true,
+    emailDigest: true,
+    applicationMessage: true,
+  })
+  .extend({
+    // email is nullable on Volunteer (Google OAuth accounts have none), but required at signup
+    email: z.string().email('A valid email address is required'),
+    password: z
+      .string()
+      .min(8, 'Password must be at least 8 characters')
+      .max(128, 'Password must be no more than 128 characters'),
+    skillIds: z.array(z.number().int()).optional(),
+  })
 
 export const ChangePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
@@ -119,10 +121,12 @@ export const UpdateProjectSchema = ProjectSchema.omit({
   reviewedAt: true,
   feedbackToProposer: true,
   completedAt: true,
-}).partial().extend({
-  skillIds: z.array(z.number().int()).optional(),
-  skillRequiredMap: z.record(z.string(), z.boolean()).optional(),
 })
+  .partial()
+  .extend({
+    skillIds: z.array(z.number().int()).optional(),
+    skillRequiredMap: z.record(z.string(), z.boolean()).optional(),
+  })
 
 export const ProjectInterestBodySchema = z.object({
   interestType: z.enum(['want_to_contribute', 'want_to_own'], {
@@ -331,6 +335,8 @@ export const UpdateVolunteerSchema = VolunteerSchema.omit({
   reviewerId: true,
   emailConfirmed: true,
   deletedAt: true,
-}).partial().extend({
-  skillIds: z.array(z.number().int()).optional(),
 })
+  .partial()
+  .extend({
+    skillIds: z.array(z.number().int()).optional(),
+  })

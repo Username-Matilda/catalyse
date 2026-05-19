@@ -1,98 +1,28 @@
 'use client'
 
-import React, { use, useCallback, useEffect, useState } from 'react'
+import React, { use, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
+import { InferRouterOutputs } from '@orpc/server'
 import { useAuth } from '@/lib/auth-context'
-import { client } from '@/lib/client'
+import { orpc } from '@/lib/orpc'
+import { AppRouter } from '@/server/router'
 import { useToast } from '@/lib/toast'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-interface Skill {
-  id: number
-  name: string
-  categoryName: string
-  isRequired: boolean | null
-}
-
-interface Task {
-  id: number
-  title: string
-  status: string
-  assignedToId: number | null
-  assignedToName: string | null
-}
-
-interface Interest {
-  id: number
-  volunteerId: number
-  volunteerName: string
-  volunteerBio: string | null
-  volunteerSkills: Array<{ id: number; name: string }>
-  interestType: string
-  message: string | null
-  status: string
-  responseMessage: string | null
-}
-
-interface MyInterest {
-  id: number
-  interestType: string
-  status: string
-  responseMessage: string | null
-}
-
-interface Update {
-  id: number
-  content: string
-  authorName: string | null
-  createdAt: string
-}
-
-interface Volunteer {
-  id: number
-  name: string
-}
-
-interface MatchScore {
-  requiredMatchPercent: number
-  matchedRequiredCount: number
-  totalRequired: number
-  overallScore: number
-}
-
-interface ProjectDetail {
-  id: number
-  title: string
-  description: string
-  status: string
-  ownerId: number | null
-  owner: { id: number; name: string } | null
-  proposedById: number | null
-  isOrgProposed: boolean | null
-  collaborationLink: string | null
-  isSeekingHelp: boolean | null
-  isSeekingOwner: boolean | null
-  outcome: string | null
-  outcomeNotes: string | null
-  feedbackToProposer: string | null
-  skills: Skill[]
-  tasks: Task[]
-  updates: Update[]
-  interests: Interest[] | undefined
-  myInterest: MyInterest | null | undefined
-  match?: MatchScore
-}
-
-interface OwnerContact {
-  discordHandle?: string | null
-  signalNumber?: string | null
-  whatsappNumber?: string | null
-  contactPreference?: string | null
-}
+type ProjectDetail = InferRouterOutputs<AppRouter>['projects']['getById']
+type Task = ProjectDetail['tasks'][number]
+type Update = ProjectDetail['updates'][number]
+type Interest = NonNullable<ProjectDetail['interests']>[number]
+type MyInterest = NonNullable<ProjectDetail['myInterest']>
+type Skill = ProjectDetail['skills'][number]
+type MatchScore = NonNullable<ProjectDetail['match']>
+type Volunteer = InferRouterOutputs<AppRouter>['volunteers']['list']['volunteers'][number]
+type OwnerContact = InferRouterOutputs<AppRouter>['volunteers']['getById']
 
 const STATUS_LABELS: Record<string, string> = {
   seeking_owner: 'Seeking Owner',
@@ -145,37 +75,29 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const { id: idParam } = use(params)
   const router = useRouter()
   const { user, loading } = useAuth()
+  const queryClient = useQueryClient()
 
   const showToast = useToast()
-  const [project, setProject] = useState<ProjectDetail | null>(null)
-  const [loadingProject, setLoadingProject] = useState(true)
 
   // Task section
   const [showTaskForm, setShowTaskForm] = useState(false)
   const [newTaskTitle, setNewTaskTitle] = useState('')
-  const [taskSubmitting, setTaskSubmitting] = useState(false)
 
   // Status section
   const [newStatus, setNewStatus] = useState('')
-  const [statusSubmitting, setStatusSubmitting] = useState(false)
 
   // Interest section
   const [interestType, setInterestType] = useState('want_to_contribute')
   const [interestMessage, setInterestMessage] = useState('')
-  const [interestSubmitting, setInterestSubmitting] = useState(false)
 
   // Update section
   const [updateContent, setUpdateContent] = useState('')
-  const [updateSubmitting, setUpdateSubmitting] = useState(false)
 
   // Transfer ownership
-  const [volunteers, setVolunteers] = useState<Volunteer[]>([])
   const [transferTo, setTransferTo] = useState('')
-  const [transferSubmitting, setTransferSubmitting] = useState(false)
 
   // Direct assign
   const [assignTo, setAssignTo] = useState('')
-  const [assignSubmitting, setAssignSubmitting] = useState(false)
 
   // Record outcome
   const {
@@ -193,75 +115,192 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     '',
   )
   const [outcomeNotes, setOutcomeNotes] = useState('')
-  const [outcomeSubmitting, setOutcomeSubmitting] = useState(false)
 
   // Review (triage)
   const [reviewStatus, setReviewStatus] = useState('approved')
   const [reviewMessage, setReviewMessage] = useState('')
-  const [reviewSubmitting, setReviewSubmitting] = useState(false)
   const [reviewDone, setReviewDone] = useState(false)
 
   // Contact owner
   const [showContactModal, setShowContactModal] = useState(false)
-  const [ownerContact, setOwnerContact] = useState<OwnerContact | null>(null)
   const [contactSubject, setContactSubject] = useState('')
   const [contactBody, setContactBody] = useState('')
-  const [contactSubmitting, setContactSubmitting] = useState(false)
 
   useEffect(() => {
     if (!loading && !user) router.replace('/login')
   }, [user, loading, router])
 
-  const loadProject = useCallback(async () => {
-    setLoadingProject(true)
-    try {
-      const data = (await client.projects.getById({
-        id: parseInt(idParam, 10),
-      })) as unknown as ProjectDetail
-      setProject(data)
-      setNewStatus(data.status)
-    } catch {
-      router.replace('/')
-    } finally {
-      setLoadingProject(false)
+  // ── Queries ──────────────────────────────────────────────────────────────
+
+  const { data: projectRaw, isPending: loadingProject } = useQuery({
+    ...orpc.projects.getById.queryOptions({ input: { id: parseInt(idParam, 10) } }),
+    enabled: !!user,
+  })
+  const project = projectRaw
+
+  // Sync newStatus when project data first loads
+  useEffect(() => {
+    if (project?.status) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setNewStatus(project.status)
     }
-  }, [idParam, router])
+  }, [project?.status])
 
+  // Redirect to home if project not found
   useEffect(() => {
-    if (!user) return
-    // False positive: setState calls inside loadProject are in async callbacks, not synchronously.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadProject()
-  }, [user, loadProject])
+    if (!loadingProject && !project && user) {
+      router.replace('/')
+    }
+  }, [loadingProject, project, user, router])
 
-  useEffect(() => {
-    if (!user?.isAdmin || !project) return
-    client.volunteers
-      .list({ limit: 100 })
-      .then((d) => setVolunteers(d.volunteers as unknown as Volunteer[]))
-      .catch(() => {})
-  }, [user, project])
+  const { data: volunteersData } = useQuery({
+    ...orpc.volunteers.list.queryOptions({ input: { limit: 100 } }),
+    enabled: !!user?.isAdmin && !!project,
+  })
+  const volunteers = volunteersData?.volunteers ?? []
 
-  // Fetch owner contact info when contact modal opens
-  useEffect(() => {
-    if (!showContactModal || !project?.ownerId) return
-    client.volunteers
-      .getById({ id: project.ownerId })
-      .then((v) => setOwnerContact(v as OwnerContact))
-      .catch(() => setOwnerContact(null))
-  }, [showContactModal, project?.ownerId])
+  const ownerId = project?.ownerId ?? 0
+  const { data: ownerContactData } = useQuery({
+    ...orpc.volunteers.getById.queryOptions({ input: { id: ownerId } }),
+    enabled: !!project?.ownerId && showContactModal,
+  })
+  const ownerContact = ownerContactData
 
-  async function handleContactOwner(e: React.FormEvent) {
-    e.preventDefault()
-    if (!project?.ownerId) return
-    setContactSubmitting(true)
-    try {
-      await client.messages.send({
-        recipientId: project.ownerId,
-        subject: contactSubject.trim(),
-        message: contactBody.trim(),
-        relatedProjectId: project.id,
-      })
+  // ── Mutations ────────────────────────────────────────────────────────────
+
+  const invalidateProject = () =>
+    queryClient.invalidateQueries({ queryKey: orpc.projects.getById.key() })
+
+  const createTaskMutation = useMutation({
+    ...orpc.projects.createTask.mutationOptions(),
+    onSuccess: () => {
+      setNewTaskTitle('')
+      setShowTaskForm(false)
+      showToast('Task added!', 'success')
+      void invalidateProject()
+    },
+    onError: (err: unknown) =>
+      showToast(err instanceof Error ? err.message : 'Failed to add task', 'error'),
+  })
+
+  const updateTaskMutation = useMutation({
+    ...orpc.projects.updateTask.mutationOptions(),
+    onSuccess: (_data, variables) => {
+      if (variables.data.status === 'assigned') {
+        showToast('Task claimed!', 'success')
+      } else if (variables.data.status === 'done') {
+        showToast('Task completed!', 'success')
+      }
+      void invalidateProject()
+    },
+    onError: (err: unknown) =>
+      showToast(err instanceof Error ? err.message : 'Failed to update task', 'error'),
+  })
+
+  const deleteTaskMutation = useMutation({
+    ...orpc.projects.deleteTask.mutationOptions(),
+    onSuccess: () => {
+      showToast('Task deleted!', 'success')
+      void invalidateProject()
+    },
+    onError: (err: unknown) =>
+      showToast(err instanceof Error ? err.message : 'Failed to delete task', 'error'),
+  })
+
+  const updateProjectMutation = useMutation({
+    ...orpc.projects.update.mutationOptions(),
+    onSuccess: (_data, variables) => {
+      if ('status' in variables) {
+        showToast('Status updated!', 'success')
+      } else {
+        showToast('Ownership transferred!', 'success')
+      }
+      void invalidateProject()
+    },
+    onError: (err: unknown) =>
+      showToast(err instanceof Error ? err.message : 'Failed to update project', 'error'),
+  })
+
+  const expressInterestMutation = useMutation({
+    ...orpc.projects.expressInterest.mutationOptions(),
+    onSuccess: () => {
+      showToast('Interest expressed!', 'success')
+      void invalidateProject()
+    },
+    onError: (err: unknown) =>
+      showToast(err instanceof Error ? err.message : 'Failed to express interest', 'error'),
+  })
+
+  const withdrawInterestMutation = useMutation({
+    ...orpc.projects.withdrawInterest.mutationOptions(),
+    onSuccess: () => {
+      showToast('Interest withdrawn', 'success')
+      void invalidateProject()
+    },
+    onError: (err: unknown) =>
+      showToast(err instanceof Error ? err.message : 'Failed to withdraw interest', 'error'),
+  })
+
+  const respondToInterestMutation = useMutation({
+    ...orpc.projects.respondToInterest.mutationOptions(),
+    onSuccess: (_data, variables) => {
+      showToast(
+        variables.status === 'accepted' ? 'Interest accepted' : 'Interest declined',
+        'success',
+      )
+      void invalidateProject()
+    },
+    onError: (err: unknown) =>
+      showToast(err instanceof Error ? err.message : 'Failed to respond to interest', 'error'),
+  })
+
+  const assignMutation = useMutation({
+    ...orpc.projects.assign.mutationOptions(),
+    onSuccess: () => {
+      showToast('Volunteer assigned!', 'success')
+      void invalidateProject()
+    },
+    onError: (err: unknown) =>
+      showToast(err instanceof Error ? err.message : 'Failed to assign volunteer', 'error'),
+  })
+
+  const setOutcomeMutation = useMutation({
+    ...orpc.admin.projects.setOutcome.mutationOptions(),
+    onSuccess: () => {
+      showToast('Outcome recorded!', 'success')
+      void invalidateProject()
+    },
+    onError: (err: unknown) =>
+      showToast(err instanceof Error ? err.message : 'Failed to record outcome', 'error'),
+  })
+
+  const createUpdateMutation = useMutation({
+    ...orpc.projects.createUpdate.mutationOptions(),
+    onSuccess: () => {
+      setUpdateContent('')
+      void invalidateProject()
+    },
+    onError: (err: unknown) =>
+      showToast(err instanceof Error ? err.message : 'Failed to post update', 'error'),
+  })
+
+  const reviewMutation = useMutation({
+    ...orpc.admin.projects.review.mutationOptions(),
+    onSuccess: (_data, variables) => {
+      showToast(
+        variables.status === 'approved' ? 'Project approved!' : 'Project sent for discussion.',
+        'success',
+      )
+      setReviewDone(true)
+      void invalidateProject()
+    },
+    onError: (err: unknown) =>
+      showToast(err instanceof Error ? err.message : 'Failed to submit review', 'error'),
+  })
+
+  const sendMessageMutation = useMutation({
+    ...orpc.messages.send.mutationOptions(),
+    onSuccess: () => {
       setShowContactModal(false)
       setContactSubject('')
       setContactBody('')
@@ -269,11 +308,22 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         "Message sent! They'll receive it by email and can reply directly to you.",
         'success',
       )
-    } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Failed to send message', 'error')
-    } finally {
-      setContactSubmitting(false)
-    }
+    },
+    onError: (err: unknown) =>
+      showToast(err instanceof Error ? err.message : 'Failed to send message', 'error'),
+  })
+
+  // ── Handlers ─────────────────────────────────────────────────────────────
+
+  function handleContactOwner(e: React.FormEvent) {
+    e.preventDefault()
+    if (!project?.ownerId) return
+    sendMessageMutation.mutate({
+      recipientId: project.ownerId,
+      subject: contactSubject.trim(),
+      message: contactBody.trim(),
+      relatedProjectId: project.id,
+    })
   }
 
   if (loading || !user) return null
@@ -301,230 +351,116 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   // ── Task handlers ────────────────────────────────────────────────────────
 
-  async function handleAddTask(e: React.FormEvent) {
+  function handleAddTask(e: React.FormEvent) {
     e.preventDefault()
     if (!newTaskTitle.trim()) return
-    setTaskSubmitting(true)
-    try {
-      await client.projects.createTask({
-        projectId: parseInt(idParam, 10),
-        title: newTaskTitle.trim(),
-      })
-      setNewTaskTitle('')
-      setShowTaskForm(false)
-      await loadProject()
-      showToast('Task added!', 'success')
-    } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Failed to add task', 'error')
-    } finally {
-      setTaskSubmitting(false)
-    }
+    createTaskMutation.mutate({
+      projectId: parseInt(idParam, 10),
+      title: newTaskTitle.trim(),
+    })
   }
 
-  async function handleClaimTask(taskId: number) {
-    try {
-      await client.projects.updateTask({
-        projectId: parseInt(idParam, 10),
-        taskId,
-        data: { status: 'assigned', assignedToId: user!.id },
-      })
-      await loadProject()
-      showToast('Task claimed!', 'success')
-    } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Failed to claim task', 'error')
-    }
+  function handleClaimTask(taskId: number) {
+    updateTaskMutation.mutate({
+      projectId: parseInt(idParam, 10),
+      taskId,
+      data: { status: 'assigned', assignedToId: user!.id },
+    })
   }
 
-  async function handleDoneTask(taskId: number) {
-    try {
-      await client.projects.updateTask({
-        projectId: parseInt(idParam, 10),
-        taskId,
-        data: { status: 'done' },
-      })
-      await loadProject()
-      showToast('Task completed!', 'success')
-    } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Failed to complete task', 'error')
-    }
+  function handleDoneTask(taskId: number) {
+    updateTaskMutation.mutate({
+      projectId: parseInt(idParam, 10),
+      taskId,
+      data: { status: 'done' },
+    })
   }
 
-  async function handleDeleteTask(taskId: number) {
+  function handleDeleteTask(taskId: number) {
     if (!window.confirm('Delete this task?')) return
-    try {
-      await client.projects.deleteTask({ projectId: parseInt(idParam, 10), taskId })
-      await loadProject()
-      showToast('Task deleted!', 'success')
-    } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Failed to delete task', 'error')
-    }
+    deleteTaskMutation.mutate({ projectId: parseInt(idParam, 10), taskId })
   }
 
-  async function handleUpdateStatus(e: React.FormEvent) {
+  function handleUpdateStatus(e: React.FormEvent) {
     e.preventDefault()
-    setStatusSubmitting(true)
-    try {
-      await client.projects.update({ id: parseInt(idParam, 10), status: newStatus })
-      await loadProject()
-      showToast('Status updated!', 'success')
-    } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Failed to update status', 'error')
-    } finally {
-      setStatusSubmitting(false)
-    }
+    updateProjectMutation.mutate({ id: parseInt(idParam, 10), status: newStatus })
   }
 
-  async function handleExpressInterest(e: React.FormEvent) {
+  function handleExpressInterest(e: React.FormEvent) {
     e.preventDefault()
-    setInterestSubmitting(true)
-    try {
-      await client.projects.expressInterest({
-        projectId: parseInt(idParam, 10),
-        interestType: interestType as 'want_to_contribute' | 'want_to_own',
-        message: interestMessage.trim() || null,
-      })
-      await loadProject()
-      showToast('Interest expressed!', 'success')
-    } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Failed to express interest', 'error')
-    } finally {
-      setInterestSubmitting(false)
-    }
+    expressInterestMutation.mutate({
+      projectId: parseInt(idParam, 10),
+      interestType: interestType as 'want_to_contribute' | 'want_to_own',
+      message: interestMessage.trim() || null,
+    })
   }
 
-  async function handleWithdrawInterest() {
+  function handleWithdrawInterest() {
     if (!window.confirm('Withdraw your interest?')) return
-    try {
-      await client.projects.withdrawInterest({ projectId: parseInt(idParam, 10) })
-      await loadProject()
-      showToast('Interest withdrawn', 'success')
-    } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Failed to withdraw interest', 'error')
-    }
+    withdrawInterestMutation.mutate({ projectId: parseInt(idParam, 10) })
   }
 
-  async function handleAcceptInterest(interestId: number) {
-    try {
-      await client.projects.respondToInterest({
-        projectId: parseInt(idParam, 10),
-        interestId,
-        status: 'accepted',
-      })
-      await loadProject()
-      showToast('Interest accepted', 'success')
-    } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Failed to accept interest', 'error')
-    }
+  function handleAcceptInterest(interestId: number) {
+    respondToInterestMutation.mutate({
+      projectId: parseInt(idParam, 10),
+      interestId,
+      status: 'accepted',
+    })
   }
 
-  async function handleDeclineInterest(interestId: number) {
+  function handleDeclineInterest(interestId: number) {
     const msg = window.prompt('Optional message for the volunteer:') ?? ''
-    try {
-      await client.projects.respondToInterest({
-        projectId: parseInt(idParam, 10),
-        interestId,
-        status: 'declined',
-        responseMessage: msg || null,
-      })
-      await loadProject()
-      showToast('Interest declined', 'success')
-    } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Failed to decline interest', 'error')
-    }
+    respondToInterestMutation.mutate({
+      projectId: parseInt(idParam, 10),
+      interestId,
+      status: 'declined',
+      responseMessage: msg || null,
+    })
   }
 
-  async function handleAssign(e: React.FormEvent) {
+  function handleAssign(e: React.FormEvent) {
     e.preventDefault()
     if (!assignTo) return
-    setAssignSubmitting(true)
-    try {
-      await client.projects.assign({
-        projectId: parseInt(idParam, 10),
-        volunteerId: parseInt(assignTo, 10),
-      })
-      await loadProject()
-      showToast('Volunteer assigned!', 'success')
-    } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Failed to assign volunteer', 'error')
-    } finally {
-      setAssignSubmitting(false)
-    }
+    assignMutation.mutate({
+      projectId: parseInt(idParam, 10),
+      volunteerId: parseInt(assignTo, 10),
+    })
   }
 
-  async function handleTransfer(e: React.FormEvent) {
+  function handleTransfer(e: React.FormEvent) {
     e.preventDefault()
     if (!transferTo) return
     if (!window.confirm('Transfer ownership to this volunteer?')) return
-    setTransferSubmitting(true)
-    try {
-      await client.projects.update({ id: parseInt(idParam, 10), ownerId: parseInt(transferTo, 10) })
-      await loadProject()
-      showToast('Ownership transferred!', 'success')
-    } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Failed to transfer ownership', 'error')
-    } finally {
-      setTransferSubmitting(false)
-    }
+    updateProjectMutation.mutate({ id: parseInt(idParam, 10), ownerId: parseInt(transferTo, 10) })
   }
 
-  async function handleRecordOutcome(e: React.FormEvent) {
+  function handleRecordOutcome(e: React.FormEvent) {
     e.preventDefault()
     if (!outcomeValue) return
-    setOutcomeSubmitting(true)
-    try {
-      await client.admin.projects.setOutcome({
-        id: parseInt(idParam, 10),
-        outcome: outcomeValue,
-        outcomeNotes: outcomeNotes.trim() || null,
-      })
-      await loadProject()
-      showToast('Outcome recorded!', 'success')
-    } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Failed to record outcome', 'error')
-    } finally {
-      setOutcomeSubmitting(false)
-    }
+    setOutcomeMutation.mutate({
+      id: parseInt(idParam, 10),
+      outcome: outcomeValue,
+      outcomeNotes: outcomeNotes.trim() || null,
+    })
   }
 
-  async function handlePostUpdate(e: React.FormEvent) {
+  function handlePostUpdate(e: React.FormEvent) {
     e.preventDefault()
     if (!updateContent.trim()) return
-    setUpdateSubmitting(true)
-    try {
-      await client.projects.createUpdate({
-        projectId: parseInt(idParam, 10),
-        content: updateContent.trim(),
-      })
-      setUpdateContent('')
-      await loadProject()
-    } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Failed to post update', 'error')
-    } finally {
-      setUpdateSubmitting(false)
-    }
+    createUpdateMutation.mutate({
+      projectId: parseInt(idParam, 10),
+      content: updateContent.trim(),
+    })
   }
 
-  async function handleSubmitReview(e: React.FormEvent) {
+  function handleSubmitReview(e: React.FormEvent) {
     e.preventDefault()
-    setReviewSubmitting(true)
-    try {
-      await client.admin.projects.review({
-        id: parseInt(idParam, 10),
-        status: reviewStatus as 'approved' | 'needs_discussion',
-        ...(reviewStatus === 'needs_discussion' ? { feedbackToProposer: reviewMessage } : {}),
-        targetStatus: 'seeking_owner',
-      })
-      await loadProject()
-      showToast(
-        reviewStatus === 'approved' ? 'Project approved!' : 'Project sent for discussion.',
-        'success',
-      )
-      setReviewDone(true)
-    } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Failed to submit review', 'error')
-    } finally {
-      setReviewSubmitting(false)
-    }
+    reviewMutation.mutate({
+      id: parseInt(idParam, 10),
+      status: reviewStatus as 'approved' | 'needs_discussion',
+      ...(reviewStatus === 'needs_discussion' ? { feedbackToProposer: reviewMessage } : {}),
+      targetStatus: 'seeking_owner',
+    })
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -693,8 +629,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     placeholder="Tell them why you're interested…"
                   />
                 </div>
-                <Button type="submit" disabled={interestSubmitting}>
-                  {interestSubmitting ? 'Submitting…' : 'Express Interest'}
+                <Button type="submit" disabled={expressInterestMutation.isPending}>
+                  {expressInterestMutation.isPending ? 'Submitting…' : 'Express Interest'}
                 </Button>
               </form>
             ) : (
@@ -745,8 +681,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   />
                 </div>
                 <div className="flex gap-2">
-                  <Button type="submit" disabled={taskSubmitting}>
-                    {taskSubmitting ? 'Creating…' : 'Create Task'}
+                  <Button type="submit" disabled={createTaskMutation.isPending}>
+                    {createTaskMutation.isPending ? 'Creating…' : 'Create Task'}
                   </Button>
                   <Button type="button" variant="ghost" onClick={() => setShowTaskForm(false)}>
                     Cancel
@@ -808,8 +744,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   onChange={(v) => setNewStatus(v)}
                 />
               </div>
-              <Button type="submit" disabled={statusSubmitting}>
-                {statusSubmitting ? 'Updating…' : 'Update Status'}
+              <Button type="submit" disabled={updateProjectMutation.isPending}>
+                {updateProjectMutation.isPending ? 'Updating…' : 'Update Status'}
               </Button>
             </form>
           </div>
@@ -881,8 +817,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     searchable
                   />
                 </div>
-                <Button type="submit" disabled={!assignTo || assignSubmitting}>
-                  {assignSubmitting ? 'Assigning…' : 'Assign'}
+                <Button type="submit" disabled={!assignTo || assignMutation.isPending}>
+                  {assignMutation.isPending ? 'Assigning…' : 'Assign'}
                 </Button>
               </form>
             )}
@@ -908,8 +844,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   searchable
                 />
               </div>
-              <Button type="submit" disabled={!transferTo || transferSubmitting}>
-                {transferSubmitting ? 'Transferring…' : 'Transfer'}
+              <Button type="submit" disabled={!transferTo || updateProjectMutation.isPending}>
+                {updateProjectMutation.isPending ? 'Transferring…' : 'Transfer'}
               </Button>
             </form>
           </div>
@@ -941,8 +877,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   placeholder="Notes about the outcome…"
                 />
               </div>
-              <Button type="submit" disabled={!outcomeValue || outcomeSubmitting}>
-                {outcomeSubmitting ? 'Recording…' : 'Record Outcome'}
+              <Button type="submit" disabled={!outcomeValue || setOutcomeMutation.isPending}>
+                {setOutcomeMutation.isPending ? 'Recording…' : 'Record Outcome'}
               </Button>
             </form>
           </div>
@@ -994,8 +930,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   />
                 </div>
               )}
-              <Button type="submit" disabled={reviewSubmitting}>
-                {reviewSubmitting ? 'Submitting…' : 'Submit Review'}
+              <Button type="submit" disabled={reviewMutation.isPending}>
+                {reviewMutation.isPending ? 'Submitting…' : 'Submit Review'}
               </Button>
             </form>
           </div>
@@ -1017,8 +953,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   placeholder="Share a progress update…"
                 />
               </div>
-              <Button type="submit" disabled={!updateContent.trim() || updateSubmitting}>
-                {updateSubmitting ? 'Posting…' : 'Post Update'}
+              <Button
+                type="submit"
+                disabled={!updateContent.trim() || createUpdateMutation.isPending}
+              >
+                {createUpdateMutation.isPending ? 'Posting…' : 'Post Update'}
               </Button>
             </form>
           )}
@@ -1030,7 +969,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 <li key={u.id} className="py-3 border-b border-brand-border last:border-0">
                   <p className="m-0 mb-1">{u.content}</p>
                   <span className="text-xs text-text-light">
-                    {u.authorName} · {new Date(u.createdAt).toLocaleDateString()}
+                    {u.authorName} · {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : ''}
                   </span>
                 </li>
               ))}
@@ -1121,8 +1060,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   <Button type="button" variant="ghost" onClick={() => setShowContactModal(false)}>
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={contactSubmitting}>
-                    {contactSubmitting ? 'Sending…' : 'Send Message'}
+                  <Button type="submit" disabled={sendMessageMutation.isPending}>
+                    {sendMessageMutation.isPending ? 'Sending…' : 'Send Message'}
                   </Button>
                 </div>
               </form>

@@ -40,14 +40,22 @@ export async function getCurrentVolunteer(authorization: string | null | undefin
   })
 }
 
-// Convert a Prisma Volunteer to a camelCase response format.
 // showContact controls whether email and direct contact fields are included.
-export function serializeVolunteer(
+export function redactVolunteer(
   vol: Volunteer,
   opts: {
     showContact?: boolean
-    skills?: ReturnType<typeof serializeSkill>[]
-    endorsements?: ReturnType<typeof serializeEndorsement>[]
+    skills?: Array<{
+      id: number
+      categoryId: number
+      name: string
+      description: string | null
+      sortOrder: number | null
+      createdAt: Date | null
+      categoryName: string
+      proficiencyLevel: string | null
+    }>
+    endorsements?: Array<{ skillId: number; rating: string | null; skillName: string }>
   } = {},
 ) {
   const { showContact = false, skills, endorsements } = opts
@@ -83,38 +91,6 @@ export function serializeVolunteer(
     skills,
     endorsements,
   }
-}
-
-export function serializeSkill(vs: {
-  proficiencyLevel: string | null
-  skill: {
-    id: number
-    categoryId: number
-    name: string
-    description: string | null
-    sortOrder: number | null
-    createdAt: Date | null
-    category: { name: string }
-  }
-}) {
-  return {
-    id: vs.skill.id,
-    categoryId: vs.skill.categoryId,
-    name: vs.skill.name,
-    description: vs.skill.description,
-    sortOrder: vs.skill.sortOrder,
-    createdAt: vs.skill.createdAt,
-    categoryName: vs.skill.category.name,
-    proficiencyLevel: vs.proficiencyLevel,
-  }
-}
-
-export function serializeEndorsement(se: {
-  skillId: number
-  rating: string | null
-  skill: { name: string }
-}) {
-  return { skillId: se.skillId, rating: se.rating, skillName: se.skill.name }
 }
 
 export async function requireAdmin(

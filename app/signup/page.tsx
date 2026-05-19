@@ -4,11 +4,12 @@ import { useState, useEffect, useCallback, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Script from 'next/script'
+import { useQuery, useMutation } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import SkillPicker from '@/components/SkillPicker'
 import { useAuth } from '@/lib/auth-context'
-import { client } from '@/lib/client'
+import { orpc } from '@/lib/orpc'
 
 interface SelectedSkill {
   skillId: number
@@ -81,22 +82,22 @@ export default function SignupPage() {
     if (!loading && user) router.replace('/dashboard')
   }, [user, loading, router])
 
+  const { data: meData } = useQuery({
+    ...orpc.auth.me.queryOptions(),
+    enabled: !!googlePendingToken,
+  })
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (meData?.name) setName(meData.name)
+  }, [meData])
+
   // Restore pending Google application from sessionStorage (survives refresh)
   useEffect(() => {
     const pending = sessionStorage.getItem('google_pending_token')
     if (pending) {
-      // Can't use lazy initializers here because this effect also fires
-      // the concurrent apiRequest to prefetch the volunteer name. Splitting
-      // them would read sessionStorage twice with no benefit.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setGooglePendingToken(pending)
       setGoogleApplicationStep(true)
-      client.auth
-        .me()
-        .then((vol) => {
-          if (vol.name) setName(vol.name)
-        })
-        .catch(() => {})
     }
   }, [])
 
@@ -126,55 +127,56 @@ export default function SignupPage() {
     return () => clearTimeout(t)
   }, [resendCooldown])
 
+  const { data: googleClientIdData } = useQuery({
+    ...orpc.auth.googleClientId.queryOptions(),
+    staleTime: Infinity,
+  })
+  useEffect(() => {
+    if (googleClientIdData) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setGoogleClientId(googleClientIdData.clientId)
+      if (googleClientIdData.stub) setGoogleStub(true)
+    }
+  }, [googleClientIdData])
+
+  const resendMutation = useMutation({ ...orpc.auth.resendVerification.mutationOptions() })
+  const googleAuthMutation = useMutation({
+    ...orpc.auth.google.mutationOptions(),
+    onSuccess: async (data) => {
+      if (data.isPending) {
+        setGooglePendingToken(data.token)
+        if (data.name) setName(data.name)
+        setGoogleApplicationStep(true)
+      } else {
+        await setToken(data.token)
+        router.push('/dashboard')
+      }
+    },
+    onError: (err) => setError(err instanceof Error ? err.message : 'Google sign-up failed'),
+  })
+  const updateMeMutation = useMutation({ ...orpc.volunteers.updateMe.mutationOptions() })
+  const signupMutation = useMutation({ ...orpc.auth.signup.mutationOptions() })
+
   async function handleResend() {
-    await client.auth.resendVerification({ email }).catch(() => {})
+    await resendMutation.mutateAsync({ email }).catch(() => {})
     setResendSent(true)
     setResendCooldown(60)
   }
 
-  useEffect(() => {
-    client.auth
-      .googleClientId()
-      .then((d) => {
-        setGoogleClientId(d.clientId)
-        if (d.stub) setGoogleStub(true)
-      })
-      .catch(() => {})
-  }, [])
-
   const handleGoogleResponse = useCallback(
     (response: { credential: string }) => {
-      client.auth
-        .google({ credential: response.credential })
-        .then(async (data) => {
-          if (data.isPending) {
-            setGooglePendingToken(data.token)
-            if (data.name) setName(data.name)
-            setGoogleApplicationStep(true)
-          } else {
-            await setToken(data.token)
-            router.push('/dashboard')
-          }
-        })
-        .catch((err) => setError(err instanceof Error ? err.message : 'Google sign-up failed'))
+      googleAuthMutation.mutate({ credential: response.credential })
     },
-    [setToken, router],
+    [googleAuthMutation],
   )
 
   function handleGoogleStub() {
-    client.auth
-      .google({ stub: true })
-      .then(async (data) => {
-        if (data.isPending) {
-          setGooglePendingToken(data.token)
-          if (data.name) setName(data.name)
-          setGoogleApplicationStep(true)
-        } else {
-          await setToken(data.token)
-          router.push('/dashboard')
-        }
-      })
-      .catch((err) => setError(err instanceof Error ? err.message : 'Google stub failed'))
+    googleAuthMutation.mutate(
+      { stub: true },
+      {
+        onError: (err) => setError(err instanceof Error ? err.message : 'Google stub failed'),
+      },
+    )
   }
 
   async function handleGoogleApplicationSubmit(e: FormEvent) {
@@ -182,7 +184,7 @@ export default function SignupPage() {
     if (!googlePendingToken) return
     setGoogleApplicationSubmitting(true)
     try {
-      await client.volunteers.updateMe({
+      await updateMeMutation.mutateAsync({
         name,
         applicationMessage: googleApplicationMessage,
         bio: bio || undefined,
@@ -255,7 +257,7 @@ export default function SignupPage() {
 
     setSubmitting(true)
     try {
-      const data = await client.auth.signup({
+      const data = await signupMutation.mutateAsync({
         name,
         email: email.trim(),
         password,

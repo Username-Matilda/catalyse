@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
-import { serializeVolunteer, serializeSkill, serializeEndorsement } from '@/lib/auth'
+import { redactVolunteer } from '@/lib/auth'
 import { UpdateVolunteerSchema } from '@/lib/schemas'
 import { publicProcedure, authedProcedure } from '../procedures'
 
@@ -86,7 +86,16 @@ export const volunteersRouter = {
           otherSkills: v.otherSkills,
           localGroup: v.localGroup,
           createdAt: v.createdAt,
-          skills: v.skills.map(serializeSkill),
+          skills: v.skills.map((vs) => ({
+            id: vs.skill.id,
+            categoryId: vs.skill.categoryId,
+            name: vs.skill.name,
+            description: vs.skill.description,
+            sortOrder: vs.skill.sortOrder,
+            createdAt: vs.skill.createdAt,
+            categoryName: vs.skill.category.name,
+            proficiencyLevel: vs.proficiencyLevel,
+          })),
         })),
         total,
       }
@@ -136,8 +145,21 @@ export const volunteersRouter = {
         }
       }
 
-      const skills = vol.skills.map(serializeSkill)
-      const endorsements = vol.skillEndorsementsReceived.map(serializeEndorsement)
+      const skills = vol.skills.map((vs) => ({
+        id: vs.skill.id,
+        categoryId: vs.skill.categoryId,
+        name: vs.skill.name,
+        description: vs.skill.description,
+        sortOrder: vs.skill.sortOrder,
+        createdAt: vs.skill.createdAt,
+        categoryName: vs.skill.category.name,
+        proficiencyLevel: vs.proficiencyLevel,
+      }))
+      const endorsements = vol.skillEndorsementsReceived.map((se) => ({
+        skillId: se.skillId,
+        rating: se.rating,
+        skillName: se.skill.name,
+      }))
 
       const [projects, completedTasks] = await Promise.all([
         prisma.project.findMany({
@@ -175,7 +197,7 @@ export const volunteersRouter = {
       ])
 
       return {
-        ...serializeVolunteer(vol, {
+        ...redactVolunteer(vol, {
           showContact,
           skills,
           endorsements,
@@ -284,10 +306,23 @@ export const volunteersRouter = {
       return [updated]
     })
 
-    const skills = vol.skills.map(serializeSkill)
-    const endorsements = vol.skillEndorsementsReceived.map(serializeEndorsement)
+    const skills = vol.skills.map((vs) => ({
+      id: vs.skill.id,
+      categoryId: vs.skill.categoryId,
+      name: vs.skill.name,
+      description: vs.skill.description,
+      sortOrder: vs.skill.sortOrder,
+      createdAt: vs.skill.createdAt,
+      categoryName: vs.skill.category.name,
+      proficiencyLevel: vs.proficiencyLevel,
+    }))
+    const endorsements = vol.skillEndorsementsReceived.map((se) => ({
+      skillId: se.skillId,
+      rating: se.rating,
+      skillName: se.skill.name,
+    }))
 
-    return serializeVolunteer(vol, {
+    return redactVolunteer(vol, {
       showContact: true,
       skills,
       endorsements,

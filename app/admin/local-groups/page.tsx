@@ -1,13 +1,14 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useQuery, useMutation, useQueryClient, useQueries } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import Radio from '@/components/Radio'
 import FilterDropdown, { FilterOption, useFilterOptions } from '@/components/FilterDropdown'
 import { useAuth } from '@/lib/auth-context'
-import { client } from '@/lib/client'
+import { orpc } from '@/lib/orpc'
 import { COUNTRY_OPTIONS } from '@/lib/filter-options'
 import { useToast } from '@/lib/toast'
 
@@ -65,21 +66,14 @@ export default function AdminLocalGroupsPage() {
   const router = useRouter()
   const { user, loading } = useAuth()
   const showToast = useToast()
+  const queryClient = useQueryClient()
 
   const { value: statusFilter, onChange: setStatusFilter } = useFilterOptions(
     STATUS_FILTER_OPTIONS,
     'all',
   )
   const [countryFilter, setCountryFilter] = useState('')
-  const [items, setItems] = useState<DisplayItem[]>([])
-  const [loadingItems, setLoadingItems] = useState(true)
-
-  const [allGroups, setAllGroups] = useState<LocalGroup[]>([])
   const [deleteTarget, setDeleteTarget] = useState<DisplayItem | null>(null)
-  const [deleteTargetProjects, setDeleteTargetProjects] = useState<{ id: number; title: string }[]>(
-    [],
-  )
-  const [loadingDeleteProjects, setLoadingDeleteProjects] = useState(false)
 
   // Add group modal
   const [showAdd, setShowAdd] = useState(false)
@@ -107,81 +101,108 @@ export default function AdminLocalGroupsPage() {
     if (!loading && user && !user.isAdmin) router.push('/')
   }, [user, loading, router])
 
-  useEffect(() => {
-    if (!user?.isAdmin) return
-    client.localGroups
-      .list({})
-      .then((data) => setAllGroups(data.groups as LocalGroup[]))
-      .catch(() => {})
-  }, [user])
+  const fetchGroups = statusFilter === 'all' || statusFilter === 'active'
+  const fetchPending = statusFilter === 'all' || statusFilter === 'pending'
+  const fetchOnHold = statusFilter === 'all' || statusFilter === 'on_hold'
+  const fetchDeclined = statusFilter === 'all' || statusFilter === 'declined'
 
-  useEffect(() => {
-    if (!user?.isAdmin) return
+  const { data: allGroupsData } = useQuery({
+    ...orpc.localGroups.list.queryOptions({ input: {} }),
+    enabled: !!user?.isAdmin,
+  })
+  const allGroups: LocalGroup[] = (allGroupsData?.groups ?? []) as LocalGroup[]
 
-    // Intentional: spinner must appear synchronously before the async fetch begins.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoadingItems(true)
+  const [groupsResult, pendingResult, onHoldResult, declinedResult] = useQueries({
+    queries: [
+      {
+        ...orpc.admin.localGroups.list.queryOptions({ input: {} }),
+        enabled: !!user?.isAdmin && fetchGroups,
+      },
+      {
+        ...orpc.admin.localGroups.listSuggestions.queryOptions({ input: { status: 'pending' } }),
+        enabled: !!user?.isAdmin && fetchPending,
+      },
+      {
+        ...orpc.admin.localGroups.listSuggestions.queryOptions({ input: { status: 'on_hold' } }),
+        enabled: !!user?.isAdmin && fetchOnHold,
+      },
+      {
+        ...orpc.admin.localGroups.listSuggestions.queryOptions({ input: { status: 'declined' } }),
+        enabled: !!user?.isAdmin && fetchDeclined,
+      },
+    ],
+  })
 
-    async function fetchItems() {
-      const groups: DisplayGroup[] = []
-      const suggestions: DisplaySuggestion[] = []
+  const loadingItems =
+    (fetchGroups && groupsResult.isFetching) ||
+    (fetchPending && pendingResult.isFetching) ||
+    (fetchOnHold && onHoldResult.isFetching) ||
+    (fetchDeclined && declinedResult.isFetching)
 
-      const fetchGroups = statusFilter === 'all' || statusFilter === 'active'
-      const suggestionStatuses: ('pending' | 'on_hold' | 'declined')[] =
-        statusFilter === 'all'
-          ? ['pending', 'on_hold', 'declined']
-          : statusFilter === 'pending' || statusFilter === 'on_hold' || statusFilter === 'declined'
-            ? [statusFilter]
-            : []
+  const items = useMemo<DisplayItem[]>(() => {
+    const groups: DisplayGroup[] =
+      fetchGroups && groupsResult.data
+        ? (groupsResult.data.groups as LocalGroup[]).map((g) => ({ kind: 'group' as const, ...g }))
+        : []
+    const suggestions: DisplaySuggestion[] = [
+      ...(fetchPending && pendingResult.data
+        ? (pendingResult.data.suggestions as unknown as Suggestion[]).map((sg) => ({
+            kind: 'suggestion' as const,
+            ...sg,
+          }))
+        : []),
+      ...(fetchOnHold && onHoldResult.data
+        ? (onHoldResult.data.suggestions as unknown as Suggestion[]).map((sg) => ({
+            kind: 'suggestion' as const,
+            ...sg,
+          }))
+        : []),
+      ...(fetchDeclined && declinedResult.data
+        ? (declinedResult.data.suggestions as unknown as Suggestion[]).map((sg) => ({
+            kind: 'suggestion' as const,
+            ...sg,
+          }))
+        : []),
+    ]
+    return [...groups, ...suggestions].sort((a, b) => {
+      const cc = a.country.localeCompare(b.country)
+      return cc !== 0 ? cc : a.name.localeCompare(b.name)
+    })
+  }, [
+    fetchGroups,
+    fetchPending,
+    fetchOnHold,
+    fetchDeclined,
+    groupsResult.data,
+    pendingResult.data,
+    onHoldResult.data,
+    declinedResult.data,
+  ])
 
-      await Promise.all([
-        fetchGroups
-          ? client.admin.localGroups.list({}).then((d) => {
-              groups.push(
-                ...(d.groups as LocalGroup[]).map((g) => ({ kind: 'group' as const, ...g })),
-              )
-            })
-          : Promise.resolve(),
-        ...suggestionStatuses.map((s) =>
-          client.admin.localGroups.listSuggestions({ status: s }).then((d) => {
-            suggestions.push(
-              ...(d.suggestions as unknown as Suggestion[]).map((sg) => ({
-                kind: 'suggestion' as const,
-                ...sg,
-              })),
-            )
-          }),
-        ),
-      ])
+  const { data: deleteTargetProjectsData, isFetching: loadingDeleteProjects } = useQuery({
+    ...orpc.projects.list.queryOptions({
+      input: { localGroup: deleteTarget?.name ?? '', limit: 100 },
+    }),
+    enabled: !!deleteTarget && deleteTarget.kind === 'group',
+  })
+  const deleteTargetProjects = deleteTargetProjectsData?.projects ?? []
 
-      const merged: DisplayItem[] = [...groups, ...suggestions].sort((a, b) => {
-        const cc = a.country.localeCompare(b.country)
-        if (cc !== 0) return cc
-        return a.name.localeCompare(b.name)
-      })
+  const invalidateItems = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: orpc.admin.localGroups.list.key() }),
+      queryClient.invalidateQueries({ queryKey: orpc.admin.localGroups.listSuggestions.key() }),
+      queryClient.invalidateQueries({ queryKey: orpc.localGroups.list.key() }),
+    ])
 
-      setItems(merged)
-    }
-
-    fetchItems()
-      .catch(() => {})
-      .finally(() => setLoadingItems(false))
-  }, [user, statusFilter])
-
-  useEffect(() => {
-    if (!deleteTarget || deleteTarget.kind !== 'group') {
-      // Derived-state reset — clears stale project list when delete target changes or is cleared.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setDeleteTargetProjects([])
-      return
-    }
-    setLoadingDeleteProjects(true)
-    client.projects
-      .list({ localGroup: deleteTarget.name, limit: 100 })
-      .then((d) => setDeleteTargetProjects(d.projects))
-      .catch(() => setDeleteTargetProjects([]))
-      .finally(() => setLoadingDeleteProjects(false))
-  }, [deleteTarget])
+  const createGroupMutation = useMutation({ ...orpc.admin.localGroups.create.mutationOptions() })
+  const updateGroupMutation = useMutation({ ...orpc.admin.localGroups.update.mutationOptions() })
+  const reviewSuggestionMutation = useMutation({
+    ...orpc.admin.localGroups.reviewSuggestion.mutationOptions(),
+  })
+  const deleteGroupMutation = useMutation({ ...orpc.admin.localGroups.delete.mutationOptions() })
+  const deleteSuggestionMutation = useMutation({
+    ...orpc.admin.localGroups.deleteSuggestion.mutationOptions(),
+  })
 
   const displayItems = countryFilter ? items.filter((i) => i.country === countryFilter) : items
 
@@ -222,21 +243,8 @@ export default function AdminLocalGroupsPage() {
     e.preventDefault()
     setAddSubmitting(true)
     try {
-      const group = (await client.admin.localGroups.create({
-        name: addName.trim(),
-        country: addCountry,
-      })) as unknown as LocalGroup
-      const newItem: DisplayGroup = { kind: 'group', ...group }
-      setItems((prev) => {
-        if (statusFilter === 'active' || statusFilter === 'all') {
-          return [newItem, ...prev].sort((a, b) => {
-            const cc = a.country.localeCompare(b.country)
-            return cc !== 0 ? cc : a.name.localeCompare(b.name)
-          })
-        }
-        return prev
-      })
-      setAllGroups((prev) => [...prev, group])
+      await createGroupMutation.mutateAsync({ name: addName.trim(), country: addCountry })
+      await invalidateItems()
       showToast('Local group added', 'success')
       setShowAdd(false)
     } catch (err) {
@@ -251,17 +259,12 @@ export default function AdminLocalGroupsPage() {
     if (!editGroup) return
     setEditSubmitting(true)
     try {
-      const group = (await client.admin.localGroups.update({
+      await updateGroupMutation.mutateAsync({
         id: editGroup.id,
         name: editName.trim(),
         country: editCountry,
-      })) as unknown as LocalGroup
-      setItems((prev) =>
-        prev.map((item) =>
-          item.kind === 'group' && item.id === group.id ? { kind: 'group', ...group } : item,
-        ),
-      )
-      setAllGroups((prev) => prev.map((g) => (g.id === group.id ? group : g)))
+      })
+      await invalidateItems()
       showToast('Local group updated', 'success')
       setEditGroup(null)
     } catch (err) {
@@ -285,35 +288,12 @@ export default function AdminLocalGroupsPage() {
       }
       if (adminNotes.trim()) body.adminNotes = adminNotes.trim()
 
-      await client.admin.localGroups.reviewSuggestion({
+      await reviewSuggestionMutation.mutateAsync({
         id: reviewSuggestion.id,
         ...body,
-      } as Parameters<typeof client.admin.localGroups.reviewSuggestion>[0])
+      } as Parameters<typeof reviewSuggestionMutation.mutateAsync>[0])
 
-      setItems((prev) =>
-        prev.filter((i) => !(i.kind === 'suggestion' && i.id === reviewSuggestion.id)),
-      )
-
-      if (reviewAction === 'accept') {
-        const newGroup: DisplayGroup = {
-          kind: 'group',
-          id: Date.now(),
-          name: reviewEditName.trim(),
-          country: reviewEditCountry.trim(),
-        }
-        setAllGroups((prev) => [
-          ...prev,
-          { id: newGroup.id, name: newGroup.name, country: newGroup.country },
-        ])
-        if (statusFilter === 'active' || statusFilter === 'all') {
-          setItems((prev) =>
-            [...prev, newGroup].sort((a, b) => {
-              const cc = a.country.localeCompare(b.country)
-              return cc !== 0 ? cc : a.name.localeCompare(b.name)
-            }),
-          )
-        }
-      }
+      await invalidateItems()
 
       const actionLabels: Record<ReviewAction, string> = {
         accept: 'accepted',
@@ -335,14 +315,11 @@ export default function AdminLocalGroupsPage() {
     const item = deleteTarget
     try {
       if (item.kind === 'group') {
-        await client.admin.localGroups.delete({ id: item.id })
+        await deleteGroupMutation.mutateAsync({ id: item.id })
       } else {
-        await client.admin.localGroups.deleteSuggestion({ id: item.id })
+        await deleteSuggestionMutation.mutateAsync({ id: item.id })
       }
-      setItems((prev) => prev.filter((i) => !(i.kind === item.kind && i.id === item.id)))
-      if (item.kind === 'group') {
-        setAllGroups((prev) => prev.filter((g) => g.id !== item.id))
-      }
+      await invalidateItems()
       showToast('Deleted', 'success')
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Failed to delete', 'error')

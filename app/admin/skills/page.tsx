@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   DndContext,
   closestCenter,
@@ -19,7 +20,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
-import { client } from '@/lib/client'
+import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 
 interface Skill {
@@ -28,7 +29,6 @@ interface Skill {
   description: string | null
   sortOrder: number
   categoryId: number
-  category_name: string
 }
 
 interface Category {
@@ -36,7 +36,6 @@ interface Category {
   name: string
   description: string | null
   sortOrder: number
-  skillCount: number
   skills: Skill[]
 }
 
@@ -121,6 +120,7 @@ function SortableCategory({
   onEditSkill,
   onDeleteSkill,
   onSkillsReorder,
+  onSkillsDragSave,
 }: {
   cat: Category
   onEdit: () => void
@@ -129,6 +129,7 @@ function SortableCategory({
   onEditSkill: (skill: Skill) => void
   onDeleteSkill: (skill: Skill) => void
   onSkillsReorder: (categoryId: number, newSkills: Skill[]) => void
+  onSkillsDragSave: (reordered: Skill[]) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: cat.id,
@@ -143,9 +144,7 @@ function SortableCategory({
     const newIndex = cat.skills.findIndex((s) => s.id === over.id)
     const reordered = arrayMove(cat.skills, oldIndex, newIndex)
     onSkillsReorder(cat.id, reordered)
-    client.admin.skills
-      .reorder(reordered.map((s, i) => ({ id: s.id, sortOrder: i + 1 })))
-      .catch(() => {})
+    onSkillsDragSave(reordered)
   }
 
   return (
@@ -239,6 +238,7 @@ export default function AdminSkillsPage() {
   const router = useRouter()
   const { user, loading } = useAuth()
   const showToast = useToast()
+  const queryClient = useQueryClient()
   const [categories, setCategories] = useState<Category[]>([])
   const [loadingData, setLoadingData] = useState(true)
   const [modal, setModal] = useState<ModalType | null>(null)
@@ -253,36 +253,38 @@ export default function AdminSkillsPage() {
     if (!loading && user && !user.isAdmin) router.push('/')
   }, [user, loading, router])
 
-  const loadData = useCallback(
-    async function () {
-      try {
-        const [cats, skills] = await Promise.all([
-          client.admin.skillCategories.list() as unknown as Promise<Category[]>,
-          client.skills.flat() as unknown as Promise<Skill[]>,
-        ])
-        const catMap = new Map(
-          cats.map((c) => ({ ...c, skills: [] as Skill[] })).map((c) => [c.id, c]),
-        )
-        for (const s of skills) {
-          catMap.get(s.categoryId)?.skills.push(s)
-        }
-        setCategories(Array.from(catMap.values()))
-      } catch {
-        showToast('Failed to load data', 'error')
-      } finally {
-        setLoadingData(false)
-      }
-    },
-    [showToast],
-  )
+  const { data: skillsListData } = useQuery({
+    ...orpc.skills.list.queryOptions({ input: {} }),
+    enabled: !!user?.isAdmin,
+  })
+
+  const invalidateSkillData = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: orpc.skills.list.key() })
+  }, [queryClient])
 
   useEffect(() => {
-    if (!user?.isAdmin) return
-    // False positive: setState calls inside loadData are in .then()/.finally() callbacks,
-    // never synchronously in the effect. Rule doesn't track async boundaries.
+    if (!skillsListData) return
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadData()
-  }, [user, loadData])
+    setCategories(skillsListData as unknown as Category[])
+    setLoadingData(false)
+  }, [skillsListData])
+
+  const reorderCategoriesMutation = useMutation({
+    ...orpc.admin.skillCategories.reorder.mutationOptions(),
+  })
+  const reorderSkillsMutation = useMutation({ ...orpc.admin.skills.reorder.mutationOptions() })
+  const createCategoryMutation = useMutation({
+    ...orpc.admin.skillCategories.create.mutationOptions(),
+  })
+  const updateCategoryMutation = useMutation({
+    ...orpc.admin.skillCategories.update.mutationOptions(),
+  })
+  const createSkillMutation = useMutation({ ...orpc.admin.skills.create.mutationOptions() })
+  const updateSkillMutation = useMutation({ ...orpc.admin.skills.update.mutationOptions() })
+  const deleteCategoryMutation = useMutation({
+    ...orpc.admin.skillCategories.delete.mutationOptions(),
+  })
+  const deleteSkillMutation = useMutation({ ...orpc.admin.skills.delete.mutationOptions() })
 
   function openModal(m: ModalType) {
     setModal(m)
@@ -311,9 +313,7 @@ export default function AdminSkillsPage() {
     const newIndex = categories.findIndex((c) => c.id === over.id)
     const reordered = arrayMove(categories, oldIndex, newIndex)
     setCategories(reordered)
-    client.admin.skillCategories
-      .reorder(reordered.map((c, i) => ({ id: c.id, sortOrder: i + 1 })))
-      .catch(() => {})
+    reorderCategoriesMutation.mutate(reordered.map((c, i) => ({ id: c.id, sortOrder: i + 1 })))
   }
 
   function handleSkillsReorder(categoryId: number, newSkills: Skill[]) {
@@ -327,19 +327,16 @@ export default function AdminSkillsPage() {
     if (!modal) return
     setSubmitting(true)
     try {
-      const body = {
-        name: inputName.trim(),
-        description: inputDescription.trim() || null,
-      }
+      const body = { name: inputName.trim(), description: inputDescription.trim() || null }
       if (modal.type === 'edit-category') {
-        await client.admin.skillCategories.update({ id: modal.category.id, ...body })
+        await updateCategoryMutation.mutateAsync({ id: modal.category.id, ...body })
         showToast('Category updated!', 'success')
       } else {
-        await client.admin.skillCategories.create(body)
+        await createCategoryMutation.mutateAsync(body)
         showToast('Category created!', 'success')
       }
       closeModal()
-      await loadData()
+      await invalidateSkillData()
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Failed to save category', 'error')
     } finally {
@@ -353,14 +350,14 @@ export default function AdminSkillsPage() {
     setSubmitting(true)
     try {
       if (modal.type === 'add-skill') {
-        await client.admin.skills.create({
+        await createSkillMutation.mutateAsync({
           name: inputName.trim(),
           description: inputDescription.trim() || null,
           categoryId: modal.categoryId,
         })
         showToast('Skill created!', 'success')
       } else if (modal.type === 'edit-skill') {
-        await client.admin.skills.update({
+        await updateSkillMutation.mutateAsync({
           id: modal.skill.id,
           name: inputName.trim(),
           description: inputDescription.trim() || null,
@@ -368,7 +365,7 @@ export default function AdminSkillsPage() {
         showToast('Skill updated!', 'success')
       }
       closeModal()
-      await loadData()
+      await invalidateSkillData()
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Failed to save skill', 'error')
     } finally {
@@ -381,14 +378,14 @@ export default function AdminSkillsPage() {
     setSubmitting(true)
     try {
       if (modal.type === 'delete-category') {
-        await client.admin.skillCategories.delete({ id: modal.id })
+        await deleteCategoryMutation.mutateAsync({ id: modal.id })
         showToast('Category deleted!', 'success')
       } else if (modal.type === 'delete-skill') {
-        await client.admin.skills.delete({ id: modal.id })
+        await deleteSkillMutation.mutateAsync({ id: modal.id })
         showToast('Skill deleted!', 'success')
       }
       closeModal()
-      await loadData()
+      await invalidateSkillData()
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Failed to delete', 'error')
     } finally {
@@ -447,6 +444,11 @@ export default function AdminSkillsPage() {
                     openModal({ type: 'delete-skill', id: skill.id, name: skill.name })
                   }
                   onSkillsReorder={handleSkillsReorder}
+                  onSkillsDragSave={(reordered) =>
+                    reorderSkillsMutation.mutate(
+                      reordered.map((s, i) => ({ id: s.id, sortOrder: i + 1 })),
+                    )
+                  }
                 />
               ))}
             </SortableContext>

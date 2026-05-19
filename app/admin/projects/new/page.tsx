@@ -2,13 +2,15 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useMutation } from '@tanstack/react-query'
 import ProjectForm from '@/components/ProjectForm'
 import { useAuth } from '@/lib/auth-context'
-import { client } from '@/lib/client'
+import { orpc } from '@/lib/orpc'
 
 export default function AdminCreateProjectPage() {
   const router = useRouter()
   const { user, loading } = useAuth()
+  const createMutation = useMutation({ ...orpc.admin.projects.create.mutationOptions() })
 
   useEffect(() => {
     if (!loading && !user) router.push('/login')
@@ -26,7 +28,7 @@ export default function AdminCreateProjectPage() {
         </p>
         <div className="max-w-4xl">
           <ProjectForm
-            onSubmitForm={(data) => client.admin.projects.create(data)}
+            onSubmitForm={(data) => createMutation.mutateAsync(data)}
             submitLabel="Create Project"
             onSuccess={(id) => router.push(`/projects/${id}`)}
             onCancel={() => router.back()}

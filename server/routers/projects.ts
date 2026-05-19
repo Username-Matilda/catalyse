@@ -4,7 +4,7 @@ import { Prisma } from '@/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
 import { sendProjectNotificationEmail } from '@/lib/email'
 import {
-  serializeProject,
+  withProjectExtras,
   projectInclude,
   EnrichedProject,
   createNotification,
@@ -153,7 +153,7 @@ export const projectsRouter = {
         .map((id) => projectMap.get(id))
         .filter((p): p is NonNullable<typeof p> => p !== undefined)
         .map((p) => {
-          const serialized = serializeProject(p as EnrichedProject, volunteerSkillIds)
+          const serialized = withProjectExtras(p as EnrichedProject, volunteerSkillIds)
           if (isPending) {
             return {
               ...serialized,
@@ -291,7 +291,7 @@ export const projectsRouter = {
         volunteerSkillIds = new Set((v?.skills ?? []).map((s) => s.skillId))
       }
 
-      const base = serializeProject(project as EnrichedProject, volunteerSkillIds)
+      const base = withProjectExtras(project as EnrichedProject, volunteerSkillIds)
 
       const [updates, tasks] = await Promise.all([
         prisma.projectUpdate.findMany({
@@ -565,7 +565,7 @@ export const projectsRouter = {
         where: { id: input.id },
         include: projectInclude,
       })
-      return serializeProject(updated as EnrichedProject)
+      return withProjectExtras(updated as EnrichedProject)
     }),
 
   delete: adminProcedure.input(z.object({ id: z.number().int() })).handler(async ({ input }) => {

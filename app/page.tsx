@@ -7,9 +7,10 @@ import { useQuery } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import { buildLocationOptions, type LocalGroupOption } from '@/lib/filter-options'
+import { InferRouterInputs } from '@orpc/server'
 import { useAuth } from '@/lib/auth-context'
-import { client } from '@/lib/client'
 import { orpc } from '@/lib/orpc'
+import { AppRouter } from '@/server/router'
 import { type Project, ProjectList, statusBadgeClasses } from '@/components/ProjectCard'
 
 const STATUS_OPTIONS = [
@@ -89,7 +90,7 @@ export default function ProjectsPage() {
   })
   const localGroups: LocalGroupOption[] = localGroupsData?.groups ?? []
 
-  const projectsInput: Parameters<typeof client.projects.list>[0] = {}
+  const projectsInput: InferRouterInputs<AppRouter>['projects']['list'] = {}
   if (debouncedSearch) projectsInput.search = debouncedSearch
   if (statusFilter) projectsInput.status = statusFilter
   if (needsFilter === 'looking_for_people') projectsInput.isSeekingAny = true

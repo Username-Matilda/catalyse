@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import Script from 'next/script'
+import { useMutation } from '@tanstack/react-query'
 import { useAuth } from '@/lib/auth-context'
 import { useCookieConsent } from '@/lib/cookie-consent-context'
-import { client } from '@/lib/client'
 import Button from '@/components/Button'
+import { orpc } from '@/lib/orpc'
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID
 
@@ -16,6 +17,7 @@ export default function CookieConsentBanner() {
   const { setBannerVisible } = useCookieConsent()
   const [consent, setConsent] = useState<ConsentState>(null)
   const [resolved, setResolved] = useState(false)
+  const updateMeMutation = useMutation({ ...orpc.volunteers.updateMe.mutationOptions() })
 
   useEffect(() => {
     if (loading) return
@@ -43,12 +45,12 @@ export default function CookieConsentBanner() {
     setBannerVisible(resolved && consent === null)
   }, [resolved, consent, setBannerVisible])
 
-  async function saveConsent(value: boolean) {
+  function saveConsent(value: boolean) {
     localStorage.setItem('cookieConsent', String(value))
     setConsent(value)
 
     if (user) {
-      await client.volunteers.updateMe({ cookieConsentAnalytics: value }).catch(() => {})
+      updateMeMutation.mutate({ cookieConsentAnalytics: value })
     }
   }
 

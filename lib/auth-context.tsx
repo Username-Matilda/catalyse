@@ -14,7 +14,16 @@ interface User {
   hasPassword: boolean
   emailDigest: string | null
   cookieConsentAnalytics: boolean | null
-  skills: Array<{ id: number; name: string }>
+  skills: Array<{
+    id: number
+    name: string
+    categoryId: number
+    categoryName: string
+    proficiencyLevel: string | null
+    description: string | null
+    sortOrder: number | null
+    createdAt: Date | null
+  }>
 }
 
 interface AuthContextValue {

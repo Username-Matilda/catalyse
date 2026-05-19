@@ -1,6 +1,6 @@
 import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
-import { serializeVolunteer, serializeSkill } from '@/lib/auth'
+import { redactVolunteer } from '@/lib/auth'
 import { authedProcedure } from '../procedures'
 
 export const privacyRouter = {
@@ -22,15 +22,26 @@ export const privacyRouter = {
 
     if (!profile) throw new ORPCError('NOT_FOUND')
 
-    const serializedProfile = serializeVolunteer(profile, {
+    const skillsData = profile.skills.map((vs) => ({
+      id: vs.skill.id,
+      categoryId: vs.skill.categoryId,
+      name: vs.skill.name,
+      description: vs.skill.description,
+      sortOrder: vs.skill.sortOrder,
+      createdAt: vs.skill.createdAt,
+      categoryName: vs.skill.category.name,
+      proficiencyLevel: vs.proficiencyLevel,
+    }))
+
+    const serializedProfile = redactVolunteer(profile, {
       showContact: true,
-      skills: profile.skills.map(serializeSkill),
+      skills: skillsData,
     })
 
     return {
       exportedAt: new Date().toISOString(),
       profile: serializedProfile,
-      skills: profile.skills.map(serializeSkill),
+      skills: skillsData,
       projects: projects.map((p) => ({
         id: p.id,
         title: p.title,

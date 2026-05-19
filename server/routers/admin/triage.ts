@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { serializeProject, projectInclude, EnrichedProject } from '@/lib/project'
+import { withProjectExtras, projectInclude, EnrichedProject } from '@/lib/project'
 import { adminProcedure } from '../../procedures'
 
 export const adminTriageRouter = {
@@ -9,6 +9,6 @@ export const adminTriageRouter = {
       include: projectInclude,
       orderBy: { createdAt: 'asc' },
     })
-    return projects.map((p) => serializeProject(p as EnrichedProject))
+    return projects.map((p) => withProjectExtras(p as EnrichedProject))
   }),
 }

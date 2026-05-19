@@ -8,9 +8,7 @@ import {
   generateAuthToken,
   checkAdminBootstrap,
   acceptPendingInvite,
-  serializeVolunteer,
-  serializeSkill,
-  serializeEndorsement,
+  redactVolunteer,
 } from '@/lib/auth'
 import {
   sendWelcomeEmail,
@@ -323,10 +321,23 @@ export const authRouter = {
       },
     })
     if (!vol) throw new ORPCError('NOT_FOUND')
-    return serializeVolunteer(vol, {
+    return redactVolunteer(vol, {
       showContact: true,
-      skills: vol.skills.map(serializeSkill),
-      endorsements: vol.skillEndorsementsReceived.map(serializeEndorsement),
+      skills: vol.skills.map((vs) => ({
+        id: vs.skill.id,
+        categoryId: vs.skill.categoryId,
+        name: vs.skill.name,
+        description: vs.skill.description,
+        sortOrder: vs.skill.sortOrder,
+        createdAt: vs.skill.createdAt,
+        categoryName: vs.skill.category.name,
+        proficiencyLevel: vs.proficiencyLevel,
+      })),
+      endorsements: vol.skillEndorsementsReceived.map((se) => ({
+        skillId: se.skillId,
+        rating: se.rating,
+        skillName: se.skill.name,
+      })),
     })
   }),
 
