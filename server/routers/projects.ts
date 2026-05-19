@@ -2,13 +2,8 @@ import { z } from 'zod'
 import { ORPCError } from '@orpc/server'
 import { Prisma } from '@/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
-import { sendProjectNotificationEmail } from '@/lib/email'
-import {
-  withProjectExtras,
-  projectInclude,
-  EnrichedProject,
-  createNotification,
-} from '@/lib/project'
+import { withProjectExtras, projectInclude, EnrichedProject } from '@/lib/project'
+import { notifyVolunteer } from '@/lib/notify'
 import {
   CreateProjectSchema,
   UpdateProjectSchema,
@@ -236,24 +231,18 @@ export const projectsRouter = {
     })
 
     for (const admin of admins) {
-      createNotification(
+      await notifyVolunteer(
         admin.id,
         'new_project_proposal',
         `New project proposal: ${project.title}`,
         `Proposed by ${volunteer.name}`,
         '/admin/triage',
-      ).catch((e) => console.error('[NOTIFY ERROR]', e))
-
-      if (admin.email) {
-        sendProjectNotificationEmail({
-          to: admin.email,
-          name: admin.name,
-          subject: `New project proposal: ${project.title}`,
+        {
           message: `<strong>${volunteer.name}</strong> has submitted a new project proposal: <strong>${project.title}</strong>. Please review it in the triage queue.`,
           projectTitle: project.title,
           projectId: project.id,
-        }).catch((e) => console.error('[EMAIL ERROR]', e))
-      }
+        },
+      )
     }
 
     return { id: project.id, message: 'Project submitted for review' }
@@ -536,28 +525,18 @@ export const projectsRouter = {
         }
 
         for (const vid of notifyIds) {
-          createNotification(
+          await notifyVolunteer(
             vid,
             'project_status_changed',
             `'${project.title}' is now ${statusLabel}`,
             `Status changed by ${volunteer.name}`,
             `/projects/${input.id}`,
-          ).catch((e) => console.error('[NOTIFY ERROR]', e))
-
-          const vol = await prisma.volunteer.findFirst({
-            where: { id: vid, deletedAt: null },
-            select: { name: true, email: true },
-          })
-          if (vol?.email) {
-            sendProjectNotificationEmail({
-              to: vol.email,
-              name: vol.name,
-              subject: `'${project.title}' is now ${statusLabel}`,
+            {
               message: `The project <strong>${project.title}</strong> has been updated to <strong>${statusLabel}</strong>.`,
               projectTitle: project.title,
               projectId: input.id,
-            }).catch((e) => console.error('[EMAIL ERROR]', e))
-          }
+            },
+          )
         }
       }
 
@@ -631,32 +610,22 @@ export const projectsRouter = {
       const interestLabel = interestType === 'want_to_own' ? 'own / lead' : 'contribute to'
 
       if (project.ownerId) {
-        createNotification(
+        await notifyVolunteer(
           project.ownerId,
           'new_interest',
           `Someone's interested in '${project.title}'!`,
           `${volunteer.name} wants to ${interestLabel}`,
           `/projects/${input.projectId}`,
-        ).catch((e) => console.error('[NOTIFY ERROR]', e))
-
-        const owner = await prisma.volunteer.findFirst({
-          where: { id: project.ownerId },
-          select: { name: true, email: true },
-        })
-        if (owner?.email) {
-          const extra = message
-            ? `<div style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"><strong>Their message:</strong> ${message}</div>`
-            : ''
-          sendProjectNotificationEmail({
-            to: owner.email,
-            name: owner.name,
+          {
             subject: `${volunteer.name} wants to ${interestLabel} '${project.title}'`,
             message: `<strong>${volunteer.name}</strong> has expressed interest in your project <strong>${project.title}</strong>.`,
             projectTitle: project.title,
             projectId: input.projectId,
-            extraHtml: extra,
-          }).catch((e) => console.error('[EMAIL ERROR]', e))
-        }
+            extraHtml: message
+              ? `<div style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"><strong>Their message:</strong> ${message}</div>`
+              : undefined,
+          },
+        )
       }
 
       return { message: 'Interest expressed successfully' }
@@ -705,14 +674,6 @@ export const projectsRouter = {
         },
       })
 
-      createNotification(
-        interest.volunteerId,
-        `interest_${input.status}`,
-        `Your interest in '${project.title}' was ${input.status}`,
-        input.responseMessage ?? null,
-        `/projects/${input.projectId}`,
-      ).catch((e) => console.error('[NOTIFY ERROR]', e))
-
       if (input.status === 'accepted' && interest.interestType === 'want_to_own') {
         const openTaskCount = await prisma.projectTask.count({
           where: { projectId: input.projectId, status: { not: 'done' } },
@@ -726,24 +687,21 @@ export const projectsRouter = {
         })
       }
 
-      const vol = await prisma.volunteer.findFirst({
-        where: { id: interest.volunteerId, deletedAt: null },
-        select: { name: true, email: true },
-      })
-      if (vol?.email) {
-        const extra = input.responseMessage
-          ? `<div style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"><strong>Message:</strong> ${input.responseMessage}</div>`
-          : ''
-        sendProjectNotificationEmail({
-          to: vol.email,
-          name: vol.name,
-          subject: `Your interest in '${project.title}' was ${input.status}`,
+      await notifyVolunteer(
+        interest.volunteerId,
+        `interest_${input.status}`,
+        `Your interest in '${project.title}' was ${input.status}`,
+        input.responseMessage ?? null,
+        `/projects/${input.projectId}`,
+        {
           message: `The team has <strong>${input.status}</strong> your interest in the project <strong>${project.title}</strong>.`,
           projectTitle: project.title,
           projectId: input.projectId,
-          extraHtml: extra,
-        }).catch((e) => console.error('[EMAIL ERROR]', e))
-      }
+          extraHtml: input.responseMessage
+            ? `<div style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"><strong>Message:</strong> ${input.responseMessage}</div>`
+            : undefined,
+        },
+      )
 
       return { message: `Interest ${input.status}` }
     }),
@@ -804,31 +762,18 @@ export const projectsRouter = {
         })
       }
 
-      const assignee = await prisma.volunteer.findFirst({
-        where: { id: input.volunteerId },
-        select: { name: true, email: true },
-      })
-
-      if (assignee) {
-        createNotification(
-          input.volunteerId,
-          'assigned_to_project',
-          `You've been assigned to '${project.title}'`,
-          `Assigned by ${volunteer.name}`,
-          `/projects/${input.projectId}`,
-        ).catch((e) => console.error('[NOTIFY ERROR]', e))
-
-        if (assignee.email) {
-          sendProjectNotificationEmail({
-            to: assignee.email,
-            name: assignee.name,
-            subject: `You've been assigned to '${project.title}'`,
-            message: `<strong>${volunteer.name}</strong> has assigned you to the project <strong>${project.title}</strong>.`,
-            projectTitle: project.title,
-            projectId: input.projectId,
-          }).catch((e) => console.error('[EMAIL ERROR]', e))
-        }
-      }
+      await notifyVolunteer(
+        input.volunteerId,
+        'assigned_to_project',
+        `You've been assigned to '${project.title}'`,
+        `Assigned by ${volunteer.name}`,
+        `/projects/${input.projectId}`,
+        {
+          message: `<strong>${volunteer.name}</strong> has assigned you to the project <strong>${project.title}</strong>.`,
+          projectTitle: project.title,
+          projectId: input.projectId,
+        },
+      )
 
       return { message: 'Volunteer assigned to project' }
     }),

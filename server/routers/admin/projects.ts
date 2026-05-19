@@ -1,13 +1,8 @@
 import { z } from 'zod'
 import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
-import { sendProjectNotificationEmail } from '@/lib/email'
-import {
-  withProjectExtras,
-  projectInclude,
-  EnrichedProject,
-  createNotification,
-} from '@/lib/project'
+import { withProjectExtras, projectInclude, EnrichedProject } from '@/lib/project'
+import { notifyVolunteer } from '@/lib/notify'
 import { AdminCreateProjectSchema, ReviewProjectSchema, OutcomeProjectSchema } from '@/lib/schemas'
 import { adminProcedure } from '../../procedures'
 
@@ -96,29 +91,19 @@ export const adminProjectsRouter = {
         })
 
         if (project.proposedById) {
-          createNotification(
+          await notifyVolunteer(
             project.proposedById,
             'project_approved',
             `Your project '${project.title}' has been approved!`,
             "It's now visible to other volunteers.",
             `/projects/${input.id}`,
-          ).catch((e) => console.error('[NOTIFY ERROR]', e))
-
-          const proposer = await prisma.volunteer.findFirst({
-            where: { id: project.proposedById },
-            select: { name: true, email: true },
-          })
-          if (proposer?.email) {
-            sendProjectNotificationEmail({
-              to: proposer.email,
-              name: proposer.name,
-              subject: `Your project '${project.title}' has been approved!`,
+            {
               message:
                 'Great news! Your project has been approved and is now visible to all volunteers.',
               projectTitle: project.title,
               projectId: input.id,
-            }).catch((e) => console.error('[EMAIL ERROR]', e))
-          }
+            },
+          )
         }
       } else {
         await prisma.project.update({
@@ -135,31 +120,20 @@ export const adminProjectsRouter = {
 
         if (project.proposedById) {
           const feedback = feedbackToProposer || 'A team lead wants to chat about your proposal.'
-          createNotification(
+          await notifyVolunteer(
             project.proposedById,
             'project_needs_discussion',
             `Let's discuss your project '${project.title}'`,
             feedback,
             `/projects/${input.id}`,
-          ).catch((e) => console.error('[NOTIFY ERROR]', e))
-
-          const proposer = await prisma.volunteer.findFirst({
-            where: { id: project.proposedById },
-            select: { name: true, email: true },
-          })
-          if (proposer?.email) {
-            const extra = `<div style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"><strong>Feedback:</strong> ${feedback}</div>`
-            sendProjectNotificationEmail({
-              to: proposer.email,
-              name: proposer.name,
-              subject: `Let's discuss your project '${project.title}'`,
+            {
               message:
                 'A team lead would like to discuss your project proposal before it goes live.',
               projectTitle: project.title,
               projectId: input.id,
-              extraHtml: extra,
-            }).catch((e) => console.error('[EMAIL ERROR]', e))
-          }
+              extraHtml: `<div style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"><strong>Feedback:</strong> ${feedback}</div>`,
+            },
+          )
         }
       }
 
