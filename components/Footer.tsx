@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { client } from '@/lib/client'
 
 export default function Footer() {
   const [sha, setSha] = useState<string | null>(null)
   const [prNumber, setPrNumber] = useState<number | null>(null)
 
   useEffect(() => {
-    fetch('/api/version')
-      .then((r) => r.json())
+    client.version.get()
       .then((d) => {
         if (d.sha && d.sha !== 'dev') setSha(d.sha.slice(0, 7))
         const match = typeof d.env === 'string' && d.env.match(/^catalyse-pr-(\d+)$/)

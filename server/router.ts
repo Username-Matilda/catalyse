@@ -11,7 +11,6 @@ import { localGroupSuggestionsRouter } from './routers/localGroupSuggestions'
 import { starterTasksRouter } from './routers/starterTasks'
 import { myRouter } from './routers/my'
 import { privacyRouter } from './routers/privacy'
-import { healthRouter } from './routers/health'
 import { contactRouter } from './routers/contact'
 import { adminApplicationsRouter } from './routers/admin/applications'
 import { adminVolunteersRouter } from './routers/admin/volunteers'
@@ -27,6 +26,7 @@ import { adminStatsRouter } from './routers/admin/stats'
 import { adminTriageRouter } from './routers/admin/triage'
 import { adminInterestsRouter } from './routers/admin/interests'
 import { adminEmailPreviewRouter } from './routers/admin/emailPreview'
+import { versionRouter } from './routers/version'
 
 export const appRouter = {
   auth: authRouter,
@@ -42,8 +42,8 @@ export const appRouter = {
   starterTasks: starterTasksRouter,
   my: myRouter,
   privacy: privacyRouter,
-  health: healthRouter,
   contact: contactRouter,
+  version: versionRouter,
   admin: {
     applications: adminApplicationsRouter,
     volunteers: adminVolunteersRouter,

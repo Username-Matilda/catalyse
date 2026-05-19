@@ -8,19 +8,7 @@ import { useAuth } from '@/lib/auth-context'
 import { client } from '@/lib/client'
 import { useToast } from '@/lib/toast'
 
-interface BugReport {
-  id: number
-  title: string
-  description: string
-  category: string | null
-  severity: string | null
-  status: string
-  pageUrl: string | null
-  reporterName: string | null
-  reporterEmail: string | null
-  resolutionNotes: string | null
-  createdAt: string
-}
+type BugReport = Awaited<ReturnType<typeof client.admin.bugReports.list>>[number]
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All' },
@@ -51,7 +39,7 @@ export default function AdminBugsPage() {
   const router = useRouter()
   const { user, loading } = useAuth()
   const showToast = useToast()
-  const [reports, setReports] = useState<BugReport[]>([])
+  const [reports, setReports] = useState([])
   const [loadingData, setLoadingData] = useState(true)
   const [statusFilter, setStatusFilter] = useState('open')
   const [categoryFilter, setCategoryFilter] = useState('all')
@@ -72,7 +60,7 @@ export default function AdminBugsPage() {
         status: statusFilter !== 'all' ? statusFilter : undefined,
         category: categoryFilter !== 'all' ? categoryFilter : undefined,
       })
-      setReports(data as unknown as BugReport[])
+      setReports(data)
     } catch {
       showToast('Failed to load reports', 'error')
     } finally {
@@ -168,7 +156,7 @@ export default function AdminBugsPage() {
                     {r.category && <span>{r.category}</span>}
                     {r.severity && <span>· {r.severity}</span>}
                     {r.reporterName && <span>· {r.reporterName}</span>}
-                    <span>· {new Date(r.createdAt).toLocaleDateString()}</span>
+                    <span>· {r.createdAt?.toLocaleDateString()}</span>
                     {r.pageUrl &&
                       (() => {
                         let path: string

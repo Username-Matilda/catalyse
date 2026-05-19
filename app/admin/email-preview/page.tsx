@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
+import { client } from '@/lib/client'
 
 type Param = string | number | boolean
 
@@ -285,11 +286,8 @@ export default function EmailPreviewPage() {
 
   useEffect(() => {
     if (!user?.isAdmin) return
-    const token = localStorage.getItem('authToken')
-    const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
     for (const t of EMAIL_TYPES) {
-      fetch(`/api/admin/email-preview?type=${t.value}`, { headers })
-        .then((r) => r.json())
+      client.admin.emailPreview.preview({ type: t.value })
         .then((preview) => setHtmlMap((prev) => ({ ...prev, [t.value]: preview })))
         .catch(() => {})
     }

@@ -27,11 +27,7 @@ function VerifyEmailContent() {
 
   async function handleResend(e: FormEvent) {
     e.preventDefault()
-    await fetch('/api/auth/resend-verification', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: resendEmail }),
-    })
+    await client.auth.resendVerification({ email: resendEmail }).catch(() => {})
     setResendSent(true)
     setResendCooldown(60)
   }

@@ -103,11 +103,7 @@ export default function SignupPage() {
   }, [resendCooldown])
 
   async function handleResend() {
-    await fetch('/api/auth/resend-verification', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
-    })
+    await client.auth.resendVerification({ email }).catch(() => {})
     setResendSent(true)
     setResendCooldown(60)
   }
