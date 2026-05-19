@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useRequireAdmin } from '@/lib/hooks/auth'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Button from '@/components/Button'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
@@ -14,7 +14,6 @@ import {
   CARD_GRID_CLASSES,
 } from '@/components/ProjectCard'
 import Tabs from '@/components/Tabs'
-import { useAuth } from '@/lib/auth-context'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 
@@ -28,8 +27,7 @@ interface ReviewModal {
 }
 
 export default function TriagePage() {
-  const router = useRouter()
-  const { user, loading } = useAuth()
+  const { user, loading } = useRequireAdmin()
   const showToast = useToast()
   const queryClient = useQueryClient()
   const [tab, setTab] = useState<'pending_review' | 'needs_discussion' | 'interests'>(
@@ -54,11 +52,6 @@ export default function TriagePage() {
     ],
     'pending',
   )
-
-  useEffect(() => {
-    if (!loading && !user) router.push('/login')
-    if (!loading && user && !user.isAdmin) router.push('/')
-  }, [user, loading, router])
 
   const { data: projects = [], isLoading: loadingProjects } = useQuery({
     ...orpc.admin.triage.list.queryOptions(),

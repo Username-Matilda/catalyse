@@ -1,17 +1,15 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import { useRequireAdmin } from '@/lib/hooks/auth'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useRouter } from 'next/navigation'
 import Button from '@/components/Button'
 import Tabs from '@/components/Tabs'
-import { useAuth } from '@/lib/auth-context'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 
 export default function AdminTeamPage() {
-  const router = useRouter()
-  const { user, loading } = useAuth()
+  const { user, loading } = useRequireAdmin()
   const showToast = useToast()
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<'admins' | 'invites'>('admins')
@@ -19,11 +17,6 @@ export default function AdminTeamPage() {
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteSuccess, setInviteSuccess] = useState('')
   const dialogRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!loading && !user) router.push('/login')
-    if (!loading && user && !user.isAdmin) router.push('/')
-  }, [user, loading, router])
 
   const { data: admins = [], isLoading: loadingAdmins } = useQuery({
     ...orpc.admin.admins.list.queryOptions(),

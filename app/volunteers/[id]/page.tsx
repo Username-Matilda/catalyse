@@ -1,21 +1,15 @@
 'use client'
 
-import { use, useEffect } from 'react'
+import { use } from 'react'
+import { useRequireAuth } from '@/lib/hooks/auth'
 import { useQuery } from '@tanstack/react-query'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Button from '@/components/Button'
-import { useAuth } from '@/lib/auth-context'
 import { orpc } from '@/lib/orpc'
 
 export default function VolunteerDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
-  const router = useRouter()
-  const { user, loading } = useAuth()
-
-  useEffect(() => {
-    if (!loading && !user) router.replace('/login')
-  }, [user, loading, router])
+  const { user, loading } = useRequireAuth()
 
   const {
     data: volunteer,

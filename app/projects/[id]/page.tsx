@@ -1,12 +1,12 @@
 'use client'
 
 import React, { use, useEffect, useState } from 'react'
+import { useRequireAuth } from '@/lib/hooks/auth'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
-import { useAuth } from '@/lib/auth-context'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 
@@ -62,7 +62,7 @@ function statusBadge(status: string) {
 export default function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = use(params)
   const router = useRouter()
-  const { user, loading } = useAuth()
+  const { user, loading } = useRequireAuth()
   const queryClient = useQueryClient()
 
   const showToast = useToast()
@@ -113,10 +113,6 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const [showContactModal, setShowContactModal] = useState(false)
   const [contactSubject, setContactSubject] = useState('')
   const [contactBody, setContactBody] = useState('')
-
-  useEffect(() => {
-    if (!loading && !user) router.replace('/login')
-  }, [user, loading, router])
 
   // ── Queries ──────────────────────────────────────────────────────────────
 

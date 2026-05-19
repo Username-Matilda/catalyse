@@ -1,21 +1,15 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useRequireAdmin } from '@/lib/hooks/auth'
 import { useRouter } from 'next/navigation'
 import { useMutation } from '@tanstack/react-query'
 import ProjectForm from '@/components/ProjectForm'
-import { useAuth } from '@/lib/auth-context'
 import { orpc } from '@/lib/orpc'
 
 export default function AdminCreateProjectPage() {
   const router = useRouter()
-  const { user, loading } = useAuth()
+  const { user, loading } = useRequireAdmin()
   const createMutation = useMutation({ ...orpc.admin.projects.create.mutationOptions() })
-
-  useEffect(() => {
-    if (!loading && !user) router.push('/login')
-    if (!loading && user && !user.isAdmin) router.push('/')
-  }, [user, loading, router])
 
   if (loading || !user) return null
 

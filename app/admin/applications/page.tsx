@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useRequireSuperAdmin } from '@/lib/hooks/auth'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import Button from '@/components/Button'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
-import { useAuth } from '@/lib/auth-context'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import { InferRouterOutputs } from '@orpc/server'
@@ -13,7 +13,7 @@ import { AppRouter } from '@/server/router'
 
 export default function ApplicationsPage() {
   const router = useRouter()
-  const { user, loading } = useAuth()
+  const { user, loading } = useRequireSuperAdmin()
   const showToast = useToast()
   const {
     value: filter,
@@ -30,11 +30,6 @@ export default function ApplicationsPage() {
     'mine',
   )
   const [startingReview, setStartingReview] = useState<number | null>(null)
-
-  useEffect(() => {
-    if (!loading && !user) router.push('/login')
-    if (!loading && user && !user.isSuperAdmin) router.push('/')
-  }, [user, loading, router])
 
   const isAnonymised = filter === 'rejected_anonymised'
   const applicationFilter = filter === 'rejected_anonymised' ? 'mine' : filter

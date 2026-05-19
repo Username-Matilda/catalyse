@@ -1,13 +1,12 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { use, useState } from 'react'
+import { useRequireAdmin } from '@/lib/hooks/auth'
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import Tabs from '@/components/Tabs'
-import { useAuth } from '@/lib/auth-context'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 
@@ -92,8 +91,7 @@ type Tab = 'admin_notes' | 'starter_tasks' | 'project_history' | 'endorse_skill'
 
 export default function AdminVolunteerDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
-  const router = useRouter()
-  const { user, loading } = useAuth()
+  const { user, loading } = useRequireAdmin()
   const showToast = useToast()
   const queryClient = useQueryClient()
   const [submitting, setSubmitting] = useState(false)
@@ -120,11 +118,6 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
     BASED_ON_OPTIONS,
     'direct_observation',
   )
-
-  useEffect(() => {
-    if (!loading && !user) router.push('/login')
-    if (!loading && user && !user.isAdmin) router.push('/')
-  }, [user, loading, router])
 
   const { data: vol, isPending: loadingData } = useQuery({
     ...orpc.admin.volunteers.getById.queryOptions({ input: { id: Number(id) } }),

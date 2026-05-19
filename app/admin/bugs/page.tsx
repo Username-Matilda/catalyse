@@ -1,11 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useRequireAdmin } from '@/lib/hooks/auth'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useRouter } from 'next/navigation'
 import Button from '@/components/Button'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
-import { useAuth } from '@/lib/auth-context'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 
@@ -35,8 +34,7 @@ function bugStatusClasses(status: string) {
 }
 
 export default function AdminBugsPage() {
-  const router = useRouter()
-  const { user, loading } = useAuth()
+  const { user, loading } = useRequireAdmin()
   const showToast = useToast()
   const queryClient = useQueryClient()
   const { value: statusFilter, onChange: setStatusFilter } = useFilterOptions(
@@ -61,11 +59,6 @@ export default function AdminBugsPage() {
   const [editModal, setEditModal] = useState<(typeof reports)[number] | null>(null)
   const [editStatus, setEditStatus] = useState('')
   const [editNotes, setEditNotes] = useState('')
-
-  useEffect(() => {
-    if (!loading && !user) router.push('/login')
-    if (!loading && user && !user.isAdmin) router.push('/')
-  }, [user, loading, router])
 
   const updateMutation = useMutation({
     ...orpc.admin.bugReports.update.mutationOptions(),

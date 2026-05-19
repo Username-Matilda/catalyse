@@ -1,11 +1,10 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRequireAuth } from '@/lib/hooks/auth'
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
-import { useAuth } from '@/lib/auth-context'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import { ProjectList, statusBadgeClasses } from '@/components/ProjectCard'
@@ -26,8 +25,7 @@ const TAB_LABELS: Record<TabKey, string> = {
 }
 
 export default function DashboardPage() {
-  const router = useRouter()
-  const { user, loading } = useAuth()
+  const { user, loading } = useRequireAuth()
   const showToast = useToast()
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<TabKey>(() => {
@@ -38,10 +36,6 @@ export default function DashboardPage() {
   })
   const [expandedTasks, setExpandedTasks] = useState<Set<number>>(new Set())
   const [emailBannerDismissed, setEmailBannerDismissed] = useState(false)
-
-  useEffect(() => {
-    if (!loading && !user) router.replace('/login')
-  }, [user, loading, router])
 
   useEffect(() => {
     function onHashChange() {

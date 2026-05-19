@@ -1,16 +1,14 @@
 'use client'
 
-import { useEffect, useState, FormEvent } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, FormEvent } from 'react'
+import { useRequireAuth } from '@/lib/hooks/auth'
 import { useMutation } from '@tanstack/react-query'
 import Button from '@/components/Button'
-import { useAuth } from '@/lib/auth-context'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 
 export default function SettingsPage() {
-  const router = useRouter()
-  const { user, loading, logout } = useAuth()
+  const { user, loading, logout } = useRequireAuth()
   const showToast = useToast()
 
   const [newEmail, setNewEmail] = useState('')
@@ -23,10 +21,6 @@ export default function SettingsPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deletePassword, setDeletePassword] = useState('')
   const [deleteConfirmPassword, setDeleteConfirmPassword] = useState('')
-
-  useEffect(() => {
-    if (!loading && !user) router.replace('/login')
-  }, [user, loading, router])
 
   const changeEmailMutation = useMutation({
     ...orpc.auth.changeEmail.mutationOptions(),

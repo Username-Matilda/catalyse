@@ -1,13 +1,13 @@
 'use client'
 
 import React, { use, useEffect, useState } from 'react'
+import { useRequireAuth } from '@/lib/hooks/auth'
 import { useRouter } from 'next/navigation'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import Checkbox from '@/components/Checkbox'
 import FilterDropdown from '@/components/FilterDropdown'
 import SkillPicker from '@/components/SkillPicker'
-import { useAuth } from '@/lib/auth-context'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import { buildLocationOptions } from '@/lib/filter-options'
@@ -34,7 +34,7 @@ const PROJECT_TYPES = [
 export default function EditProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = use(params)
   const router = useRouter()
-  const { user, loading } = useAuth()
+  const { user, loading } = useRequireAuth()
   const showToast = useToast()
 
   const [canEdit, setCanEdit] = useState(false)
@@ -52,10 +52,6 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
   const [estimatedDuration, setEstimatedDuration] = useState('')
   const [seekingHelp, setSeekingHelp] = useState(true)
   const [seekingOwner, setSeekingOwner] = useState(true)
-
-  useEffect(() => {
-    if (!loading && !user) router.replace('/login')
-  }, [user, loading, router])
 
   const { data: localGroupsData } = useQuery({
     ...orpc.localGroups.list.queryOptions({ input: {} }),

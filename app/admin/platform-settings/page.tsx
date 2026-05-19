@@ -1,23 +1,15 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useRequireSuperAdmin } from '@/lib/hooks/auth'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useRouter } from 'next/navigation'
-import { useAuth } from '@/lib/auth-context'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import Toggle from '@/components/Toggle'
 
 export default function PlatformSettingsPage() {
-  const router = useRouter()
-  const { user, loading } = useAuth()
+  const { user, loading } = useRequireSuperAdmin()
   const showToast = useToast()
   const queryClient = useQueryClient()
-
-  useEffect(() => {
-    if (!loading && !user) router.push('/login')
-    if (!loading && user && !user.isSuperAdmin) router.push('/')
-  }, [user, loading, router])
 
   const { data: settings, isLoading: loadingData } = useQuery({
     ...orpc.admin.platformSettings.get.queryOptions(),

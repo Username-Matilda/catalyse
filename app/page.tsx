@@ -1,14 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRequireAuth } from '@/lib/hooks/auth'
 import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import { buildLocationOptions, type LocalGroupOption } from '@/lib/filter-options'
 import { InferRouterInputs } from '@orpc/server'
-import { useAuth } from '@/lib/auth-context'
 import { orpc } from '@/lib/orpc'
 import { AppRouter } from '@/server/router'
 import { type Project, ProjectList, statusBadgeClasses } from '@/components/ProjectCard'
@@ -44,8 +43,7 @@ const SORT_OPTIONS = [
 ] as const
 
 export default function ProjectsPage() {
-  const router = useRouter()
-  const { user, loading } = useAuth()
+  const { user, loading } = useRequireAuth()
   const userSkillIds = new Set(user?.skills?.map((s) => s.id) ?? [])
   const [search, setSearch] = useState('')
   const { value: statusFilter, onChange: setStatusFilter } = useFilterOptions(STATUS_OPTIONS, '')
@@ -56,10 +54,6 @@ export default function ProjectsPage() {
   const [completedOpen, setCompletedOpen] = useState(false)
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [debouncedLocationFilter, setDebouncedLocationFilter] = useState('')
-
-  useEffect(() => {
-    if (!loading && !user) router.replace('/login')
-  }, [user, loading, router])
 
   useEffect(() => {
     const t = setTimeout(

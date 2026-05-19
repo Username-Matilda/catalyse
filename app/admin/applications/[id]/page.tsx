@@ -1,17 +1,17 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRequireSuperAdmin } from '@/lib/hooks/auth'
 import { useParams, useRouter } from 'next/navigation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
-import { useAuth } from '@/lib/auth-context'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 
 export default function ApplicationReviewPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
-  const { user, loading } = useAuth()
+  const { user, loading } = useRequireSuperAdmin()
   const showToast = useToast()
   const queryClient = useQueryClient()
 
@@ -19,11 +19,6 @@ export default function ApplicationReviewPage() {
   const [applicantNotes, setApplicantNotes] = useState('')
   const [initialized, setInitialized] = useState(false)
   const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | null>(null)
-
-  useEffect(() => {
-    if (!loading && !user) router.push('/login')
-    if (!loading && user && !user.isSuperAdmin) router.push('/')
-  }, [user, loading, router])
 
   const { data: app, isPending: loadingData } = useQuery({
     ...orpc.admin.applications.getById.queryOptions({ input: { id: Number(id) } }),

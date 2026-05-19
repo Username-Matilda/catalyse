@@ -1,13 +1,12 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useMemo, useState } from 'react'
+import { useRequireAdmin } from '@/lib/hooks/auth'
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient, useQueries } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import Radio from '@/components/Radio'
 import FilterDropdown, { FilterOption, useFilterOptions } from '@/components/FilterDropdown'
-import { useAuth } from '@/lib/auth-context'
 import { orpc } from '@/lib/orpc'
 import { COUNTRY_OPTIONS } from '@/lib/filter-options'
 import { useToast } from '@/lib/toast'
@@ -63,8 +62,7 @@ const STATUS_LABEL: Record<string, string> = {
 }
 
 export default function AdminLocalGroupsPage() {
-  const router = useRouter()
-  const { user, loading } = useAuth()
+  const { user, loading } = useRequireAdmin()
   const showToast = useToast()
   const queryClient = useQueryClient()
 
@@ -95,11 +93,6 @@ export default function AdminLocalGroupsPage() {
   const [mergeTargetId, setMergeTargetId] = useState<number | ''>('')
   const [adminNotes, setAdminNotes] = useState('')
   const [reviewSubmitting, setReviewSubmitting] = useState(false)
-
-  useEffect(() => {
-    if (!loading && !user) router.push('/login')
-    if (!loading && user && !user.isAdmin) router.push('/')
-  }, [user, loading, router])
 
   const fetchGroups = statusFilter === 'all' || statusFilter === 'active'
   const fetchPending = statusFilter === 'all' || statusFilter === 'pending'

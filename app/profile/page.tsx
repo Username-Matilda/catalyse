@@ -1,13 +1,12 @@
 'use client'
 
 import { useEffect, useState, FormEvent } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRequireAuth } from '@/lib/hooks/auth'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import Checkbox from '@/components/Checkbox'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import SkillPicker from '@/components/SkillPicker'
-import { useAuth } from '@/lib/auth-context'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 
@@ -17,8 +16,7 @@ interface SelectedSkill {
 }
 
 export default function ProfilePage() {
-  const router = useRouter()
-  const { user, loading, refreshUser } = useAuth()
+  const { user, loading, refreshUser } = useRequireAuth()
   const showToast = useToast()
   const [name, setName] = useState('')
   const [bio, setBio] = useState('')
@@ -62,10 +60,6 @@ export default function ProfilePage() {
   const [skills, setSkills] = useState<SelectedSkill[]>([])
   const [otherSkills, setOtherSkills] = useState('')
   const [initialized, setInitialized] = useState(false)
-
-  useEffect(() => {
-    if (!loading && !user) router.replace('/login')
-  }, [user, loading, router])
 
   const { data: me, isPending: loadingProfile } = useQuery({
     ...orpc.auth.me.queryOptions(),

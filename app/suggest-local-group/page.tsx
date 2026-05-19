@@ -1,11 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useRequireAuth } from '@/lib/hooks/auth'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useRouter } from 'next/navigation'
 import Button from '@/components/Button'
 import FilterDropdown from '@/components/FilterDropdown'
-import { useAuth } from '@/lib/auth-context'
 import { orpc } from '@/lib/orpc'
 import { COUNTRY_OPTIONS } from '@/lib/filter-options'
 import { useToast } from '@/lib/toast'
@@ -29,17 +28,12 @@ const STATUS_CLASSES: Record<string, string> = {
 }
 
 export default function SuggestLocalGroupPage() {
-  const router = useRouter()
-  const { user, loading } = useAuth()
+  const { user, loading } = useRequireAuth()
   const showToast = useToast()
   const queryClient = useQueryClient()
 
   const [country, setCountry] = useState('')
   const [name, setName] = useState('')
-
-  useEffect(() => {
-    if (!loading && !user) router.replace('/login')
-  }, [user, loading, router])
 
   const { data, isLoading: loadingSuggestions } = useQuery({
     ...orpc.localGroupSuggestions.list.queryOptions(),

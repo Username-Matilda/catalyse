@@ -1,22 +1,17 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useRequireAuth } from '@/lib/hooks/auth'
 import { useRouter } from 'next/navigation'
 import { useMutation } from '@tanstack/react-query'
 import ProjectForm from '@/components/ProjectForm'
-import { useAuth } from '@/lib/auth-context'
 import { useToast } from '@/lib/toast'
 import { orpc } from '@/lib/orpc'
 
 export default function SuggestPage() {
   const router = useRouter()
-  const { user, loading } = useAuth()
+  const { user, loading } = useRequireAuth()
   const toast = useToast()
   const createMutation = useMutation({ ...orpc.projects.create.mutationOptions() })
-
-  useEffect(() => {
-    if (!loading && !user) router.replace('/login')
-  }, [user, loading, router])
 
   if (loading || !user) return null
 
