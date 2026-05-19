@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { client } from '@/lib/client'
 import Button from '@/components/Button'
-import FilterDropdown from '@/components/FilterDropdown'
+import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import { useAuth } from '@/lib/auth-context'
 
 interface BugReportDialogProps {
@@ -24,7 +24,19 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [email, setEmail] = useState('')
-  const [severity, setSeverity] = useState('medium')
+  const {
+    value: severity,
+    onChange: setSeverity,
+    options: severityOptions,
+  } = useFilterOptions(
+    [
+      { value: 'low', label: 'Low — minor inconvenience' },
+      { value: 'medium', label: 'Medium — affects workflow' },
+      { value: 'high', label: 'High — blocking' },
+      { value: 'critical', label: 'Critical — site is broken' },
+    ],
+    'medium',
+  )
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
@@ -183,13 +195,8 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
                   label="How urgent is this?"
                   ariaLabel="How urgent is this?"
                   value={severity}
-                  options={[
-                    { value: 'low', label: 'Low — minor inconvenience' },
-                    { value: 'medium', label: 'Medium — affects workflow' },
-                    { value: 'high', label: 'High — blocking' },
-                    { value: 'critical', label: 'Critical — site is broken' },
-                  ]}
-                  onChange={(v) => setSeverity(v)}
+                  options={severityOptions}
+                  onChange={setSeverity}
                 />
               </div>
 

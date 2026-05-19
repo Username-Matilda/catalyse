@@ -4,7 +4,7 @@ import { useEffect, useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import Button from '@/components/Button'
 import Checkbox from '@/components/Checkbox'
-import FilterDropdown from '@/components/FilterDropdown'
+import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import SkillPicker from '@/components/SkillPicker'
 import { useAuth } from '@/lib/auth-context'
 import { client } from '@/lib/client'
@@ -31,9 +31,33 @@ export default function ProfilePage() {
   const [discordHandle, setDiscordHandle] = useState('')
   const [signalNumber, setSignalNumber] = useState('')
   const [whatsappNumber, setWhatsappNumber] = useState('')
-  const [contactPreference, setContactPreference] = useState('')
+  const {
+    value: contactPreference,
+    onChange: setContactPreference,
+    options: contactPrefOptions,
+  } = useFilterOptions(
+    [
+      { value: '', label: 'Select…' },
+      { value: 'email', label: 'Email' },
+      { value: 'discord', label: 'Discord' },
+      { value: 'signal', label: 'Signal' },
+      { value: 'whatsapp', label: 'WhatsApp' },
+    ],
+    '',
+  )
   const [contactNotes, setContactNotes] = useState('')
-  const [emailDigest, setEmailDigest] = useState('none')
+  const {
+    value: emailDigest,
+    onChange: setEmailDigest,
+    options: emailDigestOptions,
+  } = useFilterOptions(
+    [
+      { value: 'none', label: "Don't email me" },
+      { value: 'match', label: 'Email me when a project matches my skills' },
+      { value: 'fortnightly', label: 'Send me a fortnightly digest' },
+    ],
+    'none',
+  )
   const [skills, setSkills] = useState<SelectedSkill[]>([])
   const [otherSkills, setOtherSkills] = useState('')
   const [loadingProfile, setLoadingProfile] = useState(true)
@@ -191,14 +215,8 @@ export default function ProfilePage() {
                 label="Preferred Contact Method"
                 ariaLabel="Preferred Contact Method"
                 value={contactPreference}
-                options={[
-                  { value: '', label: 'Select…' },
-                  { value: 'email', label: 'Email' },
-                  { value: 'discord', label: 'Discord' },
-                  { value: 'signal', label: 'Signal' },
-                  { value: 'whatsapp', label: 'WhatsApp' },
-                ]}
-                onChange={(v) => setContactPreference(v)}
+                options={contactPrefOptions}
+                onChange={setContactPreference}
               />
             </div>
           </div>
@@ -295,12 +313,8 @@ export default function ProfilePage() {
               label="Keep me in the loop about new projects"
               ariaLabel="Keep me in the loop about new projects"
               value={emailDigest}
-              options={[
-                { value: 'none', label: "Don't email me" },
-                { value: 'match', label: 'Email me when a project matches my skills' },
-                { value: 'fortnightly', label: 'Send me a fortnightly digest' },
-              ]}
-              onChange={(v) => setEmailDigest(v)}
+              options={emailDigestOptions}
+              onChange={setEmailDigest}
             />
           </div>
 

@@ -175,7 +175,7 @@ export const volunteersRouter = {
       ])
 
       return {
-        ...serializeVolunteer(vol as unknown as Record<string, unknown>, {
+        ...serializeVolunteer(vol, {
           showContact,
           skills,
           endorsements,
@@ -287,7 +287,7 @@ export const volunteersRouter = {
     const skills = vol.skills.map(serializeSkill)
     const endorsements = vol.skillEndorsementsReceived.map(serializeEndorsement)
 
-    return serializeVolunteer(vol as unknown as Record<string, unknown>, {
+    return serializeVolunteer(vol, {
       showContact: true,
       skills,
       endorsements,

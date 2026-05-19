@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Button from '@/components/Button'
-import FilterDropdown from '@/components/FilterDropdown'
+import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import { buildLocationOptions, type LocalGroupOption } from '@/lib/filter-options'
 import { useAuth } from '@/lib/auth-context'
 import { client } from '@/lib/client'
@@ -16,7 +16,7 @@ const STATUS_OPTIONS = [
   { value: 'on_hold', label: 'On Hold' },
   { value: 'completed', label: 'Completed' },
   { value: 'archived', label: 'Archived' },
-]
+] as const
 
 const NEEDS_OPTIONS = [
   { value: '', label: 'Any' },
@@ -24,21 +24,21 @@ const NEEDS_OPTIONS = [
   { value: 'seeking_help', label: 'Seeking Help', indent: true },
   { value: 'seeking_owner', label: 'Seeking Owner', indent: true },
   { value: 'not_seeking', label: 'Not Seeking' },
-]
+] as const
 
 const URGENCY_OPTIONS = [
   { value: '', label: 'Any urgency' },
   { value: 'high', label: 'High' },
   { value: 'medium', label: 'Medium' },
   { value: 'low', label: 'Low' },
-]
+] as const
 
 const SORT_OPTIONS = [
   { value: '', label: 'Default sort' },
   { value: 'created_at', label: 'Newest first' },
   { value: 'match', label: 'Best match' },
   { value: 'urgency', label: 'Most urgent' },
-]
+] as const
 
 export default function ProjectsPage() {
   const router = useRouter()
@@ -47,11 +47,11 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [loadingProjects, setLoadingProjects] = useState(true)
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
-  const [needsFilter, setNeedsFilter] = useState('')
-  const [urgencyFilter, setUrgencyFilter] = useState('')
+  const { value: statusFilter, onChange: setStatusFilter } = useFilterOptions(STATUS_OPTIONS, '')
+  const { value: needsFilter, onChange: setNeedsFilter } = useFilterOptions(NEEDS_OPTIONS, '')
+  const { value: urgencyFilter, onChange: setUrgencyFilter } = useFilterOptions(URGENCY_OPTIONS, '')
   const [locationFilter, setLocationFilter] = useState('')
-  const [sortBy, setSortBy] = useState('')
+  const { value: sortBy, onChange: setSortBy } = useFilterOptions(SORT_OPTIONS, '')
   const [pendingCount, setPendingCount] = useState(0)
   const [pendingApplicationsCount, setPendingApplicationsCount] = useState(0)
   const [completedOpen, setCompletedOpen] = useState(false)
@@ -70,7 +70,7 @@ export default function ProjectsPage() {
         .then((list) => setPendingCount(list.length))
         .catch(() => {})
       client.admin.applications
-        .list({ filter: 'PENDING' })
+        .list({ filter: 'mine' })
         .then((list) => setPendingApplicationsCount(list.length))
         .catch(() => {})
     }

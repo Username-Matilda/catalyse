@@ -287,7 +287,8 @@ export default function EmailPreviewPage() {
   useEffect(() => {
     if (!user?.isAdmin) return
     for (const t of EMAIL_TYPES) {
-      client.admin.emailPreview.preview({ type: t.value })
+      client.admin.emailPreview
+        .preview({ type: t.value })
         .then((preview) => setHtmlMap((prev) => ({ ...prev, [t.value]: preview })))
         .catch(() => {})
     }

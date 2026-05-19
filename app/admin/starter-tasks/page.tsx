@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Button from '@/components/Button'
-import FilterDropdown from '@/components/FilterDropdown'
+import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import { useAuth } from '@/lib/auth-context'
 import { client } from '@/lib/client'
 import { useToast } from '@/lib/toast'
@@ -72,7 +72,21 @@ export default function AdminStarterTasksPage() {
   const [skills, setSkills] = useState<Skill[]>([])
   const [volunteers, setVolunteers] = useState<Volunteer[]>([])
   const [loadingData, setLoadingData] = useState(true)
-  const [statusFilter, setStatusFilter] = useState('')
+  const {
+    value: statusFilter,
+    onChange: setStatusFilter,
+    options: statusFilterOptions,
+  } = useFilterOptions(
+    [
+      { value: '', label: 'All' },
+      { value: 'open', label: 'Open' },
+      { value: 'assigned', label: 'Assigned' },
+      { value: 'submitted', label: 'Submitted (needs review)' },
+      { value: 'reviewed', label: 'Reviewed' },
+      { value: 'completed', label: 'Completed' },
+    ],
+    '',
+  )
   const toast = useToast()
   const [submitting, setSubmitting] = useState(false)
   const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set())
@@ -327,15 +341,8 @@ export default function AdminStarterTasksPage() {
             label="Status"
             ariaLabel="Status"
             value={statusFilter}
-            options={[
-              { value: '', label: 'All' },
-              { value: 'open', label: 'Open' },
-              { value: 'assigned', label: 'Assigned' },
-              { value: 'submitted', label: 'Submitted (needs review)' },
-              { value: 'reviewed', label: 'Reviewed' },
-              { value: 'completed', label: 'Completed' },
-            ]}
-            onChange={(v) => setStatusFilter(v)}
+            options={statusFilterOptions}
+            onChange={setStatusFilter}
           />
         </div>
 

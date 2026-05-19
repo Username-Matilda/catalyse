@@ -10,21 +10,13 @@ import { superAdminProcedure } from '../../procedures'
 
 export const adminApplicationsRouter = {
   list: superAdminProcedure
-    .input(z.object({ filter: z.string().optional().default('mine') }))
+    .input(
+      z.object({
+        filter: z.enum(['mine', 'others', 'approved', 'rejected']).optional().default('mine'),
+      }),
+    )
     .handler(async ({ input, context }) => {
       const admin = context.volunteer
-
-      if (input.filter === 'rejected_anonymised') {
-        const records = await prisma.rejectedApplication.findMany({
-          orderBy: { rejectedAt: 'desc' },
-        })
-        return records.map((r) => ({
-          id: r.id,
-          rejectedAt: r.rejectedAt,
-          adminNotes: r.adminNotes,
-          applicantNotes: r.applicantNotes,
-        }))
-      }
 
       type WhereClause = NonNullable<Parameters<typeof prisma.volunteer.findMany>[0]>['where']
       const where: WhereClause = (() => {
@@ -45,8 +37,6 @@ export const adminApplicationsRouter = {
             return { deletedAt: null, approvalStatus: 'APPROVED' }
           case 'rejected':
             return { deletedAt: null, approvalStatus: 'REJECTED' }
-          default:
-            return { deletedAt: null, approvalStatus: 'PENDING' }
         }
       })()
 

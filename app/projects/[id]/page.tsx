@@ -4,7 +4,7 @@ import React, { use, useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Button from '@/components/Button'
-import FilterDropdown from '@/components/FilterDropdown'
+import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import { useAuth } from '@/lib/auth-context'
 import { client } from '@/lib/client'
 import { useToast } from '@/lib/toast'
@@ -178,7 +178,20 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const [assignSubmitting, setAssignSubmitting] = useState(false)
 
   // Record outcome
-  const [outcomeValue, setOutcomeValue] = useState('')
+  const {
+    value: outcomeValue,
+    onChange: setOutcomeValue,
+    options: outcomeOptions,
+  } = useFilterOptions(
+    [
+      { value: '', label: '— Select outcome —' },
+      { value: 'successful', label: 'Successful' },
+      { value: 'partial', label: 'Partial' },
+      { value: 'not_completed', label: 'Not Completed' },
+      { value: 'ongoing', label: 'Ongoing' },
+    ],
+    '',
+  )
   const [outcomeNotes, setOutcomeNotes] = useState('')
   const [outcomeSubmitting, setOutcomeSubmitting] = useState(false)
 
@@ -456,11 +469,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   async function handleRecordOutcome(e: React.FormEvent) {
     e.preventDefault()
+    if (!outcomeValue) return
     setOutcomeSubmitting(true)
     try {
       await client.admin.projects.setOutcome({
         id: parseInt(idParam, 10),
-        outcome: outcomeValue as 'successful' | 'partial' | 'not_completed' | 'ongoing',
+        outcome: outcomeValue,
         outcomeNotes: outcomeNotes.trim() || null,
       })
       await loadProject()
@@ -912,14 +926,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   label="Outcome"
                   ariaLabel="Outcome"
                   value={outcomeValue}
-                  options={[
-                    { value: '', label: '— Select outcome —' },
-                    { value: 'successful', label: 'Successful' },
-                    { value: 'partial', label: 'Partial' },
-                    { value: 'not_completed', label: 'Not Completed' },
-                    { value: 'ongoing', label: 'Ongoing' },
-                  ]}
-                  onChange={(v) => setOutcomeValue(v)}
+                  options={outcomeOptions}
+                  onChange={setOutcomeValue}
                 />
               </div>
               <div className="mb-5">

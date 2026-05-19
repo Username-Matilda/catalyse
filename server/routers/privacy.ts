@@ -22,7 +22,7 @@ export const privacyRouter = {
 
     if (!profile) throw new ORPCError('NOT_FOUND')
 
-    const serializedProfile = serializeVolunteer(profile as unknown as Record<string, unknown>, {
+    const serializedProfile = serializeVolunteer(profile, {
       showContact: true,
       skills: profile.skills.map(serializeSkill),
     })

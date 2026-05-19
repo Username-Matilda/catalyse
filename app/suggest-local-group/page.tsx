@@ -1,28 +1,18 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import Button from '@/components/Button'
 import FilterDropdown from '@/components/FilterDropdown'
 import { useAuth } from '@/lib/auth-context'
-import { ORPCError } from '@orpc/client'
-import { client } from '@/lib/client'
+import { orpc } from '@/lib/orpc'
 import { COUNTRY_OPTIONS } from '@/lib/filter-options'
 import { useToast } from '@/lib/toast'
 
 const SUGGESTION_COUNTRIES = COUNTRY_OPTIONS.filter(
   (o) => o.value && o.value !== 'Remote' && o.value !== 'Other',
 )
-
-interface Suggestion {
-  id: number
-  name: string
-  country: string
-  status: string
-  adminNotes: string | null
-  createdAt: Date | string | null
-  mergedInto: { id: number; name: string } | null
-}
 
 const STATUS_LABELS: Record<string, string> = {
   pending: 'Pending Review',
@@ -42,55 +32,40 @@ export default function SuggestLocalGroupPage() {
   const router = useRouter()
   const { user, loading } = useAuth()
   const showToast = useToast()
+  const queryClient = useQueryClient()
 
   const [country, setCountry] = useState('')
   const [name, setName] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
-
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([])
-  const [loadingSuggestions, setLoadingSuggestions] = useState(true)
 
   useEffect(() => {
     if (!loading && !user) router.replace('/login')
   }, [user, loading, router])
 
-  useEffect(() => {
-    if (!user) return
-    client.localGroupSuggestions
-      .list()
-      .then((data) => setSuggestions(data.suggestions))
-      .catch(() => {})
-      .finally(() => setLoadingSuggestions(false))
-  }, [user])
+  const { data, isLoading: loadingSuggestions } = useQuery({
+    ...orpc.localGroupSuggestions.list.queryOptions(),
+    enabled: !!user,
+  })
 
-  function clearFieldError(field: string) {
-    setFieldErrors((prev) => {
-      if (!prev[field]) return prev
-      const next = { ...prev }
-      delete next[field]
-      return next
-    })
-  }
+  const suggestions = data?.suggestions ?? []
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setSubmitting(true)
-    try {
-      const result = await client.localGroupSuggestions.create({ name: name.trim(), country })
-      setSuggestions((prev) => [result, ...prev])
+  const createMutation = useMutation({
+    ...orpc.localGroupSuggestions.create.mutationOptions(),
+    onSuccess: () => {
       setCountry('')
       setName('')
       showToast('Suggestion submitted!', 'success')
-    } catch (err) {
-      if (err instanceof ORPCError) {
-        showToast(err.message, 'error')
-      } else {
-        showToast(err instanceof Error ? err.message : 'Failed to submit suggestion', 'error')
-      }
-    } finally {
-      setSubmitting(false)
-    }
+      void queryClient.invalidateQueries({ queryKey: orpc.localGroupSuggestions.list.key() })
+    },
+    onError: (err: unknown) => {
+      showToast(err instanceof Error ? err.message : 'Failed to submit suggestion', 'error')
+    },
+  })
+
+  // TODO: when React Hook Form is added, map server ORPCError Zod issues back to
+  // field errors via setError('country', ...) / setError('name', ...).
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    createMutation.mutate({ name: name.trim(), country })
   }
 
   if (loading || !user) return null
@@ -112,16 +87,8 @@ export default function SuggestLocalGroupPage() {
                 ariaLabel="Select country/group"
                 value={country}
                 options={SUGGESTION_COUNTRIES}
-                onChange={(v) => {
-                  setCountry(v)
-                  clearFieldError('country')
-                }}
+                onChange={setCountry}
               />
-              {fieldErrors.country && (
-                <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
-                  {fieldErrors.country}
-                </p>
-              )}
             </div>
 
             <div className="mb-5">
@@ -131,25 +98,15 @@ export default function SuggestLocalGroupPage() {
                 type="text"
                 placeholder="e.g., Bristol, Edinburgh, Birmingham"
                 value={name}
-                onChange={(e) => {
-                  setName(e.target.value)
-                  clearFieldError('name')
-                }}
-                aria-invalid={!!fieldErrors.name || undefined}
+                onChange={(e) => setName(e.target.value)}
               />
-              {fieldErrors.name ? (
-                <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
-                  {fieldErrors.name}
-                </p>
-              ) : (
-                <p className="text-sm text-text-light mt-1">
-                  Enter the city, region, or area name for the local group.
-                </p>
-              )}
+              <p className="text-sm text-text-light mt-1">
+                Enter the city, region, or area name for the local group.
+              </p>
             </div>
 
-            <Button type="submit" disabled={submitting || !country || !name.trim()}>
-              {submitting ? 'Submitting…' : 'Submit Suggestion'}
+            <Button type="submit" disabled={createMutation.isPending || !country || !name.trim()}>
+              {createMutation.isPending ? 'Submitting…' : 'Submit Suggestion'}
             </Button>
           </form>
 

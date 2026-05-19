@@ -9,7 +9,8 @@ export default function Footer() {
   const [prNumber, setPrNumber] = useState<number | null>(null)
 
   useEffect(() => {
-    client.version.get()
+    client.version
+      .get()
       .then((d) => {
         if (d.sha && d.sha !== 'dev') setSha(d.sha.slice(0, 7))
         const match = typeof d.env === 'string' && d.env.match(/^catalyse-pr-(\d+)$/)

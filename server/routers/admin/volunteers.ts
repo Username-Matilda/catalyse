@@ -58,7 +58,7 @@ export const adminVolunteersRouter = {
     const publicEndorsements = vol.skillEndorsementsReceived.map(serializeEndorsement)
 
     return {
-      ...serializeVolunteer(vol as unknown as Record<string, unknown>, {
+      ...serializeVolunteer(vol, {
         showContact: true,
         skills,
         endorsements: publicEndorsements,

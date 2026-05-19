@@ -3,23 +3,39 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
-export interface FilterOption {
-  value: string
+export interface FilterOption<T extends string = string> {
+  value: T
   label: string
   indent?: boolean
 }
 
-interface Props {
+export function useFilterOptions<const Options extends readonly FilterOption[]>(
+  options: Options,
+  initial: Options[number]['value'],
+) {
+  type Value = Options[number]['value']
+  const [value, setValue] = useState<Value>(initial)
+  const isValue = (v: string): v is Value => options.some((o) => o.value === v)
+  return {
+    value,
+    onChange: (v: string) => {
+      if (isValue(v)) setValue(v)
+    },
+    options,
+  }
+}
+
+interface Props<T extends string = string> {
   id: string
   label: string
   ariaLabel: string
-  value: string
-  options: FilterOption[]
-  onChange: (value: string) => void
+  value: T
+  options: readonly FilterOption<T>[]
+  onChange: (value: T) => void
   searchable?: boolean
 }
 
-export default function FilterDropdown({
+export default function FilterDropdown<T extends string>({
   id,
   label,
   ariaLabel,
@@ -27,7 +43,7 @@ export default function FilterDropdown({
   options,
   onChange,
   searchable,
-}: Props) {
+}: Props<T>) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [focusedIndex, setFocusedIndex] = useState(-1)
@@ -93,7 +109,7 @@ export default function FilterDropdown({
       ? options.filter((o) => o.label.toLowerCase().includes(query.toLowerCase()))
       : options
 
-  function select(opt: FilterOption) {
+  function select(opt: FilterOption<T>) {
     onChange(opt.value)
     setOpen(false)
     setQuery('')

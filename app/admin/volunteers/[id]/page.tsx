@@ -4,7 +4,7 @@ import { use, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Button from '@/components/Button'
-import FilterDropdown from '@/components/FilterDropdown'
+import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import Tabs from '@/components/Tabs'
 import { useAuth } from '@/lib/auth-context'
 import { client } from '@/lib/client'
@@ -73,19 +73,19 @@ const NOTE_CATEGORIES = [
   { value: 'skill_feedback', label: 'Skill Feedback' },
   { value: 'reliability', label: 'Reliability' },
   { value: 'fit', label: 'Fit' },
-]
+] as const
 
 const RATING_OPTIONS = [
   { value: 'verified', label: 'Verified - Can deliver' },
   { value: 'strong', label: 'Strong - Highly skilled' },
-]
+] as const
 
 const BASED_ON_OPTIONS = [
   { value: 'direct_observation', label: 'Direct Observation' },
   { value: 'project_work', label: 'Project Work' },
   { value: 'interview', label: 'Interview' },
   { value: 'reference', label: 'Reference' },
-]
+] as const
 
 type Tab = 'admin_notes' | 'starter_tasks' | 'project_history' | 'endorse_skill'
 
@@ -102,7 +102,10 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
 
   // Note add form
   const [noteContent, setNoteContent] = useState('')
-  const [noteCategory, setNoteCategory] = useState('general')
+  const { value: noteCategory, onChange: setNoteCategory } = useFilterOptions(
+    NOTE_CATEGORIES,
+    'general',
+  )
 
   // Note inline edit
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null)
@@ -110,8 +113,14 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
 
   // Endorsement form
   const [endorseSkillId, setEndorseSkillId] = useState('')
-  const [endorseRating, setEndorseRating] = useState('verified')
-  const [endorseBasedOn, setEndorseBasedOn] = useState('direct_observation')
+  const { value: endorseRating, onChange: setEndorseRating } = useFilterOptions(
+    RATING_OPTIONS,
+    'verified',
+  )
+  const { value: endorseBasedOn, onChange: setEndorseBasedOn } = useFilterOptions(
+    BASED_ON_OPTIONS,
+    'direct_observation',
+  )
 
   useEffect(() => {
     if (!loading && !user) router.push('/login')

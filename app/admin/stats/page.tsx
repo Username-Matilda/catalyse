@@ -1,44 +1,25 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
-import { client } from '@/lib/client'
-
-interface Stats {
-  volunteers: { total: number; thisMonth: number }
-  projects: {
-    total: number
-    pendingReview: number
-    seekingHelp: number
-    inProgress: number
-    completed: number
-  }
-  interests: { total: number; pending: number }
-}
+import { orpc } from '@/lib/orpc'
 
 export default function AdminStatsPage() {
   const router = useRouter()
   const { user, loading } = useAuth()
-  const [stats, setStats] = useState<Stats | null>(null)
-  const [loadingData, setLoadingData] = useState(true)
 
   useEffect(() => {
     if (!loading && !user) router.push('/login')
     if (!loading && user && !user.isAdmin) router.push('/')
   }, [user, loading, router])
 
-  useEffect(() => {
-    if (!user?.isAdmin) return
-    client.admin.stats
-      .get()
-      .then((data) => {
-        setStats(data as unknown as Stats)
-        setLoadingData(false)
-      })
-      .catch(() => setLoadingData(false))
-  }, [user])
+  const { data: stats, isLoading: loadingData } = useQuery({
+    ...orpc.admin.stats.get.queryOptions(),
+    enabled: !!user?.isAdmin,
+  })
 
   if (loading || !user) return null
 

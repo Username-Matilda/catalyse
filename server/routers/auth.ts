@@ -323,7 +323,7 @@ export const authRouter = {
       },
     })
     if (!vol) throw new ORPCError('NOT_FOUND')
-    return serializeVolunteer(vol as unknown as Record<string, unknown>, {
+    return serializeVolunteer(vol, {
       showContact: true,
       skills: vol.skills.map(serializeSkill),
       endorsements: vol.skillEndorsementsReceived.map(serializeEndorsement),

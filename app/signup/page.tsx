@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Script from 'next/script'
 import Button from '@/components/Button'
-import FilterDropdown from '@/components/FilterDropdown'
+import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import SkillPicker from '@/components/SkillPicker'
 import { useAuth } from '@/lib/auth-context'
 import { client } from '@/lib/client'
@@ -40,7 +40,20 @@ export default function SignupPage() {
   const [discord, setDiscord] = useState('')
   const [signal, setSignal] = useState('')
   const [whatsapp, setWhatsapp] = useState('')
-  const [contactPref, setContactPref] = useState('')
+  const {
+    value: contactPref,
+    onChange: setContactPref,
+    options: contactPrefOptions,
+  } = useFilterOptions(
+    [
+      { value: '', label: 'Select…' },
+      { value: 'email', label: 'Email' },
+      { value: 'discord', label: 'Discord' },
+      { value: 'signal', label: 'Signal' },
+      { value: 'whatsapp', label: 'WhatsApp' },
+    ],
+    '',
+  )
   const [contactNotes, setContactNotes] = useState('')
   const [availability, setAvailability] = useState('')
   const [location, setLocation] = useState('')
@@ -51,7 +64,18 @@ export default function SignupPage() {
   const [consentVisible, setConsentVisible] = useState(true)
   const [consentContact, setConsentContact] = useState(true)
   const [shareDirectly, setShareDirectly] = useState(false)
-  const [emailDigest, setEmailDigest] = useState('match')
+  const {
+    value: emailDigest,
+    onChange: setEmailDigest,
+    options: emailDigestOptions,
+  } = useFilterOptions(
+    [
+      { value: 'none', label: "Don't email me" },
+      { value: 'match', label: 'Email me when a project matches my skills' },
+      { value: 'fortnightly', label: 'Send me a fortnightly digest' },
+    ],
+    'match',
+  )
 
   useEffect(() => {
     if (!loading && user) router.replace('/dashboard')
@@ -384,14 +408,8 @@ export default function SignupPage() {
                     label="Preferred Contact Method"
                     ariaLabel="Preferred Contact Method"
                     value={contactPref}
-                    options={[
-                      { value: '', label: 'Select…' },
-                      { value: 'email', label: 'Email' },
-                      { value: 'discord', label: 'Discord' },
-                      { value: 'signal', label: 'Signal' },
-                      { value: 'whatsapp', label: 'WhatsApp' },
-                    ]}
-                    onChange={(v) => setContactPref(v)}
+                    options={contactPrefOptions}
+                    onChange={setContactPref}
                   />
                 </div>
               </div>
@@ -523,12 +541,8 @@ export default function SignupPage() {
                   label="Keep me in the loop about new projects"
                   ariaLabel="Keep me in the loop about new projects"
                   value={emailDigest}
-                  options={[
-                    { value: 'none', label: "Don't email me" },
-                    { value: 'match', label: 'Email me when a project matches my skills' },
-                    { value: 'fortnightly', label: 'Send me a fortnightly digest' },
-                  ]}
-                  onChange={(v) => setEmailDigest(v)}
+                  options={emailDigestOptions}
+                  onChange={setEmailDigest}
                 />
               </div>
 
@@ -810,14 +824,8 @@ export default function SignupPage() {
                   label="Preferred Contact Method"
                   ariaLabel="Preferred Contact Method"
                   value={contactPref}
-                  options={[
-                    { value: '', label: 'Select…' },
-                    { value: 'email', label: 'Email' },
-                    { value: 'discord', label: 'Discord' },
-                    { value: 'signal', label: 'Signal' },
-                    { value: 'whatsapp', label: 'WhatsApp' },
-                  ]}
-                  onChange={(v) => setContactPref(v)}
+                  options={contactPrefOptions}
+                  onChange={setContactPref}
                 />
               </div>
             </div>
@@ -955,12 +963,8 @@ export default function SignupPage() {
                 label="Keep me in the loop about new projects"
                 ariaLabel="Keep me in the loop about new projects"
                 value={emailDigest}
-                options={[
-                  { value: 'none', label: "Don't email me" },
-                  { value: 'match', label: 'Email me when a project matches my skills' },
-                  { value: 'fortnightly', label: 'Send me a fortnightly digest' },
-                ]}
-                onChange={(v) => setEmailDigest(v)}
+                options={emailDigestOptions}
+                onChange={setEmailDigest}
               />
             </div>
 

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Button from '@/components/Button'
 import Radio from '@/components/Radio'
-import FilterDropdown from '@/components/FilterDropdown'
+import FilterDropdown, { FilterOption, useFilterOptions } from '@/components/FilterDropdown'
 import { useAuth } from '@/lib/auth-context'
 import { client } from '@/lib/client'
 import { COUNTRY_OPTIONS } from '@/lib/filter-options'
@@ -39,7 +39,7 @@ const SUGGESTION_COUNTRIES = COUNTRY_OPTIONS.filter(
   (o) => o.value && o.value !== 'Remote' && o.value !== 'Other',
 )
 
-const STATUS_FILTER_OPTIONS = [
+const STATUS_FILTER_OPTIONS: FilterOption<StatusFilter>[] = [
   { value: 'all', label: 'All statuses' },
   { value: 'active', label: 'Active' },
   { value: 'pending', label: 'Pending' },
@@ -66,7 +66,10 @@ export default function AdminLocalGroupsPage() {
   const { user, loading } = useAuth()
   const showToast = useToast()
 
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const { value: statusFilter, onChange: setStatusFilter } = useFilterOptions(
+    STATUS_FILTER_OPTIONS,
+    'all',
+  )
   const [countryFilter, setCountryFilter] = useState('')
   const [items, setItems] = useState<DisplayItem[]>([])
   const [loadingItems, setLoadingItems] = useState(true)
@@ -374,7 +377,7 @@ export default function AdminLocalGroupsPage() {
             ariaLabel="Status filter"
             value={statusFilter}
             options={STATUS_FILTER_OPTIONS}
-            onChange={(v) => setStatusFilter((v || 'all') as StatusFilter)}
+            onChange={(v) => setStatusFilter(v)}
           />
           <FilterDropdown
             id="country-filter"
