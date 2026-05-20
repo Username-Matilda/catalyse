@@ -5,14 +5,27 @@ import path from 'path'
 const PROJECT_ROOT = path.resolve(__dirname, '..')
 const NEXT_BINARY = path.join(PROJECT_ROOT, 'node_modules', '.bin', 'next')
 
-function walkDir(dir: string): string[] {
+// Build inputs .tsbuildinfo never lists: it tracks only the TS/TSX program
+// files. CSS (turbopack inlines styles) and non-TS config files must be
+// tracked explicitly.
+const CONFIG_FILES = [
+  'next.config.ts',
+  'postcss.config.mjs',
+  'prisma.config.ts',
+  'prisma/schema.prisma',
+  'tsconfig.json',
+  'package.json',
+  'package-lock.json',
+]
+
+function walkDir(dir: string, ext?: string): string[] {
   const files: string[] = []
   if (!fs.existsSync(dir)) return files
   const walk = (d: string) => {
     for (const entry of fs.readdirSync(d, { withFileTypes: true })) {
       const full = path.join(d, entry.name)
       if (entry.isDirectory()) walk(full)
-      else files.push(full)
+      else if (!ext || entry.name.endsWith(ext)) files.push(full)
     }
   }
   walk(dir)
@@ -29,7 +42,12 @@ function getSourceFiles(): string[] {
     const tsFiles = fileNames
       .filter((f) => !f.includes('node_modules'))
       .map((f) => path.resolve(base, f))
-    return [...tsFiles, ...walkDir(path.join(PROJECT_ROOT, 'public'))]
+    return [
+      ...tsFiles,
+      ...CONFIG_FILES.map((f) => path.join(PROJECT_ROOT, f)),
+      ...walkDir(path.join(PROJECT_ROOT, 'app'), '.css'),
+      ...walkDir(path.join(PROJECT_ROOT, 'public')),
+    ]
   }
 
   // fallback: full source tree scan (pre-first-build)
@@ -53,7 +71,7 @@ export function isBuildFresh(): boolean {
   if (!fs.existsSync(buildId)) return false
 
   const buildMtime = fs.statSync(buildId).mtimeMs
-  return !getSourceFiles().some((f) => fs.statSync(f).mtimeMs > buildMtime)
+  return !getSourceFiles().some((f) => fs.existsSync(f) && fs.statSync(f).mtimeMs > buildMtime)
 }
 
 export async function buildNext(): Promise<void> {
