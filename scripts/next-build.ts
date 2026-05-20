@@ -5,40 +5,73 @@ import path from 'path'
 const PROJECT_ROOT = path.resolve(__dirname, '..')
 const NEXT_BINARY = path.join(PROJECT_ROOT, 'node_modules', '.bin', 'next')
 
-function getTracedFiles(): string[] | null {
-  const serverDir = path.join(PROJECT_ROOT, '.next', 'server')
-  if (!fs.existsSync(serverDir)) return null
+// Build inputs .tsbuildinfo never lists: it tracks only the TS/TSX program
+// files. CSS (turbopack inlines styles) and non-TS config files must be
+// tracked explicitly.
+const CONFIG_FILES = [
+  'next.config.ts',
+  'postcss.config.mjs',
+  'prisma.config.ts',
+  'prisma/schema.prisma',
+  'tsconfig.json',
+  'package.json',
+  'package-lock.json',
+]
 
-  const nftFiles: string[] = []
-  const walk = (dir: string) => {
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      const full = path.join(dir, entry.name)
+function walkDir(dir: string, ext?: string): string[] {
+  const files: string[] = []
+  if (!fs.existsSync(dir)) return files
+  const walk = (d: string) => {
+    for (const entry of fs.readdirSync(d, { withFileTypes: true })) {
+      const full = path.join(d, entry.name)
       if (entry.isDirectory()) walk(full)
-      else if (entry.name.endsWith('.nft.json')) nftFiles.push(full)
+      else if (!ext || entry.name.endsWith(ext)) files.push(full)
     }
   }
-  walk(serverDir)
+  walk(dir)
+  return files
+}
 
-  if (nftFiles.length === 0) return null
-
-  const traced = new Set<string>()
-  for (const nftFile of nftFiles) {
-    const { files } = JSON.parse(fs.readFileSync(nftFile, 'utf8')) as { files: string[] }
-    const base = path.dirname(nftFile)
-    for (const f of files) traced.add(path.resolve(base, f))
+function getSourceFiles(): string[] {
+  const tsBuildInfo = path.join(PROJECT_ROOT, '.next', 'cache', '.tsbuildinfo')
+  if (fs.existsSync(tsBuildInfo)) {
+    const { fileNames } = JSON.parse(fs.readFileSync(tsBuildInfo, 'utf8')) as {
+      fileNames: string[]
+    }
+    const base = path.dirname(tsBuildInfo)
+    const tsFiles = fileNames
+      .filter((f) => !f.includes('node_modules'))
+      .map((f) => path.resolve(base, f))
+    return [
+      ...tsFiles,
+      ...CONFIG_FILES.map((f) => path.join(PROJECT_ROOT, f)),
+      ...walkDir(path.join(PROJECT_ROOT, 'app'), '.css'),
+      ...walkDir(path.join(PROJECT_ROOT, 'public')),
+    ]
   }
-  return [...traced]
+
+  // fallback: full source tree scan (pre-first-build)
+  const SKIP_DIRS = new Set(['.next', 'node_modules', '.git'])
+  const files: string[] = []
+  const walk = (dir: string) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (entry.isDirectory()) {
+        if (!SKIP_DIRS.has(entry.name)) walk(path.join(dir, entry.name))
+      } else {
+        files.push(path.join(dir, entry.name))
+      }
+    }
+  }
+  walk(PROJECT_ROOT)
+  return files
 }
 
 export function isBuildFresh(): boolean {
   const buildId = path.join(PROJECT_ROOT, '.next', 'BUILD_ID')
   if (!fs.existsSync(buildId)) return false
 
-  const traced = getTracedFiles()
-  if (!traced) return false
-
   const buildMtime = fs.statSync(buildId).mtimeMs
-  return !traced.some((f) => fs.existsSync(f) && fs.statSync(f).mtimeMs > buildMtime)
+  return !getSourceFiles().some((f) => fs.existsSync(f) && fs.statSync(f).mtimeMs > buildMtime)
 }
 
 export async function buildNext(): Promise<void> {
