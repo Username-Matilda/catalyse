@@ -70,7 +70,10 @@ async function sendAccountDeletionNotifications(deletedId: number, deletedName: 
     GROUP BY p.id
   `
   const ownedProjects = await prisma.project.findMany({
-    where: { ownerId: deletedId, status: { notIn: [ProjectStatus.completed, ProjectStatus.archived] } },
+    where: {
+      ownerId: deletedId,
+      status: { notIn: [ProjectStatus.completed, ProjectStatus.archived] },
+    },
     select: { id: true, title: true },
   })
   if (!taskRows.length && !ownedProjects.length) return

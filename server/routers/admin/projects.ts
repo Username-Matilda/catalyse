@@ -75,7 +75,9 @@ export const adminProjectsRouter = {
           where: { projectId: input.id, status: { not: TaskStatus.done } },
         })
         const newStatus = openTaskCount > 0 ? ProjectStatus.in_progress : ProjectStatus.needs_tasks
-        const isSeekingHelp = targetStatus === ProjectStatus.seeking_help || targetStatus === ProjectStatus.seeking_owner
+        const isSeekingHelp =
+          targetStatus === ProjectStatus.seeking_help ||
+          targetStatus === ProjectStatus.seeking_owner
         const isSeekingOwner = targetStatus === ProjectStatus.seeking_owner && !hasOwner
 
         await prisma.project.update({

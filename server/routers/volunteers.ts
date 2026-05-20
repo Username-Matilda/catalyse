@@ -166,7 +166,13 @@ export const volunteersRouter = {
         prisma.project.findMany({
           where: {
             OR: [{ ownerId: input.id }, { proposedById: input.id }],
-            status: { notIn: [ProjectStatus.archived, ProjectStatus.pending_review, ProjectStatus.needs_discussion] },
+            status: {
+              notIn: [
+                ProjectStatus.archived,
+                ProjectStatus.pending_review,
+                ProjectStatus.needs_discussion,
+              ],
+            },
           },
           orderBy: { createdAt: 'desc' },
           select: {
