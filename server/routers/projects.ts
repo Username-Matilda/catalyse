@@ -3,7 +3,7 @@ import { ORPCError } from '@orpc/server'
 import { Prisma } from '@/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
 import { withProjectExtras, projectInclude, EnrichedProject } from '@/lib/project'
-import { notifyVolunteer } from '@/lib/notify'
+import { notifyUser } from '@/lib/notify'
 import {
   CreateProjectSchema,
   UpdateProjectSchema,
@@ -234,7 +234,7 @@ export const projectsRouter = {
     })
 
     for (const admin of admins) {
-      await notifyVolunteer(
+      await notifyUser(
         admin.id,
         'new_project_proposal',
         `New project proposal: ${project.title}`,
@@ -539,7 +539,7 @@ export const projectsRouter = {
         }
 
         for (const vid of notifyIds) {
-          await notifyVolunteer(
+          await notifyUser(
             vid,
             'project_status_changed',
             `'${project.title}' is now ${statusLabel}`,
@@ -630,7 +630,7 @@ export const projectsRouter = {
       const interestLabel = interestType === 'want_to_own' ? 'own / lead' : 'contribute to'
 
       if (project.ownerId) {
-        await notifyVolunteer(
+        await notifyUser(
           project.ownerId,
           'new_interest',
           `Someone's interested in '${project.title}'!`,
@@ -711,7 +711,7 @@ export const projectsRouter = {
         })
       }
 
-      await notifyVolunteer(
+      await notifyUser(
         interest.volunteerId,
         `interest_${input.status}`,
         `Your interest in '${project.title}' was ${input.status}`,
@@ -786,7 +786,7 @@ export const projectsRouter = {
         })
       }
 
-      await notifyVolunteer(
+      await notifyUser(
         input.volunteerId,
         'assigned_to_project',
         `You've been assigned to '${project.title}'`,

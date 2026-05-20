@@ -2,7 +2,7 @@ import { prisma } from './prisma'
 import { createNotification } from './project'
 import { sendProjectNotificationEmail } from './email'
 
-export async function notifyVolunteer(
+export async function notifyUser(
   volunteerId: number,
   type: string,
   title: string,

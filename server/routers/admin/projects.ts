@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
 import { withProjectExtras, projectInclude, EnrichedProject } from '@/lib/project'
-import { notifyVolunteer } from '@/lib/notify'
+import { notifyUser } from '@/lib/notify'
 import { AdminCreateProjectSchema, ReviewProjectSchema, OutcomeProjectSchema } from '@/lib/schemas'
 import { adminProcedure } from '../../procedures'
 import { ProjectStatus, TaskStatus } from '@/generated/prisma/enums'
@@ -92,7 +92,7 @@ export const adminProjectsRouter = {
         })
 
         if (project.proposedById) {
-          await notifyVolunteer(
+          await notifyUser(
             project.proposedById,
             'project_approved',
             `Your project '${project.title}' has been approved!`,
@@ -121,7 +121,7 @@ export const adminProjectsRouter = {
 
         if (project.proposedById) {
           const feedback = feedbackToProposer || 'A team lead wants to chat about your proposal.'
-          await notifyVolunteer(
+          await notifyUser(
             project.proposedById,
             'project_needs_discussion',
             `Let's discuss your project '${project.title}'`,

@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
-import { createNotification } from '@/lib/project'
+import { notifyUser } from '@/lib/notify'
 import {
   CreateStarterTaskSchema,
   AssignStarterTaskSchema,
@@ -149,13 +149,13 @@ export const starterTasksRouter = {
         },
       })
 
-      createNotification(
+      notifyUser(
         input.volunteerId,
         'starter_task_assigned',
         `You've been assigned a starter task: ${task.title}`,
         task.description.slice(0, 200),
         '/dashboard',
-      ).catch((e) => console.error('[NOTIFY ERROR]', e))
+      )
 
       return { message: 'Task assigned' }
     }),
@@ -192,13 +192,13 @@ export const starterTasksRouter = {
       })
 
       if (task.assignedById) {
-        createNotification(
+        notifyUser(
           task.assignedById,
           'starter_task_submitted',
           `${volunteer.name} submitted: ${task.title}`,
           'Ready for review',
           '/admin/starter-tasks',
-        ).catch((e) => console.error('[NOTIFY ERROR]', e))
+        )
       }
 
       return { message: 'Task submitted for review' }
@@ -270,13 +270,13 @@ export const starterTasksRouter = {
           })
         }
 
-        createNotification(
+        notifyUser(
           task.assignedToId,
           'starter_task_reviewed',
           `Your starter task was reviewed: ${task.title}`,
           `Rating: ${input.reviewRating}${input.feedbackToVolunteer ? ` - ${input.feedbackToVolunteer}` : ''}`,
           '/dashboard',
-        ).catch((e) => console.error('[NOTIFY ERROR]', e))
+        )
       }
 
       return { message: 'Task reviewed' }
