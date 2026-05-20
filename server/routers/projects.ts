@@ -2,13 +2,8 @@ import { z } from 'zod'
 import { ORPCError } from '@orpc/server'
 import { Prisma } from '@/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
-import { sendProjectNotificationEmail } from '@/lib/email'
-import {
-  withProjectExtras,
-  projectInclude,
-  EnrichedProject,
-  createNotification,
-} from '@/lib/project'
+import { withProjectExtras, projectInclude, EnrichedProject } from '@/lib/project'
+import { notifyUser } from '@/lib/notify'
 import {
   CreateProjectSchema,
   UpdateProjectSchema,
@@ -18,6 +13,7 @@ import {
   CreateProjectUpdateSchema,
 } from '@/lib/schemas'
 import { publicProcedure, authedProcedure, adminProcedure } from '../procedures'
+import { ApprovalStatus, InterestStatus, ProjectStatus, TaskStatus } from '@/generated/prisma/enums'
 
 const STATUS_LABELS: Record<string, string> = {
   seeking_owner: 'Seeking Owner',
@@ -29,14 +25,14 @@ const STATUS_LABELS: Record<string, string> = {
   archived: 'Archived',
 }
 
-const OWNER_ALLOWED_STATUSES = new Set([
-  'seeking_owner',
-  'seeking_help',
-  'needs_tasks',
-  'in_progress',
-  'on_hold',
-  'completed',
-])
+const OWNER_ALLOWED_STATUSES: ProjectStatus[] = [
+  ProjectStatus.seeking_owner,
+  ProjectStatus.seeking_help,
+  ProjectStatus.needs_tasks,
+  ProjectStatus.in_progress,
+  ProjectStatus.on_hold,
+  ProjectStatus.completed,
+]
 
 export const projectsRouter = {
   list: publicProcedure
@@ -68,7 +64,7 @@ export const projectsRouter = {
       }
 
       const isPending = Boolean(
-        volunteer && volunteer.approvalStatus !== 'APPROVED' && !volunteer.isAdmin,
+        volunteer && volunteer.approvalStatus !== ApprovalStatus.approved && !volunteer.isAdmin,
       )
 
       let volunteerSkillIds: Set<number> | undefined
@@ -86,7 +82,9 @@ export const projectsRouter = {
         conditions.push(Prisma.sql`status = ${input.status}`)
       } else {
         conditions.push(
-          Prisma.raw(`status NOT IN ('archived', 'pending_review', 'needs_discussion')`),
+          Prisma.raw(
+            `status NOT IN ('${ProjectStatus.archived}', '${ProjectStatus.pending_review}', '${ProjectStatus.needs_discussion}')`,
+          ),
         )
       }
 
@@ -176,7 +174,7 @@ export const projectsRouter = {
 
   create: authedProcedure.input(CreateProjectSchema).handler(async ({ input, context }) => {
     const volunteer = context.volunteer
-    if (volunteer.approvalStatus !== 'APPROVED' && !volunteer.isAdmin) {
+    if (volunteer.approvalStatus !== ApprovalStatus.approved && !volunteer.isAdmin) {
       throw new ORPCError('FORBIDDEN', { message: 'Your account is pending approval' })
     }
 
@@ -192,7 +190,7 @@ export const projectsRouter = {
         data: {
           title: input.title,
           description: input.description,
-          status: 'pending_review',
+          status: ProjectStatus.pending_review,
           ownerId: wantToOwn ? volunteer.id : null,
           proposedById: volunteer.id,
           isOrgProposed: false,
@@ -236,24 +234,18 @@ export const projectsRouter = {
     })
 
     for (const admin of admins) {
-      createNotification(
+      await notifyUser(
         admin.id,
         'new_project_proposal',
         `New project proposal: ${project.title}`,
         `Proposed by ${volunteer.name}`,
         '/admin/triage',
-      ).catch((e) => console.error('[NOTIFY ERROR]', e))
-
-      if (admin.email) {
-        sendProjectNotificationEmail({
-          to: admin.email,
-          name: admin.name,
-          subject: `New project proposal: ${project.title}`,
+        {
           message: `<strong>${volunteer.name}</strong> has submitted a new project proposal: <strong>${project.title}</strong>. Please review it in the triage queue.`,
           projectTitle: project.title,
           projectId: project.id,
-        }).catch((e) => console.error('[EMAIL ERROR]', e))
-      }
+        },
+      )
     }
 
     return { id: project.id, message: 'Project submitted for review' }
@@ -264,7 +256,7 @@ export const projectsRouter = {
     .handler(async ({ input, context }) => {
       const volunteer = context.volunteer
       const isPending = Boolean(
-        volunteer && volunteer.approvalStatus !== 'APPROVED' && !volunteer.isAdmin,
+        volunteer && volunteer.approvalStatus !== ApprovalStatus.approved && !volunteer.isAdmin,
       )
 
       const project = await prisma.project.findUnique({
@@ -274,7 +266,10 @@ export const projectsRouter = {
 
       if (!project) throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
 
-      const hiddenStatuses = ['pending_review', 'needs_discussion']
+      const hiddenStatuses: ProjectStatus[] = [
+        ProjectStatus.pending_review,
+        ProjectStatus.needs_discussion,
+      ]
       if (hiddenStatuses.includes(project.status)) {
         if (!volunteer) throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
         const isProposer = project.proposedById === volunteer.id
@@ -413,7 +408,11 @@ export const projectsRouter = {
         }
 
         const rawMyInterest = await prisma.projectInterest.findFirst({
-          where: { projectId: input.id, volunteerId: volunteer.id, status: { not: 'withdrawn' } },
+          where: {
+            projectId: input.id,
+            volunteerId: volunteer.id,
+            status: { not: InterestStatus.withdrawn },
+          },
         })
         myInterest = rawMyInterest
           ? {
@@ -456,9 +455,13 @@ export const projectsRouter = {
       const body = input
       const newStatus = body.status
 
-      if (newStatus && newStatus === 'in_progress' && project.status !== 'in_progress') {
+      if (
+        newStatus &&
+        newStatus === ProjectStatus.in_progress &&
+        project.status !== ProjectStatus.in_progress
+      ) {
         const openTaskCount = await prisma.projectTask.count({
-          where: { projectId: input.id, status: { not: 'done' } },
+          where: { projectId: input.id, status: { not: TaskStatus.done } },
         })
         if (openTaskCount === 0) {
           throw new ORPCError('BAD_REQUEST', {
@@ -490,7 +493,7 @@ export const projectsRouter = {
       if (newStatus !== undefined) {
         if (volunteer.isAdmin) {
           data.status = newStatus
-        } else if (isOwner && OWNER_ALLOWED_STATUSES.has(newStatus)) {
+        } else if (isOwner && OWNER_ALLOWED_STATUSES.includes(newStatus)) {
           data.status = newStatus
         }
       }
@@ -498,7 +501,7 @@ export const projectsRouter = {
       if (body.isSeekingHelp !== undefined) data.isSeekingHelp = body.isSeekingHelp
       if (body.isSeekingOwner !== undefined) data.isSeekingOwner = body.isSeekingOwner
 
-      if (data.status === 'completed' || data.status === 'archived') {
+      if (data.status === ProjectStatus.completed || data.status === ProjectStatus.archived) {
         if (data.isSeekingHelp === undefined) data.isSeekingHelp = false
         if (data.isSeekingOwner === undefined) data.isSeekingOwner = false
       }
@@ -528,7 +531,7 @@ export const projectsRouter = {
           notifyIds.add(project.proposedById)
 
         const accepted = await prisma.projectInterest.findMany({
-          where: { projectId: input.id, status: 'accepted' },
+          where: { projectId: input.id, status: InterestStatus.accepted },
           select: { volunteerId: true },
         })
         for (const row of accepted) {
@@ -536,28 +539,18 @@ export const projectsRouter = {
         }
 
         for (const vid of notifyIds) {
-          createNotification(
+          await notifyUser(
             vid,
             'project_status_changed',
             `'${project.title}' is now ${statusLabel}`,
             `Status changed by ${volunteer.name}`,
             `/projects/${input.id}`,
-          ).catch((e) => console.error('[NOTIFY ERROR]', e))
-
-          const vol = await prisma.volunteer.findFirst({
-            where: { id: vid, deletedAt: null },
-            select: { name: true, email: true },
-          })
-          if (vol?.email) {
-            sendProjectNotificationEmail({
-              to: vol.email,
-              name: vol.name,
-              subject: `'${project.title}' is now ${statusLabel}`,
+            {
               message: `The project <strong>${project.title}</strong> has been updated to <strong>${statusLabel}</strong>.`,
               projectTitle: project.title,
               projectId: input.id,
-            }).catch((e) => console.error('[EMAIL ERROR]', e))
-          }
+            },
+          )
         }
       }
 
@@ -579,18 +572,18 @@ export const projectsRouter = {
     .input(z.object({ projectId: z.number().int() }).merge(ProjectInterestBodySchema))
     .handler(async ({ input, context }) => {
       const volunteer = context.volunteer
-      if (volunteer.approvalStatus !== 'APPROVED' && !volunteer.isAdmin) {
+      if (volunteer.approvalStatus !== ApprovalStatus.approved && !volunteer.isAdmin) {
         throw new ORPCError('FORBIDDEN', { message: 'Your account is pending approval' })
       }
 
       const project = await prisma.project.findFirst({
         where: {
           id: input.projectId,
-          status: { notIn: ['completed', 'archived'] },
+          status: { notIn: [ProjectStatus.completed, ProjectStatus.archived] },
           OR: [
             { isSeekingHelp: true },
             { isSeekingOwner: true },
-            { status: { in: ['seeking_owner', 'seeking_help'] } },
+            { status: { in: [ProjectStatus.seeking_owner, ProjectStatus.seeking_help] } },
           ],
         },
       })
@@ -603,7 +596,7 @@ export const projectsRouter = {
       const existing = await prisma.projectInterest.findFirst({
         where: { projectId: input.projectId, volunteerId: volunteer.id },
       })
-      if (existing && existing.status !== 'withdrawn') {
+      if (existing && existing.status !== InterestStatus.withdrawn) {
         throw new ORPCError('BAD_REQUEST', { message: "You've already expressed interest" })
       }
 
@@ -617,46 +610,42 @@ export const projectsRouter = {
           data: {
             interestType,
             message,
-            status: 'pending',
+            status: InterestStatus.pending,
             respondedAt: null,
             responseMessage: null,
           },
         })
       } else {
         await prisma.projectInterest.create({
-          data: { volunteerId: volunteer.id, projectId: input.projectId, interestType, message },
+          data: {
+            volunteerId: volunteer.id,
+            projectId: input.projectId,
+            interestType,
+            message,
+            status: InterestStatus.pending,
+          },
         })
       }
 
       const interestLabel = interestType === 'want_to_own' ? 'own / lead' : 'contribute to'
 
       if (project.ownerId) {
-        createNotification(
+        await notifyUser(
           project.ownerId,
           'new_interest',
           `Someone's interested in '${project.title}'!`,
           `${volunteer.name} wants to ${interestLabel}`,
           `/projects/${input.projectId}`,
-        ).catch((e) => console.error('[NOTIFY ERROR]', e))
-
-        const owner = await prisma.volunteer.findFirst({
-          where: { id: project.ownerId },
-          select: { name: true, email: true },
-        })
-        if (owner?.email) {
-          const extra = message
-            ? `<div style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"><strong>Their message:</strong> ${message}</div>`
-            : ''
-          sendProjectNotificationEmail({
-            to: owner.email,
-            name: owner.name,
+          {
             subject: `${volunteer.name} wants to ${interestLabel} '${project.title}'`,
             message: `<strong>${volunteer.name}</strong> has expressed interest in your project <strong>${project.title}</strong>.`,
             projectTitle: project.title,
             projectId: input.projectId,
-            extraHtml: extra,
-          }).catch((e) => console.error('[EMAIL ERROR]', e))
-        }
+            extraHtml: message
+              ? `<div style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"><strong>Their message:</strong> ${message}</div>`
+              : undefined,
+          },
+        )
       }
 
       return { message: 'Interest expressed successfully' }
@@ -666,8 +655,12 @@ export const projectsRouter = {
     .input(z.object({ projectId: z.number().int() }))
     .handler(async ({ input, context }) => {
       const result = await prisma.projectInterest.updateMany({
-        where: { projectId: input.projectId, volunteerId: context.volunteer.id, status: 'pending' },
-        data: { status: 'withdrawn' },
+        where: {
+          projectId: input.projectId,
+          volunteerId: context.volunteer.id,
+          status: InterestStatus.pending,
+        },
+        data: { status: InterestStatus.withdrawn },
       })
       if (result.count === 0)
         throw new ORPCError('NOT_FOUND', { message: 'No pending interest found' })
@@ -679,7 +672,7 @@ export const projectsRouter = {
       z.object({
         projectId: z.number().int(),
         interestId: z.number().int(),
-        status: z.enum(['accepted', 'declined']),
+        status: z.enum([InterestStatus.accepted, InterestStatus.declined]),
         responseMessage: z.string().optional().nullable(),
       }),
     )
@@ -705,45 +698,34 @@ export const projectsRouter = {
         },
       })
 
-      createNotification(
-        interest.volunteerId,
-        `interest_${input.status}`,
-        `Your interest in '${project.title}' was ${input.status}`,
-        input.responseMessage ?? null,
-        `/projects/${input.projectId}`,
-      ).catch((e) => console.error('[NOTIFY ERROR]', e))
-
-      if (input.status === 'accepted' && interest.interestType === 'want_to_own') {
+      if (input.status === InterestStatus.accepted && interest.interestType === 'want_to_own') {
         const openTaskCount = await prisma.projectTask.count({
-          where: { projectId: input.projectId, status: { not: 'done' } },
+          where: { projectId: input.projectId, status: { not: TaskStatus.done } },
         })
         await prisma.project.update({
           where: { id: input.projectId },
           data: {
             ownerId: interest.volunteerId,
-            status: openTaskCount > 0 ? 'in_progress' : 'needs_tasks',
+            status: openTaskCount > 0 ? ProjectStatus.in_progress : ProjectStatus.needs_tasks,
           },
         })
       }
 
-      const vol = await prisma.volunteer.findFirst({
-        where: { id: interest.volunteerId, deletedAt: null },
-        select: { name: true, email: true },
-      })
-      if (vol?.email) {
-        const extra = input.responseMessage
-          ? `<div style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"><strong>Message:</strong> ${input.responseMessage}</div>`
-          : ''
-        sendProjectNotificationEmail({
-          to: vol.email,
-          name: vol.name,
-          subject: `Your interest in '${project.title}' was ${input.status}`,
+      await notifyUser(
+        interest.volunteerId,
+        `interest_${input.status}`,
+        `Your interest in '${project.title}' was ${input.status}`,
+        input.responseMessage ?? null,
+        `/projects/${input.projectId}`,
+        {
           message: `The team has <strong>${input.status}</strong> your interest in the project <strong>${project.title}</strong>.`,
           projectTitle: project.title,
           projectId: input.projectId,
-          extraHtml: extra,
-        }).catch((e) => console.error('[EMAIL ERROR]', e))
-      }
+          extraHtml: input.responseMessage
+            ? `<div style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"><strong>Message:</strong> ${input.responseMessage}</div>`
+            : undefined,
+        },
+      )
 
       return { message: `Interest ${input.status}` }
     }),
@@ -771,17 +753,17 @@ export const projectsRouter = {
         where: {
           projectId: input.projectId,
           volunteerId: input.volunteerId,
-          status: { not: 'withdrawn' },
+          status: { not: InterestStatus.withdrawn },
         },
       })
 
       if (existing) {
-        if (existing.status === 'pending') {
+        if (existing.status === InterestStatus.pending) {
           await prisma.projectInterest.update({
             where: { id: existing.id },
-            data: { status: 'accepted', respondedAt: new Date() },
+            data: { status: InterestStatus.accepted, respondedAt: new Date() },
           })
-        } else if (existing.status === 'accepted') {
+        } else if (existing.status === InterestStatus.accepted) {
           return { message: 'This volunteer is already assigned to this project' }
         }
       } else {
@@ -791,7 +773,7 @@ export const projectsRouter = {
             projectId: input.projectId,
             interestType: input.interestType,
             message: 'Assigned by admin/owner',
-            status: 'accepted',
+            status: InterestStatus.accepted,
             respondedAt: new Date(),
           },
         })
@@ -804,31 +786,18 @@ export const projectsRouter = {
         })
       }
 
-      const assignee = await prisma.volunteer.findFirst({
-        where: { id: input.volunteerId },
-        select: { name: true, email: true },
-      })
-
-      if (assignee) {
-        createNotification(
-          input.volunteerId,
-          'assigned_to_project',
-          `You've been assigned to '${project.title}'`,
-          `Assigned by ${volunteer.name}`,
-          `/projects/${input.projectId}`,
-        ).catch((e) => console.error('[NOTIFY ERROR]', e))
-
-        if (assignee.email) {
-          sendProjectNotificationEmail({
-            to: assignee.email,
-            name: assignee.name,
-            subject: `You've been assigned to '${project.title}'`,
-            message: `<strong>${volunteer.name}</strong> has assigned you to the project <strong>${project.title}</strong>.`,
-            projectTitle: project.title,
-            projectId: input.projectId,
-          }).catch((e) => console.error('[EMAIL ERROR]', e))
-        }
-      }
+      await notifyUser(
+        input.volunteerId,
+        'assigned_to_project',
+        `You've been assigned to '${project.title}'`,
+        `Assigned by ${volunteer.name}`,
+        `/projects/${input.projectId}`,
+        {
+          message: `<strong>${volunteer.name}</strong> has assigned you to the project <strong>${project.title}</strong>.`,
+          projectTitle: project.title,
+          projectId: input.projectId,
+        },
+      )
 
       return { message: 'Volunteer assigned to project' }
     }),
@@ -838,7 +807,7 @@ export const projectsRouter = {
     .handler(async ({ input, context }) => {
       const volunteer = context.volunteer
       const isPending = Boolean(
-        volunteer && volunteer.approvalStatus !== 'APPROVED' && !volunteer.isAdmin,
+        volunteer && volunteer.approvalStatus !== ApprovalStatus.approved && !volunteer.isAdmin,
       )
 
       const tasks = await prisma.projectTask.findMany({
@@ -894,10 +863,10 @@ export const projectsRouter = {
             createdById: volunteer.id,
           },
         })
-        if (project.status === 'needs_tasks') {
+        if (project.status === ProjectStatus.needs_tasks) {
           await tx.project.update({
             where: { id: input.projectId },
-            data: { status: 'in_progress' },
+            data: { status: ProjectStatus.in_progress },
           })
         }
         return newTask
@@ -932,8 +901,11 @@ export const projectsRouter = {
         const newStatus = input.data.status
         const newAssignedToId = input.data.assignedToId
         const isSelfClaim =
-          newStatus === 'assigned' && newAssignedToId === volunteer.id && task.status === 'open'
-        const isMarkingDone = newStatus === 'done' && isAssignee && task.status === 'assigned'
+          newStatus === TaskStatus.assigned &&
+          newAssignedToId === volunteer.id &&
+          task.status === TaskStatus.open
+        const isMarkingDone =
+          newStatus === TaskStatus.done && isAssignee && task.status === TaskStatus.assigned
         if (!isSelfClaim && !isMarkingDone) {
           throw new ORPCError('FORBIDDEN', { message: 'Not authorized to update this task' })
         }
@@ -944,8 +916,8 @@ export const projectsRouter = {
       if (input.data.description !== undefined) data.description = input.data.description
       if (input.data.status !== undefined) {
         data.status = input.data.status
-        if (input.data.status === 'done') data.completedAt = new Date()
-        else if (input.data.status === 'open') {
+        if (input.data.status === TaskStatus.done) data.completedAt = new Date()
+        else if (input.data.status === TaskStatus.open) {
           data.assignedToId = null
           data.completedAt = null
         }

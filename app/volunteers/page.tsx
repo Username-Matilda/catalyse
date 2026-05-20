@@ -1,14 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRequireAuth } from '@/lib/hooks/auth'
 import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import FilterDropdown from '@/components/FilterDropdown'
 import { buildLocationOptions, type LocalGroupOption } from '@/lib/filter-options'
 import { InferRouterOutputs } from '@orpc/server'
-import { useAuth } from '@/lib/auth-context'
 import { orpc } from '@/lib/orpc'
 import { AppRouter } from '@/server/router'
 import { CARD_GRID_CLASSES } from '@/components/ProjectCard'
@@ -19,17 +18,12 @@ type FlatSkill = SkillCategory['skills'][number] & { categoryName: string }
 type Volunteer = InferRouterOutputs<AppRouter>['volunteers']['list']['volunteers'][number]
 
 export default function VolunteersPage() {
-  const router = useRouter()
-  const { user, loading } = useAuth()
+  const { user, loading } = useRequireAuth()
   const [search, setSearch] = useState('')
   const [skillFilter, setSkillFilter] = useState('')
   const [locationFilter, setLocationFilter] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [debouncedLocationFilter, setDebouncedLocationFilter] = useState('')
-
-  useEffect(() => {
-    if (!loading && !user) router.replace('/login')
-  }, [user, loading, router])
 
   useEffect(() => {
     const t = setTimeout(

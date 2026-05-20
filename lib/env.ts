@@ -1,5 +1,26 @@
 type EnvError = { var: string; reason: string }
 
+const stubEmailDefault = process.env.NODE_ENV === 'production' ? '' : 'true'
+
+export const env = {
+  NODE_ENV: process.env.NODE_ENV ?? 'development',
+  APP_URL: process.env.APP_URL ?? '',
+  RESEND_API_KEY: process.env.RESEND_API_KEY,
+  FROM_EMAIL: process.env.FROM_EMAIL ?? 'Catalyse <noreply@pauseai.uk>',
+  REPLY_TO_EMAIL: process.env.REPLY_TO_EMAIL,
+  STUB_EMAIL: ['1', 'true', 'yes'].includes(
+    (process.env.STUB_EMAIL || stubEmailDefault).toLowerCase(),
+  ),
+  CRON_SECRET: process.env.CRON_SECRET,
+  ADMIN_EMAILS: process.env.ADMIN_EMAILS ?? '',
+  DISABLE_RATE_LIMIT: ['1', 'true', 'yes'].includes(
+    (process.env.DISABLE_RATE_LIMIT ?? '').toLowerCase(),
+  ),
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+  RAILWAY_GIT_COMMIT_SHA: process.env.RAILWAY_GIT_COMMIT_SHA,
+  RAILWAY_ENVIRONMENT_NAME: process.env.RAILWAY_ENVIRONMENT_NAME,
+} as const
+
 export function validateEnv(): void {
   if (process.env.NODE_ENV !== 'production') return
   // Railway PR deployments run as NODE_ENV=production but aren't the live environment
@@ -8,16 +29,15 @@ export function validateEnv(): void {
 
   const errors: EnvError[] = []
 
-  if (!process.env.APP_URL) {
+  if (!env.APP_URL) {
     errors.push({ var: 'APP_URL', reason: 'required for correct links in emails' })
   }
 
-  if (!process.env.CRON_SECRET) {
+  if (!env.CRON_SECRET) {
     errors.push({ var: 'CRON_SECRET', reason: 'required to authenticate cron endpoints' })
   }
 
-  const stubEmail = ['1', 'true', 'yes'].includes((process.env.STUB_EMAIL ?? '').toLowerCase())
-  if (!stubEmail && !process.env.RESEND_API_KEY) {
+  if (!env.STUB_EMAIL && !env.RESEND_API_KEY) {
     errors.push({
       var: 'RESEND_API_KEY',
       reason: 'required to send emails (or set STUB_EMAIL=true)',

@@ -1,14 +1,14 @@
 'use client'
 
 import React, { useEffect, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRequireAdmin } from '@/lib/hooks/auth'
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
-import { useAuth } from '@/lib/auth-context'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
+import { StarterTaskStatus } from '@/generated/prisma/enums'
 
 interface Skill {
   id: number
@@ -67,8 +67,7 @@ function formatDate(iso: string) {
 }
 
 export default function AdminStarterTasksPage() {
-  const router = useRouter()
-  const { user, loading } = useAuth()
+  const { user, loading } = useRequireAdmin()
   const queryClient = useQueryClient()
   const {
     value: statusFilter,
@@ -117,11 +116,6 @@ export default function AdminStarterTasksPage() {
   const [reviewNotes, setReviewNotes] = useState('')
 
   const [unassignModal, setUnassignModal] = useState<StarterTask | null>(null)
-
-  useEffect(() => {
-    if (!loading && !user) router.push('/login')
-    if (!loading && user && !user.isAdmin) router.push('/')
-  }, [user, loading, router])
 
   const { data: tasksRaw = [], isPending: loadingData } = useQuery({
     ...orpc.starterTasks.list.queryOptions({
@@ -517,7 +511,7 @@ export default function AdminStarterTasksPage() {
                         >
                           Delete
                         </Button>
-                        {task.status === 'open' && (
+                        {task.status === StarterTaskStatus.open && (
                           <Button
                             variant="secondary"
                             size="sm"
@@ -542,7 +536,7 @@ export default function AdminStarterTasksPage() {
                             Unassign
                           </Button>
                         )}
-                        {task.status === 'submitted' && (
+                        {task.status === StarterTaskStatus.submitted && (
                           <Button
                             size="sm"
                             onClick={(e) => {

@@ -1,9 +1,8 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRef, useState } from 'react'
+import { useRequireAdmin } from '@/lib/hooks/auth'
 import { useQueries } from '@tanstack/react-query'
-import { useAuth } from '@/lib/auth-context'
 import { orpc } from '@/lib/orpc'
 
 type Param = string | number | boolean
@@ -276,13 +275,7 @@ function EmailRow({
 }
 
 export default function EmailPreviewPage() {
-  const { user, loading } = useAuth()
-  const router = useRouter()
-
-  useEffect(() => {
-    if (!loading && !user) router.push('/login')
-    if (!loading && user && !user.isAdmin) router.push('/')
-  }, [user, loading, router])
+  const { user, loading } = useRequireAdmin()
 
   const results = useQueries({
     queries: EMAIL_TYPES.map((t) => ({

@@ -1,6 +1,8 @@
 import { randomBytes, pbkdf2Sync, timingSafeEqual } from 'crypto'
 import type { Volunteer } from '@/generated/prisma/client'
 import { prisma } from './prisma'
+import { env } from './env'
+import { ApprovalStatus, InviteStatus } from '@/generated/prisma/enums'
 
 // PBKDF2-SHA256 password hashing — matches the Python implementation exactly:
 // salt = secrets.token_bytes(32); key = hashlib.pbkdf2_hmac('sha256', pw, salt, 100000)
@@ -117,7 +119,7 @@ export async function requireAdmin(
 
 export function isSuperAdmin(email: string | null | undefined): boolean {
   if (!email) return false
-  const adminEmails = process.env.ADMIN_EMAILS || ''
+  const adminEmails = env.ADMIN_EMAILS
   return adminEmails
     .split(',')
     .map((e) => e.trim().toLowerCase())
@@ -144,7 +146,7 @@ export async function requireSuperAdmin(
 
 // Promote volunteer to admin if their email is in ADMIN_EMAILS env var
 export async function checkAdminBootstrap(email: string, volunteerId: number): Promise<boolean> {
-  const adminEmails = process.env.ADMIN_EMAILS || ''
+  const adminEmails = env.ADMIN_EMAILS
   if (!adminEmails) return false
   const allowed = adminEmails
     .split(',')
@@ -153,7 +155,7 @@ export async function checkAdminBootstrap(email: string, volunteerId: number): P
   if (!allowed.includes(email.toLowerCase())) return false
   await prisma.volunteer.updateMany({
     where: { id: volunteerId, isAdmin: false },
-    data: { isAdmin: true, approvalStatus: 'APPROVED', emailConfirmed: true },
+    data: { isAdmin: true, approvalStatus: ApprovalStatus.approved, emailConfirmed: true },
   })
   return true
 }
@@ -178,11 +180,11 @@ export async function acceptPendingInvite(email: string, volunteerId: number): P
   if (!invite) return false
   await prisma.volunteer.update({
     where: { id: volunteerId },
-    data: { isAdmin: true, approvalStatus: 'APPROVED', emailConfirmed: true },
+    data: { isAdmin: true, approvalStatus: ApprovalStatus.approved, emailConfirmed: true },
   })
   await prisma.adminInvite.update({
     where: { id: invite.id },
-    data: { status: 'accepted', acceptedById: volunteerId, acceptedAt: new Date() },
+    data: { status: InviteStatus.accepted, acceptedById: volunteerId, acceptedAt: new Date() },
   })
   return true
 }

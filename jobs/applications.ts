@@ -3,10 +3,14 @@ import { prisma } from '@/lib/prisma'
 import { isSuperAdmin } from '@/lib/auth'
 import { sendPendingApplicationsSummaryEmail } from '@/lib/email'
 import { APPLICATION_ANONYMISATION_MS } from '@/lib/applications'
+import { ApprovalStatus } from '@/generated/prisma/enums'
 
 export async function runApplicationsSummaryJob(): Promise<Record<string, unknown>> {
   const count = await prisma.volunteer.count({
-    where: { approvalStatus: { in: ['PENDING', 'UNDER_REVIEW'] }, deletedAt: null },
+    where: {
+      approvalStatus: { in: [ApprovalStatus.pending, ApprovalStatus.under_review] },
+      deletedAt: null,
+    },
   })
 
   if (!count) return { skipped: true, reason: 'no pending applications' }
@@ -45,7 +49,7 @@ export async function runApplicationsAnonymisationJob(): Promise<Record<string, 
   >`
     SELECT id, email, rejected_at, application_admin_notes, application_applicant_notes
     FROM volunteers
-    WHERE approval_status = 'REJECTED'
+    WHERE approval_status = 'rejected'
       AND rejected_at <= ${cutoff.toISOString()}
       AND deleted_at IS NULL
   `

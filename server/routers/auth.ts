@@ -25,10 +25,12 @@ import {
   ResetPasswordSchema,
 } from '@/lib/schemas'
 import { publicProcedure, authedProcedure } from '../procedures'
+import { env } from '@/lib/env'
+import { ApprovalStatus, ProjectStatus } from '@/generated/prisma/enums'
 
-const STUB_EMAIL = ['1', 'true', 'yes'].includes((process.env.STUB_EMAIL ?? '').toLowerCase())
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID
-const STUB_GOOGLE = !GOOGLE_CLIENT_ID && process.env.NODE_ENV !== 'production'
+const STUB_EMAIL = env.STUB_EMAIL
+const GOOGLE_CLIENT_ID = env.GOOGLE_CLIENT_ID
+const STUB_GOOGLE = !GOOGLE_CLIENT_ID && env.NODE_ENV !== 'production'
 
 async function verifyGoogleToken(credential: string) {
   if (!GOOGLE_CLIENT_ID) return null
@@ -68,7 +70,7 @@ async function sendAccountDeletionNotifications(deletedId: number, deletedName: 
     GROUP BY p.id
   `
   const ownedProjects = await prisma.project.findMany({
-    where: { ownerId: deletedId, status: { notIn: ['completed', 'archived'] } },
+    where: { ownerId: deletedId, status: { notIn: [ProjectStatus.completed, ProjectStatus.archived] } },
     select: { id: true, title: true },
   })
   if (!taskRows.length && !ownedProjects.length) return
@@ -284,7 +286,7 @@ export const authRouter = {
       if (!platformSettings.requireApplicationApproval) {
         await prisma.volunteer.update({
           where: { id: volunteer.id },
-          data: { approvalStatus: 'APPROVED' },
+          data: { approvalStatus: ApprovalStatus.approved },
         })
       }
       sendWelcomeAndConfirmEmail({ to: email, token: vt.token, name: input.name }).catch((e) =>
@@ -490,7 +492,7 @@ export const authRouter = {
       ])
 
       if (!volunteer.emailConfirmed && volunteer.email) {
-        if (volunteer.approvalStatus === 'APPROVED') {
+        if (volunteer.approvalStatus === ApprovalStatus.approved) {
           const settings = await prisma.platformSettings
             .upsert({
               where: { id: 1 },
@@ -507,7 +509,7 @@ export const authRouter = {
               console.error('[VERIFY_EMAIL]', e),
             )
           }
-        } else if (volunteer.approvalStatus === 'PENDING') {
+        } else if (volunteer.approvalStatus === ApprovalStatus.pending) {
           sendApplicationReceivedEmail({ to: volunteer.email, name: volunteer.name }).catch((e) =>
             console.error('[VERIFY_EMAIL]', e),
           )

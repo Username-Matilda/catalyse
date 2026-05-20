@@ -1,10 +1,11 @@
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { adminProcedure } from '../../procedures'
+import { InterestStatus } from '@/generated/prisma/enums'
 
 export const adminInterestsRouter = {
   list: adminProcedure
-    .input(z.object({ status: z.string().optional() }))
+    .input(z.object({ status: z.nativeEnum(InterestStatus).optional() }))
     .handler(async ({ input }) => {
       const interests = await prisma.projectInterest.findMany({
         where: input.status ? { status: input.status } : {},

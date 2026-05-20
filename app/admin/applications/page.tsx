@@ -1,19 +1,20 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useRequireSuperAdmin } from '@/lib/hooks/auth'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import Button from '@/components/Button'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
-import { useAuth } from '@/lib/auth-context'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import { InferRouterOutputs } from '@orpc/server'
 import { AppRouter } from '@/server/router'
+import { ApprovalStatus } from '@/generated/prisma/enums'
 
 export default function ApplicationsPage() {
   const router = useRouter()
-  const { user, loading } = useAuth()
+  const { user, loading } = useRequireSuperAdmin()
   const showToast = useToast()
   const {
     value: filter,
@@ -30,11 +31,6 @@ export default function ApplicationsPage() {
     'mine',
   )
   const [startingReview, setStartingReview] = useState<number | null>(null)
-
-  useEffect(() => {
-    if (!loading && !user) router.push('/login')
-    if (!loading && user && !user.isSuperAdmin) router.push('/')
-  }, [user, loading, router])
 
   const isAnonymised = filter === 'rejected_anonymised'
   const applicationFilter = filter === 'rejected_anonymised' ? 'mine' : filter
@@ -153,7 +149,7 @@ function ApplicationCard({
       <h3 className="m-0 mb-1">{app.name}</h3>
       <p className="text-sm text-text-light mb-4">{meta.join(' · ')}</p>
 
-      {app.approvalStatus === 'REJECTED' && anonymiseDate && (
+      {app.approvalStatus === ApprovalStatus.rejected && anonymiseDate && (
         <p
           className={`text-sm mb-3 ${daysUntilAnonymise !== null && daysUntilAnonymise <= 1 ? 'text-red-500' : 'text-amber-500'}`}
         >
@@ -282,11 +278,11 @@ function ApplicationCard({
       )}
 
       <div className="flex gap-2 justify-end border-t border-brand-border pt-4 mt-2">
-        {app.approvalStatus === 'PENDING' ? (
+        {app.approvalStatus === ApprovalStatus.pending ? (
           <Button onClick={() => onStartReview(app.id)} disabled={startingReview === app.id}>
             Start Review
           </Button>
-        ) : app.approvalStatus === 'UNDER_REVIEW' ? (
+        ) : app.approvalStatus === ApprovalStatus.under_review ? (
           <Button onClick={() => onNavigate(app.id)}>Continue Review</Button>
         ) : (
           <Button variant="secondary" onClick={() => onNavigate(app.id)}>

@@ -1,17 +1,23 @@
 import { z } from 'zod'
 import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
-import { createNotification } from '@/lib/project'
+import { notifyUser } from '@/lib/notify'
 import {
   CreateStarterTaskSchema,
   AssignStarterTaskSchema,
   ReviewStarterTaskSchema,
 } from '@/lib/schemas'
 import { adminProcedure, authedProcedure, publicProcedure } from '../procedures'
+import { StarterTaskStatus } from '@/generated/prisma/enums'
 
 export const starterTasksRouter = {
   list: adminProcedure
-    .input(z.object({ status: z.string().optional(), skillId: z.number().int().optional() }))
+    .input(
+      z.object({
+        status: z.nativeEnum(StarterTaskStatus).optional(),
+        skillId: z.number().int().optional(),
+      }),
+    )
     .handler(async ({ input }) => {
       const tasks = await prisma.starterTask.findMany({
         where: {
@@ -54,7 +60,7 @@ export const starterTasksRouter = {
 
   available: publicProcedure.handler(async () => {
     const tasks = await prisma.starterTask.findMany({
-      where: { status: 'open', assignedToId: null },
+      where: { status: StarterTaskStatus.open, assignedToId: null },
       include: {
         skill: { include: { category: true } },
         project: { select: { title: true } },
@@ -138,18 +144,18 @@ export const starterTasksRouter = {
         data: {
           assignedToId: input.volunteerId,
           assignedById: admin.id,
-          status: 'assigned',
+          status: StarterTaskStatus.assigned,
           updatedAt: new Date(),
         },
       })
 
-      createNotification(
+      notifyUser(
         input.volunteerId,
         'starter_task_assigned',
         `You've been assigned a starter task: ${task.title}`,
         task.description.slice(0, 200),
         '/dashboard',
-      ).catch((e) => console.error('[NOTIFY ERROR]', e))
+      )
 
       return { message: 'Task assigned' }
     }),
@@ -160,7 +166,12 @@ export const starterTasksRouter = {
 
     await prisma.starterTask.update({
       where: { id: input.id },
-      data: { assignedToId: null, assignedById: null, status: 'open', updatedAt: new Date() },
+      data: {
+        assignedToId: null,
+        assignedById: null,
+        status: StarterTaskStatus.open,
+        updatedAt: new Date(),
+      },
     })
     return { message: 'Task unassigned' }
   }),
@@ -177,17 +188,17 @@ export const starterTasksRouter = {
 
       await prisma.starterTask.update({
         where: { id: input.id },
-        data: { status: 'submitted', updatedAt: new Date() },
+        data: { status: StarterTaskStatus.submitted, updatedAt: new Date() },
       })
 
       if (task.assignedById) {
-        createNotification(
+        notifyUser(
           task.assignedById,
           'starter_task_submitted',
           `${volunteer.name} submitted: ${task.title}`,
           'Ready for review',
           '/admin/starter-tasks',
-        ).catch((e) => console.error('[NOTIFY ERROR]', e))
+        )
       }
 
       return { message: 'Task submitted for review' }
@@ -199,12 +210,12 @@ export const starterTasksRouter = {
       const admin = context.volunteer
       const task = await prisma.starterTask.findUnique({ where: { id: input.id } })
       if (!task) throw new ORPCError('NOT_FOUND', { message: 'Task not found' })
-      if (task.status !== 'submitted')
+      if (task.status !== StarterTaskStatus.submitted)
         throw new ORPCError('BAD_REQUEST', { message: 'Task is not in submitted status' })
 
       const newStatus = ['excellent', 'good'].includes(input.reviewRating)
-        ? 'completed'
-        : 'reviewed'
+        ? StarterTaskStatus.completed
+        : StarterTaskStatus.reviewed
 
       await prisma.starterTask.update({
         where: { id: input.id },
@@ -259,13 +270,13 @@ export const starterTasksRouter = {
           })
         }
 
-        createNotification(
+        notifyUser(
           task.assignedToId,
           'starter_task_reviewed',
           `Your starter task was reviewed: ${task.title}`,
           `Rating: ${input.reviewRating}${input.feedbackToVolunteer ? ` - ${input.feedbackToVolunteer}` : ''}`,
           '/dashboard',
-        ).catch((e) => console.error('[NOTIFY ERROR]', e))
+        )
       }
 
       return { message: 'Task reviewed' }

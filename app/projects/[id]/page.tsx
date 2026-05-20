@@ -1,14 +1,15 @@
 'use client'
 
 import React, { use, useEffect, useState } from 'react'
+import { useRequireAuth } from '@/lib/hooks/auth'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
-import { useAuth } from '@/lib/auth-context'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
+import { InterestStatus, ProjectStatus, TaskStatus } from '@/generated/prisma/enums'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -62,7 +63,7 @@ function statusBadge(status: string) {
 export default function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = use(params)
   const router = useRouter()
-  const { user, loading } = useAuth()
+  const { user, loading } = useRequireAuth()
   const queryClient = useQueryClient()
 
   const showToast = useToast()
@@ -113,10 +114,6 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const [showContactModal, setShowContactModal] = useState(false)
   const [contactSubject, setContactSubject] = useState('')
   const [contactBody, setContactBody] = useState('')
-
-  useEffect(() => {
-    if (!loading && !user) router.replace('/login')
-  }, [user, loading, router])
 
   // ── Queries ──────────────────────────────────────────────────────────────
 
@@ -174,9 +171,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const updateTaskMutation = useMutation({
     ...orpc.projects.updateTask.mutationOptions(),
     onSuccess: (_data, variables) => {
-      if (variables.data.status === 'assigned') {
+      if (variables.data.status === TaskStatus.assigned) {
         showToast('Task claimed!', 'success')
-      } else if (variables.data.status === 'done') {
+      } else if (variables.data.status === TaskStatus.done) {
         showToast('Task completed!', 'success')
       }
       void invalidateProject()
@@ -233,7 +230,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     ...orpc.projects.respondToInterest.mutationOptions(),
     onSuccess: (_data, variables) => {
       showToast(
-        variables.status === 'accepted' ? 'Interest accepted' : 'Interest declined',
+        variables.status === InterestStatus.accepted ? 'Interest accepted' : 'Interest declined',
         'success',
       )
       void invalidateProject()
@@ -352,7 +349,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     updateTaskMutation.mutate({
       projectId: parseInt(idParam, 10),
       taskId,
-      data: { status: 'assigned', assignedToId: user!.id },
+      data: { status: TaskStatus.assigned, assignedToId: user!.id },
     })
   }
 
@@ -360,7 +357,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     updateTaskMutation.mutate({
       projectId: parseInt(idParam, 10),
       taskId,
-      data: { status: 'done' },
+      data: { status: TaskStatus.done },
     })
   }
 
@@ -371,7 +368,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   function handleUpdateStatus(e: React.FormEvent) {
     e.preventDefault()
-    updateProjectMutation.mutate({ id: parseInt(idParam, 10), status: newStatus })
+    const validStatuses = Object.values(ProjectStatus)
+    const status = validStatuses.find((s) => s === newStatus)
+    if (!status) return
+    updateProjectMutation.mutate({ id: parseInt(idParam, 10), status })
   }
 
   function handleExpressInterest(e: React.FormEvent) {
@@ -392,7 +392,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     respondToInterestMutation.mutate({
       projectId: parseInt(idParam, 10),
       interestId,
-      status: 'accepted',
+      status: InterestStatus.accepted,
     })
   }
 
@@ -632,7 +632,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 {project.myInterest.responseMessage && (
                   <p className="text-text-light text-sm">{project.myInterest.responseMessage}</p>
                 )}
-                {project.myInterest.status === 'pending' && (
+                {project.myInterest.status === InterestStatus.pending && (
                   <Button variant="secondary" className="mt-2" onClick={handleWithdrawInterest}>
                     Withdraw Interest
                   </Button>
@@ -690,18 +690,18 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   className="flex items-center gap-2 py-2 border-b border-brand-border last:border-0 flex-wrap"
                 >
                   <span className="flex-1">{task.title}</span>
-                  {task.status === 'done' && (
+                  {task.status === TaskStatus.done && (
                     <span className="text-success text-sm font-semibold">done</span>
                   )}
-                  {task.assignedToName && task.status !== 'done' && (
+                  {task.assignedToName && task.status !== TaskStatus.done && (
                     <span className="text-text-light text-sm">→ {task.assignedToName}</span>
                   )}
-                  {task.status === 'open' && (
+                  {task.status === TaskStatus.open && (
                     <Button variant="secondary" size="sm" onClick={() => handleClaimTask(task.id)}>
                       Claim
                     </Button>
                   )}
-                  {task.status === 'assigned' && task.assignedToId === user.id && (
+                  {task.status === TaskStatus.assigned && task.assignedToId === user.id && (
                     <Button variant="secondary" size="sm" onClick={() => handleDoneTask(task.id)}>
                       Done
                     </Button>
@@ -769,7 +769,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                           <p className="text-sm mt-1 mb-0">{interest.message}</p>
                         )}
                       </div>
-                      {interest.status === 'pending' && (
+                      {interest.status === InterestStatus.pending && (
                         <div className="flex gap-2">
                           <Button size="sm" onClick={() => handleAcceptInterest(interest.id)}>
                             Accept
@@ -840,7 +840,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         )}
 
         {/* Record Outcome */}
-        {isAdmin && project.status === 'completed' && !project.outcome && (
+        {isAdmin && project.status === ProjectStatus.completed && !project.outcome && (
           <div className={card}>
             <h2>Record Project Outcome</h2>
             <form onSubmit={handleRecordOutcome}>
@@ -873,7 +873,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         )}
 
         {/* Admin triage */}
-        {isAdmin && project.status === 'pending_review' && !reviewDone && (
+        {isAdmin && project.status === ProjectStatus.pending_review && !reviewDone && (
           <div className={card}>
             <h2>Review Project</h2>
             <form onSubmit={handleSubmitReview}>

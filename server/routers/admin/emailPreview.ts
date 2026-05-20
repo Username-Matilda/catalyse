@@ -19,8 +19,9 @@ import {
   buildTaskSurrenderedAssigneeHtml,
 } from '@/lib/email'
 import { adminProcedure } from '../../procedures'
+import { env } from '@/lib/env'
 
-const APP_URL = process.env.APP_URL!
+const APP_URL = env.APP_URL
 
 const SAMPLE_PROJECTS = [
   {

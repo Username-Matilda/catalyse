@@ -5,9 +5,11 @@ import { prisma } from '@/lib/prisma'
 import { sendAdminInviteEmail } from '@/lib/email'
 import { InviteAdminSchema } from '@/lib/schemas'
 import { adminProcedure, authedProcedure } from '../../procedures'
+import { env } from '@/lib/env'
+import { InviteStatus } from '@/generated/prisma/enums'
 
-const APP_URL = process.env.APP_URL!
-const STUB_EMAIL = ['1', 'true', 'yes'].includes((process.env.STUB_EMAIL ?? '').toLowerCase())
+const APP_URL = env.APP_URL
+const STUB_EMAIL = env.STUB_EMAIL
 
 export const adminAdminsRouter = {
   list: adminProcedure.handler(async () => {
@@ -74,7 +76,7 @@ export const adminAdminsRouter = {
 
     const now = new Date()
     const pending = await prisma.adminInvite.findFirst({
-      where: { email, status: 'pending', expiresAt: { gt: now } },
+      where: { email, status: InviteStatus.pending, expiresAt: { gt: now } },
       select: { id: true },
     })
     if (pending) {
@@ -110,14 +112,14 @@ export const adminAdminsRouter = {
     .input(z.object({ id: z.number().int() }))
     .handler(async ({ input }) => {
       const invite = await prisma.adminInvite.findFirst({
-        where: { id: input.id, status: 'pending' },
+        where: { id: input.id, status: InviteStatus.pending },
         select: { id: true },
       })
       if (!invite) throw new ORPCError('NOT_FOUND', { message: 'Invite not found or already used' })
 
       await prisma.adminInvite.update({
         where: { id: input.id },
-        data: { status: 'revoked' },
+        data: { status: InviteStatus.revoked },
       })
       return { message: 'Invite revoked' }
     }),
@@ -128,7 +130,11 @@ export const adminAdminsRouter = {
       const volunteer = context.volunteer
       const now = new Date()
       const invite = await prisma.adminInvite.findFirst({
-        where: { inviteToken: input.inviteToken, status: 'pending', expiresAt: { gt: now } },
+        where: {
+          inviteToken: input.inviteToken,
+          status: InviteStatus.pending,
+          expiresAt: { gt: now },
+        },
       })
 
       if (!invite) {
@@ -145,7 +151,7 @@ export const adminAdminsRouter = {
         prisma.volunteer.update({ where: { id: volunteer.id }, data: { isAdmin: true } }),
         prisma.adminInvite.update({
           where: { id: invite.id },
-          data: { status: 'accepted', acceptedById: volunteer.id, acceptedAt: new Date() },
+          data: { status: InviteStatus.accepted, acceptedById: volunteer.id, acceptedAt: new Date() },
         }),
       ])
 

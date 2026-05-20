@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useRequireAdmin } from '@/lib/hooks/auth'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Button from '@/components/Button'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
@@ -14,9 +14,9 @@ import {
   CARD_GRID_CLASSES,
 } from '@/components/ProjectCard'
 import Tabs from '@/components/Tabs'
-import { useAuth } from '@/lib/auth-context'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
+import { InterestStatus, ProjectStatus } from '@/generated/prisma/enums'
 
 interface Project extends CardProject {
   ownerId: number | null
@@ -28,8 +28,7 @@ interface ReviewModal {
 }
 
 export default function TriagePage() {
-  const router = useRouter()
-  const { user, loading } = useAuth()
+  const { user, loading } = useRequireAdmin()
   const showToast = useToast()
   const queryClient = useQueryClient()
   const [tab, setTab] = useState<'pending_review' | 'needs_discussion' | 'interests'>(
@@ -54,11 +53,6 @@ export default function TriagePage() {
     ],
     'pending',
   )
-
-  useEffect(() => {
-    if (!loading && !user) router.push('/login')
-    if (!loading && user && !user.isAdmin) router.push('/')
-  }, [user, loading, router])
 
   const { data: projects = [], isLoading: loadingProjects } = useQuery({
     ...orpc.admin.triage.list.queryOptions(),
@@ -122,11 +116,13 @@ export default function TriagePage() {
 
   if (loading || !user) return null
 
-  const pending = (projects as unknown as Project[]).filter((p) => p.status === 'pending_review')
-  const discussion = (projects as unknown as Project[]).filter(
-    (p) => p.status === 'needs_discussion',
+  const pending = (projects as unknown as Project[]).filter(
+    (p) => p.status === ProjectStatus.pending_review,
   )
-  const pendingInterests = interests.filter((i) => i.status === 'pending')
+  const discussion = (projects as unknown as Project[]).filter(
+    (p) => p.status === ProjectStatus.needs_discussion,
+  )
+  const pendingInterests = interests.filter((i) => i.status === InterestStatus.pending)
   const visible = tab === 'pending_review' ? pending : discussion
 
   return (
@@ -242,9 +238,9 @@ export default function TriagePage() {
                       </div>
                       <span
                         className={statusBadgeClasses(
-                          i.status === 'pending'
+                          i.status === InterestStatus.pending
                             ? 'seeking_help'
-                            : i.status === 'accepted'
+                            : i.status === InterestStatus.accepted
                               ? 'completed'
                               : 'on_hold',
                         )}
@@ -272,7 +268,7 @@ export default function TriagePage() {
                       </div>
                     )}
 
-                    {i.status === 'pending' && (
+                    {i.status === InterestStatus.pending && (
                       <div className="flex gap-2 mt-3">
                         <Button
                           size="sm"
@@ -280,7 +276,7 @@ export default function TriagePage() {
                             respondInterestMutation.mutate({
                               projectId: i.projectId,
                               interestId: i.id,
-                              status: 'accepted',
+                              status: InterestStatus.accepted,
                             })
                           }
                           disabled={respondInterestMutation.isPending}

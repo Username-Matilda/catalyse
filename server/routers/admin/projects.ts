@@ -1,15 +1,11 @@
 import { z } from 'zod'
 import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
-import { sendProjectNotificationEmail } from '@/lib/email'
-import {
-  withProjectExtras,
-  projectInclude,
-  EnrichedProject,
-  createNotification,
-} from '@/lib/project'
+import { withProjectExtras, projectInclude, EnrichedProject } from '@/lib/project'
+import { notifyUser } from '@/lib/notify'
 import { AdminCreateProjectSchema, ReviewProjectSchema, OutcomeProjectSchema } from '@/lib/schemas'
 import { adminProcedure } from '../../procedures'
+import { ProjectStatus, TaskStatus } from '@/generated/prisma/enums'
 
 export const adminProjectsRouter = {
   create: adminProcedure.input(AdminCreateProjectSchema).handler(async ({ input, context }) => {
@@ -21,7 +17,7 @@ export const adminProjectsRouter = {
         data: {
           title: input.title,
           description: input.description,
-          status: tasks.length > 0 ? 'in_progress' : 'needs_tasks',
+          status: tasks.length > 0 ? ProjectStatus.in_progress : ProjectStatus.needs_tasks,
           ownerId: wantToOwn ? admin.id : null,
           proposedById: admin.id,
           isOrgProposed: true,
@@ -76,11 +72,11 @@ export const adminProjectsRouter = {
       if (status === 'approved') {
         const hasOwner = project.ownerId !== null
         const openTaskCount = await prisma.projectTask.count({
-          where: { projectId: input.id, status: { not: 'done' } },
+          where: { projectId: input.id, status: { not: TaskStatus.done } },
         })
-        const newStatus = openTaskCount > 0 ? 'in_progress' : 'needs_tasks'
-        const isSeekingHelp = targetStatus === 'seeking_help' || targetStatus === 'seeking_owner'
-        const isSeekingOwner = targetStatus === 'seeking_owner' && !hasOwner
+        const newStatus = openTaskCount > 0 ? ProjectStatus.in_progress : ProjectStatus.needs_tasks
+        const isSeekingHelp = targetStatus === ProjectStatus.seeking_help || targetStatus === ProjectStatus.seeking_owner
+        const isSeekingOwner = targetStatus === ProjectStatus.seeking_owner && !hasOwner
 
         await prisma.project.update({
           where: { id: input.id },
@@ -96,35 +92,25 @@ export const adminProjectsRouter = {
         })
 
         if (project.proposedById) {
-          createNotification(
+          await notifyUser(
             project.proposedById,
             'project_approved',
             `Your project '${project.title}' has been approved!`,
             "It's now visible to other volunteers.",
             `/projects/${input.id}`,
-          ).catch((e) => console.error('[NOTIFY ERROR]', e))
-
-          const proposer = await prisma.volunteer.findFirst({
-            where: { id: project.proposedById },
-            select: { name: true, email: true },
-          })
-          if (proposer?.email) {
-            sendProjectNotificationEmail({
-              to: proposer.email,
-              name: proposer.name,
-              subject: `Your project '${project.title}' has been approved!`,
+            {
               message:
                 'Great news! Your project has been approved and is now visible to all volunteers.',
               projectTitle: project.title,
               projectId: input.id,
-            }).catch((e) => console.error('[EMAIL ERROR]', e))
-          }
+            },
+          )
         }
       } else {
         await prisma.project.update({
           where: { id: input.id },
           data: {
-            status: 'needs_discussion',
+            status: ProjectStatus.needs_discussion,
             reviewNotes,
             feedbackToProposer,
             reviewedById: admin.id,
@@ -135,31 +121,20 @@ export const adminProjectsRouter = {
 
         if (project.proposedById) {
           const feedback = feedbackToProposer || 'A team lead wants to chat about your proposal.'
-          createNotification(
+          await notifyUser(
             project.proposedById,
             'project_needs_discussion',
             `Let's discuss your project '${project.title}'`,
             feedback,
             `/projects/${input.id}`,
-          ).catch((e) => console.error('[NOTIFY ERROR]', e))
-
-          const proposer = await prisma.volunteer.findFirst({
-            where: { id: project.proposedById },
-            select: { name: true, email: true },
-          })
-          if (proposer?.email) {
-            const extra = `<div style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"><strong>Feedback:</strong> ${feedback}</div>`
-            sendProjectNotificationEmail({
-              to: proposer.email,
-              name: proposer.name,
-              subject: `Let's discuss your project '${project.title}'`,
+            {
               message:
                 'A team lead would like to discuss your project proposal before it goes live.',
               projectTitle: project.title,
               projectId: input.id,
-              extraHtml: extra,
-            }).catch((e) => console.error('[EMAIL ERROR]', e))
-          }
+              extraHtml: `<div style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"><strong>Feedback:</strong> ${feedback}</div>`,
+            },
+          )
         }
       }
 
@@ -182,7 +157,7 @@ export const adminProjectsRouter = {
           outcome,
           outcomeNotes,
           completedAt: isCompleted ? new Date() : null,
-          ...(isCompleted ? { status: 'completed' } : {}),
+          ...(isCompleted ? { status: ProjectStatus.completed } : {}),
           updatedAt: new Date(),
         },
       })
@@ -239,7 +214,7 @@ export const adminProjectsRouter = {
 
   triage: adminProcedure.handler(async () => {
     const projects = await prisma.project.findMany({
-      where: { status: { in: ['pending_review', 'needs_discussion'] } },
+      where: { status: { in: [ProjectStatus.pending_review, ProjectStatus.needs_discussion] } },
       include: projectInclude,
       orderBy: { createdAt: 'asc' },
     })

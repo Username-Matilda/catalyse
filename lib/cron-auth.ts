@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { env } from './env'
 
 export function checkCronAuth(request: NextRequest): NextResponse | null {
-  const secret = process.env.CRON_SECRET
+  const secret = env.CRON_SECRET
   if (!secret) {
     console.error('[CRON] CRON_SECRET env var not set')
     return NextResponse.json({ error: 'Cron not configured' }, { status: 500 })

@@ -1,6 +1,7 @@
 import { Prisma } from '@/generated/prisma/client'
 import { calculateMatchScore } from './matching'
 import { prisma } from './prisma'
+import { InterestStatus } from '@/generated/prisma/enums'
 
 export type ProjectSkillWithRelations = {
   skillId: number
@@ -107,7 +108,7 @@ export const projectInclude = {
   },
   owner: { select: { id: true, name: true } },
   proposedBy: { select: { id: true, name: true } },
-  _count: { select: { interests: { where: { status: 'pending' } } } },
+  _count: { select: { interests: { where: { status: InterestStatus.pending } } } },
 } satisfies Prisma.ProjectInclude
 
 export async function createNotification(

@@ -1,17 +1,18 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRequireSuperAdmin } from '@/lib/hooks/auth'
 import { useParams, useRouter } from 'next/navigation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
-import { useAuth } from '@/lib/auth-context'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
+import { ApprovalStatus } from '@/generated/prisma/enums'
 
 export default function ApplicationReviewPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
-  const { user, loading } = useAuth()
+  const { user, loading } = useRequireSuperAdmin()
   const showToast = useToast()
   const queryClient = useQueryClient()
 
@@ -19,11 +20,6 @@ export default function ApplicationReviewPage() {
   const [applicantNotes, setApplicantNotes] = useState('')
   const [initialized, setInitialized] = useState(false)
   const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | null>(null)
-
-  useEffect(() => {
-    if (!loading && !user) router.push('/login')
-    if (!loading && user && !user.isSuperAdmin) router.push('/')
-  }, [user, loading, router])
 
   const { data: app, isPending: loadingData } = useQuery({
     ...orpc.admin.applications.getById.queryOptions({ input: { id: Number(id) } }),
@@ -112,7 +108,9 @@ export default function ApplicationReviewPage() {
     app.reviewer ? `Reviewer: ${app.reviewer.name}` : null,
   ].filter(Boolean)
 
-  const canAction = app.approvalStatus === 'PENDING' || app.approvalStatus === 'UNDER_REVIEW'
+  const canAction =
+    app.approvalStatus === ApprovalStatus.pending ||
+    app.approvalStatus === ApprovalStatus.under_review
 
   return (
     <main className="w-full max-w-2xl mx-auto px-6 py-5 pb-15">
@@ -125,7 +123,7 @@ export default function ApplicationReviewPage() {
       <h1 className="mb-1">{app.name}</h1>
       <p className="text-sm text-text-light mb-6">{meta.join(' · ')}</p>
 
-      {app.approvalStatus === 'REJECTED' && anonymiseDate && (
+      {app.approvalStatus === ApprovalStatus.rejected && anonymiseDate && (
         <p
           className={`text-sm mb-4 ${daysUntilAnonymise !== null && daysUntilAnonymise <= 1 ? 'text-red-500' : 'text-amber-500'}`}
         >
