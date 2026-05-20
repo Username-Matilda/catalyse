@@ -26,7 +26,7 @@ import {
 } from '@/lib/schemas'
 import { publicProcedure, authedProcedure } from '../procedures'
 import { env } from '@/lib/env'
-import { ApprovalStatus, ProjectStatus } from '@/generated/prisma/enums'
+import { ApprovalStatus, ProjectStatus, WorkItemType } from '@/generated/prisma/enums'
 
 const STUB_EMAIL = env.STUB_EMAIL
 const GOOGLE_CLIENT_ID = env.GOOGLE_CLIENT_ID
@@ -57,21 +57,23 @@ async function sendAccountDeletionNotifications(deletedId: number, deletedName: 
       task_count: number
     }>
   >`
-    SELECT p.owner_id, v.name AS owner_name, v.email AS owner_email,
+    SELECT p.assignee_id AS owner_id, v.name AS owner_name, v.email AS owner_email,
            p.id AS project_id, p.title AS project_title,
            COUNT(st.id) AS task_count
-    FROM starter_tasks st
-    JOIN projects p ON st.project_id = p.id
-    JOIN volunteers v ON p.owner_id = v.id
-    WHERE st.assigned_to_id = ${deletedId}
-      AND st.status NOT IN ('completed', 'reviewed')
-      AND p.owner_id != ${deletedId}
+    FROM work_items st
+    JOIN work_items p ON st.context_project_id = p.id AND p.type = 'PROJECT'
+    JOIN volunteers v ON p.assignee_id = v.id
+    WHERE st.type = 'STARTER_TASK'
+      AND st.assignee_id = ${deletedId}
+      AND st.status NOT IN ('completed')
+      AND p.assignee_id != ${deletedId}
       AND v.deleted_at IS NULL
     GROUP BY p.id
   `
-  const ownedProjects = await prisma.project.findMany({
+  const ownedProjects = await prisma.workItem.findMany({
     where: {
-      ownerId: deletedId,
+      type: WorkItemType.PROJECT,
+      assigneeId: deletedId,
       status: { notIn: [ProjectStatus.completed, ProjectStatus.archived] },
     },
     select: { id: true, title: true },

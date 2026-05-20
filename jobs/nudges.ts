@@ -6,6 +6,7 @@ import {
   sendTaskSurrenderedAssigneeEmail,
   isEmailConfigured,
 } from '@/lib/email'
+import { TaskStatus, WorkItemType } from '@/generated/prisma/enums'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -23,16 +24,17 @@ export async function runNudgesJob(): Promise<Record<string, unknown>> {
     return { skipped: true, reason: 'email not configured' }
   }
 
-  const assignedTasks = await prisma.projectTask.findMany({
+  const assignedTasks = await prisma.workItem.findMany({
     where: {
-      status: 'assigned',
-      assignedToId: { not: null },
+      type: WorkItemType.TASK,
+      status: TaskStatus.in_progress,
+      assigneeId: { not: null },
       updatedAt: { lt: daysAgo(14) },
-      assignedTo: { email: { not: null }, deletedAt: null },
+      assignee: { email: { not: null }, deletedAt: null },
     },
     include: {
-      assignedTo: true,
-      project: { include: { owner: true } },
+      assignee: true,
+      parent: { include: { assignee: true } },
     },
   })
 
@@ -41,18 +43,19 @@ export async function runNudgesJob(): Promise<Record<string, unknown>> {
   let surrendered = 0
 
   for (const task of assignedTasks) {
-    const assignee = task.assignedTo!
+    const assignee = task.assignee!
+    const project = task.parent!
     const updatedAt = task.updatedAt!
     const now = new Date()
     const daysInactive = Math.floor((now.getTime() - updatedAt.getTime()) / DAY_MS)
     const lastActivityDate = formatDate(updatedAt)
 
     if (daysInactive >= 28) {
-      await prisma.projectTask.update({
+      await prisma.workItem.update({
         where: { id: task.id },
         data: {
-          status: 'open',
-          assignedToId: null,
+          status: TaskStatus.open,
+          assigneeId: null,
           updatedAt: now,
           nudgeSentAt: null,
           finalWarningSentAt: null,
@@ -62,17 +65,17 @@ export async function runNudgesJob(): Promise<Record<string, unknown>> {
         to: assignee.email!,
         name: assignee.name,
         taskTitle: task.title,
-        projectTitle: task.project.title,
-        projectId: task.projectId,
+        projectTitle: project.title,
+        projectId: task.parentId!,
       })
-      if (task.project.owner?.email) {
+      if (project.assignee?.email) {
         await sendTaskSurrenderedOwnerEmail({
-          to: task.project.owner.email,
-          ownerName: task.project.owner.name,
+          to: project.assignee.email,
+          ownerName: project.assignee.name,
           volunteerName: assignee.name,
           taskTitle: task.title,
-          projectTitle: task.project.title,
-          projectId: task.projectId,
+          projectTitle: project.title,
+          projectId: task.parentId!,
         })
       }
       surrendered++
@@ -83,8 +86,8 @@ export async function runNudgesJob(): Promise<Record<string, unknown>> {
         to: assignee.email!,
         name: assignee.name,
         taskTitle: task.title,
-        projectTitle: task.project.title,
-        projectId: task.projectId,
+        projectTitle: project.title,
+        projectId: task.parentId!,
         taskId: task.id,
         daysInactive,
         activityPhrase: 'you last updated',
@@ -92,7 +95,7 @@ export async function runNudgesJob(): Promise<Record<string, unknown>> {
         surrenderDate,
       })
       if (sent) {
-        await prisma.projectTask.update({
+        await prisma.workItem.update({
           where: { id: task.id },
           data: { finalWarningSentAt: now },
         })
@@ -104,15 +107,15 @@ export async function runNudgesJob(): Promise<Record<string, unknown>> {
         to: assignee.email!,
         name: assignee.name,
         taskTitle: task.title,
-        projectTitle: task.project.title,
-        projectId: task.projectId,
+        projectTitle: project.title,
+        projectId: task.parentId!,
         taskId: task.id,
         daysInactive,
         activityPhrase: 'you last updated',
         lastActivityDate,
       })
       if (sent) {
-        await prisma.projectTask.update({ where: { id: task.id }, data: { nudgeSentAt: now } })
+        await prisma.workItem.update({ where: { id: task.id }, data: { nudgeSentAt: now } })
         nudgesSent++
         console.log(`[CRON NUDGES] Nudge sent for task ${task.id} (${daysInactive} days)`)
       }

@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { sendDigestEmail, isEmailConfigured } from '@/lib/email'
+import { WorkItemType } from '@/generated/prisma/enums'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -23,8 +24,9 @@ export async function runDigestJob(): Promise<Record<string, unknown>> {
   }
 
   const cutoff = daysAgo(14)
-  const rawProjects = await prisma.project.findMany({
+  const rawProjects = await prisma.workItem.findMany({
     where: {
+      type: WorkItemType.PROJECT,
       status: { notIn: ['archived', 'pending_review', 'needs_discussion'] },
       createdAt: { gte: cutoff },
     },

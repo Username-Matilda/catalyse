@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { adminProcedure } from '../../procedures'
-import { InterestStatus, ProjectStatus } from '@/generated/prisma/enums'
+import { InterestStatus, ProjectStatus, WorkItemType } from '@/generated/prisma/enums'
 
 export const adminStatsRouter = {
   get: adminProcedure.handler(async () => {
@@ -20,15 +20,24 @@ export const adminStatsRouter = {
         SELECT COUNT(*) as count FROM volunteers
         WHERE deleted_at IS NULL AND created_at >= date('now', '-30 days')
       `,
-      prisma.project.count(),
-      prisma.project.count({ where: { status: ProjectStatus.pending_review } }),
-      prisma.project.count({
-        where: { OR: [{ isSeekingHelp: true }, { isSeekingOwner: true }] },
+      prisma.workItem.count({ where: { type: WorkItemType.PROJECT } }),
+      prisma.workItem.count({
+        where: { type: WorkItemType.PROJECT, status: ProjectStatus.pending_review },
       }),
-      prisma.project.count({ where: { status: ProjectStatus.in_progress } }),
-      prisma.project.count({ where: { status: ProjectStatus.completed } }),
-      prisma.projectInterest.count(),
-      prisma.projectInterest.count({ where: { status: InterestStatus.pending } }),
+      prisma.workItem.count({
+        where: {
+          type: WorkItemType.PROJECT,
+          OR: [{ isSeekingHelp: true }, { isSeekingOwner: true }],
+        },
+      }),
+      prisma.workItem.count({
+        where: { type: WorkItemType.PROJECT, status: ProjectStatus.in_progress },
+      }),
+      prisma.workItem.count({
+        where: { type: WorkItemType.PROJECT, status: ProjectStatus.completed },
+      }),
+      prisma.workItemInterest.count(),
+      prisma.workItemInterest.count({ where: { status: InterestStatus.pending } }),
     ])
 
     return {

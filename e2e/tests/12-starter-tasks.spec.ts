@@ -128,7 +128,7 @@ test.describe('Starter Tasks', () => {
     await assignDialog.getByRole('button', { name: 'Assign' }).click()
 
     await expect(getAlert(adminPage)).toContainText('Task assigned!', { timeout: 10_000 })
-    await expect(taskCard.getByRole('status')).toContainText('assigned', { timeout: 10_000 })
+    await expect(taskCard.getByRole('status')).toContainText('in_progress', { timeout: 10_000 })
 
     // Volunteer receives an assignment notification
     await goToDashboardNotifications(baseUrl, volunteer.page)
@@ -155,7 +155,7 @@ test.describe('Starter Tasks', () => {
     const banner = volunteer.page.getByRole('region', { name: 'Starter Tasks' })
     const taskCard = banner.getByRole('article').filter({ hasText: taskTitle })
     await expect(taskCard).toBeVisible({ timeout: 10_000 })
-    await expect(taskCard.getByRole('status')).toContainText('assigned')
+    await expect(taskCard.getByRole('status')).toContainText('in_progress')
   })
 
   test('Volunteer submits a completed starter task; task status becomes submitted and admin receives a notification', async ({
@@ -185,13 +185,13 @@ test.describe('Starter Tasks', () => {
       timeout: 10_000,
     })
 
-    // Task status changes to 'submitted' on the admin page
+    // Task status changes to 'under_review' on the admin page
     await adminPage.goto(`${baseUrl}/admin/starter-tasks`)
     await expect(adminPage.getByRole('heading', { name: 'Quick Tasks', level: 1 })).toBeVisible({
       timeout: 10_000,
     })
     const adminTaskCard = adminPage.getByRole('article').filter({ hasText: taskTitle })
-    await expect(adminTaskCard.getByRole('status')).toContainText('submitted', {
+    await expect(adminTaskCard.getByRole('status')).toContainText('under_review', {
       timeout: 10_000,
     })
 
@@ -249,7 +249,7 @@ test.describe('Starter Tasks', () => {
     await expect(adminPage.locator('#endorsements')).toContainText(skill.name, { timeout: 10_000 })
   })
 
-  test('Admin reviews a starter task as needs_improvement; task becomes reviewed and no skill endorsement is created', async ({
+  test('Admin reviews a starter task as needs_improvement; task becomes completed and no skill endorsement is created', async ({
     adminPage,
     volunteer,
     baseUrl,
@@ -281,8 +281,8 @@ test.describe('Starter Tasks', () => {
 
     await expect(getAlert(adminPage)).toContainText('Task reviewed!', { timeout: 10_000 })
 
-    // Task status becomes 'reviewed'
-    await expect(taskCard.getByRole('status')).toContainText('reviewed', { timeout: 10_000 })
+    // Task status becomes 'completed'
+    await expect(taskCard.getByRole('status')).toContainText('completed', { timeout: 10_000 })
 
     // Volunteer receives a feedback notification
     await goToDashboardNotifications(baseUrl, volunteer.page)

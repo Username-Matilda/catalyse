@@ -67,7 +67,8 @@ export default function DashboardPage() {
     enabled: !!user,
   })
   const starterTasks = starterTasksRaw.filter(
-    (t) => t.status === StarterTaskStatus.assigned || t.status === StarterTaskStatus.submitted,
+    (t) =>
+      t.status === StarterTaskStatus.in_progress || t.status === StarterTaskStatus.under_review,
   )
 
   const { data: notifications = [] } = useQuery({
@@ -212,12 +213,7 @@ export default function DashboardPage() {
                 {expandedTasks.has(task.id) && (
                   <div className="mt-3">
                     <p className="text-text-light text-sm mb-3">{task.description}</p>
-                    {task.feedbackToVolunteer && (
-                      <p className="text-sm mb-3">
-                        <strong>Feedback:</strong> {task.feedbackToVolunteer}
-                      </p>
-                    )}
-                    {task.status === StarterTaskStatus.assigned && (
+                    {task.status === StarterTaskStatus.in_progress && (
                       <Button
                         size="sm"
                         disabled={submitTaskMutation.isPending}

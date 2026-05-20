@@ -171,9 +171,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const updateTaskMutation = useMutation({
     ...orpc.projects.updateTask.mutationOptions(),
     onSuccess: (_data, variables) => {
-      if (variables.data.status === TaskStatus.assigned) {
+      if (variables.data.status === TaskStatus.in_progress) {
         showToast('Task claimed!', 'success')
-      } else if (variables.data.status === TaskStatus.done) {
+      } else if (variables.data.status === TaskStatus.completed) {
         showToast('Task completed!', 'success')
       }
       void invalidateProject()
@@ -349,7 +349,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     updateTaskMutation.mutate({
       projectId: parseInt(idParam, 10),
       taskId,
-      data: { status: TaskStatus.assigned, assignedToId: user!.id },
+      data: { status: TaskStatus.in_progress, assigneeId: user!.id },
     })
   }
 
@@ -357,7 +357,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     updateTaskMutation.mutate({
       projectId: parseInt(idParam, 10),
       taskId,
-      data: { status: TaskStatus.done },
+      data: { status: TaskStatus.completed },
     })
   }
 
@@ -419,7 +419,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     e.preventDefault()
     if (!transferTo) return
     if (!window.confirm('Transfer ownership to this volunteer?')) return
-    updateProjectMutation.mutate({ id: parseInt(idParam, 10), ownerId: parseInt(transferTo, 10) })
+    updateProjectMutation.mutate({
+      id: parseInt(idParam, 10),
+      assigneeId: parseInt(transferTo, 10),
+    })
   }
 
   function handleRecordOutcome(e: React.FormEvent) {
@@ -446,7 +449,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     reviewMutation.mutate({
       id: parseInt(idParam, 10),
       status: reviewStatus as 'approved' | 'needs_discussion',
-      ...(reviewStatus === 'needs_discussion' ? { feedbackToProposer: reviewMessage } : {}),
+      ...(reviewStatus === 'needs_discussion' ? { comment: reviewMessage } : {}),
       targetStatus: 'seeking_owner',
     })
   }
@@ -475,12 +478,6 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         <h1 role="heading" aria-level={1}>
           {project.title}
         </h1>
-
-        {project.feedbackToProposer && (
-          <div className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEF3C7] text-[#92400E] border border-[#FCD34D] dark:bg-[#78350F] dark:text-[#FDE68A] dark:border-[#D97706]">
-            <strong>Feedback from review:</strong> {project.feedbackToProposer}
-          </div>
-        )}
 
         {/* Main project card */}
         <div className={card}>
@@ -690,10 +687,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   className="flex items-center gap-2 py-2 border-b border-brand-border last:border-0 flex-wrap"
                 >
                   <span className="flex-1">{task.title}</span>
-                  {task.status === TaskStatus.done && (
+                  {task.status === TaskStatus.completed && (
                     <span className="text-success text-sm font-semibold">done</span>
                   )}
-                  {task.assignedToName && task.status !== TaskStatus.done && (
+                  {task.assignedToName && task.status !== TaskStatus.completed && (
                     <span className="text-text-light text-sm">→ {task.assignedToName}</span>
                   )}
                   {task.status === TaskStatus.open && (
@@ -701,7 +698,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                       Claim
                     </Button>
                   )}
-                  {task.status === TaskStatus.assigned && task.assignedToId === user.id && (
+                  {task.status === TaskStatus.in_progress && task.assignedToId === user.id && (
                     <Button variant="secondary" size="sm" onClick={() => handleDoneTask(task.id)}>
                       Done
                     </Button>
@@ -949,11 +946,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               </Button>
             </form>
           )}
-          {project.updates.length === 0 ? (
+          {project.comments.length === 0 ? (
             <p className="text-text-light">No updates yet.</p>
           ) : (
             <ul className="list-none p-0 m-0">
-              {project.updates.map((u) => (
+              {project.comments.map((u) => (
                 <li key={u.id} className="py-3 border-b border-brand-border last:border-0">
                   <p className="m-0 mb-1">{u.content}</p>
                   <span className="text-xs text-text-light">

@@ -7,14 +7,14 @@ export const adminInterestsRouter = {
   list: adminProcedure
     .input(z.object({ status: z.nativeEnum(InterestStatus).optional() }))
     .handler(async ({ input }) => {
-      const interests = await prisma.projectInterest.findMany({
+      const interests = await prisma.workItemInterest.findMany({
         where: input.status ? { status: input.status } : {},
         include: {
-          project: {
+          workItem: {
             select: {
               title: true,
               status: true,
-              owner: { select: { name: true } },
+              assignee: { select: { name: true } },
             },
           },
           volunteer: {
@@ -33,18 +33,18 @@ export const adminInterestsRouter = {
       return interests.map((i) => ({
         id: i.id,
         volunteerId: i.volunteerId,
-        projectId: i.projectId,
+        projectId: i.workItemId,
         interestType: i.interestType,
         message: i.message,
         status: i.status,
         responseMessage: i.responseMessage,
         createdAt: i.createdAt,
         respondedAt: i.respondedAt,
-        projectTitle: i.project.title,
-        projectStatus: i.project.status,
+        projectTitle: i.workItem.title,
+        projectStatus: i.workItem.status,
         volunteerName: i.volunteer.name,
         volunteerEmail: i.volunteer.email,
-        ownerName: i.project.owner?.name ?? null,
+        ownerName: i.workItem.assignee?.name ?? null,
         volunteerSkills: i.volunteer.skills.map((vs) => ({
           id: vs.skill.id,
           categoryId: vs.skill.categoryId,

@@ -1,9 +1,8 @@
 import { Prisma } from '@/generated/prisma/client'
 import { calculateMatchScore } from './matching'
-import { prisma } from './prisma'
 import { InterestStatus } from '@/generated/prisma/enums'
 
-export type ProjectSkillWithRelations = {
+export type WorkItemSkillWithRelations = {
   skillId: number
   isRequired: boolean | null
   skill: {
@@ -20,10 +19,11 @@ export type ProjectSkillWithRelations = {
 export type EnrichedProject = {
   id: number
   title: string
-  description: string
+  description: string | null
   status: string
-  ownerId: number | null
-  proposedById: number | null
+  assigneeId: number | null
+  creatorId: number | null
+  stakeholderId: number | null
   isOrgProposed: boolean | null
   projectType: string | null
   estimatedDuration: string | null
@@ -32,7 +32,6 @@ export type EnrichedProject = {
   reviewNotes: string | null
   reviewedById: number | null
   reviewedAt: Date | null
-  feedbackToProposer: string | null
   collaborationLink: string | null
   outcome: string | null
   outcomeNotes: string | null
@@ -43,11 +42,15 @@ export type EnrichedProject = {
   isSeekingHelp: boolean | null
   isSeekingOwner: boolean | null
   localGroup: string | null
-  skills: ProjectSkillWithRelations[]
-  owner: { id: number; name: string } | null
-  proposedBy: { id: number; name: string } | null
+  skills: WorkItemSkillWithRelations[]
+  assignee: { id: number; name: string } | null
+  creator: { id: number; name: string } | null
   _count: { interests: number }
 }
+
+// The serialized view keeps the public field names `owner`/`proposedBy`
+// (mapped from the WorkItem `assignee`/`creator` columns) so the ProjectCard
+// contract and all consuming pages stay stable.
 
 export function withProjectExtras(p: EnrichedProject, volunteerSkillIds?: Set<number>) {
   const matchInput = p.skills.map((ps) => ({ id: ps.skillId, isRequired: ps.isRequired }))
@@ -59,8 +62,9 @@ export function withProjectExtras(p: EnrichedProject, volunteerSkillIds?: Set<nu
     title: p.title,
     description: p.description,
     status: p.status,
-    ownerId: p.ownerId,
-    proposedById: p.proposedById,
+    ownerId: p.assigneeId,
+    proposedById: p.creatorId,
+    stakeholderId: p.stakeholderId,
     isOrgProposed: p.isOrgProposed,
     projectType: p.projectType,
     estimatedDuration: p.estimatedDuration,
@@ -69,7 +73,6 @@ export function withProjectExtras(p: EnrichedProject, volunteerSkillIds?: Set<nu
     reviewNotes: p.reviewNotes,
     reviewedById: p.reviewedById,
     reviewedAt: p.reviewedAt,
-    feedbackToProposer: p.feedbackToProposer,
     collaborationLink: p.collaborationLink,
     outcome: p.outcome,
     outcomeNotes: p.outcomeNotes,
@@ -90,8 +93,8 @@ export function withProjectExtras(p: EnrichedProject, volunteerSkillIds?: Set<nu
       categoryName: ps.skill.category.name,
       isRequired: ps.isRequired,
     })),
-    owner: p.owner,
-    proposedBy: p.proposedBy,
+    owner: p.assignee,
+    proposedBy: p.creator,
     pendingInterestCount: p._count.interests,
     ...(match !== undefined ? { match } : {}),
   }
@@ -106,19 +109,7 @@ export const projectInclude = {
       { skill: { sortOrder: Prisma.SortOrder.asc } },
     ],
   },
-  owner: { select: { id: true, name: true } },
-  proposedBy: { select: { id: true, name: true } },
+  assignee: { select: { id: true, name: true } },
+  creator: { select: { id: true, name: true } },
   _count: { select: { interests: { where: { status: InterestStatus.pending } } } },
-} satisfies Prisma.ProjectInclude
-
-export async function createNotification(
-  volunteerId: number,
-  type: string,
-  title: string,
-  body?: string | null,
-  link?: string | null,
-) {
-  return prisma.notification.create({
-    data: { volunteerId, type, title, body: body ?? null, link: link ?? null },
-  })
-}
+} satisfies Prisma.WorkItemInclude
