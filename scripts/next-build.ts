@@ -4,41 +4,99 @@ import path from 'path'
 
 const PROJECT_ROOT = path.resolve(__dirname, '..')
 const NEXT_BINARY = path.join(PROJECT_ROOT, 'node_modules', '.bin', 'next')
+const NEXT_DIR = path.join(PROJECT_ROOT, '.next')
 
-function getTracedFiles(): string[] | null {
-  const serverDir = path.join(PROJECT_ROOT, '.next', 'server')
-  if (!fs.existsSync(serverDir)) return null
+// Build inputs that never appear in any source map, so the module graph can't
+// tell us about them: config files (never enter the graph) and CSS (turbopack
+// inlines styles — emitted *.css.map files have an empty `sources` array).
+const CONFIG_FILES = [
+  'next.config.ts',
+  'postcss.config.mjs',
+  'prisma.config.ts',
+  'prisma/schema.prisma',
+  'tsconfig.json',
+  'package.json',
+  'package-lock.json',
+]
+const CSS_WALK_ROOT = path.join(PROJECT_ROOT, 'app')
 
-  const nftFiles: string[] = []
+const TURBOPACK_PROJECT_PREFIX = 'turbopack:///[project]/'
+
+// Every emitted *.map lists, in `sources`, the original files turbopack
+// consumed to produce that chunk (project source + node_modules). Their union
+// is the build's real input graph — maintained by Next, not by us.
+function getMappedSources(): string[] | null {
+  if (!fs.existsSync(NEXT_DIR)) return null
+
+  const maps: string[] = []
   const walk = (dir: string) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name)
       if (entry.isDirectory()) walk(full)
-      else if (entry.name.endsWith('.nft.json')) nftFiles.push(full)
+      else if (entry.name.endsWith('.map')) maps.push(full)
     }
   }
-  walk(serverDir)
+  walk(NEXT_DIR)
+  if (maps.length === 0) return null
 
-  if (nftFiles.length === 0) return null
-
-  const traced = new Set<string>()
-  for (const nftFile of nftFiles) {
-    const { files } = JSON.parse(fs.readFileSync(nftFile, 'utf8')) as { files: string[] }
-    const base = path.dirname(nftFile)
-    for (const f of files) traced.add(path.resolve(base, f))
+  const sources = new Set<string>()
+  for (const map of maps) {
+    let parsed: { sources?: string[] }
+    try {
+      parsed = JSON.parse(fs.readFileSync(map, 'utf8'))
+    } catch {
+      continue
+    }
+    const base = path.dirname(map)
+    for (const raw of parsed.sources ?? []) {
+      let decoded: string
+      try {
+        decoded = decodeURIComponent(raw.split('?')[0])
+      } catch {
+        continue
+      }
+      let resolved: string
+      if (decoded.startsWith(TURBOPACK_PROJECT_PREFIX)) {
+        resolved = path.join(PROJECT_ROOT, decoded.slice(TURBOPACK_PROJECT_PREFIX.length))
+      } else if (decoded.includes('://')) {
+        continue // virtual runtime module, no file on disk
+      } else {
+        resolved = path.resolve(base, decoded)
+      }
+      sources.add(resolved)
+    }
   }
-  return [...traced]
+  return [...sources]
+}
+
+function getCssFiles(): string[] {
+  if (!fs.existsSync(CSS_WALK_ROOT)) return []
+  const files: string[] = []
+  const walk = (dir: string) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name)
+      if (entry.isDirectory()) walk(full)
+      else if (entry.name.endsWith('.css')) files.push(full)
+    }
+  }
+  walk(CSS_WALK_ROOT)
+  return files
 }
 
 export function isBuildFresh(): boolean {
-  const buildId = path.join(PROJECT_ROOT, '.next', 'BUILD_ID')
+  const buildId = path.join(NEXT_DIR, 'BUILD_ID')
   if (!fs.existsSync(buildId)) return false
 
-  const traced = getTracedFiles()
-  if (!traced) return false
+  const sources = getMappedSources()
+  if (!sources) return false
 
   const buildMtime = fs.statSync(buildId).mtimeMs
-  return !traced.some((f) => fs.existsSync(f) && fs.statSync(f).mtimeMs > buildMtime)
+  const tracked = [
+    ...sources,
+    ...CONFIG_FILES.map((f) => path.join(PROJECT_ROOT, f)),
+    ...getCssFiles(),
+  ]
+  return !tracked.some((f) => fs.existsSync(f) && fs.statSync(f).mtimeMs > buildMtime)
 }
 
 export async function buildNext(): Promise<void> {
