@@ -50,6 +50,9 @@ test.describe('Admin: Admin Team Management', () => {
     const inviteEmail = fake.uniqueEmail()
 
     await adminPage.goto(`${baseUrl}/admin/team`)
+    await expect(adminPage.getByRole('button', { name: 'Invite Admin' })).toBeVisible({
+      timeout: 10_000,
+    })
     await createAdminInvite(adminPage, baseUrl, inviteEmail)
 
     await adminPage.goto(`${baseUrl}/admin/team`)
@@ -62,6 +65,9 @@ test.describe('Admin: Admin Team Management', () => {
     const inviteEmail = fake.uniqueEmail()
 
     await adminPage.goto(`${baseUrl}/admin/team`)
+    await expect(adminPage.getByRole('button', { name: 'Invite Admin' })).toBeVisible({
+      timeout: 10_000,
+    })
     await createAdminInvite(adminPage, baseUrl, inviteEmail)
 
     await adminPage.goto(`${baseUrl}/admin/team`)
