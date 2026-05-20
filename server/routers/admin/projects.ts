@@ -5,7 +5,7 @@ import { withProjectExtras, projectInclude, EnrichedProject } from '@/lib/projec
 import { notifyVolunteer } from '@/lib/notify'
 import { AdminCreateProjectSchema, ReviewProjectSchema, OutcomeProjectSchema } from '@/lib/schemas'
 import { adminProcedure } from '../../procedures'
-import { ProjectStatus } from '@/generated/prisma/enums'
+import { ProjectStatus, TaskStatus } from '@/generated/prisma/enums'
 
 export const adminProjectsRouter = {
   create: adminProcedure.input(AdminCreateProjectSchema).handler(async ({ input, context }) => {
@@ -17,7 +17,7 @@ export const adminProjectsRouter = {
         data: {
           title: input.title,
           description: input.description,
-          status: tasks.length > 0 ? 'in_progress' : 'needs_tasks',
+          status: tasks.length > 0 ? ProjectStatus.in_progress : ProjectStatus.needs_tasks,
           ownerId: wantToOwn ? admin.id : null,
           proposedById: admin.id,
           isOrgProposed: true,
@@ -72,11 +72,11 @@ export const adminProjectsRouter = {
       if (status === 'approved') {
         const hasOwner = project.ownerId !== null
         const openTaskCount = await prisma.projectTask.count({
-          where: { projectId: input.id, status: { not: 'done' } },
+          where: { projectId: input.id, status: { not: TaskStatus.done } },
         })
-        const newStatus = openTaskCount > 0 ? 'in_progress' : 'needs_tasks'
-        const isSeekingHelp = targetStatus === 'seeking_help' || targetStatus === 'seeking_owner'
-        const isSeekingOwner = targetStatus === 'seeking_owner' && !hasOwner
+        const newStatus = openTaskCount > 0 ? ProjectStatus.in_progress : ProjectStatus.needs_tasks
+        const isSeekingHelp = targetStatus === ProjectStatus.seeking_help || targetStatus === ProjectStatus.seeking_owner
+        const isSeekingOwner = targetStatus === ProjectStatus.seeking_owner && !hasOwner
 
         await prisma.project.update({
           where: { id: input.id },
@@ -110,7 +110,7 @@ export const adminProjectsRouter = {
         await prisma.project.update({
           where: { id: input.id },
           data: {
-            status: 'needs_discussion',
+            status: ProjectStatus.needs_discussion,
             reviewNotes,
             feedbackToProposer,
             reviewedById: admin.id,
@@ -157,7 +157,7 @@ export const adminProjectsRouter = {
           outcome,
           outcomeNotes,
           completedAt: isCompleted ? new Date() : null,
-          ...(isCompleted ? { status: 'completed' } : {}),
+          ...(isCompleted ? { status: ProjectStatus.completed } : {}),
           updatedAt: new Date(),
         },
       })

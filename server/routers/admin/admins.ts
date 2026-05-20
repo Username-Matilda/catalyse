@@ -151,7 +151,7 @@ export const adminAdminsRouter = {
         prisma.volunteer.update({ where: { id: volunteer.id }, data: { isAdmin: true } }),
         prisma.adminInvite.update({
           where: { id: invite.id },
-          data: { status: 'accepted', acceptedById: volunteer.id, acceptedAt: new Date() },
+          data: { status: InviteStatus.accepted, acceptedById: volunteer.id, acceptedAt: new Date() },
         }),
       ])
 

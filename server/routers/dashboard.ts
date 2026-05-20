@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { withProjectExtras, projectInclude, EnrichedProject } from '@/lib/project'
 import { authedProcedure } from '../procedures'
+import { ProjectStatus } from '@/generated/prisma/enums'
 
 export const dashboardRouter = {
   get: authedProcedure.handler(async ({ context }) => {
@@ -50,7 +51,7 @@ export const dashboardRouter = {
                 OR: [
                   { isSeekingHelp: true },
                   { isSeekingOwner: true },
-                  { status: { in: ['seeking_owner', 'seeking_help'] } },
+                  { status: { in: [ProjectStatus.seeking_owner, ProjectStatus.seeking_help] } },
                 ],
                 ownerId: { not: volunteer.id },
                 id: { notIn: interestedProjectIds.length > 0 ? interestedProjectIds : [-1] },

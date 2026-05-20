@@ -26,7 +26,7 @@ import {
 } from '@/lib/schemas'
 import { publicProcedure, authedProcedure } from '../procedures'
 import { env } from '@/lib/env'
-import { ApprovalStatus } from '@/generated/prisma/enums'
+import { ApprovalStatus, ProjectStatus } from '@/generated/prisma/enums'
 
 const STUB_EMAIL = env.STUB_EMAIL
 const GOOGLE_CLIENT_ID = env.GOOGLE_CLIENT_ID
@@ -70,7 +70,7 @@ async function sendAccountDeletionNotifications(deletedId: number, deletedName: 
     GROUP BY p.id
   `
   const ownedProjects = await prisma.project.findMany({
-    where: { ownerId: deletedId, status: { notIn: ['completed', 'archived'] } },
+    where: { ownerId: deletedId, status: { notIn: [ProjectStatus.completed, ProjectStatus.archived] } },
     select: { id: true, title: true },
   })
   if (!taskRows.length && !ownedProjects.length) return

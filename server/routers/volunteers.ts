@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { redactVolunteer } from '@/lib/auth'
 import { UpdateVolunteerSchema } from '@/lib/schemas'
 import { publicProcedure, authedProcedure } from '../procedures'
-import { ApprovalStatus, StarterTaskStatus } from '@/generated/prisma/enums'
+import { ApprovalStatus, ProjectStatus, StarterTaskStatus } from '@/generated/prisma/enums'
 
 export const volunteersRouter = {
   list: publicProcedure
@@ -166,7 +166,7 @@ export const volunteersRouter = {
         prisma.project.findMany({
           where: {
             OR: [{ ownerId: input.id }, { proposedById: input.id }],
-            status: { notIn: ['archived', 'pending_review', 'needs_discussion'] },
+            status: { notIn: [ProjectStatus.archived, ProjectStatus.pending_review, ProjectStatus.needs_discussion] },
           },
           orderBy: { createdAt: 'desc' },
           select: {
