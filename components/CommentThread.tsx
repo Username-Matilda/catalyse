@@ -8,15 +8,12 @@ import { useToast } from '@/lib/toast'
 
 interface CommentThreadProps {
   workItemId: number
-  /** Show the post form (server still enforces authorization). */
-  canPost?: boolean
   emptyText?: string
   placeholder?: string
 }
 
 export default function CommentThread({
   workItemId,
-  canPost = false,
   emptyText = 'No comments yet.',
   placeholder = 'Add a comment…',
 }: CommentThreadProps) {
@@ -24,9 +21,11 @@ export default function CommentThread({
   const showToast = useToast()
   const [content, setContent] = useState('')
 
-  const { data: comments = [], isPending } = useQuery({
+  const { data, isPending } = useQuery({
     ...orpc.workItemComments.list.queryOptions({ input: { workItemId } }),
   })
+  const comments = data?.comments ?? []
+  const canPost = data?.canPost ?? false
 
   const addMutation = useMutation({
     ...orpc.workItemComments.add.mutationOptions(),

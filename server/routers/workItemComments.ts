@@ -48,6 +48,28 @@ function commentLink(item: LoadedWorkItem): string {
   return '/dashboard'
 }
 
+// Whether `viewer` may post on this item. Resolves the accepted-helper lookup
+// for PROJECT/TASK. Returns false for anonymous viewers.
+async function resolveCanPost(
+  item: LoadedWorkItem,
+  parent: LoadedWorkItem | null,
+  viewer: { id: number; isAdmin: boolean } | null,
+): Promise<boolean> {
+  if (!viewer) return false
+  let isAcceptedHelper = false
+  if (!viewer.isAdmin) {
+    const projectId = item.type === WorkItemType.TASK ? item.parentId : item.id
+    if (projectId) {
+      const interest = await prisma.workItemInterest.findFirst({
+        where: { workItemId: projectId, volunteerId: viewer.id, status: InterestStatus.accepted },
+        select: { id: true },
+      })
+      isAcceptedHelper = Boolean(interest)
+    }
+  }
+  return canPostComment(item, viewer, { parent, isAcceptedHelper })
+}
+
 export const workItemCommentsRouter = {
   list: publicProcedure
     .input(z.object({ workItemId: z.number().int() }))
@@ -67,14 +89,18 @@ export const workItemCommentsRouter = {
         include: { author: { select: { name: true } } },
         orderBy: { createdAt: 'asc' },
       })
-      return comments.map((c) => ({
-        id: c.id,
-        workItemId: c.workItemId,
-        authorId: c.authorId,
-        authorName: c.author?.name ?? null,
-        content: c.content,
-        createdAt: c.createdAt,
-      }))
+      const canPost = await resolveCanPost(loaded.item, loaded.parent, viewer)
+      return {
+        canPost,
+        comments: comments.map((c) => ({
+          id: c.id,
+          workItemId: c.workItemId,
+          authorId: c.authorId,
+          authorName: c.author?.name ?? null,
+          content: c.content,
+          createdAt: c.createdAt,
+        })),
+      }
     }),
 
   add: authedProcedure
@@ -85,26 +111,7 @@ export const workItemCommentsRouter = {
       if (!loaded) throw new ORPCError('NOT_FOUND', { message: 'Work item not found' })
 
       const viewer = { id: volunteer.id, isAdmin: Boolean(volunteer.isAdmin) }
-
-      // Accepted-helper check (project participants) for PROJECT/TASK.
-      let isAcceptedHelper = false
-      if (!viewer.isAdmin) {
-        const projectId =
-          loaded.item.type === WorkItemType.TASK ? loaded.item.parentId : loaded.item.id
-        if (projectId) {
-          const interest = await prisma.workItemInterest.findFirst({
-            where: {
-              workItemId: projectId,
-              volunteerId: volunteer.id,
-              status: InterestStatus.accepted,
-            },
-            select: { id: true },
-          })
-          isAcceptedHelper = Boolean(interest)
-        }
-      }
-
-      if (!canPostComment(loaded.item, viewer, { parent: loaded.parent, isAcceptedHelper })) {
+      if (!(await resolveCanPost(loaded.item, loaded.parent, viewer))) {
         throw new ORPCError('FORBIDDEN', { message: 'Not authorized to comment here' })
       }
 

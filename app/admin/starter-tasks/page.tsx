@@ -454,7 +454,7 @@ export default function AdminStarterTasksPage() {
 
                     <div className="mb-3">
                       <strong className="text-sm">Comments</strong>
-                      <CommentThread workItemId={task.id} canPost />
+                      <CommentThread workItemId={task.id} />
                     </div>
 
                     <div

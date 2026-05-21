@@ -374,7 +374,6 @@ export default function TriagePage() {
                 <div className="mt-2 max-h-60 overflow-auto">
                   <CommentThread
                     workItemId={modal.project.id}
-                    canPost
                     placeholder="Reply to the proposer…"
                   />
                 </div>

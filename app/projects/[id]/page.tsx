@@ -906,7 +906,6 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           <h2>Project Updates</h2>
           <CommentThread
             workItemId={project.id}
-            canPost={isOwnerOrAdmin || project.myInterest?.status === 'accepted'}
             emptyText="No updates yet."
             placeholder="Share a progress update…"
           />

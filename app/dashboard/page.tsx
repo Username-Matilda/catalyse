@@ -225,7 +225,7 @@ export default function DashboardPage() {
                     )}
                     <div className="mt-3">
                       <strong className="text-sm">Comments</strong>
-                      <CommentThread workItemId={task.id} canPost />
+                      <CommentThread workItemId={task.id} />
                     </div>
                   </div>
                 )}
