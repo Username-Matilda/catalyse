@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
+import CommentThread from '@/components/CommentThread'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
@@ -78,9 +79,6 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   // Interest section
   const [interestType, setInterestType] = useState('want_to_contribute')
   const [interestMessage, setInterestMessage] = useState('')
-
-  // Update section
-  const [updateContent, setUpdateContent] = useState('')
 
   // Transfer ownership
   const [transferTo, setTransferTo] = useState('')
@@ -259,16 +257,6 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       showToast(err instanceof Error ? err.message : 'Failed to record outcome', 'error'),
   })
 
-  const createUpdateMutation = useMutation({
-    ...orpc.projects.createUpdate.mutationOptions(),
-    onSuccess: () => {
-      setUpdateContent('')
-      void invalidateProject()
-    },
-    onError: (err: unknown) =>
-      showToast(err instanceof Error ? err.message : 'Failed to post update', 'error'),
-  })
-
   const reviewMutation = useMutation({
     ...orpc.admin.projects.review.mutationOptions(),
     onSuccess: (_data, variables) => {
@@ -432,15 +420,6 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       id: parseInt(idParam, 10),
       outcome: outcomeValue,
       outcomeNotes: outcomeNotes.trim() || null,
-    })
-  }
-
-  function handlePostUpdate(e: React.FormEvent) {
-    e.preventDefault()
-    if (!updateContent.trim()) return
-    createUpdateMutation.mutate({
-      projectId: parseInt(idParam, 10),
-      content: updateContent.trim(),
     })
   }
 
@@ -925,41 +904,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         {/* Project Updates */}
         <div className={card}>
           <h2>Project Updates</h2>
-          {isOwnerOrAdmin && (
-            <form onSubmit={handlePostUpdate} className="mb-4">
-              <div className="mb-3">
-                <label htmlFor="add-update">Add Update</label>
-                <textarea
-                  id="add-update"
-                  aria-label="Add Update"
-                  rows={3}
-                  value={updateContent}
-                  onChange={(e) => setUpdateContent(e.target.value)}
-                  placeholder="Share a progress update…"
-                />
-              </div>
-              <Button
-                type="submit"
-                disabled={!updateContent.trim() || createUpdateMutation.isPending}
-              >
-                {createUpdateMutation.isPending ? 'Posting…' : 'Post Update'}
-              </Button>
-            </form>
-          )}
-          {project.comments.length === 0 ? (
-            <p className="text-text-light">No updates yet.</p>
-          ) : (
-            <ul className="list-none p-0 m-0">
-              {project.comments.map((u) => (
-                <li key={u.id} className="py-3 border-b border-brand-border last:border-0">
-                  <p className="m-0 mb-1">{u.content}</p>
-                  <span className="text-xs text-text-light">
-                    {u.authorName} · {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : ''}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
+          <CommentThread
+            workItemId={project.id}
+            canPost={isOwnerOrAdmin || project.myInterest?.status === 'accepted'}
+            emptyText="No updates yet."
+            placeholder="Share a progress update…"
+          />
         </div>
       </main>
 

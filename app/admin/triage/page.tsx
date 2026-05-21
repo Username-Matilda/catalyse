@@ -14,22 +14,14 @@ import {
   CARD_GRID_CLASSES,
 } from '@/components/ProjectCard'
 import Tabs from '@/components/Tabs'
+import CommentThread from '@/components/CommentThread'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import { InterestStatus, ProjectStatus } from '@/generated/prisma/enums'
 
-interface ProjectComment {
-  id: number
-  authorId: number | null
-  authorName: string | null
-  content: string
-  createdAt: string | Date | null
-}
-
 interface Project extends CardProject {
   ownerId: number | null
   reviewNotes: string | null
-  comments: ProjectComment[]
 }
 
 interface ReviewModal {
@@ -47,7 +39,6 @@ export default function TriagePage() {
   const [decision, setDecision] = useState<'approved' | 'needs_discussion'>('approved')
   const [feedback, setFeedback] = useState('')
   const [reviewNotes, setReviewNotes] = useState('')
-  const [followUp, setFollowUp] = useState('')
 
   const {
     value: interestStatusFilter,
@@ -91,37 +82,6 @@ export default function TriagePage() {
     },
   })
 
-  const addCommentMutation = useMutation({
-    ...orpc.admin.triage.addComment.mutationOptions(),
-    onSuccess: (_, variables) => {
-      showToast('Message sent', 'success')
-      setFollowUp('')
-      void queryClient.invalidateQueries({ queryKey: orpc.admin.triage.list.key() })
-      setModal((m) =>
-        m && m.project.id === variables.projectId
-          ? {
-              project: {
-                ...m.project,
-                comments: [
-                  ...m.project.comments,
-                  {
-                    id: Date.now(),
-                    authorId: user?.id ?? null,
-                    authorName: user?.name ?? null,
-                    content: variables.content,
-                    createdAt: new Date(),
-                  },
-                ],
-              },
-            }
-          : m,
-      )
-    },
-    onError: (err: unknown) => {
-      showToast(err instanceof Error ? err.message : 'Failed to send message', 'error')
-    },
-  })
-
   const respondInterestMutation = useMutation({
     ...orpc.projects.respondToInterest.mutationOptions(),
     onError: (err: unknown) => {
@@ -136,7 +96,6 @@ export default function TriagePage() {
     setModal({ project })
     setDecision('approved')
     setFeedback('')
-    setFollowUp('')
     setReviewNotes(project.reviewNotes || '')
   }
 
@@ -410,54 +369,16 @@ export default function TriagePage() {
                 {modal.project.description}
               </p>
 
-              {modal.project.comments.length > 0 && (
-                <div className="mb-5">
-                  <label>Discussion</label>
-                  <ul className="list-none p-0 m-0 mt-2 max-h-50 overflow-auto">
-                    {modal.project.comments.map((c) => (
-                      <li key={c.id} className="py-2 border-b border-brand-border last:border-0">
-                        <p className="m-0 mb-1 text-sm whitespace-pre-wrap">{c.content}</p>
-                        <span className="text-xs text-text-light">
-                          {c.authorName ?? 'Unknown'} ·{' '}
-                          {c.createdAt ? new Date(c.createdAt).toLocaleDateString() : ''}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {modal.project.status === ProjectStatus.needs_discussion && (
-                <form
-                  className="mb-5"
-                  onSubmit={(e) => {
-                    e.preventDefault()
-                    if (!followUp.trim()) return
-                    addCommentMutation.mutate({
-                      projectId: modal.project.id,
-                      content: followUp.trim(),
-                    })
-                  }}
-                >
-                  <label htmlFor="follow-up">Add follow-up message</label>
-                  <textarea
-                    id="follow-up"
-                    aria-label="Add follow-up message"
-                    rows={2}
-                    value={followUp}
-                    onChange={(e) => setFollowUp(e.target.value)}
+              <div className="mb-5">
+                <label>Discussion</label>
+                <div className="mt-2 max-h-60 overflow-auto">
+                  <CommentThread
+                    workItemId={modal.project.id}
+                    canPost
                     placeholder="Reply to the proposer…"
-                    style={{ width: '100%' }}
                   />
-                  <Button
-                    type="submit"
-                    size="sm"
-                    disabled={!followUp.trim() || addCommentMutation.isPending}
-                  >
-                    {addCommentMutation.isPending ? 'Sending…' : 'Send message'}
-                  </Button>
-                </form>
-              )}
+                </div>
+              </div>
 
               <form onSubmit={submitReview}>
                 <div className="mb-5">

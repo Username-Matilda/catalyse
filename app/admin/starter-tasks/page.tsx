@@ -5,6 +5,7 @@ import { useRequireAdmin } from '@/lib/hooks/auth'
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
+import CommentThread from '@/components/CommentThread'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
@@ -450,6 +451,11 @@ export default function AdminStarterTasksPage() {
                         Notes: {task.reviewNotes}
                       </p>
                     )}
+
+                    <div className="mb-3">
+                      <strong className="text-sm">Comments</strong>
+                      <CommentThread workItemId={task.id} canPost />
+                    </div>
 
                     <div
                       style={{

@@ -10,7 +10,6 @@ import {
   ProjectInterestBodySchema,
   CreateProjectTaskSchema,
   UpdateProjectTaskSchema,
-  CreateProjectUpdateSchema,
 } from '@/lib/schemas'
 import { publicProcedure, authedProcedure, adminProcedure } from '../procedures'
 import {
@@ -303,34 +302,18 @@ export const projectsRouter = {
 
       const base = withProjectExtras(project as EnrichedProject, volunteerSkillIds)
 
-      const [comments, tasks] = await Promise.all([
-        prisma.workItemComment.findMany({
-          where: { workItemId: input.id },
-          include: { author: { select: { name: true } } },
-          orderBy: { createdAt: 'asc' },
-        }),
-        prisma.workItem.findMany({
-          where: { parentId: input.id, type: WorkItemType.TASK },
-          include: {
-            assignee: { select: { name: true } },
-            creator: { select: { name: true } },
-          },
-          orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
-        }),
-      ])
+      const tasks = await prisma.workItem.findMany({
+        where: { parentId: input.id, type: WorkItemType.TASK },
+        include: {
+          assignee: { select: { name: true } },
+          creator: { select: { name: true } },
+        },
+        orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
+      })
 
       const sortedTasks = tasks.sort(
         (a, b) => (TASK_ORDER[a.status] ?? 0) - (TASK_ORDER[b.status] ?? 0),
       )
-
-      const mappedComments = comments.map((c) => ({
-        id: c.id,
-        workItemId: c.workItemId,
-        authorId: c.authorId,
-        content: c.content,
-        createdAt: c.createdAt,
-        authorName: c.author?.name ?? null,
-      }))
 
       const mappedTasks = sortedTasks.map((t) => ({
         id: t.id,
@@ -446,7 +429,6 @@ export const projectsRouter = {
       return {
         ...base,
         ...(isPending && { owner: null, ownerId: null, proposedBy: null, proposedById: null }),
-        comments: mappedComments,
         tasks: mappedTasks,
         interests,
         myInterest,
@@ -988,25 +970,5 @@ export const projectsRouter = {
       })
       if (deleted.count === 0) throw new ORPCError('NOT_FOUND', { message: 'Task not found' })
       return { message: 'Task deleted' }
-    }),
-
-  createUpdate: authedProcedure
-    .input(z.object({ projectId: z.number().int() }).merge(CreateProjectUpdateSchema))
-    .handler(async ({ input, context }) => {
-      const volunteer = context.volunteer
-      const project = await prisma.workItem.findFirst({
-        where: { id: input.projectId, type: WorkItemType.PROJECT },
-      })
-      if (!project) throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
-
-      if (project.assigneeId !== volunteer.id && !volunteer.isAdmin) {
-        throw new ORPCError('FORBIDDEN', { message: 'Only project owner can add updates' })
-      }
-
-      const comment = await prisma.workItemComment.create({
-        data: { workItemId: input.projectId, authorId: volunteer.id, content: input.content },
-      })
-
-      return { id: comment.id, message: 'Update added' }
     }),
 }

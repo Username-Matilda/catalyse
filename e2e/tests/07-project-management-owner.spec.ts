@@ -77,8 +77,8 @@ test.describe('Project Management (Owner)', () => {
     await volunteer.page.goto(`${baseUrl}/projects/${projectId}`)
     await expect(volunteer.page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 })
 
-    await volunteer.page.getByLabel('Add Update').fill(updateText)
-    await volunteer.page.getByRole('button', { name: 'Post Update' }).click()
+    await volunteer.page.getByLabel('Add a comment').fill(updateText)
+    await volunteer.page.getByRole('button', { name: 'Post Comment' }).click()
 
     await expect(volunteer.page.getByText(updateText)).toBeVisible({ timeout: 10_000 })
   })

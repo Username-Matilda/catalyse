@@ -1,6 +1,79 @@
 import { Prisma } from '@/generated/prisma/client'
 import { calculateMatchScore } from './matching'
-import { InterestStatus } from '@/generated/prisma/enums'
+import { InterestStatus, ProjectStatus, WorkItemType } from '@/generated/prisma/enums'
+
+// ── Comment access ────────────────────────────────────────────────────────────
+// Reading a work item's comment thread is gated identically to viewing the work
+// item itself. Posting is restricted to participants.
+
+export type WorkItemForAccess = {
+  type: string
+  status: string
+  creatorId: number | null
+  assigneeId: number | null
+}
+
+export type CommentViewer = { id: number; isAdmin: boolean } | null
+
+const PROJECT_HIDDEN_STATUSES: string[] = [
+  ProjectStatus.pending_review,
+  ProjectStatus.needs_discussion,
+]
+
+/**
+ * Can `viewer` see this work item (and therefore its comment thread)?
+ * For TASK, pass the parent PROJECT — task visibility follows the project.
+ */
+export function canViewWorkItem(
+  item: WorkItemForAccess,
+  viewer: CommentViewer,
+  parent?: WorkItemForAccess | null,
+): boolean {
+  switch (item.type) {
+    case WorkItemType.PROJECT:
+      if (!PROJECT_HIDDEN_STATUSES.includes(item.status)) return true
+      return Boolean(viewer && (viewer.isAdmin || viewer.id === item.creatorId))
+    case WorkItemType.TASK:
+      return parent ? canViewWorkItem(parent, viewer) : Boolean(viewer?.isAdmin)
+    case WorkItemType.STARTER_TASK:
+      return Boolean(
+        viewer && (viewer.isAdmin || viewer.id === item.assigneeId || viewer.id === item.creatorId),
+      )
+    default:
+      return Boolean(viewer?.isAdmin)
+  }
+}
+
+/**
+ * Can `viewer` post a comment? Participants only.
+ * `isAcceptedHelper` = viewer has an accepted WorkItemInterest on the project
+ * (for TASK, on the parent project). The caller resolves it.
+ */
+export function canPostComment(
+  item: WorkItemForAccess,
+  viewer: { id: number; isAdmin: boolean },
+  opts: { parent?: WorkItemForAccess | null; isAcceptedHelper?: boolean } = {},
+): boolean {
+  if (viewer.isAdmin) return true
+  switch (item.type) {
+    case WorkItemType.PROJECT:
+      return (
+        viewer.id === item.creatorId ||
+        viewer.id === item.assigneeId ||
+        Boolean(opts.isAcceptedHelper)
+      )
+    case WorkItemType.TASK:
+      return (
+        viewer.id === item.assigneeId ||
+        viewer.id === (opts.parent?.assigneeId ?? null) ||
+        Boolean(opts.isAcceptedHelper)
+      )
+    case WorkItemType.STARTER_TASK:
+      return viewer.id === item.assigneeId
+    default:
+      return false
+  }
+}
 
 export type WorkItemSkillWithRelations = {
   skillId: number

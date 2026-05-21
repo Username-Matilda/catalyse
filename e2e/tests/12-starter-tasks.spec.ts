@@ -137,6 +137,24 @@ test.describe('Starter Tasks', () => {
     ).toBeVisible({ timeout: 10_000 })
   })
 
+  test('Admin posts a comment on a starter task and it appears in the thread', async ({
+    adminPage,
+    baseUrl,
+  }) => {
+    const skill = await createSkill(baseUrl, adminPage)
+    const taskTitle = await createOpenStarterTask(baseUrl, adminPage, skill)
+    const commentText = `comment ${Date.now()}`
+
+    const taskCard = adminPage.getByRole('article').filter({ hasText: taskTitle })
+    await expect(taskCard).toBeVisible({ timeout: 10_000 })
+    await taskCard.getByText(taskTitle, { exact: true }).click()
+
+    await taskCard.getByLabel('Add a comment').fill(commentText)
+    await taskCard.getByRole('button', { name: 'Post Comment' }).click()
+
+    await expect(taskCard.getByText(commentText)).toBeVisible({ timeout: 10_000 })
+  })
+
   test('Volunteer views their assigned starter task on the dashboard', async ({
     adminPage,
     volunteer,
