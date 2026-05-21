@@ -1,10 +1,18 @@
-import { test, expect, getAlert } from '../fixtures'
+import {
+  test,
+  expect,
+  getAlert,
+  readAdminToken,
+  approveVolunteer,
+  confirmVolunteerEmail,
+} from '../fixtures'
 import type { Page } from '@playwright/test'
 import { createSkill } from '../actions/skills'
 import type { SkillInfo } from '../actions/skills'
 import { goToDashboardNotifications } from '../actions/dashboard'
 import { fake } from '../fake'
 import { selectFilterDropdown } from '../actions/ui'
+import { createApiClient } from '../client'
 
 async function createOpenStarterTask(
   baseUrl: string,
@@ -363,5 +371,63 @@ test.describe('Starter Tasks', () => {
     await expect(deepLinkCard.getByRole('button', { name: 'Edit' })).toBeVisible({
       timeout: 10_000,
     })
+  })
+
+  test('Starter task comments are hidden from non-assignee volunteers', async ({ baseUrl }) => {
+    const adminToken = readAdminToken(baseUrl)
+    expect(adminToken).toBeTruthy()
+    const adminApi = createApiClient(baseUrl, adminToken)
+
+    // Admin creates a starter task and posts a comment on it
+    const created = await adminApi.starterTasks.create({
+      body: { title: `Iso task ${Date.now()}`, description: 'isolation test description' },
+    })
+    expect(created.status).toBe(200)
+    const workItemId = (created.body as { id: number }).id
+
+    const commentText = `admin-only ${Date.now()}`
+    const added = await adminApi.workItemComments.add({
+      body: { workItemId, content: commentText },
+    })
+    expect(added.status).toBe(200)
+
+    // Admin can read the thread
+    const adminList = await adminApi.workItemComments.list({ body: { workItemId } })
+    expect(adminList.status).toBe(200)
+    expect(
+      (adminList.body as { comments: { content: string }[] }).comments.some(
+        (c) => c.content === commentText,
+      ),
+    ).toBe(true)
+
+    // A fresh, approved volunteer who is not the assignee
+    const api = createApiClient(baseUrl)
+    const person = fake.person()
+    const signup = await api.auth.signup({
+      body: {
+        name: person.name,
+        email: person.email,
+        password: 'testpassword1',
+        consentMakeProfileVisibleInDirectory: true,
+        consentContactableByProjectOwners: true,
+      },
+    })
+    expect(signup.status).toBe(200)
+    const {
+      id: volId,
+      token,
+      emailVerificationToken,
+    } = signup.body as { id: number; token: string; emailVerificationToken?: string }
+    if (emailVerificationToken) await confirmVolunteerEmail(baseUrl, emailVerificationToken)
+    await approveVolunteer(baseUrl, volId)
+    const volApi = createApiClient(baseUrl, token)
+
+    // Cannot read the thread (work item not visible) or post to it
+    const volList = await volApi.workItemComments.list({ body: { workItemId } })
+    expect(volList.status).toBe(404)
+    const volAdd = await volApi.workItemComments.add({
+      body: { workItemId, content: 'should be rejected' },
+    })
+    expect(volAdd.status).toBe(403)
   })
 })

@@ -166,6 +166,62 @@ test.describe('Project Interests and Assignment', () => {
     ).toBeVisible({ timeout: 10_000 })
   })
 
+  test('Non-participant can read a project comment thread but cannot post', async ({
+    adminPage,
+    volunteer,
+    baseUrl,
+  }) => {
+    const projectId = await setupSeekingProject(baseUrl, adminPage)
+    const commentText = `admin note ${Date.now()}`
+
+    // Admin posts a comment on the project
+    await adminPage.goto(`${baseUrl}/projects/${projectId}`)
+    await expect(adminPage.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 })
+    await adminPage.getByLabel('Add a comment').fill(commentText)
+    await adminPage.getByRole('button', { name: 'Post Comment' }).click()
+    await expect(adminPage.getByText(commentText)).toBeVisible({ timeout: 10_000 })
+
+    // A non-participant volunteer can read the thread but has no post form
+    await volunteer.page.goto(`${baseUrl}/projects/${projectId}`)
+    await expect(volunteer.page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 })
+    await expect(volunteer.page.getByText(commentText)).toBeVisible({ timeout: 10_000 })
+    await expect(volunteer.page.getByLabel('Add a comment')).not.toBeVisible({ timeout: 5_000 })
+    await expect(volunteer.page.getByRole('button', { name: 'Post Comment' })).not.toBeVisible({
+      timeout: 5_000,
+    })
+  })
+
+  test('Accepted helper can post in the project comment thread', async ({
+    adminPage,
+    volunteer,
+    baseUrl,
+  }) => {
+    const projectId = await setupSeekingProject(baseUrl, adminPage)
+
+    // Volunteer expresses interest to contribute
+    await volunteer.page.goto(`${baseUrl}/projects/${projectId}`)
+    await expect(volunteer.page.getByRole('button', { name: 'Express Interest' })).toBeVisible({
+      timeout: 10_000,
+    })
+    await volunteer.page.getByRole('button', { name: 'Express Interest' }).click()
+    await expect(getAlert(volunteer.page)).toContainText('Interest expressed!', { timeout: 10_000 })
+
+    // Admin accepts the interest, making the volunteer a participant
+    await adminPage.goto(`${baseUrl}/projects/${projectId}`)
+    const interestCard = adminPage.locator('.interest-card').filter({ hasText: volunteer.name })
+    await expect(interestCard).toBeVisible({ timeout: 10_000 })
+    await interestCard.getByRole('button', { name: 'Accept' }).click()
+    await expect(getAlert(adminPage)).toContainText('Interest accepted', { timeout: 10_000 })
+
+    // The accepted helper can now post a comment
+    const commentText = `helper comment ${Date.now()}`
+    await volunteer.page.goto(`${baseUrl}/projects/${projectId}`)
+    await expect(volunteer.page.getByLabel('Add a comment')).toBeVisible({ timeout: 10_000 })
+    await volunteer.page.getByLabel('Add a comment').fill(commentText)
+    await volunteer.page.getByRole('button', { name: 'Post Comment' }).click()
+    await expect(volunteer.page.getByText(commentText)).toBeVisible({ timeout: 10_000 })
+  })
+
   test('Volunteer cannot express interest in their own project', async ({
     adminPage,
     volunteer,
