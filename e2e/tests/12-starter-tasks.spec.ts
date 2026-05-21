@@ -163,6 +163,46 @@ test.describe('Starter Tasks', () => {
     await expect(taskCard.getByText(commentText)).toBeVisible({ timeout: 10_000 })
   })
 
+  test('Admin and assignee exchange comments on a starter task in a back-and-forth thread', async ({
+    adminPage,
+    volunteer,
+    baseUrl,
+  }) => {
+    const skill = await createSkill(baseUrl, adminPage)
+    const taskTitle = await createOpenStarterTask(baseUrl, adminPage, skill)
+    await assignStarterTask(baseUrl, adminPage, taskTitle, volunteer.name)
+    const adminComment = `admin note ${Date.now()}`
+    const volunteerReply = `volunteer reply ${Date.now()}`
+
+    // Admin expands the task and posts the first comment
+    await adminPage.goto(`${baseUrl}/admin/starter-tasks`)
+    const adminCard = adminPage.getByRole('article').filter({ hasText: taskTitle })
+    await expect(adminCard).toBeVisible({ timeout: 10_000 })
+    await adminCard.getByText(taskTitle, { exact: true }).click()
+    await adminCard.getByLabel('Add a comment').fill(adminComment)
+    await adminCard.getByRole('button', { name: 'Post Comment' }).click()
+    await expect(adminCard.getByText(adminComment)).toBeVisible({ timeout: 10_000 })
+
+    // Assignee sees admin's comment on the dashboard and replies
+    await volunteer.page.goto(`${baseUrl}/dashboard`)
+    const volBanner = volunteer.page.getByRole('region', { name: 'Starter Tasks' })
+    const volCard = volBanner.getByRole('article').filter({ hasText: taskTitle })
+    await expect(volCard).toBeVisible({ timeout: 10_000 })
+    await volCard.getByText(taskTitle, { exact: true }).click()
+    await expect(volCard.getByText(adminComment)).toBeVisible({ timeout: 10_000 })
+    await volCard.getByLabel('Add a comment').fill(volunteerReply)
+    await volCard.getByRole('button', { name: 'Post Comment' }).click()
+    await expect(volCard.getByText(volunteerReply)).toBeVisible({ timeout: 10_000 })
+
+    // Admin reloads and sees both messages in the thread
+    await adminPage.goto(`${baseUrl}/admin/starter-tasks`)
+    const refreshedCard = adminPage.getByRole('article').filter({ hasText: taskTitle })
+    await expect(refreshedCard).toBeVisible({ timeout: 10_000 })
+    await refreshedCard.getByText(taskTitle, { exact: true }).click()
+    await expect(refreshedCard.getByText(adminComment)).toBeVisible({ timeout: 10_000 })
+    await expect(refreshedCard.getByText(volunteerReply)).toBeVisible({ timeout: 10_000 })
+  })
+
   test('Volunteer views their assigned starter task on the dashboard', async ({
     adminPage,
     volunteer,
