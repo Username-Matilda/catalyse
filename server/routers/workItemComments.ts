@@ -87,7 +87,7 @@ export const workItemCommentsRouter = {
       const comments = await prisma.workItemComment.findMany({
         where: { workItemId: input.workItemId },
         include: { author: { select: { name: true } } },
-        orderBy: { createdAt: 'asc' },
+        orderBy: { createdAt: 'desc' },
       })
       const canPost = await resolveCanPost(loaded.item, loaded.parent, viewer)
       return {
