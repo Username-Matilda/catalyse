@@ -222,6 +222,37 @@ test.describe('Project Interests and Assignment', () => {
     await expect(volunteer.page.getByText(commentText)).toBeVisible({ timeout: 10_000 })
   })
 
+  test('Posting a comment notifies other participants but not the author', async ({
+    adminPage,
+    volunteer,
+    baseUrl,
+  }) => {
+    const title = fake.projectTitle()
+    const projectId = await adminCreateProject(baseUrl, adminPage, title, 'Notify-on-comment test')
+    // Admin is the creator; make the volunteer the owner (assignee)
+    await transferProjectOwnership(baseUrl, adminPage, projectId, volunteer.name)
+
+    // Owner (volunteer) posts a comment
+    const commentText = `owner update ${Date.now()}`
+    await volunteer.page.goto(`${baseUrl}/projects/${projectId}`)
+    await expect(volunteer.page.getByLabel('Add a comment')).toBeVisible({ timeout: 10_000 })
+    await volunteer.page.getByLabel('Add a comment').fill(commentText)
+    await volunteer.page.getByRole('button', { name: 'Post Comment' }).click()
+    await expect(volunteer.page.getByText(commentText)).toBeVisible({ timeout: 10_000 })
+
+    // Admin (the project creator) receives a comment notification
+    await goToDashboardNotifications(baseUrl, adminPage)
+    await expect(adminPage.locator('strong').filter({ hasText: 'New comment on' })).toBeVisible({
+      timeout: 10_000,
+    })
+
+    // The author (volunteer) is NOT notified of their own comment
+    await goToDashboardNotifications(baseUrl, volunteer.page)
+    await expect(
+      volunteer.page.locator('strong').filter({ hasText: 'New comment on' }),
+    ).not.toBeVisible({ timeout: 5_000 })
+  })
+
   test('Volunteer cannot express interest in their own project', async ({
     adminPage,
     volunteer,
