@@ -32,7 +32,7 @@ import type {
   LocalGroupSuggestionBodySchema,
   UpdateVolunteerSchema,
 } from './schemas'
-import type { withProjectExtras } from './project'
+import type { withProjectExtras } from './work-item'
 import type { redactVolunteer } from './auth'
 
 // ─── Request body types ───────────────────────────────────────────────────────

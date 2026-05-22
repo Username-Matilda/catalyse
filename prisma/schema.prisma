@@ -27,20 +27,23 @@ enum ProjectStatus {
   archived
 }
 
+enum WorkItemType {
+  PROJECT
+  TASK
+  STARTER_TASK
+}
+
 enum TaskStatus {
   open
-  assigned
-  done
+  in_progress
+  completed
 }
 
 enum StarterTaskStatus {
   open
-  assigned
-  submitted
-  approved
-  rejected
+  in_progress
+  under_review
   completed
-  reviewed
 }
 
 enum InterestStatus {
@@ -73,19 +76,19 @@ enum LocalGroupSuggestionStatus {
 }
 
 model AdminInvite {
-  id           Int        @id @default(autoincrement())
+  id           Int          @id @default(autoincrement())
   /// @zod.string.email({ message: "A valid email address is required" })
   email        String
   /// @zod.custom.omit([model])
-  inviteToken  String     @unique(map: "sqlite_autoindex_admin_invites_1") @map("invite_token")
-  invitedById  Int        @map("invited_by_id")
+  inviteToken  String       @unique(map: "sqlite_autoindex_admin_invites_1") @map("invite_token")
+  invitedById  Int          @map("invited_by_id")
   status       InviteStatus @default(pending)
-  acceptedById Int?       @map("accepted_by_id")
-  acceptedAt   DateTime?  @map("accepted_at")
-  expiresAt    DateTime   @map("expires_at")
-  createdAt    DateTime?  @default(now()) @map("created_at")
-  acceptedBy   Volunteer? @relation("AdminInviteAcceptedBy", fields: [acceptedById], references: [id], onUpdate: NoAction)
-  invitedBy    Volunteer  @relation("AdminInviteInvitedBy", fields: [invitedById], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  acceptedById Int?         @map("accepted_by_id")
+  acceptedAt   DateTime?    @map("accepted_at")
+  expiresAt    DateTime     @map("expires_at")
+  createdAt    DateTime?    @default(now()) @map("created_at")
+  acceptedBy   Volunteer?   @relation("AdminInviteAcceptedBy", fields: [acceptedById], references: [id], onUpdate: NoAction)
+  invitedBy    Volunteer    @relation("AdminInviteInvitedBy", fields: [invitedById], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([inviteToken], map: "idx_admin_invites_token")
   @@index([email], map: "idx_admin_invites_email")
@@ -93,18 +96,18 @@ model AdminInvite {
 }
 
 model AdminNote {
-  id               Int       @id @default(autoincrement())
-  volunteerId      Int       @map("volunteer_id")
-  authorId         Int       @map("author_id")
+  id                Int       @id @default(autoincrement())
+  volunteerId       Int       @map("volunteer_id")
+  authorId          Int       @map("author_id")
   /// @zod.string.min(1, { message: "Content is required" })
-  content          String
-  category         String?   @default("general") // TODO: enum — general (others unknown)
-  relatedProjectId Int?      @map("related_project_id")
-  createdAt        DateTime? @default(now()) @map("created_at")
-  updatedAt        DateTime? @default(now()) @map("updated_at")
-  relatedProject   Project?  @relation(fields: [relatedProjectId], references: [id], onUpdate: NoAction)
-  author           Volunteer @relation("AdminNoteAuthor", fields: [authorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  volunteer        Volunteer @relation("AdminNoteVolunteer", fields: [volunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  content           String
+  category          String?   @default("general") // TODO: enum — general (others unknown)
+  relatedWorkItemId Int?      @map("related_work_item_id")
+  createdAt         DateTime? @default(now()) @map("created_at")
+  updatedAt         DateTime? @default(now()) @map("updated_at")
+  relatedWorkItem   WorkItem? @relation(fields: [relatedWorkItemId], references: [id], onUpdate: NoAction)
+  author            Volunteer @relation("AdminNoteAuthor", fields: [authorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  volunteer         Volunteer @relation("AdminNoteVolunteer", fields: [volunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([volunteerId], map: "idx_admin_notes_volunteer")
   @@map("admin_notes")
@@ -135,17 +138,17 @@ model BugReport {
 }
 
 model Message {
-  id               Int       @id @default(autoincrement())
-  fromVolunteerId  Int       @map("from_volunteer_id")
-  toVolunteerId    Int       @map("to_volunteer_id")
-  subject          String
-  message          String
-  relatedProjectId Int?      @map("related_project_id")
-  readAt           DateTime? @map("read_at")
-  createdAt        DateTime? @default(now()) @map("created_at")
-  relatedProject   Project?  @relation(fields: [relatedProjectId], references: [id], onUpdate: NoAction)
-  to               Volunteer @relation("MessageTo", fields: [toVolunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  from             Volunteer @relation("MessageFrom", fields: [fromVolunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id                Int       @id @default(autoincrement())
+  fromVolunteerId   Int       @map("from_volunteer_id")
+  toVolunteerId     Int       @map("to_volunteer_id")
+  subject           String
+  message           String
+  relatedWorkItemId Int?      @map("related_work_item_id")
+  readAt            DateTime? @map("read_at")
+  createdAt         DateTime? @default(now()) @map("created_at")
+  relatedWorkItem   WorkItem? @relation(fields: [relatedWorkItemId], references: [id], onUpdate: NoAction)
+  to                Volunteer @relation("MessageTo", fields: [toVolunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  from              Volunteer @relation("MessageFrom", fields: [fromVolunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([fromVolunteerId], map: "idx_contact_messages_from")
   @@index([toVolunteerId], map: "idx_contact_messages_to")
@@ -210,120 +213,126 @@ model EmailVerificationToken {
   @@map("email_verification_tokens")
 }
 
-model ProjectInterest {
-  id              Int       @id @default(autoincrement())
-  volunteerId     Int       @map("volunteer_id")
-  projectId       Int       @map("project_id")
-  interestType    String    @map("interest_type") // TODO: enum — want_to_contribute, want_to_own
-  message         String?
-  status          InterestStatus @default(pending)
-  responseMessage String?   @map("response_message")
-  createdAt       DateTime? @default(now()) @map("created_at")
-  respondedAt     DateTime? @map("responded_at")
-  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  volunteer       Volunteer @relation(fields: [volunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+model WorkItem {
+  id          Int     @id @default(autoincrement())
+  type        String // PROJECT | TASK | STARTER_TASK
+  status      String // type-specific, enforced at app layer
+  /// @zod.string.min(1, { message: "Title is required" })
+  title       String
+  description String?
 
-  @@unique([volunteerId, projectId], map: "sqlite_autoindex_project_interests_1")
-  @@index([volunteerId], map: "idx_project_interests_volunteer")
-  @@index([projectId], map: "idx_project_interests_project")
-  @@map("project_interests")
+  // Hierarchy: TASK has parentId → PROJECT
+  parentId Int?       @map("parent_id")
+  parent   WorkItem?  @relation("WorkItemChildren", fields: [parentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  children WorkItem[] @relation("WorkItemChildren")
+
+  // Context: STARTER_TASK optionally references a PROJECT (not hierarchical)
+  contextProjectId Int?       @map("context_project_id")
+  contextProject   WorkItem?  @relation("WorkItemContext", fields: [contextProjectId], references: [id], onUpdate: NoAction)
+  contextTasks     WorkItem[] @relation("WorkItemContext")
+
+  // People roles
+  creatorId     Int? @map("creator_id")
+  assigneeId    Int? @map("assignee_id")
+  stakeholderId Int? @map("stakeholder_id")
+
+  // Review
+  reviewedById Int?      @map("reviewed_by_id")
+  reviewedAt   DateTime? @map("reviewed_at")
+  reviewNotes  String?   @map("review_notes")
+  reviewRating String?   @map("review_rating") // STARTER_TASK only
+
+  // Project-specific (nullable for TASK/STARTER_TASK)
+  projectType                String?   @map("project_type") // TODO: enum — sprint, container, ongoing, one_off
+  urgency                    String?   @default("medium") // TODO: enum — low, medium, high
+  estimatedDuration          String?   @map("estimated_duration")
+  timeCommitmentHoursPerWeek Int?      @map("time_commitment_hours_per_week")
+  collaborationLink          String?   @map("collaboration_link")
+  isOrgProposed              Boolean?  @default(false) @map("is_org_proposed")
+  isSeekingHelp              Boolean?  @default(false) @map("is_seeking_help")
+  isSeekingOwner             Boolean?  @default(false) @map("is_seeking_owner")
+  outcome                    String? // TODO: enum — successful, partial, not_completed, ongoing
+  outcomeNotes               String?   @map("outcome_notes")
+  completedAt                DateTime? @map("completed_at")
+
+  // Task / starter-task-specific (nullable for PROJECT)
+  skillId            Int?      @map("skill_id")
+  estimatedHours     Float?    @map("estimated_hours")
+  nudgeSentAt        DateTime? @map("nudge_sent_at")
+  finalWarningSentAt DateTime? @map("final_warning_sent_at")
+
+  country    String?
+  localGroup String?   @map("local_group")
+  createdAt  DateTime? @default(now()) @map("created_at")
+  updatedAt  DateTime? @default(now()) @map("updated_at")
+
+  creator     Volunteer?         @relation("WorkItemCreator", fields: [creatorId], references: [id], onUpdate: NoAction)
+  assignee    Volunteer?         @relation("WorkItemAssignee", fields: [assigneeId], references: [id], onUpdate: NoAction)
+  stakeholder Volunteer?         @relation("WorkItemStakeholder", fields: [stakeholderId], references: [id], onUpdate: NoAction)
+  reviewedBy  Volunteer?         @relation("WorkItemReviewedBy", fields: [reviewedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  skill       Skill?             @relation(fields: [skillId], references: [id], onUpdate: NoAction)
+  comments    WorkItemComment[]
+  skills      WorkItemSkill[]
+  interests   WorkItemInterest[]
+  adminNotes  AdminNote[]
+  messages    Message[]
+
+  @@index([type], map: "idx_work_items_type")
+  @@index([status], map: "idx_work_items_status")
+  @@index([parentId], map: "idx_work_items_parent")
+  @@index([contextProjectId], map: "idx_work_items_context")
+  @@index([creatorId], map: "idx_work_items_creator")
+  @@index([assigneeId], map: "idx_work_items_assignee")
+  @@index([skillId], map: "idx_work_items_skill")
+  @@index([localGroup], map: "idx_work_items_local_group")
+  @@index([country], map: "idx_work_items_country")
+  @@map("work_items")
 }
 
-model ProjectSkill {
-  projectId  Int       @map("project_id")
+model WorkItemComment {
+  id         Int        @id @default(autoincrement())
+  workItemId Int        @map("work_item_id")
+  authorId   Int?       @map("author_id")
+  /// @zod.string.min(1, { message: "Content is required" })
+  content    String
+  createdAt  DateTime?  @default(now()) @map("created_at")
+  author     Volunteer? @relation("WorkItemCommentAuthor", fields: [authorId], references: [id], onUpdate: NoAction)
+  workItem   WorkItem   @relation(fields: [workItemId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([workItemId, createdAt], map: "idx_work_item_comments_thread")
+  @@map("work_item_comments")
+}
+
+model WorkItemSkill {
+  workItemId Int       @map("work_item_id")
   skillId    Int       @map("skill_id")
   isRequired Boolean?  @default(true) @map("is_required")
   createdAt  DateTime? @default(now()) @map("created_at")
   skill      Skill     @relation(fields: [skillId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  workItem   WorkItem  @relation(fields: [workItemId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@id([projectId, skillId])
-  @@index([skillId], map: "idx_project_skills_skill")
-  @@map("project_skills")
+  @@id([workItemId, skillId])
+  @@index([skillId], map: "idx_work_item_skills_skill")
+  @@map("work_item_skills")
 }
 
-model ProjectTask {
-  id           Int        @id @default(autoincrement())
-  projectId    Int        @map("project_id")
-  /// @zod.string.min(1, { message: "Title is required" })
-  title        String
-  description  String?
-  assignedToId Int?       @map("assigned_to_id")
-  status       TaskStatus @default(open)
-  createdById  Int        @map("created_by_id")
-  completedAt          DateTime?  @map("completed_at")
-  nudgeSentAt          DateTime?  @map("nudge_sent_at")
-  finalWarningSentAt   DateTime?  @map("final_warning_sent_at")
-  createdAt            DateTime?  @default(now()) @map("created_at")
-  updatedAt            DateTime?  @default(now()) @map("updated_at")
-  createdBy    Volunteer  @relation("ProjectTaskCreatedBy", fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  assignedTo   Volunteer? @relation("ProjectTaskAssignedTo", fields: [assignedToId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  project      Project    @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+model WorkItemInterest {
+  id              Int            @id @default(autoincrement())
+  volunteerId     Int            @map("volunteer_id")
+  workItemId      Int            @map("work_item_id")
+  interestType    String         @map("interest_type") // TODO: enum — want_to_contribute, want_to_own
+  message         String?
+  status          InterestStatus @default(pending)
+  responseMessage String?        @map("response_message")
+  createdAt       DateTime?      @default(now()) @map("created_at")
+  respondedAt     DateTime?      @map("responded_at")
+  workItem        WorkItem       @relation(fields: [workItemId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  volunteer       Volunteer      @relation(fields: [volunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@index([assignedToId], map: "idx_project_tasks_assigned")
-  @@index([projectId], map: "idx_project_tasks_project")
-  @@map("project_tasks")
-}
-
-model ProjectUpdate {
-  id        Int        @id @default(autoincrement())
-  projectId Int        @map("project_id")
-  authorId  Int?       @map("author_id")
-  /// @zod.string.min(1, { message: "Content is required" })
-  content   String
-  createdAt DateTime?  @default(now()) @map("created_at")
-  author    Volunteer? @relation(fields: [authorId], references: [id], onUpdate: NoAction)
-  project   Project    @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@index([projectId], map: "idx_project_updates_project")
-  @@map("project_updates")
-}
-
-model Project {
-  id                         Int               @id @default(autoincrement())
-  /// @zod.string.min(1, { message: "Title is required" })
-  title                      String
-  /// @zod.string.min(10, { message: "Description must be at least 10 characters" })
-  description                String
-  status                     ProjectStatus     @default(pending_review)
-  ownerId                    Int?              @map("owner_id")
-  proposedById               Int?              @map("proposed_by_id")
-  isOrgProposed              Boolean?          @default(false) @map("is_org_proposed")
-  projectType                String?           @map("project_type") // TODO: enum — sprint, container, ongoing, one_off
-  estimatedDuration          String?           @map("estimated_duration")
-  timeCommitmentHoursPerWeek Int?              @map("time_commitment_hours_per_week")
-  urgency                    String?           @default("medium") // TODO: enum — low, medium, high
-  reviewNotes                String?           @map("review_notes")
-  reviewedById               Int?              @map("reviewed_by_id")
-  reviewedAt                 DateTime?         @map("reviewed_at")
-  feedbackToProposer         String?           @map("feedback_to_proposer")
-  collaborationLink          String?           @map("collaboration_link")
-  outcome                    String? // TODO: enum — successful, partial, not_completed, ongoing
-  outcomeNotes               String?           @map("outcome_notes")
-  completedAt                DateTime?         @map("completed_at")
-  createdAt                  DateTime?         @default(now()) @map("created_at")
-  updatedAt                  DateTime?         @default(now()) @map("updated_at")
-  country                    String?
-  isSeekingHelp              Boolean?          @default(false) @map("is_seeking_help")
-  isSeekingOwner             Boolean?          @default(false) @map("is_seeking_owner")
-  localGroup                 String?           @map("local_group")
-  adminNotes                 AdminNote[]
-  messages                   Message[]
-  interests                  ProjectInterest[]
-  skills                     ProjectSkill[]
-  tasks                      ProjectTask[]
-  updates                    ProjectUpdate[]
-  reviewedBy                 Volunteer?        @relation("ProjectReviewedBy", fields: [reviewedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  proposedBy                 Volunteer?        @relation("ProjectProposedBy", fields: [proposedById], references: [id], onUpdate: NoAction)
-  owner                      Volunteer?        @relation("ProjectOwner", fields: [ownerId], references: [id], onUpdate: NoAction)
-  starterTasks               StarterTask[]
-
-  @@index([localGroup], map: "idx_projects_local_group")
-  @@index([country], map: "idx_projects_country")
-  @@index([proposedById], map: "idx_projects_proposed_by")
-  @@index([ownerId], map: "idx_projects_owner")
-  @@index([status], map: "idx_projects_status")
-  @@map("projects")
+  @@unique([volunteerId, workItemId], map: "uq_work_item_interests_volunteer_item")
+  @@index([volunteerId], map: "idx_work_item_interests_volunteer")
+  @@index([workItemId], map: "idx_work_item_interests_work_item")
+  @@map("work_item_interests")
 }
 
 model LocalGroup {
@@ -339,19 +348,19 @@ model LocalGroup {
 }
 
 model LocalGroupSuggestion {
-  id            Int        @id @default(autoincrement())
+  id            Int                        @id @default(autoincrement())
   /// @zod.string.min(1, { message: "Group name is required" })
   name          String
   /// @zod.string.min(1, { message: "Country is required" })
   country       String
   status        LocalGroupSuggestionStatus @default(pending)
-  suggestedById Int        @map("suggested_by_id")
-  reviewedById  Int?       @map("reviewed_by_id")
-  reviewedAt    DateTime?  @map("reviewed_at")
-  adminNotes    String?    @map("admin_notes")
-  mergedIntoId  Int?       @map("merged_into_id")
-  createdAt     DateTime?  @default(now()) @map("created_at")
-  updatedAt     DateTime?  @default(now()) @map("updated_at")
+  suggestedById Int                        @map("suggested_by_id")
+  reviewedById  Int?                       @map("reviewed_by_id")
+  reviewedAt    DateTime?                  @map("reviewed_at")
+  adminNotes    String?                    @map("admin_notes")
+  mergedIntoId  Int?                       @map("merged_into_id")
+  createdAt     DateTime?                  @default(now()) @map("created_at")
+  updatedAt     DateTime?                  @default(now()) @map("updated_at")
 
   suggestedBy Volunteer   @relation("LocalGroupSuggestionSuggestedBy", fields: [suggestedById], references: [id])
   reviewedBy  Volunteer?  @relation("LocalGroupSuggestionReviewedBy", fields: [reviewedById], references: [id])
@@ -419,46 +428,15 @@ model Skill {
   description     String?
   sortOrder       Int?               @default(0) @map("sort_order")
   createdAt       DateTime?          @default(now()) @map("created_at")
-  projectSkills   ProjectSkill[]
+  workItemSkills  WorkItemSkill[]
   endorsements    SkillEndorsement[]
   category        SkillCategory      @relation(fields: [categoryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  starterTasks    StarterTask[]
+  workItems       WorkItem[]
   volunteerSkills VolunteerSkill[]
 
   @@unique([categoryId, name], map: "sqlite_autoindex_skills_1")
   @@index([categoryId], map: "idx_skills_category")
   @@map("skills")
-}
-
-model StarterTask {
-  id                  Int        @id @default(autoincrement())
-  projectId           Int?       @map("project_id")
-  /// @zod.string.min(1, { message: "Title is required" })
-  title               String
-  /// @zod.string.min(1, { message: "Description is required" })
-  description         String
-  skillId             Int?       @map("skill_id")
-  assignedToId        Int?       @map("assigned_to_id")
-  assignedById        Int?       @map("assigned_by_id")
-  status              StarterTaskStatus @default(open)
-  reviewRating        String?    @map("review_rating") // TODO: enum — excellent, good, needs_improvement
-  reviewNotes         String?    @map("review_notes")
-  feedbackToVolunteer String?    @map("feedback_to_volunteer")
-  reviewedById        Int?       @map("reviewed_by_id")
-  reviewedAt          DateTime?  @map("reviewed_at")
-  estimatedHours      Float?     @map("estimated_hours")
-  createdAt           DateTime?  @default(now()) @map("created_at")
-  updatedAt           DateTime?  @default(now()) @map("updated_at")
-  reviewedBy          Volunteer? @relation("StarterTaskReviewedBy", fields: [reviewedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  assignedBy          Volunteer? @relation("StarterTaskAssignedBy", fields: [assignedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  assignedTo          Volunteer? @relation("StarterTaskAssignedTo", fields: [assignedToId], references: [id], onUpdate: NoAction)
-  skill               Skill?     @relation(fields: [skillId], references: [id], onUpdate: NoAction)
-  project             Project?   @relation(fields: [projectId], references: [id], onUpdate: NoAction)
-
-  @@index([skillId], map: "idx_starter_tasks_skill")
-  @@index([assignedToId], map: "idx_starter_tasks_assigned")
-  @@index([projectId], map: "idx_starter_tasks_project")
-  @@map("starter_tasks")
 }
 
 model VolunteerSkill {
@@ -475,73 +453,69 @@ model VolunteerSkill {
 }
 
 model Volunteer {
-  id                                      Int                  @id @default(autoincrement())
+  id                                      Int                      @id @default(autoincrement())
   /// @zod.string.min(1, { message: "Name is required" })
   name                                    String
   /// @zod.string.email({ message: "A valid email address is required" })
-  email                                   String?              @unique(map: "sqlite_autoindex_volunteers_1")
+  email                                   String?                  @unique(map: "sqlite_autoindex_volunteers_1")
   bio                                     String?
-  discordHandle                           String?              @map("discord_handle")
-  signalNumber                            String?              @map("signal_number")
-  whatsappNumber                          String?              @map("whatsapp_number")
-  contactPreference                       String?              @map("contact_preference") // TODO: enum — email, discord, signal, whatsapp (others unknown)
-  contactNotes                            String?              @map("contact_notes")
-  availabilityHoursPerWeek                Int?                 @map("availability_hours_per_week")
+  discordHandle                           String?                  @map("discord_handle")
+  signalNumber                            String?                  @map("signal_number")
+  whatsappNumber                          String?                  @map("whatsapp_number")
+  contactPreference                       String?                  @map("contact_preference") // TODO: enum — email, discord, signal, whatsapp (others unknown)
+  contactNotes                            String?                  @map("contact_notes")
+  availabilityHoursPerWeek                Int?                     @map("availability_hours_per_week")
   location                                String?
-  otherSkills                             String?              @map("other_skills")
-  consentMakeProfileVisibleInDirectory    Boolean?             @default(false) @map("consent_make_profile_visible_in_directory")
-  consentContactableByProjectOwners       Boolean?             @default(false) @map("consent_contactable_by_project_owners")
-  consentShareContactInfoWithProjectOwner Boolean?             @default(false) @map("consent_share_contact_info_with_project_owner")
-  consentGivenAt                          DateTime?            @map("consent_given_at")
-  cookieConsentAnalytics                  Boolean?             @map("cookie_consent_analytics")
+  otherSkills                             String?                  @map("other_skills")
+  consentMakeProfileVisibleInDirectory    Boolean?                 @default(false) @map("consent_make_profile_visible_in_directory")
+  consentContactableByProjectOwners       Boolean?                 @default(false) @map("consent_contactable_by_project_owners")
+  consentShareContactInfoWithProjectOwner Boolean?                 @default(false) @map("consent_share_contact_info_with_project_owner")
+  consentGivenAt                          DateTime?                @map("consent_given_at")
+  cookieConsentAnalytics                  Boolean?                 @map("cookie_consent_analytics")
   /// @zod.custom.omit([model])
-  authToken                               String?              @unique(map: "sqlite_autoindex_volunteers_2") @map("auth_token")
+  authToken                               String?                  @unique(map: "sqlite_autoindex_volunteers_2") @map("auth_token")
   /// @zod.custom.omit([model])
-  authTokenExpiresAt                      DateTime?            @map("auth_token_expires_at")
+  authTokenExpiresAt                      DateTime?                @map("auth_token_expires_at")
   /// @zod.custom.omit([model])
-  passwordHash                            String?              @map("password_hash")
-  isAdmin                                 Boolean?             @default(false) @map("is_admin")
-  createdAt                               DateTime?            @default(now()) @map("created_at")
-  updatedAt                               DateTime?            @default(now()) @map("updated_at")
-  deletedAt                               DateTime?            @map("deleted_at")
+  passwordHash                            String?                  @map("password_hash")
+  isAdmin                                 Boolean?                 @default(false) @map("is_admin")
+  createdAt                               DateTime?                @default(now()) @map("created_at")
+  updatedAt                               DateTime?                @default(now()) @map("updated_at")
+  deletedAt                               DateTime?                @map("deleted_at")
   country                                 String?
-  emailDigest                             String?              @default("none") @map("email_digest") // TODO: enum — none, daily, weekly
-  localGroup                              String?              @map("local_group")
-  approvalStatus                          ApprovalStatus       @default(pending) @map("approval_status")
-  applicationMessage                      String?              @map("application_message")
-  applicationAdminNotes                   String?              @map("application_admin_notes")
-  applicationApplicantNotes               String?              @map("application_applicant_notes")
-  rejectedAt                              DateTime?            @map("rejected_at")
-  reviewerId                              Int?                 @map("reviewer_id")
-  reviewer                                Volunteer?           @relation("ApplicationReviewer", fields: [reviewerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  reviewerOf                              Volunteer[]          @relation("ApplicationReviewer")
-  emailConfirmed                          Boolean              @default(false) @map("email_confirmed")
-  invitesAccepted                         AdminInvite[]        @relation("AdminInviteAcceptedBy")
-  invitesSent                             AdminInvite[]        @relation("AdminInviteInvitedBy")
-  adminNotesAuthored                      AdminNote[]          @relation("AdminNoteAuthor")
-  adminNotesAbout                         AdminNote[]          @relation("AdminNoteVolunteer")
-  bugReportsResolved                      BugReport[]          @relation("BugReportResolvedBy")
-  bugReportsReported                      BugReport[]          @relation("BugReportReporter")
-  messagesSent                            Message[]            @relation("MessageFrom")
-  messagesReceived                        Message[]            @relation("MessageTo")
+  emailDigest                             String?                  @default("none") @map("email_digest") // TODO: enum — none, daily, weekly
+  localGroup                              String?                  @map("local_group")
+  approvalStatus                          ApprovalStatus           @default(pending) @map("approval_status")
+  applicationMessage                      String?                  @map("application_message")
+  applicationAdminNotes                   String?                  @map("application_admin_notes")
+  applicationApplicantNotes               String?                  @map("application_applicant_notes")
+  rejectedAt                              DateTime?                @map("rejected_at")
+  reviewerId                              Int?                     @map("reviewer_id")
+  reviewer                                Volunteer?               @relation("ApplicationReviewer", fields: [reviewerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reviewerOf                              Volunteer[]              @relation("ApplicationReviewer")
+  emailConfirmed                          Boolean                  @default(false) @map("email_confirmed")
+  invitesAccepted                         AdminInvite[]            @relation("AdminInviteAcceptedBy")
+  invitesSent                             AdminInvite[]            @relation("AdminInviteInvitedBy")
+  adminNotesAuthored                      AdminNote[]              @relation("AdminNoteAuthor")
+  adminNotesAbout                         AdminNote[]              @relation("AdminNoteVolunteer")
+  bugReportsResolved                      BugReport[]              @relation("BugReportResolvedBy")
+  bugReportsReported                      BugReport[]              @relation("BugReportReporter")
+  messagesSent                            Message[]                @relation("MessageFrom")
+  messagesReceived                        Message[]                @relation("MessageTo")
   notifications                           Notification[]
   emailVerificationTokens                 EmailVerificationToken[]
   passwordResetTokens                     PasswordResetToken[]
-  projectInterests                        ProjectInterest[]
-  projectTasksCreated                     ProjectTask[]        @relation("ProjectTaskCreatedBy")
-  projectTasksAssigned                    ProjectTask[]        @relation("ProjectTaskAssignedTo")
-  projectUpdates                          ProjectUpdate[]
-  projectsReviewed                        Project[]            @relation("ProjectReviewedBy")
-  projectsProposed                        Project[]            @relation("ProjectProposedBy")
-  projectsOwned                           Project[]            @relation("ProjectOwner")
-  skillEndorsementsGiven                  SkillEndorsement[]   @relation("SkillEndorsementEndorsedBy")
-  skillEndorsementsReceived               SkillEndorsement[]   @relation("SkillEndorsementVolunteer")
-  starterTasksReviewed                    StarterTask[]        @relation("StarterTaskReviewedBy")
-  starterTasksAssignedBy                  StarterTask[]        @relation("StarterTaskAssignedBy")
-  starterTasksAssigned                    StarterTask[]        @relation("StarterTaskAssignedTo")
+  workItemInterests                       WorkItemInterest[]
+  workItemComments                        WorkItemComment[]        @relation("WorkItemCommentAuthor")
+  workItemsCreated                        WorkItem[]               @relation("WorkItemCreator")
+  workItemsAssigned                       WorkItem[]               @relation("WorkItemAssignee")
+  workItemsStakeholder                    WorkItem[]               @relation("WorkItemStakeholder")
+  workItemsReviewed                       WorkItem[]               @relation("WorkItemReviewedBy")
+  skillEndorsementsGiven                  SkillEndorsement[]       @relation("SkillEndorsementEndorsedBy")
+  skillEndorsementsReceived               SkillEndorsement[]       @relation("SkillEndorsementVolunteer")
   skills                                  VolunteerSkill[]
-  localGroupSuggestions                   LocalGroupSuggestion[] @relation("LocalGroupSuggestionSuggestedBy")
-  localGroupSuggestionsReviewed           LocalGroupSuggestion[] @relation("LocalGroupSuggestionReviewedBy")
+  localGroupSuggestions                   LocalGroupSuggestion[]   @relation("LocalGroupSuggestionSuggestedBy")
+  localGroupSuggestionsReviewed           LocalGroupSuggestion[]   @relation("LocalGroupSuggestionReviewedBy")
 
   @@index([localGroup], map: "idx_volunteers_local_group")
   @@index([country], map: "idx_volunteers_country")

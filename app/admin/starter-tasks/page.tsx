@@ -5,6 +5,7 @@ import { useRequireAdmin } from '@/lib/hooks/auth'
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
+import CommentThread from '@/components/CommentThread'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
@@ -28,7 +29,6 @@ interface StarterTask {
   status: string
   reviewRating: string | null
   reviewNotes: string | null
-  feedbackToVolunteer: string | null
   estimatedHours: number | null
   createdAt: string
 }
@@ -40,9 +40,8 @@ interface Volunteer {
 
 const STATUS_STYLES: Record<string, { background: string; color: string }> = {
   open: { background: '#FED7AA', color: '#9A3412' },
-  assigned: { background: '#DBEAFE', color: '#1E40AF' },
-  submitted: { background: '#FEF3C7', color: '#92400E' },
-  reviewed: { background: '#E9D5FF', color: '#6B21A8' },
+  in_progress: { background: '#DBEAFE', color: '#1E40AF' },
+  under_review: { background: '#FEF3C7', color: '#92400E' },
   completed: { background: '#D1FAE5', color: '#065F46' },
 }
 
@@ -77,9 +76,8 @@ export default function AdminStarterTasksPage() {
     [
       { value: '', label: 'All' },
       { value: 'open', label: 'Open' },
-      { value: 'assigned', label: 'Assigned' },
-      { value: 'submitted', label: 'Submitted (needs review)' },
-      { value: 'reviewed', label: 'Reviewed' },
+      { value: 'in_progress', label: 'In progress' },
+      { value: 'under_review', label: 'Submitted (needs review)' },
       { value: 'completed', label: 'Completed' },
     ],
     '',
@@ -119,7 +117,7 @@ export default function AdminStarterTasksPage() {
 
   const { data: tasksRaw = [], isPending: loadingData } = useQuery({
     ...orpc.starterTasks.list.queryOptions({
-      input: statusFilter ? { status: statusFilter } : {},
+      input: statusFilter ? { status: statusFilter as StarterTaskStatus } : {},
     }),
     enabled: !!user?.isAdmin,
   })
@@ -304,7 +302,7 @@ export default function AdminStarterTasksPage() {
     reviewTaskMutation.mutate({
       id: reviewModal.id,
       reviewRating,
-      feedbackToVolunteer: reviewFeedback || null,
+      comment: reviewFeedback || null,
       reviewNotes: reviewNotes || null,
     })
   }
@@ -453,19 +451,11 @@ export default function AdminStarterTasksPage() {
                         Notes: {task.reviewNotes}
                       </p>
                     )}
-                    {task.feedbackToVolunteer && (
-                      <div
-                        style={{
-                          background: 'var(--accent)',
-                          borderRadius: 'var(--radius)',
-                          padding: '10px 14px',
-                          marginBottom: 12,
-                          fontSize: '0.875rem',
-                        }}
-                      >
-                        <strong>Feedback to volunteer:</strong> {task.feedbackToVolunteer}
-                      </div>
-                    )}
+
+                    <div className="mb-3">
+                      <strong className="text-sm">Comments</strong>
+                      <CommentThread workItemId={task.id} />
+                    </div>
 
                     <div
                       style={{
@@ -536,7 +526,7 @@ export default function AdminStarterTasksPage() {
                             Unassign
                           </Button>
                         )}
-                        {task.status === StarterTaskStatus.submitted && (
+                        {task.status === StarterTaskStatus.under_review && (
                           <Button
                             size="sm"
                             onClick={(e) => {

@@ -82,7 +82,7 @@ export async function confirmVolunteerEmail(baseUrl: string, token: string): Pro
   await api.auth.verifyEmail({ body: { token } })
 }
 
-function readAdminToken(baseUrl: string): string | null {
+export function readAdminToken(baseUrl: string): string | null {
   const parallelIndex = parallelIndexFromBaseUrl(baseUrl)
   const authFile = workerAuthFile(parallelIndex)
   try {

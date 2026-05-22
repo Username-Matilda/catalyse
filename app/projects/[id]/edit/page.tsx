@@ -70,7 +70,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
     setInitialized(true)
     const data = projectData
     setTitle(data.title)
-    setDescription(data.description)
+    setDescription(data.description ?? '')
     setCollaborationLink(data.collaborationLink ?? '')
     setSkills((data.skills ?? []).map((s) => ({ skillId: s.id, proficiencyLevel: 'intermediate' })))
     setProjectType(data.projectType ?? '')

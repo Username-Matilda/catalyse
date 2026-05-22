@@ -2,6 +2,7 @@ import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
 import { redactVolunteer } from '@/lib/auth'
 import { authedProcedure } from '../procedures'
+import { WorkItemType } from '@/generated/prisma/enums'
 
 export const privacyRouter = {
   export: authedProcedure.handler(async ({ context }) => {
@@ -12,11 +13,14 @@ export const privacyRouter = {
           skills: { include: { skill: { include: { category: true } } } },
         },
       }),
-      prisma.projectInterest.findMany({ where: { volunteerId: context.volunteer.id } }),
+      prisma.workItemInterest.findMany({ where: { volunteerId: context.volunteer.id } }),
       prisma.message.findMany({ where: { fromVolunteerId: context.volunteer.id } }),
       prisma.message.findMany({ where: { toVolunteerId: context.volunteer.id } }),
-      prisma.project.findMany({
-        where: { OR: [{ ownerId: context.volunteer.id }, { proposedById: context.volunteer.id }] },
+      prisma.workItem.findMany({
+        where: {
+          type: WorkItemType.PROJECT,
+          OR: [{ assigneeId: context.volunteer.id }, { creatorId: context.volunteer.id }],
+        },
       }),
     ])
 
@@ -47,8 +51,8 @@ export const privacyRouter = {
         title: p.title,
         description: p.description,
         status: p.status,
-        ownerId: p.ownerId,
-        proposedById: p.proposedById,
+        ownerId: p.assigneeId,
+        proposedById: p.creatorId,
         outcome: p.outcome,
         outcomeNotes: p.outcomeNotes,
         createdAt: p.createdAt,
@@ -56,7 +60,7 @@ export const privacyRouter = {
       })),
       interests: interests.map((i) => ({
         id: i.id,
-        projectId: i.projectId,
+        projectId: i.workItemId,
         interestType: i.interestType,
         message: i.message,
         status: i.status,
@@ -68,7 +72,7 @@ export const privacyRouter = {
         toVolunteerId: m.toVolunteerId,
         subject: m.subject,
         message: m.message,
-        relatedProjectId: m.relatedProjectId,
+        relatedProjectId: m.relatedWorkItemId,
         createdAt: m.createdAt,
       })),
       messagesReceived: messagesReceived.map((m) => ({
@@ -76,7 +80,7 @@ export const privacyRouter = {
         fromVolunteerId: m.fromVolunteerId,
         subject: m.subject,
         message: m.message,
-        relatedProjectId: m.relatedProjectId,
+        relatedProjectId: m.relatedWorkItemId,
         readAt: m.readAt,
         createdAt: m.createdAt,
       })),

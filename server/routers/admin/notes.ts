@@ -19,7 +19,7 @@ export const adminNotesRouter = {
         authorId: n.authorId,
         content: n.content,
         category: n.category,
-        relatedProjectId: n.relatedProjectId,
+        relatedProjectId: n.relatedWorkItemId,
         createdAt: n.createdAt,
         updatedAt: n.updatedAt,
         authorName: n.author.name,
@@ -41,7 +41,7 @@ export const adminNotesRouter = {
           authorId: context.volunteer.id,
           content: input.content.trim(),
           category: input.category ?? 'general',
-          relatedProjectId: input.relatedProjectId ?? null,
+          relatedWorkItemId: input.relatedWorkItemId ?? null,
         },
       })
       return { id: note.id, message: 'Note added' }

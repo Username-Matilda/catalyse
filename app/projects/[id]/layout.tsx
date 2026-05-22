@@ -7,8 +7,8 @@ export async function generateMetadata({
   params: Promise<{ id: string }>
 }): Promise<Metadata> {
   const { id } = await params
-  const project = await prisma.project.findUnique({
-    where: { id: parseInt(id) },
+  const project = await prisma.workItem.findFirst({
+    where: { id: parseInt(id), type: 'PROJECT' },
     select: { title: true },
   })
   return { title: project?.title ?? 'Project' }

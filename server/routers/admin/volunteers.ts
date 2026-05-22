@@ -3,6 +3,7 @@ import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
 import { redactVolunteer } from '@/lib/auth'
 import { adminProcedure } from '../../procedures'
+import { WorkItemType } from '@/generated/prisma/enums'
 
 const EndorsementInputSchema = z.object({
   skillId: z.number().int({ message: 'skillId is required' }),
@@ -43,13 +44,16 @@ export const adminVolunteersRouter = {
         },
         orderBy: { createdAt: 'desc' },
       }),
-      prisma.starterTask.findMany({
-        where: { assignedToId: input.id },
+      prisma.workItem.findMany({
+        where: { type: WorkItemType.STARTER_TASK, assigneeId: input.id },
         include: { skill: { select: { name: true } } },
         orderBy: { createdAt: 'desc' },
       }),
-      prisma.project.findMany({
-        where: { OR: [{ ownerId: input.id }, { proposedById: input.id }] },
+      prisma.workItem.findMany({
+        where: {
+          type: WorkItemType.PROJECT,
+          OR: [{ assigneeId: input.id }, { creatorId: input.id }],
+        },
         orderBy: { createdAt: 'desc' },
       }),
     ])
@@ -82,7 +86,7 @@ export const adminVolunteersRouter = {
         authorId: n.authorId,
         content: n.content,
         category: n.category,
-        relatedProjectId: n.relatedProjectId,
+        relatedProjectId: n.relatedWorkItemId,
         createdAt: n.createdAt,
         updatedAt: n.updatedAt,
         authorName: n.author.name,
@@ -103,16 +107,15 @@ export const adminVolunteersRouter = {
       })),
       starterTasks: starterTasks.map((t) => ({
         id: t.id,
-        projectId: t.projectId,
+        projectId: t.contextProjectId,
         title: t.title,
         description: t.description,
         skillId: t.skillId,
-        assignedToId: t.assignedToId,
-        assignedById: t.assignedById,
+        assignedToId: t.assigneeId,
+        assignedById: t.creatorId,
         status: t.status,
         reviewRating: t.reviewRating,
         reviewNotes: t.reviewNotes,
-        feedbackToVolunteer: t.feedbackToVolunteer,
         reviewedById: t.reviewedById,
         reviewedAt: t.reviewedAt,
         estimatedHours: t.estimatedHours,
@@ -125,8 +128,8 @@ export const adminVolunteersRouter = {
         title: p.title,
         description: p.description,
         status: p.status,
-        ownerId: p.ownerId,
-        proposedById: p.proposedById,
+        ownerId: p.assigneeId,
+        proposedById: p.creatorId,
         outcome: p.outcome,
         outcomeNotes: p.outcomeNotes,
         completedAt: p.completedAt,

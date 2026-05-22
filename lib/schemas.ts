@@ -6,12 +6,11 @@ import {
   BugReportSchema,
   LocalGroupSchema,
   LocalGroupSuggestionSchema,
-  ProjectSchema,
-  ProjectTaskSchema,
-  ProjectUpdateSchema,
   SkillSchema,
   SkillCategorySchema,
-  StarterTaskSchema,
+  TaskStatusSchema,
+  WorkItemSchema,
+  WorkItemCommentSchema,
   VolunteerSchema,
 } from '@/generated/zod'
 
@@ -94,7 +93,7 @@ const TaskInputSchema = z.object({
   description: z.string().optional(),
 })
 
-export const CreateProjectSchema = ProjectSchema.pick({
+const PROJECT_INPUT_FIELDS = {
   title: true,
   description: true,
   projectType: true,
@@ -106,22 +105,21 @@ export const CreateProjectSchema = ProjectSchema.pick({
   localGroup: true,
   isSeekingHelp: true,
   isSeekingOwner: true,
-}).extend({
+} as const
+
+export const CreateProjectSchema = WorkItemSchema.pick(PROJECT_INPUT_FIELDS).extend({
   tasks: z.array(TaskInputSchema).optional().default([]),
   wantToOwn: z.boolean().optional().default(false),
   skillIds: z.array(z.number().int()).optional().default([]),
   skillRequiredMap: z.record(z.string(), z.boolean()).optional().default({}),
 })
 
-export const UpdateProjectSchema = ProjectSchema.omit({
-  ...BASE_OMIT,
-  proposedById: true,
-  isOrgProposed: true,
-  reviewNotes: true,
-  reviewedById: true,
-  reviewedAt: true,
-  feedbackToProposer: true,
-  completedAt: true,
+export const UpdateProjectSchema = WorkItemSchema.pick({
+  ...PROJECT_INPUT_FIELDS,
+  status: true,
+  assigneeId: true,
+  outcome: true,
+  outcomeNotes: true,
 })
   .partial()
   .extend({
@@ -136,37 +134,26 @@ export const ProjectInterestBodySchema = z.object({
   message: z.string().optional().nullable(),
 })
 
-export const CreateProjectTaskSchema = ProjectTaskSchema.pick({
+export const CreateProjectTaskSchema = WorkItemSchema.pick({
   title: true,
   description: true,
 }).partial({ description: true })
 
-export const UpdateProjectTaskSchema = ProjectTaskSchema.pick({
+export const UpdateProjectTaskSchema = WorkItemSchema.pick({
   title: true,
   description: true,
-  status: true,
-  assignedToId: true,
-}).partial()
+  assigneeId: true,
+})
+  .partial()
+  .extend({ status: TaskStatusSchema.optional() })
 
-export const CreateProjectUpdateSchema = ProjectUpdateSchema.pick({
+export const CreateProjectUpdateSchema = WorkItemCommentSchema.pick({
   content: true,
 })
 
 // ─── Admin: projects ──────────────────────────────────────────────────────────
 
-export const AdminCreateProjectSchema = ProjectSchema.pick({
-  title: true,
-  description: true,
-  projectType: true,
-  estimatedDuration: true,
-  timeCommitmentHoursPerWeek: true,
-  urgency: true,
-  collaborationLink: true,
-  country: true,
-  localGroup: true,
-  isSeekingHelp: true,
-  isSeekingOwner: true,
-}).extend({
+export const AdminCreateProjectSchema = WorkItemSchema.pick(PROJECT_INPUT_FIELDS).extend({
   tasks: z.array(TaskInputSchema).optional().default([]),
   wantToOwn: z.boolean().optional().default(false),
   skillIds: z.array(z.number().int()).optional().default([]),
@@ -178,7 +165,7 @@ export const ReviewProjectSchema = z.object({
     error: 'Status must be approved or needs_discussion',
   }),
   reviewNotes: z.string().optional().nullable(),
-  feedbackToProposer: z.string().optional().nullable(),
+  comment: z.string().optional().nullable(),
   targetStatus: z
     .enum([ProjectStatus.seeking_help, ProjectStatus.seeking_owner])
     .optional()
@@ -207,8 +194,8 @@ export const ApplicationActionSchema = z.object({
 export const CreateNoteSchema = AdminNoteSchema.pick({
   content: true,
   category: true,
-  relatedProjectId: true,
-}).partial({ category: true, relatedProjectId: true })
+  relatedWorkItemId: true,
+}).partial({ category: true, relatedWorkItemId: true })
 
 export const UpdateNoteSchema = AdminNoteSchema.pick({
   content: true,
@@ -287,13 +274,13 @@ export const PlatformSettingsSchema = z.object({
 
 // ─── Starter tasks ────────────────────────────────────────────────────────────
 
-export const CreateStarterTaskSchema = StarterTaskSchema.pick({
+export const CreateStarterTaskSchema = WorkItemSchema.pick({
   title: true,
   description: true,
   skillId: true,
-  projectId: true,
+  contextProjectId: true,
   estimatedHours: true,
-}).partial({ skillId: true, projectId: true, estimatedHours: true })
+}).partial({ skillId: true, contextProjectId: true, estimatedHours: true })
 
 export const AssignStarterTaskSchema = z.object({
   volunteerId: z.number().int({ message: 'volunteerId is required' }),
@@ -304,7 +291,7 @@ export const ReviewStarterTaskSchema = z.object({
     error: 'reviewRating must be excellent, good, or needs_improvement',
   }),
   reviewNotes: z.string().optional().nullable(),
-  feedbackToVolunteer: z.string().optional().nullable(),
+  comment: z.string().optional().nullable(),
 })
 
 // ─── Bug reports ──────────────────────────────────────────────────────────────
