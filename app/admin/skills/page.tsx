@@ -352,7 +352,7 @@ export default function AdminSkillsPage() {
 
   return (
     <>
-      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
+      <main className="container py-5 pb-15">
         <div className="flex justify-between items-center mb-3">
           <h1>Manage Skills</h1>
           <Button onClick={() => openModal({ type: 'add-category' })}>+ Add Category</Button>

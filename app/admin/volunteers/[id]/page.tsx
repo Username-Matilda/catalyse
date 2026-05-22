@@ -216,7 +216,7 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
   if (loadingData) {
     return (
       <>
-        <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
+        <main className="container py-5 pb-15">
           <div className="text-center py-10 text-text-light">Loading…</div>
         </main>
       </>
@@ -226,7 +226,7 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
   if (!vol) {
     return (
       <>
-        <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
+        <main className="container py-5 pb-15">
           <p className="text-error">Volunteer not found.</p>
           <Button href="/volunteers" variant="secondary" className="mt-4">
             Back
@@ -238,7 +238,7 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
 
   return (
     <>
-      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
+      <main className="container py-5 pb-15">
         <div className="mb-4">
           <Link href="/volunteers" className="text-text-light">
             &larr; Back to Volunteers

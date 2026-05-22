@@ -116,7 +116,7 @@ function ResetPasswordForm() {
 export default function ResetPasswordPage() {
   return (
     <>
-      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
+      <main className="container py-5 pb-15">
         <div className="max-w-[400px] my-15 mx-auto">
           <h1 className="text-center">Set New Password</h1>
           <Suspense fallback={<div className="text-center py-10 text-text-light">Loading…</div>}>

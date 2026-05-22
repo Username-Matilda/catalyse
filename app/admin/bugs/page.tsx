@@ -7,6 +7,7 @@ import Button from '@/components/Button'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
+import { Badge, type BadgeVariant } from '@/components/Badge'
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All' },
@@ -22,15 +23,11 @@ const CATEGORY_OPTIONS = [
   { value: 'ux', label: 'UX Issue' },
 ] as const
 
-const BUG_STATUS_CLASSES: Record<string, string> = {
-  open: 'bg-orange-200 text-amber-800 dark:bg-amber-900 dark:text-orange-200',
-  in_progress: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300',
-  resolved: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300',
-  wont_fix: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-400',
-}
-
-function bugStatusClasses(status: string) {
-  return `inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${BUG_STATUS_CLASSES[status] ?? 'bg-gray-100 text-gray-700'}`
+const BUG_STATUS_VARIANT: Record<string, BadgeVariant> = {
+  open: 'caution',
+  in_progress: 'info',
+  resolved: 'success',
+  wont_fix: 'neutral',
 }
 
 export default function AdminBugsPage() {
@@ -91,7 +88,7 @@ export default function AdminBugsPage() {
 
   return (
     <>
-      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
+      <main className="container py-5 pb-15">
         <h1>Bug Reports &amp; Feedback</h1>
 
         <div className="mb-6 flex gap-4 flex-wrap">
@@ -158,9 +155,9 @@ export default function AdminBugsPage() {
                       })()}
                   </div>
                 </div>
-                <span className={bugStatusClasses(r.status)}>
+                <Badge variant={BUG_STATUS_VARIANT[r.status] ?? 'neutral'}>
                   {STATUS_OPTIONS.find((s) => s.value === r.status)?.label ?? r.status}
-                </span>
+                </Badge>
               </div>
 
               <p className="text-text-light mt-0 mx-0 mb-3 whitespace-pre-wrap">{r.description}</p>

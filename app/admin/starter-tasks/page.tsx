@@ -311,7 +311,7 @@ export default function AdminStarterTasksPage() {
 
   return (
     <>
-      <main className="max-w-350 w-full mx-auto px-6 py-5 pb-15">
+      <main className="container py-5 pb-15">
         <div className="flex justify-between items-center mb-3">
           <h1>Quick Tasks</h1>
           <Button onClick={() => setShowCreate(true)}>Create Task</Button>

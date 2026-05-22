@@ -72,7 +72,7 @@ export default function ApplicationsPage() {
   const isEmpty = isAnonymised ? anonymisedApplications.length === 0 : applications.length === 0
 
   return (
-    <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
+    <main className="container py-5 pb-15">
       <h1>Applications</h1>
       <p className="text-text-light mb-6">Review new volunteer applications.</p>
 

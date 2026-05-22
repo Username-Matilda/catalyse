@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
+import { Badge } from '@/components/Badge'
+import { STATUS_LABELS, projectStatusVariant } from '@/components/ProjectCard'
 import CommentThread from '@/components/CommentThread'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import { orpc } from '@/lib/orpc'
@@ -13,18 +15,6 @@ import { useToast } from '@/lib/toast'
 import { InterestStatus, ProjectStatus, TaskStatus } from '@/generated/prisma/enums'
 
 // ── Types ────────────────────────────────────────────────────────────────────
-
-const STATUS_LABELS: Record<string, string> = {
-  seeking_owner: 'Seeking Owner',
-  seeking_help: 'Seeking Help',
-  needs_tasks: 'Needs Tasks',
-  in_progress: 'In Progress',
-  on_hold: 'On Hold',
-  completed: 'Completed',
-  archived: 'Archived',
-  pending_review: 'Pending Review',
-  needs_discussion: 'Needs Discussion',
-}
 
 const OWNER_STATUSES = [
   { value: 'seeking_owner', label: 'Seeking Owner' },
@@ -44,20 +34,6 @@ const ADMIN_EXTRA_STATUSES = [
 // ── Tailwind class constants ──────────────────────────────────────────────────
 
 const card = 'bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word'
-
-function statusBadge(status: string) {
-  const colors: Record<string, string> = {
-    seeking_owner: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
-    seeking_help: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300',
-    needs_tasks: 'bg-yellow-100 text-yellow-900 dark:bg-amber-900 dark:text-amber-200',
-    in_progress: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300',
-    on_hold: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-400',
-    completed: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300',
-    pending_review: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
-    needs_discussion: 'bg-pink-100 text-pink-800',
-  }
-  return `inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${colors[status] ?? 'bg-gray-100 text-gray-700'}`
-}
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -303,7 +279,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   if (loadingProject) {
     return (
       <>
-        <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
+        <main className="container py-5 pb-15">
           <div className="text-center py-10 text-text-light">Loading project…</div>
         </main>
       </>
@@ -441,12 +417,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   return (
     <>
-      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
+      <main className="container py-5 pb-15">
         {/* [test hook] projectContent id used by action helpers to confirm page has loaded */}
         <div id="projectContent" className="flex items-center gap-3 flex-wrap mb-2">
-          <span aria-label="project status" className={statusBadge(project.status)}>
+          <Badge variant={projectStatusVariant(project.status)} aria-label="project status">
             {STATUS_LABELS[project.status] ?? project.status}
-          </span>
+          </Badge>
           {isOwnerOrAdmin && (
             <Button href={`/projects/${idParam}/edit`} variant="secondary" size="sm">
               Edit
@@ -488,9 +464,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           {!isOwner && project.match && project.match.overallScore > 0 && (
             <div className="mt-3 flex items-center gap-2">
               <span className="text-sm text-text-light">Your skill match:</span>
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300">
+              <Badge variant="success" className="text-sm">
                 {project.match.overallScore}%
-              </span>
+              </Badge>
             </div>
           )}
 
@@ -732,9 +708,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                             ? 'wants to own'
                             : 'wants to help'}
                         </span>
-                        <span className={`ml-2 ${statusBadge(interest.status)}`}>
+                        <Badge variant={projectStatusVariant(interest.status)} className="ml-2">
                           {interest.status}
-                        </span>
+                        </Badge>
                         {interest.message && (
                           <p className="text-sm mt-1 mb-0">{interest.message}</p>
                         )}

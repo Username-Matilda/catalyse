@@ -256,7 +256,7 @@ export default function EmailPreviewPage() {
 
   return (
     <>
-      <main className="w-full max-w-[1280px] mx-auto pt-8 px-6 pb-16">
+      <main className="container pt-8 pb-16">
         <h1 className="mb-1">Email Previews</h1>
         <p className="text-gray-500 mb-0">All transactional emails rendered with sample data.</p>
         {EMAIL_TYPES.map((t, i) => (

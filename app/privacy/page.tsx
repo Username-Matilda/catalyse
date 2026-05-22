@@ -34,7 +34,7 @@ export default function PrivacyPage() {
 
   return (
     <>
-      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
+      <main className="container py-5 pb-15">
         <div className="max-w-[600px] mx-auto">
           <h1>Privacy &amp; Data</h1>
           <p className="text-text-light mb-6">

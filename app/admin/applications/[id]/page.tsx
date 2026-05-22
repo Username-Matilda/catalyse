@@ -77,7 +77,7 @@ export default function ApplicationReviewPage() {
 
   if (loadingData) {
     return (
-      <main className="w-full max-w-350 mx-auto px-6 py-5">
+      <main className="container py-5">
         <p className="text-text-light">Loading…</p>
       </main>
     )
@@ -85,7 +85,7 @@ export default function ApplicationReviewPage() {
 
   if (!app) {
     return (
-      <main className="w-full max-w-350 mx-auto px-6 py-5">
+      <main className="container py-5">
         <p className="text-text-light">Application not found.</p>
       </main>
     )

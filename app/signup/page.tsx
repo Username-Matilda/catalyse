@@ -303,7 +303,7 @@ export default function SignupPage() {
             onLoad={initGoogleButton}
           />
         )}
-        <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
+        <main className="container py-5 pb-15">
           <div className="max-w-2xl mx-auto">
             <h1>Complete your application</h1>
             <p className="text-text-light mb-6">
@@ -566,7 +566,7 @@ export default function SignupPage() {
   if (applicationPending) {
     const isGoogleSignup = !!googlePendingToken
     return (
-      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
+      <main className="container py-5 pb-15">
         <div className="max-w-2xl mx-auto">
           <div className="bg-surface rounded-xl shadow p-8 text-center">
             {isGoogleSignup ? (
@@ -631,7 +631,7 @@ export default function SignupPage() {
           onLoad={initGoogleButton}
         />
       )}
-      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
+      <main className="container py-5 pb-15">
         <div className="max-w-2xl mx-auto">
           <h1>Join Catalyse</h1>
           <p className="text-text-light mb-6">

@@ -1,6 +1,7 @@
 import React from 'react'
 import Link from 'next/link'
 import Button from '@/components/Button'
+import { Badge, badgeClasses, type BadgeVariant } from '@/components/Badge'
 import { matchGradeLabel } from '@/lib/matching'
 
 export interface Project {
@@ -29,18 +30,24 @@ export interface Project {
   } | null
 }
 
-export const STATUS_LABELS: Record<string, string> = {
-  seeking_owner: 'Seeking Owner',
-  seeking_help: 'Seeking Help',
-  needs_tasks: 'Needs Tasks',
-  in_progress: 'In Progress',
-  on_hold: 'On Hold',
-  completed: 'Completed',
-  pending_review: 'Pending Review',
-  accepted: 'Accepted',
-  declined: 'Declined',
-  withdrawn: 'Withdrawn',
+export const PROJECT_STATUS_CONFIG: Record<string, { label: string; variant: BadgeVariant }> = {
+  seeking_owner: { label: 'Seeking Owner', variant: 'caution' },
+  seeking_help: { label: 'Seeking Help', variant: 'caution' },
+  needs_tasks: { label: 'Needs Tasks', variant: 'warning' },
+  in_progress: { label: 'In Progress', variant: 'info' },
+  on_hold: { label: 'On Hold', variant: 'neutral' },
+  completed: { label: 'Completed', variant: 'success' },
+  archived: { label: 'Archived', variant: 'neutral' },
+  needs_discussion: { label: 'Needs Discussion', variant: 'neutral' },
+  pending_review: { label: 'Pending Review', variant: 'warning' },
+  accepted: { label: 'Accepted', variant: 'success' },
+  declined: { label: 'Declined', variant: 'neutral' },
+  withdrawn: { label: 'Withdrawn', variant: 'neutral' },
 }
+
+export const STATUS_LABELS: Record<string, string> = Object.fromEntries(
+  Object.entries(PROJECT_STATUS_CONFIG).map(([k, v]) => [k, v.label]),
+)
 
 const PROJECT_TYPE_LABELS: Record<string, string> = {
   sprint: 'Sprint',
@@ -49,21 +56,12 @@ const PROJECT_TYPE_LABELS: Record<string, string> = {
   one_off: 'One-off',
 }
 
+export function projectStatusVariant(status: string): BadgeVariant {
+  return PROJECT_STATUS_CONFIG[status]?.variant ?? 'neutral'
+}
+
 export function statusBadgeClasses(status: string) {
-  const map: Record<string, string> = {
-    seeking_owner: 'bg-[#FED7AA] text-[#92400E] dark:bg-[#78350F] dark:text-[#FED7AA]',
-    seeking_help: 'bg-[#FED7AA] text-[#92400E] dark:bg-[#78350F] dark:text-[#FED7AA]',
-    needs_tasks: 'bg-[#FEF9C3] text-[#713F12] dark:bg-[#78350F] dark:text-[#FDE68A]',
-    in_progress: 'bg-[#DBEAFE] text-[#1E40AF] dark:bg-[#1E3A5F] dark:text-[#93C5FD]',
-    on_hold: 'bg-[#F3F4F6] text-[#374151] dark:bg-[#374151] dark:text-[#9CA3AF]',
-    completed: 'bg-[#D1FAE5] text-[#065F46] dark:bg-[#064E3B] dark:text-[#6EE7B7]',
-    pending_review: 'bg-[#FEF3C7] text-[#92400E] dark:bg-[#78350F] dark:text-[#FDE68A]',
-    accepted: 'bg-[#D1FAE5] text-[#065F46] dark:bg-[#064E3B] dark:text-[#6EE7B7]',
-    declined: 'bg-[#F3F4F6] text-[#374151] dark:bg-[#374151] dark:text-[#9CA3AF]',
-    withdrawn: 'bg-[#F3F4F6] text-[#374151] dark:bg-[#374151] dark:text-[#9CA3AF]',
-  }
-  // [test hook] status-badge class used as test selector
-  return `status-badge inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${map[status] ?? 'bg-[#F3F4F6] text-[#374151]'}`
+  return badgeClasses(projectStatusVariant(status))
 }
 
 export function ProjectCard({
@@ -88,16 +86,12 @@ export function ProjectCard({
       </div>
       <div className="row-start-2 flex gap-1 flex-wrap self-start">
         {!['seeking_owner', 'seeking_help'].includes(p.status) && (
-          <span className={statusBadgeClasses(p.status)}>
+          <Badge variant={projectStatusVariant(p.status)}>
             {STATUS_LABELS[p.status] ?? p.status.replace(/_/g, ' ')}
-          </span>
+          </Badge>
         )}
-        {p.isSeekingHelp && (
-          <span className={statusBadgeClasses('seeking_help')}>Seeking Help</span>
-        )}
-        {p.isSeekingOwner && (
-          <span className={statusBadgeClasses('seeking_owner')}>Seeking Owner</span>
-        )}
+        {p.isSeekingHelp && <Badge variant="caution">Seeking Help</Badge>}
+        {p.isSeekingOwner && <Badge variant="caution">Seeking Owner</Badge>}
       </div>
       <div className="row-start-3 flex items-center gap-3 flex-wrap text-xs text-text-light self-start">
         <span>👤 {p.owner ? p.owner.name : 'No owner yet'}</span>
@@ -125,13 +119,13 @@ export function ProjectCard({
             {shown.map((s) => (
               <span
                 key={s.id}
-                className="inline-flex items-center px-2 py-0.5 bg-accent text-secondary-dark rounded-full text-xs font-medium dark:bg-[#374151] dark:text-[#D1D5DB]"
+                className="inline-flex items-center px-2 py-0.5 bg-accent text-secondary-dark rounded-full text-xs font-medium dark:bg-gray-700 dark:text-gray-300"
               >
                 {s.name}
               </span>
             ))}
             {overflow > 0 && (
-              <span className="inline-flex items-center px-2 py-0.5 bg-[#F3F4F6] text-text-light rounded-full text-xs font-medium dark:bg-[#374151] dark:text-[#9CA3AF]">
+              <span className="inline-flex items-center px-2 py-0.5 bg-gray-100 text-text-light rounded-full text-xs font-medium dark:bg-gray-700 dark:text-gray-400">
                 and {overflow} more
               </span>
             )}

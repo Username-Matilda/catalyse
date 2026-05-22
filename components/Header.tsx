@@ -109,6 +109,19 @@ function DashboardNavButtons({ unreadCount }: { unreadCount: number }) {
   )
 }
 
+const ADMIN_NAV_ITEMS: { href: string; label: string; superAdminOnly?: boolean }[] = [
+  { href: '/admin/triage', label: 'Triage Queue' },
+  { href: '/admin/projects/new', label: 'Create Org Project' },
+  { href: '/admin/starter-tasks', label: 'Manage Quick Tasks' },
+  { href: '/admin/skills', label: 'Manage Skills' },
+  { href: '/admin/bugs', label: 'Bug Reports' },
+  { href: '/admin/team', label: 'Admin Team' },
+  { href: '/admin/stats', label: 'Platform Stats' },
+  { href: '/admin/applications', label: 'Manage Applications', superAdminOnly: true },
+  { href: '/admin/platform-settings', label: 'Platform Settings', superAdminOnly: true },
+  { href: '/admin/local-groups', label: 'Manage Local Groups' },
+]
+
 export default function Header() {
   const { user, loading, logout } = useAuth()
   const pathname = usePathname()
@@ -235,70 +248,17 @@ export default function Header() {
                           <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-light)] border-t border-brand-border mt-1">
                             Admin
                           </div>
-                          <Link
-                            href="/admin/triage"
-                            className="block px-4 py-3 text-[var(--text)] no-underline"
-                          >
-                            Triage Queue
-                          </Link>
-                          <Link
-                            href="/admin/projects/new"
-                            className="block px-4 py-3 text-[var(--text)] no-underline"
-                          >
-                            Create Org Project
-                          </Link>
-                          <Link
-                            href="/admin/starter-tasks"
-                            className="block px-4 py-3 text-[var(--text)] no-underline"
-                          >
-                            Manage Quick Tasks
-                          </Link>
-                          <Link
-                            href="/admin/skills"
-                            className="block px-4 py-3 text-[var(--text)] no-underline"
-                          >
-                            Manage Skills
-                          </Link>
-                          <Link
-                            href="/admin/bugs"
-                            className="block px-4 py-3 text-[var(--text)] no-underline"
-                          >
-                            Bug Reports
-                          </Link>
-                          <Link
-                            href="/admin/team"
-                            className="block px-4 py-3 text-[var(--text)] no-underline"
-                          >
-                            Admin Team
-                          </Link>
-                          <Link
-                            href="/admin/stats"
-                            className="block px-4 py-3 text-[var(--text)] no-underline"
-                          >
-                            Platform Stats
-                          </Link>
-                          {user.isSuperAdmin && (
-                            <>
-                              <Link
-                                href="/admin/applications"
-                                className="block px-4 py-3 text-[var(--text)] no-underline"
-                              >
-                                Manage Applications
-                              </Link>
-                              <Link
-                                href="/admin/platform-settings"
-                                className="block px-4 py-3 text-[var(--text)] no-underline"
-                              >
-                                Platform Settings
-                              </Link>
-                            </>
-                          )}
-                          <Link
-                            href="/admin/local-groups"
-                            className="block px-4 py-3 text-[var(--text)] no-underline"
-                          >
-                            Manage Local Groups
-                          </Link>
+                          {ADMIN_NAV_ITEMS.filter(
+                            (i) => !i.superAdminOnly || user.isSuperAdmin,
+                          ).map((i) => (
+                            <Link
+                              key={i.href}
+                              href={i.href}
+                              className="block px-4 py-3 text-[var(--text)] no-underline"
+                            >
+                              {i.label}
+                            </Link>
+                          ))}
                         </>
                       )}
                       <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-light)] border-t border-brand-border mt-1">
@@ -439,24 +399,13 @@ export default function Header() {
                   {user.isAdmin && (
                     <>
                       <MobileNavSection admin>Admin</MobileNavSection>
-                      <MobileNavLink href="/admin/triage">Triage Queue</MobileNavLink>
-                      <MobileNavLink href="/admin/projects/new">Create Org Project</MobileNavLink>
-                      <MobileNavLink href="/admin/starter-tasks">Manage Quick Tasks</MobileNavLink>
-                      <MobileNavLink href="/admin/skills">Manage Skills</MobileNavLink>
-                      <MobileNavLink href="/admin/bugs">Bug Reports</MobileNavLink>
-                      <MobileNavLink href="/admin/team">Admin Team</MobileNavLink>
-                      <MobileNavLink href="/admin/stats">Platform Stats</MobileNavLink>
-                      {user.isSuperAdmin && (
-                        <>
-                          <MobileNavLink href="/admin/applications">
-                            Manage Applications
+                      {ADMIN_NAV_ITEMS.filter((i) => !i.superAdminOnly || user.isSuperAdmin).map(
+                        (i) => (
+                          <MobileNavLink key={i.href} href={i.href}>
+                            {i.label}
                           </MobileNavLink>
-                          <MobileNavLink href="/admin/platform-settings">
-                            Platform Settings
-                          </MobileNavLink>
-                        </>
+                        ),
                       )}
-                      <MobileNavLink href="/admin/local-groups">Manage Local Groups</MobileNavLink>
                     </>
                   )}
 

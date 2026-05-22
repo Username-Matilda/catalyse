@@ -5,6 +5,8 @@ import { useRequireAuth } from '@/lib/hooks/auth'
 import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import Button from '@/components/Button'
+import { Badge } from '@/components/Badge'
+import { STATUS_LABELS, projectStatusVariant } from '@/components/ProjectCard'
 import { orpc } from '@/lib/orpc'
 
 export default function VolunteerDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -25,7 +27,7 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
   if (loadingProfile) {
     return (
       <>
-        <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
+        <main className="container py-5 pb-15">
           <div className="text-center py-10 text-text-light">Loading profile…</div>
         </main>
       </>
@@ -35,7 +37,7 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
   if (isError || !volunteer) {
     return (
       <>
-        <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
+        <main className="container py-5 pb-15">
           <p className="text-[color:var(--error)]">Volunteer not found.</p>
           <Button href="/volunteers" variant="secondary" className="mt-4">
             Back to Volunteers
@@ -53,7 +55,7 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
 
   return (
     <>
-      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
+      <main className="container py-5 pb-15">
         <div className="mb-5">
           <Link href="/volunteers" className="text-text-light">
             &larr; Back to Volunteers
@@ -189,11 +191,9 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
                     <Link href={`/projects/${p.id}`} className="font-semibold text-primary-dark">
                       {p.title}
                     </Link>
-                    <span
-                      className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${p.status === 'in_progress' || p.status === 'completed' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300' : p.status === 'on_hold' ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-400' : p.status === 'seeking_help' ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200'}`}
-                    >
-                      {p.status.replace(/_/g, ' ')}
-                    </span>
+                    <Badge variant={projectStatusVariant(p.status)}>
+                      {STATUS_LABELS[p.status] ?? p.status.replace(/_/g, ' ')}
+                    </Badge>
                   </div>
                   <p className="text-sm text-text-light mt-1">
                     {p.role === 'owner' ? 'Project owner' : 'Proposer'}
