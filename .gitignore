@@ -6,6 +6,7 @@
 # Database
 *.db
 *.db-*
+db/
 backups/
 
 # Dependencies

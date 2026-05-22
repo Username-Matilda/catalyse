@@ -68,6 +68,52 @@ test.describe('Project Lifecycle', () => {
     })
   })
 
+  test('Discussion message and admin follow-up appear in the proposer comment thread', async ({
+    adminPage,
+    volunteer,
+    baseUrl,
+  }) => {
+    const title = fake.projectTitle()
+    const feedbackText = fake.feedbackText()
+    const projectId = await proposeProject(baseUrl, volunteer.page, title, 'Discussion thread test')
+
+    // Admin sends it back for discussion with a message
+    await adminPage.goto(`${baseUrl}/admin/triage`)
+    const card = adminPage.locator('.card').filter({ hasText: title })
+    await expect(card).toBeVisible({ timeout: 10_000 })
+    await card.getByRole('button', { name: 'Review' }).click()
+    await expect(adminPage.getByRole('heading', { name: 'Review Project' })).toBeVisible({
+      timeout: 10_000,
+    })
+    await adminPage.getByRole('radio', { name: /Needs Discussion/ }).click()
+    await adminPage.getByLabel('Message to Proposer').fill(feedbackText)
+    await adminPage.getByRole('button', { name: 'Submit Review' }).click()
+    await expect(getAlert(adminPage)).toBeVisible({ timeout: 10_000 })
+
+    // Proposer sees the review message as a comment on their project
+    await volunteer.page.goto(`${baseUrl}/projects/${projectId}`)
+    await expect(volunteer.page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 })
+    await expect(volunteer.page.getByText(feedbackText)).toBeVisible({ timeout: 10_000 })
+
+    // Admin posts a follow-up reply via the triage modal thread
+    const followUp = fake.feedbackText()
+    await adminPage.goto(`${baseUrl}/admin/triage`)
+    await adminPage.getByRole('tab', { name: 'Needs Discussion' }).click()
+    const discussionCard = adminPage.locator('.card').filter({ hasText: title })
+    await expect(discussionCard).toBeVisible({ timeout: 10_000 })
+    await discussionCard.getByRole('button', { name: 'Review' }).click()
+    await expect(adminPage.getByRole('heading', { name: 'Review Project' })).toBeVisible({
+      timeout: 10_000,
+    })
+    await adminPage.getByLabel('Add a comment').fill(followUp)
+    await adminPage.getByRole('button', { name: 'Post Comment' }).click()
+    await expect(getAlert(adminPage)).toContainText('Comment added', { timeout: 10_000 })
+
+    // Proposer sees the follow-up too
+    await volunteer.page.goto(`${baseUrl}/projects/${projectId}`)
+    await expect(volunteer.page.getByText(followUp)).toBeVisible({ timeout: 10_000 })
+  })
+
   test('Admin creates an org-proposed project', async ({ adminPage, baseUrl }) => {
     const title = fake.projectTitle()
     await adminCreateProject(baseUrl, adminPage, title, 'Admin-created project description')

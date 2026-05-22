@@ -14,6 +14,7 @@ import {
   CARD_GRID_CLASSES,
 } from '@/components/ProjectCard'
 import Tabs from '@/components/Tabs'
+import CommentThread from '@/components/CommentThread'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import { InterestStatus, ProjectStatus } from '@/generated/prisma/enums'
@@ -108,7 +109,7 @@ export default function TriagePage() {
     reviewMutation.mutate({
       id: modal.project.id,
       status: decision,
-      feedbackToProposer: decision === 'needs_discussion' ? feedback : null,
+      comment: decision === 'needs_discussion' ? feedback : null,
       reviewNotes: reviewNotes || null,
       targetStatus: modal.project.ownerId ? 'seeking_help' : 'seeking_owner',
     })
@@ -367,6 +368,16 @@ export default function TriagePage() {
               >
                 {modal.project.description}
               </p>
+
+              <div className="mb-5">
+                <label>Discussion</label>
+                <div className="mt-2 max-h-60 overflow-auto">
+                  <CommentThread
+                    workItemId={modal.project.id}
+                    placeholder="Reply to the proposer…"
+                  />
+                </div>
+              </div>
 
               <form onSubmit={submitReview}>
                 <div className="mb-5">

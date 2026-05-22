@@ -1,10 +1,18 @@
-import { test, expect, getAlert } from '../fixtures'
+import {
+  test,
+  expect,
+  getAlert,
+  readAdminToken,
+  approveVolunteer,
+  confirmVolunteerEmail,
+} from '../fixtures'
 import type { Page } from '@playwright/test'
 import { createSkill } from '../actions/skills'
 import type { SkillInfo } from '../actions/skills'
 import { goToDashboardNotifications } from '../actions/dashboard'
 import { fake } from '../fake'
 import { selectFilterDropdown } from '../actions/ui'
+import { createApiClient } from '../client'
 
 async function createOpenStarterTask(
   baseUrl: string,
@@ -128,13 +136,71 @@ test.describe('Starter Tasks', () => {
     await assignDialog.getByRole('button', { name: 'Assign' }).click()
 
     await expect(getAlert(adminPage)).toContainText('Task assigned!', { timeout: 10_000 })
-    await expect(taskCard.getByRole('status')).toContainText('assigned', { timeout: 10_000 })
+    await expect(taskCard.getByRole('status')).toContainText('in_progress', { timeout: 10_000 })
 
     // Volunteer receives an assignment notification
     await goToDashboardNotifications(baseUrl, volunteer.page)
     await expect(
       volunteer.page.locator('strong').filter({ hasText: "You've been assigned a starter task" }),
     ).toBeVisible({ timeout: 10_000 })
+  })
+
+  test('Admin posts a comment on a starter task and it appears in the thread', async ({
+    adminPage,
+    baseUrl,
+  }) => {
+    const skill = await createSkill(baseUrl, adminPage)
+    const taskTitle = await createOpenStarterTask(baseUrl, adminPage, skill)
+    const commentText = `comment ${Date.now()}`
+
+    const taskCard = adminPage.getByRole('article').filter({ hasText: taskTitle })
+    await expect(taskCard).toBeVisible({ timeout: 10_000 })
+    await taskCard.getByText(taskTitle, { exact: true }).click()
+
+    await taskCard.getByLabel('Add a comment').fill(commentText)
+    await taskCard.getByRole('button', { name: 'Post Comment' }).click()
+
+    await expect(taskCard.getByText(commentText)).toBeVisible({ timeout: 10_000 })
+  })
+
+  test('Admin and assignee exchange comments on a starter task in a back-and-forth thread', async ({
+    adminPage,
+    volunteer,
+    baseUrl,
+  }) => {
+    const skill = await createSkill(baseUrl, adminPage)
+    const taskTitle = await createOpenStarterTask(baseUrl, adminPage, skill)
+    await assignStarterTask(baseUrl, adminPage, taskTitle, volunteer.name)
+    const adminComment = `admin note ${Date.now()}`
+    const volunteerReply = `volunteer reply ${Date.now()}`
+
+    // Admin expands the task and posts the first comment
+    await adminPage.goto(`${baseUrl}/admin/starter-tasks`)
+    const adminCard = adminPage.getByRole('article').filter({ hasText: taskTitle })
+    await expect(adminCard).toBeVisible({ timeout: 10_000 })
+    await adminCard.getByText(taskTitle, { exact: true }).click()
+    await adminCard.getByLabel('Add a comment').fill(adminComment)
+    await adminCard.getByRole('button', { name: 'Post Comment' }).click()
+    await expect(adminCard.getByText(adminComment)).toBeVisible({ timeout: 10_000 })
+
+    // Assignee sees admin's comment on the dashboard and replies
+    await volunteer.page.goto(`${baseUrl}/dashboard`)
+    const volBanner = volunteer.page.getByRole('region', { name: 'Starter Tasks' })
+    const volCard = volBanner.getByRole('article').filter({ hasText: taskTitle })
+    await expect(volCard).toBeVisible({ timeout: 10_000 })
+    await volCard.getByText(taskTitle, { exact: true }).click()
+    await expect(volCard.getByText(adminComment)).toBeVisible({ timeout: 10_000 })
+    await volCard.getByLabel('Add a comment').fill(volunteerReply)
+    await volCard.getByRole('button', { name: 'Post Comment' }).click()
+    await expect(volCard.getByText(volunteerReply)).toBeVisible({ timeout: 10_000 })
+
+    // Admin reloads and sees both messages in the thread
+    await adminPage.goto(`${baseUrl}/admin/starter-tasks`)
+    const refreshedCard = adminPage.getByRole('article').filter({ hasText: taskTitle })
+    await expect(refreshedCard).toBeVisible({ timeout: 10_000 })
+    await refreshedCard.getByText(taskTitle, { exact: true }).click()
+    await expect(refreshedCard.getByText(adminComment)).toBeVisible({ timeout: 10_000 })
+    await expect(refreshedCard.getByText(volunteerReply)).toBeVisible({ timeout: 10_000 })
   })
 
   test('Volunteer views their assigned starter task on the dashboard', async ({
@@ -155,7 +221,7 @@ test.describe('Starter Tasks', () => {
     const banner = volunteer.page.getByRole('region', { name: 'Starter Tasks' })
     const taskCard = banner.getByRole('article').filter({ hasText: taskTitle })
     await expect(taskCard).toBeVisible({ timeout: 10_000 })
-    await expect(taskCard.getByRole('status')).toContainText('assigned')
+    await expect(taskCard.getByRole('status')).toContainText('in_progress')
   })
 
   test('Volunteer submits a completed starter task; task status becomes submitted and admin receives a notification', async ({
@@ -185,13 +251,13 @@ test.describe('Starter Tasks', () => {
       timeout: 10_000,
     })
 
-    // Task status changes to 'submitted' on the admin page
+    // Task status changes to 'under_review' on the admin page
     await adminPage.goto(`${baseUrl}/admin/starter-tasks`)
     await expect(adminPage.getByRole('heading', { name: 'Quick Tasks', level: 1 })).toBeVisible({
       timeout: 10_000,
     })
     const adminTaskCard = adminPage.getByRole('article').filter({ hasText: taskTitle })
-    await expect(adminTaskCard.getByRole('status')).toContainText('submitted', {
+    await expect(adminTaskCard.getByRole('status')).toContainText('under_review', {
       timeout: 10_000,
     })
 
@@ -249,7 +315,7 @@ test.describe('Starter Tasks', () => {
     await expect(adminPage.locator('#endorsements')).toContainText(skill.name, { timeout: 10_000 })
   })
 
-  test('Admin reviews a starter task as needs_improvement; task becomes reviewed and no skill endorsement is created', async ({
+  test('Admin reviews a starter task as needs_improvement; task becomes completed and no skill endorsement is created', async ({
     adminPage,
     volunteer,
     baseUrl,
@@ -281,8 +347,8 @@ test.describe('Starter Tasks', () => {
 
     await expect(getAlert(adminPage)).toContainText('Task reviewed!', { timeout: 10_000 })
 
-    // Task status becomes 'reviewed'
-    await expect(taskCard.getByRole('status')).toContainText('reviewed', { timeout: 10_000 })
+    // Task status becomes 'completed'
+    await expect(taskCard.getByRole('status')).toContainText('completed', { timeout: 10_000 })
 
     // Volunteer receives a feedback notification
     await goToDashboardNotifications(baseUrl, volunteer.page)
@@ -345,5 +411,63 @@ test.describe('Starter Tasks', () => {
     await expect(deepLinkCard.getByRole('button', { name: 'Edit' })).toBeVisible({
       timeout: 10_000,
     })
+  })
+
+  test('Starter task comments are hidden from non-assignee volunteers', async ({ baseUrl }) => {
+    const adminToken = readAdminToken(baseUrl)
+    expect(adminToken).toBeTruthy()
+    const adminApi = createApiClient(baseUrl, adminToken)
+
+    // Admin creates a starter task and posts a comment on it
+    const created = await adminApi.starterTasks.create({
+      body: { title: `Iso task ${Date.now()}`, description: 'isolation test description' },
+    })
+    expect(created.status).toBe(200)
+    const workItemId = (created.body as { id: number }).id
+
+    const commentText = `admin-only ${Date.now()}`
+    const added = await adminApi.workItemComments.add({
+      body: { workItemId, content: commentText },
+    })
+    expect(added.status).toBe(200)
+
+    // Admin can read the thread
+    const adminList = await adminApi.workItemComments.list({ body: { workItemId } })
+    expect(adminList.status).toBe(200)
+    expect(
+      (adminList.body as { comments: { content: string }[] }).comments.some(
+        (c) => c.content === commentText,
+      ),
+    ).toBe(true)
+
+    // A fresh, approved volunteer who is not the assignee
+    const api = createApiClient(baseUrl)
+    const person = fake.person()
+    const signup = await api.auth.signup({
+      body: {
+        name: person.name,
+        email: person.email,
+        password: 'testpassword1',
+        consentMakeProfileVisibleInDirectory: true,
+        consentContactableByProjectOwners: true,
+      },
+    })
+    expect(signup.status).toBe(200)
+    const {
+      id: volId,
+      token,
+      emailVerificationToken,
+    } = signup.body as { id: number; token: string; emailVerificationToken?: string }
+    if (emailVerificationToken) await confirmVolunteerEmail(baseUrl, emailVerificationToken)
+    await approveVolunteer(baseUrl, volId)
+    const volApi = createApiClient(baseUrl, token)
+
+    // Cannot read the thread (work item not visible) or post to it
+    const volList = await volApi.workItemComments.list({ body: { workItemId } })
+    expect(volList.status).toBe(404)
+    const volAdd = await volApi.workItemComments.add({
+      body: { workItemId, content: 'should be rejected' },
+    })
+    expect(volAdd.status).toBe(403)
   })
 })

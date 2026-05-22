@@ -1,6 +1,17 @@
 import { prisma } from './prisma'
-import { createNotification } from './project'
 import { sendProjectNotificationEmail } from './email'
+
+export async function createNotification(
+  volunteerId: number,
+  type: string,
+  title: string,
+  body?: string | null,
+  link?: string | null,
+) {
+  return prisma.notification.create({
+    data: { volunteerId, type, title, body: body ?? null, link: link ?? null },
+  })
+}
 
 export async function notifyUser(
   volunteerId: number,

@@ -175,11 +175,6 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
                       {t.skillName}
                     </span>
                   )}
-                  {t.feedbackToVolunteer && (
-                    <p className="mt-2 text-sm text-text-light italic">
-                      &ldquo;{t.feedbackToVolunteer}&rdquo;
-                    </p>
-                  )}
                 </div>
               ))}
             </div>

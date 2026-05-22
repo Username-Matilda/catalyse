@@ -3,6 +3,7 @@ import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
 import { sendRelayMessage, isEmailConfigured } from '@/lib/email'
 import { authedProcedure } from '../procedures'
+import { WorkItemType } from '@/generated/prisma/enums'
 
 const ContactSchema = z.object({
   recipientId: z.number().int(),
@@ -36,7 +37,7 @@ export const messagesRouter = {
         toVolunteerId: m.toVolunteerId,
         subject: m.subject,
         message: m.message,
-        relatedProjectId: m.relatedProjectId,
+        relatedProjectId: m.relatedWorkItemId,
         readAt: m.readAt,
         createdAt: m.createdAt,
         fromName: m.from.name,
@@ -47,7 +48,7 @@ export const messagesRouter = {
         toVolunteerId: m.toVolunteerId,
         subject: m.subject,
         message: m.message,
-        relatedProjectId: m.relatedProjectId,
+        relatedProjectId: m.relatedWorkItemId,
         readAt: m.readAt,
         createdAt: m.createdAt,
         toName: m.to.name,
@@ -87,8 +88,8 @@ export const messagesRouter = {
 
     let projectTitle: string | null = null
     if (input.relatedProjectId) {
-      const project = await prisma.project.findUnique({
-        where: { id: input.relatedProjectId },
+      const project = await prisma.workItem.findFirst({
+        where: { id: input.relatedProjectId, type: WorkItemType.PROJECT },
         select: { title: true },
       })
       if (project) projectTitle = project.title
@@ -101,7 +102,7 @@ export const messagesRouter = {
           toVolunteerId: input.recipientId,
           subject: input.subject,
           message: input.message,
-          relatedProjectId: input.relatedProjectId ?? null,
+          relatedWorkItemId: input.relatedProjectId ?? null,
         },
       })
       await tx.notification.create({

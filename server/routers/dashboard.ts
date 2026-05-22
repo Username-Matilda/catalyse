@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma'
-import { withProjectExtras, projectInclude, EnrichedProject } from '@/lib/project'
+import { withProjectExtras, projectInclude, EnrichedProject } from '@/lib/work-item'
 import { authedProcedure } from '../procedures'
-import { ProjectStatus } from '@/generated/prisma/enums'
+import { ProjectStatus, WorkItemType } from '@/generated/prisma/enums'
 
 export const dashboardRouter = {
   get: authedProcedure.handler(async ({ context }) => {
@@ -13,47 +13,49 @@ export const dashboardRouter = {
     })
     const volunteerSkillIds = new Set((volunteerWithSkills?.skills ?? []).map((s) => s.skillId))
 
-    const alreadyInterestedProjects = await prisma.projectInterest.findMany({
+    const alreadyInterestedProjects = await prisma.workItemInterest.findMany({
       where: { volunteerId: volunteer.id },
-      select: { projectId: true },
+      select: { workItemId: true },
     })
-    const interestedProjectIds = alreadyInterestedProjects.map((i) => i.projectId)
+    const interestedProjectIds = alreadyInterestedProjects.map((i) => i.workItemId)
 
     const [ownedProjects, proposedProjects, myInterests, suggestedProjects, unreadCount] =
       await Promise.all([
-        prisma.project.findMany({
-          where: { ownerId: volunteer.id },
+        prisma.workItem.findMany({
+          where: { type: WorkItemType.PROJECT, assigneeId: volunteer.id },
           orderBy: { updatedAt: 'desc' },
           include: projectInclude,
         }),
 
-        prisma.project.findMany({
+        prisma.workItem.findMany({
           where: {
-            proposedById: volunteer.id,
-            OR: [{ ownerId: null }, { ownerId: { not: volunteer.id } }],
+            type: WorkItemType.PROJECT,
+            creatorId: volunteer.id,
+            OR: [{ assigneeId: null }, { assigneeId: { not: volunteer.id } }],
           },
           orderBy: { createdAt: 'desc' },
           include: projectInclude,
         }),
 
-        prisma.projectInterest.findMany({
+        prisma.workItemInterest.findMany({
           where: { volunteerId: volunteer.id },
           orderBy: { createdAt: 'desc' },
           include: {
-            project: { include: projectInclude },
+            workItem: { include: projectInclude },
           },
         }),
 
         volunteerSkillIds.size > 0
-          ? prisma.project.findMany({
+          ? prisma.workItem.findMany({
               where: {
+                type: WorkItemType.PROJECT,
                 skills: { some: { skillId: { in: [...volunteerSkillIds] } } },
                 OR: [
                   { isSeekingHelp: true },
                   { isSeekingOwner: true },
                   { status: { in: [ProjectStatus.seeking_owner, ProjectStatus.seeking_help] } },
                 ],
-                ownerId: { not: volunteer.id },
+                assigneeId: { not: volunteer.id },
                 id: { notIn: interestedProjectIds.length > 0 ? interestedProjectIds : [-1] },
               },
               orderBy: { createdAt: 'desc' },
@@ -78,7 +80,7 @@ export const dashboardRouter = {
         interestCreatedAt: i.createdAt,
         interestResponseMessage: i.responseMessage,
         interestRespondedAt: i.respondedAt,
-        ...withProjectExtras(i.project as EnrichedProject, volunteerSkillIds),
+        ...withProjectExtras(i.workItem as EnrichedProject, volunteerSkillIds),
       })),
       suggestedProjects: suggestedProjects.map((p) =>
         withProjectExtras(p as EnrichedProject, volunteerSkillIds),

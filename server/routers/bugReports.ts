@@ -1,6 +1,6 @@
 import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
-import { createNotification } from '@/lib/project'
+import { createNotification } from '@/lib/notify'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { CreateBugReportSchema } from '@/lib/schemas'
 import { publicProcedure } from '../procedures'

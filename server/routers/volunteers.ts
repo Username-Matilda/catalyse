@@ -4,7 +4,12 @@ import { prisma } from '@/lib/prisma'
 import { redactVolunteer } from '@/lib/auth'
 import { UpdateVolunteerSchema } from '@/lib/schemas'
 import { publicProcedure, authedProcedure } from '../procedures'
-import { ApprovalStatus, ProjectStatus, StarterTaskStatus } from '@/generated/prisma/enums'
+import {
+  ApprovalStatus,
+  ProjectStatus,
+  StarterTaskStatus,
+  WorkItemType,
+} from '@/generated/prisma/enums'
 
 export const volunteersRouter = {
   list: publicProcedure
@@ -163,9 +168,10 @@ export const volunteersRouter = {
       }))
 
       const [projects, completedTasks] = await Promise.all([
-        prisma.project.findMany({
+        prisma.workItem.findMany({
           where: {
-            OR: [{ ownerId: input.id }, { proposedById: input.id }],
+            type: WorkItemType.PROJECT,
+            OR: [{ assigneeId: input.id }, { creatorId: input.id }],
             status: {
               notIn: [
                 ProjectStatus.archived,
@@ -180,23 +186,23 @@ export const volunteersRouter = {
             title: true,
             description: true,
             status: true,
-            ownerId: true,
-            proposedById: true,
+            assigneeId: true,
+            creatorId: true,
             createdAt: true,
             updatedAt: true,
           },
         }),
-        prisma.starterTask.findMany({
+        prisma.workItem.findMany({
           where: {
-            assignedToId: input.id,
-            status: { in: [StarterTaskStatus.completed, StarterTaskStatus.reviewed] },
+            type: WorkItemType.STARTER_TASK,
+            assigneeId: input.id,
+            status: StarterTaskStatus.completed,
             reviewRating: { in: ['excellent', 'good'] },
           },
           orderBy: { reviewedAt: 'desc' },
           select: {
             title: true,
             reviewRating: true,
-            feedbackToVolunteer: true,
             reviewedAt: true,
             skill: { select: { name: true } },
           },
@@ -210,13 +216,19 @@ export const volunteersRouter = {
           endorsements,
         }),
         projects: projects.map((p) => ({
-          ...p,
-          role: p.ownerId === input.id ? 'owner' : 'proposer',
+          id: p.id,
+          title: p.title,
+          description: p.description,
+          status: p.status,
+          ownerId: p.assigneeId,
+          proposedById: p.creatorId,
+          createdAt: p.createdAt,
+          updatedAt: p.updatedAt,
+          role: p.assigneeId === input.id ? 'owner' : 'proposer',
         })),
         completedTasks: completedTasks.map((t) => ({
           title: t.title,
           reviewRating: t.reviewRating,
-          feedbackToVolunteer: t.feedbackToVolunteer,
           reviewedAt: t.reviewedAt,
           skillName: t.skill?.name ?? null,
         })),

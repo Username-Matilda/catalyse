@@ -63,7 +63,7 @@ export const adminSkillsRouter = {
     const skill = await prisma.skill.findUnique({ where: { id: input.id } })
     if (!skill) throw new ORPCError('NOT_FOUND', { message: 'Skill not found' })
 
-    await prisma.starterTask.updateMany({ where: { skillId: input.id }, data: { skillId: null } })
+    await prisma.workItem.updateMany({ where: { skillId: input.id }, data: { skillId: null } })
     await prisma.skill.delete({ where: { id: input.id } })
 
     return { success: true, deletedSkill: { id: skill.id, name: skill.name } }

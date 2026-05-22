@@ -1,12 +1,15 @@
 import { prisma } from '@/lib/prisma'
-import { withProjectExtras, projectInclude, EnrichedProject } from '@/lib/project'
+import { withProjectExtras, projectInclude, EnrichedProject } from '@/lib/work-item'
 import { adminProcedure } from '../../procedures'
-import { ProjectStatus } from '@/generated/prisma/enums'
+import { ProjectStatus, WorkItemType } from '@/generated/prisma/enums'
 
 export const adminTriageRouter = {
   list: adminProcedure.handler(async () => {
-    const projects = await prisma.project.findMany({
-      where: { status: { in: [ProjectStatus.pending_review, ProjectStatus.needs_discussion] } },
+    const projects = await prisma.workItem.findMany({
+      where: {
+        type: WorkItemType.PROJECT,
+        status: { in: [ProjectStatus.pending_review, ProjectStatus.needs_discussion] },
+      },
       include: projectInclude,
       orderBy: { createdAt: 'asc' },
     })

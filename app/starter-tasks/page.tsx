@@ -66,7 +66,7 @@ export default function StarterTasksPage() {
               <div className="flex justify-between items-start mb-2">
                 <h3 className="m-0">{task.title}</h3>
                 <span
-                  className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${task.status === StarterTaskStatus.completed || task.status === StarterTaskStatus.reviewed ? 'bg-[#D1FAE5] text-[#065F46] dark:bg-[#064E3B] dark:text-[#6EE7B7]' : 'bg-[#FEF3C7] text-[#92400E] dark:bg-[#78350F] dark:text-[#FDE68A]'}`}
+                  className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${task.status === StarterTaskStatus.completed ? 'bg-[#D1FAE5] text-[#065F46] dark:bg-[#064E3B] dark:text-[#6EE7B7]' : 'bg-[#FEF3C7] text-[#92400E] dark:bg-[#78350F] dark:text-[#FDE68A]'}`}
                 >
                   {STATUS_LABELS[task.status] ?? task.status}
                 </span>
@@ -88,16 +88,7 @@ export default function StarterTasksPage() {
 
               <p className="whitespace-pre-wrap mb-4">{task.description}</p>
 
-              {task.feedbackToVolunteer && (
-                <div className="bg-surface rounded-lg p-3 mb-3">
-                  <strong className="text-sm">Feedback:</strong>
-                  <p className="mt-1 italic text-text-light">
-                    &ldquo;{task.feedbackToVolunteer}&rdquo;
-                  </p>
-                </div>
-              )}
-
-              {task.status === StarterTaskStatus.assigned && (
+              {task.status === StarterTaskStatus.in_progress && (
                 <Button
                   onClick={() => submitMutation.mutate({ id: task.id })}
                   disabled={submitMutation.isPending && submitMutation.variables?.id === task.id}

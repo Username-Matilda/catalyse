@@ -3,7 +3,7 @@ import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
 import { sendLocalGroupSuggestionEmail } from '@/lib/email'
 import { BASE_LOCATION_OPTIONS } from '@/lib/filter-options'
-import { createNotification } from '@/lib/project'
+import { createNotification } from '@/lib/notify'
 import { LocalGroupBodySchema, ReviewSuggestionSchema } from '@/lib/schemas'
 import { adminProcedure } from '../../procedures'
 import { LocalGroupSuggestionStatus } from '@/generated/prisma/enums'
@@ -67,7 +67,7 @@ export const adminLocalGroupsRouter = {
         where: { mergedIntoId: input.id },
         data: { mergedIntoId: null },
       }),
-      prisma.project.updateMany({
+      prisma.workItem.updateMany({
         where: { localGroup: existing.name },
         data: { localGroup: null },
       }),
