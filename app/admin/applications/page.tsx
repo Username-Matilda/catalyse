@@ -170,7 +170,7 @@ function ApplicationCard({
             {app.skills.map((s) => (
               <span
                 key={s.id}
-                className="inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-[#374151] dark:text-[#D1D5DB]"
+                className="inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-gray-700 dark:text-gray-300"
               >
                 {s.name}
               </span>

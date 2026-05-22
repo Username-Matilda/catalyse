@@ -66,7 +66,7 @@ export default function StarterTasksPage() {
               <div className="flex justify-between items-start mb-2">
                 <h3 className="m-0">{task.title}</h3>
                 <span
-                  className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${task.status === StarterTaskStatus.completed ? 'bg-[#D1FAE5] text-[#065F46] dark:bg-[#064E3B] dark:text-[#6EE7B7]' : 'bg-[#FEF3C7] text-[#92400E] dark:bg-[#78350F] dark:text-[#FDE68A]'}`}
+                  className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${task.status === StarterTaskStatus.completed ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200'}`}
                 >
                   {STATUS_LABELS[task.status] ?? task.status}
                 </span>
@@ -74,7 +74,7 @@ export default function StarterTasksPage() {
 
               <div className="flex gap-2 mb-3 flex-wrap">
                 {task.skillName && (
-                  <span className="inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-[#374151] dark:text-[#D1D5DB]">
+                  <span className="inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-gray-700 dark:text-gray-300">
                     {task.skillName}
                   </span>
                 )}

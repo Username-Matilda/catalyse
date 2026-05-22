@@ -82,7 +82,7 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
                 skills.map((s) => (
                   <span
                     key={s.id}
-                    className={`inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-[#374151] dark:text-[#D1D5DB]${endorsedSkillIds.has(s.id) ? ' matched' : ''}`}
+                    className={`inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-gray-700 dark:text-gray-300${endorsedSkillIds.has(s.id) ? ' matched' : ''}`}
                   >
                     {s.name}
                     {endorsedSkillIds.has(s.id) ? ' ✓' : ''}
@@ -108,7 +108,7 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
                 </div>
               )}
 
-              <div id="contactInfo" style={{ display: hasContact ? 'block' : 'none' }}>
+              <div id="contactInfo" className={hasContact ? 'block' : 'hidden'}>
                 <h4 className="text-text-light">Contact</h4>
                 <div>
                   {volunteer.email && <div>Email: {volunteer.email}</div>}
@@ -138,7 +138,7 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
                 {endorsements.map((e) => (
                   <span
                     key={e.skillId}
-                    className="inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-[#374151] dark:text-[#D1D5DB]"
+                    className="inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-gray-700 dark:text-gray-300"
                     style={{
                       borderLeft: `3px solid ${e.rating === 'strong' ? 'var(--success)' : 'var(--secondary)'}`,
                     }}
@@ -171,7 +171,7 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
                     </span>
                   </div>
                   {t.skillName && (
-                    <span className="inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-[#374151] dark:text-[#D1D5DB] mt-1">
+                    <span className="inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-gray-700 dark:text-gray-300 mt-1">
                       {t.skillName}
                     </span>
                   )}
@@ -190,7 +190,7 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
                       {p.title}
                     </Link>
                     <span
-                      className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${p.status === 'in_progress' || p.status === 'completed' ? 'bg-[#D1FAE5] text-[#065F46] dark:bg-[#064E3B] dark:text-[#6EE7B7]' : p.status === 'on_hold' ? 'bg-[#F3F4F6] text-[#374151] dark:bg-[#374151] dark:text-[#9CA3AF]' : p.status === 'seeking_help' ? 'bg-[#DBEAFE] text-[#1E40AF] dark:bg-[#1E3A5F] dark:text-[#93C5FD]' : 'bg-[#FEF3C7] text-[#92400E] dark:bg-[#78350F] dark:text-[#FDE68A]'}`}
+                      className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${p.status === 'in_progress' || p.status === 'completed' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300' : p.status === 'on_hold' ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-400' : p.status === 'seeking_help' ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200'}`}
                     >
                       {p.status.replace(/_/g, ' ')}
                     </span>

@@ -17,9 +17,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-3 flex-wrap mb-4 last:mb-0">
-      <span className="text-text-light text-sm" style={{ minWidth: 80 }}>
-        {label}
-      </span>
+      <span className="text-text-light text-sm min-w-[80px]">{label}</span>
       {children}
     </div>
   )
@@ -129,7 +127,7 @@ export default function ComponentPreviewPage() {
 
       <Section title="Button — className overrides">
         <Row label="w-full">
-          <div style={{ width: 320 }}>
+          <div className="w-[320px]">
             <Button className="w-full">Full-width (login / reset-password)</Button>
           </div>
         </Row>
@@ -192,10 +190,7 @@ export default function ComponentPreviewPage() {
           All × buttons now use <code>{'<Button variant="ghost" icon>'}</code>.
         </p>
         <Row label="modal header">
-          <div
-            className="bg-surface border border-brand-border rounded-lg px-4 py-3 flex items-center gap-4"
-            style={{ minWidth: 280 }}
-          >
+          <div className="bg-surface border border-brand-border rounded-lg px-4 py-3 flex items-center gap-4 min-w-[280px]">
             <span className="font-medium flex-1">Modal Header</span>
             <Button variant="ghost" icon aria-label="Close">
               ×
@@ -204,10 +199,7 @@ export default function ComponentPreviewPage() {
         </Row>
         <Row label="banner dismiss">
           {!dismissed ? (
-            <div
-              className="flex items-center justify-between gap-3 p-4 rounded-lg bg-[#DBEAFE] text-[#1E40AF] border border-[#93C5FD] dark:bg-[#1E3A5F] dark:text-[#93C5FD] dark:border-[#2563EB]"
-              style={{ minWidth: 300 }}
-            >
+            <div className="flex items-center justify-between gap-3 p-4 rounded-lg bg-blue-100 text-blue-800 border border-blue-300 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-600 min-w-[300px]">
               <span>Dismissible banner.</span>
               <Button variant="ghost" icon onClick={() => setDismissed(true)} aria-label="Dismiss">
                 ×
@@ -223,7 +215,7 @@ export default function ComponentPreviewPage() {
           )}
         </Row>
         <Row label="remove item">
-          <div className="flex flex-col gap-2" style={{ minWidth: 280 }}>
+          <div className="flex flex-col gap-2 min-w-[280px]">
             {tasks.map((t, i) => (
               <div
                 key={i}
@@ -250,7 +242,7 @@ export default function ComponentPreviewPage() {
         <p className="text-text-light text-sm mb-3">
           Ghost variant with error text colour override — sits inside dropdown menu.
         </p>
-        <div className="bg-surface border border-brand-border rounded-lg" style={{ minWidth: 180 }}>
+        <div className="bg-surface border border-brand-border rounded-lg min-w-[180px]">
           <Button
             variant="ghost"
             className="w-full justify-start px-4 py-3 text-error hover:text-error"

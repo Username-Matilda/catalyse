@@ -312,7 +312,7 @@ export default function SignupPage() {
             {error && (
               <div
                 role="alert"
-                className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]"
+                className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-red-100 text-red-800 border border-red-300 dark:bg-red-900 dark:text-red-300 dark:border-red-600"
               >
                 {error}
               </div>
@@ -368,7 +368,7 @@ export default function SignupPage() {
                 />
               </div>
 
-              <h3 style={{ marginTop: 24 }}>Contact Preferences</h3>
+              <h3 className="mt-6">Contact Preferences</h3>
               <p className="text-sm text-text-light mt-1 mb-4">
                 Add ways for project owners to reach you. All optional.
               </p>
@@ -427,7 +427,7 @@ export default function SignupPage() {
                 />
               </div>
 
-              <h3 style={{ marginTop: 24 }}>Availability</h3>
+              <h3 className="mt-6">Availability</h3>
               <div className="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-5">
                 <div className="mb-5">
                   <label htmlFor="g_availability">Hours per Week</label>
@@ -473,13 +473,13 @@ export default function SignupPage() {
                 </div>
               </div>
 
-              <h3 style={{ marginTop: 24 }}>Your Skills</h3>
-              <p className="text-sm text-text-light mt-1" style={{ marginBottom: 12 }}>
+              <h3 className="mt-6">Your Skills</h3>
+              <p className="text-sm text-text-light mt-1 mb-3">
                 Select skills you can contribute. This helps match you with projects.
               </p>
               <SkillPicker value={skills} onChange={setSkills} />
 
-              <div className="mb-5" style={{ marginTop: 16 }}>
+              <div className="mb-5 mt-4">
                 <label htmlFor="g_otherSkills">Other Skills</label>
                 <input
                   type="text"
@@ -490,10 +490,10 @@ export default function SignupPage() {
                 />
               </div>
 
-              <div style={{ marginTop: 24 }}>
+              <div className="mt-6">
                 <h3>Privacy &amp; Consent</h3>
                 <div className="flex flex-col gap-2">
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400 }}>
+                  <label className="flex items-center gap-2 font-normal">
                     <input
                       type="checkbox"
                       checked={consentVisible}
@@ -501,7 +501,7 @@ export default function SignupPage() {
                     />
                     Make my profile visible in the volunteer directory
                   </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400 }}>
+                  <label className="flex items-center gap-2 font-normal">
                     <input
                       type="checkbox"
                       checked={consentContact}
@@ -510,14 +510,7 @@ export default function SignupPage() {
                     Allow project owners to contact me about opportunities
                   </label>
                   <label
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      fontWeight: 400,
-                      marginLeft: 24,
-                      opacity: consentContact ? 1 : 0.5,
-                    }}
+                    className={`flex items-center gap-2 font-normal ml-6 ${consentContact ? 'opacity-100' : 'opacity-50'}`}
                   >
                     <input
                       type="checkbox"
@@ -528,7 +521,7 @@ export default function SignupPage() {
                     Share my contact info directly with project owners
                   </label>
                 </div>
-                <p className="text-sm text-text-light mt-1" style={{ marginTop: 12 }}>
+                <p className="text-sm text-text-light mt-3">
                   You can change these settings or delete your account at any time.{' '}
                   <Link href="/privacy" target="_blank">
                     Read our privacy policy
@@ -536,7 +529,7 @@ export default function SignupPage() {
                 </p>
               </div>
 
-              <h3 style={{ marginTop: 24 }}>Email Notifications</h3>
+              <h3 className="mt-6">Email Notifications</h3>
               <div className="mb-5">
                 <FilterDropdown
                   id="g_emailDigest"
@@ -548,14 +541,14 @@ export default function SignupPage() {
                 />
               </div>
 
-              <div style={{ marginTop: 12 }}>
+              <div className="mt-3">
                 <Button type="submit" className="w-full" disabled={googleApplicationSubmitting}>
                   {googleApplicationSubmitting ? 'Submitting…' : 'Submit Application'}
                 </Button>
               </div>
             </form>
 
-            <p className="text-center text-sm text-text-light" style={{ marginTop: 24 }}>
+            <p className="text-center text-sm text-text-light mt-6">
               <Link href="/privacy" className="text-text-light">
                 Privacy Policy
               </Link>
@@ -648,7 +641,7 @@ export default function SignupPage() {
           {error && (
             <div
               role="alert"
-              className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]"
+              className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-red-100 text-red-800 border border-red-300 dark:bg-red-900 dark:text-red-300 dark:border-red-600"
             >
               {error}
             </div>
@@ -669,10 +662,10 @@ export default function SignupPage() {
                   </button>
                 )}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', margin: '16px 0', gap: 16 }}>
-                <hr style={{ flex: 1, border: 'none', borderTop: '1px solid var(--border)' }} />
+              <div className="flex items-center my-4 gap-4">
+                <hr className="flex-1 border-none border-t border-brand-border" />
                 <span className="text-text-light text-sm">or sign up with email</span>
-                <hr style={{ flex: 1, border: 'none', borderTop: '1px solid var(--border)' }} />
+                <hr className="flex-1 border-none border-t border-brand-border" />
               </div>
             </>
           )}
@@ -781,7 +774,7 @@ export default function SignupPage() {
               />
             </div>
 
-            <h3 style={{ marginTop: 24 }}>Contact Preferences</h3>
+            <h3 className="mt-6">Contact Preferences</h3>
             <p className="text-sm text-text-light mt-1 mb-4">
               Add ways for project owners to reach you. All optional.
             </p>
@@ -844,7 +837,7 @@ export default function SignupPage() {
               />
             </div>
 
-            <h3 style={{ marginTop: 24 }}>Availability</h3>
+            <h3 className="mt-6">Availability</h3>
             <div className="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-5">
               <div className="mb-5">
                 <label htmlFor="availability">Hours per Week</label>
@@ -894,13 +887,13 @@ export default function SignupPage() {
               </div>
             </div>
 
-            <h3 style={{ marginTop: 24 }}>Your Skills</h3>
-            <p className="text-sm text-text-light mt-1" style={{ marginBottom: 12 }}>
+            <h3 className="mt-6">Your Skills</h3>
+            <p className="text-sm text-text-light mt-1 mb-3">
               Select skills you can contribute. This helps match you with projects.
             </p>
             <SkillPicker value={skills} onChange={setSkills} />
 
-            <div className="mb-5" style={{ marginTop: 16 }}>
+            <div className="mb-5 mt-4">
               <label htmlFor="otherSkills">Other Skills</label>
               <input
                 type="text"
@@ -912,10 +905,10 @@ export default function SignupPage() {
               />
             </div>
 
-            <div style={{ marginTop: 24 }}>
+            <div className="mt-6">
               <h3>Privacy &amp; Consent</h3>
               <div className="flex flex-col gap-2">
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400 }}>
+                <label className="flex items-center gap-2 font-normal">
                   <input
                     type="checkbox"
                     checked={consentVisible}
@@ -923,7 +916,7 @@ export default function SignupPage() {
                   />
                   Make my profile visible in the volunteer directory
                 </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400 }}>
+                <label className="flex items-center gap-2 font-normal">
                   <input
                     type="checkbox"
                     checked={consentContact}
@@ -932,14 +925,7 @@ export default function SignupPage() {
                   Allow project owners to contact me about opportunities
                 </label>
                 <label
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    fontWeight: 400,
-                    marginLeft: 24,
-                    opacity: consentContact ? 1 : 0.5,
-                  }}
+                  className={`flex items-center gap-2 font-normal ml-6 ${consentContact ? 'opacity-100' : 'opacity-50'}`}
                 >
                   <input
                     type="checkbox"
@@ -950,7 +936,7 @@ export default function SignupPage() {
                   Share my contact info directly with project owners
                 </label>
               </div>
-              <p className="text-sm text-text-light mt-1" style={{ marginTop: 12 }}>
+              <p className="text-sm text-text-light mt-3">
                 You can change these settings or delete your account at any time.{' '}
                 <Link href="/privacy" target="_blank">
                   Read our privacy policy
@@ -958,7 +944,7 @@ export default function SignupPage() {
               </p>
             </div>
 
-            <h3 style={{ marginTop: 24 }}>Email Notifications</h3>
+            <h3 className="mt-6">Email Notifications</h3>
             <div className="mb-5">
               <FilterDropdown
                 id="emailDigest"
@@ -970,18 +956,18 @@ export default function SignupPage() {
               />
             </div>
 
-            <div style={{ marginTop: 12 }}>
+            <div className="mt-3">
               <Button type="submit" className="w-full" disabled={submitting}>
                 {submitting ? 'Creating account…' : 'Create Account'}
               </Button>
             </div>
 
-            <p className="text-center text-text-light" style={{ marginTop: 16 }}>
+            <p className="text-center text-text-light mt-4">
               Already have an account? <Link href="/login">Login</Link>
             </p>
           </form>
 
-          <p className="text-center text-sm text-text-light" style={{ marginTop: 24 }}>
+          <p className="text-center text-sm text-text-light mt-6">
             <Link href="/privacy" className="text-text-light">
               Privacy Policy
             </Link>

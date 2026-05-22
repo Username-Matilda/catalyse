@@ -227,8 +227,8 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
     return (
       <>
         <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
-          <p style={{ color: 'var(--error)' }}>Volunteer not found.</p>
-          <Button href="/volunteers" variant="secondary" style={{ marginTop: 16 }}>
+          <p className="text-error">Volunteer not found.</p>
+          <Button href="/volunteers" variant="secondary" className="mt-4">
             Back
           </Button>
         </main>
@@ -246,89 +246,57 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
         </div>
 
         {/* Profile header */}
-        <div
-          className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
-          style={{ marginBottom: 24 }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'flex-start',
-              marginBottom: 12,
-            }}
-          >
+        <div className="bg-surface rounded-xl shadow p-6 mb-6 overflow-hidden wrap-break-word">
+          <div className="flex justify-between items-start mb-3">
             <div>
-              <h1 style={{ margin: '0 0 4px' }}>{vol.name}</h1>
-              <p className="text-text-light" style={{ margin: 0 }}>
-                {vol.email}
-              </p>
+              <h1 className="mb-1">{vol.name}</h1>
+              <p className="text-text-light m-0">{vol.email}</p>
             </div>
             <div className="flex gap-2">
               {vol.isAdmin && (
                 <span
-                  style={{
-                    padding: '2px 8px',
-                    borderRadius: 12,
-                    background: 'var(--primary-light, #e0f2fe)',
-                    fontSize: '0.8rem',
-                  }}
+                  className="py-0.5 px-2 rounded-xl text-[0.8rem]"
+                  style={{ background: 'var(--primary-light, #e0f2fe)' }}
                 >
                   Admin
                 </span>
               )}
               {!vol.consentMakeProfileVisibleInDirectory && (
                 <span
-                  style={{
-                    padding: '2px 8px',
-                    borderRadius: 12,
-                    background: 'var(--warning-bg, #fffbeb)',
-                    fontSize: '0.8rem',
-                  }}
+                  className="py-0.5 px-2 rounded-xl text-[0.8rem]"
+                  style={{ background: 'var(--warning-bg, #fffbeb)' }}
                 >
                   Profile Hidden
                 </span>
               )}
             </div>
           </div>
-          {vol.bio && <p style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{vol.bio}</p>}
+          {vol.bio && <p className="mb-0 whitespace-pre-wrap">{vol.bio}</p>}
         </div>
 
         {/* Skills and contact info */}
-        <div
-          className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
-          style={{ marginBottom: 24 }}
-        >
+        <div className="bg-surface rounded-xl shadow p-6 mb-6 overflow-hidden wrap-break-word">
           <h3>Skills (Self-Assessed)</h3>
           {vol.skills.length > 0 ? (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
+            <div className="flex flex-wrap gap-1.5 mb-4">
               {vol.skills.map((s) => (
                 <span
                   key={s.id}
-                  className="inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-[#374151] dark:text-[#D1D5DB]"
+                  className="inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-gray-700 dark:text-gray-300"
                 >
                   {s.name}
                 </span>
               ))}
             </div>
           ) : (
-            <p className="text-text-light" style={{ marginBottom: 16 }}>
-              No skills listed.
-            </p>
+            <p className="text-text-light mb-4">No skills listed.</p>
           )}
 
           <h3>Verified Skills (Endorsed)</h3>
-          <div id="endorsements" style={{ marginBottom: 16 }}>
+          <div id="endorsements" className="mb-4">
             {vol.endorsements.length > 0 ? (
               vol.endorsements.map((e) => (
-                <div
-                  key={e.id}
-                  style={{
-                    padding: '6px 0',
-                    borderBottom: '1px solid var(--border)',
-                    fontSize: '0.875rem',
-                  }}
-                >
+                <div key={e.id} className="py-1.5 border-b border-brand-border text-sm">
                   <strong>{e.skillName}</strong> — {e.rating} · by {e.endorsedByName}
                 </div>
               ))
@@ -339,36 +307,36 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
 
           <h3>Contact Info</h3>
           <div id="contactInfo" className="text-sm">
-            <p style={{ margin: '4px 0' }}>
+            <p className="my-1">
               <strong>Email:</strong> {vol.email}
             </p>
             {vol.location && (
-              <p style={{ margin: '4px 0' }}>
+              <p className="my-1">
                 <strong>Location:</strong> {vol.location}
               </p>
             )}
             {vol.localGroup && (
-              <p style={{ margin: '4px 0' }}>
+              <p className="my-1">
                 <strong>Local Group:</strong> {vol.localGroup}
               </p>
             )}
             {vol.availabilityHoursPerWeek && (
-              <p style={{ margin: '4px 0' }}>
+              <p className="my-1">
                 <strong>Availability:</strong> {vol.availabilityHoursPerWeek}h/week
               </p>
             )}
             {vol.discordHandle && (
-              <p style={{ margin: '4px 0' }}>
+              <p className="my-1">
                 <strong>Discord:</strong> {vol.discordHandle}
               </p>
             )}
             {vol.signalNumber && (
-              <p style={{ margin: '4px 0' }}>
+              <p className="my-1">
                 <strong>Signal:</strong> {vol.signalNumber}
               </p>
             )}
             {vol.whatsappNumber && (
-              <p style={{ margin: '4px 0' }}>
+              <p className="my-1">
                 <strong>WhatsApp:</strong> {vol.whatsappNumber}
               </p>
             )}
@@ -396,22 +364,13 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
             <div>
               <div id="notesList">
                 {vol.adminNotes.length === 0 && (
-                  <p className="text-text-light" style={{ marginBottom: 16 }}>
-                    No notes yet.
-                  </p>
+                  <p className="text-text-light mb-4">No notes yet.</p>
                 )}
                 {vol.adminNotes.map((n) => (
-                  <div
-                    key={n.id}
-                    style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}
-                  >
+                  <div key={n.id} className="py-3 border-b border-brand-border">
                     {editingNoteId === n.id ? (
                       <div>
-                        <label
-                          htmlFor={`edit-note-${n.id}`}
-                          className="text-sm"
-                          style={{ display: 'block', marginBottom: 4 }}
-                        >
+                        <label htmlFor={`edit-note-${n.id}`} className="text-sm block mb-1">
                           Edit note
                         </label>
                         <textarea
@@ -419,7 +378,7 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
                           rows={3}
                           value={editingNoteContent}
                           onChange={(e) => setEditingNoteContent(e.target.value)}
-                          style={{ width: '100%', marginBottom: 8 }}
+                          className="w-full mb-2"
                         />
                         <div className="flex gap-2">
                           <Button
@@ -444,28 +403,15 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
                       </div>
                     ) : (
                       <div>
-                        <div
-                          style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'flex-start',
-                          }}
-                        >
+                        <div className="flex justify-between items-start">
                           <div>
                             <span
-                              style={{
-                                fontSize: '0.8rem',
-                                background: 'var(--bg-secondary, #f8fafc)',
-                                padding: '1px 6px',
-                                borderRadius: 8,
-                              }}
+                              className="text-[0.8rem] px-1.5 py-px rounded-lg"
+                              style={{ background: 'var(--bg-secondary, #f8fafc)' }}
                             >
                               {n.category.replace(/_/g, ' ')}
                             </span>
-                            <span
-                              className="text-text-light"
-                              style={{ fontSize: '0.8rem', marginLeft: 8 }}
-                            >
+                            <span className="text-text-light text-[0.8rem] ml-2">
                               by {n.authorName}
                             </span>
                           </div>
@@ -485,16 +431,16 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
                             </Button>
                           </div>
                         </div>
-                        <p style={{ margin: '8px 0 0', whiteSpace: 'pre-wrap' }}>{n.content}</p>
+                        <p className="mt-2 whitespace-pre-wrap">{n.content}</p>
                       </div>
                     )}
                   </div>
                 ))}
               </div>
 
-              <form onSubmit={addNote} style={{ marginTop: 16 }}>
-                <div style={{ display: 'flex', gap: 12, marginBottom: 8, flexWrap: 'wrap' }}>
-                  <div className="mb-5" style={{ margin: 0 }}>
+              <form onSubmit={addNote} className="mt-4">
+                <div className="flex gap-3 mb-2 flex-wrap">
+                  <div className="m-0">
                     <FilterDropdown
                       id="note-category"
                       label="Category"
@@ -514,7 +460,7 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
                     onChange={(e) => setNoteContent(e.target.value)}
                     required
                     placeholder="Add an admin note…"
-                    style={{ width: '100%' }}
+                    className="w-full"
                   />
                 </div>
                 <Button type="submit" variant="secondary" disabled={submitting}>
@@ -533,13 +479,7 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
                 vol.starterTasks.map((t) => (
                   <div
                     key={t.id}
-                    className="text-sm"
-                    style={{
-                      padding: '8px 0',
-                      borderBottom: '1px solid var(--border)',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                    }}
+                    className="text-sm py-2 border-b border-brand-border flex justify-between"
                   >
                     <span>
                       {t.title}
@@ -564,14 +504,9 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
                 vol.projectHistory.map((p) => (
                   <div
                     key={p.id}
-                    style={{
-                      padding: '8px 0',
-                      borderBottom: '1px solid var(--border)',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                    }}
+                    className="py-2 border-b border-brand-border flex justify-between"
                   >
-                    <Link href={`/projects/${p.id}`} style={{ fontWeight: 500 }}>
+                    <Link href={`/projects/${p.id}`} className="font-medium">
                       {p.title}
                     </Link>
                     <div className="text-sm text-text-light">
@@ -587,11 +522,8 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
           {activeTab === 'endorse_skill' && (
             <div>
               <h3>Endorse a Skill</h3>
-              <form
-                onSubmit={addEndorsement}
-                style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 480 }}
-              >
-                <div className="mb-5" style={{ margin: 0 }}>
+              <form onSubmit={addEndorsement} className="flex flex-col gap-3 max-w-[480px]">
+                <div className="m-0">
                   <FilterDropdown
                     id="endorse-skill"
                     label="Skill"
@@ -608,7 +540,7 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
                     searchable
                   />
                 </div>
-                <div className="mb-5" style={{ margin: 0 }}>
+                <div className="m-0">
                   <FilterDropdown
                     id="endorse-rating"
                     label="Rating"
@@ -618,7 +550,7 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
                     onChange={(v) => setEndorseRating(v)}
                   />
                 </div>
-                <div className="mb-5" style={{ margin: 0 }}>
+                <div className="m-0">
                   <FilterDropdown
                     id="endorse-based-on"
                     label="Based On"

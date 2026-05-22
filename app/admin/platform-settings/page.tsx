@@ -42,7 +42,7 @@ export default function PlatformSettingsPage() {
             }
           />
         </div>
-        <p className="text-[var(--text-light)] text-sm">
+        <p className="text-text-light text-sm">
           When enabled, new volunteers must be reviewed and approved by an admin before gaining
           access. When disabled, volunteers are automatically approved after verifying their email.
         </p>

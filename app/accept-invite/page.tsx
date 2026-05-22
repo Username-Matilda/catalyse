@@ -56,12 +56,10 @@ function AcceptInviteContent() {
     return (
       <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word text-center">
         <h2>Admin Invite</h2>
-        <p className="text-text-light" style={{ margin: '16px 0' }}>
+        <p className="text-text-light my-4">
           You&apos;ve been invited to become an admin on Catalyse.
         </p>
-        <p style={{ marginBottom: 24 }}>
-          Please log in or sign up with the invited email address to accept.
-        </p>
+        <p className="mb-6">Please log in or sign up with the invited email address to accept.</p>
         <Button href={`/login?redirect=${redirectUrl}`}>Log In</Button>
         <Button href={`/signup?redirect=${redirectUrl}`} variant="outline" className="ml-2">
           Sign Up
@@ -74,9 +72,7 @@ function AcceptInviteContent() {
     return (
       <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word text-center">
         <h2>Welcome to the Team!</h2>
-        <p className="text-text-light" style={{ margin: '16px 0' }}>
-          You now have admin access to Catalyse. Redirecting…
-        </p>
+        <p className="text-text-light my-4">You now have admin access to Catalyse. Redirecting…</p>
         <Button href="/admin/triage">Go to Admin Dashboard</Button>
       </div>
     )
@@ -88,7 +84,7 @@ function AcceptInviteContent() {
   return (
     <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word text-center">
       <h2>Invite Error</h2>
-      <p style={{ margin: '16px 0', color: 'var(--error)' }}>{errorMsg}</p>
+      <p className="my-4 text-error">{errorMsg}</p>
       <Button href="/" variant="outline">
         Back to Home
       </Button>
@@ -100,7 +96,7 @@ export default function AcceptInvitePage() {
   return (
     <>
       <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
-        <div style={{ maxWidth: 500, margin: '60px auto', textAlign: 'center' }}>
+        <div className="max-w-[500px] my-15 mx-auto text-center">
           <Suspense fallback={<div className="text-center py-10 text-text-light">Loading…</div>}>
             <AcceptInviteContent />
           </Suspense>

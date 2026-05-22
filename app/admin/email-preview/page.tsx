@@ -193,54 +193,29 @@ function EmailRow({
   }
 
   return (
-    <section style={{ borderBottom: '1px solid #e2e8f0', padding: '32px 0' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 16 }}>
-        <h2 style={{ margin: 0, fontSize: 18, color: '#1A202C' }}>{type.label}</h2>
+    <section className="border-b border-brand-border py-8">
+      <div className="flex items-baseline gap-3 mb-4">
+        <h2 className="m-0 text-lg text-brand-text">{type.label}</h2>
         <button
           onClick={openInNewTab}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: '#FF9416',
-            cursor: 'pointer',
-            fontSize: 13,
-            padding: 0,
-          }}
+          className="bg-transparent border-none text-primary cursor-pointer text-[13px] p-0"
         >
           Open in new tab ↗
         </button>
       </div>
-      <div
-        style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 32, alignItems: 'start' }}
-      >
+      <div className="grid grid-cols-[300px_1fr] gap-8 items-start">
         <div>
-          <p
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              color: '#718096',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              margin: '0 0 8px',
-            }}
-          >
+          <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-[0.05em] mb-2">
             Parameters
           </p>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <table className="w-full border-collapse text-[13px]">
             <tbody>
               {Object.entries(type.params).map(([key, val]) => (
                 <tr key={key}>
-                  <td
-                    style={{
-                      padding: '4px 8px 4px 0',
-                      color: '#718096',
-                      whiteSpace: 'nowrap',
-                      verticalAlign: 'top',
-                    }}
-                  >
+                  <td className="py-1 pr-2 pl-0 text-gray-500 whitespace-nowrap align-top">
                     {key}
                   </td>
-                  <td style={{ padding: '4px 0', color: '#2D3748', wordBreak: 'break-word' }}>
+                  <td className="py-1 text-secondary break-words">
                     {typeof val === 'boolean' ? (val ? 'true' : 'false') : String(val)}
                   </td>
                 </tr>
@@ -250,22 +225,15 @@ function EmailRow({
         </div>
         <div>
           {preview?.subject && (
-            <p style={{ fontSize: 13, color: '#718096', margin: '0 0 8px', fontStyle: 'italic' }}>
-              Subject: <strong style={{ color: '#2D3748' }}>{preview.subject}</strong>
+            <p className="text-[13px] text-gray-500 mb-2 italic">
+              Subject: <strong className="text-secondary">{preview.subject}</strong>
             </p>
           )}
-          <div
-            style={{
-              border: '1px solid #e2e8f0',
-              borderRadius: 8,
-              overflow: 'hidden',
-              background: '#fff',
-            }}
-          >
+          <div className="border border-brand-border rounded-lg overflow-hidden bg-white">
             {preview?.html ? (
               <AutoIframe html={preview.html} />
             ) : (
-              <p style={{ padding: 16, color: '#718096', margin: 0 }}>Loading…</p>
+              <p className="p-4 text-gray-500 m-0">Loading…</p>
             )}
           </div>
         </div>
@@ -288,11 +256,9 @@ export default function EmailPreviewPage() {
 
   return (
     <>
-      <main style={{ width: '100%', maxWidth: 1280, margin: '0 auto', padding: '32px 24px 64px' }}>
-        <h1 style={{ marginBottom: 4 }}>Email Previews</h1>
-        <p style={{ color: '#718096', marginBottom: 0 }}>
-          All transactional emails rendered with sample data.
-        </p>
+      <main className="w-full max-w-[1280px] mx-auto pt-8 px-6 pb-16">
+        <h1 className="mb-1">Email Previews</h1>
+        <p className="text-gray-500 mb-0">All transactional emails rendered with sample data.</p>
         {EMAIL_TYPES.map((t, i) => (
           <EmailRow key={t.value} type={t} preview={results[i].data} />
         ))}

@@ -24,8 +24,8 @@ function ResetPasswordForm() {
   if (!token) {
     return (
       <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word text-center">
-        <h3 style={{ color: 'var(--error)' }}>Invalid Link</h3>
-        <p className="text-text-light" style={{ margin: '16px 0' }}>
+        <h3 className="text-error">Invalid Link</h3>
+        <p className="text-text-light my-4">
           This reset link is invalid or has expired. Please request a new one.
         </p>
         <Button href="/forgot-password" variant="outline">
@@ -67,7 +67,7 @@ function ResetPasswordForm() {
       {error && (
         <div
           role="alert"
-          className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]"
+          className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-red-100 text-red-800 border border-red-300 dark:bg-red-900 dark:text-red-300 dark:border-red-600"
         >
           {error}
         </div>
@@ -117,7 +117,7 @@ export default function ResetPasswordPage() {
   return (
     <>
       <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
-        <div style={{ maxWidth: 400, margin: '60px auto' }}>
+        <div className="max-w-[400px] my-15 mx-auto">
           <h1 className="text-center">Set New Password</h1>
           <Suspense fallback={<div className="text-center py-10 text-text-light">Loading…</div>}>
             <ResetPasswordForm />

@@ -28,9 +28,7 @@ export default function AdminStatsPage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-surface rounded-xl shadow p-6 overflow-hidden">
               <h2 className="mt-0">Volunteers</h2>
-              <div
-                style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginTop: 16 }}
-              >
+              <div className="grid grid-cols-2 gap-5 mt-4">
                 <div>
                   <div className="text-4xl font-bold text-primary mb-1">
                     {stats.volunteers.total}
@@ -48,7 +46,7 @@ export default function AdminStatsPage() {
 
             <div className="bg-surface rounded-xl shadow p-6 overflow-hidden">
               <h2 className="mt-0">Projects</h2>
-              <div style={{ marginTop: 16 }}>
+              <div className="mt-4">
                 {[
                   { label: 'Total', value: stats.projects.total, color: undefined },
                   {
@@ -66,13 +64,7 @@ export default function AdminStatsPage() {
                 ].map((row, i, arr) => (
                   <div
                     key={row.label}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      padding: '8px 0',
-                      borderBottom:
-                        i < arr.length - 1 ? '1px solid var(--color-border)' : undefined,
-                    }}
+                    className={`flex justify-between py-2${i < arr.length - 1 ? ' border-b border-brand-border' : ''}`}
                   >
                     <span className={row.color}>{row.label}</span>
                     <strong>{row.value}</strong>
@@ -83,9 +75,7 @@ export default function AdminStatsPage() {
 
             <div className="bg-surface rounded-xl shadow p-6 overflow-hidden">
               <h2 className="mt-0">Volunteer Interest</h2>
-              <div
-                style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginTop: 16 }}
-              >
+              <div className="grid grid-cols-2 gap-5 mt-4">
                 <div>
                   <div className="text-4xl font-bold text-secondary mb-1">
                     {stats.interests.total}
@@ -103,7 +93,7 @@ export default function AdminStatsPage() {
 
             <div className="bg-surface rounded-xl shadow p-6 overflow-hidden">
               <h2 className="mt-0">Quick Actions</h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 16 }}>
+              <div className="flex flex-col gap-3 mt-4">
                 <Button variant="outline" href="/admin/triage">
                   Review Pending Projects ({stats.projects.pendingReview})
                 </Button>

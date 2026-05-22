@@ -175,13 +175,13 @@ export default function VolunteersPage() {
                           {shown.map((s) => (
                             <span
                               key={s.id}
-                              className="inline-flex items-center px-2 py-0.5 bg-accent text-secondary-dark rounded-full text-xs font-medium dark:bg-[#374151] dark:text-[#D1D5DB]"
+                              className="inline-flex items-center px-2 py-0.5 bg-accent text-secondary-dark rounded-full text-xs font-medium dark:bg-gray-700 dark:text-gray-300"
                             >
                               {s.name}
                             </span>
                           ))}
                           {overflow > 0 && (
-                            <span className="inline-flex items-center px-2 py-0.5 bg-[#F3F4F6] text-text-light rounded-full text-xs font-medium dark:bg-[#374151] dark:text-[#9CA3AF]">
+                            <span className="inline-flex items-center px-2 py-0.5 bg-gray-100 text-text-light rounded-full text-xs font-medium dark:bg-gray-700 dark:text-gray-400">
                               and {overflow} more
                             </span>
                           )}

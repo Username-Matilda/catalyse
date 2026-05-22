@@ -193,7 +193,7 @@ export default function SettingsPage() {
           >
             <div className="bg-surface rounded-xl shadow-lg max-w-125 w-full max-h-[90vh] overflow-y-auto">
               <div className="px-6 py-5 border-b border-brand-border flex justify-between items-center">
-                <h2 style={{ margin: 0, fontSize: '1.25rem' }}>Delete Your Account</h2>
+                <h2 className="m-0 text-xl">Delete Your Account</h2>
               </div>
               <div className="p-6">
                 {user.hasPassword && (

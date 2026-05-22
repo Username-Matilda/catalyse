@@ -657,7 +657,7 @@ export default function AdminLocalGroupsPage() {
                             "e.g., Thanks for the suggestion. This area isn't something we're able to support at the moment.",
                         }[reviewAction] ?? ''
                       }
-                      style={{ width: '100%' }}
+                      className="w-full"
                     />
                     <p className="text-sm text-text-light mt-1">
                       This note will be shared with the volunteer.

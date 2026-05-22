@@ -76,7 +76,7 @@ function VerifyEmailContent() {
 
   return (
     <div className="bg-surface rounded-xl shadow p-8 text-center">
-      <h1 style={token ? { color: 'var(--error)' } : undefined}>
+      <h1 className={token ? 'text-error' : undefined}>
         {token ? 'Confirmation failed' : 'Confirm your email'}
       </h1>
       <p className="text-text-light mt-4 mb-6">{errorMessage}</p>
