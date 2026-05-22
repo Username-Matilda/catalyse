@@ -100,7 +100,11 @@ export default function ProjectsPage() {
   }
   if (sortBy) projectsInput.sortBy = sortBy
 
-  const { data: projectsData, isPending: loadingProjects } = useQuery({
+  const {
+    data: projectsData,
+    isPending: loadingProjects,
+    error: projectsError,
+  } = useQuery({
     ...orpc.projects.list.queryOptions({ input: projectsInput }),
     enabled: !!user,
   })
@@ -276,6 +280,15 @@ export default function ProjectsPage() {
 
         {loadingProjects ? (
           <div className="text-center py-10 text-text-light">Loading projects…</div>
+        ) : projectsError ? (
+          <div className="text-center py-15 px-5 text-text-light">
+            <h3>Couldn’t load projects</h3>
+            <p>
+              {projectsError instanceof Error
+                ? projectsError.message
+                : 'Something went wrong loading projects.'}
+            </p>
+          </div>
         ) : projects.length === 0 ? (
           <div className="text-center py-15 px-5 text-text-light">
             <h3>No projects found</h3>
