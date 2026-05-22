@@ -43,7 +43,7 @@ function VerifyEmailContent() {
     resendMutation.mutate({ email: resendEmail })
   }
 
-  if (!token || (verifyMutation.isPending && !verifyMutation.isSuccess)) {
+  if (token && verifyMutation.isPending && !verifyMutation.isSuccess) {
     return (
       <div className="bg-surface rounded-xl shadow p-8 text-center">
         <p className="text-text-light">Confirming your email address…</p>
@@ -70,13 +70,15 @@ function VerifyEmailContent() {
       ? verifyMutation.error.message
       : token
         ? 'Email confirmation failed'
-        : 'No confirmation token found. Please use the link from your email.'
+        : 'Enter your email below to receive a confirmation link.'
 
   const alreadyUsed = errorMessage.includes('already been used')
 
   return (
     <div className="bg-surface rounded-xl shadow p-8 text-center">
-      <h1 style={{ color: 'var(--error)' }}>Confirmation failed</h1>
+      <h1 style={token ? { color: 'var(--error)' } : undefined}>
+        {token ? 'Confirmation failed' : 'Confirm your email'}
+      </h1>
       <p className="text-text-light mt-4 mb-6">{errorMessage}</p>
       {!alreadyUsed && (
         <div className="mt-2 pt-6 border-t border-border text-left">

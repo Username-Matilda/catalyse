@@ -283,7 +283,11 @@ export default function ProjectsPage() {
         ) : projectsError ? (
           <div className="text-center py-15 px-5 text-text-light">
             <h3>Couldn’t load projects</h3>
-            <p>{projectsError.message || 'Something went wrong loading projects.'}</p>
+            <p>
+              {projectsError instanceof Error
+                ? projectsError.message
+                : 'Something went wrong loading projects.'}
+            </p>
           </div>
         ) : projects.length === 0 ? (
           <div className="text-center py-15 px-5 text-text-light">
