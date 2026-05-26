@@ -14,19 +14,9 @@ import {
   CARD_GRID_CLASSES,
 } from '@/components/ProjectCard'
 import Tabs from '@/components/Tabs'
-import CommentThread from '@/components/CommentThread'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import { InterestStatus, ProjectStatus } from '@/generated/prisma/enums'
-
-interface Project extends CardProject {
-  ownerId: number | null
-  reviewNotes: string | null
-}
-
-interface ReviewModal {
-  project: Project
-}
 
 export default function TriagePage() {
   const { user, loading } = useRequireAdmin()
@@ -35,10 +25,6 @@ export default function TriagePage() {
   const [tab, setTab] = useState<'pending_review' | 'needs_discussion' | 'interests'>(
     'pending_review',
   )
-  const [modal, setModal] = useState<ReviewModal | null>(null)
-  const [decision, setDecision] = useState<'approved' | 'needs_discussion'>('approved')
-  const [feedback, setFeedback] = useState('')
-  const [reviewNotes, setReviewNotes] = useState('')
 
   const {
     value: interestStatusFilter,
@@ -67,21 +53,6 @@ export default function TriagePage() {
     enabled: !!user?.isAdmin,
   })
 
-  const reviewMutation = useMutation({
-    ...orpc.admin.projects.review.mutationOptions(),
-    onSuccess: (_, variables) => {
-      showToast(
-        `Project ${variables.status === 'approved' ? 'approved' : 'moved to discussion'}!`,
-        'success',
-      )
-      setModal(null)
-      void queryClient.invalidateQueries({ queryKey: orpc.admin.triage.list.key() })
-    },
-    onError: (err: unknown) => {
-      showToast(err instanceof Error ? err.message : 'Failed to submit review', 'error')
-    },
-  })
-
   const respondInterestMutation = useMutation({
     ...orpc.projects.respondToInterest.mutationOptions(),
     onError: (err: unknown) => {
@@ -92,35 +63,12 @@ export default function TriagePage() {
     },
   })
 
-  function openReview(project: Project) {
-    setModal({ project })
-    setDecision('approved')
-    setFeedback('')
-    setReviewNotes(project.reviewNotes || '')
-  }
-
-  function closeModal() {
-    setModal(null)
-  }
-
-  function submitReview(e: React.FormEvent) {
-    e.preventDefault()
-    if (!modal) return
-    reviewMutation.mutate({
-      id: modal.project.id,
-      status: decision,
-      comment: decision === 'needs_discussion' ? feedback : null,
-      reviewNotes: reviewNotes || null,
-      targetStatus: modal.project.ownerId ? 'seeking_help' : 'seeking_owner',
-    })
-  }
-
   if (loading || !user) return null
 
-  const pending = (projects as unknown as Project[]).filter(
+  const pending = (projects as unknown as CardProject[]).filter(
     (p) => p.status === ProjectStatus.pending_review,
   )
-  const discussion = (projects as unknown as Project[]).filter(
+  const discussion = (projects as unknown as CardProject[]).filter(
     (p) => p.status === ProjectStatus.needs_discussion,
   )
   const pendingInterests = interests.filter((i) => i.status === InterestStatus.pending)
@@ -328,7 +276,7 @@ export default function TriagePage() {
                         : null,
                     }}
                     action={
-                      <Button size="sm" onClick={() => openReview(p)}>
+                      <Button size="sm" href={`/projects/${p.id}`}>
                         Review
                       </Button>
                     }
@@ -339,109 +287,6 @@ export default function TriagePage() {
           </>
         )}
       </main>
-
-      {modal && (
-        <div
-          className="fixed inset-0 bg-[rgba(29,53,87,0.5)] flex items-center justify-center z-1000 p-5"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) closeModal()
-          }}
-        >
-          <div className="bg-surface rounded-xl shadow-lg max-w-125 w-full max-h-[90vh] overflow-y-auto">
-            <div className="px-6 py-5 border-b border-brand-border flex justify-between items-center">
-              <h2 role="heading">Review Project</h2>
-              <Button variant="ghost" icon onClick={closeModal} aria-label="Close">
-                ×
-              </Button>
-            </div>
-
-            <div className="p-6">
-              <h3 className="mb-2">{modal.project.title}</h3>
-              <p className="text-text-light whitespace-pre-wrap mb-4 max-h-[200px] overflow-auto">
-                {modal.project.description}
-              </p>
-
-              <div className="mb-5">
-                <label>Discussion</label>
-                <div className="mt-2 max-h-60 overflow-auto">
-                  <CommentThread
-                    workItemId={modal.project.id}
-                    placeholder="Reply to the proposer…"
-                  />
-                </div>
-              </div>
-
-              <form onSubmit={submitReview}>
-                <div className="mb-5">
-                  <label>Decision</label>
-                  <div className="flex flex-col gap-2 mt-2">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="decision"
-                        value="approved"
-                        checked={decision === 'approved'}
-                        onChange={() => setDecision('approved')}
-                      />
-                      <span>
-                        <strong>Approve</strong> — Make visible to volunteers
-                      </span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="decision"
-                        value="needs_discussion"
-                        checked={decision === 'needs_discussion'}
-                        onChange={() => setDecision('needs_discussion')}
-                      />
-                      <span>
-                        <strong>Needs Discussion</strong> — Reach out to proposer
-                      </span>
-                    </label>
-                  </div>
-                </div>
-
-                {decision === 'needs_discussion' && (
-                  <div className="mb-5">
-                    <label htmlFor="feedback-proposer">Message to Proposer</label>
-                    <textarea
-                      id="feedback-proposer"
-                      aria-label="Message to Proposer"
-                      rows={3}
-                      value={feedback}
-                      onChange={(e) => setFeedback(e.target.value)}
-                      placeholder="Explain what you'd like to discuss…"
-                      className="w-full"
-                    />
-                  </div>
-                )}
-
-                <div className="mb-5">
-                  <label htmlFor="review-notes">Internal Notes (not shared)</label>
-                  <textarea
-                    id="review-notes"
-                    rows={2}
-                    value={reviewNotes}
-                    onChange={(e) => setReviewNotes(e.target.value)}
-                    placeholder="Notes for other admins…"
-                    className="w-full"
-                  />
-                </div>
-
-                <div className="px-6 py-4 border-t border-brand-border flex gap-3 justify-end">
-                  <Button type="button" variant="secondary" onClick={closeModal}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={reviewMutation.isPending}>
-                    {reviewMutation.isPending ? 'Submitting…' : 'Submit Review'}
-                  </Button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   )
 }

@@ -88,17 +88,16 @@ export async function adminApproveProject(
 
   const projectCard = adminPage.locator('.card').filter({ hasText: projectTitle })
   await expect(projectCard).toBeVisible({ timeout: 10_000 })
-  await projectCard.getByRole('button', { name: 'Review' }).click()
+  await projectCard.getByRole('link', { name: 'Review' }).click()
 
-  await expect(adminPage.getByRole('heading', { name: 'Review Project' })).toBeVisible({
+  await expect(adminPage.getByRole('heading', { level: 2, name: 'Review Project' })).toBeVisible({
     timeout: 10_000,
   })
   await adminPage.getByRole('button', { name: 'Submit Review' }).click()
 
-  await expect(getAlert(adminPage)).toBeVisible({ timeout: 10_000 })
-  await expect(adminPage.getByRole('heading', { name: 'Review Project' })).not.toBeVisible({
-    timeout: 10_000,
-  })
+  await expect(
+    adminPage.getByRole('heading', { level: 2, name: 'Review Project' }),
+  ).not.toBeVisible({ timeout: 10_000 })
 }
 
 export async function adminRecordOutcome(

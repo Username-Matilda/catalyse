@@ -44,7 +44,7 @@ test.describe('Project Lifecycle', () => {
     await adminPage.goto(`${baseUrl}/admin/triage`)
     const projectCard = adminPage.locator('.card').filter({ hasText: title })
     await expect(projectCard).toBeVisible({ timeout: 10_000 })
-    await projectCard.getByRole('button', { name: 'Review' }).click()
+    await projectCard.getByRole('link', { name: 'Review' }).click()
     await expect(adminPage.getByRole('heading', { name: 'Review Project' })).toBeVisible({
       timeout: 10_000,
     })
@@ -81,7 +81,7 @@ test.describe('Project Lifecycle', () => {
     await adminPage.goto(`${baseUrl}/admin/triage`)
     const card = adminPage.locator('.card').filter({ hasText: title })
     await expect(card).toBeVisible({ timeout: 10_000 })
-    await card.getByRole('button', { name: 'Review' }).click()
+    await card.getByRole('link', { name: 'Review' }).click()
     await expect(adminPage.getByRole('heading', { name: 'Review Project' })).toBeVisible({
       timeout: 10_000,
     })
@@ -101,7 +101,7 @@ test.describe('Project Lifecycle', () => {
     await adminPage.getByRole('tab', { name: 'Needs Discussion' }).click()
     const discussionCard = adminPage.locator('.card').filter({ hasText: title })
     await expect(discussionCard).toBeVisible({ timeout: 10_000 })
-    await discussionCard.getByRole('button', { name: 'Review' }).click()
+    await discussionCard.getByRole('link', { name: 'Review' }).click()
     await expect(adminPage.getByRole('heading', { name: 'Review Project' })).toBeVisible({
       timeout: 10_000,
     })
