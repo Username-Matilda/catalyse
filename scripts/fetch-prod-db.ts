@@ -242,7 +242,7 @@ function anonymise(dbPath: string): void {
   }
 
   db.exec('UPDATE notifications SET body = NULL')
-  db.exec("UPDATE project_updates SET content = '[redacted]'")
+  db.exec("UPDATE work_item_comments SET content = '[redacted]'")
 
   db.exec('PRAGMA journal_mode=DELETE')
   db.close()
