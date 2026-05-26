@@ -140,17 +140,10 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
                 {endorsements.map((e) => (
                   <span
                     key={e.skillId}
-                    className="inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-gray-700 dark:text-gray-300"
-                    style={{
-                      borderLeft: `3px solid ${e.rating === 'strong' ? 'var(--success)' : 'var(--secondary)'}`,
-                    }}
+                    className={`inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-gray-700 dark:text-gray-300 border-l-[3px] ${e.rating === 'strong' ? 'border-l-success' : 'border-l-secondary'}`}
                   >
                     {e.skillName}{' '}
-                    <small
-                      style={{
-                        color: e.rating === 'strong' ? 'var(--success)' : 'var(--secondary)',
-                      }}
-                    >
+                    <small className={e.rating === 'strong' ? 'text-success' : 'text-secondary'}>
                       {e.rating}
                     </small>
                   </span>
