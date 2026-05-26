@@ -1,4 +1,11 @@
-import { test, expect, getAlert, readAdminToken, confirmVolunteerEmail, approveVolunteer } from '../fixtures'
+import {
+  test,
+  expect,
+  getAlert,
+  readAdminToken,
+  confirmVolunteerEmail,
+  approveVolunteer,
+} from '../fixtures'
 import { fake } from '../fake'
 import { proposeProject, adminCreateProject, adminApproveProject } from '../actions/projects'
 import { Page } from '@playwright/test'
@@ -92,7 +99,19 @@ test.describe('Project Tasks', () => {
 
     // Admin creates a project and a task
     const projectCreated = await adminApi.admin.projects.create({
-      body: { title: fake.projectTitle(), description: 'Task comment back-and-forth test' },
+      body: {
+        title: fake.projectTitle(),
+        description: 'Task comment back-and-forth test',
+        projectType: null,
+        estimatedDuration: null,
+        timeCommitmentHoursPerWeek: null,
+        urgency: 'medium',
+        collaborationLink: null,
+        country: null,
+        localGroup: null,
+        isSeekingHelp: false,
+        isSeekingOwner: false,
+      },
     })
     expect(projectCreated.status).toBe(200)
     const projectId = (projectCreated.body as { id: number }).id
