@@ -242,14 +242,16 @@ test.describe('Project Interests and Assignment', () => {
 
     // Admin (the project creator) receives a comment notification
     await goToDashboardNotifications(baseUrl, adminPage)
-    await expect(adminPage.locator('strong').filter({ hasText: 'New comment on' })).toBeVisible({
+    await expect(
+      adminPage.locator('strong').filter({ hasText: `New comment on "${title}"` }),
+    ).toBeVisible({
       timeout: 10_000,
     })
 
     // The author (volunteer) is NOT notified of their own comment
     await goToDashboardNotifications(baseUrl, volunteer.page)
     await expect(
-      volunteer.page.locator('strong').filter({ hasText: 'New comment on' }),
+      volunteer.page.locator('strong').filter({ hasText: `New comment on "${title}"` }),
     ).not.toBeVisible({ timeout: 5_000 })
   })
 
