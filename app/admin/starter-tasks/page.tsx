@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { useRequireAdmin } from '@/lib/hooks/auth'
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Badge, type BadgeVariant } from '@/components/Badge'
 import Button from '@/components/Button'
 import CommentThread from '@/components/CommentThread'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
@@ -38,17 +39,17 @@ interface Volunteer {
   name: string
 }
 
-const STATUS_STYLES: Record<string, { background: string; color: string }> = {
-  open: { background: '#FED7AA', color: '#9A3412' },
-  in_progress: { background: '#DBEAFE', color: '#1E40AF' },
-  under_review: { background: '#FEF3C7', color: '#92400E' },
-  completed: { background: '#D1FAE5', color: '#065F46' },
+const STATUS_VARIANTS: Record<string, BadgeVariant> = {
+  open: 'warning',
+  in_progress: 'info',
+  under_review: 'caution',
+  completed: 'success',
 }
 
-const RATING_COLORS: Record<string, string> = {
-  excellent: 'var(--success, #059669)',
-  good: 'var(--secondary, #1D3557)',
-  needs_improvement: 'var(--error, #DC2626)',
+const RATING_CLASSES: Record<string, string> = {
+  excellent: 'text-success',
+  good: 'text-secondary',
+  needs_improvement: 'text-error',
 }
 
 const RATING_LABELS: Record<string, string> = {
@@ -380,21 +381,20 @@ export default function AdminStarterTasksPage() {
                           </span>
                         )}
                         {task.reviewRating && (
-                          <span style={{ color: RATING_COLORS[task.reviewRating] }}>
+                          <span className={RATING_CLASSES[task.reviewRating]}>
                             {RATING_LABELS[task.reviewRating]}
                           </span>
                         )}
                       </div>
                     </div>
                   </div>
-                  <span
+                  <Badge
                     role="status"
-                    className="status-badge px-2 py-0.5 rounded-xl text-xs font-semibold uppercase tracking-[0.05em] whitespace-nowrap shrink-0"
-                    // dynamic: background/color vary by task.status
-                    style={STATUS_STYLES[task.status]}
+                    variant={STATUS_VARIANTS[task.status] ?? 'neutral'}
+                    className="whitespace-nowrap shrink-0"
                   >
                     {task.status}
-                  </span>
+                  </Badge>
                 </div>
 
                 {expanded && (
@@ -402,11 +402,7 @@ export default function AdminStarterTasksPage() {
                     <p className="whitespace-pre-wrap mb-3 text-[0.9rem]">{task.description}</p>
 
                     {task.reviewRating && (
-                      <p
-                        className="mb-2 font-medium"
-                        // dynamic: color varies by reviewRating
-                        style={{ color: RATING_COLORS[task.reviewRating] }}
-                      >
+                      <p className={`mb-2 font-medium ${RATING_CLASSES[task.reviewRating]}`}>
                         Rating: {RATING_LABELS[task.reviewRating]}
                       </p>
                     )}

@@ -254,18 +254,12 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
             </div>
             <div className="flex gap-2">
               {vol.isAdmin && (
-                <span
-                  className="py-0.5 px-2 rounded-xl text-[0.8rem]"
-                  style={{ background: 'var(--primary-light, #e0f2fe)' }}
-                >
+                <span className="py-0.5 px-2 rounded-xl text-[0.8rem] bg-blue-100 dark:bg-blue-950">
                   Admin
                 </span>
               )}
               {!vol.consentMakeProfileVisibleInDirectory && (
-                <span
-                  className="py-0.5 px-2 rounded-xl text-[0.8rem]"
-                  style={{ background: 'var(--warning-bg, #fffbeb)' }}
-                >
+                <span className="py-0.5 px-2 rounded-xl text-[0.8rem] bg-amber-50 dark:bg-amber-900">
                   Profile Hidden
                 </span>
               )}
@@ -405,10 +399,7 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
                       <div>
                         <div className="flex justify-between items-start">
                           <div>
-                            <span
-                              className="text-[0.8rem] px-1.5 py-px rounded-lg"
-                              style={{ background: 'var(--bg-secondary, #f8fafc)' }}
-                            >
+                            <span className="text-[0.8rem] px-1.5 py-px rounded-lg bg-brand-bg">
                               {n.category.replace(/_/g, ' ')}
                             </span>
                             <span className="text-text-light text-[0.8rem] ml-2">

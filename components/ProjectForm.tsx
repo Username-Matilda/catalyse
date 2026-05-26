@@ -160,11 +160,7 @@ export default function ProjectForm({
           placeholder="A clear, descriptive name for the project"
           aria-invalid={!!fe('title') || undefined}
         />
-        {fe('title') && (
-          <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
-            {fe('title')}
-          </p>
-        )}
+        {fe('title') && <p className="text-sm mt-1 text-error">{fe('title')}</p>}
       </div>
 
       <div className="mb-5">
@@ -185,9 +181,7 @@ export default function ProjectForm({
           aria-invalid={!!fe('description') || undefined}
         />
         {fe('description') ? (
-          <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
-            {fe('description')}
-          </p>
+          <p className="text-sm mt-1 text-error">{fe('description')}</p>
         ) : (
           <p className="text-sm text-text-light mt-1">
             The more detail you provide, the easier it is to find the right contributors and get
@@ -209,9 +203,7 @@ export default function ProjectForm({
           }}
         />
         {fe('project_type') ? (
-          <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
-            {fe('project_type')}
-          </p>
+          <p className="text-sm mt-1 text-error">{fe('project_type')}</p>
         ) : (
           <p className="text-sm text-text-light mt-1">
             This helps contributors understand the commitment involved
@@ -236,9 +228,7 @@ export default function ProjectForm({
             aria-invalid={!!fe('time_commitment_hours_per_week') || undefined}
           />
           {fe('time_commitment_hours_per_week') ? (
-            <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
-              {fe('time_commitment_hours_per_week')}
-            </p>
+            <p className="text-sm mt-1 text-error">{fe('time_commitment_hours_per_week')}</p>
           ) : (
             <p className="text-sm text-text-light mt-1">
               Estimated weekly time from each contributor
@@ -258,11 +248,7 @@ export default function ProjectForm({
               clearFieldError('urgency')
             }}
           />
-          {fe('urgency') && (
-            <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
-              {fe('urgency')}
-            </p>
-          )}
+          {fe('urgency') && <p className="text-sm mt-1 text-error">{fe('urgency')}</p>}
         </div>
       </div>
 
@@ -281,9 +267,7 @@ export default function ProjectForm({
             aria-invalid={!!fe('estimated_duration') || undefined}
           />
           {fe('estimated_duration') ? (
-            <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
-              {fe('estimated_duration')}
-            </p>
+            <p className="text-sm mt-1 text-error">{fe('estimated_duration')}</p>
           ) : (
             <p className="text-sm text-text-light mt-1">
               Roughly how long do you expect this to take?
@@ -307,9 +291,7 @@ export default function ProjectForm({
           searchable
         />
         {fe('country') || fe('local_group') ? (
-          <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
-            {fe('country') ?? fe('local_group')}
-          </p>
+          <p className="text-sm mt-1 text-error">{fe('country') ?? fe('local_group')}</p>
         ) : (
           <p className="text-sm text-text-light mt-1">
             Where is this project based? Local groups appear indented under their country.{' '}
@@ -334,9 +316,7 @@ export default function ProjectForm({
           aria-invalid={!!fe('collaboration_link') || undefined}
         />
         {fe('collaboration_link') ? (
-          <p className="text-sm mt-1" style={{ color: 'var(--error)' }}>
-            {fe('collaboration_link')}
-          </p>
+          <p className="text-sm mt-1 text-error">{fe('collaboration_link')}</p>
         ) : (
           <p className="text-sm text-text-light mt-1">
             A URL to a planning doc or workspace, or just describe your plans for collaboration
@@ -409,7 +389,7 @@ export default function ProjectForm({
                 placeholder="More detail about what needs doing…"
                 value={task.description}
                 onChange={(e) => updateTask(i, 'description', e.target.value)}
-                style={{ minHeight: 60 }}
+                className="min-h-14"
               />
             </div>
             {tasks.length > 1 && (

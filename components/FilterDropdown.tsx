@@ -162,8 +162,9 @@ export default function FilterDropdown<T extends string>({
   const triggerClass =
     'w-full flex items-center justify-between p-3 bg-[var(--surface)] text-[var(--text)] border-2 border-[var(--border)] rounded-[var(--radius)] text-base font-[var(--font-body)] cursor-pointer focus:outline-none focus:border-[var(--secondary)] transition-colors'
 
+  // min-w-[200px]: deliberate minimum to prevent dropdown from collapsing on short labels
   return (
-    <div ref={ref} style={{ minWidth: 200 }}>
+    <div ref={ref} className="min-w-[200px]">
       <label htmlFor={id}>{label}</label>
       <div className="relative">
         <button

@@ -41,9 +41,7 @@ export default function SkillPicker({
     <div>
       {categories.map((cat) => (
         <div key={cat.id} className="mb-4">
-          <div style={{ fontWeight: 600, marginBottom: 8, color: 'var(--secondary-dark)' }}>
-            {cat.name}
-          </div>
+          <div className="font-semibold mb-2 text-secondary-dark">{cat.name}</div>
           <div className="flex flex-wrap gap-2">
             {cat.skills.map((skill) => {
               const selected = value.find((s) => s.skillId === skill.id)
