@@ -819,51 +819,54 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         )}
 
         {/* Admin triage */}
-        {isAdmin && project.status === ProjectStatus.pending_review && !reviewDone && (
-          <div className={card}>
-            <h2>Review Project</h2>
-            <form onSubmit={handleSubmitReview}>
-              <div className="mb-5">
-                <label className="flex items-center gap-2 cursor-pointer mb-2 font-normal">
-                  <input
-                    type="radio"
-                    name="review_status"
-                    value="approved"
-                    checked={reviewStatus === 'approved'}
-                    onChange={() => setReviewStatus('approved')}
-                  />
-                  Approve
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer font-normal">
-                  <input
-                    type="radio"
-                    name="review_status"
-                    value="needs_discussion"
-                    checked={reviewStatus === 'needs_discussion'}
-                    onChange={() => setReviewStatus('needs_discussion')}
-                  />
-                  Needs Discussion
-                </label>
-              </div>
-              {reviewStatus === 'needs_discussion' && (
+        {isAdmin &&
+          (project.status === ProjectStatus.pending_review ||
+            project.status === ProjectStatus.needs_discussion) &&
+          !reviewDone && (
+            <div className={card}>
+              <h2>Review Project</h2>
+              <form onSubmit={handleSubmitReview}>
                 <div className="mb-5">
-                  <label htmlFor="review-message">Message to Proposer</label>
-                  <textarea
-                    id="review-message"
-                    aria-label="Message to Proposer"
-                    rows={3}
-                    value={reviewMessage}
-                    onChange={(e) => setReviewMessage(e.target.value)}
-                    placeholder="What do you want to discuss?"
-                  />
+                  <label className="flex items-center gap-2 cursor-pointer mb-2 font-normal">
+                    <input
+                      type="radio"
+                      name="review_status"
+                      value="approved"
+                      checked={reviewStatus === 'approved'}
+                      onChange={() => setReviewStatus('approved')}
+                    />
+                    Approve
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer font-normal">
+                    <input
+                      type="radio"
+                      name="review_status"
+                      value="needs_discussion"
+                      checked={reviewStatus === 'needs_discussion'}
+                      onChange={() => setReviewStatus('needs_discussion')}
+                    />
+                    Needs Discussion
+                  </label>
                 </div>
-              )}
-              <Button type="submit" disabled={reviewMutation.isPending}>
-                {reviewMutation.isPending ? 'Submitting…' : 'Submit Review'}
-              </Button>
-            </form>
-          </div>
-        )}
+                {reviewStatus === 'needs_discussion' && (
+                  <div className="mb-5">
+                    <label htmlFor="review-message">Message to Proposer</label>
+                    <textarea
+                      id="review-message"
+                      aria-label="Message to Proposer"
+                      rows={3}
+                      value={reviewMessage}
+                      onChange={(e) => setReviewMessage(e.target.value)}
+                      placeholder="What do you want to discuss?"
+                    />
+                  </div>
+                )}
+                <Button type="submit" disabled={reviewMutation.isPending}>
+                  {reviewMutation.isPending ? 'Submitting…' : 'Submit Review'}
+                </Button>
+              </form>
+            </div>
+          )}
 
         {/* Project Updates */}
         <div className={card}>

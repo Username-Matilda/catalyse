@@ -393,9 +393,9 @@ test.describe('Authentication: Signup & Login', () => {
       await page.goto(`${baseUrl}/signup`)
 
       // Stub button only appears in dev/test (no GOOGLE_CLIENT_ID configured)
-      await expect(
-        page.getByRole('button', { name: /Sign up with Google/ }),
-      ).toBeVisible({ timeout: 10_000 })
+      await expect(page.getByRole('button', { name: /Sign up with Google/ })).toBeVisible({
+        timeout: 10_000,
+      })
       await page.getByRole('button', { name: /Sign up with Google/ }).click()
 
       // Google account created; application form appears
