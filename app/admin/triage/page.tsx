@@ -128,7 +128,7 @@ export default function TriagePage() {
 
   return (
     <>
-      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
+      <main className="container py-5 pb-15">
         <h1>Project Triage</h1>
 
         <Tabs
@@ -261,7 +261,7 @@ export default function TriagePage() {
                         {i.volunteerSkills.map((s: { id: number; name: string }) => (
                           <span
                             key={s.id}
-                            className="inline-flex items-center px-2 py-0.5 bg-accent text-secondary-dark rounded-full text-xs font-medium dark:bg-[#374151] dark:text-[#D1D5DB]"
+                            className="inline-flex items-center px-2 py-0.5 bg-accent text-secondary-dark rounded-full text-xs font-medium dark:bg-gray-700 dark:text-gray-300"
                           >
                             {s.name}
                           </span>
@@ -356,16 +356,8 @@ export default function TriagePage() {
             </div>
 
             <div className="p-6">
-              <h3 style={{ marginBottom: 8 }}>{modal.project.title}</h3>
-              <p
-                className="text-text-light"
-                style={{
-                  whiteSpace: 'pre-wrap',
-                  marginBottom: 16,
-                  maxHeight: 200,
-                  overflow: 'auto',
-                }}
-              >
+              <h3 className="mb-2">{modal.project.title}</h3>
+              <p className="text-text-light whitespace-pre-wrap mb-4 max-h-[200px] overflow-auto">
                 {modal.project.description}
               </p>
 
@@ -382,10 +374,8 @@ export default function TriagePage() {
               <form onSubmit={submitReview}>
                 <div className="mb-5">
                   <label>Decision</label>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
-                    <label
-                      style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
-                    >
+                  <div className="flex flex-col gap-2 mt-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="radio"
                         name="decision"
@@ -397,9 +387,7 @@ export default function TriagePage() {
                         <strong>Approve</strong> — Make visible to volunteers
                       </span>
                     </label>
-                    <label
-                      style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
-                    >
+                    <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="radio"
                         name="decision"
@@ -424,7 +412,7 @@ export default function TriagePage() {
                       value={feedback}
                       onChange={(e) => setFeedback(e.target.value)}
                       placeholder="Explain what you'd like to discuss…"
-                      style={{ width: '100%' }}
+                      className="w-full"
                     />
                   </div>
                 )}
@@ -437,7 +425,7 @@ export default function TriagePage() {
                     value={reviewNotes}
                     onChange={(e) => setReviewNotes(e.target.value)}
                     placeholder="Notes for other admins…"
-                    style={{ width: '100%' }}
+                    className="w-full"
                   />
                 </div>
 

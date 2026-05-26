@@ -97,17 +97,17 @@ export default function LoginPage() {
           onLoad={initGoogleButton}
         />
       )}
-      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
-        <div style={{ maxWidth: 400, margin: '60px auto' }}>
+      <main className="container py-5 pb-15">
+        <div className="max-w-[400px] my-15 mx-auto">
           <h1 className="text-center">Welcome Back</h1>
-          <p className="text-center text-text-light" style={{ marginBottom: 32 }}>
+          <p className="text-center text-text-light mb-8">
             Login to access your dashboard and projects.
           </p>
 
           {error && (
             <div
               role="alert"
-              className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]"
+              className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-red-100 text-red-800 border border-red-300 dark:bg-red-900 dark:text-red-300 dark:border-red-600"
             >
               {error}
             </div>
@@ -117,10 +117,10 @@ export default function LoginPage() {
             {googleClientId && (
               <div className="text-center mb-5">
                 <div id="g_signin_btn" className="flex justify-center" />
-                <div style={{ display: 'flex', alignItems: 'center', margin: '20px 0', gap: 16 }}>
-                  <hr style={{ flex: 1, border: 'none', borderTop: '1px solid var(--border)' }} />
+                <div className="flex items-center my-5 gap-4">
+                  <hr className="flex-1 border-none border-t border-brand-border" />
                   <span className="text-text-light text-sm">or use email</span>
-                  <hr style={{ flex: 1, border: 'none', borderTop: '1px solid var(--border)' }} />
+                  <hr className="flex-1 border-none border-t border-brand-border" />
                 </div>
               </div>
             )}
@@ -161,16 +161,16 @@ export default function LoginPage() {
                 {submitting ? 'Logging in…' : 'Login'}
               </Button>
 
-              <p className="text-center" style={{ marginTop: 16 }}>
+              <p className="text-center mt-4">
                 <Link href="/forgot-password">Forgot your password?</Link>
               </p>
-              <p className="text-center text-text-light" style={{ marginTop: 12 }}>
+              <p className="text-center text-text-light mt-3">
                 Don&apos;t have an account? <Link href="/signup">Sign up</Link>
               </p>
             </form>
           </div>
 
-          <p className="text-center text-sm text-text-light" style={{ marginTop: 24 }}>
+          <p className="text-center text-sm text-text-light mt-6">
             <Link href="/privacy" className="text-text-light">
               Privacy Policy
             </Link>

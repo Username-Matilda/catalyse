@@ -187,11 +187,11 @@ export default function ProjectsPage() {
 
   return (
     <>
-      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
+      <main className="container py-5 pb-15">
         <h1 role="heading">Projects</h1>
 
         {user.isAdmin && pendingCount > 0 && (
-          <div className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEF3C7] text-[#92400E] border border-[#FCD34D] dark:bg-[#78350F] dark:text-[#FDE68A] dark:border-[#D97706]">
+          <div className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-900 dark:text-amber-200 dark:border-amber-600">
             <strong>
               {pendingCount} project{pendingCount !== 1 ? 's' : ''} pending review.
             </strong>{' '}
@@ -201,7 +201,7 @@ export default function ProjectsPage() {
           </div>
         )}
         {user.isAdmin && pendingApplicationsCount > 0 && (
-          <div className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#EDE9FE] text-[#5B21B6] border border-[#C4B5FD] dark:bg-[#2E1065] dark:text-[#C4B5FD] dark:border-[#7C3AED]">
+          <div className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-violet-100 text-violet-800 border border-violet-300 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-600">
             <strong>
               {pendingApplicationsCount} application{pendingApplicationsCount !== 1 ? 's' : ''}{' '}
               pending review.
@@ -342,7 +342,7 @@ export default function ProjectsPage() {
                           {g.label} — {g.projects.length} project
                           {g.projects.length !== 1 ? 's' : ''}
                           <svg
-                            className="text-text-light shrink-0"
+                            className={`text-text-light shrink-0 transition-transform ${completedOpen ? 'rotate-180' : 'rotate-0'}`}
                             width="32"
                             height="32"
                             viewBox="0 0 24 24"
@@ -351,10 +351,6 @@ export default function ProjectsPage() {
                             strokeWidth="2.5"
                             strokeLinecap="round"
                             strokeLinejoin="round"
-                            style={{
-                              transform: completedOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                              transition: 'transform 0.2s',
-                            }}
                           >
                             <polyline points="6 9 12 15 18 9" />
                           </svg>

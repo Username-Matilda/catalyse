@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
+import { Badge } from '@/components/Badge'
+import { STATUS_LABELS, projectStatusVariant } from '@/components/ProjectCard'
 import CommentThread from '@/components/CommentThread'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import { orpc } from '@/lib/orpc'
@@ -13,18 +15,6 @@ import { useToast } from '@/lib/toast'
 import { InterestStatus, ProjectStatus, TaskStatus } from '@/generated/prisma/enums'
 
 // ── Types ────────────────────────────────────────────────────────────────────
-
-const STATUS_LABELS: Record<string, string> = {
-  seeking_owner: 'Seeking Owner',
-  seeking_help: 'Seeking Help',
-  needs_tasks: 'Needs Tasks',
-  in_progress: 'In Progress',
-  on_hold: 'On Hold',
-  completed: 'Completed',
-  archived: 'Archived',
-  pending_review: 'Pending Review',
-  needs_discussion: 'Needs Discussion',
-}
 
 const OWNER_STATUSES = [
   { value: 'seeking_owner', label: 'Seeking Owner' },
@@ -44,20 +34,6 @@ const ADMIN_EXTRA_STATUSES = [
 // ── Tailwind class constants ──────────────────────────────────────────────────
 
 const card = 'bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word'
-
-function statusBadge(status: string) {
-  const colors: Record<string, string> = {
-    seeking_owner: 'bg-[#FEF3C7] text-[#92400E] dark:bg-[#78350F] dark:text-[#FDE68A]',
-    seeking_help: 'bg-[#DBEAFE] text-[#1E40AF] dark:bg-[#1E3A5F] dark:text-[#93C5FD]',
-    needs_tasks: 'bg-[#FEF9C3] text-[#713F12] dark:bg-[#78350F] dark:text-[#FDE68A]',
-    in_progress: 'bg-[#D1FAE5] text-[#065F46] dark:bg-[#064E3B] dark:text-[#6EE7B7]',
-    on_hold: 'bg-[#F3F4F6] text-[#374151] dark:bg-[#374151] dark:text-[#9CA3AF]',
-    completed: 'bg-[#D1FAE5] text-[#065F46] dark:bg-[#064E3B] dark:text-[#6EE7B7]',
-    pending_review: 'bg-[#FEF3C7] text-[#92400E] dark:bg-[#78350F] dark:text-[#FDE68A]',
-    needs_discussion: 'bg-[#FCE7F3] text-[#9D174D]',
-  }
-  return `inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${colors[status] ?? 'bg-[#F3F4F6] text-[#374151]'}`
-}
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -303,7 +279,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   if (loadingProject) {
     return (
       <>
-        <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
+        <main className="container py-5 pb-15">
           <div className="text-center py-10 text-text-light">Loading project…</div>
         </main>
       </>
@@ -441,12 +417,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   return (
     <>
-      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
+      <main className="container py-5 pb-15">
         {/* [test hook] projectContent id used by action helpers to confirm page has loaded */}
         <div id="projectContent" className="flex items-center gap-3 flex-wrap mb-2">
-          <span aria-label="project status" className={statusBadge(project.status)}>
+          <Badge variant={projectStatusVariant(project.status)} aria-label="project status">
             {STATUS_LABELS[project.status] ?? project.status}
-          </span>
+          </Badge>
           {isOwnerOrAdmin && (
             <Button href={`/projects/${idParam}/edit`} variant="secondary" size="sm">
               Edit
@@ -471,8 +447,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     key={s.id}
                     className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
                       s.isRequired
-                        ? 'bg-secondary text-white dark:bg-[#4B5563]'
-                        : 'bg-accent text-secondary-dark dark:bg-[#374151] dark:text-[#D1D5DB]'
+                        ? 'bg-secondary text-white dark:bg-gray-600'
+                        : 'bg-accent text-secondary-dark dark:bg-gray-700 dark:text-gray-300'
                     }`}
                   >
                     {s.name}
@@ -488,9 +464,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           {!isOwner && project.match && project.match.overallScore > 0 && (
             <div className="mt-3 flex items-center gap-2">
               <span className="text-sm text-text-light">Your skill match:</span>
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-[#D1FAE5] text-[#065F46] dark:bg-[#064E3B] dark:text-[#6EE7B7]">
+              <Badge variant="success" className="text-sm">
                 {project.match.overallScore}%
-              </span>
+              </Badge>
             </div>
           )}
 
@@ -533,7 +509,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         {project.outcome && (
           <div
             role="status"
-            className="bg-[#D1FAE5] dark:bg-[#064E3B] border border-[#6EE7B7] dark:border-[#059669] rounded-xl p-6 mb-4"
+            className="bg-emerald-100 dark:bg-emerald-900 border border-emerald-300 dark:border-emerald-600 rounded-xl p-6 mb-4"
           >
             <strong>Outcome: </strong>
             {project.outcome === 'successful'
@@ -556,10 +532,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             {!project.myInterest ? (
               <form onSubmit={handleExpressInterest}>
                 <div className="mb-5">
-                  <label
-                    className="flex items-center gap-2 cursor-pointer mb-2"
-                    style={{ fontWeight: 400 }}
-                  >
+                  <label className="flex items-center gap-2 cursor-pointer mb-2 font-normal">
                     <input
                       type="radio"
                       name="interest_type"
@@ -569,10 +542,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     />
                     I want to help out / contribute to this project
                   </label>
-                  <label
-                    className="flex items-center gap-2 cursor-pointer"
-                    style={{ fontWeight: 400 }}
-                  >
+                  <label className="flex items-center gap-2 cursor-pointer font-normal">
                     <input
                       type="radio"
                       name="interest_type"
@@ -621,7 +591,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         {/* Tasks */}
         <div className={card}>
           <div className="flex justify-between items-center mb-3">
-            <h2 style={{ margin: 0 }}>Tasks</h2>
+            <h2 className="m-0">Tasks</h2>
             {isOwnerOrAdmin && (
               <Button variant="secondary" onClick={() => setShowTaskForm((v) => !v)}>
                 Add Task
@@ -698,7 +668,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           <div className={card}>
             <h2>Manage Project Status</h2>
             <form onSubmit={handleUpdateStatus} className="flex gap-2 items-end flex-wrap">
-              <div className="mb-0 flex-1" style={{ minWidth: 160 }}>
+              <div className="mb-0 flex-1 min-w-[160px]">
                 <FilterDropdown
                   id="change-status"
                   label="Change Status"
@@ -738,9 +708,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                             ? 'wants to own'
                             : 'wants to help'}
                         </span>
-                        <span className={`ml-2 ${statusBadge(interest.status)}`}>
+                        <Badge variant={projectStatusVariant(interest.status)} className="ml-2">
                           {interest.status}
-                        </span>
+                        </Badge>
                         {interest.message && (
                           <p className="text-sm mt-1 mb-0">{interest.message}</p>
                         )}
@@ -767,7 +737,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
             {volunteers.length > 0 && (
               <form onSubmit={handleAssign} className="flex gap-2 items-end flex-wrap mt-4">
-                <div className="flex-1" style={{ minWidth: 200 }}>
+                <div className="flex-1 min-w-[200px]">
                   <FilterDropdown
                     id="assign-volunteer"
                     label="Assign volunteer directly"
@@ -794,7 +764,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           <div className={card}>
             <h3>Transfer Ownership</h3>
             <form onSubmit={handleTransfer} className="flex gap-2 items-end flex-wrap">
-              <div className="flex-1" style={{ minWidth: 200 }}>
+              <div className="flex-1 min-w-[200px]">
                 <FilterDropdown
                   id="transfer-to"
                   label="Transfer to"
@@ -854,10 +824,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             <h2>Review Project</h2>
             <form onSubmit={handleSubmitReview}>
               <div className="mb-5">
-                <label
-                  className="flex items-center gap-2 cursor-pointer mb-2"
-                  style={{ fontWeight: 400 }}
-                >
+                <label className="flex items-center gap-2 cursor-pointer mb-2 font-normal">
                   <input
                     type="radio"
                     name="review_status"
@@ -867,10 +834,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   />
                   Approve
                 </label>
-                <label
-                  className="flex items-center gap-2 cursor-pointer"
-                  style={{ fontWeight: 400 }}
-                >
+                <label className="flex items-center gap-2 cursor-pointer font-normal">
                   <input
                     type="radio"
                     name="review_status"
@@ -927,7 +891,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             className="bg-surface rounded-xl shadow-lg max-w-125 w-full max-h-[90vh] overflow-y-auto"
           >
             <div className="px-6 py-5 border-b border-brand-border flex justify-between items-center">
-              <h2 style={{ margin: 0, fontSize: '1.25rem' }}>Contact Owner</h2>
+              <h2 className="m-0 text-xl">Contact Owner</h2>
               <Button
                 variant="ghost"
                 icon

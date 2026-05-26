@@ -34,8 +34,8 @@ export default function PrivacyPage() {
 
   return (
     <>
-      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
-        <div style={{ maxWidth: 600, margin: '0 auto' }}>
+      <main className="container py-5 pb-15">
+        <div className="max-w-[600px] mx-auto">
           <h1>Privacy &amp; Data</h1>
           <p className="text-text-light mb-6">
             Manage your data and privacy settings. We&apos;re committed to respecting your rights
@@ -59,10 +59,7 @@ export default function PrivacyPage() {
                 </Button>
               </div>
 
-              <div
-                className="bg-surface rounded-xl shadow p-6 overflow-hidden wrap-break-word mb-6"
-                style={{ borderColor: 'var(--warning)' }}
-              >
+              <div className="bg-surface rounded-xl shadow p-6 overflow-hidden wrap-break-word mb-6 border-warning">
                 <h2>Delete Your Account</h2>
                 <p className="text-text-light mb-4">
                   Permanently delete your account and all associated data. This action cannot be
@@ -79,7 +76,7 @@ export default function PrivacyPage() {
             <h2>Our Data Practices</h2>
 
             <h4>What we collect</h4>
-            <ul className="list-disc text-text-light mb-4" style={{ paddingLeft: 20 }}>
+            <ul className="list-disc text-text-light mb-4 pl-5">
               <li>Information you provide (name, email, bio, contact details)</li>
               <li>Skills and availability you share</li>
               <li>Projects you propose or express interest in</li>
@@ -89,7 +86,7 @@ export default function PrivacyPage() {
 
             <h4>Legal basis for processing</h4>
             <p className="text-text-light">We process your data based on:</p>
-            <ul className="list-disc text-text-light mb-4" style={{ paddingLeft: 20 }}>
+            <ul className="list-disc text-text-light mb-4 pl-5">
               <li>
                 <strong>Consent</strong> — for sharing your profile with other volunteers and
                 allowing project owners to contact you (you can withdraw consent at any time via
@@ -107,7 +104,7 @@ export default function PrivacyPage() {
             </ul>
 
             <h4>How we use it</h4>
-            <ul className="list-disc text-text-light mb-4" style={{ paddingLeft: 20 }}>
+            <ul className="list-disc text-text-light mb-4 pl-5">
               <li>To match you with relevant projects based on your skills</li>
               <li>To enable project owners to contact you (with your consent)</li>
               <li>
@@ -133,7 +130,7 @@ export default function PrivacyPage() {
             </ul>
 
             <h4>What we don&apos;t do</h4>
-            <ul className="list-disc text-text-light mb-4" style={{ paddingLeft: 20 }}>
+            <ul className="list-disc text-text-light mb-4 pl-5">
               <li>We never sell your data</li>
               <li>We don&apos;t share your contact info without your consent</li>
               <li>
@@ -149,7 +146,7 @@ export default function PrivacyPage() {
               The following services process data on our behalf (as data processors under GDPR
               Article 28). We have assessed each for adequate data protection safeguards:
             </p>
-            <ul className="list-disc text-text-light mb-4" style={{ paddingLeft: 20 }}>
+            <ul className="list-disc text-text-light mb-4 pl-5">
               <li>
                 <strong>Railway</strong> (hosting) — our application and database are hosted on
                 Railway&apos;s cloud infrastructure. Data may be processed in the United States. We
@@ -188,7 +185,7 @@ export default function PrivacyPage() {
             </p>
 
             <h4>Data retention</h4>
-            <ul className="list-disc text-text-light mb-4" style={{ paddingLeft: 20 }}>
+            <ul className="list-disc text-text-light mb-4 pl-5">
               <li>Active accounts: data is kept as long as your account is active</li>
               <li>
                 Deleted accounts: personal data is anonymised immediately upon deletion. Anonymised
@@ -205,7 +202,7 @@ export default function PrivacyPage() {
             </ul>
 
             <h4>Cookies</h4>
-            <ul className="list-disc text-text-light mb-4" style={{ paddingLeft: 20 }}>
+            <ul className="list-disc text-text-light mb-4 pl-5">
               <li>
                 <strong>Essential cookies</strong> — we use localStorage (not cookies) to store your
                 login session and preferences (dark mode, cookie consent choice). These are
@@ -233,7 +230,7 @@ export default function PrivacyPage() {
             <p className="text-text-light mb-4">
               Under GDPR and the UK Data Protection Act 2018, you have the right to:
             </p>
-            <ul className="list-disc text-text-light" style={{ paddingLeft: 20 }}>
+            <ul className="list-disc text-text-light pl-5">
               <li>
                 <strong>Access</strong> (Article 15) — Download all your data using the export
                 feature above
@@ -260,14 +257,14 @@ export default function PrivacyPage() {
                 delete your account at any time
               </li>
             </ul>
-            <p className="text-text-light" style={{ marginTop: 16 }}>
+            <p className="text-text-light mt-4">
               <strong>Data Controller:</strong> Safe AI Alliance Ltd (trading as PauseAI UK /
               Catalyse)
               <br />
               <strong>Contact:</strong>{' '}
               <a href="mailto:matilda@pauseai.info">matilda@pauseai.info</a>
             </p>
-            <p className="text-text-light" style={{ marginTop: 12 }}>
+            <p className="text-text-light mt-3">
               If you are not satisfied with how we handle your data, you have the right to lodge a
               complaint with the <strong>Information Commissioner&apos;s Office (ICO)</strong> at{' '}
               <a
@@ -289,7 +286,7 @@ export default function PrivacyPage() {
             </div>
           )}
 
-          <p className="text-center" style={{ marginTop: 24 }}>
+          <p className="text-center mt-6">
             <Link href="/profile">&larr; Back to Profile</Link>
           </p>
         </div>

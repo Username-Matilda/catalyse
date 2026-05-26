@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { useRequireAdmin } from '@/lib/hooks/auth'
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Badge, type BadgeVariant } from '@/components/Badge'
 import Button from '@/components/Button'
 import CommentThread from '@/components/CommentThread'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
@@ -38,17 +39,17 @@ interface Volunteer {
   name: string
 }
 
-const STATUS_STYLES: Record<string, { background: string; color: string }> = {
-  open: { background: '#FED7AA', color: '#9A3412' },
-  in_progress: { background: '#DBEAFE', color: '#1E40AF' },
-  under_review: { background: '#FEF3C7', color: '#92400E' },
-  completed: { background: '#D1FAE5', color: '#065F46' },
+const STATUS_VARIANTS: Record<string, BadgeVariant> = {
+  open: 'warning',
+  in_progress: 'info',
+  under_review: 'caution',
+  completed: 'success',
 }
 
-const RATING_COLORS: Record<string, string> = {
-  excellent: 'var(--success, #059669)',
-  good: 'var(--secondary, #1D3557)',
-  needs_improvement: 'var(--error, #DC2626)',
+const RATING_CLASSES: Record<string, string> = {
+  excellent: 'text-success',
+  good: 'text-secondary',
+  needs_improvement: 'text-error',
 }
 
 const RATING_LABELS: Record<string, string> = {
@@ -311,15 +312,8 @@ export default function AdminStarterTasksPage() {
 
   return (
     <>
-      <main className="max-w-350 w-full mx-auto px-6 py-5 pb-15">
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: 12,
-          }}
-        >
+      <main className="container py-5 pb-15">
+        <div className="flex justify-between items-center mb-3">
           <h1>Quick Tasks</h1>
           <Button onClick={() => setShowCreate(true)}>Create Task</Button>
         </div>
@@ -328,7 +322,7 @@ export default function AdminStarterTasksPage() {
           Small, scoped tasks to verify volunteer skills before assigning bigger projects.
         </p>
 
-        <div className="mb-6" style={{ maxWidth: 240 }}>
+        <div className="mb-6 max-w-[240px]">
           <FilterDropdown
             id="status-filter"
             label="Status"
@@ -359,30 +353,20 @@ export default function AdminStarterTasksPage() {
                 className="card bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
               >
                 <div
-                  className="card-header flex justify-between items-start gap-3 min-w-0"
-                  style={{ cursor: 'pointer', marginBottom: expanded ? 12 : 0 }}
+                  className={`card-header flex justify-between items-start gap-3 min-w-0 cursor-pointer ${expanded ? 'mb-3' : 'mb-0'}`}
                   onClick={() => toggleCard(task.id)}
                 >
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, minWidth: 0 }}>
+                  <div className="flex items-start gap-2 min-w-0">
                     <span
-                      style={{
-                        display: 'inline-block',
-                        transition: 'transform 0.2s',
-                        transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
-                        flexShrink: 0,
-                        marginTop: 4,
-                        color: 'var(--text-light)',
-                        fontSize: '0.75rem',
-                      }}
+                      className="inline-block transition-transform shrink-0 mt-1 text-text-light text-xs"
+                      // dynamic: transform rotates based on expanded state
+                      style={{ transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
                     >
                       ▶
                     </span>
-                    <div style={{ minWidth: 0 }}>
-                      <h3 style={{ margin: '0 0 4px' }}>{task.title}</h3>
-                      <div
-                        className="text-text-light"
-                        style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: '0.8rem' }}
-                      >
+                    <div className="min-w-0">
+                      <h3 className="mb-1">{task.title}</h3>
+                      <div className="text-text-light flex gap-2 flex-wrap text-[0.8rem]">
                         {task.skillName && <span>Skill: {task.skillName}</span>}
                         {task.estimatedHours !== null && <span>~{task.estimatedHours}h</span>}
                         {task.assignedToId && task.assignedToName && (
@@ -397,59 +381,33 @@ export default function AdminStarterTasksPage() {
                           </span>
                         )}
                         {task.reviewRating && (
-                          <span style={{ color: RATING_COLORS[task.reviewRating] }}>
+                          <span className={RATING_CLASSES[task.reviewRating]}>
                             {RATING_LABELS[task.reviewRating]}
                           </span>
                         )}
                       </div>
                     </div>
                   </div>
-                  <span
+                  <Badge
                     role="status"
-                    className="status-badge"
-                    style={{
-                      padding: '2px 8px',
-                      borderRadius: 12,
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                      whiteSpace: 'nowrap',
-                      flexShrink: 0,
-                      ...STATUS_STYLES[task.status],
-                    }}
+                    variant={STATUS_VARIANTS[task.status] ?? 'neutral'}
+                    className="whitespace-nowrap shrink-0"
                   >
                     {task.status}
-                  </span>
+                  </Badge>
                 </div>
 
                 {expanded && (
                   <>
-                    <p style={{ whiteSpace: 'pre-wrap', margin: '0 0 12px', fontSize: '0.9rem' }}>
-                      {task.description}
-                    </p>
+                    <p className="whitespace-pre-wrap mb-3 text-[0.9rem]">{task.description}</p>
 
                     {task.reviewRating && (
-                      <p
-                        style={{
-                          marginBottom: 8,
-                          fontWeight: 500,
-                          color: RATING_COLORS[task.reviewRating],
-                        }}
-                      >
+                      <p className={`mb-2 font-medium ${RATING_CLASSES[task.reviewRating]}`}>
                         Rating: {RATING_LABELS[task.reviewRating]}
                       </p>
                     )}
                     {task.reviewNotes && (
-                      <p
-                        style={{
-                          fontSize: '0.875rem',
-                          color: 'var(--text-light)',
-                          marginBottom: 8,
-                        }}
-                      >
-                        Notes: {task.reviewNotes}
-                      </p>
+                      <p className="text-sm text-text-light mb-2">Notes: {task.reviewNotes}</p>
                     )}
 
                     <div className="mb-3">
@@ -457,17 +415,8 @@ export default function AdminStarterTasksPage() {
                       <CommentThread workItemId={task.id} />
                     </div>
 
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginTop: 12,
-                        paddingTop: 12,
-                        borderTop: '1px solid var(--border)',
-                      }}
-                    >
-                      <span style={{ fontSize: '0.875rem', color: 'var(--text-light)' }}>
+                    <div className="flex justify-between items-center mt-3 pt-3 border-t border-brand-border">
+                      <span className="text-sm text-text-light">
                         Created {formatDate(task.createdAt)}
                       </span>
                       <div className="flex gap-2">
@@ -591,10 +540,7 @@ export default function AdminStarterTasksPage() {
                     placeholder="What should the volunteer do? Include any context, examples, or guidelines."
                   />
                 </div>
-                <div
-                  style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}
-                  className="mb-5"
-                >
+                <div className="grid grid-cols-2 gap-4 mb-5">
                   <div>
                     <FilterDropdown
                       id="ct-skill"
@@ -679,10 +625,7 @@ export default function AdminStarterTasksPage() {
                     required
                   />
                 </div>
-                <div
-                  style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}
-                  className="mb-5"
-                >
+                <div className="grid grid-cols-2 gap-4 mb-5">
                   <div>
                     <FilterDropdown
                       id="et-skill"
@@ -791,19 +734,16 @@ export default function AdminStarterTasksPage() {
               <h2 id="review-dialog-title">Review Task</h2>
             </div>
             <div className="p-6">
-              <h3 style={{ marginBottom: 4 }}>{reviewModal.title}</h3>
+              <h3 className="mb-1">{reviewModal.title}</h3>
               {reviewModal.assignedToName && (
                 <p className="text-text-light mb-4">Submitted by: {reviewModal.assignedToName}</p>
               )}
               <form onSubmit={reviewTask}>
                 <div className="mb-5">
                   <label>Rating</label>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+                  <div className="flex flex-col gap-2 mt-2">
                     {(['excellent', 'good', 'needs_improvement'] as const).map((r) => (
-                      <label
-                        key={r}
-                        style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
-                      >
+                      <label key={r} className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="radio"
                           value={r}

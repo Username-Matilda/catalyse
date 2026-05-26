@@ -135,7 +135,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
   if (loadingProject) {
     return (
       <>
-        <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
+        <main className="container py-5 pb-15">
           <div className="text-center py-10 text-text-light">Loading project…</div>
         </main>
       </>
@@ -144,13 +144,13 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
 
   return (
     <>
-      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
+      <main className="container py-5 pb-15">
         <h1 role="heading">Edit Project</h1>
 
         {permissionChecked && !canEdit && (
           <div
             role="alert"
-            className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]"
+            className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-red-100 text-red-800 border border-red-300 dark:bg-red-900 dark:text-red-300 dark:border-red-600"
           >
             You do not have permission to edit this project.
           </div>

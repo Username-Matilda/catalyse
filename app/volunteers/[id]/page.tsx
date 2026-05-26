@@ -5,6 +5,8 @@ import { useRequireAuth } from '@/lib/hooks/auth'
 import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import Button from '@/components/Button'
+import { Badge } from '@/components/Badge'
+import { STATUS_LABELS, projectStatusVariant } from '@/components/ProjectCard'
 import { orpc } from '@/lib/orpc'
 
 export default function VolunteerDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -25,7 +27,7 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
   if (loadingProfile) {
     return (
       <>
-        <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
+        <main className="container py-5 pb-15">
           <div className="text-center py-10 text-text-light">Loading profile…</div>
         </main>
       </>
@@ -35,8 +37,8 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
   if (isError || !volunteer) {
     return (
       <>
-        <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
-          <p className="text-[color:var(--error)]">Volunteer not found.</p>
+        <main className="container py-5 pb-15">
+          <p className="text-error">Volunteer not found.</p>
           <Button href="/volunteers" variant="secondary" className="mt-4">
             Back to Volunteers
           </Button>
@@ -53,7 +55,7 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
 
   return (
     <>
-      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
+      <main className="container py-5 pb-15">
         <div className="mb-5">
           <Link href="/volunteers" className="text-text-light">
             &larr; Back to Volunteers
@@ -82,7 +84,7 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
                 skills.map((s) => (
                   <span
                     key={s.id}
-                    className={`inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-[#374151] dark:text-[#D1D5DB]${endorsedSkillIds.has(s.id) ? ' matched' : ''}`}
+                    className={`inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-gray-700 dark:text-gray-300${endorsedSkillIds.has(s.id) ? ' matched' : ''}`}
                   >
                     {s.name}
                     {endorsedSkillIds.has(s.id) ? ' ✓' : ''}
@@ -108,7 +110,7 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
                 </div>
               )}
 
-              <div id="contactInfo" style={{ display: hasContact ? 'block' : 'none' }}>
+              <div id="contactInfo" className={hasContact ? 'block' : 'hidden'}>
                 <h4 className="text-text-light">Contact</h4>
                 <div>
                   {volunteer.email && <div>Email: {volunteer.email}</div>}
@@ -138,17 +140,10 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
                 {endorsements.map((e) => (
                   <span
                     key={e.skillId}
-                    className="inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-[#374151] dark:text-[#D1D5DB]"
-                    style={{
-                      borderLeft: `3px solid ${e.rating === 'strong' ? 'var(--success)' : 'var(--secondary)'}`,
-                    }}
+                    className={`inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-gray-700 dark:text-gray-300 border-l-[3px] ${e.rating === 'strong' ? 'border-l-success' : 'border-l-secondary'}`}
                   >
                     {e.skillName}{' '}
-                    <small
-                      style={{
-                        color: e.rating === 'strong' ? 'var(--success)' : 'var(--secondary)',
-                      }}
-                    >
+                    <small className={e.rating === 'strong' ? 'text-success' : 'text-secondary'}>
                       {e.rating}
                     </small>
                   </span>
@@ -165,13 +160,13 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
                   <div className="flex justify-between items-center">
                     <strong>{t.title}</strong>
                     <span
-                      className={`text-sm font-medium ${t.reviewRating === 'excellent' ? 'text-[color:var(--success)]' : 'text-secondary'}`}
+                      className={`text-sm font-medium ${t.reviewRating === 'excellent' ? 'text-success' : 'text-secondary'}`}
                     >
                       {t.reviewRating}
                     </span>
                   </div>
                   {t.skillName && (
-                    <span className="inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-[#374151] dark:text-[#D1D5DB] mt-1">
+                    <span className="inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-gray-700 dark:text-gray-300 mt-1">
                       {t.skillName}
                     </span>
                   )}
@@ -189,11 +184,9 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
                     <Link href={`/projects/${p.id}`} className="font-semibold text-primary-dark">
                       {p.title}
                     </Link>
-                    <span
-                      className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${p.status === 'in_progress' || p.status === 'completed' ? 'bg-[#D1FAE5] text-[#065F46] dark:bg-[#064E3B] dark:text-[#6EE7B7]' : p.status === 'on_hold' ? 'bg-[#F3F4F6] text-[#374151] dark:bg-[#374151] dark:text-[#9CA3AF]' : p.status === 'seeking_help' ? 'bg-[#DBEAFE] text-[#1E40AF] dark:bg-[#1E3A5F] dark:text-[#93C5FD]' : 'bg-[#FEF3C7] text-[#92400E] dark:bg-[#78350F] dark:text-[#FDE68A]'}`}
-                    >
-                      {p.status.replace(/_/g, ' ')}
-                    </span>
+                    <Badge variant={projectStatusVariant(p.status)}>
+                      {STATUS_LABELS[p.status] ?? p.status.replace(/_/g, ' ')}
+                    </Badge>
                   </div>
                   <p className="text-sm text-text-light mt-1">
                     {p.role === 'owner' ? 'Project owner' : 'Proposer'}

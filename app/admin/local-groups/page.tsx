@@ -334,7 +334,7 @@ export default function AdminLocalGroupsPage() {
 
   return (
     <>
-      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
+      <main className="container py-5 pb-15">
         <div className="flex items-center justify-between mb-2">
           <h1 className="m-0">Local Groups</h1>
           <Button size="sm" onClick={openAdd}>
@@ -657,7 +657,7 @@ export default function AdminLocalGroupsPage() {
                             "e.g., Thanks for the suggestion. This area isn't something we're able to support at the moment.",
                         }[reviewAction] ?? ''
                       }
-                      style={{ width: '100%' }}
+                      className="w-full"
                     />
                     <p className="text-sm text-text-light mt-1">
                       This note will be shared with the volunteer.

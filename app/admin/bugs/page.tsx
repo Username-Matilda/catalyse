@@ -7,6 +7,7 @@ import Button from '@/components/Button'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
+import { Badge, type BadgeVariant } from '@/components/Badge'
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All' },
@@ -22,15 +23,11 @@ const CATEGORY_OPTIONS = [
   { value: 'ux', label: 'UX Issue' },
 ] as const
 
-const BUG_STATUS_CLASSES: Record<string, string> = {
-  open: 'bg-[#FED7AA] text-[#92400E] dark:bg-[#78350F] dark:text-[#FED7AA]',
-  in_progress: 'bg-[#DBEAFE] text-[#1E40AF] dark:bg-[#1E3A5F] dark:text-[#93C5FD]',
-  resolved: 'bg-[#D1FAE5] text-[#065F46] dark:bg-[#064E3B] dark:text-[#6EE7B7]',
-  wont_fix: 'bg-[#F3F4F6] text-[#374151] dark:bg-[#374151] dark:text-[#9CA3AF]',
-}
-
-function bugStatusClasses(status: string) {
-  return `inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${BUG_STATUS_CLASSES[status] ?? 'bg-[#F3F4F6] text-[#374151]'}`
+const BUG_STATUS_VARIANT: Record<string, BadgeVariant> = {
+  open: 'caution',
+  in_progress: 'info',
+  resolved: 'success',
+  wont_fix: 'neutral',
 }
 
 export default function AdminBugsPage() {
@@ -91,7 +88,7 @@ export default function AdminBugsPage() {
 
   return (
     <>
-      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
+      <main className="container py-5 pb-15">
         <h1>Bug Reports &amp; Feedback</h1>
 
         <div className="mb-6 flex gap-4 flex-wrap">
@@ -122,24 +119,13 @@ export default function AdminBugsPage() {
           reports.map((r) => (
             <div
               key={r.id}
-              className="card bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word w-full"
-              style={{ cursor: 'pointer' }}
+              className="card bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word w-full cursor-pointer"
               onClick={() => openEdit(r)}
             >
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'flex-start',
-                  marginBottom: 8,
-                }}
-              >
+              <div className="flex justify-between items-start mb-2">
                 <div>
-                  <h3 style={{ margin: '0 0 4px' }}>{r.title}</h3>
-                  <div
-                    className="text-text-light"
-                    style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: '0.8rem' }}
-                  >
+                  <h3 className="mt-0 mx-0 mb-1">{r.title}</h3>
+                  <div className="text-text-light flex gap-2 flex-wrap text-[0.8rem]">
                     {r.category && <span>{r.category}</span>}
                     {r.severity && <span>· {r.severity}</span>}
                     {r.reporterName && <span>· {r.reporterName}</span>}
@@ -169,19 +155,15 @@ export default function AdminBugsPage() {
                       })()}
                   </div>
                 </div>
-                <span className={bugStatusClasses(r.status)}>
+                <Badge variant={BUG_STATUS_VARIANT[r.status] ?? 'neutral'}>
                   {STATUS_OPTIONS.find((s) => s.value === r.status)?.label ?? r.status}
-                </span>
+                </Badge>
               </div>
 
-              <p className="text-text-light" style={{ margin: '0 0 12px', whiteSpace: 'pre-wrap' }}>
-                {r.description}
-              </p>
+              <p className="text-text-light mt-0 mx-0 mb-3 whitespace-pre-wrap">{r.description}</p>
 
               {r.resolutionNotes && (
-                <p style={{ margin: '0 0 12px', fontSize: '0.875rem', fontStyle: 'italic' }}>
-                  Resolution: {r.resolutionNotes}
-                </p>
+                <p className="mt-0 mx-0 mb-3 text-sm italic">Resolution: {r.resolutionNotes}</p>
               )}
             </div>
           ))
@@ -202,7 +184,7 @@ export default function AdminBugsPage() {
             className="bg-surface rounded-xl shadow-lg max-w-125 w-full max-h-[90vh] overflow-y-auto"
           >
             <div className="px-6 py-5 border-b border-brand-border flex justify-between items-center">
-              <h2 style={{ marginBottom: 4 }}>{editModal.title}</h2>
+              <h2 className="mb-1">{editModal.title}</h2>
             </div>
             <div className="p-6">
               <p className="text-text-light mb-4 text-sm">{editModal.description}</p>
@@ -226,7 +208,7 @@ export default function AdminBugsPage() {
                   value={editNotes}
                   onChange={(e) => setEditNotes(e.target.value)}
                   placeholder="Describe what was fixed…"
-                  style={{ width: '100%' }}
+                  className="w-full"
                 />
               </div>
 

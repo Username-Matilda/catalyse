@@ -120,7 +120,7 @@ export default function DashboardPage() {
   if (loadingData) {
     return (
       <>
-        <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
+        <main className="container py-5 pb-15">
           <div className="text-center py-10 text-text-light">Loading dashboard…</div>
         </main>
       </>
@@ -153,12 +153,12 @@ export default function DashboardPage() {
 
   return (
     <>
-      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
+      <main className="container py-5 pb-15">
         <h1 role="heading">Welcome back, {user.name}!</h1>
 
         {/* Pending approval banner */}
         {user.approvalStatus === ApprovalStatus.pending && (
-          <div className="flex items-center gap-3 p-4 rounded-lg mb-5 bg-[#FEF9C3] text-[#854D0E] border border-[#FDE047] dark:bg-[#422006] dark:text-[#FDE047] dark:border-[#854D0E]">
+          <div className="flex items-center gap-3 p-4 rounded-lg mb-5 bg-yellow-100 text-yellow-800 border border-yellow-300 dark:bg-yellow-950 dark:text-yellow-300 dark:border-yellow-800">
             <span>
               Your account is pending approval. You can browse the platform, but some actions are
               restricted until an admin reviews your application.
@@ -168,7 +168,7 @@ export default function DashboardPage() {
 
         {/* Email notification preference banner */}
         {showEmailBanner && (
-          <div className="flex items-center justify-between gap-3 p-4 rounded-lg mb-5 bg-[#DBEAFE] text-[#1E40AF] border border-[#93C5FD] dark:bg-[#1E3A5F] dark:text-[#93C5FD] dark:border-[#2563EB]">
+          <div className="flex items-center justify-between gap-3 p-4 rounded-lg mb-5 bg-blue-100 text-blue-800 border border-blue-300 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-600">
             <span>
               Stay in the loop — set your email notification preference in your{' '}
               <Link href="/profile" className="underline font-semibold">

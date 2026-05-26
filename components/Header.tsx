@@ -22,7 +22,7 @@ function MobileNavLink({
   return (
     <Link
       href={href}
-      className={`block px-5 py-4 text-[var(--text)] no-underline font-medium text-base border-b border-brand-border transition-colors hover:bg-[var(--background)] ${active ? 'text-primary bg-accent' : ''}`}
+      className={`block px-5 py-4 text-brand-text no-underline font-medium text-base border-b border-brand-border transition-colors hover:bg-brand-bg ${active ? 'text-primary bg-accent' : ''}`}
     >
       {children}
     </Link>
@@ -32,7 +32,7 @@ function MobileNavLink({
 function MobileNavSection({ children, admin }: { children: React.ReactNode; admin?: boolean }) {
   return (
     <div
-      className={`px-5 py-2 text-[0.65rem] font-bold uppercase tracking-widest bg-[var(--background)] border-b border-brand-border ${admin ? 'text-primary' : 'text-[var(--text-light)]'}`}
+      className={`px-5 py-2 text-[0.65rem] font-bold uppercase tracking-widest bg-brand-bg border-b border-brand-border ${admin ? 'text-primary' : 'text-text-light'}`}
     >
       {children}
     </div>
@@ -109,6 +109,19 @@ function DashboardNavButtons({ unreadCount }: { unreadCount: number }) {
   )
 }
 
+const ADMIN_NAV_ITEMS: { href: string; label: string; superAdminOnly?: boolean }[] = [
+  { href: '/admin/triage', label: 'Triage Queue' },
+  { href: '/admin/projects/new', label: 'Create Org Project' },
+  { href: '/admin/starter-tasks', label: 'Manage Quick Tasks' },
+  { href: '/admin/skills', label: 'Manage Skills' },
+  { href: '/admin/bugs', label: 'Bug Reports' },
+  { href: '/admin/team', label: 'Admin Team' },
+  { href: '/admin/stats', label: 'Platform Stats' },
+  { href: '/admin/applications', label: 'Manage Applications', superAdminOnly: true },
+  { href: '/admin/platform-settings', label: 'Platform Settings', superAdminOnly: true },
+  { href: '/admin/local-groups', label: 'Manage Local Groups' },
+]
+
 export default function Header() {
   const { user, loading, logout } = useAuth()
   const pathname = usePathname()
@@ -166,7 +179,7 @@ export default function Header() {
         <div className="container flex justify-between items-center gap-2 flex-nowrap xl:gap-4">
           <Link
             href="/"
-            className="font-[var(--font-display)] text-2xl font-black text-primary no-underline flex items-center gap-2"
+            className="font-display text-2xl font-black text-primary no-underline flex items-center gap-2"
           >
             Catalyse
           </Link>
@@ -209,99 +222,46 @@ export default function Header() {
                   </Button>
                   {userMenuOpen && (
                     <div
-                      className="absolute top-full right-0 mt-2 bg-surface rounded-[var(--radius)] border border-brand-border shadow-lg w-max z-[101]"
+                      className="absolute top-full right-0 mt-2 bg-surface rounded-lg border border-brand-border shadow-lg w-max z-[101]"
                       onClick={() => setUserMenuOpen(false)}
                     >
                       <Link
                         href="/profile"
-                        className="block px-4 py-3 text-[var(--text)] no-underline"
+                        className="block px-4 py-3 text-brand-text no-underline"
                       >
                         My Profile
                       </Link>
                       <Link
                         href="/settings"
-                        className="block px-4 py-3 text-[var(--text)] no-underline"
+                        className="block px-4 py-3 text-brand-text no-underline"
                       >
                         Account Settings
                       </Link>
                       <Link
                         href="/privacy"
-                        className="block px-4 py-3 text-[var(--text)] no-underline"
+                        className="block px-4 py-3 text-brand-text no-underline"
                       >
                         Privacy &amp; Data
                       </Link>
                       {user.isAdmin && (
                         <>
-                          <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-light)] border-t border-brand-border mt-1">
+                          <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-text-light border-t border-brand-border mt-1">
                             Admin
                           </div>
-                          <Link
-                            href="/admin/triage"
-                            className="block px-4 py-3 text-[var(--text)] no-underline"
-                          >
-                            Triage Queue
-                          </Link>
-                          <Link
-                            href="/admin/projects/new"
-                            className="block px-4 py-3 text-[var(--text)] no-underline"
-                          >
-                            Create Org Project
-                          </Link>
-                          <Link
-                            href="/admin/starter-tasks"
-                            className="block px-4 py-3 text-[var(--text)] no-underline"
-                          >
-                            Manage Quick Tasks
-                          </Link>
-                          <Link
-                            href="/admin/skills"
-                            className="block px-4 py-3 text-[var(--text)] no-underline"
-                          >
-                            Manage Skills
-                          </Link>
-                          <Link
-                            href="/admin/bugs"
-                            className="block px-4 py-3 text-[var(--text)] no-underline"
-                          >
-                            Bug Reports
-                          </Link>
-                          <Link
-                            href="/admin/team"
-                            className="block px-4 py-3 text-[var(--text)] no-underline"
-                          >
-                            Admin Team
-                          </Link>
-                          <Link
-                            href="/admin/stats"
-                            className="block px-4 py-3 text-[var(--text)] no-underline"
-                          >
-                            Platform Stats
-                          </Link>
-                          {user.isSuperAdmin && (
-                            <>
-                              <Link
-                                href="/admin/applications"
-                                className="block px-4 py-3 text-[var(--text)] no-underline"
-                              >
-                                Manage Applications
-                              </Link>
-                              <Link
-                                href="/admin/platform-settings"
-                                className="block px-4 py-3 text-[var(--text)] no-underline"
-                              >
-                                Platform Settings
-                              </Link>
-                            </>
-                          )}
-                          <Link
-                            href="/admin/local-groups"
-                            className="block px-4 py-3 text-[var(--text)] no-underline"
-                          >
-                            Manage Local Groups
-                          </Link>
+                          {ADMIN_NAV_ITEMS.filter(
+                            (i) => !i.superAdminOnly || user.isSuperAdmin,
+                          ).map((i) => (
+                            <Link
+                              key={i.href}
+                              href={i.href}
+                              className="block px-4 py-3 text-brand-text no-underline"
+                            >
+                              {i.label}
+                            </Link>
+                          ))}
                         </>
                       )}
-                      <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-light)] border-t border-brand-border mt-1">
+                      <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-text-light border-t border-brand-border mt-1">
                         Session
                       </div>
                       <Button
@@ -382,10 +342,7 @@ export default function Header() {
           {/* Panel header */}
           <div className="border-b border-brand-border bg-surface shrink-0">
             <div className="container flex items-center justify-between py-4">
-              <Link
-                href="/"
-                className="font-[var(--font-display)] text-2xl font-black text-primary no-underline"
-              >
+              <Link href="/" className="font-display text-2xl font-black text-primary no-underline">
                 Catalyse
               </Link>
               <Button
@@ -439,24 +396,13 @@ export default function Header() {
                   {user.isAdmin && (
                     <>
                       <MobileNavSection admin>Admin</MobileNavSection>
-                      <MobileNavLink href="/admin/triage">Triage Queue</MobileNavLink>
-                      <MobileNavLink href="/admin/projects/new">Create Org Project</MobileNavLink>
-                      <MobileNavLink href="/admin/starter-tasks">Manage Quick Tasks</MobileNavLink>
-                      <MobileNavLink href="/admin/skills">Manage Skills</MobileNavLink>
-                      <MobileNavLink href="/admin/bugs">Bug Reports</MobileNavLink>
-                      <MobileNavLink href="/admin/team">Admin Team</MobileNavLink>
-                      <MobileNavLink href="/admin/stats">Platform Stats</MobileNavLink>
-                      {user.isSuperAdmin && (
-                        <>
-                          <MobileNavLink href="/admin/applications">
-                            Manage Applications
+                      {ADMIN_NAV_ITEMS.filter((i) => !i.superAdminOnly || user.isSuperAdmin).map(
+                        (i) => (
+                          <MobileNavLink key={i.href} href={i.href}>
+                            {i.label}
                           </MobileNavLink>
-                          <MobileNavLink href="/admin/platform-settings">
-                            Platform Settings
-                          </MobileNavLink>
-                        </>
+                        ),
                       )}
-                      <MobileNavLink href="/admin/local-groups">Manage Local Groups</MobileNavLink>
                     </>
                   )}
 
@@ -466,7 +412,7 @@ export default function Header() {
                       logout()
                       setMobileMenuOpen(false)
                     }}
-                    className="block w-full text-left px-5 py-4 text-[var(--text)] font-medium text-base border-b border-brand-border hover:bg-[var(--background)] cursor-pointer bg-transparent"
+                    className="block w-full text-left px-5 py-4 text-brand-text font-medium text-base border-b border-brand-border hover:bg-brand-bg cursor-pointer bg-transparent"
                   >
                     Sign Out
                   </button>
@@ -493,7 +439,7 @@ export default function Header() {
                   setBugDialogOpen(true)
                   setMobileMenuOpen(false)
                 }}
-                className="flex items-center justify-center gap-2 flex-1 px-4 py-2 text-[var(--text)] font-medium text-base border-l border-brand-border hover:bg-[var(--background)] cursor-pointer bg-transparent whitespace-nowrap"
+                className="flex items-center justify-center gap-2 flex-1 px-4 py-2 text-brand-text font-medium text-base border-l border-brand-border hover:bg-brand-bg cursor-pointer bg-transparent whitespace-nowrap"
               >
                 <svg
                   width="15"

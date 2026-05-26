@@ -66,7 +66,7 @@ export default function SuggestLocalGroupPage() {
 
   return (
     <>
-      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
+      <main className="container py-5 pb-15">
         <h1>Suggest a Local Group</h1>
         <p className="text-text-light mb-6">
           Don&apos;t see your local group listed? Suggest it here and an admin will review it.

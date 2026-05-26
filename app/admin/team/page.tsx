@@ -97,15 +97,8 @@ export default function AdminTeamPage() {
 
   return (
     <>
-      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: 24,
-          }}
-        >
+      <main className="container py-5 pb-15">
+        <div className="flex justify-between items-center mb-6">
           <h1>Team Management</h1>
           <Button onClick={openInviteDialog}>Invite Admin</Button>
         </div>
@@ -132,21 +125,12 @@ export default function AdminTeamPage() {
                   admins.map((a) => (
                     <div
                       key={a.id}
-                      className="card bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
-                      style={{ marginBottom: 12 }}
+                      className="card bg-surface rounded-xl shadow p-6 mb-3 overflow-hidden wrap-break-word"
                     >
-                      <div
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                        }}
-                      >
+                      <div className="flex justify-between items-center">
                         <div>
                           <strong>{a.name}</strong>
-                          <p className="text-text-light text-sm" style={{ margin: 0 }}>
-                            {a.email}
-                          </p>
+                          <p className="text-text-light text-sm m-0">{a.email}</p>
                         </div>
                         {a.id !== user.id && (
                           <Button
@@ -173,19 +157,12 @@ export default function AdminTeamPage() {
                   invites.map((inv) => (
                     <div
                       key={inv.id}
-                      className="card bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
-                      style={{ marginBottom: 12 }}
+                      className="card bg-surface rounded-xl shadow p-6 mb-3 overflow-hidden wrap-break-word"
                     >
-                      <div
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                        }}
-                      >
+                      <div className="flex justify-between items-center">
                         <div>
                           <strong>{inv.email}</strong>
-                          <p className="text-text-light text-sm" style={{ margin: 0 }}>
+                          <p className="text-text-light text-sm m-0">
                             Invited by {inv.invitedByName} · Expires{' '}
                             {new Date(inv.expiresAt).toLocaleDateString()}
                           </p>
@@ -217,11 +194,11 @@ export default function AdminTeamPage() {
               className="bg-surface rounded-xl shadow-lg max-w-125 w-full max-h-[90vh] overflow-y-auto"
             >
               <div className="px-6 py-5 border-b border-brand-border flex justify-between items-center">
-                <h2 style={{ marginTop: 0 }}>Invite Admin</h2>
+                <h2 className="mt-0">Invite Admin</h2>
               </div>
               <div className="p-6">
                 {inviteSuccess ? (
-                  <p role="status" style={{ color: 'var(--success)' }}>
+                  <p role="status" className="text-success">
                     {inviteSuccess}
                   </p>
                 ) : (

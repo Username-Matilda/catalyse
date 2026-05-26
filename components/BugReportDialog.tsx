@@ -106,7 +106,7 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
         </div>
         <div className="p-6">
           {success ? (
-            <div style={{ textAlign: 'center', padding: '20px 0' }}>
+            <div className="text-center py-5">
               <h3 role="heading">Thank you!</h3>
               <p>Your feedback has been submitted.</p>
               <Button onClick={handleClose}>Close</Button>

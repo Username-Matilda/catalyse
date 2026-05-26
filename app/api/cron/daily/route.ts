@@ -5,40 +5,27 @@ import { runDigestJob } from '@/jobs/digest'
 import { runNudgesJob } from '@/jobs/nudges'
 import { runApplicationsSummaryJob, runApplicationsAnonymisationJob } from '@/jobs/applications'
 
+const JOBS: { name: string; run: () => Promise<unknown> }[] = [
+  { name: 'backup', run: runBackupJob },
+  { name: 'digest', run: runDigestJob },
+  { name: 'nudges', run: runNudgesJob },
+  { name: 'applications', run: runApplicationsSummaryJob },
+  { name: 'anonymisation', run: runApplicationsAnonymisationJob },
+]
+
 // Can be triggered manually: POST with Authorization: Bearer <CRON_SECRET>
 export async function POST(request: NextRequest) {
   const authError = checkCronAuth(request)
   if (authError) return authError
 
-  const [backupResult, digestResult, nudgesResult, applicationsResult, anonymisationResult] =
-    await Promise.allSettled([
-      runBackupJob(),
-      runDigestJob(),
-      runNudgesJob(),
-      runApplicationsSummaryJob(),
-      runApplicationsAnonymisationJob(),
-    ])
+  const results = await Promise.allSettled(JOBS.map((j) => j.run()))
 
-  return NextResponse.json({
-    backup:
-      backupResult.status === 'fulfilled'
-        ? backupResult.value
-        : { error: String(backupResult.reason) },
-    digest:
-      digestResult.status === 'fulfilled'
-        ? digestResult.value
-        : { error: String(digestResult.reason) },
-    nudges:
-      nudgesResult.status === 'fulfilled'
-        ? nudgesResult.value
-        : { error: String(nudgesResult.reason) },
-    applications:
-      applicationsResult.status === 'fulfilled'
-        ? applicationsResult.value
-        : { error: String(applicationsResult.reason) },
-    anonymisation:
-      anonymisationResult.status === 'fulfilled'
-        ? anonymisationResult.value
-        : { error: String(anonymisationResult.reason) },
-  })
+  const body = Object.fromEntries(
+    JOBS.map((job, i) => {
+      const r = results[i]
+      return [job.name, r.status === 'fulfilled' ? r.value : { error: String(r.reason) }]
+    }),
+  )
+
+  return NextResponse.json(body)
 }

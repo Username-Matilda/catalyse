@@ -13,7 +13,7 @@ export function ThemeToggle({
 }) {
   const { resolvedTheme, setTheme } = useTheme()
 
-  if (!resolvedTheme) return <div style={{ width: 32, height: 32 }} />
+  if (!resolvedTheme) return <div className="w-8 h-8" />
 
   const isDark = resolvedTheme === 'dark'
 

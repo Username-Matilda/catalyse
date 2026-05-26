@@ -24,17 +24,17 @@ export default function ForgotPasswordPage() {
 
   return (
     <>
-      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
-        <div style={{ maxWidth: 400, margin: '60px auto' }}>
+      <main className="container py-5 pb-15">
+        <div className="max-w-[400px] my-15 mx-auto">
           <h1 className="text-center">Reset Password</h1>
-          <p className="text-center text-text-light" style={{ marginBottom: 32 }}>
+          <p className="text-center text-text-light mb-8">
             Enter your email and we&apos;ll send you a reset link.
           </p>
 
           {mutation.isError && (
             <div
               role="alert"
-              className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]"
+              className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-red-100 text-red-800 border border-red-300 dark:bg-red-900 dark:text-red-300 dark:border-red-600"
             >
               {mutation.error instanceof Error ? mutation.error.message : 'Something went wrong'}
             </div>
@@ -65,32 +65,30 @@ export default function ForgotPasswordPage() {
                 {mutation.isPending ? 'Sending…' : 'Send Reset Link'}
               </Button>
 
-              <p className="text-center text-text-light" style={{ marginTop: 20 }}>
+              <p className="text-center text-text-light mt-5">
                 Remember your password? <Link href="/login">Login</Link>
               </p>
             </form>
           ) : (
             <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word">
               <div className="text-center">
-                <h3 style={{ color: 'var(--success)' }}>Check Your Email</h3>
-                <p className="text-text-light" style={{ margin: '16px 0' }}>
+                <h3 className="text-success">Check Your Email</h3>
+                <p className="text-text-light my-4">
                   If an account exists with that email, you&apos;ll receive a password reset link
                   shortly.
                 </p>
                 <Button href="/login" variant="outline">
                   Back to Login
                 </Button>
-                <p className="text-sm text-text-light" style={{ marginTop: 16 }}>
+                <p className="text-sm text-text-light mt-4">
                   Not receiving the email? Check your spam folder, or{' '}
                   <a href="mailto:matilda@pauseai.info">contact support</a>.
                 </p>
               </div>
               {devUrl && (
-                <div
-                  style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid var(--border)' }}
-                >
-                  <p style={{ fontSize: 12, color: 'var(--text-light)' }}>Dev mode — Reset link:</p>
-                  <a href={devUrl} style={{ wordBreak: 'break-all' }}>
+                <div className="mt-6 pt-4 border-t border-brand-border">
+                  <p className="text-[12px] text-text-light">Dev mode — Reset link:</p>
+                  <a href={devUrl} className="break-all">
                     {devUrl}
                   </a>
                 </div>

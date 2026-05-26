@@ -62,44 +62,29 @@ function SortableSkill({
     <div
       ref={setNodeRef}
       role="listitem"
-      className="skill-item"
+      className="skill-item bg-brand-bg rounded-lg px-4 py-3 flex items-start gap-2"
       style={{
+        // dynamic: drag transform/transition/opacity
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.5 : 1,
-        background: 'var(--background)',
-        borderRadius: 'var(--radius)',
-        padding: '12px 16px',
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: 8,
       }}
     >
       <span
         {...attributes}
         {...listeners}
-        style={{
-          cursor: 'grab',
-          color: 'var(--text-light)',
-          flexShrink: 0,
-          marginTop: 2,
-          lineHeight: 1,
-        }}
+        className="cursor-grab text-text-light shrink-0 mt-0.5 leading-none"
         title="Drag to reorder"
       >
         ⠿
       </span>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <h4 role="heading" style={{ margin: '0 0 4px 0', fontSize: '1rem', fontWeight: 700 }}>
+      <div className="flex-1 min-w-0">
+        <h4 role="heading" className="mb-1 text-base font-bold">
           {skill.name}
         </h4>
-        {skill.description && (
-          <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-light)' }}>
-            {skill.description}
-          </p>
-        )}
+        {skill.description && <p className="m-0 text-sm text-text-light">{skill.description}</p>}
       </div>
-      <div className="flex gap-1" style={{ flexShrink: 0 }}>
+      <div className="flex gap-1 shrink-0">
         <Button variant="secondary" size="sm" onClick={onEdit}>
           Edit
         </Button>
@@ -149,34 +134,20 @@ function SortableCategory({
   return (
     <div
       ref={setNodeRef}
-      className="category-card bg-surface rounded-xl shadow p-6 overflow-hidden wrap-break-word"
+      className="category-card bg-surface rounded-xl shadow p-6 overflow-hidden wrap-break-word mb-6"
       style={{
-        marginBottom: 24,
+        // dynamic: drag transform/transition/opacity
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.5 : 1,
       }}
     >
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: 16,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+      <div className="flex justify-between items-start mb-4">
+        <div className="flex items-start gap-2">
           <span
             {...attributes}
             {...listeners}
-            style={{
-              cursor: 'grab',
-              color: 'var(--text-light)',
-              flexShrink: 0,
-              marginTop: 4,
-              lineHeight: 1,
-              fontSize: '1.25rem',
-            }}
+            className="cursor-grab text-text-light shrink-0 mt-1 leading-none text-xl"
             title="Drag to reorder"
           >
             ⠿
@@ -202,7 +173,7 @@ function SortableCategory({
         onDragEnd={handleSkillDragEnd}
       >
         <SortableContext items={cat.skills.map((s) => s.id)} strategy={verticalListSortingStrategy}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="flex flex-col gap-2">
             {cat.skills.map((skill) => (
               <SortableSkill
                 key={skill.id}
@@ -213,16 +184,7 @@ function SortableCategory({
             ))}
             <button
               onClick={onAddSkill}
-              style={{
-                border: '2px dashed var(--border)',
-                background: 'transparent',
-                borderRadius: 'var(--radius)',
-                padding: '12px 16px',
-                color: 'var(--text-light)',
-                cursor: 'pointer',
-                textAlign: 'center',
-              }}
-              className="hover:border-primary hover:text-primary hover:bg-accent transition-all"
+              className="border-2 border-dashed border-brand-border bg-transparent rounded-lg px-4 py-3 text-text-light cursor-pointer text-center hover:border-primary hover:text-primary hover:bg-accent transition-all"
             >
               + Add Skill
             </button>
@@ -390,15 +352,8 @@ export default function AdminSkillsPage() {
 
   return (
     <>
-      <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: 12,
-          }}
-        >
+      <main className="container py-5 pb-15">
+        <div className="flex justify-between items-center mb-3">
           <h1>Manage Skills</h1>
           <Button onClick={() => openModal({ type: 'add-category' })}>+ Add Category</Button>
         </div>

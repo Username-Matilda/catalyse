@@ -76,7 +76,7 @@ function VerifyEmailContent() {
 
   return (
     <div className="bg-surface rounded-xl shadow p-8 text-center">
-      <h1 style={token ? { color: 'var(--error)' } : undefined}>
+      <h1 className={token ? 'text-error' : undefined}>
         {token ? 'Confirmation failed' : 'Confirm your email'}
       </h1>
       <p className="text-text-light mt-4 mb-6">{errorMessage}</p>
@@ -125,7 +125,7 @@ function VerifyEmailContent() {
 
 export default function VerifyEmailPage() {
   return (
-    <main className="w-full max-w-350 mx-auto px-6 py-5 pb-15">
+    <main className="container py-5 pb-15">
       <div className="max-w-lg mx-auto">
         <Suspense
           fallback={
