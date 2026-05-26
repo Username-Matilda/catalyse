@@ -160,7 +160,7 @@ export default function FilterDropdown<T extends string>({
   }
 
   const triggerClass =
-    'w-full flex items-center justify-between p-3 bg-[var(--surface)] text-[var(--text)] border-2 border-[var(--border)] rounded-[var(--radius)] text-base font-[var(--font-body)] cursor-pointer focus:outline-none focus:border-[var(--secondary)] transition-colors'
+    'w-full flex items-center justify-between p-3 bg-surface text-brand-text border-2 border-brand-border rounded-lg text-base font-body cursor-pointer focus:outline-none focus:border-secondary transition-colors'
 
   // min-w-[200px]: deliberate minimum to prevent dropdown from collapsing on short labels
   return (
@@ -188,7 +188,7 @@ export default function FilterDropdown<T extends string>({
           tabIndex={searchable && open ? -1 : 0}
         >
           <span className="flex-1 text-left">{selectedLabel}</span>
-          <span className="ml-2 text-[var(--text-light)]">▾</span>
+          <span className="ml-2 text-text-light">▾</span>
         </button>
         {searchable && open && (
           <input

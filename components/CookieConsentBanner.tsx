@@ -72,9 +72,9 @@ export default function CookieConsentBanner() {
       )}
 
       {resolved && consent === null && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-[var(--border)] bg-[var(--surface)] shadow-lg xl:h-16">
+        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-brand-border bg-surface shadow-lg xl:h-16">
           <div className="container flex flex-wrap items-center justify-between gap-4 py-4 xl:h-full xl:py-0">
-            <p className="text-sm text-[var(--text-light)]">
+            <p className="text-sm text-text-light">
               We use Google Analytics to understand how the site is used. You can decline and it
               won&apos;t load.{' '}
               <a href="/privacy" className="underline">

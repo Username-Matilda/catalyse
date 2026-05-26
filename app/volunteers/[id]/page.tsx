@@ -38,7 +38,7 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
     return (
       <>
         <main className="container py-5 pb-15">
-          <p className="text-[color:var(--error)]">Volunteer not found.</p>
+          <p className="text-error">Volunteer not found.</p>
           <Button href="/volunteers" variant="secondary" className="mt-4">
             Back to Volunteers
           </Button>
@@ -160,7 +160,7 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
                   <div className="flex justify-between items-center">
                     <strong>{t.title}</strong>
                     <span
-                      className={`text-sm font-medium ${t.reviewRating === 'excellent' ? 'text-[color:var(--success)]' : 'text-secondary'}`}
+                      className={`text-sm font-medium ${t.reviewRating === 'excellent' ? 'text-success' : 'text-secondary'}`}
                     >
                       {t.reviewRating}
                     </span>

@@ -16,7 +16,7 @@ export default function FloatingActions() {
     <>
       {/* bottom-4 centers the group in the xl:h-16 footer; bottom-20 clears the same h-16 banner + the 16px gap */}
       <div
-        className={`fixed right-6 z-[200] hidden xl:flex items-center bg-surface border border-brand-border rounded-[var(--radius)] shadow-lg overflow-hidden ${bannerVisible ? 'bottom-20' : 'bottom-4'}`}
+        className={`fixed right-6 z-[200] hidden xl:flex items-center bg-surface border border-brand-border rounded-lg shadow-lg overflow-hidden ${bannerVisible ? 'bottom-20' : 'bottom-4'}`}
       >
         <ThemeToggle icon={false} className="rounded-none self-stretch" />
         {process.env.NODE_ENV === 'development' && (

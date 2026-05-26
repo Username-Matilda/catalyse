@@ -62,7 +62,7 @@ function SortableSkill({
     <div
       ref={setNodeRef}
       role="listitem"
-      className="skill-item bg-brand-bg rounded-[var(--radius)] px-4 py-3 flex items-start gap-2"
+      className="skill-item bg-brand-bg rounded-lg px-4 py-3 flex items-start gap-2"
       style={{
         // dynamic: drag transform/transition/opacity
         transform: CSS.Transform.toString(transform),
@@ -184,7 +184,7 @@ function SortableCategory({
             ))}
             <button
               onClick={onAddSkill}
-              className="border-2 border-dashed border-brand-border bg-transparent rounded-[var(--radius)] px-4 py-3 text-text-light cursor-pointer text-center hover:border-primary hover:text-primary hover:bg-accent transition-all"
+              className="border-2 border-dashed border-brand-border bg-transparent rounded-lg px-4 py-3 text-text-light cursor-pointer text-center hover:border-primary hover:text-primary hover:bg-accent transition-all"
             >
               + Add Skill
             </button>
