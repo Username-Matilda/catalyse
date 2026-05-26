@@ -17,6 +17,7 @@ export const env = {
     (process.env.DISABLE_RATE_LIMIT ?? '').toLowerCase(),
   ),
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+  STUB_GOOGLE: ['1', 'true', 'yes'].includes((process.env.STUB_GOOGLE ?? '').toLowerCase()),
   RAILWAY_GIT_COMMIT_SHA: process.env.RAILWAY_GIT_COMMIT_SHA,
   RAILWAY_ENVIRONMENT_NAME: process.env.RAILWAY_ENVIRONMENT_NAME,
 } as const

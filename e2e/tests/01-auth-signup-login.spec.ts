@@ -379,6 +379,49 @@ test.describe('Authentication: Signup & Login', () => {
     expect(verifyResult.status).toBe(200)
   })
 
+  test('Google signup: application message and profile fields saved and visible to admin', async ({
+    adminPage,
+    browser,
+    baseUrl,
+  }) => {
+    const person = fake.person()
+    const applicationMessage = 'I want to help pause AI development because of safety concerns'
+
+    const context = await browser.newContext()
+    const page = await context.newPage()
+    try {
+      await page.goto(`${baseUrl}/signup`)
+
+      // Stub button only appears in dev/test (no GOOGLE_CLIENT_ID configured)
+      await expect(
+        page.getByRole('button', { name: /Sign up with Google/ }),
+      ).toBeVisible({ timeout: 10_000 })
+      await page.getByRole('button', { name: /Sign up with Google/ }).click()
+
+      // Google account created; application form appears
+      await expect(page.getByLabel('Your Application')).toBeVisible({ timeout: 10_000 })
+
+      await page.getByLabel('Your Name').fill(person.name)
+      await page.getByLabel('Your Application').fill(applicationMessage)
+      await page.getByRole('button', { name: 'Submit Application' }).click()
+
+      await expect(page.getByRole('heading', { name: 'Application submitted' })).toBeVisible({
+        timeout: 10_000,
+      })
+    } finally {
+      await context.close()
+    }
+
+    // Admin can see the application message on the applications list
+    await adminPage.goto(`${baseUrl}/admin/applications`)
+    await expect(adminPage.getByRole('heading', { name: 'Applications' })).toBeVisible({
+      timeout: 10_000,
+    })
+    const card = adminPage.getByRole('article').filter({ hasText: person.name })
+    await expect(card).toBeVisible({ timeout: 10_000 })
+    await expect(card.getByText(applicationMessage)).toBeVisible()
+  })
+
   test.skip('Re-applicant shows full prior rejection history on admin card', async () => {
     // Scenario:
     // 1. Person signs up with email A, admin rejects them with notes + applicant message.

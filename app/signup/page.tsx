@@ -183,6 +183,9 @@ export default function SignupPage() {
     e.preventDefault()
     if (!googlePendingToken) return
     setGoogleApplicationSubmitting(true)
+    // Write directly to localStorage (not setToken) so the orpc client sends
+    // the auth header without triggering auth state and the dashboard redirect.
+    localStorage.setItem('authToken', googlePendingToken)
     try {
       await updateMeMutation.mutateAsync({
         name,
