@@ -137,12 +137,16 @@ export const ProjectInterestBodySchema = z.object({
 export const CreateProjectTaskSchema = WorkItemSchema.pick({
   title: true,
   description: true,
-}).partial({ description: true })
+  estimatedHours: true,
+  deadline: true,
+}).partial({ description: true, estimatedHours: true, deadline: true })
 
 export const UpdateProjectTaskSchema = WorkItemSchema.pick({
   title: true,
   description: true,
   assigneeId: true,
+  estimatedHours: true,
+  deadline: true,
 })
   .partial()
   .extend({ status: TaskStatusSchema.optional() })

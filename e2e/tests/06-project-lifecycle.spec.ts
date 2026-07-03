@@ -186,7 +186,9 @@ test.describe('Project Lifecycle', () => {
     // Outcome is visible on the project detail
     await adminPage.goto(`${baseUrl}/projects/${projectId}`)
     await expect(adminPage.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 })
-    const outcomeDisplay = adminPage.getByRole('status')
+    // dnd-kit's DndContext (used for task reordering) injects its own hidden
+    // role="status" live region, so scope to the visible outcome banner.
+    const outcomeDisplay = adminPage.getByRole('status').filter({ hasText: 'Outcome' })
     await expect(outcomeDisplay).toBeVisible({ timeout: 10_000 })
     await expect(outcomeDisplay).toContainText('Successful')
     await expect(outcomeDisplay).toContainText(outcomeNotes)
