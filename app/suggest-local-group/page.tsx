@@ -8,6 +8,7 @@ import FilterDropdown from '@/components/FilterDropdown'
 import { orpc } from '@/lib/orpc'
 import { COUNTRY_OPTIONS } from '@/lib/filter-options'
 import { useToast } from '@/lib/toast'
+import { formatDate } from '@/lib/format-date'
 
 const SUGGESTION_COUNTRIES = COUNTRY_OPTIONS.filter(
   (o) => o.value && o.value !== 'Remote' && o.value !== 'Other',
@@ -124,14 +125,7 @@ export default function SuggestLocalGroupPage() {
                         )}
                       </p>
                       <p className="text-xs text-text-light m-0 mt-1">
-                        Submitted{' '}
-                        {s.createdAt
-                          ? new Date(s.createdAt).toLocaleDateString('en-GB', {
-                              day: 'numeric',
-                              month: 'short',
-                              year: 'numeric',
-                            })
-                          : ''}
+                        Submitted {s.createdAt ? formatDate(s.createdAt) : ''}
                       </p>
                       {s.adminNotes && (
                         <p className="text-sm text-text-light mt-2 mb-0 italic">{s.adminNotes}</p>

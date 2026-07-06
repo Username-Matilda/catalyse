@@ -7,6 +7,7 @@ import Button from '@/components/Button'
 import Tabs from '@/components/Tabs'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
+import { formatDate } from '@/lib/format-date'
 import { InviteStatus } from '@/generated/prisma/enums'
 
 export default function AdminTeamPage() {
@@ -163,8 +164,7 @@ export default function AdminTeamPage() {
                         <div>
                           <strong>{inv.email}</strong>
                           <p className="text-text-light text-sm m-0">
-                            Invited by {inv.invitedByName} · Expires{' '}
-                            {new Date(inv.expiresAt).toLocaleDateString()}
+                            Invited by {inv.invitedByName} · Expires {formatDate(inv.expiresAt)}
                           </p>
                         </div>
                         <Button variant="secondary" size="sm" onClick={() => cancelInvite(inv.id)}>

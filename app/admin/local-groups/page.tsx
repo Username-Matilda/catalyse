@@ -10,6 +10,7 @@ import FilterDropdown, { FilterOption, useFilterOptions } from '@/components/Fil
 import { orpc } from '@/lib/orpc'
 import { COUNTRY_OPTIONS } from '@/lib/filter-options'
 import { useToast } from '@/lib/toast'
+import { formatDate } from '@/lib/format-date'
 import { LocalGroupSuggestionStatus } from '@/generated/prisma/enums'
 
 type StatusFilter = 'all' | 'active' | 'pending' | 'on_hold' | 'declined'
@@ -398,11 +399,7 @@ export default function AdminLocalGroupsPage() {
                           {item.suggestedBy.name}
                         </Link>
                         {' · '}
-                        {new Date(item.createdAt).toLocaleDateString('en-GB', {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric',
-                        })}
+                        {formatDate(item.createdAt)}
                       </p>
                     )}
                     {item.kind === 'suggestion' && item.adminNotes && (

@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
+import { formatDate } from '@/lib/format-date'
 import { ApprovalStatus } from '@/generated/prisma/enums'
 
 export default function ApplicationReviewPage() {
@@ -104,7 +105,7 @@ export default function ApplicationReviewPage() {
   const locationParts = [app.localGroup, app.country ?? app.location].filter(Boolean)
   const meta = [
     locationParts.length ? locationParts.join(' · ') : null,
-    app.createdAt ? `Applied ${app.createdAt.toLocaleDateString()}` : null,
+    app.createdAt ? `Applied ${formatDate(app.createdAt)}` : null,
     app.reviewer ? `Reviewer: ${app.reviewer.name}` : null,
   ].filter(Boolean)
 
@@ -127,8 +128,7 @@ export default function ApplicationReviewPage() {
         <p
           className={`text-sm mb-4 ${daysUntilAnonymise !== null && daysUntilAnonymise <= 1 ? 'text-red-500' : 'text-amber-500'}`}
         >
-          Personally Identifiable Information will be anonymised on{' '}
-          {anonymiseDate.toLocaleDateString()}
+          Personally Identifiable Information will be anonymised on {formatDate(anonymiseDate)}
           {daysUntilAnonymise !== null && daysUntilAnonymise >= 0
             ? ` (${daysUntilAnonymise === 0 ? 'today' : `${daysUntilAnonymise} day${daysUntilAnonymise === 1 ? '' : 's'}`})`
             : ''}
@@ -212,7 +212,7 @@ export default function ApplicationReviewPage() {
               className={i > 0 ? 'mt-3 pt-3 border-t border-amber-200 dark:border-amber-700' : ''}
             >
               <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide mb-1">
-                {new Date(r.rejectedAt).toLocaleDateString()}
+                {formatDate(r.rejectedAt)}
               </p>
               {r.adminNotes && (
                 <div className="mb-1">

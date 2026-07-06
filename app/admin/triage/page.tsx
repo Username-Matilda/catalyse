@@ -16,6 +16,7 @@ import {
 import Tabs from '@/components/Tabs'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
+import { formatDate } from '@/lib/format-date'
 import { InterestStatus, ProjectStatus } from '@/generated/prisma/enums'
 
 export default function TriagePage() {
@@ -171,13 +172,7 @@ export default function TriagePage() {
                           </Link>
                         </p>
                         <p className="text-xs text-text-light m-0 mt-1">
-                          {i.createdAt
-                            ? new Date(i.createdAt).toLocaleDateString('en-GB', {
-                                day: 'numeric',
-                                month: 'short',
-                                year: 'numeric',
-                              })
-                            : ''}
+                          {i.createdAt ? formatDate(i.createdAt) : ''}
                           {' · '}Owner: {i.ownerName ?? 'None'}
                           {' · '}Project:{' '}
                           <span className={statusBadgeClasses(i.projectStatus)}>
