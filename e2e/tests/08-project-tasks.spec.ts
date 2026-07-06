@@ -194,8 +194,9 @@ test.describe('Project Tasks', () => {
     await adminPage.getByRole('button', { name: 'Create Task' }).click()
     await expect(getAlert(adminPage)).toContainText('Task added!', { timeout: 10_000 })
 
+    await adminPage.getByRole('button', { name: 'Task actions for Task to delete' }).click()
     adminPage.once('dialog', (dialog) => dialog.accept())
-    await adminPage.getByRole('button', { name: 'Delete task' }).click()
+    await adminPage.getByRole('menuitem', { name: 'Delete task' }).click()
 
     await expect(getAlert(adminPage)).toContainText('Task deleted!', { timeout: 10_000 })
     await expect(adminPage.getByText('Task to delete')).not.toBeVisible({ timeout: 10_000 })

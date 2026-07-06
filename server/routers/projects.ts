@@ -39,10 +39,12 @@ const OWNER_ALLOWED_STATUSES: ProjectStatus[] = [
   ProjectStatus.completed,
 ]
 
+// open and in_progress share a bucket so claiming/assigning a task doesn't
+// disturb its priority position — only completed tasks sink to the bottom.
 const TASK_ORDER: Record<string, number> = {
   [TaskStatus.open]: 0,
-  [TaskStatus.in_progress]: 1,
-  [TaskStatus.completed]: 2,
+  [TaskStatus.in_progress]: 0,
+  [TaskStatus.completed]: 1,
 }
 
 export const projectsRouter = {
@@ -308,12 +310,15 @@ export const projectsRouter = {
           assignee: { select: { name: true } },
           creator: { select: { name: true } },
         },
-        orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
       })
 
-      const sortedTasks = tasks.sort(
-        (a, b) => (TASK_ORDER[a.status] ?? 0) - (TASK_ORDER[b.status] ?? 0),
-      )
+      const sortedTasks = tasks.sort((a, b) => {
+        const orderDiff = (TASK_ORDER[a.status] ?? 0) - (TASK_ORDER[b.status] ?? 0)
+        if (orderDiff !== 0) return orderDiff
+        const sortOrderDiff = (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
+        if (sortOrderDiff !== 0) return sortOrderDiff
+        return (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0)
+      })
 
       const mappedTasks = sortedTasks.map((t) => ({
         id: t.id,
@@ -325,6 +330,9 @@ export const projectsRouter = {
         createdById: isPending ? null : t.creatorId,
         createdByName: isPending ? null : (t.creator?.name ?? null),
         status: t.status,
+        sortOrder: t.sortOrder,
+        estimatedHours: t.estimatedHours,
+        deadline: t.deadline,
         completedAt: t.completedAt,
         createdAt: t.createdAt,
         updatedAt: t.updatedAt,
@@ -786,7 +794,6 @@ export const projectsRouter = {
             volunteerId: input.volunteerId,
             workItemId: input.projectId,
             interestType: input.interestType,
-            message: 'Assigned by admin/owner',
             status: InterestStatus.accepted,
             respondedAt: new Date(),
           },
@@ -835,6 +842,8 @@ export const projectsRouter = {
       tasks.sort((a, b) => {
         const orderDiff = (TASK_ORDER[a.status] ?? 0) - (TASK_ORDER[b.status] ?? 0)
         if (orderDiff !== 0) return orderDiff
+        const sortOrderDiff = (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
+        if (sortOrderDiff !== 0) return sortOrderDiff
         return (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0)
       })
 
@@ -848,6 +857,9 @@ export const projectsRouter = {
         createdById: isPending ? null : t.creatorId,
         createdByName: isPending ? null : (t.creator?.name ?? null),
         status: t.status,
+        sortOrder: t.sortOrder,
+        estimatedHours: t.estimatedHours,
+        deadline: t.deadline,
         completedAt: t.completedAt,
         createdAt: t.createdAt,
         updatedAt: t.updatedAt,
@@ -870,6 +882,10 @@ export const projectsRouter = {
       }
 
       const task = await prisma.$transaction(async (tx) => {
+        const max = await tx.workItem.aggregate({
+          where: { parentId: input.projectId, type: WorkItemType.TASK },
+          _max: { sortOrder: true },
+        })
         const newTask = await tx.workItem.create({
           data: {
             type: WorkItemType.TASK,
@@ -877,7 +893,10 @@ export const projectsRouter = {
             parentId: input.projectId,
             title: input.title,
             description: input.description ?? null,
+            estimatedHours: input.estimatedHours ?? null,
+            deadline: input.deadline ?? null,
             creatorId: volunteer.id,
+            sortOrder: (max._max.sortOrder ?? 0) + 1,
           },
         })
         if (project.status === ProjectStatus.needs_tasks) {
@@ -890,6 +909,38 @@ export const projectsRouter = {
       })
 
       return { id: task.id, message: 'Task created' }
+    }),
+
+  reorderTasks: authedProcedure
+    .input(
+      z.object({
+        projectId: z.number().int(),
+        items: z.array(z.object({ id: z.number().int(), sortOrder: z.number().int() })),
+      }),
+    )
+    .handler(async ({ input, context }) => {
+      const volunteer = context.volunteer
+      const project = await prisma.workItem.findFirst({
+        where: { id: input.projectId, type: WorkItemType.PROJECT },
+      })
+      if (!project) throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
+
+      if (project.assigneeId !== volunteer.id && !volunteer.isAdmin) {
+        throw new ORPCError('FORBIDDEN', {
+          message: 'Only project owner or admin can reorder tasks',
+        })
+      }
+
+      await prisma.$transaction(
+        input.items.map(({ id, sortOrder }) =>
+          prisma.workItem.updateMany({
+            where: { id, parentId: input.projectId, type: WorkItemType.TASK },
+            data: { sortOrder },
+          }),
+        ),
+      )
+
+      return { success: true }
     }),
 
   updateTask: authedProcedure
@@ -950,6 +1001,64 @@ export const projectsRouter = {
 
       await prisma.workItem.update({ where: { id: input.taskId }, data })
       return { message: 'Task updated' }
+    }),
+
+  assignTask: authedProcedure
+    .input(
+      z.object({
+        projectId: z.number().int(),
+        taskId: z.number().int(),
+        assigneeId: z.number().int(),
+      }),
+    )
+    .handler(async ({ input, context }) => {
+      const volunteer = context.volunteer
+      const [project, task] = await Promise.all([
+        prisma.workItem.findFirst({ where: { id: input.projectId, type: WorkItemType.PROJECT } }),
+        prisma.workItem.findFirst({
+          where: { id: input.taskId, parentId: input.projectId, type: WorkItemType.TASK },
+        }),
+      ])
+      if (!project || !task)
+        throw new ORPCError('NOT_FOUND', { message: 'Project or task not found' })
+
+      if (project.assigneeId !== volunteer.id && !volunteer.isAdmin) {
+        throw new ORPCError('FORBIDDEN', { message: 'Only project owner or admin can assign' })
+      }
+      if (task.status === TaskStatus.completed) {
+        throw new ORPCError('BAD_REQUEST', { message: 'Cannot assign a completed task' })
+      }
+
+      const assignee = await prisma.volunteer.findFirst({
+        where: { id: input.assigneeId, deletedAt: null },
+      })
+      if (!assignee) throw new ORPCError('BAD_REQUEST', { message: 'Volunteer not found' })
+
+      await prisma.workItem.update({
+        where: { id: input.taskId },
+        data: {
+          assigneeId: input.assigneeId,
+          status: TaskStatus.in_progress,
+          updatedAt: new Date(),
+          nudgeSentAt: null,
+          finalWarningSentAt: null,
+        },
+      })
+
+      await notifyUser(
+        input.assigneeId,
+        'task_assigned',
+        `You've been assigned a task on '${project.title}'`,
+        task.title,
+        `/projects/${input.projectId}`,
+        {
+          message: `You've been assigned the task <strong>${task.title}</strong> on the project <strong>${project.title}</strong>.`,
+          projectTitle: project.title,
+          projectId: input.projectId,
+        },
+      )
+
+      return { message: 'Task assigned' }
     }),
 
   deleteTask: authedProcedure

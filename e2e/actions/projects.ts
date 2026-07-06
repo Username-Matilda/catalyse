@@ -129,12 +129,13 @@ export async function transferProjectOwnership(
   if (!adminPage.url().includes(`/projects/${projectId}`)) {
     await adminPage.goto(`${baseUrl}/projects/${projectId}`)
   }
+  await adminPage.getByRole('button', { name: 'Ownership actions' }).click()
   await expect(
     adminPage.getByRole('heading', { level: 3, name: 'Transfer Ownership' }),
   ).toBeVisible({ timeout: 10_000 })
   await selectFilterDropdown(adminPage, 'Transfer to', volunteerName)
   adminPage.once('dialog', (dialog) => dialog.accept())
-  await adminPage.getByRole('button', { name: 'Transfer', exact: true }).click()
+  await adminPage.getByRole('menu').getByRole('button', { name: 'Transfer', exact: true }).click()
   await expect(getAlert(adminPage)).toBeVisible({ timeout: 10_000 })
 }
 

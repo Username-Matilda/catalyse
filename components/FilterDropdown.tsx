@@ -7,6 +7,7 @@ export interface FilterOption<T extends string = string> {
   value: T
   label: string
   indent?: boolean
+  header?: boolean
 }
 
 export function useFilterOptions<const Options extends readonly FilterOption[]>(
@@ -110,10 +111,17 @@ export default function FilterDropdown<T extends string>({
       : options
 
   function select(opt: FilterOption<T>) {
+    if (opt.header) return
     onChange(opt.value)
     setOpen(false)
     setQuery('')
     setFocusedIndex(-1)
+  }
+
+  function nextSelectableIndex(from: number, direction: 1 | -1): number {
+    let i = from + direction
+    while (i >= 0 && i < filtered.length && filtered[i]?.header) i += direction
+    return Math.max(0, Math.min(i, filtered.length - 1))
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -127,19 +135,15 @@ export default function FilterDropdown<T extends string>({
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault()
-        setFocusedIndex((i) => Math.min(i + 1, filtered.length - 1))
+        setFocusedIndex((i) => nextSelectableIndex(i, 1))
         break
       case 'Tab':
         e.preventDefault()
-        if (e.shiftKey) {
-          setFocusedIndex((i) => Math.max(i - 1, 0))
-        } else {
-          setFocusedIndex((i) => Math.min(i + 1, filtered.length - 1))
-        }
+        setFocusedIndex((i) => nextSelectableIndex(i, e.shiftKey ? -1 : 1))
         break
       case 'ArrowUp':
         e.preventDefault()
-        setFocusedIndex((i) => Math.max(i - 1, 0))
+        setFocusedIndex((i) => nextSelectableIndex(i, -1))
         break
       case 'Enter':
         e.preventDefault()
@@ -222,19 +226,29 @@ export default function FilterDropdown<T extends string>({
               }}
               className="mt-1 bg-surface border border-brand-border rounded-lg shadow-lg py-1 max-h-72 overflow-y-auto"
             >
-              {filtered.map((opt, i) => (
-                <div
-                  key={opt.value}
-                  id={`${id}-opt-${i}`}
-                  role="option"
-                  aria-selected={value === opt.value}
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => select(opt)}
-                  className={`px-3 py-2 cursor-pointer rounded-md hover:bg-accent transition-colors text-sm ${value === opt.value || i === focusedIndex ? 'bg-accent' : ''} ${opt.indent ? 'pl-6' : ''}`}
-                >
-                  {opt.label}
-                </div>
-              ))}
+              {filtered.map((opt, i) =>
+                opt.header ? (
+                  <div
+                    key={opt.value}
+                    role="presentation"
+                    className="px-3 pt-2 pb-1 text-xs font-semibold text-text-light uppercase tracking-wide"
+                  >
+                    {opt.label}
+                  </div>
+                ) : (
+                  <div
+                    key={opt.value}
+                    id={`${id}-opt-${i}`}
+                    role="option"
+                    aria-selected={value === opt.value}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => select(opt)}
+                    className={`px-3 py-2 cursor-pointer rounded-md hover:bg-accent transition-colors text-sm ${value === opt.value || i === focusedIndex ? 'bg-accent' : ''} ${opt.indent ? 'pl-6' : ''}`}
+                  >
+                    {opt.label}
+                  </div>
+                ),
+              )}
               {filtered.length === 0 && (
                 <div className="px-3 py-2 text-sm text-text-light">No results</div>
               )}

@@ -169,7 +169,7 @@ model DeletionRequest {
 model Notification {
   id          Int       @id @default(autoincrement())
   volunteerId Int       @map("volunteer_id")
-  type        String // TODO: enum — new_project_proposal, project_approved, project_needs_discussion, project_status_changed, new_interest, interest_accepted, interest_declined, interest_withdrawn, assigned_to_project, new_bug_report, starter_task_assigned, starter_task_submitted, starter_task_reviewed, local_group_suggestion
+  type        String // TODO: enum — new_project_proposal, project_approved, project_needs_discussion, project_status_changed, new_interest, interest_accepted, interest_declined, interest_withdrawn, assigned_to_project, task_assigned, new_bug_report, starter_task_assigned, starter_task_submitted, starter_task_reviewed, local_group_suggestion
   title       String
   body        String?
   link        String?
@@ -220,6 +220,7 @@ model WorkItem {
   /// @zod.string.min(1, { message: "Title is required" })
   title       String
   description String?
+  deadline    DateTime? // applies to PROJECT, TASK, or STARTER_TASK
 
   // Hierarchy: TASK has parentId → PROJECT
   parentId Int?       @map("parent_id")
@@ -260,6 +261,7 @@ model WorkItem {
   estimatedHours     Float?    @map("estimated_hours")
   nudgeSentAt        DateTime? @map("nudge_sent_at")
   finalWarningSentAt DateTime? @map("final_warning_sent_at")
+  sortOrder          Int?      @default(0) @map("sort_order")
 
   country    String?
   localGroup String?   @map("local_group")
