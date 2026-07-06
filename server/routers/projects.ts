@@ -498,7 +498,12 @@ export const projectsRouter = {
       }
       if (body.timeCommitmentHoursPerWeek !== undefined)
         data.timeCommitmentHoursPerWeek = body.timeCommitmentHoursPerWeek
-      if (body.assigneeId !== undefined) data.assigneeId = body.assigneeId
+      if (body.assigneeId !== undefined) {
+        data.assigneeId = body.assigneeId
+        if (body.assigneeId !== null && body.isSeekingOwner === undefined) {
+          data.isSeekingOwner = false
+        }
+      }
 
       if (newStatus !== undefined) {
         if (volunteer.isAdmin) {
