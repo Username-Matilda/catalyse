@@ -23,10 +23,7 @@ export default function Tabs<T extends string = string>({
   className = 'mb-6',
 }: TabsProps<T>) {
   return (
-    <div
-      role={role}
-      className={`flex overflow-x-auto border-b border-brand-border ${className}`}
-    >
+    <div role={role} className={`flex overflow-x-auto border-b border-brand-border ${className}`}>
       {tabs.map(({ key, label, 'data-tab': dataTab }) => (
         <button
           key={key}
