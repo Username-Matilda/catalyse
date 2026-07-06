@@ -14,6 +14,10 @@ interface User {
   hasPassword: boolean
   emailDigest: string | null
   cookieConsentAnalytics: boolean | null
+  location: string | null
+  country: string | null
+  localGroup: string | null
+  locationConfirmedAt: Date | null
   skills: Array<{
     id: number
     name: string

@@ -9,6 +9,7 @@ import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import SkillPicker from '@/components/SkillPicker'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
+import { buildLocationOptions, type LocalGroupOption } from '@/lib/filter-options'
 
 interface SelectedSkill {
   skillId: number
@@ -21,6 +22,7 @@ export default function ProfilePage() {
   const [name, setName] = useState('')
   const [bio, setBio] = useState('')
   const [location, setLocation] = useState('')
+  const [locationValue, setLocationValue] = useState('') // 'UK' or 'UK:London'
   const [hours, setHours] = useState('')
   const [consentMakeProfileVisibleInDirectory, setConsentMakeProfileVisibleInDirectory] =
     useState(true)
@@ -65,6 +67,8 @@ export default function ProfilePage() {
     ...orpc.auth.me.queryOptions(),
     enabled: !!user,
   })
+  const { data: localGroupsData } = useQuery(orpc.localGroups.list.queryOptions({ input: {} }))
+  const allLocalGroups: LocalGroupOption[] = localGroupsData?.groups ?? []
 
   useEffect(() => {
     if (!me || initialized) return
@@ -73,6 +77,7 @@ export default function ProfilePage() {
     setName(me.name ?? '')
     setBio(me.bio ?? '')
     setLocation(me.location ?? '')
+    setLocationValue(me.country ? `${me.country}${me.localGroup ? `:${me.localGroup}` : ''}` : '')
     setHours(me.availabilityHoursPerWeek !== null ? String(me.availabilityHoursPerWeek) : '')
     setConsentMakeProfileVisibleInDirectory(!!me.consentMakeProfileVisibleInDirectory)
     setConsentContactableByProjectOwners(!!me.consentContactableByProjectOwners)
@@ -105,10 +110,13 @@ export default function ProfilePage() {
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
+    const [country, localGroup] = locationValue.split(':')
     updateMutation.mutate({
       name: name.trim(),
       bio: bio.trim() || null,
       location: location.trim() || null,
+      country: country || null,
+      localGroup: localGroup || null,
       availabilityHoursPerWeek: hours ? Number(hours) : null,
       consentMakeProfileVisibleInDirectory,
       consentContactableByProjectOwners,
@@ -243,15 +251,27 @@ export default function ProfilePage() {
               />
             </div>
             <div>
-              <label htmlFor="location">Location</label>
+              <label htmlFor="location">City / Area</label>
               <input
                 type="text"
                 id="location"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                placeholder="e.g. London, UK"
+                placeholder="e.g. Shoreditch"
               />
             </div>
+          </div>
+
+          <div className="mb-5">
+            <FilterDropdown
+              id="locationValue"
+              label="Country/Group"
+              ariaLabel="Select country/group"
+              value={locationValue}
+              options={buildLocationOptions(allLocalGroups)}
+              onChange={setLocationValue}
+              searchable
+            />
           </div>
 
           {/* Skills */}

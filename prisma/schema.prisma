@@ -487,6 +487,7 @@ model Volunteer {
   country                                 String?
   emailDigest                             String?                  @default("none") @map("email_digest") // TODO: enum — none, daily, weekly
   localGroup                              String?                  @map("local_group")
+  locationConfirmedAt                     DateTime?                @map("location_confirmed_at")
   approvalStatus                          ApprovalStatus           @default(pending) @map("approval_status")
   applicationMessage                      String?                  @map("application_message")
   applicationAdminNotes                   String?                  @map("application_admin_notes")

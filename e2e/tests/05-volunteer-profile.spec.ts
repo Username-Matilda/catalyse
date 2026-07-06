@@ -27,7 +27,7 @@ test.describe('Volunteer Profile', () => {
 
     await volunteer.page.getByLabel('Your Name').fill(uniqueName)
     await volunteer.page.getByLabel('About You').fill('Bio text for e2e test')
-    await volunteer.page.getByLabel('Location').fill('Test City')
+    await volunteer.page.getByLabel('City / Area').fill('Test City')
     await volunteer.page.getByLabel('Hours per Week').fill('10')
     await volunteer.page.getByRole('button', { name: 'Save Changes' }).click()
 

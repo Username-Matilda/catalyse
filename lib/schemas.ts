@@ -330,6 +330,7 @@ export const UpdateVolunteerSchema = VolunteerSchema.omit({
   reviewerId: true,
   emailConfirmed: true,
   deletedAt: true,
+  locationConfirmedAt: true,
 })
   .partial()
   .extend({

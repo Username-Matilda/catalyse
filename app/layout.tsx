@@ -9,6 +9,7 @@ import FloatingActions from '@/components/FloatingActions'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import CookieConsentBanner from '@/components/CookieConsentBanner'
+import ConfirmLocationModal from '@/components/ConfirmLocationModal'
 import Script from 'next/script'
 import './globals.css'
 
@@ -66,6 +67,7 @@ export default function RootLayout({
                   <Footer />
                   <FloatingActions />
                   <CookieConsentBanner />
+                  <ConfirmLocationModal />
                 </CookieConsentProvider>
               </ToastProvider>
             </AuthProvider>

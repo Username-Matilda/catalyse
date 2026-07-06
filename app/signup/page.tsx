@@ -10,6 +10,7 @@ import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import SkillPicker from '@/components/SkillPicker'
 import { useAuth } from '@/lib/auth-context'
 import { orpc } from '@/lib/orpc'
+import { buildLocationOptions, type LocalGroupOption } from '@/lib/filter-options'
 
 interface SelectedSkill {
   skillId: number
@@ -58,8 +59,7 @@ export default function SignupPage() {
   const [contactNotes, setContactNotes] = useState('')
   const [availability, setAvailability] = useState('')
   const [location, setLocation] = useState('')
-  const [country, setCountry] = useState('')
-  const [localGroup, setLocalGroup] = useState('')
+  const [locationValue, setLocationValue] = useState('') // 'UK' or 'UK:London'
   const [otherSkills, setOtherSkills] = useState('')
   const [applicationMessage, setApplicationMessage] = useState('')
   const [consentVisible, setConsentVisible] = useState(true)
@@ -86,6 +86,8 @@ export default function SignupPage() {
     ...orpc.auth.me.queryOptions(),
     enabled: !!googlePendingToken,
   })
+  const { data: localGroupsData } = useQuery(orpc.localGroups.list.queryOptions({ input: {} }))
+  const allLocalGroups: LocalGroupOption[] = localGroupsData?.groups ?? []
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (meData?.name) setName(meData.name)
@@ -186,6 +188,7 @@ export default function SignupPage() {
     // Write directly to localStorage (not setToken) so the orpc client sends
     // the auth header without triggering auth state and the dashboard redirect.
     localStorage.setItem('authToken', googlePendingToken)
+    const [country, localGroup] = locationValue.split(':')
     try {
       await updateMeMutation.mutateAsync({
         name,
@@ -259,6 +262,7 @@ export default function SignupPage() {
     }
 
     setSubmitting(true)
+    const [country, localGroup] = locationValue.split(':')
     try {
       const data = await signupMutation.mutateAsync({
         name,
@@ -445,33 +449,24 @@ export default function SignupPage() {
                   />
                 </div>
                 <div className="mb-5">
-                  <label htmlFor="g_location">Location</label>
+                  <label htmlFor="g_location">City / Area</label>
                   <input
                     type="text"
                     id="g_location"
-                    placeholder="e.g., London, UK"
+                    placeholder="e.g., Shoreditch"
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
                   />
                 </div>
                 <div className="mb-5">
-                  <label htmlFor="g_country">Country</label>
-                  <input
-                    type="text"
-                    id="g_country"
-                    placeholder="e.g., United Kingdom"
-                    value={country}
-                    onChange={(e) => setCountry(e.target.value)}
-                  />
-                </div>
-                <div className="mb-5">
-                  <label htmlFor="g_localGroup">Local Group</label>
-                  <input
-                    type="text"
-                    id="g_localGroup"
-                    placeholder="e.g., London"
-                    value={localGroup}
-                    onChange={(e) => setLocalGroup(e.target.value)}
+                  <FilterDropdown
+                    id="g_locationValue"
+                    label="Country/Group"
+                    ariaLabel="Select country/group"
+                    value={locationValue}
+                    options={buildLocationOptions(allLocalGroups)}
+                    onChange={setLocationValue}
+                    searchable
                   />
                 </div>
               </div>
@@ -856,36 +851,25 @@ export default function SignupPage() {
                 />
               </div>
               <div className="mb-5">
-                <label htmlFor="location">Location</label>
+                <label htmlFor="location">City / Area</label>
                 <input
                   type="text"
                   id="location"
                   name="location"
-                  placeholder="e.g., London, UK"
+                  placeholder="e.g., Shoreditch"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                 />
               </div>
               <div className="mb-5">
-                <label htmlFor="country">Country</label>
-                <input
-                  type="text"
-                  id="country"
-                  name="country"
-                  placeholder="e.g., United Kingdom"
-                  value={country}
-                  onChange={(e) => setCountry(e.target.value)}
-                />
-              </div>
-              <div className="mb-5">
-                <label htmlFor="localGroup">Local Group</label>
-                <input
-                  type="text"
-                  id="localGroup"
-                  name="localGroup"
-                  placeholder="e.g., London"
-                  value={localGroup}
-                  onChange={(e) => setLocalGroup(e.target.value)}
+                <FilterDropdown
+                  id="locationValue"
+                  label="Country/Group"
+                  ariaLabel="Select country/group"
+                  value={locationValue}
+                  options={buildLocationOptions(allLocalGroups)}
+                  onChange={setLocationValue}
+                  searchable
                 />
               </div>
             </div>

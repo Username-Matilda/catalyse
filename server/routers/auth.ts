@@ -252,6 +252,7 @@ export const authRouter = {
         location: input.location ?? null,
         country: input.country ?? null,
         localGroup: input.localGroup ?? null,
+        locationConfirmedAt: new Date(),
         otherSkills: input.otherSkills ?? null,
         consentMakeProfileVisibleInDirectory: input.consentMakeProfileVisibleInDirectory ?? true,
         consentContactableByProjectOwners: input.consentContactableByProjectOwners ?? true,

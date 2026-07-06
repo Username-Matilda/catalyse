@@ -39,18 +39,31 @@ export const volunteersRouter = {
         ...(input.skillIds && input.skillIds.length > 0
           ? { skills: { some: { skillId: { in: input.skillIds } } } }
           : {}),
-        ...(input.search
-          ? { OR: [{ name: { contains: input.search } }, { bio: { contains: input.search } }] }
-          : {}),
-        ...(input.country
-          ? {
-              OR: [
-                { country: input.country },
-                { country: null, location: { contains: input.country } },
-              ],
-            }
-          : {}),
-        ...(input.localGroup ? { localGroup: input.localGroup } : {}),
+        AND: [
+          ...(input.search
+            ? [{ OR: [{ name: { contains: input.search } }, { bio: { contains: input.search } }] }]
+            : []),
+          ...(input.country
+            ? [
+                {
+                  OR: [
+                    { country: input.country },
+                    { country: null, location: { contains: input.country } },
+                  ],
+                },
+              ]
+            : []),
+          ...(input.localGroup
+            ? [
+                {
+                  OR: [
+                    { localGroup: input.localGroup },
+                    { localGroup: null, location: { contains: input.localGroup } },
+                  ],
+                },
+              ]
+            : []),
+        ],
       }
 
       const [volunteers, total] = await Promise.all([
@@ -259,6 +272,14 @@ export const volunteersRouter = {
       if (Object.prototype.hasOwnProperty.call(input, field)) {
         data[field] = input[field]
       }
+    }
+
+    if (
+      Object.prototype.hasOwnProperty.call(input, 'location') ||
+      Object.prototype.hasOwnProperty.call(input, 'country') ||
+      Object.prototype.hasOwnProperty.call(input, 'localGroup')
+    ) {
+      data.locationConfirmedAt = new Date()
     }
 
     if (input.consentMakeProfileVisibleInDirectory !== undefined) {
