@@ -347,6 +347,45 @@ export function buildProjectNotificationHtml(
 </div></body></html>`
 }
 
+export function buildAdminAlertHtml(
+  name: string,
+  subject: string,
+  message: string,
+  ctaLabel: string,
+  ctaUrl: string,
+): string {
+  const n = escapeHtml(name)
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
+<body><div class="container">
+  <h2>${subject}</h2>
+  <p>Hi ${n},</p>
+  <p>${message}</p>
+  <p style="text-align: center; margin: 32px 0;">
+    <a href="${ctaUrl}" class="button">${ctaLabel}</a>
+  </p>
+  ${footer([[ctaLabel, ctaUrl]])}
+</div></body></html>`
+}
+
+export async function sendAdminAlertEmail({
+  to,
+  name,
+  subject,
+  message,
+  ctaLabel,
+  ctaUrl,
+}: {
+  to: string
+  name: string
+  subject: string
+  message: string
+  ctaLabel: string
+  ctaUrl: string
+}): Promise<boolean> {
+  const url = ctaUrl.startsWith('http') ? ctaUrl : `${env.APP_URL}${ctaUrl}`
+  return sendEmail(to, subject, buildAdminAlertHtml(name, subject, message, ctaLabel, url))
+}
+
 export async function sendProjectNotificationEmail({
   to,
   name,

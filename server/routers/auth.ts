@@ -18,6 +18,7 @@ import {
   sendApplicationApprovedEmail,
 } from '@/lib/email'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { notifyAdmins } from '@/lib/notify'
 import {
   SignupSchema,
   ChangePasswordSchema,
@@ -301,6 +302,20 @@ export const authRouter = {
     }
 
     const isApproved = wasBootstrapped || wasInvited || !platformSettings.requireApplicationApproval
+    if (!isApproved) {
+      notifyAdmins(
+        'new_volunteer_signup',
+        `New volunteer application: ${volunteer.name}`,
+        `${volunteer.name} has applied to join Catalyse`,
+        '/admin/applications',
+        {
+          message: `<strong>${volunteer.name}</strong> (${email}) has applied to join Catalyse. Please review their application.`,
+          ctaLabel: 'Review Application',
+          ctaUrl: '/admin/applications',
+        },
+      ).catch((e) => console.error('[SIGNUP NOTIFY]', e))
+    }
+
     return {
       id: volunteer.id,
       token: authToken,
