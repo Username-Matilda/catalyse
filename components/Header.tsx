@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/lib/auth-context'
+import { useLocationModal } from '@/lib/location-modal-context'
 import Button from '@/components/Button'
 import { orpc } from '@/lib/orpc'
 import { ThemeToggle } from './ThemeToggle'
@@ -124,6 +125,7 @@ const ADMIN_NAV_ITEMS: { href: string; label: string; superAdminOnly?: boolean }
 
 export default function Header() {
   const { user, loading, logout } = useAuth()
+  const { show: showLocationModal } = useLocationModal()
   const pathname = usePathname()
   const queryClient = useQueryClient()
   const [mounted, setMounted] = useState(false)
@@ -206,7 +208,17 @@ export default function Header() {
             {mounted &&
               !loading &&
               (user ? (
-                <div className="relative">
+                <div className="relative flex items-center gap-2">
+                  {!user.locationConfirmedAt && (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={showLocationModal}
+                      className="animate-pulse"
+                    >
+                      Confirm your location
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="sm"
@@ -315,10 +327,16 @@ export default function Header() {
               variant="ghost"
               size="md"
               icon
-              className="border border-brand-border"
+              className="border border-brand-border relative"
               aria-label="Open menu"
               onClick={() => setMobileMenuOpen(true)}
             >
+              {mounted && !loading && user && !user.locationConfirmedAt && (
+                <span
+                  className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-primary"
+                  aria-hidden="true"
+                />
+              )}
               <svg
                 width="22"
                 height="22"
@@ -382,6 +400,17 @@ export default function Header() {
               (user ? (
                 <>
                   <MobileNavSection>Account</MobileNavSection>
+                  {!user.locationConfirmedAt && (
+                    <button
+                      onClick={() => {
+                        showLocationModal()
+                        setMobileMenuOpen(false)
+                      }}
+                      className="block w-full text-left px-5 py-4 text-primary font-medium text-base border-b border-brand-border hover:bg-brand-bg cursor-pointer bg-transparent"
+                    >
+                      Confirm your location
+                    </button>
+                  )}
                   <MobileNavLink href="/dashboard">
                     Dashboard
                     {unreadCount > 0 && (
