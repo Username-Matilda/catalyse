@@ -8,6 +8,7 @@ import Button from '@/components/Button'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import { buildLocationOptions, type LocalGroupOption } from '@/lib/filter-options'
 import { InferRouterInputs } from '@orpc/server'
+import { ORPCError } from '@orpc/client'
 import { orpc } from '@/lib/orpc'
 import { AppRouter } from '@/server/router'
 import { type Project, ProjectList, statusBadgeClasses } from '@/components/ProjectCard'
@@ -288,6 +289,13 @@ export default function ProjectsPage() {
                 ? projectsError.message
                 : 'Something went wrong loading projects.'}
             </p>
+            {projectsError instanceof ORPCError && projectsError.code === 'FORBIDDEN' && (
+              <p className="mt-2">
+                <Link href="/verify-email" className="underline">
+                  Confirm your email
+                </Link>
+              </p>
+            )}
           </div>
         ) : projects.length === 0 ? (
           <div className="text-center py-15 px-5 text-text-light">
