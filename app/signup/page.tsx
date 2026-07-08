@@ -10,7 +10,12 @@ import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import SkillPicker from '@/components/SkillPicker'
 import { useAuth } from '@/lib/auth-context'
 import { orpc } from '@/lib/orpc'
-import { buildLocationOptions, type LocalGroupOption } from '@/lib/filter-options'
+import {
+  COUNTRY_OPTIONS,
+  NO_LOCAL_GROUP,
+  buildLocalGroupOptionsForCountry,
+  type LocalGroupOption,
+} from '@/lib/filter-options'
 
 interface SelectedSkill {
   skillId: number
@@ -59,7 +64,8 @@ export default function SignupPage() {
   const [contactNotes, setContactNotes] = useState('')
   const [availability, setAvailability] = useState('')
   const [location, setLocation] = useState('')
-  const [locationValue, setLocationValue] = useState('') // 'UK' or 'UK:London'
+  const [countryValue, setCountryValue] = useState('')
+  const [localGroupValue, setLocalGroupValue] = useState('')
   const [otherSkills, setOtherSkills] = useState('')
   const [applicationMessage, setApplicationMessage] = useState('')
   const [consentVisible, setConsentVisible] = useState(true)
@@ -181,6 +187,17 @@ export default function SignupPage() {
     )
   }
 
+  const localGroupOptions = countryValue
+    ? buildLocalGroupOptionsForCountry(countryValue, allLocalGroups)
+    : []
+  const hasLocalGroups = localGroupOptions.some((o) => o.value && o.value !== NO_LOCAL_GROUP)
+  const showCityInput = localGroupValue === NO_LOCAL_GROUP || (!!countryValue && !hasLocalGroups)
+
+  function handleCountryChange(value: string) {
+    setCountryValue(value)
+    setLocalGroupValue('')
+  }
+
   async function handleGoogleApplicationSubmit(e: FormEvent) {
     e.preventDefault()
     if (!googlePendingToken) return
@@ -188,7 +205,6 @@ export default function SignupPage() {
     // Write directly to localStorage (not setToken) so the orpc client sends
     // the auth header without triggering auth state and the dashboard redirect.
     localStorage.setItem('authToken', googlePendingToken)
-    const [country, localGroup] = locationValue.split(':')
     try {
       await updateMeMutation.mutateAsync({
         name,
@@ -201,8 +217,9 @@ export default function SignupPage() {
         contactNotes: contactNotes || undefined,
         availabilityHoursPerWeek: availability ? Number(availability) : undefined,
         location: location || undefined,
-        country: country || undefined,
-        localGroup: localGroup || undefined,
+        country: countryValue || undefined,
+        localGroup:
+          localGroupValue && localGroupValue !== NO_LOCAL_GROUP ? localGroupValue : undefined,
         otherSkills: otherSkills || undefined,
         skillIds: skills.map((s) => s.skillId),
         consentMakeProfileVisibleInDirectory: consentVisible,
@@ -262,7 +279,6 @@ export default function SignupPage() {
     }
 
     setSubmitting(true)
-    const [country, localGroup] = locationValue.split(':')
     try {
       const data = await signupMutation.mutateAsync({
         name,
@@ -277,8 +293,9 @@ export default function SignupPage() {
         contactNotes: contactNotes || undefined,
         availabilityHoursPerWeek: availability ? Number(availability) : undefined,
         location: location || undefined,
-        country: country || undefined,
-        localGroup: localGroup || undefined,
+        country: countryValue || undefined,
+        localGroup:
+          localGroupValue && localGroupValue !== NO_LOCAL_GROUP ? localGroupValue : undefined,
         otherSkills: otherSkills || undefined,
         skillIds: skills.map((s) => s.skillId),
         consentMakeProfileVisibleInDirectory: consentVisible,
@@ -435,19 +452,43 @@ export default function SignupPage() {
               </div>
 
               <h3 className="mt-6">Availability</h3>
-              <div className="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-5">
+              <div className="mb-5">
+                <label htmlFor="g_availability">Hours per Week</label>
+                <input
+                  type="number"
+                  id="g_availability"
+                  min={1}
+                  max={40}
+                  placeholder="e.g., 5"
+                  value={availability}
+                  onChange={(e) => setAvailability(e.target.value)}
+                />
+              </div>
+              <div className="mb-5">
+                <FilterDropdown
+                  id="g_locationCountry"
+                  label="Country"
+                  ariaLabel="Select country"
+                  value={countryValue}
+                  options={COUNTRY_OPTIONS}
+                  onChange={handleCountryChange}
+                  searchable
+                />
+              </div>
+              {countryValue && hasLocalGroups && (
                 <div className="mb-5">
-                  <label htmlFor="g_availability">Hours per Week</label>
-                  <input
-                    type="number"
-                    id="g_availability"
-                    min={1}
-                    max={40}
-                    placeholder="e.g., 5"
-                    value={availability}
-                    onChange={(e) => setAvailability(e.target.value)}
+                  <FilterDropdown
+                    id="g_locationGroup"
+                    label="Local Group"
+                    ariaLabel="Select local group"
+                    value={localGroupValue}
+                    options={localGroupOptions}
+                    onChange={setLocalGroupValue}
+                    searchable
                   />
                 </div>
+              )}
+              {showCityInput && (
                 <div className="mb-5">
                   <label htmlFor="g_location">City / Area</label>
                   <input
@@ -458,18 +499,7 @@ export default function SignupPage() {
                     onChange={(e) => setLocation(e.target.value)}
                   />
                 </div>
-                <div className="mb-5">
-                  <FilterDropdown
-                    id="g_locationValue"
-                    label="Country/Group"
-                    ariaLabel="Select country/group"
-                    value={locationValue}
-                    options={buildLocationOptions(allLocalGroups)}
-                    onChange={setLocationValue}
-                    searchable
-                  />
-                </div>
-              </div>
+              )}
 
               <h3 className="mt-6">Your Skills</h3>
               <p className="text-sm text-text-light mt-1 mb-3">
@@ -836,20 +866,44 @@ export default function SignupPage() {
             </div>
 
             <h3 className="mt-6">Availability</h3>
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-5">
+            <div className="mb-5">
+              <label htmlFor="availability">Hours per Week</label>
+              <input
+                type="number"
+                id="availability"
+                name="availabilityHoursPerWeek"
+                min={1}
+                max={40}
+                placeholder="e.g., 5"
+                value={availability}
+                onChange={(e) => setAvailability(e.target.value)}
+              />
+            </div>
+            <div className="mb-5">
+              <FilterDropdown
+                id="locationCountry"
+                label="Country"
+                ariaLabel="Select country"
+                value={countryValue}
+                options={COUNTRY_OPTIONS}
+                onChange={handleCountryChange}
+                searchable
+              />
+            </div>
+            {countryValue && hasLocalGroups && (
               <div className="mb-5">
-                <label htmlFor="availability">Hours per Week</label>
-                <input
-                  type="number"
-                  id="availability"
-                  name="availabilityHoursPerWeek"
-                  min={1}
-                  max={40}
-                  placeholder="e.g., 5"
-                  value={availability}
-                  onChange={(e) => setAvailability(e.target.value)}
+                <FilterDropdown
+                  id="locationGroup"
+                  label="Local Group"
+                  ariaLabel="Select local group"
+                  value={localGroupValue}
+                  options={localGroupOptions}
+                  onChange={setLocalGroupValue}
+                  searchable
                 />
               </div>
+            )}
+            {showCityInput && (
               <div className="mb-5">
                 <label htmlFor="location">City / Area</label>
                 <input
@@ -861,18 +915,7 @@ export default function SignupPage() {
                   onChange={(e) => setLocation(e.target.value)}
                 />
               </div>
-              <div className="mb-5">
-                <FilterDropdown
-                  id="locationValue"
-                  label="Country/Group"
-                  ariaLabel="Select country/group"
-                  value={locationValue}
-                  options={buildLocationOptions(allLocalGroups)}
-                  onChange={setLocationValue}
-                  searchable
-                />
-              </div>
-            </div>
+            )}
 
             <h3 className="mt-6">Your Skills</h3>
             <p className="text-sm text-text-light mt-1 mb-3">

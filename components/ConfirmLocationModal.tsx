@@ -27,13 +27,19 @@ export default function ConfirmLocationModal() {
   const hasValidCountry =
     !!user?.country && BASE_LOCATION_OPTIONS.some((o) => o.value === user.country)
   const effectiveCountry = hasValidCountry ? user!.country! : countryValue
-  const showCityInput = localGroupValue === NO_LOCAL_GROUP
 
   const { data: localGroupsData } = useQuery({
     ...orpc.localGroups.list.queryOptions({ input: {} }),
     enabled: !!user && !user.locationConfirmedAt,
   })
   const allLocalGroups: LocalGroupOption[] = localGroupsData?.groups ?? []
+
+  const localGroupOptions = effectiveCountry
+    ? buildLocalGroupOptionsForCountry(effectiveCountry, allLocalGroups)
+    : []
+  const hasLocalGroups = localGroupOptions.some((o) => o.value && o.value !== NO_LOCAL_GROUP)
+  const showCityInput =
+    localGroupValue === NO_LOCAL_GROUP || (!!effectiveCountry && !hasLocalGroups)
 
   const updateMutation = useMutation({
     ...orpc.volunteers.updateMe.mutationOptions(),
@@ -84,14 +90,14 @@ export default function ConfirmLocationModal() {
           />
         </div>
       )}
-      {effectiveCountry && (
+      {effectiveCountry && hasLocalGroups && (
         <div className="mb-4">
           <FilterDropdown
             id="confirm-location-group"
             label={hasValidCountry ? `Local group (${effectiveCountry})` : 'Local group'}
             ariaLabel="Select local group"
             value={localGroupValue}
-            options={buildLocalGroupOptionsForCountry(effectiveCountry, allLocalGroups)}
+            options={localGroupOptions}
             onChange={setLocalGroupValue}
             searchable
           />

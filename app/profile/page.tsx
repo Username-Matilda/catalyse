@@ -9,7 +9,12 @@ import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import SkillPicker from '@/components/SkillPicker'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
-import { buildLocationOptions, type LocalGroupOption } from '@/lib/filter-options'
+import {
+  COUNTRY_OPTIONS,
+  NO_LOCAL_GROUP,
+  buildLocalGroupOptionsForCountry,
+  type LocalGroupOption,
+} from '@/lib/filter-options'
 
 interface SelectedSkill {
   skillId: number
@@ -22,7 +27,8 @@ export default function ProfilePage() {
   const [name, setName] = useState('')
   const [bio, setBio] = useState('')
   const [location, setLocation] = useState('')
-  const [locationValue, setLocationValue] = useState('') // 'UK' or 'UK:London'
+  const [countryValue, setCountryValue] = useState('')
+  const [localGroupValue, setLocalGroupValue] = useState('')
   const [hours, setHours] = useState('')
   const [consentMakeProfileVisibleInDirectory, setConsentMakeProfileVisibleInDirectory] =
     useState(true)
@@ -77,7 +83,8 @@ export default function ProfilePage() {
     setName(me.name ?? '')
     setBio(me.bio ?? '')
     setLocation(me.location ?? '')
-    setLocationValue(me.country ? `${me.country}${me.localGroup ? `:${me.localGroup}` : ''}` : '')
+    setCountryValue(me.country ?? '')
+    setLocalGroupValue(me.localGroup ?? (me.location ? NO_LOCAL_GROUP : ''))
     setHours(me.availabilityHoursPerWeek !== null ? String(me.availabilityHoursPerWeek) : '')
     setConsentMakeProfileVisibleInDirectory(!!me.consentMakeProfileVisibleInDirectory)
     setConsentContactableByProjectOwners(!!me.consentContactableByProjectOwners)
@@ -108,15 +115,25 @@ export default function ProfilePage() {
     },
   })
 
+  const localGroupOptions = countryValue
+    ? buildLocalGroupOptionsForCountry(countryValue, allLocalGroups)
+    : []
+  const hasLocalGroups = localGroupOptions.some((o) => o.value && o.value !== NO_LOCAL_GROUP)
+  const showCityInput = localGroupValue === NO_LOCAL_GROUP || (!!countryValue && !hasLocalGroups)
+
+  function handleCountryChange(value: string) {
+    setCountryValue(value)
+    setLocalGroupValue('')
+  }
+
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    const [country, localGroup] = locationValue.split(':')
     updateMutation.mutate({
       name: name.trim(),
       bio: bio.trim() || null,
       location: location.trim() || null,
-      country: country || null,
-      localGroup: localGroup || null,
+      country: countryValue || null,
+      localGroup: localGroupValue && localGroupValue !== NO_LOCAL_GROUP ? localGroupValue : null,
       availabilityHoursPerWeek: hours ? Number(hours) : null,
       consentMakeProfileVisibleInDirectory,
       consentContactableByProjectOwners,
@@ -238,19 +255,44 @@ export default function ProfilePage() {
 
           {/* Availability */}
           <h3 className="mt-6 mb-4">Availability</h3>
-          <div className="grid grid-cols-2 gap-5 mb-5 max-sm:grid-cols-1">
-            <div>
-              <label htmlFor="hours">Hours per Week</label>
-              <input
-                type="number"
-                id="hours"
-                min={0}
-                max={168}
-                value={hours}
-                onChange={(e) => setHours(e.target.value)}
+          <div className="mb-5">
+            <label htmlFor="hours">Hours per Week</label>
+            <input
+              type="number"
+              id="hours"
+              min={0}
+              max={168}
+              value={hours}
+              onChange={(e) => setHours(e.target.value)}
+            />
+          </div>
+
+          <div className="mb-5">
+            <FilterDropdown
+              id="locationCountry"
+              label="Country"
+              ariaLabel="Select country"
+              value={countryValue}
+              options={COUNTRY_OPTIONS}
+              onChange={handleCountryChange}
+              searchable
+            />
+          </div>
+          {countryValue && hasLocalGroups && (
+            <div className="mb-5">
+              <FilterDropdown
+                id="locationGroup"
+                label="Local Group"
+                ariaLabel="Select local group"
+                value={localGroupValue}
+                options={localGroupOptions}
+                onChange={setLocalGroupValue}
+                searchable
               />
             </div>
-            <div>
+          )}
+          {showCityInput && (
+            <div className="mb-5">
               <label htmlFor="location">City / Area</label>
               <input
                 type="text"
@@ -260,19 +302,7 @@ export default function ProfilePage() {
                 placeholder="e.g. Shoreditch"
               />
             </div>
-          </div>
-
-          <div className="mb-5">
-            <FilterDropdown
-              id="locationValue"
-              label="Country/Group"
-              ariaLabel="Select country/group"
-              value={locationValue}
-              options={buildLocationOptions(allLocalGroups)}
-              onChange={setLocationValue}
-              searchable
-            />
-          </div>
+          )}
 
           {/* Skills */}
           <h3 className="mt-6 mb-4">Your Skills</h3>
