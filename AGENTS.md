@@ -13,6 +13,7 @@ Do **not** run `prisma migrate dev` — it checks for schema drift and will fail
 1. Edit `prisma/schema.prisma`
 2. `npm run new-migration your_migration_name` — generates the SQL diff file
 3. Review the generated SQL and remove any unrelated statements
+   - Adding a `NOT NULL` column: if existing rows need a value other than the column default, backfill them in the same migration. SQLite's table-rebuild (`INSERT INTO "new_x" (...) SELECT ... FROM "x"`) silently applies the column default to every existing row — it does not run any backfill logic for you.
 4. `npm run migrate` — applies it
 5. `npm run generate` — regenerates the client and zod schema
 
