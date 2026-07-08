@@ -125,16 +125,18 @@ a:not([class]) {
   text-decoration: underline;
 }
 
-label {
-  display: block;
-  font-weight: 500;
-  margin-bottom: 6px;
-  color: var(--text);
-}
+@layer base {
+  label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 6px;
+    color: var(--text);
+  }
 
-label.required::after {
-  content: ' *';
-  color: var(--error);
+  label.required::after {
+    content: ' *';
+    color: var(--error);
+  }
 }
 
 input[type='text'],

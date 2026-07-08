@@ -8,6 +8,7 @@ import Button from '@/components/Button'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
+import { formatDate } from '@/lib/format-date'
 import { InferRouterOutputs } from '@orpc/server'
 import { AppRouter } from '@/server/router'
 import { ApprovalStatus } from '@/generated/prisma/enums'
@@ -140,7 +141,7 @@ function ApplicationCard({
   const locationParts = [app.localGroup, app.country ?? app.location].filter(Boolean)
   const meta = [
     locationParts.length ? locationParts.join(' · ') : null,
-    `Applied ${new Date(app.createdAt!).toLocaleDateString()}`,
+    `Applied ${formatDate(app.createdAt!)}`,
     app.reviewer ? `Reviewer: ${app.reviewer.name}` : null,
   ].filter(Boolean)
 
@@ -153,8 +154,7 @@ function ApplicationCard({
         <p
           className={`text-sm mb-3 ${daysUntilAnonymise !== null && daysUntilAnonymise <= 1 ? 'text-red-500' : 'text-amber-500'}`}
         >
-          Personally Identifiable Information will be anonymised on{' '}
-          {anonymiseDate.toLocaleDateString()}
+          Personally Identifiable Information will be anonymised on {formatDate(anonymiseDate)}
           {daysUntilAnonymise !== null && daysUntilAnonymise >= 0
             ? ` (${daysUntilAnonymise === 0 ? 'today' : `${daysUntilAnonymise} day${daysUntilAnonymise === 1 ? '' : 's'}`})`
             : ''}
@@ -250,7 +250,7 @@ function ApplicationCard({
               className={i > 0 ? 'mt-3 pt-3 border-t border-amber-200 dark:border-amber-700' : ''}
             >
               <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide mb-1">
-                {new Date(r.rejectedAt).toLocaleDateString()}
+                {formatDate(r.rejectedAt)}
               </p>
               {r.adminNotes && (
                 <div className="mb-1">
@@ -301,7 +301,7 @@ function AnonymisedCard({ app }: { app: AnonymisedApplication }) {
   return (
     <div role="article" className="bg-surface rounded-xl shadow p-6 opacity-75">
       <p className="text-sm text-text-light mb-4">
-        [Identity anonymised] · Rejected {new Date(app.rejectedAt).toLocaleDateString()}
+        [Identity anonymised] · Rejected {formatDate(app.rejectedAt)}
       </p>
       {app.adminNotes && (
         <div className="mb-4">

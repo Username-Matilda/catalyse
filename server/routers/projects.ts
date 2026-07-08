@@ -3,7 +3,7 @@ import { ORPCError } from '@orpc/server'
 import { Prisma } from '@/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
 import { withProjectExtras, projectInclude, EnrichedProject } from '@/lib/work-item'
-import { notifyUser } from '@/lib/notify'
+import { notifyUser, notifyAdmins } from '@/lib/notify'
 import {
   CreateProjectSchema,
   UpdateProjectSchema,
@@ -244,25 +244,17 @@ export const projectsRouter = {
       return newProject
     })
 
-    const admins = await prisma.volunteer.findMany({
-      where: { isAdmin: true, deletedAt: null },
-      select: { id: true, name: true, email: true },
-    })
-
-    for (const admin of admins) {
-      await notifyUser(
-        admin.id,
-        'new_project_proposal',
-        `New project proposal: ${project.title}`,
-        `Proposed by ${volunteer.name}`,
-        '/admin/triage',
-        {
-          message: `<strong>${volunteer.name}</strong> has submitted a new project proposal: <strong>${project.title}</strong>. Please review it in the triage queue.`,
-          projectTitle: project.title,
-          projectId: project.id,
-        },
-      )
-    }
+    await notifyAdmins(
+      'new_project_proposal',
+      `New project proposal: ${project.title}`,
+      `Proposed by ${volunteer.name}`,
+      '/admin/triage',
+      {
+        message: `<strong>${volunteer.name}</strong> has submitted a new project proposal: <strong>${project.title}</strong>. Please review it in the triage queue.`,
+        projectTitle: project.title,
+        projectId: project.id,
+      },
+    )
 
     return { id: project.id, message: 'Project submitted for review' }
   }),
@@ -498,7 +490,12 @@ export const projectsRouter = {
       }
       if (body.timeCommitmentHoursPerWeek !== undefined)
         data.timeCommitmentHoursPerWeek = body.timeCommitmentHoursPerWeek
-      if (body.assigneeId !== undefined) data.assigneeId = body.assigneeId
+      if (body.assigneeId !== undefined) {
+        data.assigneeId = body.assigneeId
+        if (body.assigneeId !== null && body.isSeekingOwner === undefined) {
+          data.isSeekingOwner = false
+        }
+      }
 
       if (newStatus !== undefined) {
         if (volunteer.isAdmin) {

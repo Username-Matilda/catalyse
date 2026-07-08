@@ -62,6 +62,20 @@ export function buildLocationOptions(
   return result
 }
 
+export const NO_LOCAL_GROUP = '__none__'
+
+export function buildLocalGroupOptionsForCountry(
+  country: string,
+  groups: Pick<LocalGroupOption, 'name' | 'country'>[],
+): FilterOption[] {
+  const countryGroups = groups.filter((g) => g.country === country)
+  return [
+    { value: '', label: 'Select…' },
+    ...countryGroups.map((g) => ({ value: g.name, label: g.name })),
+    { value: NO_LOCAL_GROUP, label: "None of these — I'll enter my city" },
+  ]
+}
+
 export const COUNTRY_OPTIONS: FilterOption[] = [
   { value: '', label: 'Select…' },
   ...BASE_LOCATION_OPTIONS.filter((o) => o.value !== '' && !o.indent),

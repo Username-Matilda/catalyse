@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from './Button'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
+import { formatDate } from '@/lib/format-date'
 
 interface CommentThreadProps {
   workItemId: number
@@ -72,8 +73,7 @@ export default function CommentThread({
             <li key={c.id} className="py-3 border-b border-brand-border last:border-0">
               <p className="m-0 mb-1 whitespace-pre-wrap">{c.content}</p>
               <span className="text-xs text-text-light">
-                {c.authorName ?? 'Unknown'} ·{' '}
-                {c.createdAt ? new Date(c.createdAt).toLocaleDateString() : ''}
+                {c.authorName ?? 'Unknown'} · {c.createdAt ? formatDate(c.createdAt) : ''}
               </span>
             </li>
           ))}

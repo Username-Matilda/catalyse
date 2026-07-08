@@ -111,7 +111,7 @@ export const messagesRouter = {
           type: 'message_received',
           title: `Message from ${sender.name}`,
           body: input.subject,
-          link: '/dashboard',
+          link: '/dashboard#tab-notifications',
         },
       })
     })

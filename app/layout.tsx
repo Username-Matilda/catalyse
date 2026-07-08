@@ -4,11 +4,13 @@ import { AuthProvider } from '@/lib/auth-context'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { ToastProvider } from '@/lib/toast'
 import { CookieConsentProvider } from '@/lib/cookie-consent-context'
+import { LocationModalProvider } from '@/lib/location-modal-context'
 import Providers from '@/components/Providers'
 import FloatingActions from '@/components/FloatingActions'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import CookieConsentBanner from '@/components/CookieConsentBanner'
+import ConfirmLocationModal from '@/components/ConfirmLocationModal'
 import Script from 'next/script'
 import './globals.css'
 
@@ -61,11 +63,14 @@ export default function RootLayout({
             <AuthProvider>
               <ToastProvider>
                 <CookieConsentProvider>
-                  <Header />
-                  {children}
-                  <Footer />
-                  <FloatingActions />
-                  <CookieConsentBanner />
+                  <LocationModalProvider>
+                    <Header />
+                    {children}
+                    <Footer />
+                    <FloatingActions />
+                    <CookieConsentBanner />
+                    <ConfirmLocationModal />
+                  </LocationModalProvider>
                 </CookieConsentProvider>
               </ToastProvider>
             </AuthProvider>

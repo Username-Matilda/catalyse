@@ -68,6 +68,7 @@ export function redactVolunteer(
     location: vol.location,
     country: vol.country,
     localGroup: vol.localGroup,
+    locationConfirmedAt: vol.locationConfirmedAt,
     availabilityHoursPerWeek: vol.availabilityHoursPerWeek,
     otherSkills: vol.otherSkills,
     consentMakeProfileVisibleInDirectory: vol.consentMakeProfileVisibleInDirectory,

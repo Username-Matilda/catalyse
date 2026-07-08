@@ -7,6 +7,7 @@ import Button from '@/components/Button'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
+import { formatDate } from '@/lib/format-date'
 import { Badge, type BadgeVariant } from '@/components/Badge'
 
 const STATUS_OPTIONS = [
@@ -129,7 +130,7 @@ export default function AdminBugsPage() {
                     {r.category && <span>{r.category}</span>}
                     {r.severity && <span>· {r.severity}</span>}
                     {r.reporterName && <span>· {r.reporterName}</span>}
-                    <span>· {r.createdAt?.toLocaleDateString()}</span>
+                    <span>· {r.createdAt ? formatDate(r.createdAt) : ''}</span>
                     {r.pageUrl &&
                       (() => {
                         let path: string

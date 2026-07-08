@@ -13,6 +13,7 @@ import CommentThread from '@/components/CommentThread'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
+import { formatDate } from '@/lib/format-date'
 import { InterestStatus, ProjectStatus, TaskStatus } from '@/generated/prisma/enums'
 import type { InferRouterOutputs } from '@orpc/server'
 import type { AppRouter } from '@/server/router'
@@ -869,7 +870,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                 )}
                                 {task.deadline && (
                                   <span className="text-text-light text-xs whitespace-nowrap">
-                                    Due {new Date(task.deadline).toLocaleDateString()}
+                                    Due {formatDate(task.deadline)}
                                   </span>
                                 )}
                               </>

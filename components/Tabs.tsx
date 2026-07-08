@@ -23,14 +23,14 @@ export default function Tabs<T extends string = string>({
   className = 'mb-6',
 }: TabsProps<T>) {
   return (
-    <div role={role} className={`flex border-b border-brand-border ${className}`}>
+    <div role={role} className={`flex overflow-x-auto border-b border-brand-border ${className}`}>
       {tabs.map(({ key, label, 'data-tab': dataTab }) => (
         <button
           key={key}
           role="tab"
           aria-selected={activeTab === key}
           data-tab={dataTab}
-          className={`px-5 py-3 font-medium border-b-2 -mb-px cursor-pointer transition-colors ${
+          className={`shrink-0 whitespace-nowrap px-5 py-3 font-medium border-b-2 -mb-px cursor-pointer transition-colors ${
             activeTab === key
               ? 'active text-primary border-primary'
               : 'text-text-light border-transparent hover:text-brand-text'

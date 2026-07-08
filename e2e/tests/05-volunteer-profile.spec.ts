@@ -2,6 +2,7 @@ import { test, expect, getAlert } from '../fixtures'
 import { Page } from '@playwright/test'
 import { fake } from '../fake'
 import { selectFilterDropdown } from '../actions/ui'
+import { adminAddGroup, navigateToAdminLocalGroups } from '../actions/local-groups'
 import { createApiClient } from '../client'
 
 async function getVolunteerId(page: Page, baseUrl: string): Promise<number> {
@@ -27,7 +28,6 @@ test.describe('Volunteer Profile', () => {
 
     await volunteer.page.getByLabel('Your Name').fill(uniqueName)
     await volunteer.page.getByLabel('About You').fill('Bio text for e2e test')
-    await volunteer.page.getByLabel('Location').fill('Test City')
     await volunteer.page.getByLabel('Hours per Week').fill('10')
     await volunteer.page.getByRole('button', { name: 'Save Changes' }).click()
 
@@ -207,5 +207,71 @@ test.describe('Volunteer Profile', () => {
     } finally {
       await ctx2.close()
     }
+  })
+
+  test('Volunteer sets location: selects country with local groups, picks group, city stays hidden unless "None of these"', async ({
+    volunteer,
+    adminPage,
+    baseUrl,
+  }) => {
+    const groupName = fake.localGroupName()
+
+    // Create a UK local group via admin so the volunteer can select it
+    await navigateToAdminLocalGroups(baseUrl, adminPage)
+    await adminAddGroup(adminPage, 'UK', groupName)
+
+    await volunteer.page.goto(`${baseUrl}/profile`)
+    await expect(volunteer.page.getByLabel('Your Name')).toBeVisible({ timeout: 10_000 })
+
+    // No local group dropdown yet (no country selected)
+    await expect(volunteer.page.getByLabel('Select local group', { exact: true })).not.toBeVisible()
+    await expect(volunteer.page.getByLabel('City / Area')).not.toBeVisible()
+
+    // Select UK — local group dropdown should appear, city should stay hidden
+    await selectFilterDropdown(volunteer.page, 'Select country', 'UK')
+    await expect(volunteer.page.getByLabel('Select local group', { exact: true })).toBeVisible({
+      timeout: 5_000,
+    })
+    await expect(volunteer.page.getByLabel('City / Area')).not.toBeVisible()
+
+    // Pick "None of these" — city input should appear
+    await selectFilterDropdown(
+      volunteer.page,
+      'Select local group',
+      "None of these — I'll enter my city",
+    )
+    await expect(volunteer.page.getByLabel('City / Area')).toBeVisible({ timeout: 5_000 })
+
+    // Switch to the real group — city input should disappear again
+    await selectFilterDropdown(volunteer.page, 'Select local group', groupName)
+    await expect(volunteer.page.getByLabel('City / Area')).not.toBeVisible()
+
+    // Save and verify
+    await volunteer.page.getByRole('button', { name: 'Save Changes' }).click()
+    await expect(getAlert(volunteer.page)).toContainText('Profile updated!', { timeout: 10_000 })
+  })
+
+  test('Volunteer sets location: country with no local groups skips dropdown, city input appears directly', async ({
+    volunteer,
+    baseUrl,
+  }) => {
+    await volunteer.page.goto(`${baseUrl}/profile`)
+    await expect(volunteer.page.getByLabel('Your Name')).toBeVisible({ timeout: 10_000 })
+
+    // Select Germany — no local groups exist for it, so dropdown should be skipped
+    await selectFilterDropdown(volunteer.page, 'Select country', 'Germany')
+    await expect(volunteer.page.getByLabel('Select local group', { exact: true })).not.toBeVisible()
+    await expect(volunteer.page.getByLabel('City / Area')).toBeVisible({ timeout: 5_000 })
+
+    // Fill city and save
+    await volunteer.page.getByLabel('City / Area').fill('Berlin')
+    await volunteer.page.getByRole('button', { name: 'Save Changes' }).click()
+    await expect(getAlert(volunteer.page)).toContainText('Profile updated!', { timeout: 10_000 })
+
+    // Reload and verify city persisted
+    await volunteer.page.goto(`${baseUrl}/profile`)
+    await expect(volunteer.page.getByLabel('Your Name')).toBeVisible({ timeout: 10_000 })
+    await expect(volunteer.page.getByLabel('City / Area')).toBeVisible({ timeout: 5_000 })
+    await expect(volunteer.page.getByLabel('City / Area')).toHaveValue('Berlin')
   })
 })

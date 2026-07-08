@@ -24,22 +24,27 @@ export default function Modal({ id, title, children, isOpen, onClose }: ModalPro
   if (!isOpen) return null
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={onClose}
+    >
       <div
         id={id}
-        className="modal"
+        className="bg-surface max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg p-6 shadow-lg"
         role="dialog"
         aria-modal="true"
         aria-labelledby={`${id}-title`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="modal-header">
-          <h2 id={`${id}-title`}>{title}</h2>
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <h2 id={`${id}-title`} style={{ margin: 0, lineHeight: 1 }}>
+            {title}
+          </h2>
           <Button variant="ghost" icon onClick={onClose} aria-label="Close">
             ×
           </Button>
         </div>
-        <div className="modal-body">{children}</div>
+        {children}
       </div>
     </div>
   )

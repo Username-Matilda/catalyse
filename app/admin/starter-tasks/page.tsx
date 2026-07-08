@@ -10,6 +10,7 @@ import CommentThread from '@/components/CommentThread'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
+import { formatDate } from '@/lib/format-date'
 import { StarterTaskStatus } from '@/generated/prisma/enums'
 
 interface Skill {
@@ -56,14 +57,6 @@ const RATING_LABELS: Record<string, string> = {
   excellent: 'Excellent',
   good: 'Good',
   needs_improvement: 'Needs improvement',
-}
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
 }
 
 export default function AdminStarterTasksPage() {
