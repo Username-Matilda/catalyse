@@ -1,10 +1,15 @@
 import { prisma } from './prisma'
 import { sendDigestEmail, isEmailConfigured } from './email'
+import { calculateMatchScore, matchGradeLabel } from './matching'
 import { WorkItemType } from '@/generated/prisma/enums'
 
+// Grades below this ('Partial match' and no match) aren't worth interrupting someone for.
+const MIN_NOTIFIABLE_GRADE = 'Good match'
+const NOTIFIABLE_GRADES = new Set(['Excellent match', 'Great match', MIN_NOTIFIABLE_GRADE])
+
 // Emails volunteers who asked for immediate skill-match alerts (emailDigest: 'match')
-// as soon as a project they're a fit for goes live — either an admin approves a
-// volunteer-proposed project, or an admin publishes an org-proposed one directly.
+// as soon as a project they're at least a good fit for goes live — either an admin
+// approves a volunteer-proposed project, or an admin publishes an org-proposed one directly.
 export async function notifyMatchingVolunteers(projectId: number): Promise<void> {
   if (!isEmailConfigured()) return
 
@@ -14,6 +19,7 @@ export async function notifyMatchingVolunteers(projectId: number): Promise<void>
   })
   if (!project) return
 
+  const projectSkills = project.skills.map((ps) => ({ id: ps.skillId, isRequired: ps.isRequired }))
   const requiredSkillIds = project.skills.filter((ps) => ps.isRequired).map((ps) => ps.skillId)
   if (!requiredSkillIds.length) return
 
@@ -33,8 +39,10 @@ export async function notifyMatchingVolunteers(projectId: number): Promise<void>
   await Promise.all(
     volunteers.map((vol) => {
       const volSkillIds = new Set(vol.skills.map((vs) => vs.skillId))
-      const matched = requiredSkillIds.filter((id) => volSkillIds.has(id)).length
-      const match_percent = Math.round((matched / requiredSkillIds.length) * 100)
+      const score = calculateMatchScore(volSkillIds, projectSkills)
+      const grade = matchGradeLabel(score.matchedRequiredCount)
+      if (!grade || !NOTIFIABLE_GRADES.has(grade)) return
+
       return sendDigestEmail({
         to: vol.email!,
         name: vol.name,
@@ -44,7 +52,7 @@ export async function notifyMatchingVolunteers(projectId: number): Promise<void>
             title: project.title,
             description: project.description ?? '',
             skill_names: skillNames,
-            match_percent,
+            match_percent: score.requiredMatchPercent,
           },
         ],
         isMatch: true,
