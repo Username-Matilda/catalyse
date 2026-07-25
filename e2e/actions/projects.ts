@@ -68,6 +68,7 @@ export async function adminCreateProject(
 
   await adminPage.getByLabel('Project Title').fill(title)
   await adminPage.getByLabel('Description').fill(description)
+  await adminPage.getByLabel('Task title').first().fill('Initial task')
   await adminPage.getByRole('button', { name: 'Create Project' }).click()
 
   await adminPage.waitForURL(/\/projects\/\d+/, { timeout: 15_000 })

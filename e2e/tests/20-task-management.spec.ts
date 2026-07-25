@@ -23,9 +23,18 @@ async function createAdminProject(
       localGroup: null,
       isSeekingHelp: opts?.isSeekingHelp ?? false,
       isSeekingOwner: false,
+      tasks: [{ title: 'Seed task' }],
     },
   })
-  return (created.body as { id: number }).id
+  const projectId = (created.body as { id: number }).id
+
+  // Remove the seed task used only to satisfy the "at least one task" requirement at
+  // creation — callers add their own tasks afterward and assert on the exact task list.
+  const detail = await adminApi.projects.getById({ body: { id: projectId } })
+  const seedTaskId = (detail.body as { tasks: { id: number }[] }).tasks[0].id
+  await adminApi.projects.deleteTask({ body: { projectId, taskId: seedTaskId } })
+
+  return projectId
 }
 
 async function signupApprovedVolunteer(
@@ -61,22 +70,7 @@ test.describe('Task Reordering', () => {
     const adminToken = readAdminToken(baseUrl)
     const adminApi = createApiClient(baseUrl, adminToken)
 
-    const projectCreated = await adminApi.admin.projects.create({
-      body: {
-        title: fake.projectTitle(),
-        description: 'Drag handle visibility test',
-        projectType: null,
-        estimatedDuration: null,
-        timeCommitmentHoursPerWeek: null,
-        urgency: 'medium',
-        collaborationLink: null,
-        country: null,
-        localGroup: null,
-        isSeekingHelp: false,
-        isSeekingOwner: false,
-      },
-    })
-    const projectId = (projectCreated.body as { id: number }).id
+    const projectId = await createAdminProject(adminApi, 'Drag handle visibility test')
 
     await adminApi.projects.createTask({ body: { projectId, title: 'Task A' } })
     await adminApi.projects.createTask({ body: { projectId, title: 'Task B' } })
@@ -94,22 +88,7 @@ test.describe('Task Reordering', () => {
     const adminToken = readAdminToken(baseUrl)
     const adminApi = createApiClient(baseUrl, adminToken)
 
-    const projectCreated = await adminApi.admin.projects.create({
-      body: {
-        title: fake.projectTitle(),
-        description: 'Reorder persistence test',
-        projectType: null,
-        estimatedDuration: null,
-        timeCommitmentHoursPerWeek: null,
-        urgency: 'medium',
-        collaborationLink: null,
-        country: null,
-        localGroup: null,
-        isSeekingHelp: false,
-        isSeekingOwner: false,
-      },
-    })
-    const projectId = (projectCreated.body as { id: number }).id
+    const projectId = await createAdminProject(adminApi, 'Reorder persistence test')
 
     const taskA = await adminApi.projects.createTask({ body: { projectId, title: 'First' } })
     const taskB = await adminApi.projects.createTask({ body: { projectId, title: 'Second' } })
@@ -167,22 +146,7 @@ test.describe('Task Reordering', () => {
     const adminToken = readAdminToken(baseUrl)
     const adminApi = createApiClient(baseUrl, adminToken)
 
-    const projectCreated = await adminApi.admin.projects.create({
-      body: {
-        title: fake.projectTitle(),
-        description: 'Reorder permission test',
-        projectType: null,
-        estimatedDuration: null,
-        timeCommitmentHoursPerWeek: null,
-        urgency: 'medium',
-        collaborationLink: null,
-        country: null,
-        localGroup: null,
-        isSeekingHelp: false,
-        isSeekingOwner: false,
-      },
-    })
-    const projectId = (projectCreated.body as { id: number }).id
+    const projectId = await createAdminProject(adminApi, 'Reorder permission test')
     const taskCreated = await adminApi.projects.createTask({
       body: { projectId, title: 'Solo task' },
     })

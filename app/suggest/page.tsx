@@ -28,7 +28,6 @@ export default function SuggestPage() {
             onSubmitForm={(data) => createMutation.mutateAsync(data)}
             submitLabel="Submit Project Proposal"
             showReviewNotice
-            requireTasks
             onSuccess={() => {
               toast("Project submitted for review! We'll be in touch.", 'success')
               setTimeout(() => router.push('/dashboard#tab-proposed'), 2000)

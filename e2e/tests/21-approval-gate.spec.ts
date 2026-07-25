@@ -21,7 +21,7 @@ async function createAdminProject(
       localGroup: null,
       isSeekingHelp: opts?.isSeekingHelp ?? true,
       isSeekingOwner: false,
-      tasks: opts?.tasks ?? [],
+      tasks: opts?.tasks ?? [{ title: 'Seed task' }],
     },
   })
   return (created.body as { id: number }).id

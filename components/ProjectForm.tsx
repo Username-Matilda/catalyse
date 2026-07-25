@@ -44,7 +44,6 @@ interface ProjectFormProps {
   onSubmitForm: (data: ProjectCreateInput) => Promise<{ id: number }>
   submitLabel?: string
   showReviewNotice?: boolean
-  requireTasks?: boolean
   onSuccess: (id: number) => void
   onCancel?: () => void
 }
@@ -53,7 +52,6 @@ export default function ProjectForm({
   onSubmitForm,
   submitLabel = 'Submit',
   showReviewNotice = false,
-  requireTasks = false,
   onSuccess,
   onCancel,
 }: ProjectFormProps) {
@@ -105,7 +103,7 @@ export default function ProjectForm({
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const validTasks = tasks.filter((t) => t.title.trim())
-    if (requireTasks && !validTasks.length) {
+    if (!validTasks.length) {
       toast('At least one task with a title is required.', 'error')
       return
     }
@@ -354,10 +352,7 @@ export default function ProjectForm({
       </div>
 
       <div className="mb-5">
-        <label>
-          Initial Tasks{' '}
-          {!requireTasks && <span className="font-normal text-text-light">(optional)</span>}
-        </label>
+        <label>Initial Tasks</label>
         <p className="text-sm text-text-light mt-0 mb-2">
           Break the project into concrete tasks. This helps contributors understand the scope and
           gives them something to pick up.
@@ -365,10 +360,7 @@ export default function ProjectForm({
         {tasks.map((task, i) => (
           <div key={i} className="bg-brand-bg rounded-lg p-4 mb-3 border border-brand-border">
             <div className="mb-3">
-              <label
-                htmlFor={`task-title-${i}`}
-                className={`text-sm${requireTasks ? ' required' : ''}`}
-              >
+              <label htmlFor={`task-title-${i}`} className="text-sm required">
                 Task title
               </label>
               <input
