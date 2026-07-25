@@ -11,6 +11,11 @@ export const adminProjectsRouter = {
   create: adminProcedure.input(AdminCreateProjectSchema).handler(async ({ input, context }) => {
     const admin = context.volunteer
     const { wantToOwn, skillIds, skillRequiredMap, tasks } = input
+    if (tasks.length === 0) {
+      throw new ORPCError('BAD_REQUEST', {
+        message: 'At least one task is required to create a project',
+      })
+    }
 
     const project = await prisma.$transaction(async (tx) => {
       const newProject = await tx.workItem.create({
@@ -18,7 +23,7 @@ export const adminProjectsRouter = {
           type: WorkItemType.PROJECT,
           title: input.title,
           description: input.description,
-          status: tasks.length > 0 ? ProjectStatus.in_progress : ProjectStatus.needs_tasks,
+          status: ProjectStatus.in_progress,
           assigneeId: wantToOwn ? admin.id : null,
           creatorId: admin.id,
           isOrgProposed: true,
@@ -44,18 +49,16 @@ export const adminProjectsRouter = {
         })
       }
 
-      if (tasks.length > 0) {
-        await tx.workItem.createMany({
-          data: tasks.map((t) => ({
-            type: WorkItemType.TASK,
-            status: TaskStatus.open,
-            parentId: newProject.id,
-            title: t.title,
-            description: t.description ?? null,
-            creatorId: admin.id,
-          })),
-        })
-      }
+      await tx.workItem.createMany({
+        data: tasks.map((t) => ({
+          type: WorkItemType.TASK,
+          status: TaskStatus.open,
+          parentId: newProject.id,
+          title: t.title,
+          description: t.description ?? null,
+          creatorId: admin.id,
+        })),
+      })
 
       return newProject
     })

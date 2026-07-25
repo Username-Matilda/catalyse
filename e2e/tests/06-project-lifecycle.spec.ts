@@ -1,6 +1,7 @@
-import { test, expect, getAlert } from '../fixtures'
+import { test, expect, getAlert, readAdminToken, createApprovedVolunteer } from '../fixtures'
 import { goToDashboardNotifications } from '../actions/dashboard'
 import { fake } from '../fake'
+import { createApiClient } from '../client'
 import {
   proposeProject,
   adminCreateProject,
@@ -118,8 +119,8 @@ test.describe('Project Lifecycle', () => {
     const title = fake.projectTitle()
     await adminCreateProject(baseUrl, adminPage, title, 'Admin-created project description')
 
-    // Project starts in needs_tasks status
-    await expect(adminPage.getByLabel('project status')).toContainText('Needs Tasks', {
+    // Project starts in_progress since it must be created with at least one task
+    await expect(adminPage.getByLabel('project status')).toContainText('In Progress', {
       timeout: 10_000,
     })
 
@@ -199,4 +200,96 @@ test.describe('Project Lifecycle', () => {
   // way to verify this is via the admin API endpoint, which requires the volunteer's numeric ID.
   // Skip until endorsements become visible somewhere in the UI.
   test.skip('Required-skill endorsements are created for the project owner on a successful outcome', async () => {})
+})
+
+test.describe('Project Creation Requires At Least One Task', () => {
+  test('Suggesting a project without any task shows a validation error', async ({
+    volunteer,
+    baseUrl,
+  }) => {
+    await volunteer.page.goto(`${baseUrl}/suggest`)
+    await expect(
+      volunteer.page.getByRole('button', { name: 'Submit Project Proposal' }),
+    ).toBeVisible({ timeout: 10_000 })
+
+    await volunteer.page.getByLabel('Project Title').fill(fake.projectTitle())
+    await volunteer.page.getByLabel('Description').fill('Proposal with no tasks')
+    await volunteer.page.getByRole('button', { name: 'Submit Project Proposal' }).click()
+
+    await expect(getAlert(volunteer.page)).toContainText(
+      'At least one task with a title is required.',
+      { timeout: 10_000 },
+    )
+    // Still on the form — submission was blocked client-side, no navigation happened
+    await expect(
+      volunteer.page.getByRole('button', { name: 'Submit Project Proposal' }),
+    ).toBeVisible()
+  })
+
+  test('Creating an org project without any task shows a validation error', async ({
+    adminPage,
+    baseUrl,
+  }) => {
+    await adminPage.goto(`${baseUrl}/admin/projects/new`)
+    await expect(
+      adminPage.getByRole('heading', { name: 'Create Organisation Project' }),
+    ).toBeVisible({ timeout: 10_000 })
+
+    await adminPage.getByLabel('Project Title').fill(fake.projectTitle())
+    await adminPage.getByLabel('Description').fill('Org project with no tasks')
+    await adminPage.getByRole('button', { name: 'Create Project' }).click()
+
+    await expect(getAlert(adminPage)).toContainText('At least one task with a title is required.', {
+      timeout: 10_000,
+    })
+  })
+
+  test('The API rejects a project proposal with no tasks', async ({ baseUrl }) => {
+    const volunteer = await createApprovedVolunteer(baseUrl)
+    const api = createApiClient(baseUrl, volunteer.token)
+
+    const result = await api.projects.create({
+      body: {
+        title: fake.projectTitle(),
+        description: 'Proposal with no tasks, sent directly to the API',
+        projectType: null,
+        estimatedDuration: null,
+        timeCommitmentHoursPerWeek: null,
+        urgency: 'medium',
+        collaborationLink: null,
+        country: null,
+        localGroup: null,
+        isSeekingHelp: true,
+        isSeekingOwner: true,
+        tasks: [],
+      },
+    })
+
+    expect(result.status).toBe(400)
+    expect(JSON.stringify(result.body)).toContain('At least one task is required')
+  })
+
+  test('The API rejects an org project with no tasks', async ({ baseUrl }) => {
+    const adminApi = createApiClient(baseUrl, readAdminToken(baseUrl))
+
+    const result = await adminApi.admin.projects.create({
+      body: {
+        title: fake.projectTitle(),
+        description: 'Org project with no tasks, sent directly to the API',
+        projectType: null,
+        estimatedDuration: null,
+        timeCommitmentHoursPerWeek: null,
+        urgency: 'medium',
+        collaborationLink: null,
+        country: null,
+        localGroup: null,
+        isSeekingHelp: false,
+        isSeekingOwner: false,
+        tasks: [],
+      },
+    })
+
+    expect(result.status).toBe(400)
+    expect(JSON.stringify(result.body)).toContain('At least one task is required')
+  })
 })

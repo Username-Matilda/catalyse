@@ -5,6 +5,7 @@ import {
   readAdminToken,
   confirmVolunteerEmail,
   approveVolunteer,
+  createApprovedVolunteer,
 } from '../fixtures'
 import { fake } from '../fake'
 import { proposeProject, adminCreateProject, adminApproveProject } from '../actions/projects'
@@ -24,17 +25,58 @@ async function setupInProgressProject(
 }
 
 test.describe('Project Tasks', () => {
+  // A project can only reach `needs_tasks` after creation (every project now requires at
+  // least one task up front) — e.g. by accepting a `want_to_own` interest once its only
+  // task has been removed. Reproduce that path via the API, then verify the UI promotes
+  // the project back to In Progress as soon as a new task is added.
   test('Adding a task to a needs_tasks project auto-promotes it to In Progress', async ({
     adminPage,
     baseUrl,
   }) => {
-    await adminCreateProject(
-      baseUrl,
-      adminPage,
-      fake.projectTitle(),
-      'Project for auto-promotion test',
-    )
+    const adminToken = readAdminToken(baseUrl)
+    const adminApi = createApiClient(baseUrl, adminToken)
 
+    const created = await adminApi.admin.projects.create({
+      body: {
+        title: fake.projectTitle(),
+        description: 'Project for auto-promotion test',
+        projectType: null,
+        estimatedDuration: null,
+        timeCommitmentHoursPerWeek: null,
+        urgency: 'medium',
+        collaborationLink: null,
+        country: null,
+        localGroup: null,
+        isSeekingHelp: false,
+        isSeekingOwner: true,
+        tasks: [{ title: 'Initial task' }],
+      },
+    })
+    expect(created.status).toBe(200)
+    const projectId = (created.body as { id: number }).id
+
+    const detail = await adminApi.projects.getById({ body: { id: projectId } })
+    const taskId = (detail.body as { tasks: { id: number }[] }).tasks[0].id
+    const deleted = await adminApi.projects.deleteTask({ body: { projectId, taskId } })
+    expect(deleted.status).toBe(200)
+
+    const owner = await createApprovedVolunteer(baseUrl)
+    const ownerApi = createApiClient(baseUrl, owner.token)
+    const interest = await ownerApi.projects.expressInterest({
+      body: { projectId, interestType: 'want_to_own' },
+    })
+    expect(interest.status).toBe(200)
+
+    const withInterest = await adminApi.projects.getById({ body: { id: projectId } })
+    const interestId = (
+      withInterest.body as { interests: { id: number; volunteerId: number }[] }
+    ).interests.find((i) => i.volunteerId === owner.id)!.id
+    const accepted = await adminApi.projects.respondToInterest({
+      body: { projectId, interestId, status: 'accepted' },
+    })
+    expect(accepted.status).toBe(200)
+
+    await adminPage.goto(`${baseUrl}/projects/${projectId}`)
     await expect(adminPage.getByLabel('project status')).toContainText('Needs Tasks', {
       timeout: 10_000,
     })
@@ -111,6 +153,7 @@ test.describe('Project Tasks', () => {
         localGroup: null,
         isSeekingHelp: false,
         isSeekingOwner: false,
+        tasks: [{ title: 'Setup task' }],
       },
     })
     expect(projectCreated.status).toBe(200)
