@@ -24,7 +24,6 @@ export default function AdminCreateProjectPage() {
           <ProjectForm
             onSubmitForm={(data) => createMutation.mutateAsync(data)}
             submitLabel="Create Project"
-            requireTasks
             onSuccess={(id) => router.push(`/projects/${id}`)}
             onCancel={() => router.back()}
           />
