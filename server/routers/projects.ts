@@ -11,7 +11,7 @@ import {
   CreateProjectTaskSchema,
   UpdateProjectTaskSchema,
 } from '@/lib/schemas'
-import { publicProcedure, authedProcedure, adminProcedure } from '../procedures'
+import { publicProcedure, authedProcedure, approvedProcedure, adminProcedure } from '../procedures'
 import {
   ApprovalStatus,
   InterestStatus,
@@ -185,12 +185,8 @@ export const projectsRouter = {
       return { projects, total }
     }),
 
-  create: authedProcedure.input(CreateProjectSchema).handler(async ({ input, context }) => {
+  create: approvedProcedure.input(CreateProjectSchema).handler(async ({ input, context }) => {
     const volunteer = context.volunteer
-    if (volunteer.approvalStatus !== ApprovalStatus.approved && !volunteer.isAdmin) {
-      throw new ORPCError('FORBIDDEN', { message: 'Your account is pending approval' })
-    }
-
     const { tasks, wantToOwn, skillIds, skillRequiredMap } = input
     if (tasks.length === 0) {
       throw new ORPCError('BAD_REQUEST', {
@@ -435,7 +431,7 @@ export const projectsRouter = {
       }
     }),
 
-  update: authedProcedure
+  update: approvedProcedure
     .input(z.object({ id: z.number().int() }).merge(UpdateProjectSchema))
     .handler(async ({ input, context }) => {
       const volunteer = context.volunteer
@@ -578,14 +574,10 @@ export const projectsRouter = {
     return { message: `Project '${project.title}' deleted` }
   }),
 
-  expressInterest: authedProcedure
+  expressInterest: approvedProcedure
     .input(z.object({ projectId: z.number().int() }).merge(ProjectInterestBodySchema))
     .handler(async ({ input, context }) => {
       const volunteer = context.volunteer
-      if (volunteer.approvalStatus !== ApprovalStatus.approved && !volunteer.isAdmin) {
-        throw new ORPCError('FORBIDDEN', { message: 'Your account is pending approval' })
-      }
-
       const project = await prisma.workItem.findFirst({
         where: {
           id: input.projectId,
@@ -699,8 +691,17 @@ export const projectsRouter = {
 
       const interest = await prisma.workItemInterest.findFirst({
         where: { id: input.interestId, workItemId: input.projectId },
+        include: { volunteer: { select: { approvalStatus: true } } },
       })
       if (!interest) throw new ORPCError('NOT_FOUND', { message: 'Interest not found' })
+      if (
+        input.status === InterestStatus.accepted &&
+        interest.volunteer.approvalStatus !== ApprovalStatus.approved
+      ) {
+        throw new ORPCError('BAD_REQUEST', {
+          message: 'Cannot accept interest from a volunteer who is not yet approved',
+        })
+      }
 
       await prisma.workItemInterest.update({
         where: { id: input.interestId },
@@ -765,6 +766,16 @@ export const projectsRouter = {
       if (project.assigneeId !== volunteer.id && !volunteer.isAdmin) {
         throw new ORPCError('FORBIDDEN', {
           message: 'Only project owner or admin can assign volunteers',
+        })
+      }
+
+      const targetVolunteer = await prisma.volunteer.findFirst({
+        where: { id: input.volunteerId, deletedAt: null },
+      })
+      if (!targetVolunteer) throw new ORPCError('BAD_REQUEST', { message: 'Volunteer not found' })
+      if (targetVolunteer.approvalStatus !== ApprovalStatus.approved) {
+        throw new ORPCError('BAD_REQUEST', {
+          message: 'Cannot assign a project to a volunteer who is not yet approved',
         })
       }
 
@@ -863,7 +874,7 @@ export const projectsRouter = {
       }))
     }),
 
-  createTask: authedProcedure
+  createTask: approvedProcedure
     .input(z.object({ projectId: z.number().int() }).merge(CreateProjectTaskSchema))
     .handler(async ({ input, context }) => {
       const volunteer = context.volunteer
@@ -908,7 +919,7 @@ export const projectsRouter = {
       return { id: task.id, message: 'Task created' }
     }),
 
-  reorderTasks: authedProcedure
+  reorderTasks: approvedProcedure
     .input(
       z.object({
         projectId: z.number().int(),
@@ -940,7 +951,7 @@ export const projectsRouter = {
       return { success: true }
     }),
 
-  updateTask: authedProcedure
+  updateTask: approvedProcedure
     .input(
       z.object({
         projectId: z.number().int(),
@@ -1000,7 +1011,7 @@ export const projectsRouter = {
       return { message: 'Task updated' }
     }),
 
-  assignTask: authedProcedure
+  assignTask: approvedProcedure
     .input(
       z.object({
         projectId: z.number().int(),
@@ -1030,6 +1041,11 @@ export const projectsRouter = {
         where: { id: input.assigneeId, deletedAt: null },
       })
       if (!assignee) throw new ORPCError('BAD_REQUEST', { message: 'Volunteer not found' })
+      if (assignee.approvalStatus !== ApprovalStatus.approved) {
+        throw new ORPCError('BAD_REQUEST', {
+          message: 'Cannot assign a task to a volunteer who is not yet approved',
+        })
+      }
 
       await prisma.workItem.update({
         where: { id: input.taskId },
@@ -1058,7 +1074,7 @@ export const projectsRouter = {
       return { message: 'Task assigned' }
     }),
 
-  deleteTask: authedProcedure
+  deleteTask: approvedProcedure
     .input(z.object({ projectId: z.number().int(), taskId: z.number().int() }))
     .handler(async ({ input, context }) => {
       const volunteer = context.volunteer

@@ -8,7 +8,7 @@ import {
   ReviewStarterTaskSchema,
 } from '@/lib/schemas'
 import { adminProcedure, authedProcedure, publicProcedure } from '../procedures'
-import { StarterTaskStatus, WorkItemType } from '@/generated/prisma/enums'
+import { ApprovalStatus, StarterTaskStatus, WorkItemType } from '@/generated/prisma/enums'
 
 export const starterTasksRouter = {
   list: adminProcedure
@@ -146,6 +146,16 @@ export const starterTasksRouter = {
         where: { id: input.id, type: WorkItemType.STARTER_TASK },
       })
       if (!task) throw new ORPCError('NOT_FOUND', { message: 'Task not found' })
+
+      const assignee = await prisma.volunteer.findFirst({
+        where: { id: input.volunteerId, deletedAt: null },
+      })
+      if (!assignee) throw new ORPCError('BAD_REQUEST', { message: 'Volunteer not found' })
+      if (assignee.approvalStatus !== ApprovalStatus.approved) {
+        throw new ORPCError('BAD_REQUEST', {
+          message: 'Cannot assign a task to a volunteer who is not yet approved',
+        })
+      }
 
       await prisma.workItem.update({
         where: { id: input.id },

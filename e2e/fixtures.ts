@@ -96,6 +96,44 @@ export function readAdminToken(baseUrl: string): string | null {
   }
 }
 
+export interface ApiVolunteer {
+  id: number
+  token: string
+  name: string
+  email: string
+}
+
+export async function createPendingVolunteer(baseUrl: string): Promise<ApiVolunteer> {
+  const person = fake.person()
+  const api = createApiClient(baseUrl)
+  const result = await api.auth.signup({
+    body: {
+      name: person.name,
+      email: person.email,
+      password: 'testpassword1',
+      consentMakeProfileVisibleInDirectory: true,
+      consentContactableByProjectOwners: true,
+    },
+  })
+  if (result.status !== 200)
+    throw new Error(`Volunteer signup failed: ${JSON.stringify(result.body)}`)
+  const { id, token, emailVerificationToken } = result.body as {
+    id: number
+    token: string
+    emailVerificationToken?: string
+  }
+  if (emailVerificationToken) {
+    await confirmVolunteerEmail(baseUrl, emailVerificationToken)
+  }
+  return { id, token, name: person.name, email: person.email }
+}
+
+export async function createApprovedVolunteer(baseUrl: string): Promise<ApiVolunteer> {
+  const pending = await createPendingVolunteer(baseUrl)
+  await approveVolunteer(baseUrl, pending.id)
+  return pending
+}
+
 export async function rejectVolunteer(
   baseUrl: string,
   volunteerId: number,

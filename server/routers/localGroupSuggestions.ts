@@ -2,7 +2,7 @@ import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
 import { BASE_LOCATION_OPTIONS } from '@/lib/filter-options'
 import { LocalGroupSuggestionBodySchema } from '@/lib/schemas'
-import { authedProcedure } from '../procedures'
+import { authedProcedure, approvedProcedure } from '../procedures'
 
 const VALID_COUNTRIES = new Set(
   BASE_LOCATION_OPTIONS.filter((o) => o.value && o.value !== 'Remote' && o.value !== 'Other').map(
@@ -30,7 +30,7 @@ export const localGroupSuggestionsRouter = {
     }
   }),
 
-  create: authedProcedure
+  create: approvedProcedure
     .input(LocalGroupSuggestionBodySchema)
     .handler(async ({ input, context }) => {
       if (!VALID_COUNTRIES.has(input.country)) {
