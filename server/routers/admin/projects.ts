@@ -253,4 +253,22 @@ export const adminProjectsRouter = {
     })
     return projects.map((p) => withProjectExtras(p as EnrichedProject))
   }),
+
+  staleInProgress: adminProcedure.handler(async () => {
+    const projects = await prisma.workItem.findMany({
+      where: {
+        type: WorkItemType.PROJECT,
+        status: ProjectStatus.in_progress,
+        children: {
+          none: {
+            type: WorkItemType.TASK,
+            status: { not: TaskStatus.completed },
+          },
+        },
+      },
+      include: projectInclude,
+      orderBy: { updatedAt: 'asc' },
+    })
+    return projects.map((p) => withProjectExtras(p as EnrichedProject))
+  }),
 }

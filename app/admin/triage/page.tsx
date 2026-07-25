@@ -23,9 +23,9 @@ export default function TriagePage() {
   const { user, loading } = useRequireAdmin()
   const showToast = useToast()
   const queryClient = useQueryClient()
-  const [tab, setTab] = useState<'pending_review' | 'needs_discussion' | 'interests'>(
-    'pending_review',
-  )
+  const [tab, setTab] = useState<
+    'pending_review' | 'needs_discussion' | 'stale_in_progress' | 'interests'
+  >('pending_review')
 
   const {
     value: interestStatusFilter,
@@ -44,6 +44,11 @@ export default function TriagePage() {
 
   const { data: projects = [], isLoading: loadingProjects } = useQuery({
     ...orpc.admin.triage.list.queryOptions(),
+    enabled: !!user?.isAdmin,
+  })
+
+  const { data: staleProjects = [], isLoading: loadingStale } = useQuery({
+    ...orpc.admin.projects.staleInProgress.queryOptions(),
     enabled: !!user?.isAdmin,
   })
 
@@ -73,7 +78,9 @@ export default function TriagePage() {
     (p) => p.status === ProjectStatus.needs_discussion,
   )
   const pendingInterests = interests.filter((i) => i.status === InterestStatus.pending)
-  const visible = tab === 'pending_review' ? pending : discussion
+  const stale = staleProjects as unknown as CardProject[]
+  const visible =
+    tab === 'pending_review' ? pending : tab === 'needs_discussion' ? discussion : stale
 
   return (
     <>
@@ -103,6 +110,19 @@ export default function TriagePage() {
                   {discussion.length > 0 && (
                     <span className="bg-primary text-secondary-dark text-xs px-2 py-0.5 rounded-full ml-2">
                       {discussion.length}
+                    </span>
+                  )}
+                </>
+              ),
+            },
+            {
+              key: 'stale_in_progress',
+              label: (
+                <>
+                  {`No Open Tasks`}
+                  {stale.length > 0 && (
+                    <span className="bg-primary text-secondary-dark text-xs px-2 py-0.5 rounded-full ml-2">
+                      {stale.length}
                     </span>
                   )}
                 </>
@@ -253,10 +273,16 @@ export default function TriagePage() {
           </>
         ) : (
           <>
-            {loadingProjects ? (
+            {(tab === 'stale_in_progress' ? loadingStale : loadingProjects) ? (
               <div className="text-center py-10 text-text-light">Loading…</div>
             ) : visible.length === 0 ? (
-              <p>No projects awaiting {tab === 'pending_review' ? 'review' : 'discussion'}.</p>
+              <p>
+                {tab === 'pending_review'
+                  ? 'No projects awaiting review.'
+                  : tab === 'needs_discussion'
+                    ? 'No projects awaiting discussion.'
+                    : 'No in-progress projects with all tasks completed.'}
+              </p>
             ) : (
               <div className={CARD_GRID_CLASSES}>
                 {visible.map((p) => (
