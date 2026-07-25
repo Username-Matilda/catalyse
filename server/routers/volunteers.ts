@@ -36,6 +36,7 @@ export const volunteersRouter = {
       const where: Record<string, unknown> = {
         deletedAt: null,
         consentMakeProfileVisibleInDirectory: true,
+        approvalStatus: ApprovalStatus.approved,
         ...(input.skillIds && input.skillIds.length > 0
           ? { skills: { some: { skillId: { in: input.skillIds } } } }
           : {}),

@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
 import { sendRelayMessage, isEmailConfigured } from '@/lib/email'
-import { authedProcedure } from '../procedures'
+import { authedProcedure, approvedProcedure } from '../procedures'
 import { WorkItemType } from '@/generated/prisma/enums'
 
 const ContactSchema = z.object({
@@ -67,7 +67,7 @@ export const messagesRouter = {
       return { message: 'Marked as read' }
     }),
 
-  send: authedProcedure.input(ContactSchema).handler(async ({ input, context }) => {
+  send: approvedProcedure.input(ContactSchema).handler(async ({ input, context }) => {
     const sender = context.volunteer
     if (sender.id === input.recipientId) {
       throw new ORPCError('BAD_REQUEST', { message: 'Cannot message yourself' })
