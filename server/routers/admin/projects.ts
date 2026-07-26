@@ -3,6 +3,7 @@ import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
 import { withProjectExtras, projectInclude, EnrichedProject } from '@/lib/work-item'
 import { notifyUser } from '@/lib/notify'
+import { notifyMatchingVolunteers } from '@/lib/project-match'
 import { AdminCreateProjectSchema, ReviewProjectSchema, OutcomeProjectSchema } from '@/lib/schemas'
 import { adminProcedure } from '../../procedures'
 import { ProjectStatus, TaskStatus, WorkItemType } from '@/generated/prisma/enums'
@@ -62,6 +63,8 @@ export const adminProjectsRouter = {
 
       return newProject
     })
+
+    notifyMatchingVolunteers(project.id).catch((e) => console.error('[MATCH NOTIFY]', e))
 
     return { id: project.id, message: 'Org project created' }
   }),
@@ -127,6 +130,8 @@ export const adminProjectsRouter = {
             },
           )
         }
+
+        notifyMatchingVolunteers(input.id).catch((e) => console.error('[MATCH NOTIFY]', e))
       } else {
         await prisma.workItem.update({
           where: { id: input.id },
