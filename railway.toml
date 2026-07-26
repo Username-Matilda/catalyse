@@ -6,6 +6,10 @@ buildCommand = "npm run build:railway"
 startCommand = "npm run migrate && exec npx next start"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
+# Old container gets 0s by default between SIGTERM and SIGKILL, so it's
+# force-killed before it can exit(0) and gets marked CRASHED (false alert
+# email) on every rolling deploy. Give it time to shut down cleanly.
+drainingSeconds = 10
 
 [deploy.healthcheck]
 path = "/api/health"
