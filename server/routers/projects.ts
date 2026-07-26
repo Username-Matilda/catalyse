@@ -11,7 +11,7 @@ import {
   CreateProjectTaskSchema,
   UpdateProjectTaskSchema,
 } from '@/lib/schemas'
-import { publicProcedure, authedProcedure, approvedProcedure, adminProcedure } from '../procedures'
+import { authedProcedure, approvedProcedure, adminProcedure } from '../procedures'
 import {
   ApprovalStatus,
   InterestStatus,
@@ -48,7 +48,7 @@ const TASK_ORDER: Record<string, number> = {
 }
 
 export const projectsRouter = {
-  list: publicProcedure
+  list: approvedProcedure
     .input(
       z.object({
         status: z.string().optional(),
@@ -70,24 +70,17 @@ export const projectsRouter = {
     .handler(async ({ input, context }) => {
       const volunteer = context.volunteer
 
-      if (volunteer && !volunteer.emailConfirmed && !volunteer.isAdmin) {
+      if (!volunteer.emailConfirmed && !volunteer.isAdmin) {
         throw new ORPCError('FORBIDDEN', {
           message: 'Please confirm your email address to browse projects',
         })
       }
 
-      const isPending = Boolean(
-        volunteer && volunteer.approvalStatus !== ApprovalStatus.approved && !volunteer.isAdmin,
-      )
-
-      let volunteerSkillIds: Set<number> | undefined
-      if (volunteer) {
-        const v = await prisma.volunteer.findUnique({
-          where: { id: volunteer.id },
-          select: { skills: { select: { skillId: true } } },
-        })
-        volunteerSkillIds = new Set((v?.skills ?? []).map((s) => s.skillId))
-      }
+      const v = await prisma.volunteer.findUnique({
+        where: { id: volunteer.id },
+        select: { skills: { select: { skillId: true } } },
+      })
+      const volunteerSkillIds = new Set((v?.skills ?? []).map((s) => s.skillId))
 
       const conditions: Prisma.Sql[] = [Prisma.sql`type = ${WorkItemType.PROJECT}`]
 
@@ -163,19 +156,7 @@ export const projectsRouter = {
       const projects = ids
         .map((id) => projectMap.get(id))
         .filter((p): p is NonNullable<typeof p> => p !== undefined)
-        .map((p) => {
-          const serialized = withProjectExtras(p as EnrichedProject, volunteerSkillIds)
-          if (isPending) {
-            return {
-              ...serialized,
-              owner: null,
-              ownerId: null,
-              proposedBy: null,
-              proposedById: null,
-            }
-          }
-          return serialized
-        })
+        .map((p) => withProjectExtras(p as EnrichedProject, volunteerSkillIds))
 
       if (input.sortBy === 'match' && volunteerSkillIds && volunteerSkillIds.size > 0) {
         projects.sort((a, b) => (b.match?.overallScore ?? 0) - (a.match?.overallScore ?? 0))
@@ -255,13 +236,10 @@ export const projectsRouter = {
     return { id: project.id, message: 'Project submitted for review' }
   }),
 
-  getById: publicProcedure
+  getById: approvedProcedure
     .input(z.object({ id: z.number().int() }))
     .handler(async ({ input, context }) => {
       const volunteer = context.volunteer
-      const isPending = Boolean(
-        volunteer && volunteer.approvalStatus !== ApprovalStatus.approved && !volunteer.isAdmin,
-      )
 
       const project = await prisma.workItem.findFirst({
         where: { id: input.id, type: WorkItemType.PROJECT },
@@ -275,20 +253,16 @@ export const projectsRouter = {
         ProjectStatus.needs_discussion,
       ]
       if (hiddenStatuses.includes(project.status)) {
-        if (!volunteer) throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
         const isCreator = project.creatorId === volunteer.id
         if (!isCreator && !volunteer.isAdmin)
           throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
       }
 
-      let volunteerSkillIds: Set<number> | undefined
-      if (volunteer) {
-        const v = await prisma.volunteer.findUnique({
-          where: { id: volunteer.id },
-          select: { skills: { select: { skillId: true } } },
-        })
-        volunteerSkillIds = new Set((v?.skills ?? []).map((s) => s.skillId))
-      }
+      const v = await prisma.volunteer.findUnique({
+        where: { id: volunteer.id },
+        select: { skills: { select: { skillId: true } } },
+      })
+      const volunteerSkillIds = new Set((v?.skills ?? []).map((s) => s.skillId))
 
       const base = withProjectExtras(project as EnrichedProject, volunteerSkillIds)
 
@@ -313,10 +287,10 @@ export const projectsRouter = {
         projectId: t.parentId,
         title: t.title,
         description: t.description,
-        assignedToId: isPending ? null : t.assigneeId,
-        assignedToName: isPending ? null : (t.assignee?.name ?? null),
-        createdById: isPending ? null : t.creatorId,
-        createdByName: isPending ? null : (t.creator?.name ?? null),
+        assignedToId: t.assigneeId,
+        assignedToName: t.assignee?.name ?? null,
+        createdById: t.creatorId,
+        createdByName: t.creator?.name ?? null,
         status: t.status,
         sortOrder: t.sortOrder,
         estimatedHours: t.estimatedHours,
@@ -347,84 +321,67 @@ export const projectsRouter = {
             }>
           }>
         | undefined
-      let myInterest:
-        | {
-            id: number
-            volunteerId: number
-            projectId: number
-            interestType: string
-            message: string | null
-            status: string
-            responseMessage: string | null
-            createdAt: Date | null
-            respondedAt: Date | null
-          }
-        | null
-        | undefined
 
-      if (volunteer) {
-        const isAssignee = project.assigneeId === volunteer.id
-        if (isAssignee || volunteer.isAdmin) {
-          const rawInterests = await prisma.workItemInterest.findMany({
-            where: { workItemId: input.id },
-            include: {
-              volunteer: {
-                select: {
-                  id: true,
-                  name: true,
-                  bio: true,
-                  skills: { include: { skill: { include: { category: true } } } },
-                },
+      const isAssignee = project.assigneeId === volunteer.id
+      if (isAssignee || volunteer.isAdmin) {
+        const rawInterests = await prisma.workItemInterest.findMany({
+          where: { workItemId: input.id },
+          include: {
+            volunteer: {
+              select: {
+                id: true,
+                name: true,
+                bio: true,
+                skills: { include: { skill: { include: { category: true } } } },
               },
             },
-            orderBy: { createdAt: 'desc' },
-          })
-          interests = rawInterests.map((i) => ({
-            id: i.id,
-            volunteerId: i.volunteerId,
-            projectId: i.workItemId,
-            interestType: i.interestType,
-            message: i.message,
-            status: i.status,
-            responseMessage: i.responseMessage,
-            createdAt: i.createdAt,
-            respondedAt: i.respondedAt,
-            volunteerName: i.volunteer.name,
-            volunteerBio: i.volunteer.bio,
-            volunteerSkills: i.volunteer.skills.map((vs) => ({
-              id: vs.skill.id,
-              name: vs.skill.name,
-              categoryName: vs.skill.category.name,
-              proficiencyLevel: vs.proficiencyLevel,
-            })),
-          }))
-        }
-
-        const rawMyInterest = await prisma.workItemInterest.findFirst({
-          where: {
-            workItemId: input.id,
-            volunteerId: volunteer.id,
-            status: { not: InterestStatus.withdrawn },
           },
+          orderBy: { createdAt: 'desc' },
         })
-        myInterest = rawMyInterest
-          ? {
-              id: rawMyInterest.id,
-              volunteerId: rawMyInterest.volunteerId,
-              projectId: rawMyInterest.workItemId,
-              interestType: rawMyInterest.interestType,
-              message: rawMyInterest.message,
-              status: rawMyInterest.status,
-              responseMessage: rawMyInterest.responseMessage,
-              createdAt: rawMyInterest.createdAt,
-              respondedAt: rawMyInterest.respondedAt,
-            }
-          : null
+        interests = rawInterests.map((i) => ({
+          id: i.id,
+          volunteerId: i.volunteerId,
+          projectId: i.workItemId,
+          interestType: i.interestType,
+          message: i.message,
+          status: i.status,
+          responseMessage: i.responseMessage,
+          createdAt: i.createdAt,
+          respondedAt: i.respondedAt,
+          volunteerName: i.volunteer.name,
+          volunteerBio: i.volunteer.bio,
+          volunteerSkills: i.volunteer.skills.map((vs) => ({
+            id: vs.skill.id,
+            name: vs.skill.name,
+            categoryName: vs.skill.category.name,
+            proficiencyLevel: vs.proficiencyLevel,
+          })),
+        }))
       }
+
+      const rawMyInterest = await prisma.workItemInterest.findFirst({
+        where: {
+          workItemId: input.id,
+          volunteerId: volunteer.id,
+          status: { not: InterestStatus.withdrawn },
+        },
+      })
+      const myInterest = rawMyInterest
+        ? {
+            id: rawMyInterest.id,
+            volunteerId: rawMyInterest.volunteerId,
+            projectId: rawMyInterest.workItemId,
+            interestType: rawMyInterest.interestType,
+            message: rawMyInterest.message,
+            status: rawMyInterest.status,
+            responseMessage: rawMyInterest.responseMessage,
+            createdAt: rawMyInterest.createdAt,
+            respondedAt: rawMyInterest.respondedAt,
+          }
+        : null
 
       return {
         ...base,
-        ...(isPending && { owner: null, ownerId: null, proposedBy: null, proposedById: null }),
         tasks: mappedTasks,
         interests,
         myInterest,
@@ -831,14 +788,9 @@ export const projectsRouter = {
       return { message: 'Volunteer assigned to project' }
     }),
 
-  listTasks: publicProcedure
+  listTasks: approvedProcedure
     .input(z.object({ projectId: z.number().int() }))
-    .handler(async ({ input, context }) => {
-      const volunteer = context.volunteer
-      const isPending = Boolean(
-        volunteer && volunteer.approvalStatus !== ApprovalStatus.approved && !volunteer.isAdmin,
-      )
-
+    .handler(async ({ input }) => {
       const tasks = await prisma.workItem.findMany({
         where: { parentId: input.projectId, type: WorkItemType.TASK },
         include: {
@@ -860,10 +812,10 @@ export const projectsRouter = {
         projectId: t.parentId,
         title: t.title,
         description: t.description,
-        assignedToId: isPending ? null : t.assigneeId,
-        assignedToName: isPending ? null : (t.assignee?.name ?? null),
-        createdById: isPending ? null : t.creatorId,
-        createdByName: isPending ? null : (t.creator?.name ?? null),
+        assignedToId: t.assigneeId,
+        assignedToName: t.assignee?.name ?? null,
+        createdById: t.creatorId,
+        createdByName: t.creator?.name ?? null,
         status: t.status,
         sortOrder: t.sortOrder,
         estimatedHours: t.estimatedHours,

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRequireAuth } from '@/lib/hooks/auth'
+import { useRequireApproved } from '@/lib/hooks/auth'
 import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
 import Button from '@/components/Button'
@@ -45,7 +45,7 @@ const SORT_OPTIONS = [
 ] as const
 
 export default function ProjectsPage() {
-  const { user, loading } = useRequireAuth()
+  const { user, loading } = useRequireApproved()
   const userSkillIds = new Set(user?.skills?.map((s) => s.id) ?? [])
   const [search, setSearch] = useState('')
   const { value: statusFilter, onChange: setStatusFilter } = useFilterOptions(STATUS_OPTIONS, '')

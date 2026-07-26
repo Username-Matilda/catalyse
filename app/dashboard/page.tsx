@@ -160,8 +160,8 @@ export default function DashboardPage() {
         {user.approvalStatus === ApprovalStatus.pending && (
           <div className="flex items-center gap-3 p-4 rounded-lg mb-5 bg-yellow-100 text-yellow-800 border border-yellow-300 dark:bg-yellow-950 dark:text-yellow-300 dark:border-yellow-800">
             <span>
-              Your account is pending approval. You can browse the platform, but some actions are
-              restricted until an admin reviews your application.
+              Your account is pending approval. You&apos;ll be able to browse and join projects once
+              an admin reviews your application.
             </span>
           </div>
         )}
