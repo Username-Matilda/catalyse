@@ -1,11 +1,9 @@
 import { prisma } from './prisma'
 import { sendDigestEmail, isEmailConfigured } from './email'
-import { calculateMatchScore, matchGradeLabel } from './matching'
+import { calculateMatchScore, matchGradeLabel, MATCH_GRADES } from './matching'
 import { WorkItemType } from '@/generated/prisma/enums'
 
-// Grades below this ('Partial match' and no match) aren't worth interrupting someone for.
-const MIN_NOTIFIABLE_GRADE = 'Good match'
-const NOTIFIABLE_GRADES = new Set(['Excellent match', 'Great match', MIN_NOTIFIABLE_GRADE])
+const NOTIFIABLE_GRADES = new Set(MATCH_GRADES.filter((g) => g.notifiable).map((g) => g.label))
 
 // Emails volunteers who asked for immediate skill-match alerts (emailDigest: 'match')
 // as soon as a project they're at least a good fit for goes live — either an admin
