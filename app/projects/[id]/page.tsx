@@ -2,7 +2,7 @@
 
 import React, { use, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useRequireAuth } from '@/lib/hooks/auth'
+import { useRequireApproved } from '@/lib/hooks/auth'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -212,7 +212,7 @@ function SortableTaskItem({
 export default function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = use(params)
   const router = useRouter()
-  const { user, loading } = useRequireAuth()
+  const { user, loading } = useRequireApproved()
   const queryClient = useQueryClient()
 
   const showToast = useToast()

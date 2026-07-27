@@ -1,13 +1,78 @@
-import { test, expect } from '../fixtures'
+import type { Browser } from '@playwright/test'
+import { test, expect, createPendingVolunteer } from '../fixtures'
 import { adminCreateProject } from '../actions/projects'
 import { fake } from '../fake'
 
-// Both the project list (index.html) and individual project pages redirect unauthenticated
-// visitors to /login via `if (!currentUser) { window.location.href = ... }`.
-// There is no public / unauthenticated view of projects.
+// Both the project list and individual project pages redirect unauthenticated
+// visitors to /login via `useRequireApproved`. There is no public / unauthenticated
+// view of projects — the underlying oRPC procedures require an approved, logged-in
+// volunteer too.
 test.describe('Unauthenticated Project Access', () => {
-  test.skip('Visitor browses the project list unauthenticated', async () => {})
-  test.skip('Visitor views a project detail page unauthenticated', async () => {})
+  test('Visitor browses the project list unauthenticated', async ({ page, baseUrl }) => {
+    await page.goto(`${baseUrl}/`)
+    await page.waitForURL(`${baseUrl}/login**`, { timeout: 10_000 })
+  })
+
+  test('Visitor views a project detail page unauthenticated', async ({
+    page,
+    adminPage,
+    baseUrl,
+  }) => {
+    const projectId = await adminCreateProject(
+      baseUrl,
+      adminPage,
+      fake.projectTitle(),
+      'A project for the unauthenticated access test',
+    )
+
+    await page.goto(`${baseUrl}/projects/${projectId}`)
+    await page.waitForURL(`${baseUrl}/login**`, { timeout: 10_000 })
+  })
+})
+
+// Unapproved volunteers can log in and reach their dashboard, but browsing projects
+// is gated behind approval — `useRequireApproved` bounces them back to /dashboard.
+test.describe('Pending Volunteer Project Access', () => {
+  async function pendingVolunteerPage(browser: Browser, baseUrl: string) {
+    const pending = await createPendingVolunteer(baseUrl)
+    const context = await browser.newContext()
+    await context.addInitScript((token: string) => {
+      localStorage.setItem('authToken', token)
+    }, pending.token)
+    const page = await context.newPage()
+    return { page, context }
+  }
+
+  test('Pending volunteer is redirected away from the project list', async ({
+    browser,
+    baseUrl,
+  }) => {
+    const { page, context } = await pendingVolunteerPage(browser, baseUrl)
+
+    await page.goto(`${baseUrl}/`)
+    await page.waitForURL(`${baseUrl}/dashboard**`, { timeout: 10_000 })
+
+    await context.close()
+  })
+
+  test('Pending volunteer is redirected away from a project detail page', async ({
+    browser,
+    adminPage,
+    baseUrl,
+  }) => {
+    const projectId = await adminCreateProject(
+      baseUrl,
+      adminPage,
+      fake.projectTitle(),
+      'A project for the pending-volunteer access test',
+    )
+    const { page, context } = await pendingVolunteerPage(browser, baseUrl)
+
+    await page.goto(`${baseUrl}/projects/${projectId}`)
+    await page.waitForURL(`${baseUrl}/dashboard**`, { timeout: 10_000 })
+
+    await context.close()
+  })
 })
 
 test.describe('Project Discovery', () => {
