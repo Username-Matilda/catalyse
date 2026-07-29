@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import { ProjectStatus } from '@/generated/prisma/enums'
 import {
   AdminInviteSchema,
   AdminNoteSchema,
@@ -170,10 +169,6 @@ export const ReviewProjectSchema = z.object({
   }),
   reviewNotes: z.string().optional().nullable(),
   comment: z.string().optional().nullable(),
-  targetStatus: z
-    .enum([ProjectStatus.seeking_help, ProjectStatus.seeking_owner])
-    .optional()
-    .default(ProjectStatus.seeking_owner),
 })
 
 export const OutcomeProjectSchema = z.object({
