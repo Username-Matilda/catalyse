@@ -251,11 +251,12 @@ function anonymise(dbPath: string): void {
 function seedDevAccounts(dbPath: string): void {
   const db = new DatabaseSync(dbPath)
   const insert = db.prepare(`
-    INSERT OR REPLACE INTO volunteers (name, email, password_hash, is_admin, consent_make_profile_visible_in_directory)
-    VALUES (?, ?, ?, ?, 0)
+    INSERT OR REPLACE INTO volunteers (name, email, password_hash, is_admin, location, country, local_group, location_confirmed_at, approval_status, email_confirmed, consent_make_profile_visible_in_directory)
+    VALUES (?, ?, ?, ?, 'London, UK', 'UK', 'London', datetime('now'), 'approved', 1, 0)
   `)
-  insert.run('Dev Volunteer', 'volunteer@example.com', makePasswordHash('volunteer1'), 0)
-  insert.run('Dev Admin', 'admin@example.com', makePasswordHash('admin1'), 1)
+  insert.run('Dev Volunteer', 'volunteer@example.com', makePasswordHash('password1'), 0)
+  insert.run('Dev Admin', 'admin@example.com', makePasswordHash('password1'), 1)
+  insert.run('Dev Super Admin', 'superadmin@example.com', makePasswordHash('password1'), 1)
   db.close()
 }
 
@@ -326,8 +327,9 @@ async function main(): Promise<void> {
 
   const sizeKb = statSync(destPath).size / 1024
   console.log(`Done. anonymised_prod.db written (${sizeKb.toFixed(0)} KB)`)
-  console.log('  volunteer@example.com / volunteer1')
-  console.log('  admin@example.com     / admin1')
+  console.log('  volunteer@example.com  / password1')
+  console.log('  admin@example.com      / password1')
+  console.log('  superadmin@example.com / password1')
 }
 
 main().catch((err) => {

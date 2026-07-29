@@ -64,6 +64,9 @@ function initials(name: string): string {
 }
 
 function TaskAvatar({ name }: { name: string | null }) {
+  const avatarRef = useRef<HTMLSpanElement>(null)
+  const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number } | null>(null)
+
   if (!name) {
     return (
       <span
@@ -73,13 +76,37 @@ function TaskAvatar({ name }: { name: string | null }) {
       />
     )
   }
+
+  function showTooltip() {
+    const rect = avatarRef.current?.getBoundingClientRect()
+    if (!rect) return
+    setTooltipPos({ top: rect.top, left: rect.left + rect.width / 2 })
+  }
+
   return (
     <span
-      aria-label={`Assigned to ${name}`}
-      title={name}
-      className="w-6 h-6 rounded-full bg-secondary text-white text-xs font-semibold flex items-center justify-center shrink-0"
+      ref={avatarRef}
+      className="inline-flex shrink-0"
+      onMouseEnter={showTooltip}
+      onMouseLeave={() => setTooltipPos(null)}
     >
-      {initials(name)}
+      <span
+        aria-label={`Assigned to ${name}`}
+        className="w-6 h-6 rounded-full bg-secondary text-white text-xs font-semibold flex items-center justify-center"
+      >
+        {initials(name)}
+      </span>
+      {tooltipPos &&
+        createPortal(
+          <span
+            role="tooltip"
+            className="pointer-events-none fixed -translate-x-1/2 -translate-y-full -mt-1 whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-xs text-white z-50"
+            style={{ top: tooltipPos.top, left: tooltipPos.left }}
+          >
+            {name}
+          </span>,
+          document.body,
+        )}
     </span>
   )
 }
@@ -178,7 +205,7 @@ function SortableTaskItem({
   return (
     <li
       ref={setNodeRef}
-      className="group flex items-center gap-2 py-2 border-b border-brand-border last:border-0"
+      className="group flex items-start gap-2 py-2 border-b border-brand-border last:border-0"
       style={{
         // dynamic: drag transform/transition/opacity
         transform: CSS.Transform.toString(transform),
@@ -189,17 +216,19 @@ function SortableTaskItem({
       <span
         {...(draggable ? attributes : {})}
         {...(draggable ? listeners : {})}
-        className={`w-4 shrink-0 leading-none text-text-light text-center text-base opacity-60 group-hover:opacity-100 transition-opacity ${draggable ? 'cursor-grab' : ''}`}
+        className={`w-4 shrink-0 leading-none text-text-light text-center text-base opacity-60 group-hover:opacity-100 transition-opacity mt-1 ${draggable ? 'cursor-grab' : ''}`}
         title={draggable ? 'Drag to reorder' : undefined}
       >
         {draggable ? '⠿' : ''}
       </span>
-      <span className="flex-1 min-w-0 truncate">{title}</span>
-      <div className="flex items-center gap-2 shrink-0">{chips}</div>
-      {primaryAction}
-      <TaskAvatar name={assigneeName} />
+      <span className="flex-1 min-w-0 break-words">{title}</span>
+      <div className="flex items-center gap-2 shrink-0 mt-1">{chips}</div>
+      <div className="mt-1">{primaryAction}</div>
+      <div className="mt-1">
+        <TaskAvatar name={assigneeName} />
+      </div>
       {menu && (
-        <div className="opacity-60 group-hover:opacity-100 focus-within:opacity-100 has-aria-expanded:opacity-100 transition-opacity">
+        <div className="opacity-60 group-hover:opacity-100 focus-within:opacity-100 has-aria-expanded:opacity-100 transition-opacity mt-1">
           {menu}
         </div>
       )}
