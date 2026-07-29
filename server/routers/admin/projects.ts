@@ -78,22 +78,17 @@ export const adminProjectsRouter = {
       })
       if (!project) throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
 
-      const { status, reviewNotes = null, comment = null, targetStatus } = input
+      const { status, reviewNotes = null, comment = null } = input
 
       if (status === 'approved') {
         const hasOwner = project.assigneeId !== null
-        const openTaskCount = await prisma.workItem.count({
-          where: {
-            parentId: input.id,
-            type: WorkItemType.TASK,
-            status: { not: TaskStatus.completed },
-          },
-        })
-        const newStatus = openTaskCount > 0 ? ProjectStatus.in_progress : ProjectStatus.needs_tasks
-        const isSeekingHelp =
-          targetStatus === ProjectStatus.seeking_help ||
-          targetStatus === ProjectStatus.seeking_owner
-        const isSeekingOwner = targetStatus === ProjectStatus.seeking_owner && !hasOwner
+        const newStatus = !hasOwner
+          ? ProjectStatus.seeking_owner
+          : project.isSeekingHelp
+            ? ProjectStatus.seeking_help
+            : ProjectStatus.in_progress
+        const isSeekingOwner = !hasOwner
+        const isSeekingHelp = !hasOwner || project.isSeekingHelp
 
         await prisma.workItem.update({
           where: { id: input.id },

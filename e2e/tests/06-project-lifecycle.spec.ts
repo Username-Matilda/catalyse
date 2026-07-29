@@ -12,7 +12,7 @@ import {
 } from '../actions/projects'
 
 test.describe('Project Lifecycle', () => {
-  test('Volunteer proposes a project with tasks; admin approves; project moves to In Progress', async ({
+  test('Volunteer proposes a project with tasks; admin approves; project moves to Seeking Owner', async ({
     adminPage,
     volunteer,
     baseUrl,
@@ -28,7 +28,7 @@ test.describe('Project Lifecycle', () => {
 
     await volunteer.page.goto(`${baseUrl}/projects/${projectId}`)
     await expect(volunteer.page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 })
-    await expect(volunteer.page.getByLabel('project status')).toContainText('In Progress', {
+    await expect(volunteer.page.getByLabel('project status')).toContainText('Seeking Owner', {
       timeout: 10_000,
     })
   })

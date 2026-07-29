@@ -657,7 +657,6 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       id: parseInt(idParam, 10),
       status: reviewStatus as 'approved' | 'needs_discussion',
       ...(reviewStatus === 'needs_discussion' ? { comment: reviewMessage } : {}),
-      targetStatus: 'seeking_owner',
     })
   }
 
