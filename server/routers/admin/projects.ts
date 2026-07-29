@@ -82,18 +82,9 @@ export const adminProjectsRouter = {
 
       if (status === 'approved') {
         const hasOwner = project.assigneeId !== null
-        const openTaskCount = await prisma.workItem.count({
-          where: {
-            parentId: input.id,
-            type: WorkItemType.TASK,
-            status: { not: TaskStatus.completed },
-          },
-        })
-        const newStatus = openTaskCount > 0 ? ProjectStatus.in_progress : ProjectStatus.needs_tasks
-        const isSeekingHelp =
-          targetStatus === ProjectStatus.seeking_help ||
-          targetStatus === ProjectStatus.seeking_owner
-        const isSeekingOwner = targetStatus === ProjectStatus.seeking_owner && !hasOwner
+        const newStatus = hasOwner ? ProjectStatus.in_progress : ProjectStatus.seeking_owner
+        const isSeekingOwner = !hasOwner
+        const isSeekingHelp = !hasOwner || targetStatus === ProjectStatus.seeking_help
 
         await prisma.workItem.update({
           where: { id: input.id },
