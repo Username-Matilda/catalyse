@@ -10,6 +10,7 @@ import Button from '@/components/Button'
 import { Badge } from '@/components/Badge'
 import { STATUS_LABELS, projectStatusVariant } from '@/components/ProjectCard'
 import CommentThread from '@/components/CommentThread'
+import Modal from '@/components/ui/Modal'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
@@ -259,6 +260,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   // Status section
   const [newStatus, setNewStatus] = useState('')
+  const [pendingStatus, setPendingStatus] = useState<string | null>(null)
 
   // Interest section
   const [interestType, setInterestType] = useState('want_to_contribute')
@@ -621,12 +623,18 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     deleteTaskMutation.mutate({ projectId: parseInt(idParam, 10), taskId })
   }
 
-  function handleUpdateStatus(e: React.FormEvent) {
-    e.preventDefault()
+  function handleSelectStatus(value: string) {
     const validStatuses = Object.values(ProjectStatus)
-    const status = validStatuses.find((s) => s === newStatus)
-    if (!status) return
-    updateProjectMutation.mutate({ id: parseInt(idParam, 10), status })
+    const status = validStatuses.find((s) => s === value)
+    if (!status || status === newStatus) return
+    setPendingStatus(status)
+  }
+
+  function handleConfirmStatus() {
+    if (!pendingStatus) return
+    updateProjectMutation.mutate({ id: parseInt(idParam, 10), status: pendingStatus })
+    setNewStatus(pendingStatus)
+    setPendingStatus(null)
   }
 
   function handleExpressInterest(e: React.FormEvent) {
@@ -1089,21 +1097,39 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             {isOwnerOrAdmin && (
               <div className={card}>
                 <h2>Manage Project Status</h2>
-                <form onSubmit={handleUpdateStatus} className="flex gap-2 items-end flex-wrap">
-                  <div className="mb-0 flex-1 min-w-40">
-                    <FilterDropdown
-                      id="change-status"
-                      label="Change Status"
-                      ariaLabel="Change Status"
-                      value={newStatus}
-                      options={statusOptions}
-                      onChange={(v) => setNewStatus(v)}
-                    />
+                <FilterDropdown
+                  id="change-status"
+                  label="Change Status"
+                  ariaLabel="Change Status"
+                  value={newStatus}
+                  options={statusOptions}
+                  onChange={handleSelectStatus}
+                />
+                <Modal
+                  id="confirm-status-change"
+                  title="Change project status?"
+                  isOpen={pendingStatus !== null}
+                  onClose={() => setPendingStatus(null)}
+                >
+                  <p>
+                    Change status from <strong>{STATUS_LABELS[newStatus] ?? newStatus}</strong> to{' '}
+                    <strong>
+                      {pendingStatus ? (STATUS_LABELS[pendingStatus] ?? pendingStatus) : ''}
+                    </strong>
+                    ?
+                  </p>
+                  <div className="mt-4 flex justify-end gap-2">
+                    <Button variant="secondary" onClick={() => setPendingStatus(null)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleConfirmStatus}
+                      disabled={updateProjectMutation.isPending}
+                    >
+                      {updateProjectMutation.isPending ? 'Updating…' : 'Confirm'}
+                    </Button>
                   </div>
-                  <Button type="submit" disabled={updateProjectMutation.isPending}>
-                    {updateProjectMutation.isPending ? 'Updating…' : 'Update Status'}
-                  </Button>
-                </form>
+                </Modal>
               </div>
             )}
 
