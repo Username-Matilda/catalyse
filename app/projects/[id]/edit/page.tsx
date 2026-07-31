@@ -97,7 +97,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
 
   const deleteMutation = useMutation({
     ...orpc.projects.delete.mutationOptions(),
-    onSuccess: () => router.push('/'),
+    onSuccess: () => router.push('/projects'),
     onError: (err: unknown) => {
       showToast(err instanceof Error ? err.message : 'Failed to delete project', 'error')
     },

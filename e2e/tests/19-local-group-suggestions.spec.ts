@@ -68,7 +68,7 @@ test.describe('Local Group Suggestions', () => {
 
     await expect(getAlert(adminPage)).toContainText('accepted', { timeout: 10_000 })
 
-    await volunteer.page.goto(`${baseUrl}/`)
+    await volunteer.page.goto(`${baseUrl}/projects`)
     await volunteer.page.waitForLoadState('networkidle', { timeout: 15_000 })
     await selectFilterDropdown(volunteer.page, 'Country/Group filter', `UK - ${groupName}`)
     await expect(volunteer.page.getByLabel('Country/Group filter', { exact: true })).toContainText(
@@ -90,7 +90,7 @@ test.describe('Local Group Suggestions', () => {
 
     await expect(getAlert(adminPage)).toContainText('accepted', { timeout: 10_000 })
 
-    await volunteer.page.goto(`${baseUrl}/`)
+    await volunteer.page.goto(`${baseUrl}/projects`)
     await volunteer.page.waitForLoadState('networkidle', { timeout: 15_000 })
     await selectFilterDropdown(volunteer.page, 'Country/Group filter', `UK - ${adjusted}`)
     await expect(volunteer.page.getByLabel('Country/Group filter', { exact: true })).toContainText(

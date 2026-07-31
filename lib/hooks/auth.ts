@@ -36,7 +36,7 @@ export function useRequireAdmin() {
   const auth = useAuth()
   useEffect(() => {
     if (!auth.loading && !auth.user) router.replace('/login')
-    if (!auth.loading && auth.user && !auth.user.isAdmin) router.replace('/')
+    if (!auth.loading && auth.user && !auth.user.isAdmin) router.replace('/projects')
   }, [auth.user, auth.loading, router])
   return auth
 }
@@ -46,7 +46,7 @@ export function useRequireSuperAdmin() {
   const auth = useAuth()
   useEffect(() => {
     if (!auth.loading && !auth.user) router.replace('/login')
-    if (!auth.loading && auth.user && !auth.user.isSuperAdmin) router.replace('/')
+    if (!auth.loading && auth.user && !auth.user.isSuperAdmin) router.replace('/projects')
   }, [auth.user, auth.loading, router])
   return auth
 }
