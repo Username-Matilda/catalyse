@@ -1,12 +1,17 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import LandingCTA from '@/components/LandingCTA'
+import { prisma } from '@/lib/prisma'
 
 export const metadata: Metadata = {
   title: 'Volunteer with PauseAI UK',
   description:
-    'Catalyse is the volunteer platform for PauseAI UK — find campaign, policy, organising and creative work that matches your skills.',
+    'Catalyse is the volunteer platform for PauseAI UK. Find campaign, policy, organising and creative work that matches your skills.',
 }
+
+// The local group list is the only dynamic thing on the page, and it changes
+// rarely, so rebuild hourly rather than per request.
+export const revalidate = 3600
 
 /**
  * Public landing page.
@@ -16,45 +21,67 @@ export const metadata: Metadata = {
  * the movement does so a prospective volunteer can decide whether to apply.
  */
 
+/**
+ * UK local group names, straight from the table the rest of the app filters on.
+ * The same rows are already served publicly by the `localGroups.list` procedure,
+ * so nothing new is exposed here.
+ *
+ * Failures are swallowed: the DB may not be reachable when the page is
+ * prerendered at build time, and a missing sentence clause is a much better
+ * outcome than a failed build. The next revalidation picks the names up.
+ */
+async function fetchUkLocalGroupNames(): Promise<string[]> {
+  try {
+    const groups = await prisma.localGroup.findMany({
+      where: { country: 'UK' },
+      orderBy: { name: 'asc' },
+      select: { name: true },
+    })
+    return groups.map((g) => g.name)
+  } catch {
+    return []
+  }
+}
+
 const WORK_AREAS: { title: string; body: string }[] = [
   {
     title: 'Campaigns & protests',
-    body: 'Organising demonstrations, planning actions, stewarding on the day, and the logistics that hold a public campaign together.',
+    body: 'Organising demonstrations, planning actions, stewarding on the day and the logistics that hold a public campaign together.',
   },
   {
     title: 'Political engagement',
-    body: 'Writing to MPs, preparing briefings for lawmakers, drafting policy proposals, and following up after meetings.',
+    body: 'Writing to MPs, preparing briefings for lawmakers, drafting policy proposals and following up after meetings.',
   },
   {
     title: 'Local chapters',
-    body: 'Running regular meetups, welcoming new volunteers, and starting a chapter where there isn’t one yet.',
+    body: 'Running regular meetups, welcoming new volunteers and starting a chapter where there isn’t one yet.',
   },
   {
     title: 'Events',
-    body: 'Conferences, workshops, film screenings, book launches and socials — from finding a venue to running the door.',
+    body: 'Conferences, workshops, film screenings, book launches and socials, from finding a venue to running the door.',
   },
   {
     title: 'Communications & media',
-    body: 'Social media, newsletters, press outreach, and helping people tell their own stories about why this matters to them.',
+    body: 'Social media, newsletters, press outreach and helping people tell their own stories about why this matters to them.',
   },
   {
     title: 'Design & creative',
-    body: 'Graphics, placards, video, photography, merchandise, and the visual identity that makes a campaign recognisable.',
+    body: 'Graphics, placards, video, photography, merchandise and the visual identity that makes a campaign recognisable.',
   },
   {
     title: 'Research & writing',
-    body: 'Explainers, fact-checking, literature summaries, and turning dense technical material into something a non-specialist can act on.',
+    body: 'Explainers, fact-checking, literature summaries and turning dense technical material into something a non-specialist can act on.',
   },
   {
     title: 'Software & operations',
-    body: 'Internal tools, data and analysis, web work, and the unglamorous admin that keeps a volunteer organisation running.',
+    body: 'Internal tools, data and analysis, web work and the unglamorous admin that keeps a volunteer organisation running.',
   },
 ]
 
 const STEPS: { title: string; body: string }[] = [
   {
     title: 'Apply',
-    body: 'Tell us about your connection to PauseAI, what you’re good at, and how much time you have. Applications are read by a person, not a filter.',
+    body: 'Tell us about your connection to PauseAI, what you’re good at and how much time you have. Applications are read by a person, not a filter.',
   },
   {
     title: 'Get matched',
@@ -62,11 +89,17 @@ const STEPS: { title: string; body: string }[] = [
   },
   {
     title: 'Contribute',
-    body: 'Take on a single task, join a project team, or lead a project of your own. If you have an idea we aren’t working on yet, you can propose it.',
+    body: 'Take on a single task, join a project team or lead a project of your own. If you have an idea we aren’t working on yet, you can propose it.',
   },
 ]
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const localGroupNames = await fetchUkLocalGroupNames()
+  const localGroupList =
+    localGroupNames.length > 0
+      ? new Intl.ListFormat('en-GB', { style: 'long', type: 'conjunction' }).format(localGroupNames)
+      : null
+
   return (
     <main>
       {/* Hero */}
@@ -79,7 +112,7 @@ export default function LandingPage() {
             <h1 className="text-3xl md:text-5xl">Find the work that needs you</h1>
             <p className="text-lg text-text-light mb-8">
               Catalyse is the volunteer platform for PauseAI UK. It connects the people who want to
-              help with the projects that need them — matching what you can do to what the movement
+              help with the projects that need them, matching what you can do to what the movement
               is actually working on right now.
             </p>
             <div className="md:flex md:justify-center">
@@ -99,13 +132,13 @@ export default function LandingPage() {
           <p className="text-text-light">
             PauseAI UK is a civic movement working to avert the risks of superhuman artificial
             intelligence. We campaign for binding limits on the development of the most powerful AI
-            systems until there is a credible way to make them safe — through public campaigning,
-            political engagement, and local organising across the UK.
+            systems until there is a credible way to make them safe. We do that through public
+            campaigning, political engagement and local organising across the UK.
           </p>
           <p className="text-text-light">
-            We are a small staff supported by a large number of volunteers, with chapters in cities
-            including London, Glasgow, Oxford, Leicester, Manchester and the West of England. You do
-            not need a technical background, and you do not need to be an expert on AI.
+            We are a small staff supported by a large number of volunteers
+            {localGroupList ? `, with local groups in ${localGroupList}` : ''}. You do not need a
+            technical background, and you do not need to be an expert on AI.
           </p>
           <p className="mb-0">
             <a href="https://pauseai.uk" target="_blank" rel="noopener noreferrer">
