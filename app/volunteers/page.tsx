@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { Suspense } from 'react'
+import { useRouter } from 'next/navigation'
 import { useRequireAuth } from '@/lib/hooks/auth'
+import { useUrlParam, useUrlSearchInput } from '@/lib/hooks/url-filters'
 import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
 import Button from '@/components/Button'
@@ -21,39 +22,10 @@ type Volunteer = InferRouterOutputs<AppRouter>['volunteers']['list']['volunteers
 type AuthUser = NonNullable<ReturnType<typeof useRequireAuth>['user']>
 
 function VolunteersPageContent({ user }: { user: AuthUser }) {
-  const searchParams = useSearchParams()
+  const [searchInput, setSearchInput, urlSearch] = useUrlSearchInput('q')
+  const [skillFilter, setSkillFilter] = useUrlParam('skill')
+  const [locationFilter, setLocationFilter] = useUrlParam('location')
   const router = useRouter()
-
-  const urlSearch = searchParams.get('q') ?? ''
-  const skillFilter = searchParams.get('skill') ?? ''
-  const locationFilter = searchParams.get('location') ?? ''
-
-  const [searchInput, setSearchInput] = useState(urlSearch)
-
-  function setParam(key: string, value: string) {
-    const params = new URLSearchParams(searchParams.toString())
-    if (value) params.set(key, value)
-    else params.delete(key)
-    router.replace(`?${params.toString()}`, { scroll: false })
-  }
-
-  // Debounce search input -> URL. Guard skips the update when searchInput
-  // already matches the URL (on mount or after a URL-driven reset), preventing
-  // a spurious router.replace that races against auth redirects.
-  // searchParams in deps ensures stale filter state is not clobbered if a
-  // dropdown fires during the debounce window.
-  useEffect(() => {
-    if (searchInput === urlSearch) return
-    const t = setTimeout(() => {
-      const params = new URLSearchParams(searchParams.toString())
-      if (searchInput) params.set('q', searchInput)
-      else params.delete('q')
-      router.replace(`?${params.toString()}`, { scroll: false })
-    }, 300)
-    return () => clearTimeout(t)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchInput, searchParams])
-
   function clearFilters() {
     setSearchInput('')
     router.replace('?', { scroll: false })
@@ -117,7 +89,7 @@ function VolunteersPageContent({ user }: { user: AuthUser }) {
                 { value: '', label: 'All skills' },
                 ...allSkills.map((s) => ({ value: String(s.id), label: s.name })),
               ]}
-              onChange={(v) => setParam('skill', v)}
+              onChange={setSkillFilter}
               searchable
             />
 
@@ -127,7 +99,7 @@ function VolunteersPageContent({ user }: { user: AuthUser }) {
               ariaLabel="Country/Group filter"
               value={locationFilter}
               options={buildLocationOptions(localGroups)}
-              onChange={(v) => setParam('location', v)}
+              onChange={setLocationFilter}
               searchable
             />
 
