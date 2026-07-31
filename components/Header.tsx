@@ -169,18 +169,22 @@ export default function Header() {
   }, [pathname])
 
   const navLinks = [
-    { href: '/', label: 'Projects' },
+    { href: '/projects', label: 'Projects' },
     { href: '/volunteers', label: 'Volunteers' },
     { href: '/suggest', label: 'Suggest' },
     { href: '/starter-tasks', label: 'Quick Tasks' },
   ]
+
+  // Signed-in volunteers expect the wordmark to take them into the app; signed-out
+  // visitors should land on the public explainer at /.
+  const homeHref = user ? '/projects' : '/'
 
   return (
     <>
       <header className="bg-surface border-b border-brand-border py-4 sticky top-0 z-[100]">
         <div className="container flex justify-between items-center gap-2 flex-nowrap xl:gap-4">
           <Link
-            href="/"
+            href={homeHref}
             className="font-display text-2xl font-black text-primary no-underline flex items-center gap-2"
           >
             Catalyse
@@ -360,7 +364,10 @@ export default function Header() {
           {/* Panel header */}
           <div className="border-b border-brand-border bg-surface shrink-0">
             <div className="container flex items-center justify-between py-4">
-              <Link href="/" className="font-display text-2xl font-black text-primary no-underline">
+              <Link
+                href={homeHref}
+                className="font-display text-2xl font-black text-primary no-underline"
+              >
                 Catalyse
               </Link>
               <Button

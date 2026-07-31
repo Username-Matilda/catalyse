@@ -53,8 +53,8 @@ export default function StarterTasksPage() {
           <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word text-center">
             <h3>No tasks assigned yet</h3>
             <p className="text-text-light">
-              Check back soon, or browse <Link href="/">projects</Link> to find other ways to
-              contribute.
+              Check back soon, or browse <Link href="/projects">projects</Link> to find other ways
+              to contribute.
             </p>
           </div>
         ) : (

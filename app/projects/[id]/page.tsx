@@ -299,10 +299,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     }
   }, [project?.status])
 
-  // Redirect to home if project not found
+  // Redirect to the project list if project not found
   useEffect(() => {
     if (!loadingProject && !project && user) {
-      router.replace('/')
+      router.replace('/projects')
     }
   }, [loadingProject, project, user, router])
 

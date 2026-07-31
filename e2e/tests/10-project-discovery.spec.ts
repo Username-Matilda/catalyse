@@ -6,11 +6,31 @@ import { fake } from '../fake'
 // Both the project list and individual project pages redirect unauthenticated
 // visitors to /login via `useRequireApproved`. There is no public / unauthenticated
 // view of projects — the underlying oRPC procedures require an approved, logged-in
-// volunteer too.
+// volunteer too. `/` is the public landing page and deliberately shows no project data.
 test.describe('Unauthenticated Project Access', () => {
   test('Visitor browses the project list unauthenticated', async ({ page, baseUrl }) => {
-    await page.goto(`${baseUrl}/`)
+    await page.goto(`${baseUrl}/projects`)
     await page.waitForURL(`${baseUrl}/login**`, { timeout: 10_000 })
+  })
+
+  test('Visitor sees the public landing page and no project data', async ({
+    page,
+    adminPage,
+    baseUrl,
+  }) => {
+    const title = fake.projectTitle()
+    await adminCreateProject(baseUrl, adminPage, title, 'A project that must not leak to visitors')
+
+    await page.goto(`${baseUrl}/`)
+
+    await expect(page.getByRole('heading', { name: 'Find the work that needs you' })).toBeVisible({
+      timeout: 10_000,
+    })
+    // The CTA appears in both the hero and the closing section
+    await expect(page.getByRole('link', { name: 'Apply to join' }).first()).toBeVisible()
+    await expect(page.getByText(title)).toHaveCount(0)
+    // Still on the landing page — no redirect to /login
+    await expect(page).toHaveURL(`${baseUrl}/`)
   })
 
   test('Visitor views a project detail page unauthenticated', async ({
@@ -49,7 +69,7 @@ test.describe('Pending Volunteer Project Access', () => {
   }) => {
     const { page, context } = await pendingVolunteerPage(browser, baseUrl)
 
-    await page.goto(`${baseUrl}/`)
+    await page.goto(`${baseUrl}/projects`)
     await page.waitForURL(`${baseUrl}/dashboard**`, { timeout: 10_000 })
 
     await context.close()
@@ -80,7 +100,7 @@ test.describe('Project Discovery', () => {
     const title = fake.projectTitle()
     await adminCreateProject(baseUrl, adminPage, title, 'A searchable project for discovery tests')
 
-    await volunteer.page.goto(`${baseUrl}/`)
+    await volunteer.page.goto(`${baseUrl}/projects`)
     await expect(
       volunteer.page.getByRole('heading', { name: 'Projects', exact: true }),
     ).toBeVisible({ timeout: 10_000 })
@@ -99,7 +119,7 @@ test.describe('Project Discovery', () => {
     // Admin-created projects have is_seeking_help = true by default
     await adminCreateProject(baseUrl, adminPage, title, 'Project for seeking-filter discovery test')
 
-    await volunteer.page.goto(`${baseUrl}/`)
+    await volunteer.page.goto(`${baseUrl}/projects`)
     await expect(
       volunteer.page.getByRole('heading', { name: 'Projects', exact: true }),
     ).toBeVisible({ timeout: 10_000 })

@@ -152,7 +152,7 @@ test.describe('Project Lifecycle', () => {
     await setProjectStatus(baseUrl, volunteer.page, projectId, 'completed')
 
     // Project appears in the completed tab on the projects index
-    await volunteer.page.goto(`${baseUrl}/`)
+    await volunteer.page.goto(`${baseUrl}/projects`)
     await expect(
       volunteer.page.getByRole('heading', { name: 'Projects', exact: true }),
     ).toBeVisible({ timeout: 10_000 })

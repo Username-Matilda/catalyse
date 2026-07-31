@@ -17,7 +17,7 @@ test.describe('Access Control', () => {
 
   test('Non-admin cannot access admin triage', async ({ volunteer, baseUrl }) => {
     await volunteer.page.goto(`${baseUrl}/admin/triage`)
-    await volunteer.page.waitForURL(`${baseUrl}/`, { timeout: 10_000 })
+    await volunteer.page.waitForURL(`${baseUrl}/projects`, { timeout: 10_000 })
   })
 
   test("Non-owner cannot update another volunteer's project", async ({
