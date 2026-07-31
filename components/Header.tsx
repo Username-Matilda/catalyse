@@ -101,7 +101,7 @@ function DashboardNavButtons({ unreadCount }: { unreadCount: number }) {
       >
         Notifications
         {unreadCount > 0 && (
-          <span className="bg-primary text-secondary-dark text-xs px-2 py-0.5 rounded-full ml-1">
+          <span className="bg-primary text-[#111827] text-xs px-2 py-0.5 rounded-full ml-1">
             {unreadCount}
           </span>
         )}
@@ -231,7 +231,7 @@ export default function Header() {
                   >
                     {user.name}
                     {unreadCount > 0 && (
-                      <span className="bg-primary text-secondary-dark text-xs px-2 py-0.5 rounded-full ml-1">
+                      <span className="bg-primary text-[#111827] text-xs px-2 py-0.5 rounded-full ml-1">
                         {unreadCount}
                       </span>
                     )}
@@ -242,16 +242,10 @@ export default function Header() {
                       onClick={() => setUserMenuOpen(false)}
                     >
                       <Link
-                        href="/profile"
-                        className="block px-4 py-3 text-brand-text no-underline"
-                      >
-                        My Profile
-                      </Link>
-                      <Link
                         href="/settings"
                         className="block px-4 py-3 text-brand-text no-underline"
                       >
-                        Account Settings
+                        Settings
                       </Link>
                       <Link
                         href="/privacy"
@@ -421,13 +415,12 @@ export default function Header() {
                   <MobileNavLink href="/dashboard">
                     Dashboard
                     {unreadCount > 0 && (
-                      <span className="bg-primary text-secondary-dark text-xs px-2 py-0.5 rounded-full ml-1">
+                      <span className="bg-primary text-[#111827] text-xs px-2 py-0.5 rounded-full ml-1">
                         {unreadCount}
                       </span>
                     )}
                   </MobileNavLink>
-                  <MobileNavLink href="/profile">My Profile</MobileNavLink>
-                  <MobileNavLink href="/settings">Account Settings</MobileNavLink>
+                  <MobileNavLink href="/settings">Settings</MobileNavLink>
 
                   {user.isAdmin && (
                     <>

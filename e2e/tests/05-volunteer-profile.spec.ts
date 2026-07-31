@@ -62,9 +62,10 @@ test.describe('Volunteer Profile', () => {
     const uniqueName = fake.personName()
 
     // First make the volunteer visible so we can confirm the transition
-    await volunteer.page.goto(`${baseUrl}/profile`)
+    await volunteer.page.goto(`${baseUrl}/settings`)
     await expect(volunteer.page.getByLabel('Your Name')).toBeVisible({ timeout: 10_000 })
     await volunteer.page.getByLabel('Your Name').fill(uniqueName)
+    await volunteer.page.getByRole('tab', { name: 'Privacy & Data' }).click()
     await setCheckbox(volunteer.page, 'consent_make_profile_visible_in_directory', true)
     await volunteer.page.getByRole('button', { name: 'Save Changes' }).click()
     await expect(getAlert(volunteer.page)).toBeVisible({ timeout: 10_000 })
@@ -79,8 +80,10 @@ test.describe('Volunteer Profile', () => {
     ).toBeVisible({ timeout: 10_000 })
 
     // Now hide the profile
-    await volunteer.page.goto(`${baseUrl}/profile`)
-    await expect(volunteer.page.getByLabel('Your Name')).toBeVisible({ timeout: 10_000 })
+    await volunteer.page.goto(`${baseUrl}/settings?tab=privacy`)
+    await expect(volunteer.page.locator('#consent_make_profile_visible_in_directory')).toBeVisible({
+      timeout: 10_000,
+    })
     await setCheckbox(volunteer.page, 'consent_make_profile_visible_in_directory', false)
     await volunteer.page.getByRole('button', { name: 'Save Changes' }).click()
     await expect(getAlert(volunteer.page)).toBeVisible({ timeout: 10_000 })
@@ -99,9 +102,10 @@ test.describe('Volunteer Profile', () => {
     const uniqueName = fake.personName()
 
     // First hide the volunteer so we can confirm the transition
-    await volunteer.page.goto(`${baseUrl}/profile`)
+    await volunteer.page.goto(`${baseUrl}/settings`)
     await expect(volunteer.page.getByLabel('Your Name')).toBeVisible({ timeout: 10_000 })
     await volunteer.page.getByLabel('Your Name').fill(uniqueName)
+    await volunteer.page.getByRole('tab', { name: 'Privacy & Data' }).click()
     await setCheckbox(volunteer.page, 'consent_make_profile_visible_in_directory', false)
     await volunteer.page.getByRole('button', { name: 'Save Changes' }).click()
     await expect(getAlert(volunteer.page)).toBeVisible({ timeout: 10_000 })
@@ -116,8 +120,10 @@ test.describe('Volunteer Profile', () => {
     ).not.toBeVisible({ timeout: 10_000 })
 
     // Now make the profile visible
-    await volunteer.page.goto(`${baseUrl}/profile`)
-    await expect(volunteer.page.getByLabel('Your Name')).toBeVisible({ timeout: 10_000 })
+    await volunteer.page.goto(`${baseUrl}/settings?tab=privacy`)
+    await expect(volunteer.page.locator('#consent_make_profile_visible_in_directory')).toBeVisible({
+      timeout: 10_000,
+    })
     await setCheckbox(volunteer.page, 'consent_make_profile_visible_in_directory', true)
     await volunteer.page.getByRole('button', { name: 'Save Changes' }).click()
     await expect(getAlert(volunteer.page)).toBeVisible({ timeout: 10_000 })
@@ -133,7 +139,8 @@ test.describe('Volunteer Profile', () => {
   })
 
   test('Volunteer updates email digest preference', async ({ volunteer, baseUrl }) => {
-    await volunteer.page.goto(`${baseUrl}/profile`)
+    await volunteer.page.goto(`${baseUrl}/settings`)
+    await volunteer.page.getByRole('tab', { name: 'Notifications' }).click()
     await expect(volunteer.page.getByLabel('Keep me in the loop about new projects')).toBeVisible({
       timeout: 10_000,
     })
@@ -184,10 +191,11 @@ test.describe('Volunteer Profile', () => {
 
     try {
       // Set up profile with a skill and consent_make_profile_visible_in_directory=true
-      await page2.goto(`${baseUrl}/profile`)
+      await page2.goto(`${baseUrl}/settings`)
       const skillOption = page2.locator('.skill-option').filter({ hasText: 'Fundraising' })
       await expect(skillOption).toBeVisible({ timeout: 10_000 })
       await skillOption.click()
+      await page2.getByRole('tab', { name: 'Privacy & Data' }).click()
       await setCheckbox(page2, 'consent_make_profile_visible_in_directory', true)
       await page2.getByRole('button', { name: 'Save Changes' }).click()
       await expect(getAlert(page2)).toBeVisible({ timeout: 10_000 })

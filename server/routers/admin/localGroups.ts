@@ -185,12 +185,17 @@ export const adminLocalGroupsRouter = {
       const titleFn = NOTIFICATION_TITLES[notificationAction]
       const title = titleFn ? titleFn(finalName) : `Update on your local group suggestion`
 
+      const notificationLink =
+        notificationAction === LocalGroupSuggestionStatus.accepted || notificationAction === 'merge'
+          ? '/settings'
+          : null
+
       await createNotification(
         suggestion.suggestedBy.id,
         'local_group_suggestion',
         title,
         adminNotes,
-        '/suggest-local-group',
+        notificationLink,
       )
 
       await sendLocalGroupSuggestionEmail({

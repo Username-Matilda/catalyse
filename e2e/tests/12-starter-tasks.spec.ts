@@ -221,7 +221,7 @@ test.describe('Starter Tasks', () => {
     const banner = volunteer.page.getByRole('region', { name: 'Starter Tasks' })
     const taskCard = banner.getByRole('article').filter({ hasText: taskTitle })
     await expect(taskCard).toBeVisible({ timeout: 10_000 })
-    await expect(taskCard.getByRole('status')).toContainText('in_progress')
+    await expect(taskCard.getByRole('status')).toContainText('In Progress')
   })
 
   test('Volunteer submits a completed starter task; task status becomes submitted and admin receives a notification', async ({

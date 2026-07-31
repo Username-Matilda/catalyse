@@ -7,7 +7,7 @@ import {
   AssignStarterTaskSchema,
   ReviewStarterTaskSchema,
 } from '@/lib/schemas'
-import { adminProcedure, authedProcedure, publicProcedure } from '../procedures'
+import { adminProcedure, approvedProcedure, authedProcedure, publicProcedure } from '../procedures'
 import { ApprovalStatus, StarterTaskStatus, WorkItemType } from '@/generated/prisma/enums'
 
 export const starterTasksRouter = {
@@ -81,6 +81,42 @@ export const starterTasksRouter = {
       createdAt: t.createdAt,
     }))
   }),
+
+  get: approvedProcedure
+    .input(z.object({ id: z.number().int() }))
+    .handler(async ({ input, context }) => {
+      const volunteer = context.volunteer
+      const task = await prisma.workItem.findFirst({
+        where: { id: input.id, type: WorkItemType.STARTER_TASK },
+        include: {
+          skill: true,
+          contextProject: { select: { title: true, id: true } },
+        },
+      })
+      if (!task) throw new ORPCError('NOT_FOUND', { message: 'Task not found' })
+      if (task.assigneeId !== volunteer.id && !volunteer.isAdmin) {
+        throw new ORPCError('FORBIDDEN', { message: 'You do not have access to this task' })
+      }
+      return {
+        id: task.id,
+        projectId: task.contextProjectId,
+        projectTitle: task.contextProject?.title ?? null,
+        title: task.title,
+        description: task.description,
+        skillId: task.skillId,
+        skillName: task.skill?.name ?? null,
+        assignedToId: task.assigneeId,
+        assignedById: task.creatorId,
+        status: task.status,
+        reviewRating: task.reviewRating,
+        reviewNotes: task.reviewNotes,
+        reviewedById: task.reviewedById,
+        reviewedAt: task.reviewedAt,
+        estimatedHours: task.estimatedHours,
+        createdAt: task.createdAt,
+        updatedAt: task.updatedAt,
+      }
+    }),
 
   create: adminProcedure.input(CreateStarterTaskSchema).handler(async ({ input }) => {
     const task = await prisma.workItem.create({
@@ -172,7 +208,7 @@ export const starterTasksRouter = {
         'starter_task_assigned',
         `You've been assigned a starter task: ${task.title}`,
         (task.description ?? '').slice(0, 200),
-        '/dashboard',
+        `/starter-tasks/${input.id}`,
       )
 
       return { message: 'Task assigned' }
@@ -298,7 +334,7 @@ export const starterTasksRouter = {
           'starter_task_reviewed',
           `Your starter task was reviewed: ${task.title}`,
           `Rating: ${input.reviewRating}${input.comment ? ` - ${input.comment}` : ''}`,
-          '/dashboard',
+          `/starter-tasks/${input.id}`,
         )
       }
 
