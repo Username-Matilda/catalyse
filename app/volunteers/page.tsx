@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { useRequireAuth } from '@/lib/hooks/auth'
 import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
@@ -17,25 +18,48 @@ type SkillCategory = InferRouterOutputs<AppRouter>['skills']['list'][number]
 type FlatSkill = SkillCategory['skills'][number] & { categoryName: string }
 
 type Volunteer = InferRouterOutputs<AppRouter>['volunteers']['list']['volunteers'][number]
+type AuthUser = NonNullable<ReturnType<typeof useRequireAuth>['user']>
 
-export default function VolunteersPage() {
-  const { user, loading } = useRequireAuth()
-  const [search, setSearch] = useState('')
-  const [skillFilter, setSkillFilter] = useState('')
-  const [locationFilter, setLocationFilter] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [debouncedLocationFilter, setDebouncedLocationFilter] = useState('')
+function VolunteersPageContent({ user }: { user: AuthUser }) {
+  const searchParams = useSearchParams()
+  const router = useRouter()
 
+  const urlSearch = searchParams.get('q') ?? ''
+  const skillFilter = searchParams.get('skill') ?? ''
+  const locationFilter = searchParams.get('location') ?? ''
+
+  const [searchInput, setSearchInput] = useState(urlSearch)
+
+  function setParam(key: string, value: string) {
+    const params = new URLSearchParams(searchParams.toString())
+    if (value) params.set(key, value)
+    else params.delete(key)
+    router.replace(`?${params.toString()}`, { scroll: false })
+  }
+
+  // Debounce search input -> URL. Guard skips the update when searchInput
+  // already matches the URL (on mount or after a URL-driven reset), preventing
+  // a spurious router.replace that races against auth redirects.
+  // searchParams in deps ensures stale filter state is not clobbered if a
+  // dropdown fires during the debounce window.
   useEffect(() => {
-    const t = setTimeout(
-      () => {
-        setDebouncedSearch(search)
-        setDebouncedLocationFilter(locationFilter)
-      },
-      search || locationFilter ? 300 : 0,
-    )
+    if (searchInput === urlSearch) return
+    const t = setTimeout(() => {
+      const params = new URLSearchParams(searchParams.toString())
+      if (searchInput) params.set('q', searchInput)
+      else params.delete('q')
+      router.replace(`?${params.toString()}`, { scroll: false })
+    }, 300)
     return () => clearTimeout(t)
-  }, [search, locationFilter])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchInput, searchParams])
+
+  function clearFilters() {
+    setSearchInput('')
+    router.replace('?', { scroll: false })
+  }
+
+  const hasFilters = searchInput || skillFilter || locationFilter
 
   const { data: skillsData } = useQuery({
     ...orpc.skills.list.queryOptions({ input: {} }),
@@ -54,27 +78,17 @@ export default function VolunteersPage() {
   const { data: volunteersData, isPending: loadingVolunteers } = useQuery({
     ...orpc.volunteers.list.queryOptions({
       input: {
-        ...(debouncedSearch ? { search: debouncedSearch } : {}),
+        ...(urlSearch ? { search: urlSearch } : {}),
         ...(skillFilter ? { skillIds: [parseInt(skillFilter, 10)] } : {}),
-        ...(debouncedLocationFilter ? { country: debouncedLocationFilter.split(':')[0] } : {}),
-        ...(debouncedLocationFilter && debouncedLocationFilter.split(':')[1]
-          ? { localGroup: debouncedLocationFilter.split(':')[1] }
+        ...(locationFilter ? { country: locationFilter.split(':')[0] } : {}),
+        ...(locationFilter && locationFilter.split(':')[1]
+          ? { localGroup: locationFilter.split(':')[1] }
           : {}),
       },
     }),
     enabled: !!user,
   })
   const volunteers: Volunteer[] = volunteersData?.volunteers ?? []
-
-  function clearFilters() {
-    setSearch('')
-    setSkillFilter('')
-    setLocationFilter('')
-  }
-
-  const hasFilters = search || skillFilter || locationFilter
-
-  if (loading || !user) return null
 
   return (
     <>
@@ -89,8 +103,8 @@ export default function VolunteersPage() {
               type="search"
               aria-label="Search"
               placeholder="Search volunteers…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
             />
           </div>
           <div className="flex gap-3 flex-wrap items-end">
@@ -103,7 +117,7 @@ export default function VolunteersPage() {
                 { value: '', label: 'All skills' },
                 ...allSkills.map((s) => ({ value: String(s.id), label: s.name })),
               ]}
-              onChange={setSkillFilter}
+              onChange={(v) => setParam('skill', v)}
               searchable
             />
 
@@ -113,7 +127,7 @@ export default function VolunteersPage() {
               ariaLabel="Country/Group filter"
               value={locationFilter}
               options={buildLocationOptions(localGroups)}
-              onChange={setLocationFilter}
+              onChange={(v) => setParam('location', v)}
               searchable
             />
 
@@ -217,5 +231,17 @@ export default function VolunteersPage() {
         </div>
       </main>
     </>
+  )
+}
+
+export default function VolunteersPage() {
+  const { user, loading } = useRequireAuth()
+
+  if (loading || !user) return null
+
+  return (
+    <Suspense>
+      <VolunteersPageContent user={user} />
+    </Suspense>
   )
 }
