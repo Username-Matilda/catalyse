@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import { Badge } from '@/components/Badge'
+import Tooltip from '@/components/Tooltip'
 import { STATUS_LABELS, projectStatusVariant } from '@/components/ProjectCard'
 import CommentThread from '@/components/CommentThread'
 import Modal from '@/components/ui/Modal'
@@ -65,9 +66,6 @@ function initials(name: string): string {
 }
 
 function TaskAvatar({ name }: { name: string | null }) {
-  const avatarRef = useRef<HTMLSpanElement>(null)
-  const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number } | null>(null)
-
   if (!name) {
     return (
       <span
@@ -78,37 +76,15 @@ function TaskAvatar({ name }: { name: string | null }) {
     )
   }
 
-  function showTooltip() {
-    const rect = avatarRef.current?.getBoundingClientRect()
-    if (!rect) return
-    setTooltipPos({ top: rect.top, left: rect.left + rect.width / 2 })
-  }
-
   return (
-    <span
-      ref={avatarRef}
-      className="inline-flex shrink-0"
-      onMouseEnter={showTooltip}
-      onMouseLeave={() => setTooltipPos(null)}
-    >
+    <Tooltip content={name}>
       <span
         aria-label={`Assigned to ${name}`}
-        className="w-6 h-6 rounded-full bg-secondary text-white text-xs font-semibold flex items-center justify-center"
+        className="w-6 h-6 rounded-full bg-secondary text-white text-xs font-semibold flex items-center justify-center shrink-0"
       >
         {initials(name)}
       </span>
-      {tooltipPos &&
-        createPortal(
-          <span
-            role="tooltip"
-            className="pointer-events-none fixed -translate-x-1/2 -translate-y-full -mt-1 whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-xs text-white z-50"
-            style={{ top: tooltipPos.top, left: tooltipPos.left }}
-          >
-            {name}
-          </span>,
-          document.body,
-        )}
-    </span>
+    </Tooltip>
   )
 }
 
