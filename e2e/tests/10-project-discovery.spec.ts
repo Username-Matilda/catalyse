@@ -33,6 +33,36 @@ test.describe('Unauthenticated Project Access', () => {
     await expect(page).toHaveURL(`${baseUrl}/`)
   })
 
+  // `/` is statically prerendered, so anything on it that branches on
+  // AuthProvider's `loading` hydrates differently to the server HTML — `loading`
+  // is seeded from localStorage, making it false on the server and true on the
+  // client whenever a token is present. Regression guard for that mismatch.
+  test('Landing page hydrates cleanly with a token in localStorage', async ({
+    browser,
+    baseUrl,
+  }) => {
+    const context = await browser.newContext()
+    await context.addInitScript(() => localStorage.setItem('authToken', 'not-a-real-token'))
+    const page = await context.newPage()
+    const errors: string[] = []
+    page.on('console', (m) => {
+      if (m.type() === 'error') errors.push(m.text())
+    })
+    page.on('pageerror', (e) => errors.push(String(e)))
+
+    try {
+      await page.goto(`${baseUrl}/`)
+      await expect(page.getByRole('heading', { name: 'Find the work that needs you' })).toBeVisible(
+        { timeout: 10_000 },
+      )
+      await page.waitForLoadState('networkidle')
+
+      expect(errors.filter((e) => /hydrat/i.test(e))).toEqual([])
+    } finally {
+      await context.close()
+    }
+  })
+
   test('Visitor views a project detail page unauthenticated', async ({
     page,
     adminPage,

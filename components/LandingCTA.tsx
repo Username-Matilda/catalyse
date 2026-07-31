@@ -10,11 +10,14 @@ import { useAuth } from '@/lib/auth-context'
  * logged-out visitors; only these buttons need to know who is looking.
  */
 export default function LandingCTA({ size = 'lg' }: { size?: 'md' | 'lg' }) {
-  const { user, loading } = useAuth()
+  const { user } = useAuth()
 
-  // Reserve the row height while auth resolves so the hero doesn't jump.
-  if (loading) return <div className={size === 'lg' ? 'h-12' : 'h-10'} aria-hidden="true" />
-
+  // Deliberately no `loading` branch. `AuthProvider` seeds `loading` from
+  // localStorage, so it is false on the server and true on the client whenever a
+  // token exists — branching on it here would hydrate differently to the
+  // prerendered HTML. `user` is null in both renders, so the signed-out CTA is a
+  // stable match; signed-in visitors swap over once auth resolves. Both branches
+  // are the same height, so nothing shifts.
   if (user) {
     return (
       <div className="flex flex-wrap gap-3">
