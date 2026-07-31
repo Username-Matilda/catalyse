@@ -188,7 +188,7 @@ export const adminLocalGroupsRouter = {
       const notificationLink =
         notificationAction === LocalGroupSuggestionStatus.accepted ||
         notificationAction === 'merge'
-          ? '/profile'
+          ? '/settings'
           : null
 
       await createNotification(

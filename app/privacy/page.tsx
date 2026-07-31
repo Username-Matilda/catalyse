@@ -59,16 +59,6 @@ export default function PrivacyPage() {
                 </Button>
               </div>
 
-              <div className="bg-surface rounded-xl shadow p-6 overflow-hidden wrap-break-word mb-6 border-warning">
-                <h2>Delete Your Account</h2>
-                <p className="text-text-light mb-4">
-                  Permanently delete your account and all associated data. This action cannot be
-                  undone.
-                </p>
-                <Button href="/settings" variant="secondary">
-                  Go to Account Settings to Delete
-                </Button>
-              </div>
             </>
           )}
 
@@ -90,7 +80,7 @@ export default function PrivacyPage() {
               <li>
                 <strong>Consent</strong> — for sharing your profile with other volunteers and
                 allowing project owners to contact you (you can withdraw consent at any time via
-                your profile settings)
+                your privacy settings)
               </li>
               <li>
                 <strong>Legitimate interest</strong> — for operating the platform, matching
@@ -287,7 +277,7 @@ export default function PrivacyPage() {
           )}
 
           <p className="text-center mt-6">
-            <Link href="/profile">&larr; Back to Profile</Link>
+            <Link href="/settings?tab=privacy">&larr; Back to Settings</Link>
           </p>
         </div>
       </main>

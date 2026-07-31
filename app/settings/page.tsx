@@ -1,26 +1,152 @@
 'use client'
 
-import { useState, FormEvent } from 'react'
+import { useEffect, useState, FormEvent } from 'react'
+import Link from 'next/link'
 import { useRequireAuth } from '@/lib/hooks/auth'
-import { useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
+import Checkbox from '@/components/Checkbox'
+import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
+import SkillPicker from '@/components/SkillPicker'
+import Tabs from '@/components/Tabs'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
+import { useUrlParam } from '@/lib/hooks/url-filters'
+import {
+  COUNTRY_OPTIONS,
+  NO_LOCAL_GROUP,
+  buildLocalGroupOptionsForCountry,
+  type LocalGroupOption,
+} from '@/lib/filter-options'
+
+type TabKey = 'profile' | 'account' | 'notifications' | 'privacy'
+
+const TABS: { key: TabKey; label: string }[] = [
+  { key: 'profile', label: 'Profile' },
+  { key: 'account', label: 'Account' },
+  { key: 'notifications', label: 'Notifications' },
+  { key: 'privacy', label: 'Privacy & Data' },
+]
+
+const VALID_TABS = new Set<string>(TABS.map((t) => t.key))
+
+interface SelectedSkill {
+  skillId: number
+  proficiencyLevel: string
+}
 
 export default function SettingsPage() {
-  const { user, loading, logout } = useRequireAuth()
+  const { user, loading, refreshUser, logout } = useRequireAuth()
   const showToast = useToast()
+  const queryClient = useQueryClient()
 
+  const [rawTab, setTab] = useUrlParam('tab')
+  const activeTab: TabKey = VALID_TABS.has(rawTab) ? (rawTab as TabKey) : 'profile'
+
+  // Profile + Notifications + Privacy form state
+  const [name, setName] = useState('')
+  const [bio, setBio] = useState('')
+  const [location, setLocation] = useState('')
+  const [countryValue, setCountryValue] = useState('')
+  const [localGroupValue, setLocalGroupValue] = useState('')
+  const [hours, setHours] = useState('')
+  const [discordHandle, setDiscordHandle] = useState('')
+  const [signalNumber, setSignalNumber] = useState('')
+  const [whatsappNumber, setWhatsappNumber] = useState('')
+  const [contactNotes, setContactNotes] = useState('')
+  const [otherSkills, setOtherSkills] = useState('')
+  const [skills, setSkills] = useState<SelectedSkill[]>([])
+  const {
+    value: contactPreference,
+    onChange: setContactPreference,
+    options: contactPrefOptions,
+  } = useFilterOptions(
+    [
+      { value: '', label: 'Select…' },
+      { value: 'email', label: 'Email' },
+      { value: 'discord', label: 'Discord' },
+      { value: 'signal', label: 'Signal' },
+      { value: 'whatsapp', label: 'WhatsApp' },
+    ],
+    '',
+  )
+  const {
+    value: emailDigest,
+    onChange: setEmailDigest,
+    options: emailDigestOptions,
+  } = useFilterOptions(
+    [
+      { value: 'none', label: "Don't email me" },
+      { value: 'match', label: 'Email me when a project matches my skills' },
+      { value: 'fortnightly', label: 'Send me a fortnightly digest' },
+    ],
+    'none',
+  )
+  const [consentMakeProfileVisibleInDirectory, setConsentMakeProfileVisibleInDirectory] =
+    useState(true)
+  const [consentContactableByProjectOwners, setConsentContactableByProjectOwners] = useState(true)
+  const [consentShareContactInfoWithProjectOwner, setConsentShareContactInfoWithProjectOwner] =
+    useState(false)
+  const [syncedUpdatedAt, setSyncedUpdatedAt] = useState<string | null>(null)
+
+  // Account tab state
   const [newEmail, setNewEmail] = useState('')
   const [emailPassword, setEmailPassword] = useState('')
-
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deletePassword, setDeletePassword] = useState('')
   const [deleteConfirmPassword, setDeleteConfirmPassword] = useState('')
+
+  const { data: me, isPending: loadingProfile } = useQuery({
+    ...orpc.auth.me.queryOptions(),
+    enabled: !!user,
+  })
+  const { data: localGroupsData } = useQuery(orpc.localGroups.list.queryOptions({ input: {} }))
+  const allLocalGroups: LocalGroupOption[] = localGroupsData?.groups ?? []
+
+  useEffect(() => {
+    if (!me) return
+    const updatedAtKey = String(me.updatedAt)
+    if (updatedAtKey === syncedUpdatedAt) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSyncedUpdatedAt(updatedAtKey)
+    setName(me.name ?? '')
+    setBio(me.bio ?? '')
+    setLocation(me.location ?? '')
+    setCountryValue(me.country ?? '')
+    setLocalGroupValue(me.localGroup ?? (me.location ? NO_LOCAL_GROUP : ''))
+    setHours(me.availabilityHoursPerWeek !== null ? String(me.availabilityHoursPerWeek) : '')
+    setDiscordHandle(me.discordHandle ?? '')
+    setSignalNumber(me.signalNumber ?? '')
+    setWhatsappNumber(me.whatsappNumber ?? '')
+    setContactPreference(me.contactPreference ?? '')
+    setContactNotes(me.contactNotes ?? '')
+    setEmailDigest(me.emailDigest ?? 'none')
+    setOtherSkills(me.otherSkills ?? '')
+    setConsentMakeProfileVisibleInDirectory(!!me.consentMakeProfileVisibleInDirectory)
+    setConsentContactableByProjectOwners(!!me.consentContactableByProjectOwners)
+    setConsentShareContactInfoWithProjectOwner(!!me.consentShareContactInfoWithProjectOwner)
+    setSkills(
+      ((me.skills ?? []) as { id: number; proficiencyLevel?: string | null }[]).map((s) => ({
+        skillId: s.id,
+        proficiencyLevel: s.proficiencyLevel ?? 'intermediate',
+      })),
+    )
+  }, [me, syncedUpdatedAt, setContactPreference, setEmailDigest])
+
+  const updateMutation = useMutation({
+    ...orpc.volunteers.updateMe.mutationOptions(),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: orpc.auth.me.key() })
+      await refreshUser()
+      showToast('Saved!', 'success')
+    },
+    onError: (err: unknown) => {
+      showToast(err instanceof Error ? err.message : 'Failed to save', 'error')
+    },
+  })
 
   const changeEmailMutation = useMutation({
     ...orpc.auth.changeEmail.mutationOptions(),
@@ -60,6 +186,63 @@ export default function SettingsPage() {
     },
   })
 
+  const exportMutation = useMutation({
+    ...orpc.privacy.export.mutationOptions(),
+    onSuccess: (data) => {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `catalyse-data-export-${new Date().toISOString().split('T')[0]}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      showToast('Data exported successfully!', 'success')
+    },
+    onError: (err: unknown) => {
+      showToast(err instanceof Error ? err.message : 'Export failed', 'error')
+    },
+  })
+
+  const localGroupOptions = countryValue
+    ? buildLocalGroupOptionsForCountry(countryValue, allLocalGroups)
+    : []
+  const hasLocalGroups = localGroupOptions.some((o) => o.value && o.value !== NO_LOCAL_GROUP)
+  const showCityInput = localGroupValue === NO_LOCAL_GROUP || (!!countryValue && !hasLocalGroups)
+
+  function handleCountryChange(value: string) {
+    setCountryValue(value)
+    setLocalGroupValue('')
+  }
+
+  function buildUpdatePayload() {
+    return {
+      name: name.trim(),
+      bio: bio.trim() || null,
+      location: location.trim() || null,
+      country: countryValue || null,
+      localGroup: localGroupValue && localGroupValue !== NO_LOCAL_GROUP ? localGroupValue : null,
+      availabilityHoursPerWeek: hours ? Number(hours) : null,
+      discordHandle: discordHandle.trim() || null,
+      signalNumber: signalNumber.trim() || null,
+      whatsappNumber: whatsappNumber.trim() || null,
+      contactPreference: contactPreference || null,
+      contactNotes: contactNotes.trim() || null,
+      emailDigest,
+      otherSkills: otherSkills.trim() || null,
+      skillIds: skills.map((s) => s.skillId),
+      consentMakeProfileVisibleInDirectory,
+      consentContactableByProjectOwners,
+      consentShareContactInfoWithProjectOwner,
+    }
+  }
+
+  function handleSave(e: FormEvent) {
+    e.preventDefault()
+    updateMutation.mutate(buildUpdatePayload())
+  }
+
   function handleChangeEmail(e: FormEvent) {
     e.preventDefault()
     changeEmailMutation.mutate({ newEmail, password: emailPassword })
@@ -92,186 +275,451 @@ export default function SettingsPage() {
 
   if (loading || !user) return null
 
-  return (
-    <>
+  if (loadingProfile) {
+    return (
       <main className="container py-5 pb-15">
-        <h1>Settings</h1>
+        <div className="text-center py-10 text-text-light">Loading…</div>
+      </main>
+    )
+  }
 
-        {/* Change Email */}
-        <div className="bg-surface rounded-xl shadow p-6 mb-6 overflow-hidden wrap-break-word">
-          <h2 role="heading">Change Email</h2>
-          <p className="text-sm text-text-light mb-4">
-            Current email: <strong>{user.email}</strong>
-          </p>
+  const saveButton = (
+    <Button type="submit" disabled={updateMutation.isPending}>
+      {updateMutation.isPending ? 'Saving…' : 'Save Changes'}
+    </Button>
+  )
 
-          <form onSubmit={handleChangeEmail}>
-            <div className="mb-5">
-              <label htmlFor="newEmail">New Email Address</label>
+  return (
+    <main className="container py-5 pb-15">
+      <h1>Settings</h1>
+
+      <Tabs tabs={TABS} activeTab={activeTab} onChange={setTab} />
+
+      {activeTab === 'profile' && (
+        <form
+          className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word max-w-4xl"
+          onSubmit={handleSave}
+        >
+          <div className="mb-5">
+            <label htmlFor="name" className="required">
+              Your Name
+            </label>
+            <input
+              type="text"
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
+          </div>
+          <div className="mb-5">
+            <label htmlFor="bio">About You</label>
+            <aside className="bg-brand-bg border border-brand-border rounded-lg px-4 py-3 mb-2 text-sm text-text-light">
+              Shown to other volunteers in the directory if you choose to make your profile visible
+              in the Privacy &amp; Data tab.
+            </aside>
+            <textarea
+              id="bio"
+              rows={4}
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              placeholder="Your background and what brings you to PauseAI…"
+            />
+          </div>
+
+          <h3 className="mt-6 mb-4">Contact Information</h3>
+          <div className="grid grid-cols-2 gap-5 mb-5 max-sm:grid-cols-1">
+            <div>
+              <label htmlFor="discord_handle">Discord Handle</label>
               <input
-                type="email"
-                id="newEmail"
-                value={newEmail}
-                onChange={(e) => setNewEmail(e.target.value)}
-                required
+                type="text"
+                id="discord_handle"
+                value={discordHandle}
+                onChange={(e) => setDiscordHandle(e.target.value)}
+                placeholder="e.g. username#1234"
               />
             </div>
-            <div className="mb-5">
-              <label htmlFor="email_password">Your Password</label>
+            <div>
+              <label htmlFor="signal_number">Signal</label>
               <input
-                type="password"
-                id="email_password"
-                value={emailPassword}
-                onChange={(e) => setEmailPassword(e.target.value)}
-                required
+                type="text"
+                id="signal_number"
+                value={signalNumber}
+                onChange={(e) => setSignalNumber(e.target.value)}
+                placeholder="e.g. +44…"
               />
             </div>
-            <Button type="submit" disabled={changeEmailMutation.isPending}>
-              {changeEmailMutation.isPending ? 'Changing…' : 'Change Email'}
-            </Button>
-          </form>
-        </div>
-
-        {/* Change Password */}
-        <div className="bg-surface rounded-xl shadow p-6 mb-6 overflow-hidden wrap-break-word">
-          <h2 role="heading">Change Password</h2>
-
-          <form onSubmit={handleChangePassword}>
-            <div className="mb-5">
-              <label htmlFor="currentPassword">Current Password</label>
+            <div>
+              <label htmlFor="whatsapp_number">WhatsApp</label>
               <input
-                type="password"
-                id="currentPassword"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                required
+                type="text"
+                id="whatsapp_number"
+                value={whatsappNumber}
+                onChange={(e) => setWhatsappNumber(e.target.value)}
+                placeholder="e.g. +44…"
               />
             </div>
-            <div className="mb-5">
-              <label htmlFor="newPassword">New Password</label>
-              <input
-                type="password"
-                id="newPassword"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                required
+            <div>
+              <FilterDropdown
+                id="contact_preference"
+                label="Preferred Contact Method"
+                ariaLabel="Preferred Contact Method"
+                value={contactPreference}
+                options={contactPrefOptions}
+                onChange={setContactPreference}
               />
-            </div>
-            <div className="mb-5">
-              <label htmlFor="confirm_password">Confirm New Password</label>
-              <input
-                type="password"
-                id="confirm_password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-              />
-            </div>
-            <Button type="submit" disabled={changePasswordMutation.isPending}>
-              {changePasswordMutation.isPending ? 'Changing…' : 'Change Password'}
-            </Button>
-          </form>
-        </div>
-
-        {/* Danger Zone */}
-        <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word">
-          <h2>Danger Zone</h2>
-          <p className="text-text-light mb-4">
-            Permanently delete your account and all associated data. This cannot be undone.
-          </p>
-          <Button variant="danger" onClick={() => setShowDeleteModal(true)}>
-            Delete My Account
-          </Button>
-        </div>
-
-        {showDeleteModal && (
-          <div
-            id="deleteModal"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Delete Account"
-            className="fixed inset-0 bg-[rgba(29,53,87,0.5)] flex items-center justify-center z-1000 p-5"
-          >
-            <div className="bg-surface rounded-xl shadow-lg max-w-125 w-full max-h-[90vh] overflow-y-auto">
-              <div className="px-6 py-5 border-b border-brand-border flex justify-between items-center">
-                <h2 className="m-0 text-xl">Delete Your Account</h2>
-              </div>
-              <div className="p-6">
-                {user.hasPassword && (
-                  <p className="text-text-light mb-4">
-                    This action is permanent and cannot be undone. Please enter your password twice
-                    to confirm.
-                  </p>
-                )}
-
-                <form onSubmit={handleDeleteAccount}>
-                  {user.hasPassword ? (
-                    <>
-                      <div className="mb-5">
-                        <label htmlFor="delete_password">Enter your password</label>
-                        <input
-                          type="password"
-                          id="delete_password"
-                          value={deletePassword}
-                          onChange={(e) => setDeletePassword(e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div className="mb-5">
-                        <label htmlFor="delete_confirm_password">Confirm your password</label>
-                        <input
-                          type="password"
-                          id="delete_confirm_password"
-                          value={deleteConfirmPassword}
-                          onChange={(e) => setDeleteConfirmPassword(e.target.value)}
-                          required
-                        />
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-text-light mb-4">
-                        This action is permanent and cannot be undone.
-                      </p>
-                      <p className="text-text-light mb-4">
-                        Type <strong>DELETE</strong> to confirm.
-                      </p>
-                      <div className="mb-5">
-                        <input
-                          type="text"
-                          value={deletePassword}
-                          onChange={(e) => setDeletePassword(e.target.value)}
-                          placeholder="DELETE"
-                          required
-                        />
-                      </div>
-                    </>
-                  )}
-                  <div className="flex gap-2">
-                    <Button
-                      type="submit"
-                      variant="danger"
-                      disabled={deleteAccountMutation.isPending}
-                    >
-                      {deleteAccountMutation.isPending ? 'Deleting…' : 'Permanently Delete Account'}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => {
-                        setShowDeleteModal(false)
-                        setDeletePassword('')
-                        setDeleteConfirmPassword('')
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </form>
-              </div>
             </div>
           </div>
-        )}
-      </main>
-    </>
+          <div className="mb-5">
+            <label htmlFor="contact_notes">Contact Notes</label>
+            <input
+              type="text"
+              id="contact_notes"
+              value={contactNotes}
+              onChange={(e) => setContactNotes(e.target.value)}
+              placeholder="e.g. Best to DM me on Discord first"
+            />
+          </div>
+
+          <h3 className="mt-6 mb-4">Availability</h3>
+          <div className="mb-5">
+            <label htmlFor="hours">Hours per Week</label>
+            <input
+              type="number"
+              id="hours"
+              min={0}
+              max={168}
+              value={hours}
+              onChange={(e) => setHours(e.target.value)}
+            />
+          </div>
+          <div className="mb-5">
+            <FilterDropdown
+              id="locationCountry"
+              label="Country"
+              ariaLabel="Select country"
+              value={countryValue}
+              options={COUNTRY_OPTIONS}
+              onChange={handleCountryChange}
+              searchable
+            />
+          </div>
+          {countryValue && hasLocalGroups && (
+            <div className="mb-5">
+              <FilterDropdown
+                id="locationGroup"
+                label="Local Group"
+                ariaLabel="Select local group"
+                value={localGroupValue}
+                options={localGroupOptions}
+                onChange={setLocalGroupValue}
+                searchable
+              />
+            </div>
+          )}
+          {showCityInput && (
+            <div className="mb-5">
+              <label htmlFor="location">City / Area</label>
+              <input
+                type="text"
+                id="location"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="e.g. Shoreditch"
+              />
+            </div>
+          )}
+
+          <h3 className="mt-6 mb-4">Your Skills</h3>
+          <div className="mb-5">
+            <SkillPicker value={skills} onChange={setSkills} />
+          </div>
+          <div className="mb-5">
+            <label htmlFor="other_skills">Other Skills</label>
+            <input
+              type="text"
+              id="other_skills"
+              placeholder="Any skills not listed above…"
+              value={otherSkills}
+              onChange={(e) => setOtherSkills(e.target.value)}
+            />
+          </div>
+
+          {saveButton}
+        </form>
+      )}
+
+      {activeTab === 'profile' && (
+        <div className="bg-surface rounded-xl shadow p-6 mb-4 border-2 border-brand-border max-w-4xl">
+          <h3>Local Groups</h3>
+          <p className="text-text-light mb-4">
+            Don&apos;t see your local group listed? Suggest a new one.
+          </p>
+          <Button href="/suggest-local-group" variant="outline">
+            Suggest a Local Group
+          </Button>
+        </div>
+      )}
+
+      {activeTab === 'account' && (
+        <div className="max-w-4xl">
+          <div className="bg-surface rounded-xl shadow p-6 mb-6 overflow-hidden wrap-break-word">
+            <h2>Change Email</h2>
+            <p className="text-sm text-text-light mb-4">
+              Current email: <strong>{user.email}</strong>
+            </p>
+            <form onSubmit={handleChangeEmail}>
+              <div className="mb-5">
+                <label htmlFor="newEmail">New Email Address</label>
+                <input
+                  type="email"
+                  id="newEmail"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="mb-5">
+                <label htmlFor="email_password">Your Password</label>
+                <input
+                  type="password"
+                  id="email_password"
+                  value={emailPassword}
+                  onChange={(e) => setEmailPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <Button type="submit" disabled={changeEmailMutation.isPending}>
+                {changeEmailMutation.isPending ? 'Changing…' : 'Change Email'}
+              </Button>
+            </form>
+          </div>
+
+          <div className="bg-surface rounded-xl shadow p-6 mb-6 overflow-hidden wrap-break-word">
+            <h2>Change Password</h2>
+            <form onSubmit={handleChangePassword}>
+              <div className="mb-5">
+                <label htmlFor="currentPassword">Current Password</label>
+                <input
+                  type="password"
+                  id="currentPassword"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="mb-5">
+                <label htmlFor="newPassword">New Password</label>
+                <input
+                  type="password"
+                  id="newPassword"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="mb-5">
+                <label htmlFor="confirm_password">Confirm New Password</label>
+                <input
+                  type="password"
+                  id="confirm_password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <Button type="submit" disabled={changePasswordMutation.isPending}>
+                {changePasswordMutation.isPending ? 'Changing…' : 'Change Password'}
+              </Button>
+            </form>
+          </div>
+
+          <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word">
+            <h2>Danger Zone</h2>
+            <p className="text-text-light mb-4">
+              Permanently delete your account and all associated data. This cannot be undone.
+            </p>
+            <Button variant="danger" onClick={() => setShowDeleteModal(true)}>
+              Delete My Account
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'notifications' && (
+        <form
+          className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word max-w-4xl"
+          onSubmit={handleSave}
+        >
+          <div className="mb-5">
+            <FilterDropdown
+              id="email_digest"
+              label="Keep me in the loop about new projects"
+              ariaLabel="Keep me in the loop about new projects"
+              value={emailDigest}
+              options={emailDigestOptions}
+              onChange={setEmailDigest}
+            />
+          </div>
+          {saveButton}
+        </form>
+      )}
+
+      {activeTab === 'privacy' && (
+        <div className="max-w-4xl">
+          <form
+            className="bg-surface rounded-xl shadow p-6 mb-6 overflow-hidden wrap-break-word"
+            onSubmit={handleSave}
+          >
+            <h2 className="mt-0">Privacy Settings</h2>
+            <div className="mb-5 flex flex-col gap-3">
+              <Checkbox
+                id="consent_make_profile_visible_in_directory"
+                checked={consentMakeProfileVisibleInDirectory}
+                onChange={(e) => setConsentMakeProfileVisibleInDirectory(e.target.checked)}
+              >
+                Make my profile visible in the volunteer directory
+              </Checkbox>
+              <Checkbox
+                id="consent_contactable_by_project_owners"
+                checked={consentContactableByProjectOwners}
+                onChange={(e) => setConsentContactableByProjectOwners(e.target.checked)}
+              >
+                Allow project owners to contact me about opportunities
+              </Checkbox>
+              <div className="ml-7">
+                <Checkbox
+                  id="consent_share_contact_info_with_project_owner"
+                  checked={consentShareContactInfoWithProjectOwner}
+                  disabled={!consentContactableByProjectOwners}
+                  onChange={(e) =>
+                    setConsentShareContactInfoWithProjectOwner(e.target.checked)
+                  }
+                >
+                  <span className={consentContactableByProjectOwners ? '' : 'opacity-50'}>
+                    Share my contact info directly with project owners (otherwise they use the
+                    contact form)
+                  </span>
+                </Checkbox>
+              </div>
+            </div>
+            {saveButton}
+          </form>
+
+          <div className="bg-surface rounded-xl shadow p-6 mb-6 overflow-hidden wrap-break-word">
+            <h2 className="mt-0">Your Data</h2>
+            <p className="text-text-light mb-4">
+              Download all your data in JSON format. This includes your profile, skills, project
+              interests, and messages.
+            </p>
+            <Button
+              variant="secondary"
+              onClick={() => exportMutation.mutate({})}
+              disabled={exportMutation.isPending}
+            >
+              {exportMutation.isPending ? 'Preparing…' : 'Download My Data'}
+            </Button>
+          </div>
+
+          <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word">
+            <h2 className="mt-0">Privacy Policy</h2>
+            <p className="text-text-light mb-4">
+              Read our full data practices, GDPR rights, and third-party processor information.
+            </p>
+            <Button href="/privacy" variant="outline">
+              Read Privacy Policy
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {showDeleteModal && (
+        <div
+          id="deleteModal"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Delete Account"
+          className="fixed inset-0 bg-[rgba(29,53,87,0.5)] flex items-center justify-center z-1000 p-5"
+        >
+          <div className="bg-surface rounded-xl shadow-lg max-w-125 w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-5 border-b border-brand-border flex justify-between items-center">
+              <h2 className="m-0 text-xl">Delete Your Account</h2>
+            </div>
+            <div className="p-6">
+              {user.hasPassword && (
+                <p className="text-text-light mb-4">
+                  This action is permanent and cannot be undone. Please enter your password twice
+                  to confirm.
+                </p>
+              )}
+              <form onSubmit={handleDeleteAccount}>
+                {user.hasPassword ? (
+                  <>
+                    <div className="mb-5">
+                      <label htmlFor="delete_password">Enter your password</label>
+                      <input
+                        type="password"
+                        id="delete_password"
+                        value={deletePassword}
+                        onChange={(e) => setDeletePassword(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="mb-5">
+                      <label htmlFor="delete_confirm_password">Confirm your password</label>
+                      <input
+                        type="password"
+                        id="delete_confirm_password"
+                        value={deleteConfirmPassword}
+                        onChange={(e) => setDeleteConfirmPassword(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-text-light mb-4">
+                      This action is permanent and cannot be undone.
+                    </p>
+                    <p className="text-text-light mb-4">
+                      Type <strong>DELETE</strong> to confirm.
+                    </p>
+                    <div className="mb-5">
+                      <input
+                        type="text"
+                        value={deletePassword}
+                        onChange={(e) => setDeletePassword(e.target.value)}
+                        placeholder="DELETE"
+                        required
+                      />
+                    </div>
+                  </>
+                )}
+                <div className="flex gap-2">
+                  <Button
+                    type="submit"
+                    variant="danger"
+                    disabled={deleteAccountMutation.isPending}
+                  >
+                    {deleteAccountMutation.isPending ? 'Deleting…' : 'Permanently Delete Account'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setShowDeleteModal(false)
+                      setDeletePassword('')
+                      setDeleteConfirmPassword('')
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+    </main>
   )
 }
