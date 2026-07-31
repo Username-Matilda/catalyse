@@ -127,10 +127,11 @@ export default async function LandingPage() {
       <section className="border-b border-brand-border bg-surface">
         <div className="container py-14 md:py-20">
           <div className="max-w-3xl mx-auto md:text-center">
-            <p className="font-heading text-sm font-bold uppercase tracking-widest text-primary-dark mb-3">
-              PauseAI UK
-            </p>
-            <h1 className="text-3xl md:text-5xl">Find the work that needs you</h1>
+            {/*
+              No size utilities here: globals.css styles `h1` outside a cascade
+              layer, so `text-*` classes on a heading are silently ignored.
+            */}
+            <h1>Find the work that needs you</h1>
             <p className="text-lg text-text-light mb-8">
               Catalyse is the volunteer platform for PauseAI UK. It connects the people who want to
               help with the projects that need them, matching what you can do to what the movement
@@ -273,8 +274,8 @@ export default async function LandingPage() {
             <li>
               Catalyse is for coordinating work. For events, the newsletter and the wider community,
               start at{' '}
-              <a href="https://pauseai.uk" target="_blank" rel="noopener noreferrer">
-                pauseai.uk
+              <a href="https://pauseai.info" target="_blank" rel="noopener noreferrer">
+                pauseai.info
               </a>
               .
             </li>
