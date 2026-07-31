@@ -78,6 +78,27 @@ const WORK_AREAS: { title: string; body: string }[] = [
   },
 ]
 
+/**
+ * Dated, historical wins from https://pauseai.uk/track-record, chosen because each
+ * one runs from an ordinary volunteer task to a political or press outcome. They
+ * are past events rather than live counts, so they do not go stale. Phrased as
+ * sequence rather than causation where the track record only establishes order.
+ */
+const TRACK_RECORD: { when: string; body: string }[] = [
+  {
+    when: 'August 2025',
+    body: 'Volunteers gathered signatures from over 60 UK politicians on an open letter about Google DeepMind’s safety commitments. TIME broke the story, and Google went on to give the UK AI Safety Institute pre-deployment access to its next frontier model.',
+  },
+  {
+    when: 'December 2025',
+    body: 'Volunteers proposed and helped organise a Westminster Hall debate on AI safety, putting the question in front of Parliament directly.',
+  },
+  {
+    when: 'February 2026',
+    body: 'Volunteers co-organised the March for AI Safety, the largest protest yet focused solely on AI risk, covered by MIT Technology Review and the Wall Street Journal.',
+  },
+]
+
 const STEPS: { title: string; body: string }[] = [
   {
     title: 'Apply',
@@ -136,6 +157,12 @@ export default async function LandingPage() {
             campaigning, political engagement and local organising across the UK.
           </p>
           <p className="text-text-light">
+            Campaigning works as a chain. Someone drafts a briefing, someone else gets it in front
+            of an MP, and months later there is a debate in Parliament or a commitment from a lab
+            that was not there before. Almost everything below started as an ordinary task that a
+            volunteer picked up.
+          </p>
+          <p className="text-text-light">
             We are a small staff supported by a large number of volunteers
             {localGroupList ? `, with local groups in ${localGroupList}` : ''}. You do not need a
             technical background, and you do not need to be an expert on AI.
@@ -172,63 +199,91 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* How it works */}
+      {/* Track record. Answers the "will any of this make a difference?" objection. */}
       <section className="container py-12 md:py-16">
         <div className="max-w-3xl mb-8">
-          <h2>How Catalyse works</h2>
+          <h2>Where that work has led</h2>
+          <p className="text-text-light mb-0">
+            A few things volunteers have done, and what came of them.
+          </p>
         </div>
-        <ol className="grid grid-cols-1 md:grid-cols-3 gap-5 list-none p-0 m-0">
-          {STEPS.map((step, i) => (
-            <li key={step.title} className="bg-surface border border-brand-border rounded-xl p-6">
-              <span
-                className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary text-[#111827] font-bold mb-3"
-                aria-hidden="true"
-              >
-                {i + 1}
-              </span>
-              <h3 className="text-lg mb-2">
-                <span className="sr-only">Step {i + 1}: </span>
-                {step.title}
-              </h3>
-              <p className="text-sm text-text-light mb-0">{step.body}</p>
+        <ul className="grid grid-cols-1 md:grid-cols-3 gap-5 list-none p-0 m-0 mb-6">
+          {TRACK_RECORD.map((item) => (
+            <li key={item.when} className="bg-surface border border-brand-border rounded-xl p-6">
+              <p className="font-heading text-xs font-bold uppercase tracking-widest text-primary-dark mb-2">
+                {item.when}
+              </p>
+              <p className="text-sm text-text-light mb-0">{item.body}</p>
             </li>
           ))}
-        </ol>
+        </ul>
+        <p className="mb-0">
+          <a href="https://pauseai.uk/track-record" target="_blank" rel="noopener noreferrer">
+            See the full track record →
+          </a>
+        </p>
+      </section>
+
+      {/* How it works */}
+      <section className="bg-surface border-y border-brand-border">
+        <div className="container py-12 md:py-16">
+          <div className="max-w-3xl mb-8">
+            <h2>How Catalyse works</h2>
+          </div>
+          <ol className="grid grid-cols-1 md:grid-cols-3 gap-5 list-none p-0 m-0">
+            {STEPS.map((step, i) => (
+              <li
+                key={step.title}
+                className="bg-brand-bg border border-brand-border rounded-xl p-6"
+              >
+                <span
+                  className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary text-[#111827] font-bold mb-3"
+                  aria-hidden="true"
+                >
+                  {i + 1}
+                </span>
+                <h3 className="text-lg mb-2">
+                  <span className="sr-only">Step {i + 1}: </span>
+                  {step.title}
+                </h3>
+                <p className="text-sm text-text-light mb-0">{step.body}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
       </section>
 
       {/* Expectations */}
-      <section className="bg-surface border-y border-brand-border">
-        <div className="container py-12 md:py-16">
-          <div className="max-w-3xl">
-            <h2>Before you apply</h2>
-            <ul className="text-text-light space-y-2 pl-5 list-disc marker:text-primary">
-              <li>
-                Applications are reviewed by our team, so there is a short wait before you can see
-                open projects. We will email you either way.
-              </li>
-              <li>
-                There is no minimum commitment. Plenty of volunteers contribute an hour here and
-                there, and that is genuinely useful.
-              </li>
-              <li>
-                You control what other volunteers can see. Your profile can stay out of the
-                directory entirely, and your contact details are never shared without your say-so.
-              </li>
-              <li>
-                Catalyse is for coordinating work. For events, the newsletter and the wider
-                community, start at{' '}
-                <a href="https://pauseai.uk" target="_blank" rel="noopener noreferrer">
-                  pauseai.uk
-                </a>
-                .
-              </li>
-            </ul>
-          </div>
+      <section className="container py-12 md:py-16">
+        <div className="max-w-3xl">
+          <h2>Before you apply</h2>
+          <ul className="text-text-light space-y-2 pl-5 list-disc marker:text-primary">
+            <li>
+              Applications are reviewed by our team, so there is a short wait before you can see
+              open projects. We will email you either way.
+            </li>
+            <li>
+              There is no minimum commitment. Plenty of volunteers contribute an hour here and
+              there, and that is genuinely useful.
+            </li>
+            <li>
+              You control what other volunteers can see. Your profile can stay out of the directory
+              entirely, and your contact details are never shared without your say-so.
+            </li>
+            <li>
+              Catalyse is for coordinating work. For events, the newsletter and the wider community,
+              start at{' '}
+              <a href="https://pauseai.uk" target="_blank" rel="noopener noreferrer">
+                pauseai.uk
+              </a>
+              .
+            </li>
+          </ul>
         </div>
       </section>
 
       {/* Closing CTA */}
-      <section className="container py-14 md:py-20">
+      <section className="container border-t border-brand-border py-14 md:py-20">
         <div className="max-w-2xl">
           <h2>Ready to start?</h2>
           <p className="text-text-light mb-6">
