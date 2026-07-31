@@ -6,6 +6,7 @@
   /* PauseAI Brand Colors */
   --primary: #ff9416;
   --primary-dark: #e07d00;
+  --primary-text: #a85400;
   --secondary: #2d3748;
   --secondary-dark: #1a202c;
   --accent: #ffe4c4;
@@ -32,6 +33,7 @@
 @theme inline {
   --color-primary: var(--primary);
   --color-primary-dark: var(--primary-dark);
+  --color-primary-text: var(--primary-text);
   --color-secondary: var(--secondary);
   --color-secondary-dark: var(--secondary-dark);
   --color-accent: var(--accent);
@@ -51,6 +53,7 @@
 [data-theme='dark'] {
   --primary: #ffa633;
   --primary-dark: #ff9416;
+  --primary-text: #ffa633;
   --secondary: #4b5563;
   --secondary-dark: #6b7280;
   --accent: #3d2e1a;
@@ -121,7 +124,7 @@ p {
 }
 
 a:not([class]) {
-  color: var(--primary);
+  color: var(--primary-text);
   text-decoration: underline;
 }
 
@@ -163,6 +166,11 @@ textarea:focus,
 select:focus {
   outline: none;
   border-color: var(--secondary);
+}
+
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--primary-dark);
+  outline-offset: 2px;
 }
 
 input[aria-invalid='true'],

@@ -101,7 +101,7 @@ function DashboardNavButtons({ unreadCount }: { unreadCount: number }) {
       >
         Notifications
         {unreadCount > 0 && (
-          <span className="bg-primary text-secondary-dark text-xs px-2 py-0.5 rounded-full ml-1">
+          <span className="bg-primary text-[#111827] text-xs px-2 py-0.5 rounded-full ml-1">
             {unreadCount}
           </span>
         )}
@@ -231,7 +231,7 @@ export default function Header() {
                   >
                     {user.name}
                     {unreadCount > 0 && (
-                      <span className="bg-primary text-secondary-dark text-xs px-2 py-0.5 rounded-full ml-1">
+                      <span className="bg-primary text-[#111827] text-xs px-2 py-0.5 rounded-full ml-1">
                         {unreadCount}
                       </span>
                     )}
@@ -421,7 +421,7 @@ export default function Header() {
                   <MobileNavLink href="/dashboard">
                     Dashboard
                     {unreadCount > 0 && (
-                      <span className="bg-primary text-secondary-dark text-xs px-2 py-0.5 rounded-full ml-1">
+                      <span className="bg-primary text-[#111827] text-xs px-2 py-0.5 rounded-full ml-1">
                         {unreadCount}
                       </span>
                     )}

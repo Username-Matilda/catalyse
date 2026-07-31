@@ -65,7 +65,9 @@ export default function StarterTasksPage() {
               className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
             >
               <div className="flex justify-between items-start mb-2">
-                <h3 className="m-0">{task.title}</h3>
+                <h3 className="m-0">
+                  <Link href={`/starter-tasks/${task.id}`}>{task.title}</Link>
+                </h3>
                 <Badge
                   variant={task.status === StarterTaskStatus.completed ? 'success' : 'warning'}
                 >

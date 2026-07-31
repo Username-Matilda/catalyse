@@ -56,6 +56,13 @@ const PROJECT_TYPE_LABELS: Record<string, string> = {
   one_off: 'One-off',
 }
 
+export const STARTER_TASK_STATUS_LABELS: Record<string, string> = {
+  open: 'Open',
+  in_progress: 'In Progress',
+  under_review: 'Under Review',
+  completed: 'Completed',
+}
+
 export function projectStatusVariant(status: string): BadgeVariant {
   return PROJECT_STATUS_CONFIG[status]?.variant ?? 'neutral'
 }
@@ -137,7 +144,7 @@ export function ProjectCard({
         (p.skills?.length ?? 0) > 0 &&
         userSkillIds.size > 0 &&
         matchGradeLabel(p.match.matchedRequiredCount) ? (
-          <span className="text-xs font-semibold text-primary">
+          <span className="text-xs font-semibold text-primary-text">
             {matchGradeLabel(p.match.matchedRequiredCount)}
           </span>
         ) : (
