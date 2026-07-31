@@ -24,11 +24,7 @@ function statusVariant(status: string) {
   return 'neutral'
 }
 
-export default function StarterTaskDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>
-}) {
+export default function StarterTaskDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idStr } = use(params)
   const id = parseInt(idStr, 10)
   const { user, loading } = useRequireApproved()
@@ -101,18 +97,13 @@ export default function StarterTaskDetailPage({
             </span>
           )}
           {task.projectTitle && task.projectId && (
-            <Link
-              href={`/projects/${task.projectId}`}
-              className="text-sm self-center"
-            >
+            <Link href={`/projects/${task.projectId}`} className="text-sm self-center">
               Related project: {task.projectTitle}
             </Link>
           )}
         </div>
 
-        {task.description && (
-          <p className="whitespace-pre-wrap mb-6">{task.description}</p>
-        )}
+        {task.description && <p className="whitespace-pre-wrap mb-6">{task.description}</p>}
 
         {task.status === StarterTaskStatus.completed && (
           <div className="bg-brand-bg rounded-lg p-4 mb-4 border border-brand-border">
@@ -123,9 +114,7 @@ export default function StarterTaskDetailPage({
                 {REVIEW_RATING_LABELS[task.reviewRating] ?? task.reviewRating}
               </p>
             )}
-            {task.reviewNotes && (
-              <p className="mb-0 text-text-light">{task.reviewNotes}</p>
-            )}
+            {task.reviewNotes && <p className="mb-0 text-text-light">{task.reviewNotes}</p>}
           </div>
         )}
 

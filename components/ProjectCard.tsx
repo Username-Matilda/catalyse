@@ -56,6 +56,13 @@ const PROJECT_TYPE_LABELS: Record<string, string> = {
   one_off: 'One-off',
 }
 
+export const INTEREST_STATUS_LABELS: Record<string, string> = {
+  pending: 'Pending',
+  accepted: 'Accepted',
+  declined: 'Declined',
+  withdrawn: 'Withdrawn',
+}
+
 export const STARTER_TASK_STATUS_LABELS: Record<string, string> = {
   open: 'Open',
   in_progress: 'In Progress',

@@ -58,7 +58,6 @@ export default function PrivacyPage() {
                   {exportMutation.isPending ? 'Preparing…' : 'Download My Data'}
                 </Button>
               </div>
-
             </>
           )}
 

@@ -165,12 +165,15 @@ test.describe('GDPR & Privacy', () => {
     const page2 = await ctx2.newPage()
 
     try {
-      await page2.goto(`${baseUrl}/profile`)
+      await page2.goto(`${baseUrl}/settings`)
       await expect(page2.getByLabel('Discord Handle')).toBeVisible({ timeout: 10_000 })
 
       await page2.getByLabel('Discord Handle').fill(discordHandle)
       await page2.getByLabel('Signal').fill(signalNumber)
       await page2.getByLabel('WhatsApp').fill(whatsappNumber)
+
+      // Switch to Privacy & Data tab to configure visibility and contact sharing
+      await page2.getByRole('tab', { name: 'Privacy & Data' }).click()
 
       // Ensure profile is publicly visible
       await page2.getByLabel(/Make my profile visible/).check()

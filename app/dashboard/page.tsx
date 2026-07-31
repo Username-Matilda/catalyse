@@ -8,7 +8,11 @@ import Button from '@/components/Button'
 import CommentThread from '@/components/CommentThread'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
-import { ProjectList, statusBadgeClasses, STARTER_TASK_STATUS_LABELS } from '@/components/ProjectCard'
+import {
+  ProjectList,
+  statusBadgeClasses,
+  STARTER_TASK_STATUS_LABELS,
+} from '@/components/ProjectCard'
 import Tabs from '@/components/Tabs'
 import type { InferRouterOutputs } from '@orpc/server'
 import type { AppRouter } from '@/server/router'

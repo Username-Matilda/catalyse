@@ -186,8 +186,7 @@ export const adminLocalGroupsRouter = {
       const title = titleFn ? titleFn(finalName) : `Update on your local group suggestion`
 
       const notificationLink =
-        notificationAction === LocalGroupSuggestionStatus.accepted ||
-        notificationAction === 'merge'
+        notificationAction === LocalGroupSuggestionStatus.accepted || notificationAction === 'merge'
           ? '/settings'
           : null
 

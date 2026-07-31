@@ -9,7 +9,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import { Badge } from '@/components/Badge'
 import Tooltip from '@/components/Tooltip'
-import { STATUS_LABELS, projectStatusVariant } from '@/components/ProjectCard'
+import {
+  STATUS_LABELS,
+  INTEREST_STATUS_LABELS,
+  projectStatusVariant,
+} from '@/components/ProjectCard'
 import CommentThread from '@/components/CommentThread'
 import Modal from '@/components/ui/Modal'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
@@ -1238,7 +1242,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                           ) : interest.status === InterestStatus.accepted ? (
                             <div className="flex items-center gap-2 shrink-0">
                               <Badge variant={projectStatusVariant(interest.status)}>
-                                {STATUS_LABELS[interest.status] ?? interest.status}
+                                {INTEREST_STATUS_LABELS[interest.status] ?? interest.status}
                               </Badge>
                               <Button
                                 variant="secondary"
@@ -1250,7 +1254,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                             </div>
                           ) : (
                             <Badge variant={projectStatusVariant(interest.status)}>
-                              {STATUS_LABELS[interest.status] ?? interest.status}
+                              {INTEREST_STATUS_LABELS[interest.status] ?? interest.status}
                             </Badge>
                           )}
                           {interest.message && interest.status !== InterestStatus.accepted && (
@@ -1341,7 +1345,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     <p>
                       Your interest status:{' '}
                       <span aria-label="interest status" className="font-semibold">
-                        {STATUS_LABELS[project.myInterest.status] ?? project.myInterest.status}
+                        {INTEREST_STATUS_LABELS[project.myInterest.status] ??
+                          project.myInterest.status}
                       </span>
                     </p>
                     {project.myInterest.responseMessage && (

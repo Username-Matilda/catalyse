@@ -1,7 +1,6 @@
 'use client'
 
-import { useEffect, useState, FormEvent } from 'react'
-import Link from 'next/link'
+import { useEffect, useState, FormEvent, Suspense } from 'react'
 import { useRequireAuth } from '@/lib/hooks/auth'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
@@ -36,6 +35,14 @@ interface SelectedSkill {
 }
 
 export default function SettingsPage() {
+  return (
+    <Suspense>
+      <SettingsPageContent />
+    </Suspense>
+  )
+}
+
+function SettingsPageContent() {
   const { user, loading, refreshUser, logout } = useRequireAuth()
   const showToast = useToast()
   const queryClient = useQueryClient()
@@ -141,7 +148,7 @@ export default function SettingsPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: orpc.auth.me.key() })
       await refreshUser()
-      showToast('Saved!', 'success')
+      showToast('Profile updated!', 'success')
     },
     onError: (err: unknown) => {
       showToast(err instanceof Error ? err.message : 'Failed to save', 'error')
@@ -592,9 +599,7 @@ export default function SettingsPage() {
                   id="consent_share_contact_info_with_project_owner"
                   checked={consentShareContactInfoWithProjectOwner}
                   disabled={!consentContactableByProjectOwners}
-                  onChange={(e) =>
-                    setConsentShareContactInfoWithProjectOwner(e.target.checked)
-                  }
+                  onChange={(e) => setConsentShareContactInfoWithProjectOwner(e.target.checked)}
                 >
                   <span className={consentContactableByProjectOwners ? '' : 'opacity-50'}>
                     Share my contact info directly with project owners (otherwise they use the
@@ -648,8 +653,8 @@ export default function SettingsPage() {
             <div className="p-6">
               {user.hasPassword && (
                 <p className="text-text-light mb-4">
-                  This action is permanent and cannot be undone. Please enter your password twice
-                  to confirm.
+                  This action is permanent and cannot be undone. Please enter your password twice to
+                  confirm.
                 </p>
               )}
               <form onSubmit={handleDeleteAccount}>
@@ -696,11 +701,7 @@ export default function SettingsPage() {
                   </>
                 )}
                 <div className="flex gap-2">
-                  <Button
-                    type="submit"
-                    variant="danger"
-                    disabled={deleteAccountMutation.isPending}
-                  >
+                  <Button type="submit" variant="danger" disabled={deleteAccountMutation.isPending}>
                     {deleteAccountMutation.isPending ? 'Deleting…' : 'Permanently Delete Account'}
                   </Button>
                   <Button

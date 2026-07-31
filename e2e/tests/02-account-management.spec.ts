@@ -5,7 +5,7 @@ test.describe('Account Management', () => {
   test('Volunteer changes their password', async ({ browser, volunteer, baseUrl }) => {
     const newPassword = 'newpassword1'
 
-    await volunteer.page.goto(`${baseUrl}/settings`)
+    await volunteer.page.goto(`${baseUrl}/settings?tab=account`)
     await expect(volunteer.page.getByRole('heading', { name: 'Change Password' })).toBeVisible({
       timeout: 10_000,
     })
@@ -29,7 +29,7 @@ test.describe('Account Management', () => {
   })
 
   test('Change password fails with wrong current password', async ({ volunteer, baseUrl }) => {
-    await volunteer.page.goto(`${baseUrl}/settings`)
+    await volunteer.page.goto(`${baseUrl}/settings?tab=account`)
     await expect(volunteer.page.getByRole('heading', { name: 'Change Password' })).toBeVisible({
       timeout: 10_000,
     })
@@ -44,7 +44,7 @@ test.describe('Account Management', () => {
   })
 
   test('Volunteer deletes their account', async ({ browser, volunteer, baseUrl }) => {
-    await volunteer.page.goto(`${baseUrl}/settings`)
+    await volunteer.page.goto(`${baseUrl}/settings?tab=account`)
     await expect(volunteer.page.getByRole('button', { name: 'Delete My Account' })).toBeVisible({
       timeout: 10_000,
     })

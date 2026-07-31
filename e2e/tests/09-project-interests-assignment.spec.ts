@@ -32,7 +32,7 @@ test.describe('Project Interests and Assignment', () => {
     await expect(volunteer.page.getByRole('button', { name: 'Express Interest' })).not.toBeVisible({
       timeout: 10_000,
     })
-    await expect(volunteer.page.getByLabel('interest status')).toContainText('pending', {
+    await expect(volunteer.page.getByLabel('interest status')).toContainText('Pending', {
       timeout: 10_000,
     })
   })
@@ -47,7 +47,7 @@ test.describe('Project Interests and Assignment', () => {
     await volunteer.page.getByRole('button', { name: 'Express Interest' }).click()
 
     await expect(getAlert(volunteer.page)).toContainText('Interest expressed!', { timeout: 10_000 })
-    await expect(volunteer.page.getByLabel('interest status')).toContainText('pending', {
+    await expect(volunteer.page.getByLabel('interest status')).toContainText('Pending', {
       timeout: 10_000,
     })
   })
@@ -127,7 +127,7 @@ test.describe('Project Interests and Assignment', () => {
     // Interest status updates to accepted
     await expect(
       adminPage.locator('.interest-card').filter({ hasText: volunteer.name }),
-    ).toContainText('accepted', { timeout: 10_000 })
+    ).toContainText('Accepted', { timeout: 10_000 })
 
     // Volunteer receives a notification
     await goToDashboardNotifications(baseUrl, volunteer.page)
@@ -161,7 +161,7 @@ test.describe('Project Interests and Assignment', () => {
     // Interest status updates to declined
     await expect(
       adminPage.locator('.interest-card').filter({ hasText: volunteer.name }),
-    ).toContainText('declined', { timeout: 10_000 })
+    ).toContainText('Declined', { timeout: 10_000 })
   })
 
   test('Volunteer withdraws their pending interest', async ({ adminPage, volunteer, baseUrl }) => {
@@ -206,7 +206,7 @@ test.describe('Project Interests and Assignment', () => {
     // Volunteer's interest record appears as accepted, labeled as a role
     // rather than a pending request since they were assigned directly
     const assignedCard = adminPage.locator('.interest-card').filter({ hasText: volunteer.name })
-    await expect(assignedCard).toContainText('accepted', { timeout: 10_000 })
+    await expect(assignedCard).toContainText('Accepted', { timeout: 10_000 })
     await expect(assignedCard).toContainText('Helper')
     await expect(assignedCard).not.toContainText('wants to help')
 
@@ -231,7 +231,7 @@ test.describe('Project Interests and Assignment', () => {
     adminPage.once('dialog', (dialog) => dialog.accept())
     await volunteerCard.getByRole('button', { name: 'Remove' }).click()
     await expect(getAlert(adminPage)).toContainText('Interest declined', { timeout: 10_000 })
-    await expect(volunteerCard).toContainText('declined', { timeout: 10_000 })
+    await expect(volunteerCard).toContainText('Declined', { timeout: 10_000 })
     await expect(volunteerCard.getByRole('button', { name: 'Remove' })).toHaveCount(0)
   })
 
