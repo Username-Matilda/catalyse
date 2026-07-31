@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { useState, Suspense } from 'react'
+import { useRouter } from 'next/navigation'
 import { useRequireApproved } from '@/lib/hooks/auth'
+import { useUrlParam, useUrlSearchInput } from '@/lib/hooks/url-filters'
 import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
 import Button from '@/components/Button'
@@ -49,47 +50,20 @@ type ApprovedUser = NonNullable<ReturnType<typeof useRequireApproved>['user']>
 
 function ProjectsPageContent({ user }: { user: ApprovedUser }) {
   const userSkillIds = new Set(user.skills.map((s) => s.id))
-  const searchParams = useSearchParams()
+
+  const [searchInput, setSearchInput, urlSearch] = useUrlSearchInput('q')
+  const [statusFilter, setStatusFilter] = useUrlParam('status')
+  const [needsFilter, setNeedsFilter] = useUrlParam('needs')
+  const [urgencyFilter, setUrgencyFilter] = useUrlParam('urgency')
+  const [locationFilter, setLocationFilter] = useUrlParam('location')
+  const [sortBy, setSortBy] = useUrlParam('sort')
   const router = useRouter()
-
-  const urlSearch = searchParams.get('q') ?? ''
-  const statusFilter = searchParams.get('status') ?? ''
-  const needsFilter = searchParams.get('needs') ?? ''
-  const urgencyFilter = searchParams.get('urgency') ?? ''
-  const locationFilter = searchParams.get('location') ?? ''
-  const sortBy = searchParams.get('sort') ?? ''
-
-  const [searchInput, setSearchInput] = useState(urlSearch)
-  const [completedOpen, setCompletedOpen] = useState(false)
-
-  function setParam(key: string, value: string) {
-    const params = new URLSearchParams(searchParams.toString())
-    if (value) params.set(key, value)
-    else params.delete(key)
-    router.replace(`?${params.toString()}`, { scroll: false })
-  }
-
-  // Debounce search input -> URL. Guard skips the update when searchInput
-  // already matches the URL (on mount or after a URL-driven reset), preventing
-  // a spurious router.replace that races against auth redirects.
-  // searchParams in deps ensures stale filter state is not clobbered if a
-  // dropdown fires during the debounce window.
-  useEffect(() => {
-    if (searchInput === urlSearch) return
-    const t = setTimeout(() => {
-      const params = new URLSearchParams(searchParams.toString())
-      if (searchInput) params.set('q', searchInput)
-      else params.delete('q')
-      router.replace(`?${params.toString()}`, { scroll: false })
-    }, 300)
-    return () => clearTimeout(t)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchInput, searchParams])
-
   function clearFilters() {
     setSearchInput('')
     router.replace('?', { scroll: false })
   }
+
+  const [completedOpen, setCompletedOpen] = useState(false)
 
   const { data: pendingTriageList = [] } = useQuery({
     ...orpc.admin.triage.list.queryOptions(),
@@ -245,7 +219,7 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
               ariaLabel="Status filter"
               value={statusFilter}
               options={STATUS_OPTIONS}
-              onChange={(v) => setParam('status', v)}
+              onChange={setStatusFilter}
             />
             <FilterDropdown
               id="needs-filter"
@@ -253,7 +227,7 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
               ariaLabel="Needs filter"
               value={needsFilter}
               options={NEEDS_OPTIONS}
-              onChange={(v) => setParam('needs', v)}
+              onChange={setNeedsFilter}
             />
             <FilterDropdown
               id="urgency-filter"
@@ -261,7 +235,7 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
               ariaLabel="Urgency filter"
               value={urgencyFilter}
               options={URGENCY_OPTIONS}
-              onChange={(v) => setParam('urgency', v)}
+              onChange={setUrgencyFilter}
             />
 
             <FilterDropdown
@@ -270,7 +244,7 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
               ariaLabel="Country/Group filter"
               value={locationFilter}
               options={buildLocationOptions(localGroups)}
-              onChange={(v) => setParam('location', v)}
+              onChange={setLocationFilter}
               searchable
             />
 
@@ -280,7 +254,7 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
               ariaLabel="Sort filter"
               value={sortBy}
               options={SORT_OPTIONS}
-              onChange={(v) => setParam('sort', v)}
+              onChange={setSortBy}
             />
 
             {hasFilters && (
