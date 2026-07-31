@@ -22,6 +22,16 @@ interface SelectedSkill {
   proficiencyLevel: string
 }
 
+// Reads plain text/textarea fields from the actual submitted DOM via FormData
+// rather than React state, so browser/password-manager autofill that sets
+// input.value without firing a React-visible change event can't silently
+// submit empty optional fields (autofill bypasses onChange, but never bypasses
+// what's actually in the DOM at submit time).
+function textField(formData: FormData, key: string): string | undefined {
+  const value = formData.get(key)
+  return typeof value === 'string' && value !== '' ? value : undefined
+}
+
 export default function SignupPage() {
   const router = useRouter()
   const { user, loading, setToken } = useAuth()
@@ -198,29 +208,32 @@ export default function SignupPage() {
     setLocalGroupValue('')
   }
 
-  async function handleGoogleApplicationSubmit(e: FormEvent) {
+  async function handleGoogleApplicationSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (!googlePendingToken) return
     setGoogleApplicationSubmitting(true)
     // Write directly to localStorage (not setToken) so the orpc client sends
     // the auth header without triggering auth state and the dashboard redirect.
     localStorage.setItem('authToken', googlePendingToken)
+    const formData = new FormData(e.currentTarget)
     try {
       await updateMeMutation.mutateAsync({
-        name,
-        applicationMessage: googleApplicationMessage,
-        bio: bio || undefined,
-        discordHandle: discord || undefined,
-        signalNumber: signal || undefined,
-        whatsappNumber: whatsapp || undefined,
+        name: formData.get('name') as string,
+        applicationMessage: formData.get('applicationMessage') as string,
+        bio: textField(formData, 'bio'),
+        discordHandle: textField(formData, 'discordHandle'),
+        signalNumber: textField(formData, 'signalNumber'),
+        whatsappNumber: textField(formData, 'whatsappNumber'),
         contactPreference: contactPref || undefined,
-        contactNotes: contactNotes || undefined,
-        availabilityHoursPerWeek: availability ? Number(availability) : undefined,
-        location: location || undefined,
+        contactNotes: textField(formData, 'contactNotes'),
+        availabilityHoursPerWeek: textField(formData, 'availabilityHoursPerWeek')
+          ? Number(formData.get('availabilityHoursPerWeek'))
+          : undefined,
+        location: textField(formData, 'location'),
         country: countryValue || undefined,
         localGroup:
           localGroupValue && localGroupValue !== NO_LOCAL_GROUP ? localGroupValue : undefined,
-        otherSkills: otherSkills || undefined,
+        otherSkills: textField(formData, 'otherSkills'),
         skillIds: skills.map((s) => s.skillId),
         consentMakeProfileVisibleInDirectory: consentVisible,
         consentContactableByProjectOwners: consentContact,
@@ -265,11 +278,15 @@ export default function SignupPage() {
     initGoogleButton()
   }, [initGoogleButton])
 
-  async function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError('')
 
-    if (password !== passwordConfirm) {
+    const formData = new FormData(e.currentTarget)
+    const password = formData.get('password') as string
+    const passwordConfirmValue = formData.get('password_confirm') as string
+
+    if (password !== passwordConfirmValue) {
       setError('Passwords do not match')
       return
     }
@@ -281,22 +298,24 @@ export default function SignupPage() {
     setSubmitting(true)
     try {
       const data = await signupMutation.mutateAsync({
-        name,
-        email: email.trim(),
+        name: formData.get('name') as string,
+        email: (formData.get('email') as string).trim(),
         password,
-        applicationMessage: applicationMessage || undefined,
-        bio: bio || undefined,
-        discordHandle: discord || undefined,
-        signalNumber: signal || undefined,
-        whatsappNumber: whatsapp || undefined,
+        applicationMessage: formData.get('applicationMessage') as string,
+        bio: textField(formData, 'bio'),
+        discordHandle: textField(formData, 'discordHandle'),
+        signalNumber: textField(formData, 'signalNumber'),
+        whatsappNumber: textField(formData, 'whatsappNumber'),
         contactPreference: contactPref || undefined,
-        contactNotes: contactNotes || undefined,
-        availabilityHoursPerWeek: availability ? Number(availability) : undefined,
-        location: location || undefined,
+        contactNotes: textField(formData, 'contactNotes'),
+        availabilityHoursPerWeek: textField(formData, 'availabilityHoursPerWeek')
+          ? Number(formData.get('availabilityHoursPerWeek'))
+          : undefined,
+        location: textField(formData, 'location'),
         country: countryValue || undefined,
         localGroup:
           localGroupValue && localGroupValue !== NO_LOCAL_GROUP ? localGroupValue : undefined,
-        otherSkills: otherSkills || undefined,
+        otherSkills: textField(formData, 'otherSkills'),
         skillIds: skills.map((s) => s.skillId),
         consentMakeProfileVisibleInDirectory: consentVisible,
         consentContactableByProjectOwners: consentContact,
@@ -352,6 +371,8 @@ export default function SignupPage() {
                 <input
                   type="text"
                   id="g_name"
+                  name="name"
+                  autoComplete="name"
                   required
                   placeholder="How should we call you?"
                   value={name}
@@ -370,6 +391,8 @@ export default function SignupPage() {
                 </aside>
                 <textarea
                   id="g_applicationMessage"
+                  name="applicationMessage"
+                  autoComplete="off"
                   required
                   rows={6}
                   placeholder="Your connection to PauseAI, motivation, and how you'd like to contribute…"
@@ -386,6 +409,8 @@ export default function SignupPage() {
                 </aside>
                 <textarea
                   id="g_bio"
+                  name="bio"
+                  autoComplete="off"
                   placeholder="Your background and what brings you to PauseAI…"
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
@@ -403,6 +428,8 @@ export default function SignupPage() {
                   <input
                     type="text"
                     id="g_discord"
+                    name="discordHandle"
+                    autoComplete="off"
                     placeholder="username#1234"
                     value={discord}
                     onChange={(e) => setDiscord(e.target.value)}
@@ -413,6 +440,8 @@ export default function SignupPage() {
                   <input
                     type="text"
                     id="g_signal"
+                    name="signalNumber"
+                    autoComplete="tel"
                     placeholder="+44…"
                     value={signal}
                     onChange={(e) => setSignal(e.target.value)}
@@ -423,6 +452,8 @@ export default function SignupPage() {
                   <input
                     type="text"
                     id="g_whatsapp"
+                    name="whatsappNumber"
+                    autoComplete="tel"
                     placeholder="+44…"
                     value={whatsapp}
                     onChange={(e) => setWhatsapp(e.target.value)}
@@ -445,6 +476,8 @@ export default function SignupPage() {
                 <input
                   type="text"
                   id="g_contactNotes"
+                  name="contactNotes"
+                  autoComplete="off"
                   placeholder="e.g., Best to DM me on Discord first"
                   value={contactNotes}
                   onChange={(e) => setContactNotes(e.target.value)}
@@ -457,6 +490,8 @@ export default function SignupPage() {
                 <input
                   type="number"
                   id="g_availability"
+                  name="availabilityHoursPerWeek"
+                  autoComplete="off"
                   min={1}
                   max={40}
                   placeholder="e.g., 5"
@@ -494,6 +529,8 @@ export default function SignupPage() {
                   <input
                     type="text"
                     id="g_location"
+                    name="location"
+                    autoComplete="address-level2"
                     placeholder="e.g., Shoreditch"
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
@@ -512,6 +549,8 @@ export default function SignupPage() {
                 <input
                   type="text"
                   id="g_otherSkills"
+                  name="otherSkills"
+                  autoComplete="off"
                   placeholder="Any skills not listed above…"
                   value={otherSkills}
                   onChange={(e) => setOtherSkills(e.target.value)}
@@ -710,6 +749,7 @@ export default function SignupPage() {
                 type="text"
                 id="name"
                 name="name"
+                autoComplete="name"
                 required
                 placeholder="How should we call you?"
                 value={name}
@@ -725,6 +765,7 @@ export default function SignupPage() {
                 type="email"
                 id="email"
                 name="email"
+                autoComplete="email"
                 required
                 placeholder="you@example.com"
                 value={email}
@@ -743,6 +784,7 @@ export default function SignupPage() {
                 type="password"
                 id="password"
                 name="password"
+                autoComplete="new-password"
                 required
                 minLength={8}
                 placeholder="At least 8 characters"
@@ -759,6 +801,7 @@ export default function SignupPage() {
                 type="password"
                 id="password_confirm"
                 name="password_confirm"
+                autoComplete="new-password"
                 required
                 minLength={8}
                 placeholder="Type your password again"
@@ -779,6 +822,7 @@ export default function SignupPage() {
               <textarea
                 id="applicationMessage"
                 name="applicationMessage"
+                autoComplete="off"
                 required
                 rows={6}
                 placeholder="Your connection to PauseAI, motivation, and how you'd like to contribute…"
@@ -796,6 +840,7 @@ export default function SignupPage() {
               <textarea
                 id="bio"
                 name="bio"
+                autoComplete="off"
                 placeholder="Your background and what brings you to PauseAI…"
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
@@ -814,6 +859,7 @@ export default function SignupPage() {
                   type="text"
                   id="discord"
                   name="discordHandle"
+                  autoComplete="off"
                   placeholder="username#1234"
                   value={discord}
                   onChange={(e) => setDiscord(e.target.value)}
@@ -825,6 +871,7 @@ export default function SignupPage() {
                   type="text"
                   id="signal"
                   name="signalNumber"
+                  autoComplete="tel"
                   placeholder="+44…"
                   value={signal}
                   onChange={(e) => setSignal(e.target.value)}
@@ -836,6 +883,7 @@ export default function SignupPage() {
                   type="text"
                   id="whatsapp"
                   name="whatsappNumber"
+                  autoComplete="tel"
                   placeholder="+44…"
                   value={whatsapp}
                   onChange={(e) => setWhatsapp(e.target.value)}
@@ -859,6 +907,7 @@ export default function SignupPage() {
                 type="text"
                 id="contactNotes"
                 name="contactNotes"
+                autoComplete="off"
                 placeholder="e.g., Best to DM me on Discord first"
                 value={contactNotes}
                 onChange={(e) => setContactNotes(e.target.value)}
@@ -872,6 +921,7 @@ export default function SignupPage() {
                 type="number"
                 id="availability"
                 name="availabilityHoursPerWeek"
+                autoComplete="off"
                 min={1}
                 max={40}
                 placeholder="e.g., 5"
@@ -910,6 +960,7 @@ export default function SignupPage() {
                   type="text"
                   id="location"
                   name="location"
+                  autoComplete="address-level2"
                   placeholder="e.g., Shoreditch"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
@@ -929,6 +980,7 @@ export default function SignupPage() {
                 type="text"
                 id="otherSkills"
                 name="otherSkills"
+                autoComplete="off"
                 placeholder="Any skills not listed above…"
                 value={otherSkills}
                 onChange={(e) => setOtherSkills(e.target.value)}
