@@ -2,7 +2,7 @@
 
 import { useEffect, useState, FormEvent } from 'react'
 import { useRequireAuth } from '@/lib/hooks/auth'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import Checkbox from '@/components/Checkbox'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
@@ -67,7 +67,10 @@ export default function ProfilePage() {
   )
   const [skills, setSkills] = useState<SelectedSkill[]>([])
   const [otherSkills, setOtherSkills] = useState('')
-  const [initialized, setInitialized] = useState(false)
+  // Tracks which `me.updatedAt` the form fields were last synced from, so a fresh
+  // fetch (e.g. after saving) re-syncs even though a component-scoped `initialized`
+  // flag would otherwise ignore it.
+  const [syncedUpdatedAt, setSyncedUpdatedAt] = useState<string | null>(null)
 
   const { data: me, isPending: loadingProfile } = useQuery({
     ...orpc.auth.me.queryOptions(),
@@ -77,9 +80,11 @@ export default function ProfilePage() {
   const allLocalGroups: LocalGroupOption[] = localGroupsData?.groups ?? []
 
   useEffect(() => {
-    if (!me || initialized) return
+    if (!me) return
+    const updatedAtKey = String(me.updatedAt)
+    if (updatedAtKey === syncedUpdatedAt) return
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setInitialized(true)
+    setSyncedUpdatedAt(updatedAtKey)
     setName(me.name ?? '')
     setBio(me.bio ?? '')
     setLocation(me.location ?? '')
@@ -102,11 +107,14 @@ export default function ProfilePage() {
         proficiencyLevel: s.proficiencyLevel ?? 'intermediate',
       })),
     )
-  }, [me, initialized, setContactPreference, setEmailDigest])
+  }, [me, syncedUpdatedAt, setContactPreference, setEmailDigest])
+
+  const queryClient = useQueryClient()
 
   const updateMutation = useMutation({
     ...orpc.volunteers.updateMe.mutationOptions(),
     onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: orpc.auth.me.key() })
       await refreshUser()
       showToast('Profile updated!', 'success')
     },

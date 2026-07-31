@@ -33,9 +33,11 @@ export const volunteersRouter = {
         throw new ORPCError('FORBIDDEN', { message: 'Your account is pending approval' })
       }
 
+      const isAdmin = currentVolunteer?.isAdmin ?? false
+
       const where: Record<string, unknown> = {
         deletedAt: null,
-        consentMakeProfileVisibleInDirectory: true,
+        ...(isAdmin ? {} : { consentMakeProfileVisibleInDirectory: true }),
         approvalStatus: ApprovalStatus.approved,
         ...(input.skillIds && input.skillIds.length > 0
           ? { skills: { some: { skillId: { in: input.skillIds } } } }
@@ -80,6 +82,7 @@ export const volunteersRouter = {
             otherSkills: true,
             localGroup: true,
             createdAt: true,
+            consentMakeProfileVisibleInDirectory: true,
             skills: {
               include: { skill: { include: { category: true } } },
               orderBy: [
@@ -106,6 +109,7 @@ export const volunteersRouter = {
           otherSkills: v.otherSkills,
           localGroup: v.localGroup,
           createdAt: v.createdAt,
+          hiddenFromDirectory: isAdmin ? !v.consentMakeProfileVisibleInDirectory : false,
           skills: v.skills.map((vs) => ({
             id: vs.skill.id,
             categoryId: vs.skill.categoryId,

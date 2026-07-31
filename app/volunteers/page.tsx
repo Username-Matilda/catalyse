@@ -11,6 +11,7 @@ import { InferRouterOutputs } from '@orpc/server'
 import { orpc } from '@/lib/orpc'
 import { AppRouter } from '@/server/router'
 import { CARD_GRID_CLASSES } from '@/components/ProjectCard'
+import Tooltip from '@/components/Tooltip'
 
 type SkillCategory = InferRouterOutputs<AppRouter>['skills']['list'][number]
 type FlatSkill = SkillCategory['skills'][number] & { categoryName: string }
@@ -148,6 +149,13 @@ export default function VolunteersPage() {
                     >
                       {v.name}
                     </Link>
+                    {v.hiddenFromDirectory && (
+                      <Tooltip content="This volunteer has opted out of the directory. Only admins can see their profile here.">
+                        <span className="ml-2 inline-flex items-center px-1.5 py-0.5 bg-yellow-100 text-yellow-800 rounded text-xs font-medium dark:bg-yellow-900 dark:text-yellow-200">
+                          Hidden
+                        </span>
+                      </Tooltip>
+                    )}
                   </h3>
                   {(v.location || v.country || v.localGroup || v.availabilityHoursPerWeek) && (
                     <div className="flex items-center gap-3 flex-wrap text-xs text-text-light mb-2">

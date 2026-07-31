@@ -8,8 +8,10 @@ import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import { Badge } from '@/components/Badge'
+import Tooltip from '@/components/Tooltip'
 import { STATUS_LABELS, projectStatusVariant } from '@/components/ProjectCard'
 import CommentThread from '@/components/CommentThread'
+import Modal from '@/components/ui/Modal'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
@@ -73,14 +75,16 @@ function TaskAvatar({ name }: { name: string | null }) {
       />
     )
   }
+
   return (
-    <span
-      aria-label={`Assigned to ${name}`}
-      title={name}
-      className="w-6 h-6 rounded-full bg-secondary text-white text-xs font-semibold flex items-center justify-center shrink-0"
-    >
-      {initials(name)}
-    </span>
+    <Tooltip content={name}>
+      <span
+        aria-label={`Assigned to ${name}`}
+        className="w-6 h-6 rounded-full bg-secondary text-white text-xs font-semibold flex items-center justify-center shrink-0"
+      >
+        {initials(name)}
+      </span>
+    </Tooltip>
   )
 }
 
@@ -178,7 +182,7 @@ function SortableTaskItem({
   return (
     <li
       ref={setNodeRef}
-      className="group flex items-center gap-2 py-2 border-b border-brand-border last:border-0"
+      className="group flex items-start gap-2 py-2 border-b border-brand-border last:border-0"
       style={{
         // dynamic: drag transform/transition/opacity
         transform: CSS.Transform.toString(transform),
@@ -189,17 +193,19 @@ function SortableTaskItem({
       <span
         {...(draggable ? attributes : {})}
         {...(draggable ? listeners : {})}
-        className={`w-4 shrink-0 leading-none text-text-light text-center text-base opacity-60 group-hover:opacity-100 transition-opacity ${draggable ? 'cursor-grab' : ''}`}
+        className={`w-4 shrink-0 leading-none text-text-light text-center text-base opacity-60 group-hover:opacity-100 transition-opacity mt-1 ${draggable ? 'cursor-grab' : ''}`}
         title={draggable ? 'Drag to reorder' : undefined}
       >
         {draggable ? '⠿' : ''}
       </span>
-      <span className="flex-1 min-w-0 truncate">{title}</span>
-      <div className="flex items-center gap-2 shrink-0">{chips}</div>
-      {primaryAction}
-      <TaskAvatar name={assigneeName} />
+      <span className="flex-1 min-w-0 break-words">{title}</span>
+      <div className="flex items-center gap-2 shrink-0 mt-1">{chips}</div>
+      <div className="mt-1">{primaryAction}</div>
+      <div className="mt-1">
+        <TaskAvatar name={assigneeName} />
+      </div>
       {menu && (
-        <div className="opacity-60 group-hover:opacity-100 focus-within:opacity-100 has-aria-expanded:opacity-100 transition-opacity">
+        <div className="opacity-60 group-hover:opacity-100 focus-within:opacity-100 has-aria-expanded:opacity-100 transition-opacity mt-1">
           {menu}
         </div>
       )}
@@ -230,6 +236,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   // Status section
   const [newStatus, setNewStatus] = useState('')
+  const [pendingStatus, setPendingStatus] = useState<string | null>(null)
 
   // Interest section
   const [interestType, setInterestType] = useState('want_to_contribute')
@@ -592,12 +599,18 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     deleteTaskMutation.mutate({ projectId: parseInt(idParam, 10), taskId })
   }
 
-  function handleUpdateStatus(e: React.FormEvent) {
-    e.preventDefault()
+  function handleSelectStatus(value: string) {
     const validStatuses = Object.values(ProjectStatus)
-    const status = validStatuses.find((s) => s === newStatus)
-    if (!status) return
-    updateProjectMutation.mutate({ id: parseInt(idParam, 10), status })
+    const status = validStatuses.find((s) => s === value)
+    if (!status || status === newStatus) return
+    setPendingStatus(status)
+  }
+
+  function handleConfirmStatus() {
+    if (!pendingStatus) return
+    updateProjectMutation.mutate({ id: parseInt(idParam, 10), status: pendingStatus })
+    setNewStatus(pendingStatus)
+    setPendingStatus(null)
   }
 
   function handleExpressInterest(e: React.FormEvent) {
@@ -1060,21 +1073,39 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             {isOwnerOrAdmin && (
               <div className={card}>
                 <h2>Manage Project Status</h2>
-                <form onSubmit={handleUpdateStatus} className="flex gap-2 items-end flex-wrap">
-                  <div className="mb-0 flex-1 min-w-40">
-                    <FilterDropdown
-                      id="change-status"
-                      label="Change Status"
-                      ariaLabel="Change Status"
-                      value={newStatus}
-                      options={statusOptions}
-                      onChange={(v) => setNewStatus(v)}
-                    />
+                <FilterDropdown
+                  id="change-status"
+                  label="Change Status"
+                  ariaLabel="Change Status"
+                  value={newStatus}
+                  options={statusOptions}
+                  onChange={handleSelectStatus}
+                />
+                <Modal
+                  id="confirm-status-change"
+                  title="Change project status?"
+                  isOpen={pendingStatus !== null}
+                  onClose={() => setPendingStatus(null)}
+                >
+                  <p>
+                    Change status from <strong>{STATUS_LABELS[newStatus] ?? newStatus}</strong> to{' '}
+                    <strong>
+                      {pendingStatus ? (STATUS_LABELS[pendingStatus] ?? pendingStatus) : ''}
+                    </strong>
+                    ?
+                  </p>
+                  <div className="mt-4 flex justify-end gap-2">
+                    <Button variant="secondary" onClick={() => setPendingStatus(null)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleConfirmStatus}
+                      disabled={updateProjectMutation.isPending}
+                    >
+                      {updateProjectMutation.isPending ? 'Updating…' : 'Confirm'}
+                    </Button>
                   </div>
-                  <Button type="submit" disabled={updateProjectMutation.isPending}>
-                    {updateProjectMutation.isPending ? 'Updating…' : 'Update Status'}
-                  </Button>
-                </form>
+                </Modal>
               </div>
             )}
 

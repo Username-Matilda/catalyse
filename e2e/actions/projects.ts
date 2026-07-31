@@ -152,6 +152,6 @@ export async function setProjectStatus(
   })
 
   await selectFilterDropdown(page, 'Change Status', PROJECT_STATUS_LABELS[status] ?? status)
-  await page.getByRole('button', { name: 'Update Status' }).click()
+  await page.getByRole('button', { name: 'Confirm' }).click()
   await expect(getAlert(page)).toBeVisible({ timeout: 10_000 })
 }
