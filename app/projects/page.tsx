@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { useRequireApproved } from '@/lib/hooks/auth'
 import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
 import Button from '@/components/Button'
-import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
+import FilterDropdown from '@/components/FilterDropdown'
 import { buildLocationOptions, type LocalGroupOption } from '@/lib/filter-options'
 import { InferRouterInputs } from '@orpc/server'
 import { ORPCError } from '@orpc/client'
@@ -44,29 +45,51 @@ const SORT_OPTIONS = [
   { value: 'urgency', label: 'Most urgent' },
 ] as const
 
-export default function ProjectsPage() {
-  const { user, loading } = useRequireApproved()
-  const userSkillIds = new Set(user?.skills?.map((s) => s.id) ?? [])
-  const [search, setSearch] = useState('')
-  const { value: statusFilter, onChange: setStatusFilter } = useFilterOptions(STATUS_OPTIONS, '')
-  const { value: needsFilter, onChange: setNeedsFilter } = useFilterOptions(NEEDS_OPTIONS, '')
-  const { value: urgencyFilter, onChange: setUrgencyFilter } = useFilterOptions(URGENCY_OPTIONS, '')
-  const [locationFilter, setLocationFilter] = useState('')
-  const { value: sortBy, onChange: setSortBy } = useFilterOptions(SORT_OPTIONS, '')
-  const [completedOpen, setCompletedOpen] = useState(false)
-  const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [debouncedLocationFilter, setDebouncedLocationFilter] = useState('')
+type ApprovedUser = NonNullable<ReturnType<typeof useRequireApproved>['user']>
 
+function ProjectsPageContent({ user }: { user: ApprovedUser }) {
+  const userSkillIds = new Set(user.skills.map((s) => s.id))
+  const searchParams = useSearchParams()
+  const router = useRouter()
+
+  const urlSearch = searchParams.get('q') ?? ''
+  const statusFilter = searchParams.get('status') ?? ''
+  const needsFilter = searchParams.get('needs') ?? ''
+  const urgencyFilter = searchParams.get('urgency') ?? ''
+  const locationFilter = searchParams.get('location') ?? ''
+  const sortBy = searchParams.get('sort') ?? ''
+
+  const [searchInput, setSearchInput] = useState(urlSearch)
+  const [completedOpen, setCompletedOpen] = useState(false)
+
+  function setParam(key: string, value: string) {
+    const params = new URLSearchParams(searchParams.toString())
+    if (value) params.set(key, value)
+    else params.delete(key)
+    router.replace(`?${params.toString()}`, { scroll: false })
+  }
+
+  // Debounce search input -> URL. Guard skips the update when searchInput
+  // already matches the URL (on mount or after a URL-driven reset), preventing
+  // a spurious router.replace that races against auth redirects.
+  // searchParams in deps ensures stale filter state is not clobbered if a
+  // dropdown fires during the debounce window.
   useEffect(() => {
-    const t = setTimeout(
-      () => {
-        setDebouncedSearch(search)
-        setDebouncedLocationFilter(locationFilter)
-      },
-      search || locationFilter ? 300 : 0,
-    )
+    if (searchInput === urlSearch) return
+    const t = setTimeout(() => {
+      const params = new URLSearchParams(searchParams.toString())
+      if (searchInput) params.set('q', searchInput)
+      else params.delete('q')
+      router.replace(`?${params.toString()}`, { scroll: false })
+    }, 300)
     return () => clearTimeout(t)
-  }, [search, locationFilter])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchInput, searchParams])
+
+  function clearFilters() {
+    setSearchInput('')
+    router.replace('?', { scroll: false })
+  }
 
   const { data: pendingTriageList = [] } = useQuery({
     ...orpc.admin.triage.list.queryOptions(),
@@ -87,15 +110,15 @@ export default function ProjectsPage() {
   const localGroups: LocalGroupOption[] = localGroupsData?.groups ?? []
 
   const projectsInput: InferRouterInputs<AppRouter>['projects']['list'] = {}
-  if (debouncedSearch) projectsInput.search = debouncedSearch
+  if (urlSearch) projectsInput.search = urlSearch
   if (statusFilter) projectsInput.status = statusFilter
   if (needsFilter === 'looking_for_people') projectsInput.isSeekingAny = true
   else if (needsFilter === 'seeking_help') projectsInput.isSeekingHelp = true
   else if (needsFilter === 'seeking_owner') projectsInput.isSeekingOwner = true
   else if (needsFilter === 'not_seeking') projectsInput.notSeeking = true
   if (urgencyFilter) projectsInput.urgency = urgencyFilter
-  if (debouncedLocationFilter) {
-    const [country, localGroup] = debouncedLocationFilter.split(':')
+  if (locationFilter) {
+    const [country, localGroup] = locationFilter.split(':')
     projectsInput.country = country
     if (localGroup) projectsInput.localGroup = localGroup
   }
@@ -112,16 +135,7 @@ export default function ProjectsPage() {
   const projects = projectsData?.projects ?? []
 
   const hasFilters =
-    search || statusFilter || needsFilter || urgencyFilter || locationFilter || sortBy
-
-  function clearFilters() {
-    setSearch('')
-    setStatusFilter('')
-    setNeedsFilter('')
-    setUrgencyFilter('')
-    setLocationFilter('')
-    setSortBy('')
-  }
+    searchInput || statusFilter || needsFilter || urgencyFilter || locationFilter || sortBy
 
   function byMatchScore(a: Project, b: Project) {
     const scoreA = a.match?.matchedRequiredCount ?? 0
@@ -184,8 +198,6 @@ export default function ProjectsPage() {
     },
   ]
 
-  if (loading || !user) return null
-
   return (
     <>
       <main className="container py-5 pb-15">
@@ -222,8 +234,8 @@ export default function ProjectsPage() {
               type="search"
               aria-label="Search"
               placeholder="Search projects…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
             />
           </div>
           <div className="flex gap-3 flex-wrap items-end">
@@ -233,7 +245,7 @@ export default function ProjectsPage() {
               ariaLabel="Status filter"
               value={statusFilter}
               options={STATUS_OPTIONS}
-              onChange={setStatusFilter}
+              onChange={(v) => setParam('status', v)}
             />
             <FilterDropdown
               id="needs-filter"
@@ -241,7 +253,7 @@ export default function ProjectsPage() {
               ariaLabel="Needs filter"
               value={needsFilter}
               options={NEEDS_OPTIONS}
-              onChange={setNeedsFilter}
+              onChange={(v) => setParam('needs', v)}
             />
             <FilterDropdown
               id="urgency-filter"
@@ -249,7 +261,7 @@ export default function ProjectsPage() {
               ariaLabel="Urgency filter"
               value={urgencyFilter}
               options={URGENCY_OPTIONS}
-              onChange={setUrgencyFilter}
+              onChange={(v) => setParam('urgency', v)}
             />
 
             <FilterDropdown
@@ -258,7 +270,7 @@ export default function ProjectsPage() {
               ariaLabel="Country/Group filter"
               value={locationFilter}
               options={buildLocationOptions(localGroups)}
-              onChange={setLocationFilter}
+              onChange={(v) => setParam('location', v)}
               searchable
             />
 
@@ -268,7 +280,7 @@ export default function ProjectsPage() {
               ariaLabel="Sort filter"
               value={sortBy}
               options={SORT_OPTIONS}
-              onChange={setSortBy}
+              onChange={(v) => setParam('sort', v)}
             />
 
             {hasFilters && (
@@ -283,7 +295,7 @@ export default function ProjectsPage() {
           <div className="text-center py-10 text-text-light">Loading projects…</div>
         ) : projectsError ? (
           <div className="text-center py-15 px-5 text-text-light">
-            <h3>Couldn’t load projects</h3>
+            <h3>Couldn&#39;t load projects</h3>
             <p>
               {projectsError instanceof Error
                 ? projectsError.message
@@ -386,5 +398,17 @@ export default function ProjectsPage() {
         )}
       </main>
     </>
+  )
+}
+
+export default function ProjectsPage() {
+  const { user, loading } = useRequireApproved()
+
+  if (loading || !user) return null
+
+  return (
+    <Suspense>
+      <ProjectsPageContent user={user} />
+    </Suspense>
   )
 }
