@@ -37,6 +37,14 @@ async function updateReportStatus(
   }
   await adminPage.getByRole('button', { name: 'Update' }).click()
   await expect(getAlert(adminPage)).toContainText('Report updated!', { timeout: 10_000 })
+
+  // The /bugs/[id] detail page (introduced alongside the comment threads) doesn't redirect
+  // back to the list on save — admins land back on /admin/bugs via this link, same as a user
+  // would.
+  await adminPage.getByRole('link', { name: 'Back to Bug Reports' }).click()
+  await expect(
+    adminPage.getByRole('heading', { name: 'Bug Reports & Feedback', level: 1 }),
+  ).toBeVisible({ timeout: 10_000 })
 }
 
 test.describe('Bug Report Management', () => {
