@@ -131,10 +131,25 @@ model BugReport {
   createdAt       DateTime?  @default(now()) @map("created_at")
   resolvedBy      Volunteer? @relation("BugReportResolvedBy", fields: [resolvedById], references: [id], onUpdate: NoAction)
   reporter        Volunteer? @relation("BugReportReporter", fields: [reporterId], references: [id], onUpdate: NoAction)
+  comments        BugReportComment[]
 
   @@index([reporterId], map: "idx_bug_reports_reporter")
   @@index([status], map: "idx_bug_reports_status")
   @@map("bug_reports")
+}
+
+model BugReportComment {
+  id          Int       @id @default(autoincrement())
+  bugReportId Int       @map("bug_report_id")
+  authorId    Int       @map("author_id")
+  /// @zod.string.min(1, { message: "Content is required" })
+  content     String
+  createdAt   DateTime? @default(now()) @map("created_at")
+  author      Volunteer @relation("BugReportCommentAuthor", fields: [authorId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  bugReport   BugReport @relation(fields: [bugReportId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([bugReportId, createdAt], map: "idx_bug_report_comments_thread")
+  @@map("bug_report_comments")
 }
 
 model Message {
@@ -503,6 +518,7 @@ model Volunteer {
   adminNotesAbout                         AdminNote[]              @relation("AdminNoteVolunteer")
   bugReportsResolved                      BugReport[]              @relation("BugReportResolvedBy")
   bugReportsReported                      BugReport[]              @relation("BugReportReporter")
+  bugReportComments                       BugReportComment[]       @relation("BugReportCommentAuthor")
   messagesSent                            Message[]                @relation("MessageFrom")
   messagesReceived                        Message[]                @relation("MessageTo")
   notifications                           Notification[]

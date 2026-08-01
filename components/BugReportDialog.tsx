@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useMutation } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
@@ -39,6 +40,7 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
     'medium',
   )
   const [success, setSuccess] = useState(false)
+  const [reportId, setReportId] = useState<number | null>(null)
   const [error, setError] = useState('')
   const [descriptionInvalid, setDescriptionInvalid] = useState(false)
   const createMutation = useMutation({ ...orpc.bugReports.create.mutationOptions() })
@@ -52,6 +54,7 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
     setEmail('')
     setSeverity('medium')
     setSuccess(false)
+    setReportId(null)
     setError('')
     setDescriptionInvalid(false)
   }
@@ -78,7 +81,10 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
         severity,
       },
       {
-        onSuccess: () => setSuccess(true),
+        onSuccess: (data) => {
+          setSuccess(true)
+          setReportId(data.id)
+        },
         onError: (err) => setError(err instanceof Error ? err.message : 'Something went wrong'),
       },
     )
@@ -109,6 +115,13 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
             <div className="text-center py-5">
               <h3 role="heading">Thank you!</h3>
               <p>Your feedback has been submitted.</p>
+              {user && reportId && (
+                <p>
+                  <Link href={`/bugs/${reportId}`} className="underline" onClick={handleClose}>
+                    View your report
+                  </Link>
+                </p>
+              )}
               <Button onClick={handleClose}>Close</Button>
             </div>
           ) : (

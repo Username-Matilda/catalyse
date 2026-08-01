@@ -869,7 +869,14 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                             key={task.id}
                             task={task}
                             draggable={isOwnerOrAdmin}
-                            title={task.title}
+                            title={
+                              <Link
+                                href={`/projects/${idParam}/tasks/${task.id}`}
+                                className="hover:underline"
+                              >
+                                {task.title}
+                              </Link>
+                            }
                             assigneeName={
                               task.status !== TaskStatus.completed ? task.assignedToName : null
                             }

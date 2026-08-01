@@ -5,24 +5,28 @@ import CommentThreadView from './CommentThreadView'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 
-interface CommentThreadProps {
-  workItemId: number
+interface BugReportCommentThreadProps {
+  bugReportId: number
   emptyText?: string
   placeholder?: string
 }
 
-export default function CommentThread({ workItemId, emptyText, placeholder }: CommentThreadProps) {
+export default function BugReportCommentThread({
+  bugReportId,
+  emptyText,
+  placeholder,
+}: BugReportCommentThreadProps) {
   const queryClient = useQueryClient()
   const showToast = useToast()
 
   const { data, isPending } = useQuery({
-    ...orpc.workItemComments.list.queryOptions({ input: { workItemId } }),
+    ...orpc.bugReportComments.list.queryOptions({ input: { bugReportId } }),
   })
 
   const addMutation = useMutation({
-    ...orpc.workItemComments.add.mutationOptions(),
+    ...orpc.bugReportComments.add.mutationOptions(),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: orpc.workItemComments.list.key() })
+      void queryClient.invalidateQueries({ queryKey: orpc.bugReportComments.list.key() })
       showToast('Comment added', 'success')
     },
     onError: (err: unknown) =>
@@ -37,7 +41,7 @@ export default function CommentThread({ workItemId, emptyText, placeholder }: Co
       isSubmitting={addMutation.isPending}
       onSubmit={async (content) => {
         try {
-          await addMutation.mutateAsync({ workItemId, content })
+          await addMutation.mutateAsync({ bugReportId, content })
           return true
         } catch {
           return false

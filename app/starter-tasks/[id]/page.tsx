@@ -8,6 +8,7 @@ import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import Button from '@/components/Button'
 import { Badge } from '@/components/Badge'
+import CommentThread from '@/components/CommentThread'
 import { STARTER_TASK_STATUS_LABELS } from '@/components/ProjectCard'
 import { StarterTaskStatus } from '@/generated/prisma/enums'
 
@@ -130,6 +131,11 @@ export default function StarterTaskDetailPage({ params }: { params: Promise<{ id
         {task.status === StarterTaskStatus.under_review && (
           <p className="text-text-light text-sm">Your submission is awaiting review.</p>
         )}
+      </div>
+
+      <div className="bg-surface rounded-xl shadow p-6">
+        <h2 className="text-lg mb-4">Comments</h2>
+        <CommentThread workItemId={task.id} />
       </div>
     </main>
   )

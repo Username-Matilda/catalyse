@@ -28,13 +28,14 @@ async function updateReportStatus(
   const card = adminPage.locator('.card').filter({ hasText: reportTitle })
   await expect(card).toBeVisible({ timeout: 10_000 })
   await card.click()
-  const modal = adminPage.getByRole('dialog', { name: reportTitle })
-  await expect(modal).toBeVisible({ timeout: 10_000 })
-  await selectFilterDropdown(adminPage, 'Status', BUG_STATUS_LABELS[status] ?? status, modal)
+  await expect(adminPage.getByRole('heading', { name: reportTitle, level: 1 })).toBeVisible({
+    timeout: 10_000,
+  })
+  await selectFilterDropdown(adminPage, 'Status', BUG_STATUS_LABELS[status] ?? status)
   if (resolutionNotes) {
-    await modal.getByLabel('Resolution Notes').fill(resolutionNotes)
+    await adminPage.getByLabel('Resolution Notes').fill(resolutionNotes)
   }
-  await modal.getByRole('button', { name: 'Update' }).click()
+  await adminPage.getByRole('button', { name: 'Update' }).click()
   await expect(getAlert(adminPage)).toContainText('Report updated!', { timeout: 10_000 })
 }
 
@@ -120,9 +121,10 @@ test.describe('Bug Report Management', () => {
     await expect(card).toContainText('resolved')
 
     await card.click()
-    const modal = adminPage.getByRole('dialog', { name: title })
-    await expect(modal).toBeVisible({ timeout: 10_000 })
-    await expect(modal.getByLabel('Resolution Notes')).toHaveValue(notes)
+    await expect(adminPage.getByRole('heading', { name: title, level: 1 })).toBeVisible({
+      timeout: 10_000,
+    })
+    await expect(adminPage.getByLabel('Resolution Notes')).toHaveValue(notes)
   })
 
   test('Admin marks a bug report as wont_fix', async ({ adminPage, volunteer, baseUrl }) => {

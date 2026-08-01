@@ -2,7 +2,12 @@ import { z } from 'zod'
 import { ORPCError } from '@orpc/server'
 import { Prisma } from '@/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
-import { withProjectExtras, projectInclude, EnrichedProject } from '@/lib/work-item'
+import {
+  withProjectExtras,
+  projectInclude,
+  EnrichedProject,
+  canViewWorkItem,
+} from '@/lib/work-item'
 import { notifyUser, notifyAdmins } from '@/lib/notify'
 import {
   CreateProjectSchema,
@@ -824,6 +829,50 @@ export const projectsRouter = {
         createdAt: t.createdAt,
         updatedAt: t.updatedAt,
       }))
+    }),
+
+  getTask: approvedProcedure
+    .input(z.object({ projectId: z.number().int(), taskId: z.number().int() }))
+    .handler(async ({ input, context }) => {
+      const volunteer = context.volunteer
+
+      const project = await prisma.workItem.findFirst({
+        where: { id: input.projectId, type: WorkItemType.PROJECT },
+      })
+      if (!project) throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
+
+      const task = await prisma.workItem.findFirst({
+        where: { id: input.taskId, parentId: input.projectId, type: WorkItemType.TASK },
+        include: {
+          assignee: { select: { name: true } },
+          creator: { select: { name: true } },
+        },
+      })
+      if (!task) throw new ORPCError('NOT_FOUND', { message: 'Task not found' })
+
+      if (
+        !canViewWorkItem(task, { id: volunteer.id, isAdmin: Boolean(volunteer.isAdmin) }, project)
+      ) {
+        throw new ORPCError('NOT_FOUND', { message: 'Task not found' })
+      }
+
+      return {
+        id: task.id,
+        projectId: task.parentId,
+        projectTitle: project.title,
+        title: task.title,
+        description: task.description,
+        assignedToId: task.assigneeId,
+        assignedToName: task.assignee?.name ?? null,
+        createdById: task.creatorId,
+        createdByName: task.creator?.name ?? null,
+        status: task.status,
+        estimatedHours: task.estimatedHours,
+        deadline: task.deadline,
+        completedAt: task.completedAt,
+        createdAt: task.createdAt,
+        updatedAt: task.updatedAt,
+      }
     }),
 
   createTask: approvedProcedure
