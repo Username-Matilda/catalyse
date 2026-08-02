@@ -95,9 +95,8 @@ export default function AdminStarterTasksPage() {
   const [editSkillId, setEditSkillId] = useState('')
   const [editHours, setEditHours] = useState('')
 
-  // Assign modal
-  const [assignModal, setAssignModal] = useState<StarterTask | null>(null)
-  const [assignVolunteerId, setAssignVolunteerId] = useState('')
+  // Assign — inline dropdown per task, matching the project-task assign pattern
+  const [taskAssignSelections, setTaskAssignSelections] = useState<Record<number, string>>({})
 
   // Review modal
   const [reviewModal, setReviewModal] = useState<StarterTask | null>(null)
@@ -106,8 +105,6 @@ export default function AdminStarterTasksPage() {
   )
   const [reviewFeedback, setReviewFeedback] = useState('')
   const [reviewNotes, setReviewNotes] = useState('')
-
-  const [unassignModal, setUnassignModal] = useState<StarterTask | null>(null)
 
   const { data: tasksRaw = [], isPending: loadingData } = useQuery({
     ...orpc.starterTasks.list.queryOptions({
@@ -194,9 +191,13 @@ export default function AdminStarterTasksPage() {
 
   const assignTaskMutation = useMutation({
     ...orpc.starterTasks.assign.mutationOptions(),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       toast('Task assigned!', 'success')
-      setAssignModal(null)
+      setTaskAssignSelections((s) => {
+        const next = { ...s }
+        delete next[variables.id]
+        return next
+      })
       void queryClient.invalidateQueries({ queryKey: orpc.starterTasks.list.key() })
     },
     onError: (err: unknown) =>
@@ -207,7 +208,6 @@ export default function AdminStarterTasksPage() {
     ...orpc.starterTasks.unassign.mutationOptions(),
     onSuccess: () => {
       toast('Assignee removed', 'success')
-      setUnassignModal(null)
       void queryClient.invalidateQueries({ queryKey: orpc.starterTasks.list.key() })
     },
     onError: (err: unknown) =>
@@ -265,18 +265,14 @@ export default function AdminStarterTasksPage() {
     })
   }
 
-  function assignTask(e: React.FormEvent) {
-    e.preventDefault()
-    if (!assignModal) return
-    assignTaskMutation.mutate({
-      id: assignModal.id,
-      volunteerId: parseInt(assignVolunteerId),
-    })
+  function handleAssignTask(taskId: number) {
+    const selected = taskAssignSelections[taskId]
+    if (!selected) return
+    assignTaskMutation.mutate({ id: taskId, volunteerId: parseInt(selected, 10) })
   }
 
-  function unassignTask() {
-    if (!unassignModal) return
-    unassignTaskMutation.mutate({ id: unassignModal.id })
+  function handleUnassignTask(taskId: number) {
+    unassignTaskMutation.mutate({ id: taskId })
   }
 
   function deleteTask(task: StarterTask) {
@@ -408,6 +404,38 @@ export default function AdminStarterTasksPage() {
                       <CommentThread workItemId={task.id} />
                     </div>
 
+                    {task.status === StarterTaskStatus.open && (
+                      <div
+                        className="flex gap-2 items-end mb-3"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="flex-1 max-w-75">
+                          <FilterDropdown
+                            id={`assign-task-${task.id}`}
+                            label="Assign to"
+                            ariaLabel={`Assign volunteer to ${task.title}`}
+                            value={taskAssignSelections[task.id] ?? ''}
+                            options={[
+                              { value: '', label: 'Select volunteer…' },
+                              ...volunteers.map((v) => ({ value: String(v.id), label: v.name })),
+                            ]}
+                            onChange={(v) =>
+                              setTaskAssignSelections((s) => ({ ...s, [task.id]: v }))
+                            }
+                            searchable
+                          />
+                        </div>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          disabled={!taskAssignSelections[task.id] || assignTaskMutation.isPending}
+                          onClick={() => handleAssignTask(task.id)}
+                        >
+                          Assign
+                        </Button>
+                      </div>
+                    )}
+
                     <div className="flex justify-between items-center mt-3 pt-3 border-t border-brand-border">
                       <span className="text-sm text-text-light">
                         Created {formatDate(task.createdAt)}
@@ -443,26 +471,14 @@ export default function AdminStarterTasksPage() {
                         >
                           Delete
                         </Button>
-                        {task.status === StarterTaskStatus.open && (
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setAssignModal(task)
-                              setAssignVolunteerId('')
-                            }}
-                          >
-                            Assign
-                          </Button>
-                        )}
                         {task.assignedToId && (
                           <Button
                             variant="secondary"
                             size="sm"
+                            disabled={unassignTaskMutation.isPending}
                             onClick={(e) => {
                               e.stopPropagation()
-                              setUnassignModal(task)
+                              handleUnassignTask(task.id)
                             }}
                           >
                             Unassign
@@ -663,53 +679,6 @@ export default function AdminStarterTasksPage() {
         </div>
       )}
 
-      {/* Assign Task Modal */}
-      {assignModal && (
-        <div
-          className="fixed inset-0 bg-[rgba(29,53,87,0.5)] flex items-center justify-center z-1000 p-5"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setAssignModal(null)
-          }}
-        >
-          <div
-            role="dialog"
-            aria-labelledby="assign-dialog-title"
-            className="bg-surface rounded-xl shadow-lg max-w-125 w-full max-h-[90vh] overflow-y-auto"
-          >
-            <div className="px-6 py-5 border-b border-brand-border flex justify-between items-center">
-              <h2 id="assign-dialog-title">Assign Task</h2>
-            </div>
-            <div className="p-6">
-              <p className="text-text-light mb-4">{assignModal.title}</p>
-              <form onSubmit={assignTask}>
-                <div className="mb-5">
-                  <FilterDropdown
-                    id="assign-vol"
-                    label="Volunteer"
-                    ariaLabel="Volunteer"
-                    value={assignVolunteerId}
-                    options={[
-                      { value: '', label: 'Select volunteer…' },
-                      ...volunteers.map((v) => ({ value: String(v.id), label: v.name })),
-                    ]}
-                    onChange={(v) => setAssignVolunteerId(v)}
-                    searchable
-                  />
-                </div>
-                <div className="px-0 py-4 border-t border-brand-border flex gap-3 justify-end">
-                  <Button type="button" variant="secondary" onClick={() => setAssignModal(null)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={assignTaskMutation.isPending}>
-                    Assign
-                  </Button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Review Task Modal */}
       {reviewModal !== null && (
         <div
@@ -784,43 +753,6 @@ export default function AdminStarterTasksPage() {
                   </Button>
                 </div>
               </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Unassign Confirm Modal */}
-      {unassignModal && (
-        <div
-          className="fixed inset-0 bg-[rgba(29,53,87,0.5)] flex items-center justify-center z-1000 p-5"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setUnassignModal(null)
-          }}
-        >
-          <div
-            role="dialog"
-            aria-labelledby="unassign-dialog-title"
-            className="bg-surface rounded-xl shadow-lg max-w-125 w-full"
-          >
-            <div className="px-6 py-5 border-b border-brand-border">
-              <h2 id="unassign-dialog-title">Unassign Volunteer?</h2>
-            </div>
-            <div className="p-6">
-              <p className="text-text-light mb-6">
-                Remove{' '}
-                <Link href={`/admin/volunteers/${unassignModal.assignedToId}`}>
-                  {unassignModal.assignedToName}
-                </Link>{' '}
-                from &ldquo;{unassignModal.title}&rdquo;? The task will return to open.
-              </p>
-              <div className="flex gap-3 justify-end">
-                <Button variant="secondary" onClick={() => setUnassignModal(null)}>
-                  Cancel
-                </Button>
-                <Button onClick={unassignTask} disabled={unassignTaskMutation.isPending}>
-                  {unassignTaskMutation.isPending ? 'Removing…' : 'Unassign'}
-                </Button>
-              </div>
             </div>
           </div>
         </div>

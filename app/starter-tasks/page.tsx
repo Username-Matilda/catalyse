@@ -1,13 +1,13 @@
 'use client'
 
-import { useRequireAuth } from '@/lib/hooks/auth'
+import { useRequireApproved } from '@/lib/hooks/auth'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import Button from '@/components/Button'
 import { Badge } from '@/components/Badge'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
-import { StarterTaskStatus } from '@/generated/prisma/enums'
+import { StarterTaskStatus, TaskStatus } from '@/generated/prisma/enums'
 
 const STATUS_LABELS: Record<string, string> = {
   assigned: 'Assigned',
@@ -17,12 +17,17 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 export default function StarterTasksPage() {
-  const { user, loading } = useRequireAuth()
+  const { user, loading } = useRequireApproved()
   const showToast = useToast()
   const queryClient = useQueryClient()
 
   const { data: tasks = [], isLoading: loadingTasks } = useQuery({
     ...orpc.my.starterTasks.queryOptions(),
+    enabled: !!user,
+  })
+
+  const { data: availableTasks = [], isLoading: loadingAvailable } = useQuery({
+    ...orpc.starterTasks.available.queryOptions(),
     enabled: !!user,
   })
 
@@ -35,6 +40,31 @@ export default function StarterTasksPage() {
     onError: (err: unknown) => {
       showToast(err instanceof Error ? err.message : 'Failed to submit task', 'error')
     },
+  })
+
+  const invalidateAvailable = () => {
+    void queryClient.invalidateQueries({ queryKey: orpc.starterTasks.available.key() })
+    void queryClient.invalidateQueries({ queryKey: orpc.my.starterTasks.key() })
+  }
+
+  const claimStarterMutation = useMutation({
+    ...orpc.starterTasks.claim.mutationOptions(),
+    onSuccess: () => {
+      showToast('Task claimed!', 'success')
+      invalidateAvailable()
+    },
+    onError: (err: unknown) =>
+      showToast(err instanceof Error ? err.message : 'Failed to claim task', 'error'),
+  })
+
+  const claimProjectTaskMutation = useMutation({
+    ...orpc.projects.updateTask.mutationOptions(),
+    onSuccess: () => {
+      showToast('Task claimed!', 'success')
+      invalidateAvailable()
+    },
+    onError: (err: unknown) =>
+      showToast(err instanceof Error ? err.message : 'Failed to claim task', 'error'),
   })
 
   if (loading || !user) return null
@@ -103,6 +133,95 @@ export default function StarterTasksPage() {
               )}
             </div>
           ))
+        )}
+
+        <h2 className="mt-8">Browse Quick Tasks</h2>
+        <p className="text-text-light mb-6">
+          Open tasks anyone approved can pick up right now — no need to browse projects first.
+        </p>
+
+        {loadingAvailable ? (
+          <div className="text-center py-10 text-text-light">Loading tasks…</div>
+        ) : availableTasks.length === 0 ? (
+          <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word text-center">
+            <h3>No open Quick Tasks right now</h3>
+            <p className="text-text-light">Check back soon.</p>
+          </div>
+        ) : (
+          availableTasks.map((task) =>
+            task.kind === 'starter' ? (
+              <div
+                key={`starter-${task.id}`}
+                className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
+              >
+                <h3 className="m-0 mb-2">
+                  <Link href={`/starter-tasks/${task.id}`}>{task.title}</Link>
+                </h3>
+                <div className="flex gap-2 mb-3 flex-wrap">
+                  {task.skillName && (
+                    <span className="inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-gray-700 dark:text-gray-300">
+                      {task.skillName}
+                    </span>
+                  )}
+                  {task.estimatedHours !== null && (
+                    <span className="text-text-light text-sm">~{task.estimatedHours}h</span>
+                  )}
+                </div>
+                {task.description && <p className="whitespace-pre-wrap mb-4">{task.description}</p>}
+                <Button
+                  onClick={() => claimStarterMutation.mutate({ id: task.id })}
+                  disabled={
+                    claimStarterMutation.isPending && claimStarterMutation.variables?.id === task.id
+                  }
+                >
+                  {claimStarterMutation.isPending && claimStarterMutation.variables?.id === task.id
+                    ? 'Claiming…'
+                    : 'Claim'}
+                </Button>
+              </div>
+            ) : (
+              <div
+                key={`project-task-${task.id}`}
+                className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
+              >
+                <h3 className="m-0 mb-2">
+                  <Link href={`/projects/${task.projectId}/tasks/${task.id}`}>{task.title}</Link>
+                </h3>
+                <div className="flex gap-2 mb-3 flex-wrap items-center">
+                  {task.estimatedHours !== null && (
+                    <span className="text-text-light text-sm">~{task.estimatedHours}h</span>
+                  )}
+                  {task.projectTitle && (
+                    <span className="text-text-light text-sm">
+                      Part of Project:{' '}
+                      <Link href={`/projects/${task.projectId}`} className="underline">
+                        {task.projectTitle}
+                      </Link>
+                    </span>
+                  )}
+                </div>
+                {task.description && <p className="whitespace-pre-wrap mb-4">{task.description}</p>}
+                <Button
+                  onClick={() =>
+                    claimProjectTaskMutation.mutate({
+                      projectId: task.projectId,
+                      taskId: task.id,
+                      data: { status: TaskStatus.in_progress, assigneeId: user.id },
+                    })
+                  }
+                  disabled={
+                    claimProjectTaskMutation.isPending &&
+                    claimProjectTaskMutation.variables?.taskId === task.id
+                  }
+                >
+                  {claimProjectTaskMutation.isPending &&
+                  claimProjectTaskMutation.variables?.taskId === task.id
+                    ? 'Claiming…'
+                    : 'Claim'}
+                </Button>
+              </div>
+            ),
+          )
         )}
       </main>
     </>

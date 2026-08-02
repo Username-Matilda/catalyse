@@ -1,6 +1,11 @@
 import { Prisma } from '@/generated/prisma/client'
 import { calculateMatchScore } from './matching'
-import { InterestStatus, ProjectStatus, WorkItemType } from '@/generated/prisma/enums'
+import {
+  InterestStatus,
+  ProjectStatus,
+  StarterTaskStatus,
+  WorkItemType,
+} from '@/generated/prisma/enums'
 
 // ── Comment access ────────────────────────────────────────────────────────────
 // Reading a work item's comment thread is gated identically to viewing the work
@@ -36,6 +41,8 @@ export function canViewWorkItem(
     case WorkItemType.TASK:
       return parent ? canViewWorkItem(parent, viewer) : Boolean(viewer?.isAdmin)
     case WorkItemType.STARTER_TASK:
+      // Open, unclaimed tasks are browsable by any signed-in volunteer before they claim one.
+      if (item.status === StarterTaskStatus.open && item.assigneeId === null) return Boolean(viewer)
       return Boolean(
         viewer && (viewer.isAdmin || viewer.id === item.assigneeId || viewer.id === item.creatorId),
       )

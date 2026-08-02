@@ -7,8 +7,13 @@ import {
   AssignStarterTaskSchema,
   ReviewStarterTaskSchema,
 } from '@/lib/schemas'
-import { adminProcedure, approvedProcedure, authedProcedure, publicProcedure } from '../procedures'
-import { ApprovalStatus, StarterTaskStatus, WorkItemType } from '@/generated/prisma/enums'
+import { adminProcedure, approvedProcedure, authedProcedure } from '../procedures'
+import {
+  ApprovalStatus,
+  StarterTaskStatus,
+  TaskStatus,
+  WorkItemType,
+} from '@/generated/prisma/enums'
 
 export const starterTasksRouter = {
   list: adminProcedure
@@ -58,28 +63,60 @@ export const starterTasksRouter = {
       }))
     }),
 
-  available: publicProcedure.handler(async () => {
-    const tasks = await prisma.workItem.findMany({
-      where: { type: WorkItemType.STARTER_TASK, status: StarterTaskStatus.open, assigneeId: null },
-      include: {
-        skill: { include: { category: true } },
-        contextProject: { select: { title: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-    })
+  // The open, unclaimed browse pool: real starter tasks plus project tasks a
+  // project owner/admin has flagged to also surface here (featuredAsQuickTask).
+  available: approvedProcedure.handler(async () => {
+    const [starterTasks, projectTasks] = await Promise.all([
+      prisma.workItem.findMany({
+        where: {
+          type: WorkItemType.STARTER_TASK,
+          status: StarterTaskStatus.open,
+          assigneeId: null,
+        },
+        include: {
+          skill: { include: { category: true } },
+          contextProject: { select: { title: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.workItem.findMany({
+        where: {
+          type: WorkItemType.TASK,
+          status: TaskStatus.open,
+          assigneeId: null,
+          featuredAsQuickTask: true,
+          parentId: { not: null },
+        },
+        include: { parent: { select: { id: true, title: true } } },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ])
 
-    return tasks.map((t) => ({
-      id: t.id,
-      projectId: t.contextProjectId,
-      title: t.title,
-      description: t.description,
-      skillId: t.skillId,
-      skillName: t.skill?.name ?? null,
-      skillCategory: t.skill?.category?.name ?? null,
-      projectTitle: t.contextProject?.title ?? null,
-      estimatedHours: t.estimatedHours,
-      createdAt: t.createdAt,
-    }))
+    return [
+      ...starterTasks.map((t) => ({
+        kind: 'starter' as const,
+        id: t.id,
+        title: t.title,
+        description: t.description,
+        skillId: t.skillId,
+        skillName: t.skill?.name ?? null,
+        skillCategory: t.skill?.category?.name ?? null,
+        estimatedHours: t.estimatedHours,
+        createdAt: t.createdAt,
+      })),
+      ...projectTasks
+        .filter((t) => t.parentId !== null)
+        .map((t) => ({
+          kind: 'project_task' as const,
+          id: t.id,
+          title: t.title,
+          description: t.description,
+          projectId: t.parentId as number,
+          projectTitle: t.parent?.title ?? null,
+          estimatedHours: t.estimatedHours,
+          createdAt: t.createdAt,
+        })),
+    ].sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0))
   }),
 
   get: approvedProcedure
@@ -94,7 +131,8 @@ export const starterTasksRouter = {
         },
       })
       if (!task) throw new ORPCError('NOT_FOUND', { message: 'Task not found' })
-      if (task.assigneeId !== volunteer.id && !volunteer.isAdmin) {
+      const isOpenAndUnclaimed = task.status === StarterTaskStatus.open && task.assigneeId === null
+      if (task.assigneeId !== volunteer.id && !volunteer.isAdmin && !isOpenAndUnclaimed) {
         throw new ORPCError('FORBIDDEN', { message: 'You do not have access to this task' })
       }
       return {
@@ -130,7 +168,7 @@ export const starterTasksRouter = {
         estimatedHours: input.estimatedHours ?? null,
       },
     })
-    return { id: task.id, message: 'Starter task created' }
+    return { id: task.id, message: 'Quick Task created' }
   }),
 
   update: adminProcedure
@@ -206,12 +244,37 @@ export const starterTasksRouter = {
       notifyUser(
         input.volunteerId,
         'starter_task_assigned',
-        `You've been assigned a starter task: ${task.title}`,
+        `You've been assigned a Quick Task: ${task.title}`,
         (task.description ?? '').slice(0, 200),
         `/starter-tasks/${input.id}`,
       )
 
       return { message: 'Task assigned' }
+    }),
+
+  claim: approvedProcedure
+    .input(z.object({ id: z.number().int() }))
+    .handler(async ({ input, context }) => {
+      const volunteer = context.volunteer
+      const task = await prisma.workItem.findFirst({
+        where: { id: input.id, type: WorkItemType.STARTER_TASK },
+      })
+      if (!task) throw new ORPCError('NOT_FOUND', { message: 'Task not found' })
+      if (task.status !== StarterTaskStatus.open || task.assigneeId !== null) {
+        throw new ORPCError('BAD_REQUEST', { message: 'This task has already been claimed' })
+      }
+
+      await prisma.workItem.update({
+        where: { id: input.id },
+        data: {
+          assigneeId: volunteer.id,
+          creatorId: volunteer.id,
+          status: StarterTaskStatus.in_progress,
+          updatedAt: new Date(),
+        },
+      })
+
+      return { message: 'Task claimed' }
     }),
 
   unassign: adminProcedure.input(z.object({ id: z.number().int() })).handler(async ({ input }) => {
@@ -290,7 +353,7 @@ export const starterTasksRouter = {
       }
 
       if (task.assigneeId) {
-        const noteContent = `Starter task '${task.title}': ${input.reviewRating}${input.reviewNotes ? ` - ${input.reviewNotes}` : ''}`
+        const noteContent = `Quick Task '${task.title}': ${input.reviewRating}${input.reviewNotes ? ` - ${input.reviewNotes}` : ''}`
         await prisma.adminNote.create({
           data: {
             volunteerId: task.assigneeId,
@@ -332,7 +395,7 @@ export const starterTasksRouter = {
         notifyUser(
           task.assigneeId,
           'starter_task_reviewed',
-          `Your starter task was reviewed: ${task.title}`,
+          `Your Quick Task was reviewed: ${task.title}`,
           `Rating: ${input.reviewRating}${input.comment ? ` - ${input.comment}` : ''}`,
           `/starter-tasks/${input.id}`,
         )

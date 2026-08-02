@@ -49,6 +49,19 @@ export default function StarterTaskDetailPage({ params }: { params: Promise<{ id
     },
   })
 
+  const claimMutation = useMutation({
+    ...orpc.starterTasks.claim.mutationOptions(),
+    onSuccess: () => {
+      showToast('Task claimed!', 'success')
+      void queryClient.invalidateQueries({ queryKey: orpc.starterTasks.get.key() })
+      void queryClient.invalidateQueries({ queryKey: orpc.my.starterTasks.key() })
+      void queryClient.invalidateQueries({ queryKey: orpc.starterTasks.available.key() })
+    },
+    onError: (err: unknown) => {
+      showToast(err instanceof Error ? err.message : 'Failed to claim task', 'error')
+    },
+  })
+
   if (loading || !user) return null
 
   if (isLoading) {
@@ -117,6 +130,15 @@ export default function StarterTaskDetailPage({ params }: { params: Promise<{ id
             )}
             {task.reviewNotes && <p className="mb-0 text-text-light">{task.reviewNotes}</p>}
           </div>
+        )}
+
+        {task.status === StarterTaskStatus.open && task.assignedToId === null && (
+          <Button
+            onClick={() => claimMutation.mutate({ id: task.id })}
+            disabled={claimMutation.isPending}
+          >
+            {claimMutation.isPending ? 'Claiming…' : 'Claim'}
+          </Button>
         )}
 
         {task.status === StarterTaskStatus.in_progress && (

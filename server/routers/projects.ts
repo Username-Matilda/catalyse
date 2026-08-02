@@ -276,6 +276,7 @@ export const projectsRouter = {
         include: {
           assignee: { select: { name: true } },
           creator: { select: { name: true } },
+          _count: { select: { comments: true } },
         },
       })
 
@@ -303,6 +304,8 @@ export const projectsRouter = {
         completedAt: t.completedAt,
         createdAt: t.createdAt,
         updatedAt: t.updatedAt,
+        commentCount: t._count.comments,
+        featuredAsQuickTask: t.featuredAsQuickTask ?? false,
       }))
 
       let interests:
@@ -860,6 +863,7 @@ export const projectsRouter = {
         id: task.id,
         projectId: task.parentId,
         projectTitle: project.title,
+        projectOwnerId: project.assigneeId,
         title: task.title,
         description: task.description,
         assignedToId: task.assigneeId,
@@ -872,6 +876,7 @@ export const projectsRouter = {
         completedAt: task.completedAt,
         createdAt: task.createdAt,
         updatedAt: task.updatedAt,
+        featuredAsQuickTask: task.featuredAsQuickTask ?? false,
       }
     }),
 
@@ -904,6 +909,7 @@ export const projectsRouter = {
             description: input.description ?? null,
             estimatedHours: input.estimatedHours ?? null,
             deadline: input.deadline ?? null,
+            featuredAsQuickTask: input.featuredAsQuickTask ?? false,
             creatorId: volunteer.id,
             sortOrder: (max._max.sortOrder ?? 0) + 1,
           },
@@ -976,25 +982,36 @@ export const projectsRouter = {
       const isAssignee = project.assigneeId === volunteer.id
       const isTaskAssignee = task.assigneeId === volunteer.id
 
-      if (!isAssignee && !volunteer.isAdmin) {
-        const newStatus = input.data.status
-        const newAssigneeId = input.data.assigneeId
-        const isSelfClaim =
-          newStatus === TaskStatus.in_progress &&
-          newAssigneeId === volunteer.id &&
-          task.status === TaskStatus.open
-        const isMarkingDone =
-          newStatus === TaskStatus.completed &&
-          isTaskAssignee &&
-          task.status === TaskStatus.in_progress
-        if (!isSelfClaim && !isMarkingDone) {
-          throw new ORPCError('FORBIDDEN', { message: 'Not authorized to update this task' })
-        }
+      const newStatus = input.data.status
+      const newAssigneeId = input.data.assigneeId
+      const onlyTouchesStatusAndAssignee =
+        input.data.title === undefined &&
+        input.data.description === undefined &&
+        input.data.estimatedHours === undefined &&
+        input.data.deadline === undefined &&
+        input.data.featuredAsQuickTask === undefined
+      const isSelfClaim =
+        onlyTouchesStatusAndAssignee &&
+        newStatus === TaskStatus.in_progress &&
+        newAssigneeId === volunteer.id &&
+        task.status === TaskStatus.open
+      const isMarkingDone =
+        onlyTouchesStatusAndAssignee &&
+        newStatus === TaskStatus.completed &&
+        isTaskAssignee &&
+        task.status === TaskStatus.in_progress
+
+      if (!isAssignee && !volunteer.isAdmin && !isSelfClaim && !isMarkingDone) {
+        throw new ORPCError('FORBIDDEN', { message: 'Not authorized to update this task' })
       }
 
       const data: Record<string, unknown> = {}
       if (input.data.title !== undefined) data.title = input.data.title
       if (input.data.description !== undefined) data.description = input.data.description
+      if (input.data.estimatedHours !== undefined) data.estimatedHours = input.data.estimatedHours
+      if (input.data.deadline !== undefined) data.deadline = input.data.deadline
+      if (input.data.featuredAsQuickTask !== undefined)
+        data.featuredAsQuickTask = input.data.featuredAsQuickTask
       if (input.data.status !== undefined) {
         data.status = input.data.status
         if (input.data.status === TaskStatus.completed) data.completedAt = new Date()
@@ -1009,6 +1026,25 @@ export const projectsRouter = {
       data.finalWarningSentAt = null
 
       await prisma.workItem.update({ where: { id: input.taskId }, data })
+
+      if (isSelfClaim) {
+        const existingInterest = await prisma.workItemInterest.findFirst({
+          where: { workItemId: input.projectId, volunteerId: volunteer.id },
+        })
+        if (!existingInterest) {
+          await prisma.workItemInterest.create({
+            data: {
+              volunteerId: volunteer.id,
+              workItemId: input.projectId,
+              interestType: 'want_to_contribute',
+              status: InterestStatus.accepted,
+              respondedAt: new Date(),
+              message: `${volunteer.name} has claimed '${task.title}' task`,
+            },
+          })
+        }
+      }
+
       return { message: 'Task updated' }
     }),
 

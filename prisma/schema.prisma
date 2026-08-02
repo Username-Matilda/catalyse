@@ -272,11 +272,12 @@ model WorkItem {
   completedAt                DateTime? @map("completed_at")
 
   // Task / starter-task-specific (nullable for PROJECT)
-  skillId            Int?      @map("skill_id")
-  estimatedHours     Float?    @map("estimated_hours")
-  nudgeSentAt        DateTime? @map("nudge_sent_at")
-  finalWarningSentAt DateTime? @map("final_warning_sent_at")
-  sortOrder          Int?      @default(0) @map("sort_order")
+  skillId             Int?      @map("skill_id")
+  estimatedHours      Float?    @map("estimated_hours")
+  nudgeSentAt         DateTime? @map("nudge_sent_at")
+  finalWarningSentAt  DateTime? @map("final_warning_sent_at")
+  sortOrder           Int?      @default(0) @map("sort_order")
+  featuredAsQuickTask Boolean?  @default(false) @map("featured_as_quick_task") // TASK only — also list on the Quick Tasks page
 
   country    String?
   localGroup String?   @map("local_group")

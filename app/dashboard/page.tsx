@@ -191,10 +191,10 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Starter tasks */}
+        {/* Quick Tasks */}
         {starterTasks.length > 0 && (
-          <section aria-label="Starter Tasks" className="mb-8">
-            <h2>Starter Tasks</h2>
+          <section aria-label="Quick Tasks" className="mb-8">
+            <h2>Quick Tasks</h2>
             {starterTasks.map((task) => (
               <div
                 key={task.id}

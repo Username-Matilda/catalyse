@@ -138,7 +138,13 @@ export const CreateProjectTaskSchema = WorkItemSchema.pick({
   description: true,
   estimatedHours: true,
   deadline: true,
-}).partial({ description: true, estimatedHours: true, deadline: true })
+  featuredAsQuickTask: true,
+}).partial({
+  description: true,
+  estimatedHours: true,
+  deadline: true,
+  featuredAsQuickTask: true,
+})
 
 export const UpdateProjectTaskSchema = WorkItemSchema.pick({
   title: true,
@@ -146,6 +152,7 @@ export const UpdateProjectTaskSchema = WorkItemSchema.pick({
   assigneeId: true,
   estimatedHours: true,
   deadline: true,
+  featuredAsQuickTask: true,
 })
   .partial()
   .extend({ status: TaskStatusSchema.optional() })

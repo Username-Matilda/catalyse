@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
+import Checkbox from '@/components/Checkbox'
 import { Badge } from '@/components/Badge'
 import Tooltip from '@/components/Tooltip'
 import {
@@ -203,16 +204,16 @@ function SortableTaskItem({
         {draggable ? '⠿' : ''}
       </span>
       <span className="flex-1 min-w-0 break-words">{title}</span>
-      <div className="flex items-center gap-2 shrink-0 mt-1">{chips}</div>
-      <div className="mt-1">{primaryAction}</div>
-      <div className="mt-1">
+      <div className="flex items-center gap-2 shrink-0 mt-1">
+        {chips}
+        {primaryAction}
         <TaskAvatar name={assigneeName} />
+        {menu && (
+          <div className="opacity-60 group-hover:opacity-100 focus-within:opacity-100 has-aria-expanded:opacity-100 transition-opacity">
+            {menu}
+          </div>
+        )}
       </div>
-      {menu && (
-        <div className="opacity-60 group-hover:opacity-100 focus-within:opacity-100 has-aria-expanded:opacity-100 transition-opacity mt-1">
-          {menu}
-        </div>
-      )}
     </li>
   )
 }
@@ -232,6 +233,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [newTaskEstimatedHours, setNewTaskEstimatedHours] = useState('')
   const [newTaskDeadline, setNewTaskDeadline] = useState('')
+  const [newTaskFeatured, setNewTaskFeatured] = useState(false)
   const [orderedTasks, setOrderedTasks] = useState<ProjectTask[]>([])
   const [taskAssignSelections, setTaskAssignSelections] = useState<Record<number, string>>({})
   const taskDragSensors = useSensors(
@@ -334,6 +336,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       setNewTaskTitle('')
       setNewTaskEstimatedHours('')
       setNewTaskDeadline('')
+      setNewTaskFeatured(false)
       setShowTaskForm(false)
       showToast('Task added!', 'success')
       void invalidateProject()
@@ -349,6 +352,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         showToast('Task claimed!', 'success')
       } else if (variables.data.status === TaskStatus.completed) {
         showToast('Task completed!', 'success')
+      } else if (variables.data.status === TaskStatus.open) {
+        showToast('Task unassigned!', 'success')
       }
       void invalidateProject()
     },
@@ -556,6 +561,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       title: newTaskTitle.trim(),
       estimatedHours: newTaskEstimatedHours ? parseFloat(newTaskEstimatedHours) : null,
       deadline: newTaskDeadline ? new Date(newTaskDeadline) : null,
+      featuredAsQuickTask: newTaskFeatured,
     })
   }
 
@@ -595,6 +601,14 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       projectId: parseInt(idParam, 10),
       taskId,
       data: { status: TaskStatus.completed },
+    })
+  }
+
+  function handleUnassignTask(taskId: number) {
+    updateTaskMutation.mutate({
+      projectId: parseInt(idParam, 10),
+      taskId,
+      data: { status: TaskStatus.open },
     })
   }
 
@@ -828,6 +842,15 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                         />
                       </div>
                     </div>
+                    <div className="mb-3">
+                      <Checkbox
+                        checked={newTaskFeatured}
+                        onChange={(e) => setNewTaskFeatured(e.target.checked)}
+                      >
+                        Add this task to the Quick Tasks page so volunteers can find and claim it
+                        without first clicking into this project
+                      </Checkbox>
+                    </div>
                     <div className="flex gap-2">
                       <Button type="submit" disabled={createTaskMutation.isPending}>
                         {createTaskMutation.isPending ? 'Creating…' : 'Create Task'}
@@ -863,6 +886,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                           isOwnerOrAdmin &&
                           task.status !== TaskStatus.completed &&
                           volunteers.length > 0
+                        const canUnassign =
+                          isOwnerOrAdmin &&
+                          task.assignedToId !== null &&
+                          task.status === TaskStatus.in_progress
 
                         return (
                           <SortableTaskItem
@@ -885,6 +912,14 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                 {task.status === TaskStatus.completed && (
                                   <span className="text-success text-sm font-semibold">done</span>
                                 )}
+                                {task.featuredAsQuickTask && (
+                                  <span
+                                    className="text-xs whitespace-nowrap"
+                                    title="Also shown on the Quick Tasks page"
+                                  >
+                                    ⚡ Quick Task
+                                  </span>
+                                )}
                                 {isOverdue && <Badge variant="danger">Overdue</Badge>}
                                 {task.estimatedHours !== null && (
                                   <span className="text-text-light text-xs whitespace-nowrap">
@@ -895,6 +930,28 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                   <span className="text-text-light text-xs whitespace-nowrap">
                                     Due {formatDate(task.deadline)}
                                   </span>
+                                )}
+                                {task.commentCount > 0 && (
+                                  <Link
+                                    href={`/projects/${idParam}/tasks/${task.id}`}
+                                    className="flex items-center gap-1 text-text-light text-xs whitespace-nowrap hover:underline"
+                                    aria-label={`${task.commentCount} comment${task.commentCount !== 1 ? 's' : ''}`}
+                                  >
+                                    <svg
+                                      width="14"
+                                      height="14"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="2"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      aria-hidden="true"
+                                    >
+                                      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                                    </svg>
+                                    {task.commentCount}
+                                  </Link>
                                 )}
                               </>
                             }
@@ -958,10 +1015,22 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                           </Button>
                                         </div>
                                       )}
+                                      {canUnassign && (
+                                        <button
+                                          role="menuitem"
+                                          className={`w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors cursor-pointer ${canAssign ? 'border-t border-brand-border mt-1' : ''}`}
+                                          onClick={() => {
+                                            handleUnassignTask(task.id)
+                                            close()
+                                          }}
+                                        >
+                                          Unassign
+                                        </button>
+                                      )}
                                       {isOwnerOrAdmin && (
                                         <button
                                           role="menuitem"
-                                          className={`w-full text-left px-3 py-2 text-sm text-red-700 dark:text-red-400 hover:bg-accent transition-colors cursor-pointer ${canAssign ? 'border-t border-brand-border mt-1' : ''}`}
+                                          className={`w-full text-left px-3 py-2 text-sm text-red-700 dark:text-red-400 hover:bg-accent transition-colors cursor-pointer ${canAssign || canUnassign ? 'border-t border-brand-border mt-1' : ''}`}
                                           onClick={() => {
                                             handleDeleteTask(task.id)
                                             close()

@@ -344,7 +344,7 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
             tabs={
               [
                 { key: 'admin_notes', label: 'Admin Notes' },
-                { key: 'starter_tasks', label: 'Starter Tasks' },
+                { key: 'starter_tasks', label: 'Quick Tasks' },
                 { key: 'project_history', label: 'Project History' },
                 { key: 'endorse_skill', label: 'Endorse Skill' },
               ] as { key: Tab; label: string }[]
@@ -461,11 +461,11 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
             </div>
           )}
 
-          {/* Starter Tasks tab */}
+          {/* Quick Tasks tab */}
           {activeTab === 'starter_tasks' && (
             <div>
               {vol.starterTasks.length === 0 ? (
-                <p className="text-text-light">No starter tasks assigned yet.</p>
+                <p className="text-text-light">No Quick Tasks assigned yet.</p>
               ) : (
                 vol.starterTasks.map((t) => (
                   <div

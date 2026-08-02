@@ -270,7 +270,7 @@ export function buildAdminInviteHtml(inviteUrl: string, invitedBy: string): stri
   <p><strong>${by}</strong> has invited you to become an admin on Catalyse, the PauseAI volunteer coordination platform.</p>
   <ul>
     <li>Review and approve volunteer-proposed projects</li>
-    <li>Manage skills and starter tasks</li>
+    <li>Manage skills and Quick Tasks</li>
     <li>View volunteer profiles and add notes</li>
     <li>Invite other admins</li>
   </ul>

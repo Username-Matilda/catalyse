@@ -154,7 +154,7 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
 
           {volunteer.completedTasks.length > 0 && (
             <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word">
-              <h2>Completed Starter Tasks</h2>
+              <h2>Completed Quick Tasks</h2>
               {volunteer.completedTasks.map((t, i) => (
                 <div key={i} className="py-3 border-b border-brand-border">
                   <div className="flex justify-between items-center">
