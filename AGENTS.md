@@ -22,7 +22,3 @@ Do **not** run `prisma migrate dev` — it checks for schema drift and will fail
 Run `npm run check-all` when work is complete and before raising a PR, to verify typecheck, lint, formatting, and tests all pass. This takes several minutes — lint is ~3s cached (~70s cold), tests are ~2.5–3 min. Do not abort early.
 
 If `format:check` fails, run `npm run format` to fix all files at once — do not run `prettier --write` on individual files.
-
-## Visual verification of UI changes
-
-Don't spin up a dev server to manually click through or screenshot UI changes — there's no Chrome extension configured for this, so it's not a practical way to verify. Rely on typecheck/lint/tests and the e2e suite (which does drive a real browser) instead. If a change genuinely needs eyeballing, ask the user to check it themselves rather than trying to render it yourself.
