@@ -66,7 +66,7 @@ test.describe('Volunteer Management', () => {
     await expect(adminPage.getByRole('tab', { name: 'Admin Notes' })).toBeVisible({
       timeout: 10_000,
     })
-    await expect(adminPage.getByRole('tab', { name: 'Starter Tasks' })).toBeVisible({
+    await expect(adminPage.getByRole('tab', { name: 'Quick Tasks' })).toBeVisible({
       timeout: 10_000,
     })
     await expect(adminPage.getByRole('tab', { name: 'Project History' })).toBeVisible({
@@ -79,9 +79,9 @@ test.describe('Volunteer Management', () => {
     // Contact info shows the volunteer's email
     await expect(adminPage.locator('#contactInfo')).toContainText(volunteer.email)
 
-    // Starter Tasks tab shows empty state
-    await adminPage.getByRole('tab', { name: 'Starter Tasks' }).click()
-    await expect(adminPage.getByText('No starter tasks assigned yet.')).toBeVisible({
+    // Quick Tasks tab shows empty state
+    await adminPage.getByRole('tab', { name: 'Quick Tasks' }).click()
+    await expect(adminPage.getByText('No Quick Tasks assigned yet.')).toBeVisible({
       timeout: 10_000,
     })
 

@@ -10,10 +10,9 @@ import { useToast } from '@/lib/toast'
 import { StarterTaskStatus, TaskStatus } from '@/generated/prisma/enums'
 
 const STATUS_LABELS: Record<string, string> = {
-  assigned: 'Assigned',
-  submitted: 'Submitted — awaiting review',
+  in_progress: 'Assigned',
+  under_review: 'Submitted — awaiting review',
   completed: 'Completed',
-  reviewed: 'Reviewed',
 }
 
 export default function StarterTasksPage() {
@@ -100,6 +99,7 @@ export default function StarterTasksPage() {
                   <Link href={`/starter-tasks/${task.id}`}>{task.title}</Link>
                 </h3>
                 <Badge
+                  role="status"
                   variant={task.status === StarterTaskStatus.completed ? 'success' : 'warning'}
                 >
                   {STATUS_LABELS[task.status] ?? task.status}

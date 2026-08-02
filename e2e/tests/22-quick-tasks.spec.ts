@@ -48,13 +48,12 @@ test.describe('Quick Tasks: self-serve', () => {
     await volunteer.page.getByRole('button', { name: 'Claim' }).click()
 
     await expect(getAlert(volunteer.page)).toContainText('Task claimed!', { timeout: 10_000 })
-    await expect(
-      volunteer.page.getByRole('button', { name: 'Mark as Complete' }),
-    ).toBeVisible({ timeout: 10_000 })
+    await expect(volunteer.page.getByRole('button', { name: 'Mark as Complete' })).toBeVisible({
+      timeout: 10_000,
+    })
   })
 
   test('Admin flags a project task as a Quick Task; it appears in the browse pool and links back to the project', async ({
-    adminPage,
     volunteer,
     baseUrl,
   }) => {
@@ -88,6 +87,14 @@ test.describe('Quick Tasks: self-serve', () => {
     await expect(card).toBeVisible({ timeout: 10_000 })
     await expect(card).toContainText('Part of Project:')
 
+    // Task title links into the task's own page in the project, not a separate Quick Task page.
+    // Checked before claiming: claiming a featured project task removes it from this page
+    // entirely (it's not a StarterTask row, so it never lands in "My Quick Tasks" either).
+    await expect(card.getByRole('link', { name: taskTitle })).toHaveAttribute(
+      'href',
+      `/projects/${projectId}/tasks/${taskId}`,
+    )
+
     // Claiming from Quick Tasks assigns the task and auto-adds the volunteer as an
     // accepted participant on the project, even though they never expressed interest.
     await card.getByRole('button', { name: 'Claim' }).click()
@@ -103,10 +110,6 @@ test.describe('Quick Tasks: self-serve', () => {
     const autoInterest = interests.find((i) => i.volunteerId && i.status === 'accepted')
     expect(autoInterest).toBeTruthy()
     expect(autoInterest?.message).toContain(taskTitle)
-
-    // Task title links into the task's own page in the project, not a separate Quick Task page
-    await card.getByRole('link', { name: taskTitle }).click()
-    await expect(volunteer.page).toHaveURL(`${baseUrl}/projects/${projectId}/tasks/${taskId}`)
   })
 
   test('Self-claim does not create a duplicate interest for a volunteer who already has one', async ({

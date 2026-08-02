@@ -47,12 +47,7 @@ async function assignStarterTask(
   const taskCard = adminPage.getByRole('article').filter({ hasText: taskTitle })
   await expect(taskCard).toBeVisible({ timeout: 10_000 })
   await taskCard.getByText(taskTitle, { exact: true }).click()
-  await selectFilterDropdown(
-    adminPage,
-    `Assign volunteer to ${taskTitle}`,
-    volunteerName,
-    taskCard,
-  )
+  await selectFilterDropdown(adminPage, `Assign volunteer to ${taskTitle}`, volunteerName, taskCard)
   await taskCard.getByRole('button', { name: 'Assign', exact: true }).click()
   await expect(getAlert(adminPage)).toBeVisible({ timeout: 10_000 })
 }
