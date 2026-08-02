@@ -854,7 +854,15 @@ export const projectsRouter = {
       if (!task) throw new ORPCError('NOT_FOUND', { message: 'Task not found' })
 
       if (
-        !canViewWorkItem(task, { id: volunteer.id, isAdmin: Boolean(volunteer.isAdmin) }, project)
+        !canViewWorkItem(
+          task,
+          {
+            id: volunteer.id,
+            isAdmin: Boolean(volunteer.isAdmin),
+            isApproved: volunteer.approvalStatus === ApprovalStatus.approved,
+          },
+          project,
+        )
       ) {
         throw new ORPCError('NOT_FOUND', { message: 'Task not found' })
       }

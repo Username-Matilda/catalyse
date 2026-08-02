@@ -1,11 +1,4 @@
-import {
-  test,
-  expect,
-  getAlert,
-  readAdminToken,
-  approveVolunteer,
-  confirmVolunteerEmail,
-} from '../fixtures'
+import { test, expect, getAlert, readAdminToken, createApprovedVolunteer } from '../fixtures'
 import type { Page } from '@playwright/test'
 import { createSkill } from '../actions/skills'
 import type { SkillInfo } from '../actions/skills'
@@ -54,13 +47,13 @@ async function assignStarterTask(
   const taskCard = adminPage.getByRole('article').filter({ hasText: taskTitle })
   await expect(taskCard).toBeVisible({ timeout: 10_000 })
   await taskCard.getByText(taskTitle, { exact: true }).click()
-  await expect(taskCard.getByRole('button', { name: 'Assign' })).toBeVisible({ timeout: 10_000 })
-  await taskCard.getByRole('button', { name: 'Assign' }).click()
-
-  const assignDialog = adminPage.getByRole('dialog', { name: 'Assign Task' })
-  await expect(assignDialog).toBeVisible({ timeout: 10_000 })
-  await selectFilterDropdown(adminPage, 'Volunteer', volunteerName, assignDialog)
-  await assignDialog.getByRole('button', { name: 'Assign' }).click()
+  await selectFilterDropdown(
+    adminPage,
+    `Assign volunteer to ${taskTitle}`,
+    volunteerName,
+    taskCard,
+  )
+  await taskCard.getByRole('button', { name: 'Assign', exact: true }).click()
   await expect(getAlert(adminPage)).toBeVisible({ timeout: 10_000 })
 }
 
@@ -74,7 +67,7 @@ async function submitStarterTask(
     timeout: 10_000,
   })
 
-  const banner = volunteerPage.getByRole('region', { name: 'Starter Tasks' })
+  const banner = volunteerPage.getByRole('region', { name: 'Quick Tasks' })
   const taskCard = banner.getByRole('article').filter({ hasText: taskTitle })
   await expect(taskCard).toBeVisible({ timeout: 10_000 })
   await taskCard.getByText(taskTitle, { exact: true }).click()
@@ -123,17 +116,17 @@ test.describe('Starter Tasks', () => {
     const skill = await createSkill(baseUrl, adminPage)
     const taskTitle = await createOpenStarterTask(baseUrl, adminPage, skill)
 
-    // Expand the card to reveal the Assign button
+    // Expand the card to reveal the inline assign dropdown
     const taskCard = adminPage.getByRole('article').filter({ hasText: taskTitle })
     await expect(taskCard).toBeVisible({ timeout: 10_000 })
     await taskCard.getByText(taskTitle, { exact: true }).click()
-    await expect(taskCard.getByRole('button', { name: 'Assign' })).toBeVisible({ timeout: 10_000 })
-    await taskCard.getByRole('button', { name: 'Assign' }).click()
-
-    const assignDialog = adminPage.getByRole('dialog', { name: 'Assign Task' })
-    await expect(assignDialog).toBeVisible({ timeout: 10_000 })
-    await selectFilterDropdown(adminPage, 'Volunteer', volunteer.name, assignDialog)
-    await assignDialog.getByRole('button', { name: 'Assign' }).click()
+    await selectFilterDropdown(
+      adminPage,
+      `Assign volunteer to ${taskTitle}`,
+      volunteer.name,
+      taskCard,
+    )
+    await taskCard.getByRole('button', { name: 'Assign', exact: true }).click()
 
     await expect(getAlert(adminPage)).toContainText('Task assigned!', { timeout: 10_000 })
     await expect(taskCard.getByRole('status')).toContainText('in_progress', { timeout: 10_000 })
@@ -141,7 +134,7 @@ test.describe('Starter Tasks', () => {
     // Volunteer receives an assignment notification
     await goToDashboardNotifications(baseUrl, volunteer.page)
     await expect(
-      volunteer.page.locator('strong').filter({ hasText: "You've been assigned a starter task" }),
+      volunteer.page.locator('strong').filter({ hasText: "You've been assigned a Quick Task" }),
     ).toBeVisible({ timeout: 10_000 })
   })
 
@@ -185,7 +178,7 @@ test.describe('Starter Tasks', () => {
 
     // Assignee sees admin's comment on the dashboard and replies
     await volunteer.page.goto(`${baseUrl}/dashboard`)
-    const volBanner = volunteer.page.getByRole('region', { name: 'Starter Tasks' })
+    const volBanner = volunteer.page.getByRole('region', { name: 'Quick Tasks' })
     const volCard = volBanner.getByRole('article').filter({ hasText: taskTitle })
     await expect(volCard).toBeVisible({ timeout: 10_000 })
     await volCard.getByText(taskTitle, { exact: true }).click()
@@ -218,7 +211,7 @@ test.describe('Starter Tasks', () => {
     })
 
     // Starter task banner shows the assigned task with its details
-    const banner = volunteer.page.getByRole('region', { name: 'Starter Tasks' })
+    const banner = volunteer.page.getByRole('region', { name: 'Quick Tasks' })
     const taskCard = banner.getByRole('article').filter({ hasText: taskTitle })
     await expect(taskCard).toBeVisible({ timeout: 10_000 })
     await expect(taskCard.getByRole('status')).toContainText('In Progress')
@@ -239,7 +232,7 @@ test.describe('Starter Tasks', () => {
       timeout: 10_000,
     })
 
-    const banner = volunteer.page.getByRole('region', { name: 'Starter Tasks' })
+    const banner = volunteer.page.getByRole('region', { name: 'Quick Tasks' })
     const taskCard = banner.getByRole('article').filter({ hasText: taskTitle })
     await expect(taskCard).toBeVisible({ timeout: 10_000 })
     await taskCard.getByText(taskTitle, { exact: true }).click()
@@ -304,7 +297,7 @@ test.describe('Starter Tasks', () => {
     // Volunteer receives a feedback notification
     await goToDashboardNotifications(baseUrl, volunteer.page)
     await expect(
-      volunteer.page.locator('strong').filter({ hasText: 'Your starter task was reviewed' }),
+      volunteer.page.locator('strong').filter({ hasText: 'Your Quick Task was reviewed' }),
     ).toBeVisible({ timeout: 10_000 })
 
     // Skill endorsement is auto-created; navigate to admin volunteer detail via the task card link
@@ -353,7 +346,7 @@ test.describe('Starter Tasks', () => {
     // Volunteer receives a feedback notification
     await goToDashboardNotifications(baseUrl, volunteer.page)
     await expect(
-      volunteer.page.locator('strong').filter({ hasText: 'Your starter task was reviewed' }),
+      volunteer.page.locator('strong').filter({ hasText: 'Your Quick Task was reviewed' }),
     ).toBeVisible({ timeout: 10_000 })
 
     // No skill endorsement created; navigate to admin volunteer detail to confirm
@@ -413,17 +406,25 @@ test.describe('Starter Tasks', () => {
     })
   })
 
-  test('Starter task comments are hidden from non-assignee volunteers', async ({ baseUrl }) => {
+  test('Starter task comments are hidden from non-assignee volunteers once claimed', async ({
+    baseUrl,
+  }) => {
     const adminToken = readAdminToken(baseUrl)
     expect(adminToken).toBeTruthy()
     const adminApi = createApiClient(baseUrl, adminToken)
 
-    // Admin creates a starter task and posts a comment on it
+    // Admin creates a starter task and assigns it to a specific volunteer
     const created = await adminApi.starterTasks.create({
       body: { title: `Iso task ${Date.now()}`, description: 'isolation test description' },
     })
     expect(created.status).toBe(200)
     const workItemId = (created.body as { id: number }).id
+
+    const assignee = await createApprovedVolunteer(baseUrl)
+    const assignResult = await adminApi.starterTasks.assign({
+      body: { id: workItemId, volunteerId: assignee.id },
+    })
+    expect(assignResult.status).toBe(200)
 
     const commentText = `admin-only ${Date.now()}`
     const added = await adminApi.workItemComments.add({
@@ -441,26 +442,8 @@ test.describe('Starter Tasks', () => {
     ).toBe(true)
 
     // A fresh, approved volunteer who is not the assignee
-    const api = createApiClient(baseUrl)
-    const person = fake.person()
-    const signup = await api.auth.signup({
-      body: {
-        name: person.name,
-        email: person.email,
-        password: 'testpassword1',
-        consentMakeProfileVisibleInDirectory: true,
-        consentContactableByProjectOwners: true,
-      },
-    })
-    expect(signup.status).toBe(200)
-    const {
-      id: volId,
-      token,
-      emailVerificationToken,
-    } = signup.body as { id: number; token: string; emailVerificationToken?: string }
-    if (emailVerificationToken) await confirmVolunteerEmail(baseUrl, emailVerificationToken)
-    await approveVolunteer(baseUrl, volId)
-    const volApi = createApiClient(baseUrl, token)
+    const outsider = await createApprovedVolunteer(baseUrl)
+    const volApi = createApiClient(baseUrl, outsider.token)
 
     // Cannot read the thread (work item not visible) or post to it
     const volList = await volApi.workItemComments.list({ body: { workItemId } })
@@ -469,5 +452,33 @@ test.describe('Starter Tasks', () => {
       body: { workItemId, content: 'should be rejected' },
     })
     expect(volAdd.status).toBe(403)
+  })
+
+  test('An open, unclaimed starter task is visible to any approved volunteer', async ({
+    baseUrl,
+  }) => {
+    const adminToken = readAdminToken(baseUrl)
+    expect(adminToken).toBeTruthy()
+    const adminApi = createApiClient(baseUrl, adminToken)
+
+    const created = await adminApi.starterTasks.create({
+      body: { title: `Open task ${Date.now()}`, description: 'open browse test' },
+    })
+    expect(created.status).toBe(200)
+    const workItemId = (created.body as { id: number }).id
+
+    const outsider = await createApprovedVolunteer(baseUrl)
+    const volApi = createApiClient(baseUrl, outsider.token)
+
+    const result = await volApi.starterTasks.get({ body: { id: workItemId } })
+    expect(result.status).toBe(200)
+
+    const available = await volApi.starterTasks.available()
+    expect(available.status).toBe(200)
+    expect(
+      (available.body as { kind: string; id: number }[]).some(
+        (t) => t.kind === 'starter' && t.id === workItemId,
+      ),
+    ).toBe(true)
   })
 })

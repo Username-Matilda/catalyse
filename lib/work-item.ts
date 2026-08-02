@@ -18,7 +18,7 @@ export type WorkItemForAccess = {
   assigneeId: number | null
 }
 
-export type CommentViewer = { id: number; isAdmin: boolean } | null
+export type CommentViewer = { id: number; isAdmin: boolean; isApproved: boolean } | null
 
 const PROJECT_HIDDEN_STATUSES: string[] = [
   ProjectStatus.pending_review,
@@ -41,8 +41,12 @@ export function canViewWorkItem(
     case WorkItemType.TASK:
       return parent ? canViewWorkItem(parent, viewer) : Boolean(viewer?.isAdmin)
     case WorkItemType.STARTER_TASK:
-      // Open, unclaimed tasks are browsable by any signed-in volunteer before they claim one.
-      if (item.status === StarterTaskStatus.open && item.assigneeId === null) return Boolean(viewer)
+      // Open, unclaimed tasks are browsable by any approved volunteer before they claim one —
+      // but not by a pending applicant, same as the approvedProcedure gate on the pages that
+      // read/claim tasks directly.
+      if (item.status === StarterTaskStatus.open && item.assigneeId === null) {
+        return Boolean(viewer && (viewer.isAdmin || viewer.isApproved))
+      }
       return Boolean(
         viewer && (viewer.isAdmin || viewer.id === item.assigneeId || viewer.id === item.creatorId),
       )
