@@ -1,4 +1,5 @@
 import { test, expect, getAlert } from '../fixtures'
+import { goToDashboardNotifications } from '../actions/dashboard'
 import {
   submitLocalGroupSuggestion,
   navigateToAdminLocalGroups,
@@ -219,6 +220,33 @@ test.describe('Local Group Suggestions', () => {
       'Declined',
       { timeout: 10_000 },
     )
+  })
+
+  test('Accepted-suggestion notification links to the new local group’s own page', async ({
+    volunteer,
+    adminPage,
+    baseUrl,
+  }) => {
+    const groupName = fake.localGroupName()
+
+    await submitLocalGroupSuggestion(baseUrl, volunteer.page, 'UK', groupName)
+    await navigateToAdminLocalGroups(baseUrl, adminPage)
+    await adminReviewSuggestion(adminPage, groupName, 'accept')
+    await expect(getAlert(adminPage)).toContainText('accepted', { timeout: 10_000 })
+
+    await goToDashboardNotifications(baseUrl, volunteer.page)
+    await expect(
+      volunteer.page.locator('strong').filter({ hasText: `"${groupName}" was accepted` }),
+    ).toBeVisible({ timeout: 10_000 })
+    await volunteer.page.getByRole('link', { name: 'View' }).first().click()
+
+    await expect(volunteer.page).toHaveURL(/\/local-groups\/\d+$/)
+    await expect(volunteer.page.getByRole('heading', { name: groupName, level: 1 })).toBeVisible({
+      timeout: 10_000,
+    })
+    await expect(
+      volunteer.page.getByRole('button', { name: 'Set as my local group' }),
+    ).toBeVisible()
   })
 })
 
