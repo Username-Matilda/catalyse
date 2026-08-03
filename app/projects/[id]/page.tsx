@@ -231,6 +231,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   // Task section
   const [showTaskForm, setShowTaskForm] = useState(false)
   const [newTaskTitle, setNewTaskTitle] = useState('')
+  const [newTaskDescription, setNewTaskDescription] = useState('')
   const [newTaskEstimatedHours, setNewTaskEstimatedHours] = useState('')
   const [newTaskDeadline, setNewTaskDeadline] = useState('')
   const [newTaskFeatured, setNewTaskFeatured] = useState(false)
@@ -280,6 +281,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const [showContactModal, setShowContactModal] = useState(false)
   const [contactSubject, setContactSubject] = useState('')
   const [contactBody, setContactBody] = useState('')
+
+  // Decline interest
+  const [declineInterestId, setDeclineInterestId] = useState<number | null>(null)
+  const [declineMessage, setDeclineMessage] = useState('')
 
   // ── Queries ──────────────────────────────────────────────────────────────
 
@@ -335,6 +340,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     ...orpc.projects.createTask.mutationOptions(),
     onSuccess: () => {
       setNewTaskTitle('')
+      setNewTaskDescription('')
       setNewTaskEstimatedHours('')
       setNewTaskDeadline('')
       setNewTaskFeatured(false)
@@ -436,6 +442,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         variables.status === InterestStatus.accepted ? 'Interest accepted' : 'Interest declined',
         'success',
       )
+      setDeclineInterestId(null)
+      setDeclineMessage('')
       void invalidateProject()
     },
     onError: (err: unknown) =>
@@ -560,6 +568,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     createTaskMutation.mutate({
       projectId: parseInt(idParam, 10),
       title: newTaskTitle.trim(),
+      description: newTaskDescription.trim() || undefined,
       estimatedHours: newTaskEstimatedHours ? parseFloat(newTaskEstimatedHours) : null,
       deadline: newTaskDeadline ? new Date(newTaskDeadline) : null,
       featuredAsQuickTask: newTaskFeatured,
@@ -658,12 +667,18 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   }
 
   function handleDeclineInterest(interestId: number) {
-    const msg = window.prompt('Optional message for the volunteer:') ?? ''
+    setDeclineInterestId(interestId)
+    setDeclineMessage('')
+  }
+
+  function confirmDeclineInterest(e: React.FormEvent) {
+    e.preventDefault()
+    if (declineInterestId === null) return
     respondToInterestMutation.mutate({
       projectId: parseInt(idParam, 10),
-      interestId,
+      interestId: declineInterestId,
       status: 'declined',
-      responseMessage: msg || null,
+      responseMessage: declineMessage.trim() || null,
     })
   }
 
@@ -818,6 +833,17 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                         onChange={(e) => setNewTaskTitle(e.target.value)}
                         placeholder="Describe the task…"
                         autoFocus
+                      />
+                    </div>
+                    <div className="mb-3">
+                      <label htmlFor="new-task-description">Description</label>
+                      <textarea
+                        id="new-task-description"
+                        aria-label="Description"
+                        rows={3}
+                        value={newTaskDescription}
+                        onChange={(e) => setNewTaskDescription(e.target.value)}
+                        placeholder="Add any context, examples, or guidelines…"
                       />
                     </div>
                     <div className="flex gap-3 flex-wrap mb-3">
@@ -1547,6 +1573,35 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           </div>
         </div>
       )}
+
+      {/* Decline interest modal */}
+      <Modal
+        id="decline-interest"
+        title="Decline Volunteer"
+        isOpen={declineInterestId !== null}
+        onClose={() => setDeclineInterestId(null)}
+      >
+        <form onSubmit={confirmDeclineInterest}>
+          <div className="mb-5">
+            <label htmlFor="decline-message">Optional message for the volunteer</label>
+            <textarea
+              id="decline-message"
+              rows={4}
+              value={declineMessage}
+              onChange={(e) => setDeclineMessage(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Button type="button" variant="secondary" onClick={() => setDeclineInterestId(null)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={respondToInterestMutation.isPending}>
+              {respondToInterestMutation.isPending ? 'Declining…' : 'Decline'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </>
   )
 }
