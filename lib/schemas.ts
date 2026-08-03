@@ -308,8 +308,7 @@ export const CreateBugReportSchema = BugReportSchema.pick({
   pageUrl: true,
   category: true,
   severity: true,
-  reporterEmail: true,
-}).partial({ pageUrl: true, category: true, severity: true, reporterEmail: true })
+}).partial({ pageUrl: true, category: true, severity: true })
 
 // ─── Local group suggestions ──────────────────────────────────────────────────
 

@@ -5,7 +5,7 @@ import { createNotification } from '@/lib/notify'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { canViewBugReport } from '@/lib/bug-report-access'
 import { CreateBugReportSchema } from '@/lib/schemas'
-import { publicProcedure, authedProcedure } from '../procedures'
+import { authedProcedure } from '../procedures'
 
 export const bugReportsRouter = {
   getById: authedProcedure
@@ -41,7 +41,7 @@ export const bugReportsRouter = {
       }
     }),
 
-  create: publicProcedure.input(CreateBugReportSchema).handler(async ({ input, context }) => {
+  create: authedProcedure.input(CreateBugReportSchema).handler(async ({ input, context }) => {
     const { allowed, retryAfterMs } = checkRateLimit(context.request, 'bug-reports', {
       limit: 5,
       windowMs: 60_000,
@@ -52,8 +52,8 @@ export const bugReportsRouter = {
 
     const report = await prisma.bugReport.create({
       data: {
-        reporterId: volunteer?.id ?? null,
-        reporterEmail: volunteer ? volunteer.email : (input.reporterEmail ?? null),
+        reporterId: volunteer.id,
+        reporterEmail: volunteer.email,
         title: input.title.trim(),
         description: input.description,
         pageUrl: input.pageUrl ?? null,
