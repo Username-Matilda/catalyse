@@ -1,10 +1,10 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useMutation } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
-import { useAuth } from '@/lib/auth-context'
 import { orpc } from '@/lib/orpc'
 
 interface BugReportDialogProps {
@@ -20,11 +20,9 @@ const CATEGORIES = [
 type Category = (typeof CATEGORIES)[number]['value']
 
 export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProps) {
-  const { user } = useAuth()
   const [category, setCategory] = useState<Category>('bug')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [email, setEmail] = useState('')
   const {
     value: severity,
     onChange: setSeverity,
@@ -39,6 +37,7 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
     'medium',
   )
   const [success, setSuccess] = useState(false)
+  const [reportId, setReportId] = useState<number | null>(null)
   const [error, setError] = useState('')
   const [descriptionInvalid, setDescriptionInvalid] = useState(false)
   const createMutation = useMutation({ ...orpc.bugReports.create.mutationOptions() })
@@ -49,9 +48,9 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
     setCategory('bug')
     setTitle('')
     setDescription('')
-    setEmail('')
     setSeverity('medium')
     setSuccess(false)
+    setReportId(null)
     setError('')
     setDescriptionInvalid(false)
   }
@@ -74,11 +73,13 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
         category,
         title,
         description,
-        reporterEmail: user?.email ?? (email || undefined),
         severity,
       },
       {
-        onSuccess: () => setSuccess(true),
+        onSuccess: (data) => {
+          setSuccess(true)
+          setReportId(data.id)
+        },
         onError: (err) => setError(err instanceof Error ? err.message : 'Something went wrong'),
       },
     )
@@ -109,6 +110,13 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
             <div className="text-center py-5">
               <h3 role="heading">Thank you!</h3>
               <p>Your feedback has been submitted.</p>
+              {reportId && (
+                <p>
+                  <Link href={`/bugs/${reportId}`} className="underline" onClick={handleClose}>
+                    View your report
+                  </Link>
+                </p>
+              )}
               <Button onClick={handleClose}>Close</Button>
             </div>
           ) : (
@@ -176,19 +184,6 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
                   }
                 />
               </div>
-
-              {!user && (
-                <div className="mb-5">
-                  <label htmlFor="bug-email">Your Email (optional)</label>
-                  <input
-                    id="bug-email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="In case we need to follow up"
-                  />
-                </div>
-              )}
 
               <div className="mb-5">
                 <FilterDropdown

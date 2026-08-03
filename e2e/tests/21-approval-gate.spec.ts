@@ -81,6 +81,43 @@ test.describe('Approval Gate', () => {
     expect(result.status).toBe(403)
   })
 
+  test('Unapproved volunteer cannot self-claim a Quick Task', async ({ baseUrl }) => {
+    const adminApi = createApiClient(baseUrl, readAdminToken(baseUrl))
+    const taskCreated = await adminApi.quickTasks.create({
+      body: { title: fake.quickTaskTitle(), description: 'Quick Task self-claim gate test' },
+    })
+    const taskId = (taskCreated.body as { id: number }).id
+
+    const pending = await createPendingVolunteer(baseUrl)
+    const api = createApiClient(baseUrl, pending.token)
+
+    const result = await api.quickTasks.claim({ body: { id: taskId } })
+
+    expect(result.status).toBe(403)
+  })
+
+  test('Unapproved volunteer cannot browse or view an open Quick Task', async ({ baseUrl }) => {
+    const adminApi = createApiClient(baseUrl, readAdminToken(baseUrl))
+    const taskCreated = await adminApi.quickTasks.create({
+      body: { title: fake.quickTaskTitle(), description: 'Quick Task view gate test' },
+    })
+    const taskId = (taskCreated.body as { id: number }).id
+
+    const pending = await createPendingVolunteer(baseUrl)
+    const api = createApiClient(baseUrl, pending.token)
+
+    const availableResult = await api.quickTasks.available()
+    expect(availableResult.status).toBe(403)
+
+    const getResult = await api.quickTasks.get({ body: { id: taskId } })
+    expect(getResult.status).toBe(403)
+
+    // Even the lower-level, publicProcedure comment-thread endpoint must not leak it —
+    // this is the endpoint canViewWorkItem's open-and-unclaimed carve-out actually gates.
+    const commentsResult = await api.workItemComments.list({ body: { workItemId: taskId } })
+    expect(commentsResult.status).toBe(404)
+  })
+
   test('Unapproved volunteer cannot send a message', async ({ baseUrl }) => {
     const recipient = await createApprovedVolunteer(baseUrl)
     const pending = await createPendingVolunteer(baseUrl)
@@ -136,15 +173,15 @@ test.describe('Approval Gate', () => {
     expect(result.status).toBe(400)
   })
 
-  test('Admin cannot assign a starter task to an unapproved volunteer', async ({ baseUrl }) => {
+  test('Admin cannot assign a quick task to an unapproved volunteer', async ({ baseUrl }) => {
     const adminApi = createApiClient(baseUrl, readAdminToken(baseUrl))
-    const taskCreated = await adminApi.starterTasks.create({
-      body: { title: fake.starterTaskTitle(), description: 'Starter task assign gate test' },
+    const taskCreated = await adminApi.quickTasks.create({
+      body: { title: fake.quickTaskTitle(), description: 'Quick task assign gate test' },
     })
     const taskId = (taskCreated.body as { id: number }).id
     const pending = await createPendingVolunteer(baseUrl)
 
-    const result = await adminApi.starterTasks.assign({
+    const result = await adminApi.quickTasks.assign({
       body: { id: taskId, volunteerId: pending.id },
     })
 

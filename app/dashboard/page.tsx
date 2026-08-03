@@ -8,15 +8,11 @@ import Button from '@/components/Button'
 import CommentThread from '@/components/CommentThread'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
-import {
-  ProjectList,
-  statusBadgeClasses,
-  STARTER_TASK_STATUS_LABELS,
-} from '@/components/ProjectCard'
+import { ProjectList, statusBadgeClasses, QUICK_TASK_STATUS_LABELS } from '@/components/ProjectCard'
 import Tabs from '@/components/Tabs'
 import type { InferRouterOutputs } from '@orpc/server'
 import type { AppRouter } from '@/server/router'
-import { ApprovalStatus, StarterTaskStatus } from '@/generated/prisma/enums'
+import { ApprovalStatus, QuickTaskStatus } from '@/generated/prisma/enums'
 
 type Interest = InferRouterOutputs<AppRouter>['dashboard']['get']['myInterests'][number]
 
@@ -67,13 +63,12 @@ export default function DashboardPage() {
     enabled: !!user,
   })
 
-  const { data: starterTasksRaw = [] } = useQuery({
-    ...orpc.my.starterTasks.queryOptions(),
+  const { data: quickTasksRaw = [] } = useQuery({
+    ...orpc.my.quickTasks.queryOptions(),
     enabled: !!user,
   })
-  const starterTasks = starterTasksRaw.filter(
-    (t) =>
-      t.status === StarterTaskStatus.in_progress || t.status === StarterTaskStatus.under_review,
+  const quickTasks = quickTasksRaw.filter(
+    (t) => t.status === QuickTaskStatus.in_progress || t.status === QuickTaskStatus.under_review,
   )
 
   const { data: notifications = [] } = useQuery({
@@ -82,10 +77,10 @@ export default function DashboardPage() {
   })
 
   const submitTaskMutation = useMutation({
-    ...orpc.starterTasks.submit.mutationOptions(),
+    ...orpc.quickTasks.submit.mutationOptions(),
     onSuccess: () => {
       showToast('Task submitted for review!', 'success')
-      void queryClient.invalidateQueries({ queryKey: orpc.my.starterTasks.key() })
+      void queryClient.invalidateQueries({ queryKey: orpc.my.quickTasks.key() })
     },
     onError: (err: unknown) => {
       showToast(err instanceof Error ? err.message : 'Failed to submit task', 'error')
@@ -191,11 +186,11 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Starter tasks */}
-        {starterTasks.length > 0 && (
-          <section aria-label="Starter Tasks" className="mb-8">
-            <h2>Starter Tasks</h2>
-            {starterTasks.map((task) => (
+        {/* Quick Tasks */}
+        {quickTasks.length > 0 && (
+          <section aria-label="Quick Tasks" className="mb-8">
+            <h2>Quick Tasks</h2>
+            {quickTasks.map((task) => (
               <div
                 key={task.id}
                 role="article"
@@ -212,13 +207,13 @@ export default function DashboardPage() {
                     )}
                   </div>
                   <span role="status" className={statusBadgeClasses(task.status)}>
-                    {STARTER_TASK_STATUS_LABELS[task.status] ?? task.status}
+                    {QUICK_TASK_STATUS_LABELS[task.status] ?? task.status}
                   </span>
                 </div>
                 {expandedTasks.has(task.id) && (
                   <div className="mt-3">
                     <p className="text-text-light text-sm mb-3">{task.description}</p>
-                    {task.status === StarterTaskStatus.in_progress && (
+                    {task.status === QuickTaskStatus.in_progress && (
                       <Button
                         size="sm"
                         disabled={submitTaskMutation.isPending}

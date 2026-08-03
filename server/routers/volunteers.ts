@@ -7,7 +7,7 @@ import { publicProcedure, authedProcedure } from '../procedures'
 import {
   ApprovalStatus,
   ProjectStatus,
-  StarterTaskStatus,
+  QuickTaskStatus,
   WorkItemType,
 } from '@/generated/prisma/enums'
 
@@ -212,9 +212,9 @@ export const volunteersRouter = {
         }),
         prisma.workItem.findMany({
           where: {
-            type: WorkItemType.STARTER_TASK,
+            type: WorkItemType.QUICK_TASK,
             assigneeId: input.id,
-            status: StarterTaskStatus.completed,
+            status: QuickTaskStatus.completed,
             reviewRating: { in: ['excellent', 'good'] },
           },
           orderBy: { reviewedAt: 'desc' },

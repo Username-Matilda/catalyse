@@ -30,7 +30,7 @@ enum ProjectStatus {
 enum WorkItemType {
   PROJECT
   TASK
-  STARTER_TASK
+  QUICK_TASK
 }
 
 enum TaskStatus {
@@ -39,7 +39,7 @@ enum TaskStatus {
   completed
 }
 
-enum StarterTaskStatus {
+enum QuickTaskStatus {
   open
   in_progress
   under_review
@@ -131,10 +131,25 @@ model BugReport {
   createdAt       DateTime?  @default(now()) @map("created_at")
   resolvedBy      Volunteer? @relation("BugReportResolvedBy", fields: [resolvedById], references: [id], onUpdate: NoAction)
   reporter        Volunteer? @relation("BugReportReporter", fields: [reporterId], references: [id], onUpdate: NoAction)
+  comments        BugReportComment[]
 
   @@index([reporterId], map: "idx_bug_reports_reporter")
   @@index([status], map: "idx_bug_reports_status")
   @@map("bug_reports")
+}
+
+model BugReportComment {
+  id          Int       @id @default(autoincrement())
+  bugReportId Int       @map("bug_report_id")
+  authorId    Int       @map("author_id")
+  /// @zod.string.min(1, { message: "Content is required" })
+  content     String
+  createdAt   DateTime? @default(now()) @map("created_at")
+  author      Volunteer @relation("BugReportCommentAuthor", fields: [authorId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  bugReport   BugReport @relation(fields: [bugReportId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([bugReportId, createdAt], map: "idx_bug_report_comments_thread")
+  @@map("bug_report_comments")
 }
 
 model Message {
@@ -169,7 +184,7 @@ model DeletionRequest {
 model Notification {
   id          Int       @id @default(autoincrement())
   volunteerId Int       @map("volunteer_id")
-  type        String // TODO: enum — new_project_proposal, project_approved, project_needs_discussion, project_status_changed, new_interest, interest_accepted, interest_declined, interest_withdrawn, assigned_to_project, task_assigned, new_bug_report, starter_task_assigned, starter_task_submitted, starter_task_reviewed, local_group_suggestion
+  type        String // TODO: enum — new_project_proposal, project_approved, project_needs_discussion, project_status_changed, new_interest, interest_accepted, interest_declined, interest_withdrawn, assigned_to_project, task_assigned, new_bug_report, quick_task_assigned, quick_task_submitted, quick_task_reviewed, local_group_suggestion
   title       String
   body        String?
   link        String?
@@ -215,19 +230,19 @@ model EmailVerificationToken {
 
 model WorkItem {
   id          Int     @id @default(autoincrement())
-  type        String // PROJECT | TASK | STARTER_TASK
+  type        String // PROJECT | TASK | QUICK_TASK
   status      String // type-specific, enforced at app layer
   /// @zod.string.min(1, { message: "Title is required" })
   title       String
   description String?
-  deadline    DateTime? // applies to PROJECT, TASK, or STARTER_TASK
+  deadline    DateTime? // applies to PROJECT, TASK, or QUICK_TASK
 
   // Hierarchy: TASK has parentId → PROJECT
   parentId Int?       @map("parent_id")
   parent   WorkItem?  @relation("WorkItemChildren", fields: [parentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   children WorkItem[] @relation("WorkItemChildren")
 
-  // Context: STARTER_TASK optionally references a PROJECT (not hierarchical)
+  // Context: QUICK_TASK optionally references a PROJECT (not hierarchical)
   contextProjectId Int?       @map("context_project_id")
   contextProject   WorkItem?  @relation("WorkItemContext", fields: [contextProjectId], references: [id], onUpdate: NoAction)
   contextTasks     WorkItem[] @relation("WorkItemContext")
@@ -241,9 +256,9 @@ model WorkItem {
   reviewedById Int?      @map("reviewed_by_id")
   reviewedAt   DateTime? @map("reviewed_at")
   reviewNotes  String?   @map("review_notes")
-  reviewRating String?   @map("review_rating") // STARTER_TASK only
+  reviewRating String?   @map("review_rating") // QUICK_TASK only
 
-  // Project-specific (nullable for TASK/STARTER_TASK)
+  // Project-specific (nullable for TASK/QUICK_TASK)
   projectType                String?   @map("project_type") // TODO: enum — sprint, container, ongoing, one_off
   urgency                    String?   @default("medium") // TODO: enum — low, medium, high
   estimatedDuration          String?   @map("estimated_duration")
@@ -256,12 +271,13 @@ model WorkItem {
   outcomeNotes               String?   @map("outcome_notes")
   completedAt                DateTime? @map("completed_at")
 
-  // Task / starter-task-specific (nullable for PROJECT)
-  skillId            Int?      @map("skill_id")
-  estimatedHours     Float?    @map("estimated_hours")
-  nudgeSentAt        DateTime? @map("nudge_sent_at")
-  finalWarningSentAt DateTime? @map("final_warning_sent_at")
-  sortOrder          Int?      @default(0) @map("sort_order")
+  // Task / quick-task-specific (nullable for PROJECT)
+  skillId             Int?      @map("skill_id")
+  estimatedHours      Float?    @map("estimated_hours")
+  nudgeSentAt         DateTime? @map("nudge_sent_at")
+  finalWarningSentAt  DateTime? @map("final_warning_sent_at")
+  sortOrder           Int?      @default(0) @map("sort_order")
+  featuredAsQuickTask Boolean?  @default(false) @map("featured_as_quick_task") // TASK only — also list on the Quick Tasks page
 
   country    String?
   localGroup String?   @map("local_group")
@@ -408,7 +424,7 @@ model SkillEndorsement {
   volunteerId  Int       @map("volunteer_id")
   skillId      Int       @map("skill_id")
   endorsedById Int       @map("endorsed_by_id")
-  source       String?   @default("direct_observation") // TODO: enum — direct_observation, starter_task (others unknown)
+  source       String?   @default("direct_observation") // TODO: enum — direct_observation, quick_task (others unknown)
   sourceId     Int?      @map("source_id")
   rating       String?   @default("verified") // TODO: enum — verified (others unknown)
   notes        String?
@@ -503,6 +519,7 @@ model Volunteer {
   adminNotesAbout                         AdminNote[]              @relation("AdminNoteVolunteer")
   bugReportsResolved                      BugReport[]              @relation("BugReportResolvedBy")
   bugReportsReported                      BugReport[]              @relation("BugReportReporter")
+  bugReportComments                       BugReportComment[]       @relation("BugReportCommentAuthor")
   messagesSent                            Message[]                @relation("MessageFrom")
   messagesReceived                        Message[]                @relation("MessageTo")
   notifications                           Notification[]

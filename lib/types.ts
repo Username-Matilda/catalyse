@@ -25,9 +25,9 @@ import type {
   ReviewSuggestionSchema,
   InviteAdminSchema,
   PlatformSettingsSchema,
-  CreateStarterTaskSchema,
-  AssignStarterTaskSchema,
-  ReviewStarterTaskSchema,
+  CreateQuickTaskSchema,
+  AssignQuickTaskSchema,
+  ReviewQuickTaskSchema,
   CreateBugReportSchema,
   LocalGroupSuggestionBodySchema,
   UpdateVolunteerSchema,
@@ -66,9 +66,9 @@ export type ReviewSuggestionBody = z.infer<typeof ReviewSuggestionSchema>
 export type InviteAdminBody = z.infer<typeof InviteAdminSchema>
 export type PlatformSettingsBody = z.infer<typeof PlatformSettingsSchema>
 
-export type CreateStarterTaskBody = z.infer<typeof CreateStarterTaskSchema>
-export type AssignStarterTaskBody = z.infer<typeof AssignStarterTaskSchema>
-export type ReviewStarterTaskBody = z.infer<typeof ReviewStarterTaskSchema>
+export type CreateQuickTaskBody = z.infer<typeof CreateQuickTaskSchema>
+export type AssignQuickTaskBody = z.infer<typeof AssignQuickTaskSchema>
+export type ReviewQuickTaskBody = z.infer<typeof ReviewQuickTaskSchema>
 
 export type CreateBugReportBody = z.infer<typeof CreateBugReportSchema>
 export type LocalGroupSuggestionBody = z.infer<typeof LocalGroupSuggestionBodySchema>

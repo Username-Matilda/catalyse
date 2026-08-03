@@ -33,7 +33,7 @@ interface AdminNote {
   createdAt: string
   updatedAt: string
 }
-interface StarterTask {
+interface QuickTask {
   id: number
   title: string
   status: string
@@ -64,7 +64,7 @@ interface VolunteerDetail {
   skills: Skill[]
   endorsements: Endorsement[]
   adminNotes: AdminNote[]
-  starterTasks: StarterTask[]
+  quickTasks: QuickTask[]
   projectHistory: ProjectHistory[]
 }
 
@@ -87,7 +87,7 @@ const BASED_ON_OPTIONS = [
   { value: 'reference', label: 'Reference' },
 ] as const
 
-type Tab = 'admin_notes' | 'starter_tasks' | 'project_history' | 'endorse_skill'
+type Tab = 'admin_notes' | 'quick_tasks' | 'project_history' | 'endorse_skill'
 
 export default function AdminVolunteerDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -344,7 +344,7 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
             tabs={
               [
                 { key: 'admin_notes', label: 'Admin Notes' },
-                { key: 'starter_tasks', label: 'Starter Tasks' },
+                { key: 'quick_tasks', label: 'Quick Tasks' },
                 { key: 'project_history', label: 'Project History' },
                 { key: 'endorse_skill', label: 'Endorse Skill' },
               ] as { key: Tab; label: string }[]
@@ -461,13 +461,13 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
             </div>
           )}
 
-          {/* Starter Tasks tab */}
-          {activeTab === 'starter_tasks' && (
+          {/* Quick Tasks tab */}
+          {activeTab === 'quick_tasks' && (
             <div>
-              {vol.starterTasks.length === 0 ? (
-                <p className="text-text-light">No starter tasks assigned yet.</p>
+              {vol.quickTasks.length === 0 ? (
+                <p className="text-text-light">No Quick Tasks assigned yet.</p>
               ) : (
-                vol.starterTasks.map((t) => (
+                vol.quickTasks.map((t) => (
                   <div
                     key={t.id}
                     className="text-sm py-2 border-b border-brand-border flex justify-between"

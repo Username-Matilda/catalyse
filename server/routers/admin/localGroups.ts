@@ -129,6 +129,7 @@ export const adminLocalGroupsRouter = {
 
       let finalName = suggestion.name
       let notificationAction: string = action
+      let targetGroupId: number | null = null
 
       if (action === 'accept') {
         const name = body.name?.trim() || suggestion.name
@@ -137,7 +138,7 @@ export const adminLocalGroupsRouter = {
           throw new ORPCError('BAD_REQUEST', { message: 'Name and country required' })
         }
         finalName = name
-        await prisma.$transaction([
+        const [createdGroup] = await prisma.$transaction([
           prisma.localGroup.create({ data: { name, country } }),
           prisma.localGroupSuggestion.update({
             where: { id: input.id },
@@ -150,6 +151,7 @@ export const adminLocalGroupsRouter = {
             },
           }),
         ])
+        targetGroupId = createdGroup.id
         notificationAction = LocalGroupSuggestionStatus.accepted
       } else if (action === 'merge') {
         const mergedIntoId = body.mergedIntoId ?? null
@@ -168,6 +170,7 @@ export const adminLocalGroupsRouter = {
             adminNotes,
           },
         })
+        targetGroupId = mergedIntoId
         notificationAction = 'merge'
       } else if (action === 'on_hold') {
         await prisma.localGroupSuggestion.update({
@@ -185,10 +188,7 @@ export const adminLocalGroupsRouter = {
       const titleFn = NOTIFICATION_TITLES[notificationAction]
       const title = titleFn ? titleFn(finalName) : `Update on your local group suggestion`
 
-      const notificationLink =
-        notificationAction === LocalGroupSuggestionStatus.accepted || notificationAction === 'merge'
-          ? '/settings'
-          : null
+      const notificationLink = targetGroupId ? `/local-groups/${targetGroupId}` : null
 
       await createNotification(
         suggestion.suggestedBy.id,

@@ -148,14 +148,16 @@ test.describe('Project Interests and Assignment', () => {
     await volunteer.page.getByRole('button', { name: 'Express Interest' }).click()
     await expect(getAlert(volunteer.page)).toContainText('Interest expressed!', { timeout: 10_000 })
 
-    // Admin declines with a response message via browser prompt
+    // Admin declines with a response message via the decline modal
     await adminPage.goto(`${baseUrl}/projects/${projectId}`)
     await expect(adminPage.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 })
     const interestCard = adminPage.locator('.interest-card').filter({ hasText: volunteer.name })
     await expect(interestCard).toBeVisible({ timeout: 10_000 })
-    // Admin declines with a response message via browser prompt
-    adminPage.once('dialog', (dialog) => dialog.accept(declineMessage))
     await interestCard.getByRole('button', { name: 'Decline' }).click()
+    const declineDialog = adminPage.getByRole('dialog', { name: 'Decline Volunteer' })
+    await expect(declineDialog).toBeVisible({ timeout: 10_000 })
+    await declineDialog.getByLabel('Optional message for the volunteer').fill(declineMessage)
+    await declineDialog.getByRole('button', { name: 'Decline' }).click()
     await expect(getAlert(adminPage)).toContainText('Interest declined', { timeout: 10_000 })
 
     // Interest status updates to declined
@@ -228,8 +230,10 @@ test.describe('Project Interests and Assignment', () => {
     const volunteerCard = adminPage.locator('.interest-card').filter({ hasText: volunteer.name })
     await expect(volunteerCard).toBeVisible({ timeout: 10_000 })
 
-    adminPage.once('dialog', (dialog) => dialog.accept())
     await volunteerCard.getByRole('button', { name: 'Remove' }).click()
+    const removeDialog = adminPage.getByRole('dialog', { name: 'Decline Volunteer' })
+    await expect(removeDialog).toBeVisible({ timeout: 10_000 })
+    await removeDialog.getByRole('button', { name: 'Decline' }).click()
     await expect(getAlert(adminPage)).toContainText('Interest declined', { timeout: 10_000 })
     await expect(volunteerCard).toContainText('Declined', { timeout: 10_000 })
     await expect(volunteerCard.getByRole('button', { name: 'Remove' })).toHaveCount(0)

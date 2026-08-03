@@ -60,13 +60,13 @@ async function sendAccountDeletionNotifications(deletedId: number, deletedName: 
   >`
     SELECT p.assignee_id AS owner_id, v.name AS owner_name, v.email AS owner_email,
            p.id AS project_id, p.title AS project_title,
-           COUNT(st.id) AS task_count
-    FROM work_items st
-    JOIN work_items p ON st.context_project_id = p.id AND p.type = 'PROJECT'
+           COUNT(qt.id) AS task_count
+    FROM work_items qt
+    JOIN work_items p ON qt.context_project_id = p.id AND p.type = 'PROJECT'
     JOIN volunteers v ON p.assignee_id = v.id
-    WHERE st.type = 'STARTER_TASK'
-      AND st.assignee_id = ${deletedId}
-      AND st.status NOT IN ('completed')
+    WHERE qt.type = 'QUICK_TASK'
+      AND qt.assignee_id = ${deletedId}
+      AND qt.status NOT IN ('completed')
       AND p.assignee_id != ${deletedId}
       AND v.deleted_at IS NULL
     GROUP BY p.id

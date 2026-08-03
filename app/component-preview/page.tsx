@@ -138,7 +138,7 @@ export default function ComponentPreviewPage() {
 
       <Section title="Button — dynamic variant (ternary)">
         <p className="text-text-light text-sm mb-3">
-          Used in admin/triage tabs and admin/starter-tasks status filters.
+          Used in admin/triage tabs and quick-tasks status filters.
         </p>
         <Row label="md tabs">
           {['one', 'two', 'three'].map((t) => (

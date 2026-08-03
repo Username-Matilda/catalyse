@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRequireAuth } from '@/lib/hooks/auth'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
@@ -35,6 +35,15 @@ export default function SuggestLocalGroupPage() {
 
   const [country, setCountry] = useState('')
   const [name, setName] = useState('')
+  const [countryPrefilled, setCountryPrefilled] = useState(false)
+
+  useEffect(() => {
+    if (countryPrefilled || !user?.country) return
+    if (!SUGGESTION_COUNTRIES.some((o) => o.value === user.country)) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCountry(user.country)
+    setCountryPrefilled(true)
+  }, [user?.country, countryPrefilled])
 
   const { data, isLoading: loadingSuggestions } = useQuery({
     ...orpc.localGroupSuggestions.list.queryOptions(),

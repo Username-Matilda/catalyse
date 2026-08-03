@@ -1,9 +1,10 @@
 'use client'
 
 import React, { useEffect, useRef, useState } from 'react'
-import { useRequireAdmin } from '@/lib/hooks/auth'
-import Link from 'next/link'
+import { useRequireApproved } from '@/lib/hooks/auth'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Badge, type BadgeVariant } from '@/components/Badge'
 import Button from '@/components/Button'
 import CommentThread from '@/components/CommentThread'
@@ -11,7 +12,7 @@ import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import { formatDate } from '@/lib/format-date'
-import { StarterTaskStatus } from '@/generated/prisma/enums'
+import { QuickTaskStatus, TaskStatus } from '@/generated/prisma/enums'
 
 interface Skill {
   id: number
@@ -19,7 +20,7 @@ interface Skill {
   categoryName: string
 }
 
-interface StarterTask {
+interface AdminQuickTask {
   id: number
   title: string
   description: string
@@ -59,8 +60,243 @@ const RATING_LABELS: Record<string, string> = {
   needs_improvement: 'Needs improvement',
 }
 
-export default function AdminStarterTasksPage() {
-  const { user, loading } = useRequireAdmin()
+const STATUS_LABELS: Record<string, string> = {
+  in_progress: 'Assigned',
+  under_review: 'Submitted — awaiting review',
+  completed: 'Completed',
+}
+
+export default function QuickTasksPage() {
+  const { user, loading } = useRequireApproved()
+
+  if (loading || !user) return null
+
+  return user.isAdmin ? <AdminQuickTasksView /> : <VolunteerQuickTasksView />
+}
+
+function VolunteerQuickTasksView() {
+  const { user } = useRequireApproved()
+  const showToast = useToast()
+  const queryClient = useQueryClient()
+  const router = useRouter()
+
+  const { data: tasks = [], isLoading: loadingTasks } = useQuery({
+    ...orpc.my.quickTasks.queryOptions(),
+    enabled: !!user,
+  })
+
+  const { data: availableTasks = [], isLoading: loadingAvailable } = useQuery({
+    ...orpc.quickTasks.available.queryOptions(),
+    enabled: !!user,
+  })
+
+  const submitMutation = useMutation({
+    ...orpc.quickTasks.submit.mutationOptions(),
+    onSuccess: () => {
+      showToast('Task submitted for review!', 'success')
+      void queryClient.invalidateQueries({ queryKey: orpc.my.quickTasks.key() })
+    },
+    onError: (err: unknown) => {
+      showToast(err instanceof Error ? err.message : 'Failed to submit task', 'error')
+    },
+  })
+
+  const invalidateAvailable = () => {
+    void queryClient.invalidateQueries({ queryKey: orpc.quickTasks.available.key() })
+    void queryClient.invalidateQueries({ queryKey: orpc.my.quickTasks.key() })
+  }
+
+  const claimQuickMutation = useMutation({
+    ...orpc.quickTasks.claim.mutationOptions(),
+    onSuccess: () => {
+      showToast('Task claimed!', 'success')
+      invalidateAvailable()
+    },
+    onError: (err: unknown) =>
+      showToast(err instanceof Error ? err.message : 'Failed to claim task', 'error'),
+  })
+
+  // A claimed project task doesn't join "My Quick Tasks" below — that list is quick
+  // tasks only — so send the volunteer to the task itself rather than leaving them on a
+  // page where the thing they just claimed has silently vanished.
+  const claimProjectTaskMutation = useMutation({
+    ...orpc.projects.updateTask.mutationOptions(),
+    onSuccess: (_data, variables) => {
+      showToast('Task claimed!', 'success')
+      invalidateAvailable()
+      router.push(`/projects/${variables.projectId}/tasks/${variables.taskId}`)
+    },
+    onError: (err: unknown) =>
+      showToast(err instanceof Error ? err.message : 'Failed to claim task', 'error'),
+  })
+
+  if (!user) return null
+
+  return (
+    <>
+      <main className="container py-5 pb-15">
+        <h1>My Quick Tasks</h1>
+        <p className="text-text-light mb-6">
+          Small, self-contained tasks to help you get started and demonstrate your skills.
+        </p>
+
+        {loadingTasks ? (
+          <div className="text-center py-10 text-text-light">Loading tasks…</div>
+        ) : tasks.length === 0 ? (
+          <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word text-center">
+            <h3>No tasks assigned yet</h3>
+            <p className="text-text-light">
+              Check back soon, or browse <Link href="/projects">projects</Link> to find other ways
+              to contribute.
+            </p>
+          </div>
+        ) : (
+          tasks.map((task) => (
+            <div
+              key={task.id}
+              id={`task-${task.id}`}
+              role="article"
+              className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
+            >
+              <div className="flex justify-between items-start mb-2">
+                <h3 className="m-0">
+                  <Link href={`/quick-tasks/${task.id}`}>{task.title}</Link>
+                </h3>
+                <Badge
+                  role="status"
+                  variant={task.status === QuickTaskStatus.completed ? 'success' : 'warning'}
+                >
+                  {STATUS_LABELS[task.status] ?? task.status}
+                </Badge>
+              </div>
+
+              <div className="flex gap-2 mb-3 flex-wrap">
+                {task.skillName && (
+                  <span className="inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-gray-700 dark:text-gray-300">
+                    {task.skillName}
+                  </span>
+                )}
+                {task.estimatedHours && (
+                  <span className="text-text-light text-sm">~{task.estimatedHours}h</span>
+                )}
+                {task.projectTitle && (
+                  <span className="text-text-light text-sm">Related: {task.projectTitle}</span>
+                )}
+              </div>
+
+              <p className="whitespace-pre-wrap mb-4">{task.description}</p>
+
+              {task.status === QuickTaskStatus.in_progress && (
+                <Button
+                  onClick={() => submitMutation.mutate({ id: task.id })}
+                  disabled={submitMutation.isPending && submitMutation.variables?.id === task.id}
+                >
+                  {submitMutation.isPending && submitMutation.variables?.id === task.id
+                    ? 'Submitting…'
+                    : 'Mark as Complete'}
+                </Button>
+              )}
+            </div>
+          ))
+        )}
+
+        <h2 className="mt-8">Browse Quick Tasks</h2>
+        <p className="text-text-light mb-6">
+          Open tasks anyone approved can pick up right now — no need to browse projects first.
+        </p>
+
+        {loadingAvailable ? (
+          <div className="text-center py-10 text-text-light">Loading tasks…</div>
+        ) : availableTasks.length === 0 ? (
+          <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word text-center">
+            <h3>No open Quick Tasks right now</h3>
+            <p className="text-text-light">Check back soon.</p>
+          </div>
+        ) : (
+          availableTasks.map((task) =>
+            task.kind === 'quick' ? (
+              <div
+                key={`quick-${task.id}`}
+                role="article"
+                className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
+              >
+                <h3 className="m-0 mb-2">
+                  <Link href={`/quick-tasks/${task.id}`}>{task.title}</Link>
+                </h3>
+                <div className="flex gap-2 mb-3 flex-wrap">
+                  {task.skillName && (
+                    <span className="inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-gray-700 dark:text-gray-300">
+                      {task.skillName}
+                    </span>
+                  )}
+                  {task.estimatedHours !== null && (
+                    <span className="text-text-light text-sm">~{task.estimatedHours}h</span>
+                  )}
+                </div>
+                {task.description && <p className="whitespace-pre-wrap mb-4">{task.description}</p>}
+                <Button
+                  onClick={() => claimQuickMutation.mutate({ id: task.id })}
+                  disabled={
+                    claimQuickMutation.isPending && claimQuickMutation.variables?.id === task.id
+                  }
+                >
+                  {claimQuickMutation.isPending && claimQuickMutation.variables?.id === task.id
+                    ? 'Claiming…'
+                    : 'Claim'}
+                </Button>
+              </div>
+            ) : (
+              <div
+                key={`project-task-${task.id}`}
+                role="article"
+                className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
+              >
+                <h3 className="m-0 mb-2">
+                  <Link href={`/projects/${task.projectId}/tasks/${task.id}`}>{task.title}</Link>
+                </h3>
+                <div className="flex gap-2 mb-3 flex-wrap items-center">
+                  {task.estimatedHours !== null && (
+                    <span className="text-text-light text-sm">~{task.estimatedHours}h</span>
+                  )}
+                  {task.projectTitle && (
+                    <span className="text-text-light text-sm">
+                      Part of Project:{' '}
+                      <Link href={`/projects/${task.projectId}`} className="underline">
+                        {task.projectTitle}
+                      </Link>
+                    </span>
+                  )}
+                </div>
+                {task.description && <p className="whitespace-pre-wrap mb-4">{task.description}</p>}
+                <Button
+                  onClick={() =>
+                    claimProjectTaskMutation.mutate({
+                      projectId: task.projectId,
+                      taskId: task.id,
+                      data: { status: TaskStatus.in_progress, assigneeId: user.id },
+                    })
+                  }
+                  disabled={
+                    claimProjectTaskMutation.isPending &&
+                    claimProjectTaskMutation.variables?.taskId === task.id
+                  }
+                >
+                  {claimProjectTaskMutation.isPending &&
+                  claimProjectTaskMutation.variables?.taskId === task.id
+                    ? 'Claiming…'
+                    : 'Claim'}
+                </Button>
+              </div>
+            ),
+          )
+        )}
+      </main>
+    </>
+  )
+}
+
+function AdminQuickTasksView() {
+  const { user } = useRequireApproved()
   const queryClient = useQueryClient()
   const {
     value: statusFilter,
@@ -89,33 +325,30 @@ export default function AdminStarterTasksPage() {
   const [createHours, setCreateHours] = useState('')
 
   // Edit modal
-  const [editModal, setEditModal] = useState<StarterTask | null>(null)
+  const [editModal, setEditModal] = useState<AdminQuickTask | null>(null)
   const [editTitle, setEditTitle] = useState('')
   const [editDesc, setEditDesc] = useState('')
   const [editSkillId, setEditSkillId] = useState('')
   const [editHours, setEditHours] = useState('')
 
-  // Assign modal
-  const [assignModal, setAssignModal] = useState<StarterTask | null>(null)
-  const [assignVolunteerId, setAssignVolunteerId] = useState('')
+  // Assign — inline dropdown per task, matching the project-task assign pattern
+  const [taskAssignSelections, setTaskAssignSelections] = useState<Record<number, string>>({})
 
   // Review modal
-  const [reviewModal, setReviewModal] = useState<StarterTask | null>(null)
+  const [reviewModal, setReviewModal] = useState<AdminQuickTask | null>(null)
   const [reviewRating, setReviewRating] = useState<'excellent' | 'good' | 'needs_improvement'>(
     'good',
   )
   const [reviewFeedback, setReviewFeedback] = useState('')
   const [reviewNotes, setReviewNotes] = useState('')
 
-  const [unassignModal, setUnassignModal] = useState<StarterTask | null>(null)
-
   const { data: tasksRaw = [], isPending: loadingData } = useQuery({
-    ...orpc.starterTasks.list.queryOptions({
-      input: statusFilter ? { status: statusFilter as StarterTaskStatus } : {},
+    ...orpc.quickTasks.list.queryOptions({
+      input: statusFilter ? { status: statusFilter as QuickTaskStatus } : {},
     }),
     enabled: !!user?.isAdmin,
   })
-  const tasks = tasksRaw as unknown as StarterTask[]
+  const tasks = tasksRaw as unknown as AdminQuickTask[]
 
   const { data: skillCats = [] } = useQuery({
     ...orpc.skills.list.queryOptions(),
@@ -167,7 +400,7 @@ export default function AdminStarterTasksPage() {
   }
 
   const createTaskMutation = useMutation({
-    ...orpc.starterTasks.create.mutationOptions(),
+    ...orpc.quickTasks.create.mutationOptions(),
     onSuccess: () => {
       toast('Task created!', 'success')
       setShowCreate(false)
@@ -175,67 +408,70 @@ export default function AdminStarterTasksPage() {
       setCreateDesc('')
       setCreateSkillId('')
       setCreateHours('')
-      void queryClient.invalidateQueries({ queryKey: orpc.starterTasks.list.key() })
+      void queryClient.invalidateQueries({ queryKey: orpc.quickTasks.list.key() })
     },
     onError: (err: unknown) =>
       toast(err instanceof Error ? err.message : 'Failed to create task', 'error'),
   })
 
   const editTaskMutation = useMutation({
-    ...orpc.starterTasks.update.mutationOptions(),
+    ...orpc.quickTasks.update.mutationOptions(),
     onSuccess: () => {
       toast('Task updated!', 'success')
       setEditModal(null)
-      void queryClient.invalidateQueries({ queryKey: orpc.starterTasks.list.key() })
+      void queryClient.invalidateQueries({ queryKey: orpc.quickTasks.list.key() })
     },
     onError: (err: unknown) =>
       toast(err instanceof Error ? err.message : 'Failed to update task', 'error'),
   })
 
   const assignTaskMutation = useMutation({
-    ...orpc.starterTasks.assign.mutationOptions(),
-    onSuccess: () => {
+    ...orpc.quickTasks.assign.mutationOptions(),
+    onSuccess: (_data, variables) => {
       toast('Task assigned!', 'success')
-      setAssignModal(null)
-      void queryClient.invalidateQueries({ queryKey: orpc.starterTasks.list.key() })
+      setTaskAssignSelections((s) => {
+        const next = { ...s }
+        delete next[variables.id]
+        return next
+      })
+      void queryClient.invalidateQueries({ queryKey: orpc.quickTasks.list.key() })
     },
     onError: (err: unknown) =>
       toast(err instanceof Error ? err.message : 'Failed to assign', 'error'),
   })
 
   const unassignTaskMutation = useMutation({
-    ...orpc.starterTasks.unassign.mutationOptions(),
+    ...orpc.quickTasks.unassign.mutationOptions(),
     onSuccess: () => {
       toast('Assignee removed', 'success')
-      setUnassignModal(null)
-      void queryClient.invalidateQueries({ queryKey: orpc.starterTasks.list.key() })
+      void queryClient.invalidateQueries({ queryKey: orpc.quickTasks.list.key() })
     },
     onError: (err: unknown) =>
       toast(err instanceof Error ? err.message : 'Failed to unassign', 'error'),
   })
 
   const deleteTaskMutation = useMutation({
-    ...orpc.starterTasks.delete.mutationOptions(),
+    ...orpc.quickTasks.delete.mutationOptions(),
     onSuccess: () => {
       toast('Task deleted', 'success')
-      void queryClient.invalidateQueries({ queryKey: orpc.starterTasks.list.key() })
+      void queryClient.invalidateQueries({ queryKey: orpc.quickTasks.list.key() })
     },
     onError: (err: unknown) =>
       toast(err instanceof Error ? err.message : 'Failed to delete task', 'error'),
   })
 
   const reviewTaskMutation = useMutation({
-    ...orpc.starterTasks.review.mutationOptions(),
+    ...orpc.quickTasks.review.mutationOptions(),
     onSuccess: () => {
       toast('Task reviewed!', 'success')
       setReviewModal(null)
-      void queryClient.invalidateQueries({ queryKey: orpc.starterTasks.list.key() })
+      void queryClient.invalidateQueries({ queryKey: orpc.quickTasks.list.key() })
     },
     onError: (err: unknown) =>
       toast(err instanceof Error ? err.message : 'Failed to review', 'error'),
   })
 
-  function openEdit(task: StarterTask) {
+  function openEdit(task: AdminQuickTask) {
     setEditModal(task)
     setEditTitle(task.title)
     setEditDesc(task.description)
@@ -265,29 +501,29 @@ export default function AdminStarterTasksPage() {
     })
   }
 
-  function assignTask(e: React.FormEvent) {
-    e.preventDefault()
-    if (!assignModal) return
-    assignTaskMutation.mutate({
-      id: assignModal.id,
-      volunteerId: parseInt(assignVolunteerId),
-    })
+  function handleAssignTask(taskId: number) {
+    const selected = taskAssignSelections[taskId]
+    if (!selected) return
+    assignTaskMutation.mutate({ id: taskId, volunteerId: parseInt(selected, 10) })
   }
 
-  function unassignTask() {
-    if (!unassignModal) return
-    unassignTaskMutation.mutate({ id: unassignModal.id })
+  function handleUnassignTask(taskId: number) {
+    unassignTaskMutation.mutate({ id: taskId })
   }
 
-  function deleteTask(task: StarterTask) {
+  function deleteTask(task: AdminQuickTask) {
     if (!confirm(`Delete "${task.title}"? This cannot be undone.`)) return
     deleteTaskMutation.mutate({ id: task.id })
   }
 
-  function copyLink(taskId: number) {
-    const url = `${window.location.origin}/starter-tasks#task-${taskId}`
-    navigator.clipboard.writeText(url)
-    toast('Link copied!', 'success')
+  async function copyLink(taskId: number) {
+    const url = `${window.location.origin}/quick-tasks/${taskId}`
+    try {
+      await navigator.clipboard.writeText(url)
+      toast('Link copied!', 'success')
+    } catch {
+      toast('Could not copy the link', 'error')
+    }
   }
 
   function reviewTask(e: React.FormEvent) {
@@ -301,7 +537,7 @@ export default function AdminStarterTasksPage() {
     })
   }
 
-  if (loading || !user) return null
+  if (!user) return null
 
   return (
     <>
@@ -408,6 +644,38 @@ export default function AdminStarterTasksPage() {
                       <CommentThread workItemId={task.id} />
                     </div>
 
+                    {task.status === QuickTaskStatus.open && (
+                      <div
+                        className="flex gap-2 items-end mb-3"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="flex-1 max-w-75">
+                          <FilterDropdown
+                            id={`assign-task-${task.id}`}
+                            label="Assign to"
+                            ariaLabel={`Assign volunteer to ${task.title}`}
+                            value={taskAssignSelections[task.id] ?? ''}
+                            options={[
+                              { value: '', label: 'Select volunteer…' },
+                              ...volunteers.map((v) => ({ value: String(v.id), label: v.name })),
+                            ]}
+                            onChange={(v) =>
+                              setTaskAssignSelections((s) => ({ ...s, [task.id]: v }))
+                            }
+                            searchable
+                          />
+                        </div>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          disabled={!taskAssignSelections[task.id] || assignTaskMutation.isPending}
+                          onClick={() => handleAssignTask(task.id)}
+                        >
+                          Assign
+                        </Button>
+                      </div>
+                    )}
+
                     <div className="flex justify-between items-center mt-3 pt-3 border-t border-brand-border">
                       <span className="text-sm text-text-light">
                         Created {formatDate(task.createdAt)}
@@ -418,7 +686,7 @@ export default function AdminStarterTasksPage() {
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation()
-                            copyLink(task.id)
+                            void copyLink(task.id)
                           }}
                         >
                           Copy share link
@@ -443,32 +711,20 @@ export default function AdminStarterTasksPage() {
                         >
                           Delete
                         </Button>
-                        {task.status === StarterTaskStatus.open && (
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setAssignModal(task)
-                              setAssignVolunteerId('')
-                            }}
-                          >
-                            Assign
-                          </Button>
-                        )}
                         {task.assignedToId && (
                           <Button
                             variant="secondary"
                             size="sm"
+                            disabled={unassignTaskMutation.isPending}
                             onClick={(e) => {
                               e.stopPropagation()
-                              setUnassignModal(task)
+                              handleUnassignTask(task.id)
                             }}
                           >
                             Unassign
                           </Button>
                         )}
-                        {task.status === StarterTaskStatus.under_review && (
+                        {task.status === QuickTaskStatus.under_review && (
                           <Button
                             size="sm"
                             onClick={(e) => {
@@ -663,53 +919,6 @@ export default function AdminStarterTasksPage() {
         </div>
       )}
 
-      {/* Assign Task Modal */}
-      {assignModal && (
-        <div
-          className="fixed inset-0 bg-[rgba(29,53,87,0.5)] flex items-center justify-center z-1000 p-5"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setAssignModal(null)
-          }}
-        >
-          <div
-            role="dialog"
-            aria-labelledby="assign-dialog-title"
-            className="bg-surface rounded-xl shadow-lg max-w-125 w-full max-h-[90vh] overflow-y-auto"
-          >
-            <div className="px-6 py-5 border-b border-brand-border flex justify-between items-center">
-              <h2 id="assign-dialog-title">Assign Task</h2>
-            </div>
-            <div className="p-6">
-              <p className="text-text-light mb-4">{assignModal.title}</p>
-              <form onSubmit={assignTask}>
-                <div className="mb-5">
-                  <FilterDropdown
-                    id="assign-vol"
-                    label="Volunteer"
-                    ariaLabel="Volunteer"
-                    value={assignVolunteerId}
-                    options={[
-                      { value: '', label: 'Select volunteer…' },
-                      ...volunteers.map((v) => ({ value: String(v.id), label: v.name })),
-                    ]}
-                    onChange={(v) => setAssignVolunteerId(v)}
-                    searchable
-                  />
-                </div>
-                <div className="px-0 py-4 border-t border-brand-border flex gap-3 justify-end">
-                  <Button type="button" variant="secondary" onClick={() => setAssignModal(null)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={assignTaskMutation.isPending}>
-                    Assign
-                  </Button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Review Task Modal */}
       {reviewModal !== null && (
         <div
@@ -784,43 +993,6 @@ export default function AdminStarterTasksPage() {
                   </Button>
                 </div>
               </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Unassign Confirm Modal */}
-      {unassignModal && (
-        <div
-          className="fixed inset-0 bg-[rgba(29,53,87,0.5)] flex items-center justify-center z-1000 p-5"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setUnassignModal(null)
-          }}
-        >
-          <div
-            role="dialog"
-            aria-labelledby="unassign-dialog-title"
-            className="bg-surface rounded-xl shadow-lg max-w-125 w-full"
-          >
-            <div className="px-6 py-5 border-b border-brand-border">
-              <h2 id="unassign-dialog-title">Unassign Volunteer?</h2>
-            </div>
-            <div className="p-6">
-              <p className="text-text-light mb-6">
-                Remove{' '}
-                <Link href={`/admin/volunteers/${unassignModal.assignedToId}`}>
-                  {unassignModal.assignedToName}
-                </Link>{' '}
-                from &ldquo;{unassignModal.title}&rdquo;? The task will return to open.
-              </p>
-              <div className="flex gap-3 justify-end">
-                <Button variant="secondary" onClick={() => setUnassignModal(null)}>
-                  Cancel
-                </Button>
-                <Button onClick={unassignTask} disabled={unassignTaskMutation.isPending}>
-                  {unassignTaskMutation.isPending ? 'Removing…' : 'Unassign'}
-                </Button>
-              </div>
             </div>
           </div>
         </div>

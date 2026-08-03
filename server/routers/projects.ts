@@ -2,7 +2,13 @@ import { z } from 'zod'
 import { ORPCError } from '@orpc/server'
 import { Prisma } from '@/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
-import { withProjectExtras, projectInclude, EnrichedProject } from '@/lib/work-item'
+import {
+  withProjectExtras,
+  projectInclude,
+  EnrichedProject,
+  canViewWorkItem,
+  CLAIM_BLOCKING_INTEREST_STATUSES,
+} from '@/lib/work-item'
 import { notifyUser, notifyAdmins } from '@/lib/notify'
 import {
   CreateProjectSchema,
@@ -28,6 +34,42 @@ const STATUS_LABELS: Record<string, string> = {
   on_hold: 'On Hold',
   completed: 'Completed',
   archived: 'Archived',
+}
+
+/** Has this volunteer been declined from, or withdrawn from, this project? */
+async function isBlockedFromClaiming(projectId: number, volunteerId: number): Promise<boolean> {
+  const blocking = await prisma.workItemInterest.findFirst({
+    where: {
+      workItemId: projectId,
+      volunteerId,
+      status: { in: CLAIM_BLOCKING_INTEREST_STATUSES },
+    },
+    select: { id: true },
+  })
+  return Boolean(blocking)
+}
+
+/**
+ * Leaving a project — by withdrawing, or by the owner declining you — also gives up the
+ * tasks you hold on it. Completed tasks keep their assignee: they are a record of work
+ * done, not an outstanding commitment.
+ */
+async function releaseTasksHeldBy(projectId: number, volunteerId: number): Promise<void> {
+  await prisma.workItem.updateMany({
+    where: {
+      parentId: projectId,
+      type: WorkItemType.TASK,
+      assigneeId: volunteerId,
+      status: { not: TaskStatus.completed },
+    },
+    data: {
+      assigneeId: null,
+      status: TaskStatus.open,
+      updatedAt: new Date(),
+      nudgeSentAt: null,
+      finalWarningSentAt: null,
+    },
+  })
 }
 
 const OWNER_ALLOWED_STATUSES: ProjectStatus[] = [
@@ -271,6 +313,7 @@ export const projectsRouter = {
         include: {
           assignee: { select: { name: true } },
           creator: { select: { name: true } },
+          _count: { select: { comments: true } },
         },
       })
 
@@ -298,6 +341,8 @@ export const projectsRouter = {
         completedAt: t.completedAt,
         createdAt: t.createdAt,
         updatedAt: t.updatedAt,
+        commentCount: t._count.comments,
+        featuredAsQuickTask: t.featuredAsQuickTask ?? false,
       }))
 
       let interests:
@@ -380,11 +425,17 @@ export const projectsRouter = {
           }
         : null
 
+      const canClaimTasks =
+        isAssignee ||
+        Boolean(volunteer.isAdmin) ||
+        !(await isBlockedFromClaiming(input.id, volunteer.id))
+
       return {
         ...base,
         tasks: mappedTasks,
         interests,
         myInterest,
+        canClaimTasks,
       }
     }),
 
@@ -618,12 +669,14 @@ export const projectsRouter = {
         where: {
           workItemId: input.projectId,
           volunteerId: context.volunteer.id,
-          status: InterestStatus.pending,
+          status: { in: [InterestStatus.pending, InterestStatus.accepted] },
         },
         data: { status: InterestStatus.withdrawn },
       })
-      if (result.count === 0)
-        throw new ORPCError('NOT_FOUND', { message: 'No pending interest found' })
+      if (result.count === 0) throw new ORPCError('NOT_FOUND', { message: 'No interest found' })
+
+      await releaseTasksHeldBy(input.projectId, context.volunteer.id)
+
       return { message: 'Interest withdrawn' }
     }),
 
@@ -668,6 +721,10 @@ export const projectsRouter = {
           respondedAt: new Date(),
         },
       })
+
+      if (input.status === InterestStatus.declined) {
+        await releaseTasksHeldBy(input.projectId, interest.volunteerId)
+      }
 
       if (input.status === InterestStatus.accepted && interest.interestType === 'want_to_own') {
         const openTaskCount = await prisma.workItem.count({
@@ -826,6 +883,66 @@ export const projectsRouter = {
       }))
     }),
 
+  getTask: approvedProcedure
+    .input(z.object({ projectId: z.number().int(), taskId: z.number().int() }))
+    .handler(async ({ input, context }) => {
+      const volunteer = context.volunteer
+
+      const project = await prisma.workItem.findFirst({
+        where: { id: input.projectId, type: WorkItemType.PROJECT },
+      })
+      if (!project) throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
+
+      const task = await prisma.workItem.findFirst({
+        where: { id: input.taskId, parentId: input.projectId, type: WorkItemType.TASK },
+        include: {
+          assignee: { select: { name: true } },
+          creator: { select: { name: true } },
+        },
+      })
+      if (!task) throw new ORPCError('NOT_FOUND', { message: 'Task not found' })
+
+      if (
+        !canViewWorkItem(
+          task,
+          {
+            id: volunteer.id,
+            isAdmin: Boolean(volunteer.isAdmin),
+            isApproved: volunteer.approvalStatus === ApprovalStatus.approved,
+          },
+          project,
+        )
+      ) {
+        throw new ORPCError('NOT_FOUND', { message: 'Task not found' })
+      }
+
+      const canClaim =
+        project.assigneeId === volunteer.id ||
+        Boolean(volunteer.isAdmin) ||
+        !(await isBlockedFromClaiming(input.projectId, volunteer.id))
+
+      return {
+        id: task.id,
+        projectId: task.parentId,
+        projectTitle: project.title,
+        projectOwnerId: project.assigneeId,
+        canClaim,
+        title: task.title,
+        description: task.description,
+        assignedToId: task.assigneeId,
+        assignedToName: task.assignee?.name ?? null,
+        createdById: task.creatorId,
+        createdByName: task.creator?.name ?? null,
+        status: task.status,
+        estimatedHours: task.estimatedHours,
+        deadline: task.deadline,
+        completedAt: task.completedAt,
+        createdAt: task.createdAt,
+        updatedAt: task.updatedAt,
+        featuredAsQuickTask: task.featuredAsQuickTask ?? false,
+      }
+    }),
+
   createTask: approvedProcedure
     .input(z.object({ projectId: z.number().int() }).merge(CreateProjectTaskSchema))
     .handler(async ({ input, context }) => {
@@ -855,6 +972,7 @@ export const projectsRouter = {
             description: input.description ?? null,
             estimatedHours: input.estimatedHours ?? null,
             deadline: input.deadline ?? null,
+            featuredAsQuickTask: input.featuredAsQuickTask ?? false,
             creatorId: volunteer.id,
             sortOrder: (max._max.sortOrder ?? 0) + 1,
           },
@@ -927,25 +1045,47 @@ export const projectsRouter = {
       const isAssignee = project.assigneeId === volunteer.id
       const isTaskAssignee = task.assigneeId === volunteer.id
 
-      if (!isAssignee && !volunteer.isAdmin) {
-        const newStatus = input.data.status
-        const newAssigneeId = input.data.assigneeId
-        const isSelfClaim =
-          newStatus === TaskStatus.in_progress &&
-          newAssigneeId === volunteer.id &&
-          task.status === TaskStatus.open
-        const isMarkingDone =
-          newStatus === TaskStatus.completed &&
-          isTaskAssignee &&
-          task.status === TaskStatus.in_progress
-        if (!isSelfClaim && !isMarkingDone) {
-          throw new ORPCError('FORBIDDEN', { message: 'Not authorized to update this task' })
-        }
+      const newStatus = input.data.status
+      const newAssigneeId = input.data.assigneeId
+      const onlyTouchesStatusAndAssignee =
+        input.data.title === undefined &&
+        input.data.description === undefined &&
+        input.data.estimatedHours === undefined &&
+        input.data.deadline === undefined &&
+        input.data.featuredAsQuickTask === undefined
+      const isSelfClaim =
+        onlyTouchesStatusAndAssignee &&
+        newStatus === TaskStatus.in_progress &&
+        newAssigneeId === volunteer.id &&
+        task.status === TaskStatus.open
+      const isMarkingDone =
+        onlyTouchesStatusAndAssignee &&
+        newStatus === TaskStatus.completed &&
+        isTaskAssignee &&
+        task.status === TaskStatus.in_progress
+
+      if (!isAssignee && !volunteer.isAdmin && !isSelfClaim && !isMarkingDone) {
+        throw new ORPCError('FORBIDDEN', { message: 'Not authorized to update this task' })
+      }
+
+      if (
+        isSelfClaim &&
+        !isAssignee &&
+        !volunteer.isAdmin &&
+        (await isBlockedFromClaiming(input.projectId, volunteer.id))
+      ) {
+        throw new ORPCError('FORBIDDEN', {
+          message: 'You are no longer contributing to this project, so you cannot claim its tasks',
+        })
       }
 
       const data: Record<string, unknown> = {}
       if (input.data.title !== undefined) data.title = input.data.title
       if (input.data.description !== undefined) data.description = input.data.description
+      if (input.data.estimatedHours !== undefined) data.estimatedHours = input.data.estimatedHours
+      if (input.data.deadline !== undefined) data.deadline = input.data.deadline
+      if (input.data.featuredAsQuickTask !== undefined)
+        data.featuredAsQuickTask = input.data.featuredAsQuickTask
       if (input.data.status !== undefined) {
         data.status = input.data.status
         if (input.data.status === TaskStatus.completed) data.completedAt = new Date()
@@ -960,6 +1100,25 @@ export const projectsRouter = {
       data.finalWarningSentAt = null
 
       await prisma.workItem.update({ where: { id: input.taskId }, data })
+
+      if (isSelfClaim) {
+        const existingInterest = await prisma.workItemInterest.findFirst({
+          where: { workItemId: input.projectId, volunteerId: volunteer.id },
+        })
+        if (!existingInterest) {
+          await prisma.workItemInterest.create({
+            data: {
+              volunteerId: volunteer.id,
+              workItemId: input.projectId,
+              interestType: 'want_to_contribute',
+              status: InterestStatus.accepted,
+              respondedAt: new Date(),
+              message: `${volunteer.name} has claimed '${task.title}' task`,
+            },
+          })
+        }
+      }
+
       return { message: 'Task updated' }
     }),
 

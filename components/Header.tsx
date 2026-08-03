@@ -113,7 +113,6 @@ function DashboardNavButtons({ unreadCount }: { unreadCount: number }) {
 const ADMIN_NAV_ITEMS: { href: string; label: string; superAdminOnly?: boolean }[] = [
   { href: '/admin/triage', label: 'Triage Queue' },
   { href: '/admin/projects/new', label: 'Create Org Project' },
-  { href: '/admin/starter-tasks', label: 'Manage Quick Tasks' },
   { href: '/admin/skills', label: 'Manage Skills' },
   { href: '/admin/bugs', label: 'Bug Reports' },
   { href: '/admin/team', label: 'Admin Team' },
@@ -172,7 +171,7 @@ export default function Header() {
     { href: '/projects', label: 'Projects' },
     { href: '/volunteers', label: 'Volunteers' },
     { href: '/suggest', label: 'Suggest' },
-    { href: '/starter-tasks', label: 'Quick Tasks' },
+    { href: '/quick-tasks', label: 'Quick Tasks' },
   ]
 
   // Signed-in volunteers expect the wordmark to take them into the app; signed-out
@@ -299,28 +298,30 @@ export default function Header() {
           {/* Mobile action buttons + hamburger — visible below xl breakpoint */}
           <div className="xl:hidden flex items-center gap-2 shrink-0">
             <ThemeToggle size="md" />
-            <Button
-              variant="ghost"
-              size="md"
-              icon
-              className="border border-brand-border"
-              aria-label="Report a bug or give feedback"
-              onClick={() => setBugDialogOpen(true)}
-            >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+            {user && (
+              <Button
+                variant="ghost"
+                size="md"
+                icon
+                className="border border-brand-border"
+                aria-label="Report a bug or give feedback"
+                onClick={() => setBugDialogOpen(true)}
               >
-                <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
-                <line x1="4" y1="22" x2="4" y2="15" />
-              </svg>
-            </Button>
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                  <line x1="4" y1="22" x2="4" y2="15" />
+                </svg>
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="md"
@@ -463,34 +464,36 @@ export default function Header() {
                 size="md"
                 className="rounded-none flex-1 justify-center self-stretch"
               />
-              <button
-                onClick={() => {
-                  setBugDialogOpen(true)
-                  setMobileMenuOpen(false)
-                }}
-                className="flex items-center justify-center gap-2 flex-1 px-4 py-2 text-brand-text font-medium text-base border-l border-brand-border hover:bg-brand-bg cursor-pointer bg-transparent whitespace-nowrap"
-              >
-                <svg
-                  width="15"
-                  height="15"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+              {user && (
+                <button
+                  onClick={() => {
+                    setBugDialogOpen(true)
+                    setMobileMenuOpen(false)
+                  }}
+                  className="flex items-center justify-center gap-2 flex-1 px-4 py-2 text-brand-text font-medium text-base border-l border-brand-border hover:bg-brand-bg cursor-pointer bg-transparent whitespace-nowrap"
                 >
-                  <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
-                  <line x1="4" y1="22" x2="4" y2="15" />
-                </svg>
-                Report bug/feedback
-              </button>
+                  <svg
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                    <line x1="4" y1="22" x2="4" y2="15" />
+                  </svg>
+                  Report bug/feedback
+                </button>
+              )}
             </div>
           </div>
         </div>
       )}
 
-      <BugReportDialog isOpen={bugDialogOpen} onClose={() => setBugDialogOpen(false)} />
+      {user && <BugReportDialog isOpen={bugDialogOpen} onClose={() => setBugDialogOpen(false)} />}
     </>
   )
 }

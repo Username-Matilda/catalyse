@@ -27,7 +27,6 @@ export async function fillAndSubmitBugReport(
     description: string
     category?: string
     severity?: string
-    email?: string
   },
 ): Promise<void> {
   const dialog = page.getByRole('dialog', { name: 'Report an Issue' })
@@ -36,9 +35,6 @@ export async function fillAndSubmitBugReport(
   }
   await dialog.getByLabel('Title').fill(opts.title)
   await dialog.getByLabel('Details').fill(opts.description)
-  if (opts.email !== undefined) {
-    await dialog.getByLabel('Your Email (optional)').fill(opts.email)
-  }
   if (opts.severity) {
     await selectFilterDropdown(
       page,

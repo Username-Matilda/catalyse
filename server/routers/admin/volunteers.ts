@@ -30,7 +30,7 @@ export const adminVolunteersRouter = {
 
     if (!vol) throw new ORPCError('NOT_FOUND', { message: 'Volunteer not found' })
 
-    const [adminNotes, endorsements, starterTasks, projectHistory] = await Promise.all([
+    const [adminNotes, endorsements, quickTasks, projectHistory] = await Promise.all([
       prisma.adminNote.findMany({
         where: { volunteerId: input.id },
         include: { author: { select: { name: true } } },
@@ -45,7 +45,7 @@ export const adminVolunteersRouter = {
         orderBy: { createdAt: 'desc' },
       }),
       prisma.workItem.findMany({
-        where: { type: WorkItemType.STARTER_TASK, assigneeId: input.id },
+        where: { type: WorkItemType.QUICK_TASK, assigneeId: input.id },
         include: { skill: { select: { name: true } } },
         orderBy: { createdAt: 'desc' },
       }),
@@ -105,7 +105,7 @@ export const adminVolunteersRouter = {
         skillCategory: e.skill.category.name,
         endorsedByName: e.endorsedBy.name,
       })),
-      starterTasks: starterTasks.map((t) => ({
+      quickTasks: quickTasks.map((t) => ({
         id: t.id,
         projectId: t.contextProjectId,
         title: t.title,

@@ -1,6 +1,11 @@
 import { Prisma } from '@/generated/prisma/client'
 import { calculateMatchScore } from './matching'
-import { InterestStatus, ProjectStatus, WorkItemType } from '@/generated/prisma/enums'
+import {
+  InterestStatus,
+  ProjectStatus,
+  QuickTaskStatus,
+  WorkItemType,
+} from '@/generated/prisma/enums'
 
 // ── Comment access ────────────────────────────────────────────────────────────
 // Reading a work item's comment thread is gated identically to viewing the work
@@ -13,11 +18,19 @@ export type WorkItemForAccess = {
   assigneeId: number | null
 }
 
-export type CommentViewer = { id: number; isAdmin: boolean } | null
+export type CommentViewer = { id: number; isAdmin: boolean; isApproved: boolean } | null
 
 const PROJECT_HIDDEN_STATUSES: string[] = [
   ProjectStatus.pending_review,
   ProjectStatus.needs_discussion,
+]
+
+// A volunteer the owner declined, or who withdrew themselves, is no longer a contributor
+// on that project: they cannot self-claim its tasks and its tasks are hidden from their
+// Quick Tasks browse list. An owner or admin can still assign them a task explicitly.
+export const CLAIM_BLOCKING_INTEREST_STATUSES: InterestStatus[] = [
+  InterestStatus.declined,
+  InterestStatus.withdrawn,
 ]
 
 /**
@@ -35,7 +48,13 @@ export function canViewWorkItem(
       return Boolean(viewer && (viewer.isAdmin || viewer.id === item.creatorId))
     case WorkItemType.TASK:
       return parent ? canViewWorkItem(parent, viewer) : Boolean(viewer?.isAdmin)
-    case WorkItemType.STARTER_TASK:
+    case WorkItemType.QUICK_TASK:
+      // Open, unclaimed tasks are browsable by any approved volunteer before they claim one —
+      // but not by a pending applicant, same as the approvedProcedure gate on the pages that
+      // read/claim tasks directly.
+      if (item.status === QuickTaskStatus.open && item.assigneeId === null) {
+        return Boolean(viewer && (viewer.isAdmin || viewer.isApproved))
+      }
       return Boolean(
         viewer && (viewer.isAdmin || viewer.id === item.assigneeId || viewer.id === item.creatorId),
       )
@@ -68,7 +87,7 @@ export function canPostComment(
         viewer.id === (opts.parent?.assigneeId ?? null) ||
         Boolean(opts.isAcceptedHelper)
       )
-    case WorkItemType.STARTER_TASK:
+    case WorkItemType.QUICK_TASK:
       return viewer.id === item.assigneeId
     default:
       return false

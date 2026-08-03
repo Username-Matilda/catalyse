@@ -44,7 +44,6 @@ export function useUrlSearchInput(
   delayMs = 300,
 ): [string, (value: string) => void, string] {
   const searchParams = useSearchParams()
-  const router = useRouter()
   const urlValue = searchParams.get(key) ?? ''
   const [input, setInput] = useState(urlValue)
 
@@ -54,7 +53,12 @@ export function useUrlSearchInput(
       const params = new URLSearchParams(searchParams.toString())
       if (input) params.set(key, input)
       else params.delete(key)
-      router.replace(`?${params.toString()}`, { scroll: false })
+      // Use the History API directly instead of router.replace(). Next.js patches
+      // history.replaceState to sync usePathname/useSearchParams without going through
+      // the router's navigation queue — router.replace() here would otherwise race a
+      // pending router.push() from clicking a result (e.g. a search result link clicked
+      // just as the debounce fires) and silently cancel that navigation.
+      window.history.replaceState(null, '', `?${params.toString()}`)
     }, delayMs)
     return () => clearTimeout(t)
   }, [input, searchParams]) // eslint-disable-line react-hooks/exhaustive-deps

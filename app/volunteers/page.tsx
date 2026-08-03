@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useRequireAuth } from '@/lib/hooks/auth'
 import { useUrlParam, useUrlSearchInput } from '@/lib/hooks/url-filters'
 import Link from 'next/link'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import FilterDropdown from '@/components/FilterDropdown'
 import { buildLocationOptions, type LocalGroupOption } from '@/lib/filter-options'
@@ -59,6 +59,12 @@ function VolunteersPageContent({ user }: { user: AuthUser }) {
       },
     }),
     enabled: !!user,
+    // Keep showing the previous result set while a filter change refetches, instead of
+    // swapping the whole grid to a loading spinner. Without this, isPending flips true on
+    // every debounced search commit and unmounts the card grid mid-render — if a user's
+    // click on a result lands right as that swap happens (more likely when the debounce
+    // timer itself is delayed under load), the click's navigation is lost.
+    placeholderData: keepPreviousData,
   })
   const volunteers: Volunteer[] = volunteersData?.volunteers ?? []
 

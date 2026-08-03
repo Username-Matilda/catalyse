@@ -6,11 +6,13 @@ import BugReportDialog from './BugReportDialog'
 import Button from '@/components/Button'
 import { useToast } from '@/lib/toast'
 import { useCookieConsent } from '@/lib/cookie-consent-context'
+import { useAuth } from '@/lib/auth-context'
 
 export default function FloatingActions() {
   const [bugDialogOpen, setBugDialogOpen] = useState(false)
   const toast = useToast()
   const { bannerVisible } = useCookieConsent()
+  const { user } = useAuth()
 
   return (
     <>
@@ -47,30 +49,32 @@ export default function FloatingActions() {
             </Button>
           </>
         )}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setBugDialogOpen(true)}
-          className="rounded-none"
-          aria-label="Report a bug or give feedback"
-        >
-          <svg
-            width="15"
-            height="15"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+        {user && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setBugDialogOpen(true)}
+            className="rounded-none"
+            aria-label="Report a bug or give feedback"
           >
-            <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
-            <line x1="4" y1="22" x2="4" y2="15" />
-          </svg>
-          Report bug/feedback
-        </Button>
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+              <line x1="4" y1="22" x2="4" y2="15" />
+            </svg>
+            Report bug/feedback
+          </Button>
+        )}
       </div>
-      <BugReportDialog isOpen={bugDialogOpen} onClose={() => setBugDialogOpen(false)} />
+      {user && <BugReportDialog isOpen={bugDialogOpen} onClose={() => setBugDialogOpen(false)} />}
     </>
   )
 }

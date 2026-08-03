@@ -2,6 +2,7 @@ import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
 import { BASE_LOCATION_OPTIONS } from '@/lib/filter-options'
 import { LocalGroupSuggestionBodySchema } from '@/lib/schemas'
+import { notifyAdmins } from '@/lib/notify'
 import { authedProcedure, approvedProcedure } from '../procedures'
 
 const VALID_COUNTRIES = new Set(
@@ -40,6 +41,13 @@ export const localGroupSuggestionsRouter = {
       const suggestion = await prisma.localGroupSuggestion.create({
         data: { name: input.name, country: input.country, suggestedById: context.volunteer.id },
       })
+
+      await notifyAdmins(
+        'local_group_suggestion',
+        `New local group suggestion: ${input.country} — ${input.name}`,
+        null,
+        '/admin/local-groups',
+      )
 
       return {
         id: suggestion.id,

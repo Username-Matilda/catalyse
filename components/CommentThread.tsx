@@ -1,11 +1,9 @@
 'use client'
 
-import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import Button from './Button'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import CommentThreadView from './CommentThreadView'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
-import { formatDate } from '@/lib/format-date'
 
 interface CommentThreadProps {
   workItemId: number
@@ -13,25 +11,17 @@ interface CommentThreadProps {
   placeholder?: string
 }
 
-export default function CommentThread({
-  workItemId,
-  emptyText = 'No comments yet.',
-  placeholder = 'Add a comment…',
-}: CommentThreadProps) {
+export default function CommentThread({ workItemId, emptyText, placeholder }: CommentThreadProps) {
   const queryClient = useQueryClient()
   const showToast = useToast()
-  const [content, setContent] = useState('')
 
   const { data, isPending } = useQuery({
     ...orpc.workItemComments.list.queryOptions({ input: { workItemId } }),
   })
-  const comments = data?.comments ?? []
-  const canPost = data?.canPost ?? false
 
   const addMutation = useMutation({
     ...orpc.workItemComments.add.mutationOptions(),
     onSuccess: () => {
-      setContent('')
       void queryClient.invalidateQueries({ queryKey: orpc.workItemComments.list.key() })
       showToast('Comment added', 'success')
     },
@@ -40,45 +30,21 @@ export default function CommentThread({
   })
 
   return (
-    <div>
-      {canPost && (
-        <form
-          className="mb-4"
-          onSubmit={(e) => {
-            e.preventDefault()
-            if (!content.trim()) return
-            addMutation.mutate({ workItemId, content: content.trim() })
-          }}
-        >
-          <textarea
-            aria-label="Add a comment"
-            rows={3}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder={placeholder}
-          />
-          <Button type="submit" size="sm" disabled={!content.trim() || addMutation.isPending}>
-            {addMutation.isPending ? 'Posting…' : 'Post Comment'}
-          </Button>
-        </form>
-      )}
-
-      {isPending ? (
-        <p className="text-text-light">Loading comments…</p>
-      ) : comments.length === 0 ? (
-        <p className="text-text-light">{emptyText}</p>
-      ) : (
-        <ul className="list-none p-0 m-0">
-          {comments.map((c) => (
-            <li key={c.id} className="py-3 border-b border-brand-border last:border-0">
-              <p className="m-0 mb-1 whitespace-pre-wrap">{c.content}</p>
-              <span className="text-xs text-text-light">
-                {c.authorName ?? 'Unknown'} · {c.createdAt ? formatDate(c.createdAt) : ''}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+    <CommentThreadView
+      comments={data?.comments ?? []}
+      canPost={data?.canPost ?? false}
+      isPending={isPending}
+      isSubmitting={addMutation.isPending}
+      onSubmit={async (content) => {
+        try {
+          await addMutation.mutateAsync({ workItemId, content })
+          return true
+        } catch {
+          return false
+        }
+      }}
+      emptyText={emptyText}
+      placeholder={placeholder}
+    />
   )
 }

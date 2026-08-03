@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import LandingCTA from '@/components/LandingCTA'
-import { prisma } from '@/lib/prisma'
 
 export const metadata: Metadata = {
   title: 'Volunteer with PauseAI UK',
@@ -9,118 +8,100 @@ export const metadata: Metadata = {
     'Catalyse is the volunteer platform for PauseAI UK. Find campaign, policy, organising and creative work that matches your skills.',
 }
 
-// The local group list is the only dynamic thing on the page, and it changes
-// rarely, so rebuild hourly rather than per request.
-export const revalidate = 3600
-
 /**
  * Public landing page.
  *
  * Deliberately contains no project data. Individual projects are only visible
- * to approved volunteers at /projects; this page describes the *kinds* of work
- * the movement does so a prospective volunteer can decide whether to apply.
+ * to approved volunteers at /projects; this page describes what the movement
+ * does so a prospective volunteer can decide whether to apply.
  */
 
-/**
- * UK local group names, straight from the table the rest of the app filters on.
- * The same rows are already served publicly by the `localGroups.list` procedure,
- * so nothing new is exposed here.
- *
- * Failures are swallowed: the DB may not be reachable when the page is
- * prerendered at build time, and a missing sentence clause is a much better
- * outcome than a failed build. The next revalidation picks the names up.
- */
-async function fetchUkLocalGroupNames(): Promise<string[]> {
-  try {
-    const groups = await prisma.localGroup.findMany({
-      where: { country: 'UK' },
-      orderBy: { name: 'asc' },
-      select: { name: true },
-    })
-    return groups.map((g) => g.name)
-  } catch {
-    return []
-  }
-}
-
-const WORK_AREAS: { title: string; body: string }[] = [
+const TRACK_RECORD: { when: string; body: React.ReactNode }[] = [
   {
-    title: 'Campaigns & protests',
-    body: 'Organising demonstrations, planning actions, stewarding on the day and the logistics that hold a public campaign together.',
+    when: 'Open Letter to Demis Hassabis — August 2025',
+    body: (
+      <>
+        We published an{' '}
+        <a
+          href="https://pauseai.info/dear-sir-demis-2025"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          open letter
+        </a>{' '}
+        signed by over 60 UK politicians, in response to Google DeepMind failing to uphold its AI
+        safety commitments. Several of the MPs who signed later spoke in the{' '}
+        <a
+          href="https://www.bbc.co.uk/iplayer/episode/m002nr42/westminster-hall-10122025"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Westminster Hall debate
+        </a>{' '}
+        that we helped to organise in December.
+      </>
+    ),
   },
   {
-    title: 'Political engagement',
-    body: 'Writing to MPs, preparing briefings for lawmakers, drafting policy proposals and following up after meetings.',
+    when: 'Westminster Hall Debate — December 2025',
+    body: 'We proposed and helped to organise a Westminster Hall debate in Parliament on AI Safety. We wrote a memo which was sent out to all MPs prior to the debate and also helped to draft some proposition speeches, putting us in a strong position to work with those MPs when proposing amendments to the Cyber Security and Resilience Bill.',
   },
   {
-    title: 'Local chapters',
-    body: 'Running regular meetups, welcoming new volunteers and starting a chapter where there isn’t one yet.',
-  },
-  {
-    title: 'Events',
-    body: 'Conferences, workshops, film screenings, book launches and socials, from finding a venue to running the door.',
-  },
-  {
-    title: 'Communications & media',
-    body: 'Social media, newsletters, press outreach and helping people tell their own stories about why this matters to them.',
-  },
-  {
-    title: 'Design & creative',
-    body: 'Graphics, placards, video, photography, merchandise and the visual identity that makes a campaign recognisable.',
-  },
-  {
-    title: 'Research & writing',
-    body: 'Explainers, fact-checking, literature summaries and turning dense technical material into something a non-specialist can act on.',
-  },
-  {
-    title: 'Software & operations',
-    body: 'Internal tools, data and analysis, web work and the unglamorous admin that keeps a volunteer organisation running.',
-  },
-]
-
-/**
- * Dated, historical wins from https://pauseai.uk/track-record, chosen because each
- * one runs from an ordinary volunteer task to a political or press outcome. They
- * are past events rather than live counts, so they do not go stale. Phrased as
- * sequence rather than causation where the track record only establishes order.
- */
-const TRACK_RECORD: { when: string; body: string }[] = [
-  {
-    when: 'August 2025',
-    body: 'Volunteers gathered signatures from over 60 UK politicians on an open letter about Google DeepMind’s safety commitments. TIME broke the story, and Google went on to give the UK AI Safety Institute pre-deployment access to its next frontier model.',
-  },
-  {
-    when: 'December 2025',
-    body: 'Volunteers proposed and helped organise a Westminster Hall debate on AI safety, putting the question in front of Parliament directly.',
-  },
-  {
-    when: 'February 2026',
-    body: 'Volunteers co-organised the March for AI Safety, the largest protest yet focused solely on AI risk, covered by MIT Technology Review and the Wall Street Journal.',
+    when: 'March for AI Safety — February 2026',
+    body: (
+      <>
+        We co-organised a march past the offices of OpenAI and Big Tech companies in King&apos;s
+        Cross, London. It was the largest ever protest focused exclusively on the risks of AI, with
+        around 300 people marching and media coverage in{' '}
+        <a
+          href="https://www.technologyreview.com/2026/03/02/1133814/i-checked-out-londons-biggest-ever-anti-ai-protest/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          MIT Technology Review
+        </a>
+        ,{' '}
+        <a
+          href="https://www.independent.co.uk/tech/ai-safety-declaration-steve-bannon-b2932570.html"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          The Independent
+        </a>
+        ,{' '}
+        <a
+          href="https://www.wsj.com/tech/ai/ai-companies-public-relations-ae312d79"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          The Wall Street Journal
+        </a>{' '}
+        and{' '}
+        <a href="https://pauseai.uk/#news" target="_blank" rel="noopener noreferrer">
+          others
+        </a>
+        .
+      </>
+    ),
   },
 ]
 
 const STEPS: { title: string; body: string }[] = [
   {
     title: 'Apply',
-    body: 'Tell us about your connection to PauseAI, what you’re good at and how much time you have. Applications are read by a person, not a filter.',
+    body: 'Tell us about your interest in PauseAI, what you’re good at and how much time you have.',
   },
   {
     title: 'Get matched',
-    body: 'Once you’re approved you can see every open project. We highlight the ones that need the skills you listed, so you don’t have to guess where you’re useful.',
+    body: 'Once you’re approved you can view open projects. Projects that match your skills or location are highlighted.',
   },
   {
     title: 'Contribute',
-    body: 'Take on a single task, join a project team or lead a project of your own. If you have an idea we aren’t working on yet, you can propose it.',
+    body: 'Start working on something useful to make AI safer! You can also propose your project, if you have an idea you’re excited to work on with other volunteers.',
   },
 ]
 
-export default async function LandingPage() {
-  const localGroupNames = await fetchUkLocalGroupNames()
-  const localGroupList =
-    localGroupNames.length > 0
-      ? new Intl.ListFormat('en-GB', { style: 'long', type: 'conjunction' }).format(localGroupNames)
-      : null
-
+export default function LandingPage() {
   return (
     <main>
       {/* Hero */}
@@ -131,11 +112,11 @@ export default async function LandingPage() {
               No size utilities here: globals.css styles `h1` outside a cascade
               layer, so `text-*` classes on a heading are silently ignored.
             */}
-            <h1>Find the work that needs you</h1>
+            <h1>Volunteer for PauseAI UK</h1>
             <p className="text-lg text-text-light mb-8">
-              Catalyse is the volunteer platform for PauseAI UK. It connects the people who want to
-              help with the projects that need them, matching what you can do to what the movement
-              is actually working on right now.
+              Catalyse is the volunteer platform for PauseAI UK. It allows anyone to join projects
+              or complete tasks that help advance our mission. You can also propose your own
+              projects to get help from other volunteers on things that you want to work on.
             </p>
             <div className="md:flex md:justify-center">
               <LandingCTA />
@@ -152,134 +133,96 @@ export default async function LandingPage() {
         <div className="max-w-3xl">
           <h2>Who we are</h2>
           <p className="text-text-light">
-            PauseAI UK is a civic movement working to avert the risks of superhuman artificial
-            intelligence. We campaign for binding limits on the development of the most powerful AI
-            systems until there is a credible way to make them safe. We do that through public
-            campaigning, political engagement and local organising across the UK.
+            PauseAI is a civic movement, which means that we help citizens organise to take
+            collective actions and make their voice heard. Our volunteers engage with their MPs
+            about AI safety, march in protests, join conferences about AI safety in the European and
+            UK Parliaments and gather signatures for open letters.
           </p>
-          <p className="text-text-light">
-            Campaigning works as a chain. Someone drafts a briefing, someone else gets it in front
-            of an MP, and months later there is a debate in Parliament or a commitment from a lab
-            that was not there before. Almost everything below started as an ordinary task that a
-            volunteer picked up.
+          <p className="text-text-light mb-0">
+            PauseAI is focused on the risks of superhuman AI. This focus is the thing that is unique
+            about PauseAI UK and distinguishes us from other movements in the UK.
           </p>
-          <p className="text-text-light">
-            We are a small staff supported by a large number of volunteers
-            {localGroupList ? `, with local groups in ${localGroupList}` : ''}. You do not need a
-            technical background, and you do not need to be an expert on AI.
-          </p>
-          <p className="mb-0">
-            <a href="https://pauseai.uk" target="_blank" rel="noopener noreferrer">
-              Read more about PauseAI UK →
-            </a>
-          </p>
-        </div>
-      </section>
-
-      {/* Kinds of work */}
-      <section className="bg-surface border-y border-brand-border">
-        <div className="container py-12 md:py-16">
-          <div className="max-w-3xl mb-8">
-            <h2>The kinds of things we do</h2>
-            <p className="text-text-light mb-0">
-              Projects on Catalyse change constantly, but they tend to fall into these areas. Some
-              need a few hours once; others need someone to take ownership for months.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
-            {WORK_AREAS.map((area) => (
-              <div
-                key={area.title}
-                className="bg-brand-bg border border-brand-border rounded-xl p-5"
-              >
-                <h3 className="text-base mb-2">{area.title}</h3>
-                <p className="text-sm text-text-light mb-0">{area.body}</p>
-              </div>
-            ))}
-          </div>
         </div>
       </section>
 
       {/* Track record. Answers the "will any of this make a difference?" objection. */}
-      <section className="container py-12 md:py-16">
-        <div className="max-w-3xl mb-8">
-          <h2>Where that work has led</h2>
-          <p className="text-text-light mb-0">
-            A few things volunteers have done, and what came of them.
-          </p>
-        </div>
-        <ul className="grid grid-cols-1 md:grid-cols-3 gap-5 list-none p-0 m-0 mb-6">
-          {TRACK_RECORD.map((item) => (
-            <li key={item.when} className="bg-surface border border-brand-border rounded-xl p-6">
-              <p className="font-heading text-xs font-bold uppercase tracking-widest text-primary-dark mb-2">
-                {item.when}
-              </p>
-              <p className="text-sm text-text-light mb-0">{item.body}</p>
-            </li>
-          ))}
-        </ul>
-        <p className="mb-0">
-          <a href="https://pauseai.uk/track-record" target="_blank" rel="noopener noreferrer">
-            See the full track record →
-          </a>
-        </p>
-      </section>
-
-      {/* How it works */}
       <section className="bg-surface border-y border-brand-border">
         <div className="container py-12 md:py-16">
           <div className="max-w-3xl mb-8">
-            <h2>How Catalyse works</h2>
+            <h2>Where that work has led</h2>
           </div>
-          <ol className="grid grid-cols-1 md:grid-cols-3 gap-5 list-none p-0 m-0">
-            {STEPS.map((step, i) => (
-              <li
-                key={step.title}
-                className="bg-brand-bg border border-brand-border rounded-xl p-6"
-              >
-                <span
-                  className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary text-[#111827] font-bold mb-3"
-                  aria-hidden="true"
-                >
-                  {i + 1}
-                </span>
-                <h3 className="text-lg mb-2">
-                  <span className="sr-only">Step {i + 1}: </span>
-                  {step.title}
-                </h3>
-                <p className="text-sm text-text-light mb-0">{step.body}</p>
+          <ul className="grid grid-cols-1 md:grid-cols-3 gap-5 list-none p-0 m-0">
+            {TRACK_RECORD.map((item) => (
+              <li key={item.when} className="bg-brand-bg border border-brand-border rounded-xl p-6">
+                <p className="font-heading text-xs font-bold uppercase tracking-widest text-primary-dark mb-2">
+                  {item.when}
+                </p>
+                <p className="text-sm text-text-light mb-0">{item.body}</p>
               </li>
             ))}
-          </ol>
+          </ul>
         </div>
       </section>
 
-      {/* Expectations */}
+      {/* How it works */}
       <section className="container py-12 md:py-16">
-        <div className="max-w-3xl">
-          <h2>Before you apply</h2>
-          <ul className="text-text-light space-y-2 pl-5 list-disc marker:text-primary">
-            <li>
-              Applications are reviewed by our team, so there is a short wait before you can see
-              open projects. We will email you either way.
+        <div className="max-w-3xl mb-8">
+          <h2>How Catalyse works</h2>
+        </div>
+        <ol className="grid grid-cols-1 md:grid-cols-3 gap-5 list-none p-0 m-0">
+          {STEPS.map((step, i) => (
+            <li key={step.title} className="bg-brand-bg border border-brand-border rounded-xl p-6">
+              <span
+                className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary text-[#111827] font-bold mb-3"
+                aria-hidden="true"
+              >
+                {i + 1}
+              </span>
+              <h3 className="text-lg mb-2">
+                <span className="sr-only">Step {i + 1}: </span>
+                {step.title}
+              </h3>
+              <p className="text-sm text-text-light mb-0">{step.body}</p>
             </li>
-            <li>
-              There is no minimum commitment. Plenty of volunteers contribute an hour here and
-              there, and that is genuinely useful.
-            </li>
-            <li>
-              You control what other volunteers can see. Your profile can stay out of the directory
-              entirely, and your contact details are never shared without your say-so.
-            </li>
-            <li>
-              Catalyse is for coordinating work. For events, the newsletter and the wider community,
-              start at{' '}
-              <a href="https://pauseai.info" target="_blank" rel="noopener noreferrer">
-                pauseai.info
-              </a>
-              .
-            </li>
-          </ul>
+          ))}
+        </ol>
+      </section>
+
+      {/* Expectations */}
+      <section className="bg-surface border-y border-brand-border">
+        <div className="container py-12 md:py-16">
+          <div className="max-w-3xl">
+            <h2>Before you apply</h2>
+            <ul className="text-text-light space-y-2 pl-5 list-disc marker:text-primary">
+              <li>
+                Applications are reviewed by one of the PauseAI UK paid staff, so there is a short
+                wait before you can access the full site. We will email you either way.
+              </li>
+              <li>
+                There is no minimum commitment. Just an hour here and there can go a long way.
+              </li>
+              <li>You can control what information other volunteers can see about you.</li>
+              <li>
+                Catalyse is for coordinating volunteer tasks. To see upcoming events, see the{' '}
+                <a href="https://luma.com/pauseai.uk" target="_blank" rel="noopener noreferrer">
+                  calendar
+                </a>
+                . To chat with other PauseAI UK members, join the{' '}
+                <a
+                  href="https://chat.whatsapp.com/F0nj2RjLNeB1P1hyoDFsTz"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  WhatsApp Community
+                </a>
+                . For other information go to{' '}
+                <a href="https://pauseai.uk" target="_blank" rel="noopener noreferrer">
+                  pauseai.uk
+                </a>
+                .
+              </li>
+            </ul>
+          </div>
         </div>
       </section>
 
@@ -287,9 +230,7 @@ export default async function LandingPage() {
       <section className="container border-t border-brand-border py-14 md:py-20">
         <div className="max-w-2xl">
           <h2>Ready to start?</h2>
-          <p className="text-text-light mb-6">
-            Tell us what you are good at and we will show you where it is needed.
-          </p>
+          <p className="text-text-light mb-6">Sign up now to view open projects.</p>
           <LandingCTA />
         </div>
       </section>

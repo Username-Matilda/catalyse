@@ -63,7 +63,7 @@ export const INTEREST_STATUS_LABELS: Record<string, string> = {
   withdrawn: 'Withdrawn',
 }
 
-export const STARTER_TASK_STATUS_LABELS: Record<string, string> = {
+export const QUICK_TASK_STATUS_LABELS: Record<string, string> = {
   open: 'Open',
   in_progress: 'In Progress',
   under_review: 'Under Review',

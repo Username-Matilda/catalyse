@@ -36,47 +36,14 @@ test.describe('Bug Reporting', () => {
     })
   })
 
-  test('Anonymous visitor submits a bug report with a contact email', async ({
-    browser,
-    baseUrl,
-  }) => {
+  test('Anonymous visitor has no way to submit a bug report', async ({ browser, baseUrl }) => {
     const context = await browser.newContext()
     const page = await context.newPage()
     try {
       await page.goto(`${baseUrl}/`)
-
-      await openBugReportForm(page)
-      await fillAndSubmitBugReport(page, {
-        title: fake.bugTitle(),
-        description: 'Anonymous bug report with an email address provided',
-        email: 'anon-reporter@example.com',
-      })
-
-      const dialog = page.getByRole('dialog', { name: 'Report an Issue' })
-      await expect(dialog.getByRole('heading', { name: 'Thank you!' })).toBeVisible({
-        timeout: 10_000,
-      })
-    } finally {
-      await context.close()
-    }
-  })
-
-  test('Anonymous visitor submits a bug report without an email', async ({ browser, baseUrl }) => {
-    const context = await browser.newContext()
-    const page = await context.newPage()
-    try {
-      await page.goto(`${baseUrl}/`)
-
-      await openBugReportForm(page)
-      await fillAndSubmitBugReport(page, {
-        title: fake.bugTitle(),
-        description: 'Anonymous bug report without an email address',
-      })
-
-      const dialog = page.getByRole('dialog', { name: 'Report an Issue' })
-      await expect(dialog.getByRole('heading', { name: 'Thank you!' })).toBeVisible({
-        timeout: 10_000,
-      })
+      await expect(
+        page.getByRole('button', { name: 'Report a bug or give feedback' }),
+      ).not.toBeVisible()
     } finally {
       await context.close()
     }

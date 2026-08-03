@@ -30,6 +30,21 @@ function killServerOnPort(port: number): void {
 
 const IS_DEV_MODE = process.env.E2E_DEV === '1'
 
+// Always checked, never skipped by choice — unlike buildNext()'s cache, which silently
+// skips the one thing (a real `next build`) that would ever catch the generated Prisma
+// client/zod schemas drifting from prisma/schema.prisma (e.g. a new model). But `prisma
+// generate` rewrites its output files unconditionally, even with no schema changes, and
+// buildNext()'s freshness check treats those output files as build inputs — so calling it
+// unconditionally would bump their mtime and force a full rebuild on every single test run.
+// Only regenerate when schema.prisma is actually newer than the generated output.
+function generatePrismaClient(): void {
+  const marker = path.join(PROJECT_ROOT, 'generated', 'prisma', 'client.ts')
+  const schema = path.join(PROJECT_ROOT, 'prisma', 'schema.prisma')
+  if (fs.existsSync(marker) && fs.statSync(marker).mtimeMs > fs.statSync(schema).mtimeMs) return
+
+  execSync('npm run generate', { cwd: PROJECT_ROOT, stdio: 'pipe' })
+}
+
 function migrateWorkerDb(parallelIndex: number): void {
   const dbDir = workerDbDir(parallelIndex)
   const dbUrl = `file:${path.join(dbDir, 'catalyse.db')}`
@@ -133,6 +148,7 @@ async function globalSetup(config: FullConfig): Promise<void> {
   const workerCount = config.workers
 
   if (IS_LOCAL) {
+    generatePrismaClient()
     if (!IS_DEV_MODE) await buildNext()
 
     const ports = Array.from({ length: workerCount }, (_, i) => BASE_PORT + i)

@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { notifyUser } from '@/lib/notify'
 import { canViewWorkItem, canPostComment } from '@/lib/work-item'
 import { publicProcedure, authedProcedure } from '../procedures'
-import { InterestStatus, WorkItemType } from '@/generated/prisma/enums'
+import { ApprovalStatus, InterestStatus, WorkItemType } from '@/generated/prisma/enums'
 
 const WORK_ITEM_SELECT = {
   id: true,
@@ -78,7 +78,11 @@ export const workItemCommentsRouter = {
       if (!loaded) throw new ORPCError('NOT_FOUND', { message: 'Work item not found' })
 
       const viewer = context.volunteer
-        ? { id: context.volunteer.id, isAdmin: Boolean(context.volunteer.isAdmin) }
+        ? {
+            id: context.volunteer.id,
+            isAdmin: Boolean(context.volunteer.isAdmin),
+            isApproved: context.volunteer.approvalStatus === ApprovalStatus.approved,
+          }
         : null
       if (!canViewWorkItem(loaded.item, viewer, loaded.parent)) {
         throw new ORPCError('NOT_FOUND', { message: 'Work item not found' })

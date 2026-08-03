@@ -8,8 +8,9 @@ import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import Button from '@/components/Button'
 import { Badge } from '@/components/Badge'
-import { STARTER_TASK_STATUS_LABELS } from '@/components/ProjectCard'
-import { StarterTaskStatus } from '@/generated/prisma/enums'
+import CommentThread from '@/components/CommentThread'
+import { QUICK_TASK_STATUS_LABELS } from '@/components/ProjectCard'
+import { QuickTaskStatus } from '@/generated/prisma/enums'
 
 const REVIEW_RATING_LABELS: Record<string, string> = {
   excellent: 'Excellent',
@@ -19,12 +20,12 @@ const REVIEW_RATING_LABELS: Record<string, string> = {
 }
 
 function statusVariant(status: string) {
-  if (status === StarterTaskStatus.completed) return 'success'
-  if (status === StarterTaskStatus.under_review) return 'warning'
+  if (status === QuickTaskStatus.completed) return 'success'
+  if (status === QuickTaskStatus.under_review) return 'warning'
   return 'neutral'
 }
 
-export default function StarterTaskDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default function QuickTaskDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idStr } = use(params)
   const id = parseInt(idStr, 10)
   const { user, loading } = useRequireApproved()
@@ -32,19 +33,32 @@ export default function StarterTaskDetailPage({ params }: { params: Promise<{ id
   const queryClient = useQueryClient()
 
   const { data: task, isLoading } = useQuery({
-    ...orpc.starterTasks.get.queryOptions({ input: { id } }),
+    ...orpc.quickTasks.get.queryOptions({ input: { id } }),
     enabled: !!user && !isNaN(id),
   })
 
   const submitMutation = useMutation({
-    ...orpc.starterTasks.submit.mutationOptions(),
+    ...orpc.quickTasks.submit.mutationOptions(),
     onSuccess: () => {
       showToast('Task submitted for review!', 'success')
-      void queryClient.invalidateQueries({ queryKey: orpc.starterTasks.get.key() })
-      void queryClient.invalidateQueries({ queryKey: orpc.my.starterTasks.key() })
+      void queryClient.invalidateQueries({ queryKey: orpc.quickTasks.get.key() })
+      void queryClient.invalidateQueries({ queryKey: orpc.my.quickTasks.key() })
     },
     onError: (err: unknown) => {
       showToast(err instanceof Error ? err.message : 'Failed to submit task', 'error')
+    },
+  })
+
+  const claimMutation = useMutation({
+    ...orpc.quickTasks.claim.mutationOptions(),
+    onSuccess: () => {
+      showToast('Task claimed!', 'success')
+      void queryClient.invalidateQueries({ queryKey: orpc.quickTasks.get.key() })
+      void queryClient.invalidateQueries({ queryKey: orpc.my.quickTasks.key() })
+      void queryClient.invalidateQueries({ queryKey: orpc.quickTasks.available.key() })
+    },
+    onError: (err: unknown) => {
+      showToast(err instanceof Error ? err.message : 'Failed to claim task', 'error')
     },
   })
 
@@ -62,7 +76,7 @@ export default function StarterTaskDetailPage({ params }: { params: Promise<{ id
     return (
       <main className="container py-5">
         <p className="text-text-light">Task not found.</p>
-        <Link href="/starter-tasks">
+        <Link href="/quick-tasks">
           <Button variant="secondary" size="sm">
             Back to My Tasks
           </Button>
@@ -73,7 +87,7 @@ export default function StarterTaskDetailPage({ params }: { params: Promise<{ id
 
   return (
     <main className="container py-5 pb-15">
-      <Link href="/starter-tasks" className="text-sm text-primary-text underline block mb-4">
+      <Link href="/quick-tasks" className="text-sm text-primary-text underline block mb-4">
         ← Back to My Tasks
       </Link>
 
@@ -81,7 +95,7 @@ export default function StarterTaskDetailPage({ params }: { params: Promise<{ id
         <div className="flex justify-between items-start mb-3 gap-4">
           <h1 className="m-0">{task.title}</h1>
           <Badge variant={statusVariant(task.status)}>
-            {STARTER_TASK_STATUS_LABELS[task.status] ?? task.status}
+            {QUICK_TASK_STATUS_LABELS[task.status] ?? task.status}
           </Badge>
         </div>
 
@@ -105,7 +119,7 @@ export default function StarterTaskDetailPage({ params }: { params: Promise<{ id
 
         {task.description && <p className="whitespace-pre-wrap mb-6">{task.description}</p>}
 
-        {task.status === StarterTaskStatus.completed && (
+        {task.status === QuickTaskStatus.completed && (
           <div className="bg-brand-bg rounded-lg p-4 mb-4 border border-brand-border">
             <h3 className="m-0 mb-2 text-base">Review</h3>
             {task.reviewRating && (
@@ -118,7 +132,16 @@ export default function StarterTaskDetailPage({ params }: { params: Promise<{ id
           </div>
         )}
 
-        {task.status === StarterTaskStatus.in_progress && (
+        {task.status === QuickTaskStatus.open && task.assignedToId === null && (
+          <Button
+            onClick={() => claimMutation.mutate({ id: task.id })}
+            disabled={claimMutation.isPending}
+          >
+            {claimMutation.isPending ? 'Claiming…' : 'Claim'}
+          </Button>
+        )}
+
+        {task.status === QuickTaskStatus.in_progress && (
           <Button
             onClick={() => submitMutation.mutate({ id: task.id })}
             disabled={submitMutation.isPending}
@@ -127,9 +150,14 @@ export default function StarterTaskDetailPage({ params }: { params: Promise<{ id
           </Button>
         )}
 
-        {task.status === StarterTaskStatus.under_review && (
+        {task.status === QuickTaskStatus.under_review && (
           <p className="text-text-light text-sm">Your submission is awaiting review.</p>
         )}
+      </div>
+
+      <div className="bg-surface rounded-xl shadow p-6">
+        <h2 className="text-lg mb-4">Comments</h2>
+        <CommentThread workItemId={task.id} />
       </div>
     </main>
   )

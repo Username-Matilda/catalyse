@@ -138,7 +138,13 @@ export const CreateProjectTaskSchema = WorkItemSchema.pick({
   description: true,
   estimatedHours: true,
   deadline: true,
-}).partial({ description: true, estimatedHours: true, deadline: true })
+  featuredAsQuickTask: true,
+}).partial({
+  description: true,
+  estimatedHours: true,
+  deadline: true,
+  featuredAsQuickTask: true,
+})
 
 export const UpdateProjectTaskSchema = WorkItemSchema.pick({
   title: true,
@@ -146,6 +152,7 @@ export const UpdateProjectTaskSchema = WorkItemSchema.pick({
   assigneeId: true,
   estimatedHours: true,
   deadline: true,
+  featuredAsQuickTask: true,
 })
   .partial()
   .extend({ status: TaskStatusSchema.optional() })
@@ -271,9 +278,9 @@ export const PlatformSettingsSchema = z.object({
   }),
 })
 
-// ─── Starter tasks ────────────────────────────────────────────────────────────
+// ─── Quick tasks ──────────────────────────────────────────────────────────────
 
-export const CreateStarterTaskSchema = WorkItemSchema.pick({
+export const CreateQuickTaskSchema = WorkItemSchema.pick({
   title: true,
   description: true,
   skillId: true,
@@ -281,11 +288,11 @@ export const CreateStarterTaskSchema = WorkItemSchema.pick({
   estimatedHours: true,
 }).partial({ skillId: true, contextProjectId: true, estimatedHours: true })
 
-export const AssignStarterTaskSchema = z.object({
+export const AssignQuickTaskSchema = z.object({
   volunteerId: z.number().int({ message: 'volunteerId is required' }),
 })
 
-export const ReviewStarterTaskSchema = z.object({
+export const ReviewQuickTaskSchema = z.object({
   reviewRating: z.enum(['excellent', 'good', 'needs_improvement'], {
     error: 'reviewRating must be excellent, good, or needs_improvement',
   }),
@@ -301,8 +308,7 @@ export const CreateBugReportSchema = BugReportSchema.pick({
   pageUrl: true,
   category: true,
   severity: true,
-  reporterEmail: true,
-}).partial({ pageUrl: true, category: true, severity: true, reporterEmail: true })
+}).partial({ pageUrl: true, category: true, severity: true })
 
 // ─── Local group suggestions ──────────────────────────────────────────────────
 
