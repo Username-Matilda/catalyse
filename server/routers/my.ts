@@ -3,9 +3,9 @@ import { authedProcedure } from '../procedures'
 import { WorkItemType } from '@/generated/prisma/enums'
 
 export const myRouter = {
-  starterTasks: authedProcedure.handler(async ({ context }) => {
+  quickTasks: authedProcedure.handler(async ({ context }) => {
     const tasks = await prisma.workItem.findMany({
-      where: { type: WorkItemType.STARTER_TASK, assigneeId: context.volunteer.id },
+      where: { type: WorkItemType.QUICK_TASK, assigneeId: context.volunteer.id },
       include: {
         skill: true,
         contextProject: { select: { title: true } },

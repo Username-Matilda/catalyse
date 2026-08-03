@@ -6,13 +6,13 @@ import { selectFilterDropdown } from '../actions/ui'
 test.describe('Quick Tasks: self-serve', () => {
   test('Volunteer browses and claims an open Quick Task', async ({ volunteer, baseUrl }) => {
     const adminApi = createApiClient(baseUrl, readAdminToken(baseUrl))
-    const taskTitle = fake.starterTaskTitle()
-    const created = await adminApi.starterTasks.create({
+    const taskTitle = fake.quickTaskTitle()
+    const created = await adminApi.quickTasks.create({
       body: { title: taskTitle, description: 'Browse and claim test' },
     })
     expect(created.status).toBe(200)
 
-    await volunteer.page.goto(`${baseUrl}/starter-tasks`)
+    await volunteer.page.goto(`${baseUrl}/quick-tasks`)
     await expect(volunteer.page.getByRole('heading', { name: 'Browse Quick Tasks' })).toBeVisible({
       timeout: 10_000,
     })
@@ -35,13 +35,13 @@ test.describe('Quick Tasks: self-serve', () => {
     baseUrl,
   }) => {
     const adminApi = createApiClient(baseUrl, readAdminToken(baseUrl))
-    const taskTitle = fake.starterTaskTitle()
-    const created = await adminApi.starterTasks.create({
+    const taskTitle = fake.quickTaskTitle()
+    const created = await adminApi.quickTasks.create({
       body: { title: taskTitle, description: 'Detail-page claim test' },
     })
     const taskId = (created.body as { id: number }).id
 
-    await volunteer.page.goto(`${baseUrl}/starter-tasks/${taskId}`)
+    await volunteer.page.goto(`${baseUrl}/quick-tasks/${taskId}`)
     await expect(volunteer.page.getByRole('heading', { name: taskTitle, level: 1 })).toBeVisible({
       timeout: 10_000,
     })
@@ -82,7 +82,7 @@ test.describe('Quick Tasks: self-serve', () => {
     })
     const taskId = (taskCreated.body as { id: number }).id
 
-    await volunteer.page.goto(`${baseUrl}/starter-tasks`)
+    await volunteer.page.goto(`${baseUrl}/quick-tasks`)
     const card = volunteer.page.getByRole('article').filter({ hasText: taskTitle })
     await expect(card).toBeVisible({ timeout: 10_000 })
     await expect(card).toContainText('Part of Project:')
@@ -98,7 +98,7 @@ test.describe('Quick Tasks: self-serve', () => {
     await card.getByRole('button', { name: 'Claim' }).click()
     await expect(getAlert(volunteer.page)).toContainText('Task claimed!', { timeout: 10_000 })
 
-    // A claimed project task is not a StarterTask row, so it never lands in "My Quick
+    // A claimed project task is not a QuickTask row, so it never lands in "My Quick
     // Tasks" — the volunteer is taken to the task itself rather than left on a page where
     // what they just claimed has silently disappeared.
     await expect(volunteer.page).toHaveURL(`${baseUrl}/projects/${projectId}/tasks/${taskId}`, {
@@ -171,12 +171,12 @@ test.describe('Quick Tasks: self-serve', () => {
     baseUrl,
   }) => {
     const adminApi = createApiClient(baseUrl, readAdminToken(baseUrl))
-    const taskTitle = fake.starterTaskTitle()
-    await adminApi.starterTasks.create({
+    const taskTitle = fake.quickTaskTitle()
+    await adminApi.quickTasks.create({
       body: { title: taskTitle, description: 'Unassign test' },
     })
 
-    await adminPage.goto(`${baseUrl}/admin/starter-tasks`)
+    await adminPage.goto(`${baseUrl}/quick-tasks`)
     const taskCard = adminPage.getByRole('article').filter({ hasText: taskTitle })
     await expect(taskCard).toBeVisible({ timeout: 10_000 })
     await taskCard.getByText(taskTitle, { exact: true }).click()
@@ -255,7 +255,7 @@ test.describe('Leaving a project', () => {
     expect(claim.status).toBe(403)
 
     // And the task isn't advertised to them in the Quick Tasks browse pool either.
-    const available = await volApi.starterTasks.available()
+    const available = await volApi.quickTasks.available()
     const titles = (available.body as { title: string }[]).map((t) => t.title)
     expect(titles).not.toContain(taskTitle)
   })

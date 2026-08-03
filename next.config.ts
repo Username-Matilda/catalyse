@@ -49,9 +49,10 @@ const nextConfig: NextConfig = {
       { source: '/static/admin/skills.html', destination: '/admin/skills', permanent: false },
       {
         source: '/static/admin/starter-tasks.html',
-        destination: '/admin/starter-tasks',
+        destination: '/quick-tasks',
         permanent: false,
       },
+      { source: '/admin/starter-tasks', destination: '/quick-tasks', permanent: false },
       { source: '/static/admin/stats.html', destination: '/admin/stats', permanent: false },
       { source: '/static/admin/team.html', destination: '/admin/team', permanent: false },
       { source: '/static/admin/triage.html', destination: '/admin/triage', permanent: false },
@@ -63,7 +64,9 @@ const nextConfig: NextConfig = {
       { source: '/static/reset-password.html', destination: '/reset-password', permanent: false },
       { source: '/static/settings.html', destination: '/settings', permanent: false },
       { source: '/static/signup.html', destination: '/signup', permanent: false },
-      { source: '/static/starter-tasks.html', destination: '/starter-tasks', permanent: false },
+      { source: '/static/starter-tasks.html', destination: '/quick-tasks', permanent: false },
+      { source: '/starter-tasks', destination: '/quick-tasks', permanent: false },
+      { source: '/starter-tasks/:path*', destination: '/quick-tasks/:path*', permanent: false },
       { source: '/static/suggest.html', destination: '/suggest', permanent: false },
       { source: '/static/volunteers.html', destination: '/volunteers', permanent: false },
     ]

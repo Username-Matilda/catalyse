@@ -113,7 +113,6 @@ function DashboardNavButtons({ unreadCount }: { unreadCount: number }) {
 const ADMIN_NAV_ITEMS: { href: string; label: string; superAdminOnly?: boolean }[] = [
   { href: '/admin/triage', label: 'Triage Queue' },
   { href: '/admin/projects/new', label: 'Create Org Project' },
-  { href: '/admin/starter-tasks', label: 'Manage Quick Tasks' },
   { href: '/admin/skills', label: 'Manage Skills' },
   { href: '/admin/bugs', label: 'Bug Reports' },
   { href: '/admin/team', label: 'Admin Team' },
@@ -172,7 +171,7 @@ export default function Header() {
     { href: '/projects', label: 'Projects' },
     { href: '/volunteers', label: 'Volunteers' },
     { href: '/suggest', label: 'Suggest' },
-    { href: '/starter-tasks', label: 'Quick Tasks' },
+    { href: '/quick-tasks', label: 'Quick Tasks' },
   ]
 
   // Signed-in volunteers expect the wordmark to take them into the app; signed-out

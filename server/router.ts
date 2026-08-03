@@ -8,7 +8,7 @@ import { messagesRouter } from './routers/messages'
 import { bugReportsRouter } from './routers/bugReports'
 import { localGroupsRouter } from './routers/localGroups'
 import { localGroupSuggestionsRouter } from './routers/localGroupSuggestions'
-import { starterTasksRouter } from './routers/starterTasks'
+import { quickTasksRouter } from './routers/quickTasks'
 import { workItemCommentsRouter } from './routers/workItemComments'
 import { bugReportCommentsRouter } from './routers/bugReportComments'
 import { myRouter } from './routers/my'
@@ -43,7 +43,7 @@ export const appRouter = {
   bugReportComments: bugReportCommentsRouter,
   localGroups: localGroupsRouter,
   localGroupSuggestions: localGroupSuggestionsRouter,
-  starterTasks: starterTasksRouter,
+  quickTasks: quickTasksRouter,
   workItemComments: workItemCommentsRouter,
   my: myRouter,
   privacy: privacyRouter,

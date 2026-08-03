@@ -278,9 +278,9 @@ export const PlatformSettingsSchema = z.object({
   }),
 })
 
-// ─── Starter tasks ────────────────────────────────────────────────────────────
+// ─── Quick tasks ──────────────────────────────────────────────────────────────
 
-export const CreateStarterTaskSchema = WorkItemSchema.pick({
+export const CreateQuickTaskSchema = WorkItemSchema.pick({
   title: true,
   description: true,
   skillId: true,
@@ -288,11 +288,11 @@ export const CreateStarterTaskSchema = WorkItemSchema.pick({
   estimatedHours: true,
 }).partial({ skillId: true, contextProjectId: true, estimatedHours: true })
 
-export const AssignStarterTaskSchema = z.object({
+export const AssignQuickTaskSchema = z.object({
   volunteerId: z.number().int({ message: 'volunteerId is required' }),
 })
 
-export const ReviewStarterTaskSchema = z.object({
+export const ReviewQuickTaskSchema = z.object({
   reviewRating: z.enum(['excellent', 'good', 'needs_improvement'], {
     error: 'reviewRating must be excellent, good, or needs_improvement',
   }),

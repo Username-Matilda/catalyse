@@ -133,7 +133,7 @@ test.describe('Project Tasks', () => {
 
   // TODO: project task cards have no comment thread UI — convert this to a UI test once
   // a CommentThread is added to each task card on the project page (similar to how
-  // starter tasks show comments on the dashboard and admin pages).
+  // quick tasks show comments on the dashboard and admin pages).
   test('Admin and task assignee exchange comments on a project task', async ({ baseUrl }) => {
     const adminToken = readAdminToken(baseUrl)
     expect(adminToken).toBeTruthy()

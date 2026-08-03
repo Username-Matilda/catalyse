@@ -3,7 +3,7 @@ import { calculateMatchScore } from './matching'
 import {
   InterestStatus,
   ProjectStatus,
-  StarterTaskStatus,
+  QuickTaskStatus,
   WorkItemType,
 } from '@/generated/prisma/enums'
 
@@ -48,11 +48,11 @@ export function canViewWorkItem(
       return Boolean(viewer && (viewer.isAdmin || viewer.id === item.creatorId))
     case WorkItemType.TASK:
       return parent ? canViewWorkItem(parent, viewer) : Boolean(viewer?.isAdmin)
-    case WorkItemType.STARTER_TASK:
+    case WorkItemType.QUICK_TASK:
       // Open, unclaimed tasks are browsable by any approved volunteer before they claim one —
       // but not by a pending applicant, same as the approvedProcedure gate on the pages that
       // read/claim tasks directly.
-      if (item.status === StarterTaskStatus.open && item.assigneeId === null) {
+      if (item.status === QuickTaskStatus.open && item.assigneeId === null) {
         return Boolean(viewer && (viewer.isAdmin || viewer.isApproved))
       }
       return Boolean(
@@ -87,7 +87,7 @@ export function canPostComment(
         viewer.id === (opts.parent?.assigneeId ?? null) ||
         Boolean(opts.isAcceptedHelper)
       )
-    case WorkItemType.STARTER_TASK:
+    case WorkItemType.QUICK_TASK:
       return viewer.id === item.assigneeId
     default:
       return false
