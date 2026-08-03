@@ -115,4 +115,61 @@ test.describe('Bug Report Detail Page', () => {
     })
     expect(result.status).toBe(401)
   })
+
+  test('A javascript: pageUrl is never rendered as a clickable link', async ({
+    volunteer,
+    baseUrl,
+  }) => {
+    await volunteer.page.goto(`${baseUrl}/dashboard`)
+    const volApi = createApiClient(
+      baseUrl,
+      await volunteer.page.evaluate(() => localStorage.getItem('authToken')),
+    )
+    const title = fake.bugTitle()
+    const created = await volApi.bugReports.create({
+      body: {
+        title,
+        description: 'Reported from a page with a malicious pageUrl',
+        pageUrl: 'javascript:alert(document.cookie)',
+      },
+    })
+    expect(created.status).toBe(200)
+    const reportId = (created.body as { id: number }).id
+
+    await volunteer.page.goto(`${baseUrl}/bugs/${reportId}`)
+    await expect(volunteer.page.getByRole('heading', { name: title, level: 1 })).toBeVisible({
+      timeout: 10_000,
+    })
+    await expect(volunteer.page.getByText('javascript:alert(document.cookie)')).toBeVisible()
+    await expect(volunteer.page.getByRole('link', { name: /javascript:/ })).toHaveCount(0)
+  })
+
+  test('An external-origin pageUrl is reduced to a same-origin path, not a cross-origin link', async ({
+    volunteer,
+    baseUrl,
+  }) => {
+    await volunteer.page.goto(`${baseUrl}/dashboard`)
+    const volApi = createApiClient(
+      baseUrl,
+      await volunteer.page.evaluate(() => localStorage.getItem('authToken')),
+    )
+    const title = fake.bugTitle()
+    const created = await volApi.bugReports.create({
+      body: {
+        title,
+        description: 'Reported with a spoofed external pageUrl',
+        pageUrl: 'https://evil.example.com/steal?x=1',
+      },
+    })
+    expect(created.status).toBe(200)
+    const reportId = (created.body as { id: number }).id
+
+    await volunteer.page.goto(`${baseUrl}/bugs/${reportId}`)
+    await expect(volunteer.page.getByRole('heading', { name: title, level: 1 })).toBeVisible({
+      timeout: 10_000,
+    })
+    const pageUrlLink = volunteer.page.getByRole('link', { name: '/steal?x=1' })
+    await expect(pageUrlLink).toBeVisible()
+    await expect(pageUrlLink).toHaveAttribute('href', '/steal?x=1')
+  })
 })

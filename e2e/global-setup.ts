@@ -42,10 +42,7 @@ function generatePrismaClient(): void {
   const schema = path.join(PROJECT_ROOT, 'prisma', 'schema.prisma')
   if (fs.existsSync(marker) && fs.statSync(marker).mtimeMs > fs.statSync(schema).mtimeMs) return
 
-  execSync('npx prisma generate && tsx scripts/post-generate.ts', {
-    cwd: PROJECT_ROOT,
-    stdio: 'pipe',
-  })
+  execSync('npm run generate', { cwd: PROJECT_ROOT, stdio: 'pipe' })
 }
 
 function migrateWorkerDb(parallelIndex: number): void {

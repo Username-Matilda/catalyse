@@ -11,7 +11,12 @@ import { Badge } from '@/components/Badge'
 import FilterDropdown from '@/components/FilterDropdown'
 import BugReportCommentThread from '@/components/BugReportCommentThread'
 import { formatDate } from '@/lib/format-date'
-import { BUG_STATUS_OPTIONS, BUG_STATUS_VARIANT, bugStatusLabel } from '@/lib/bug-report-labels'
+import {
+  BUG_STATUS_OPTIONS,
+  BUG_STATUS_VARIANT,
+  bugReportPagePath,
+  bugStatusLabel,
+} from '@/lib/bug-report-labels'
 
 export default function BugReportDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idStr } = use(params)
@@ -87,19 +92,27 @@ export default function BugReportDetailPage({ params }: { params: Promise<{ id: 
           {report.severity && <span>· {report.severity}</span>}
           {report.reporterName && <span>· {report.reporterName}</span>}
           <span>· {report.createdAt ? formatDate(report.createdAt) : ''}</span>
-          {report.pageUrl && (
-            <span>
-              ·{' '}
-              <a
-                href={report.pageUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline hover:text-text"
-              >
-                {report.pageUrl}
-              </a>
-            </span>
-          )}
+          {report.pageUrl &&
+            (() => {
+              const path = bugReportPagePath(report.pageUrl)
+              return (
+                <span>
+                  ·{' '}
+                  {path ? (
+                    <a
+                      href={path}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline hover:text-text"
+                    >
+                      {path}
+                    </a>
+                  ) : (
+                    report.pageUrl
+                  )}
+                </span>
+              )
+            })()}
         </div>
 
         <p className="whitespace-pre-wrap mb-0">{report.description}</p>

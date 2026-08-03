@@ -7,6 +7,7 @@ import {
   AssignStarterTaskSchema,
   ReviewStarterTaskSchema,
 } from '@/lib/schemas'
+import { CLAIM_BLOCKING_INTEREST_STATUSES } from '@/lib/work-item'
 import { adminProcedure, approvedProcedure, authedProcedure } from '../procedures'
 import {
   ApprovalStatus,
@@ -65,7 +66,18 @@ export const starterTasksRouter = {
 
   // The open, unclaimed browse pool: real starter tasks plus project tasks a
   // project owner/admin has flagged to also surface here (featuredAsQuickTask).
-  available: approvedProcedure.handler(async () => {
+  available: approvedProcedure.handler(async ({ context }) => {
+    // Projects this volunteer was declined from or withdrew from — they can't claim
+    // those tasks, so don't advertise them here either.
+    const blockedInterests = await prisma.workItemInterest.findMany({
+      where: {
+        volunteerId: context.volunteer.id,
+        status: { in: CLAIM_BLOCKING_INTEREST_STATUSES },
+      },
+      select: { workItemId: true },
+    })
+    const blockedProjectIds = blockedInterests.map((i) => i.workItemId)
+
     const [starterTasks, projectTasks] = await Promise.all([
       prisma.workItem.findMany({
         where: {
@@ -85,7 +97,7 @@ export const starterTasksRouter = {
           status: TaskStatus.open,
           assigneeId: null,
           featuredAsQuickTask: true,
-          parentId: { not: null },
+          parentId: { not: null, notIn: blockedProjectIds },
         },
         include: { parent: { select: { id: true, title: true } } },
         orderBy: { createdAt: 'desc' },
@@ -268,7 +280,6 @@ export const starterTasksRouter = {
         where: { id: input.id },
         data: {
           assigneeId: volunteer.id,
-          creatorId: volunteer.id,
           status: StarterTaskStatus.in_progress,
           updatedAt: new Date(),
         },

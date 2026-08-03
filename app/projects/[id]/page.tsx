@@ -288,6 +288,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     enabled: !!user,
   })
   const project = projectRaw
+  const canClaimTasks = project?.canClaimTasks ?? false
 
   // Sync orderedTasks when project data loads/changes
   useEffect(() => {
@@ -640,8 +641,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     })
   }
 
-  function handleWithdrawInterest() {
-    if (!window.confirm('Withdraw your interest?')) return
+  function handleWithdrawInterest(isAccepted: boolean) {
+    const message = isAccepted
+      ? 'Withdraw from this project? Any tasks you hold on it will be released back to open.'
+      : 'Withdraw your interest?'
+    if (!window.confirm(message)) return
     withdrawInterestMutation.mutate({ projectId: parseInt(idParam, 10) })
   }
 
@@ -957,7 +961,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                             }
                             primaryAction={
                               <>
-                                {task.status === TaskStatus.open && (
+                                {task.status === TaskStatus.open && canClaimTasks && (
                                   <Button
                                     variant="secondary"
                                     size="sm"
@@ -1430,8 +1434,17 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                         {project.myInterest.responseMessage}
                       </p>
                     )}
-                    {project.myInterest.status === InterestStatus.pending && (
-                      <Button variant="secondary" className="mt-2" onClick={handleWithdrawInterest}>
+                    {(project.myInterest.status === InterestStatus.pending ||
+                      project.myInterest.status === InterestStatus.accepted) && (
+                      <Button
+                        variant="secondary"
+                        className="mt-2"
+                        onClick={() =>
+                          handleWithdrawInterest(
+                            project.myInterest?.status === InterestStatus.accepted,
+                          )
+                        }
+                      >
                         Withdraw Interest
                       </Button>
                     )}

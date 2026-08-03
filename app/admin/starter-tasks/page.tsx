@@ -280,10 +280,14 @@ export default function AdminStarterTasksPage() {
     deleteTaskMutation.mutate({ id: task.id })
   }
 
-  function copyLink(taskId: number) {
+  async function copyLink(taskId: number) {
     const url = `${window.location.origin}/starter-tasks/${taskId}`
-    navigator.clipboard.writeText(url)
-    toast('Link copied!', 'success')
+    try {
+      await navigator.clipboard.writeText(url)
+      toast('Link copied!', 'success')
+    } catch {
+      toast('Could not copy the link', 'error')
+    }
   }
 
   function reviewTask(e: React.FormEvent) {
@@ -446,7 +450,7 @@ export default function AdminStarterTasksPage() {
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation()
-                            copyLink(task.id)
+                            void copyLink(task.id)
                           }}
                         >
                           Copy share link

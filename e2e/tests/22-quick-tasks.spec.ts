@@ -88,8 +88,6 @@ test.describe('Quick Tasks: self-serve', () => {
     await expect(card).toContainText('Part of Project:')
 
     // Task title links into the task's own page in the project, not a separate Quick Task page.
-    // Checked before claiming: claiming a featured project task removes it from this page
-    // entirely (it's not a StarterTask row, so it never lands in "My Quick Tasks" either).
     await expect(card.getByRole('link', { name: taskTitle })).toHaveAttribute(
       'href',
       `/projects/${projectId}/tasks/${taskId}`,
@@ -99,6 +97,13 @@ test.describe('Quick Tasks: self-serve', () => {
     // accepted participant on the project, even though they never expressed interest.
     await card.getByRole('button', { name: 'Claim' }).click()
     await expect(getAlert(volunteer.page)).toContainText('Task claimed!', { timeout: 10_000 })
+
+    // A claimed project task is not a StarterTask row, so it never lands in "My Quick
+    // Tasks" — the volunteer is taken to the task itself rather than left on a page where
+    // what they just claimed has silently disappeared.
+    await expect(volunteer.page).toHaveURL(`${baseUrl}/projects/${projectId}/tasks/${taskId}`, {
+      timeout: 10_000,
+    })
 
     const project = await adminApi.projects.getById({ body: { id: projectId } })
     expect(project.status).toBe(200)
@@ -189,5 +194,98 @@ test.describe('Quick Tasks: self-serve', () => {
     await taskCard.getByRole('button', { name: 'Unassign' }).click()
     await expect(getAlert(adminPage)).toContainText('Assignee removed', { timeout: 10_000 })
     await expect(taskCard.getByRole('status')).toContainText('open', { timeout: 10_000 })
+  })
+})
+
+test.describe('Leaving a project', () => {
+  // A project with one seed task plus one extra claimable task, owned by nobody in
+  // particular — enough to test who may self-claim on it.
+  async function seedProjectWithTask(
+    baseUrl: string,
+    taskTitle: string,
+    featuredAsQuickTask = false,
+  ): Promise<{ projectId: number; taskId: number }> {
+    const adminApi = createApiClient(baseUrl, readAdminToken(baseUrl))
+    const projectCreated = await adminApi.admin.projects.create({
+      body: {
+        title: fake.projectTitle(),
+        description: 'Leaving-a-project test',
+        projectType: null,
+        estimatedDuration: null,
+        timeCommitmentHoursPerWeek: null,
+        urgency: 'medium',
+        collaborationLink: null,
+        country: null,
+        localGroup: null,
+        isSeekingHelp: true,
+        isSeekingOwner: false,
+        tasks: [{ title: 'Seed task' }],
+      },
+    })
+    const projectId = (projectCreated.body as { id: number }).id
+    const taskCreated = await adminApi.projects.createTask({
+      body: { projectId, title: taskTitle, featuredAsQuickTask },
+    })
+    return { projectId, taskId: (taskCreated.body as { id: number }).id }
+  }
+
+  test('A volunteer declined from a project cannot claim its tasks', async ({ baseUrl }) => {
+    const adminApi = createApiClient(baseUrl, readAdminToken(baseUrl))
+    const taskTitle = `Declined-claim ${Date.now()}`
+    const { projectId, taskId } = await seedProjectWithTask(baseUrl, taskTitle, true)
+
+    const volunteer = await createApprovedVolunteer(baseUrl)
+    const volApi = createApiClient(baseUrl, volunteer.token)
+
+    await volApi.projects.expressInterest({
+      body: { projectId, interestType: 'want_to_contribute', message: 'Keen to help' },
+    })
+    const project = await adminApi.projects.getById({ body: { id: projectId } })
+    const interestId = (
+      project.body as { interests: { id: number; volunteerId: number }[] }
+    ).interests.find((i) => i.volunteerId === volunteer.id)!.id
+    const declined = await adminApi.projects.respondToInterest({
+      body: { projectId, interestId, status: 'declined', responseMessage: 'Not this time' },
+    })
+    expect(declined.status).toBe(200)
+
+    const claim = await volApi.projects.updateTask({
+      body: { projectId, taskId, data: { status: 'in_progress', assigneeId: volunteer.id } },
+    })
+    expect(claim.status).toBe(403)
+
+    // And the task isn't advertised to them in the Quick Tasks browse pool either.
+    const available = await volApi.starterTasks.available()
+    const titles = (available.body as { title: string }[]).map((t) => t.title)
+    expect(titles).not.toContain(taskTitle)
+  })
+
+  test('Withdrawing from a project releases the tasks that volunteer holds on it', async ({
+    baseUrl,
+  }) => {
+    const adminApi = createApiClient(baseUrl, readAdminToken(baseUrl))
+    const taskTitle = `Withdraw-release ${Date.now()}`
+    const { projectId, taskId } = await seedProjectWithTask(baseUrl, taskTitle)
+
+    const volunteer = await createApprovedVolunteer(baseUrl)
+    const volApi = createApiClient(baseUrl, volunteer.token)
+
+    const claim = await volApi.projects.updateTask({
+      body: { projectId, taskId, data: { status: 'in_progress', assigneeId: volunteer.id } },
+    })
+    expect(claim.status).toBe(200)
+
+    const withdrawn = await volApi.projects.withdrawInterest({ body: { projectId } })
+    expect(withdrawn.status).toBe(200)
+
+    const task = await adminApi.projects.getTask({ body: { projectId, taskId } })
+    expect((task.body as { status: string }).status).toBe('open')
+    expect((task.body as { assignedToId: number | null }).assignedToId).toBeNull()
+
+    // Having left, they can no longer pick it back up.
+    const reclaim = await volApi.projects.updateTask({
+      body: { projectId, taskId, data: { status: 'in_progress', assigneeId: volunteer.id } },
+    })
+    expect(reclaim.status).toBe(403)
   })
 })

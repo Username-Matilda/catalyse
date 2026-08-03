@@ -3,6 +3,7 @@
 import { useRequireApproved } from '@/lib/hooks/auth'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import Button from '@/components/Button'
 import { Badge } from '@/components/Badge'
 import { orpc } from '@/lib/orpc'
@@ -19,6 +20,7 @@ export default function StarterTasksPage() {
   const { user, loading } = useRequireApproved()
   const showToast = useToast()
   const queryClient = useQueryClient()
+  const router = useRouter()
 
   const { data: tasks = [], isLoading: loadingTasks } = useQuery({
     ...orpc.my.starterTasks.queryOptions(),
@@ -56,11 +58,15 @@ export default function StarterTasksPage() {
       showToast(err instanceof Error ? err.message : 'Failed to claim task', 'error'),
   })
 
+  // A claimed project task doesn't join "My Quick Tasks" below — that list is starter
+  // tasks only — so send the volunteer to the task itself rather than leaving them on a
+  // page where the thing they just claimed has silently vanished.
   const claimProjectTaskMutation = useMutation({
     ...orpc.projects.updateTask.mutationOptions(),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       showToast('Task claimed!', 'success')
       invalidateAvailable()
+      router.push(`/projects/${variables.projectId}/tasks/${variables.taskId}`)
     },
     onError: (err: unknown) =>
       showToast(err instanceof Error ? err.message : 'Failed to claim task', 'error'),

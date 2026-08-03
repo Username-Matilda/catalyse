@@ -23,3 +23,18 @@ export const BUG_STATUS_VARIANT: Record<string, BadgeVariant> = {
 export function bugStatusLabel(status: string): string {
   return BUG_STATUS_OPTIONS.find((s) => s.value === status)?.label ?? status
 }
+
+/**
+ * A report's `pageUrl` is caller-supplied and unvalidated — it can carry any origin or
+ * scheme. Never link it as-is: reduce it to its same-origin path, and return null when it
+ * doesn't reduce to one so the caller renders it as plain text instead.
+ */
+export function bugReportPagePath(pageUrl: string): string | null {
+  try {
+    const { pathname, search } = new URL(pageUrl, 'http://bug-report.invalid')
+    const path = pathname + search
+    return path.startsWith('/') ? path : null
+  } catch {
+    return null
+  }
+}

@@ -25,6 +25,14 @@ const PROJECT_HIDDEN_STATUSES: string[] = [
   ProjectStatus.needs_discussion,
 ]
 
+// A volunteer the owner declined, or who withdrew themselves, is no longer a contributor
+// on that project: they cannot self-claim its tasks and its tasks are hidden from their
+// Quick Tasks browse list. An owner or admin can still assign them a task explicitly.
+export const CLAIM_BLOCKING_INTEREST_STATUSES: InterestStatus[] = [
+  InterestStatus.declined,
+  InterestStatus.withdrawn,
+]
+
 /**
  * Can `viewer` see this work item (and therefore its comment thread)?
  * For TASK, pass the parent PROJECT — task visibility follows the project.

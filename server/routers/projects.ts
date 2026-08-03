@@ -7,6 +7,7 @@ import {
   projectInclude,
   EnrichedProject,
   canViewWorkItem,
+  CLAIM_BLOCKING_INTEREST_STATUSES,
 } from '@/lib/work-item'
 import { notifyUser, notifyAdmins } from '@/lib/notify'
 import {
@@ -33,6 +34,42 @@ const STATUS_LABELS: Record<string, string> = {
   on_hold: 'On Hold',
   completed: 'Completed',
   archived: 'Archived',
+}
+
+/** Has this volunteer been declined from, or withdrawn from, this project? */
+async function isBlockedFromClaiming(projectId: number, volunteerId: number): Promise<boolean> {
+  const blocking = await prisma.workItemInterest.findFirst({
+    where: {
+      workItemId: projectId,
+      volunteerId,
+      status: { in: CLAIM_BLOCKING_INTEREST_STATUSES },
+    },
+    select: { id: true },
+  })
+  return Boolean(blocking)
+}
+
+/**
+ * Leaving a project — by withdrawing, or by the owner declining you — also gives up the
+ * tasks you hold on it. Completed tasks keep their assignee: they are a record of work
+ * done, not an outstanding commitment.
+ */
+async function releaseTasksHeldBy(projectId: number, volunteerId: number): Promise<void> {
+  await prisma.workItem.updateMany({
+    where: {
+      parentId: projectId,
+      type: WorkItemType.TASK,
+      assigneeId: volunteerId,
+      status: { not: TaskStatus.completed },
+    },
+    data: {
+      assigneeId: null,
+      status: TaskStatus.open,
+      updatedAt: new Date(),
+      nudgeSentAt: null,
+      finalWarningSentAt: null,
+    },
+  })
 }
 
 const OWNER_ALLOWED_STATUSES: ProjectStatus[] = [
@@ -388,11 +425,17 @@ export const projectsRouter = {
           }
         : null
 
+      const canClaimTasks =
+        isAssignee ||
+        Boolean(volunteer.isAdmin) ||
+        !(await isBlockedFromClaiming(input.id, volunteer.id))
+
       return {
         ...base,
         tasks: mappedTasks,
         interests,
         myInterest,
+        canClaimTasks,
       }
     }),
 
@@ -626,12 +669,14 @@ export const projectsRouter = {
         where: {
           workItemId: input.projectId,
           volunteerId: context.volunteer.id,
-          status: InterestStatus.pending,
+          status: { in: [InterestStatus.pending, InterestStatus.accepted] },
         },
         data: { status: InterestStatus.withdrawn },
       })
-      if (result.count === 0)
-        throw new ORPCError('NOT_FOUND', { message: 'No pending interest found' })
+      if (result.count === 0) throw new ORPCError('NOT_FOUND', { message: 'No interest found' })
+
+      await releaseTasksHeldBy(input.projectId, context.volunteer.id)
+
       return { message: 'Interest withdrawn' }
     }),
 
@@ -676,6 +721,10 @@ export const projectsRouter = {
           respondedAt: new Date(),
         },
       })
+
+      if (input.status === InterestStatus.declined) {
+        await releaseTasksHeldBy(input.projectId, interest.volunteerId)
+      }
 
       if (input.status === InterestStatus.accepted && interest.interestType === 'want_to_own') {
         const openTaskCount = await prisma.workItem.count({
@@ -867,11 +916,17 @@ export const projectsRouter = {
         throw new ORPCError('NOT_FOUND', { message: 'Task not found' })
       }
 
+      const canClaim =
+        project.assigneeId === volunteer.id ||
+        Boolean(volunteer.isAdmin) ||
+        !(await isBlockedFromClaiming(input.projectId, volunteer.id))
+
       return {
         id: task.id,
         projectId: task.parentId,
         projectTitle: project.title,
         projectOwnerId: project.assigneeId,
+        canClaim,
         title: task.title,
         description: task.description,
         assignedToId: task.assigneeId,
@@ -1011,6 +1066,17 @@ export const projectsRouter = {
 
       if (!isAssignee && !volunteer.isAdmin && !isSelfClaim && !isMarkingDone) {
         throw new ORPCError('FORBIDDEN', { message: 'Not authorized to update this task' })
+      }
+
+      if (
+        isSelfClaim &&
+        !isAssignee &&
+        !volunteer.isAdmin &&
+        (await isBlockedFromClaiming(input.projectId, volunteer.id))
+      ) {
+        throw new ORPCError('FORBIDDEN', {
+          message: 'You are no longer contributing to this project, so you cannot claim its tasks',
+        })
       }
 
       const data: Record<string, unknown> = {}

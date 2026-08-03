@@ -39,10 +39,14 @@ export default function CommentThreadView({
   const [content, setContent] = useState('')
   const showToast = useToast()
 
-  function copyCommentLink(id: number) {
+  async function copyCommentLink(id: number) {
     const url = `${window.location.origin}${window.location.pathname}#comment-${id}`
-    navigator.clipboard.writeText(url)
-    showToast('Link copied!', 'success')
+    try {
+      await navigator.clipboard.writeText(url)
+      showToast('Link copied!', 'success')
+    } catch {
+      showToast('Could not copy the link', 'error')
+    }
   }
 
   const scrolledToHashRef = useRef(false)
@@ -102,7 +106,7 @@ export default function CommentThreadView({
                 {c.authorName ?? 'Unknown'} · {c.createdAt ? formatDateTime(c.createdAt) : ''}
                 <button
                   type="button"
-                  onClick={() => copyCommentLink(c.id)}
+                  onClick={() => void copyCommentLink(c.id)}
                   aria-label="Copy link to this comment"
                   title="Copy link to this comment"
                   className="text-text-light hover:text-text cursor-pointer"

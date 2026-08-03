@@ -157,7 +157,7 @@ export default function TaskDetailPage({
 
         {task.description && <p className="whitespace-pre-wrap mb-0">{task.description}</p>}
 
-        {task.status === TaskStatus.open && (
+        {task.status === TaskStatus.open && task.canClaim && (
           <div className="mt-4">
             <Button
               variant="secondary"

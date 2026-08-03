@@ -11,6 +11,7 @@ import {
   BUG_STATUS_OPTIONS,
   BUG_CATEGORY_OPTIONS,
   BUG_STATUS_VARIANT,
+  bugReportPagePath,
 } from '@/lib/bug-report-labels'
 
 const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...BUG_STATUS_OPTIONS] as const
@@ -82,16 +83,7 @@ export default function AdminBugsPage() {
                   {r.severity && <span>· {r.severity}</span>}
                   {r.reporterName && <span>· {r.reporterName}</span>}
                   <span>· {r.createdAt ? formatDate(r.createdAt) : ''}</span>
-                  {r.pageUrl &&
-                    (() => {
-                      let path: string
-                      try {
-                        path = new URL(r.pageUrl).pathname + new URL(r.pageUrl).search
-                      } catch {
-                        path = r.pageUrl
-                      }
-                      return <span>· {path}</span>
-                    })()}
+                  {r.pageUrl && <span>· {bugReportPagePath(r.pageUrl) ?? r.pageUrl}</span>}
                 </div>
               </div>
               <Badge variant={BUG_STATUS_VARIANT[r.status] ?? 'neutral'}>
