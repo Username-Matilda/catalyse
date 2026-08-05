@@ -13,8 +13,10 @@ import { ApplicationActionSchema } from '@/lib/schemas'
 import { generateAuthToken } from '@/lib/auth'
 import { superAdminProcedure } from '../../procedures'
 import { ApprovalStatus } from '@/generated/prisma/enums'
+import { env } from '@/lib/env'
 
 const APPLICATION_UPDATE_TOKEN_MS = 7 * 24 * 60 * 60 * 1000
+const STUB_EMAIL = env.STUB_EMAIL
 
 export const adminApplicationsRouter = {
   list: superAdminProcedure
@@ -286,8 +288,9 @@ export const adminApplicationsRouter = {
             ...(applicantNotes !== undefined && { applicationApplicantNotes: applicantNotes }),
           },
         })
+        let updateToken: string | undefined
         if (volunteer.email) {
-          const updateToken = generateAuthToken()
+          updateToken = generateAuthToken()
           await prisma.applicationUpdateToken.create({
             data: {
               volunteerId: volunteer.id,
@@ -304,7 +307,10 @@ export const adminApplicationsRouter = {
             applicantNotes: resolvedApplicantNotes,
           }).catch((e) => console.error('[APPLICATIONS] Needs-info email failed:', e))
         }
-        return { message: 'More information requested' }
+        return {
+          message: 'More information requested',
+          ...(STUB_EMAIL && updateToken ? { applicationUpdateToken: updateToken } : {}),
+        }
       }
 
       if (action === 'reopen') {
@@ -323,8 +329,9 @@ export const adminApplicationsRouter = {
             ...(applicantNotes !== undefined && { applicationApplicantNotes: applicantNotes }),
           },
         })
+        let updateToken: string | undefined
         if (volunteer.email) {
-          const updateToken = generateAuthToken()
+          updateToken = generateAuthToken()
           await prisma.applicationUpdateToken.create({
             data: {
               volunteerId: volunteer.id,
@@ -341,12 +348,16 @@ export const adminApplicationsRouter = {
             applicantNotes: resolvedApplicantNotes,
           }).catch((e) => console.error('[APPLICATIONS] Reopened email failed:', e))
         }
-        return { message: 'Application reopened' }
+        return {
+          message: 'Application reopened',
+          ...(STUB_EMAIL && updateToken ? { applicationUpdateToken: updateToken } : {}),
+        }
       }
 
       if (
         volunteer.approvalStatus !== ApprovalStatus.pending &&
-        volunteer.approvalStatus !== ApprovalStatus.under_review
+        volunteer.approvalStatus !== ApprovalStatus.under_review &&
+        volunteer.approvalStatus !== ApprovalStatus.needs_info
       ) {
         throw new ORPCError('BAD_REQUEST', {
           message: `Application already ${volunteer.approvalStatus}`,

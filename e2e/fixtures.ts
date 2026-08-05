@@ -169,6 +169,36 @@ export async function approveVolunteer(baseUrl: string, volunteerId: number): Pr
   })
 }
 
+export async function requestMoreInfo(
+  baseUrl: string,
+  volunteerId: number,
+  applicantNotes?: string,
+): Promise<string | undefined> {
+  const adminToken = readAdminToken(baseUrl)
+  if (!adminToken) return undefined
+  const api = createApiClient(baseUrl, adminToken)
+  const result = await api.admin.applications.action({
+    params: { id: volunteerId },
+    body: { action: 'request_info', ...(applicantNotes && { applicantNotes }) },
+  })
+  return (result.body as { applicationUpdateToken?: string }).applicationUpdateToken
+}
+
+export async function reopenApplication(
+  baseUrl: string,
+  volunteerId: number,
+  applicantNotes?: string,
+): Promise<string | undefined> {
+  const adminToken = readAdminToken(baseUrl)
+  if (!adminToken) return undefined
+  const api = createApiClient(baseUrl, adminToken)
+  const result = await api.admin.applications.action({
+    params: { id: volunteerId },
+    body: { action: 'reopen', ...(applicantNotes && { applicantNotes }) },
+  })
+  return (result.body as { applicationUpdateToken?: string }).applicationUpdateToken
+}
+
 export function getAlert(page: Page) {
   return page.locator('[role="alert"]:not(#__next-route-announcer__)').last()
 }

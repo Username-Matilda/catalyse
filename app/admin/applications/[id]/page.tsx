@@ -117,7 +117,8 @@ export default function ApplicationReviewPage() {
 
   const canAction =
     app.approvalStatus === ApprovalStatus.pending ||
-    app.approvalStatus === ApprovalStatus.under_review
+    app.approvalStatus === ApprovalStatus.under_review ||
+    app.approvalStatus === ApprovalStatus.needs_info
   const canReopen = app.approvalStatus === ApprovalStatus.rejected
 
   return (
