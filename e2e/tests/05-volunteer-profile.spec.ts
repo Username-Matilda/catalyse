@@ -1,4 +1,4 @@
-import { test, expect, getAlert } from '../fixtures'
+import { test, expect, getAlert, dismissCookieConsentScript } from '../fixtures'
 import { Page } from '@playwright/test'
 import { fake } from '../fake'
 import { selectFilterDropdown } from '../actions/ui'
@@ -187,6 +187,7 @@ test.describe('Volunteer Profile', () => {
     await ctx2.addInitScript((token: string) => {
       localStorage.setItem('authToken', token)
     }, vol2Token)
+    await ctx2.addInitScript(dismissCookieConsentScript)
     const page2 = await ctx2.newPage()
 
     try {

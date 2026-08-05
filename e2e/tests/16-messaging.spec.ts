@@ -1,4 +1,4 @@
-import { test, expect, getAlert, approveVolunteer } from '../fixtures'
+import { test, expect, getAlert, approveVolunteer, dismissCookieConsentScript } from '../fixtures'
 import { adminCreateProject, transferProjectOwnership } from '../actions/projects'
 import { fake } from '../fake'
 import { createApiClient } from '../client'
@@ -39,6 +39,7 @@ test.describe('Messaging', () => {
     await senderCtx.addInitScript((token: string) => {
       localStorage.setItem('authToken', token)
     }, senderToken)
+    await senderCtx.addInitScript(dismissCookieConsentScript)
     const senderPage = await senderCtx.newPage()
 
     try {
@@ -106,6 +107,7 @@ test.describe('Messaging', () => {
     await senderCtx.addInitScript((token: string) => {
       localStorage.setItem('authToken', token)
     }, senderToken)
+    await senderCtx.addInitScript(dismissCookieConsentScript)
     const senderPage = await senderCtx.newPage()
 
     try {
