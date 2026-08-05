@@ -6,11 +6,12 @@ import {
   requestMoreInfo,
   reopenApplication,
 } from '../fixtures'
+import { login } from '../actions/auth'
 import { fake } from '../fake'
 import { createApiClient } from '../client'
 
 test.describe('Application follow-up actions', () => {
-  test('Admin requests more info; applicant updates and resubmits via emailed link', async ({
+  test('Admin requests more info; applicant logs in, edits, and resubmits', async ({
     adminPage,
     browser,
     baseUrl,
@@ -29,12 +30,7 @@ test.describe('Application follow-up actions', () => {
     expect(signupResult.status).toBe(200)
     const { id: volunteerId } = signupResult.body
 
-    const updateToken = await requestMoreInfo(
-      baseUrl,
-      volunteerId,
-      'Could you tell us more about your availability?',
-    )
-    expect(updateToken).toBeTruthy()
+    await requestMoreInfo(baseUrl, volunteerId, 'Could you tell us more about your availability?')
 
     // Card now shows under the Needs Info filter
     await adminPage.goto(`${baseUrl}/admin/applications`)
@@ -47,19 +43,35 @@ test.describe('Application follow-up actions', () => {
       timeout: 10_000,
     })
 
-    // Applicant follows the emailed link to update and resubmit their application
+    // Applicant follows the emailed login link (email prefilled), no token needed
     const context = await browser.newContext()
     const page = await context.newPage()
     try {
-      await page.goto(`${baseUrl}/update-application?token=${updateToken}`)
-      await expect(page.getByRole('heading', { name: 'Update Your Application' })).toBeVisible({
+      await page.goto(`${baseUrl}/login?email=${encodeURIComponent(person.email)}`)
+      await expect(page.getByLabel('Email', { exact: true })).toHaveValue(person.email)
+      await page.getByLabel('Password').fill('testpassword1')
+      await page.getByRole('button', { name: 'Login' }).click()
+      await page.waitForURL(`${baseUrl}/dashboard`, { timeout: 15_000 })
+
+      // Dashboard flags the needs-info state with a link into Settings
+      await expect(
+        page.getByText('We need a bit more information before we can review your application.'),
+      ).toBeVisible({ timeout: 10_000 })
+      await page.getByRole('link', { name: 'Update Application' }).click()
+      await page.waitForURL(/\/settings/, { timeout: 10_000 })
+
+      await expect(page.getByText('Could you tell us more about your availability?')).toBeVisible({
         timeout: 10_000,
       })
-      await expect(page.getByText('Could you tell us more about your availability?')).toBeVisible()
-      await expect(page.getByLabel('Your Name')).toHaveValue(person.name)
-      await page.getByLabel('Hours per Week').fill('10')
-      await page.getByRole('button', { name: 'Resubmit Application' }).click()
-      await expect(page).toHaveURL(`${baseUrl}/login`, { timeout: 10_000 })
+      await page.getByLabel('Your Application').fill('Updated: I can commit 10 hours per week.')
+      await page.getByRole('button', { name: 'Resubmit for Review' }).click()
+      await expect(getAlert(page)).toContainText('Application resubmitted for review', {
+        timeout: 10_000,
+      })
+
+      // Once resubmitted, the editable application panel is gone (locked pending admin review)
+      await expect(page.getByLabel('Your Application')).not.toBeVisible({ timeout: 5_000 })
+      await expect(page.getByText(/awaiting review/i)).toBeVisible()
     } finally {
       await context.close()
     }
@@ -70,56 +82,15 @@ test.describe('Application follow-up actions', () => {
     await adminPage.getByRole('option', { name: 'Pending & Under Review by Me' }).click()
     const card = adminPage.getByRole('article').filter({ hasText: person.name })
     await expect(card).toBeVisible({ timeout: 10_000 })
-    await expect(card.getByText('10 hours/week')).toBeVisible()
+    await expect(card.getByText('Updated: I can commit 10 hours per week.')).toBeVisible()
   })
 
-  test('Update-application link cannot be reused after submission', async ({
-    browser,
-    baseUrl,
-  }) => {
-    const person = fake.person()
-    const signupResult = await createApiClient(baseUrl).auth.signup({
-      body: {
-        name: person.name,
-        email: person.email,
-        password: 'testpassword1',
-        applicationMessage: 'I would like to help with outreach.',
-        consentMakeProfileVisibleInDirectory: true,
-        consentContactableByProjectOwners: true,
-      },
-    })
-    const { id: volunteerId } = signupResult.body
-    const updateToken = await requestMoreInfo(baseUrl, volunteerId)
-    expect(updateToken).toBeTruthy()
-
+  test('Login page prefills email from the query param', async ({ browser, baseUrl }) => {
     const context = await browser.newContext()
     const page = await context.newPage()
     try {
-      await page.goto(`${baseUrl}/update-application?token=${updateToken}`)
-      await expect(page.getByRole('button', { name: 'Resubmit Application' })).toBeVisible({
-        timeout: 10_000,
-      })
-      await page.getByRole('button', { name: 'Resubmit Application' }).click()
-      await expect(page).toHaveURL(`${baseUrl}/login`, { timeout: 10_000 })
-
-      // Reusing the same link should now be rejected
-      await page.goto(`${baseUrl}/update-application?token=${updateToken}`)
-      await expect(page.getByRole('heading', { name: 'Invalid Link' })).toBeVisible({
-        timeout: 10_000,
-      })
-    } finally {
-      await context.close()
-    }
-  })
-
-  test('Invalid update-application token shows an error', async ({ browser, baseUrl }) => {
-    const context = await browser.newContext()
-    const page = await context.newPage()
-    try {
-      await page.goto(`${baseUrl}/update-application?token=not-a-real-token`)
-      await expect(page.getByRole('heading', { name: 'Invalid Link' })).toBeVisible({
-        timeout: 10_000,
-      })
+      await page.goto(`${baseUrl}/login?email=someone%40example.com`)
+      await expect(page.getByLabel('Email', { exact: true })).toHaveValue('someone@example.com')
     } finally {
       await context.close()
     }
@@ -143,13 +114,11 @@ test.describe('Application follow-up actions', () => {
     })
     const { id: volunteerId } = signupResult.body
     await rejectVolunteer(baseUrl, volunteerId, 'Needs more experience')
-
-    const updateToken = await reopenApplication(
+    await reopenApplication(
       baseUrl,
       volunteerId,
       'We would love to hear more about your recent experience.',
     )
-    expect(updateToken).toBeTruthy()
 
     // No longer on the Rejected tab
     await adminPage.goto(`${baseUrl}/admin/applications`)
@@ -162,12 +131,15 @@ test.describe('Application follow-up actions', () => {
     const context = await browser.newContext()
     const page = await context.newPage()
     try {
-      await page.goto(`${baseUrl}/update-application?token=${updateToken}`)
+      await login(baseUrl, page, person.email, 'testpassword1')
+      await page.goto(`${baseUrl}/settings`)
       await expect(
         page.getByText('We would love to hear more about your recent experience.'),
       ).toBeVisible({ timeout: 10_000 })
-      await page.getByRole('button', { name: 'Resubmit Application' }).click()
-      await expect(page).toHaveURL(`${baseUrl}/login`, { timeout: 10_000 })
+      await page.getByRole('button', { name: 'Resubmit for Review' }).click()
+      await expect(getAlert(page)).toContainText('Application resubmitted for review', {
+        timeout: 10_000,
+      })
     } finally {
       await context.close()
     }
@@ -210,7 +182,7 @@ test.describe('Application follow-up actions', () => {
     })
     await expect(adminPage).toHaveURL(/\/admin\/applications$/, { timeout: 10_000 })
 
-    // Reject it directly via API to get to a rejected state, then reopen via the UI
+    // needs_info doesn't block approve/reject — admin can still act if the applicant never responds
     await rejectVolunteer(baseUrl, volunteerId, 'Rejected for this test')
     await adminPage.goto(`${baseUrl}/admin/applications/${volunteerId}`)
     await adminPage.getByRole('button', { name: 'Reopen Application' }).click()

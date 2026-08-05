@@ -165,6 +165,16 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* Needs info banner */}
+        {user.approvalStatus === ApprovalStatus.needs_info && (
+          <div className="flex items-center justify-between gap-3 p-4 rounded-lg mb-5 bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800">
+            <span>We need a bit more information before we can review your application.</span>
+            <Button href="/settings" size="sm">
+              Update Application
+            </Button>
+          </div>
+        )}
+
         {/* Email notification preference banner */}
         {showEmailBanner && (
           <div className="flex items-center justify-between gap-3 p-4 rounded-lg mb-5 bg-blue-100 text-blue-800 border border-blue-300 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-600">

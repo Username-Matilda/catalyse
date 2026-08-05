@@ -14,7 +14,6 @@ import { bugReportCommentsRouter } from './routers/bugReportComments'
 import { myRouter } from './routers/my'
 import { privacyRouter } from './routers/privacy'
 import { contactRouter } from './routers/contact'
-import { applicationUpdateRouter } from './routers/applicationUpdate'
 import { adminApplicationsRouter } from './routers/admin/applications'
 import { adminVolunteersRouter } from './routers/admin/volunteers'
 import { adminNotesRouter } from './routers/admin/notes'
@@ -49,7 +48,6 @@ export const appRouter = {
   my: myRouter,
   privacy: privacyRouter,
   contact: contactRouter,
-  applicationUpdate: applicationUpdateRouter,
   version: versionRouter,
   admin: {
     applications: adminApplicationsRouter,

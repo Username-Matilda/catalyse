@@ -209,7 +209,7 @@ export async function sendApplicationRejectedEmail({
 
 export function buildApplicationNeedsInfoHtml(
   name: string,
-  updateUrl: string,
+  loginUrl: string,
   applicantNotes?: string,
 ): string {
   const n = escapeHtml(name)
@@ -222,34 +222,32 @@ export function buildApplicationNeedsInfoHtml(
   <p>Hi ${n},</p>
   <p>Thanks for applying to join Catalyse PauseAI. Before we can finish reviewing your application, we need some more information from you:</p>
   ${notesHtml}
-  <p style="text-align: center; margin: 32px 0;"><a href="${updateUrl}" class="button">Update Your Application</a></p>
-  <p>This link will expire in <strong>7 days</strong>.</p>
-  ${footer([['Update Your Application', updateUrl]])}
+  <p>Log in to your account to update your application and resubmit it for review.</p>
+  <p style="text-align: center; margin: 32px 0;"><a href="${loginUrl}" class="button">Log In</a></p>
+  ${footer([['Log In', loginUrl]])}
 </div></body></html>`
 }
 
 export async function sendApplicationNeedsInfoEmail({
   to,
   name,
-  updateToken,
   applicantNotes,
 }: {
   to: string
   name: string
-  updateToken: string
   applicantNotes?: string
 }): Promise<boolean> {
-  const updateUrl = `${env.APP_URL}/update-application?token=${updateToken}`
+  const loginUrl = `${env.APP_URL}/login?email=${encodeURIComponent(to)}`
   return sendEmail(
     to,
     'Action needed on your Catalyse application',
-    buildApplicationNeedsInfoHtml(name, updateUrl, applicantNotes),
+    buildApplicationNeedsInfoHtml(name, loginUrl, applicantNotes),
   )
 }
 
 export function buildApplicationReopenedHtml(
   name: string,
-  updateUrl: string,
+  loginUrl: string,
   applicantNotes?: string,
 ): string {
   const n = escapeHtml(name)
@@ -262,28 +260,26 @@ export function buildApplicationReopenedHtml(
   <p>Hi ${n},</p>
   <p>We've reopened your application to join Catalyse PauseAI so it can be reviewed again.</p>
   ${notesHtml}
-  <p style="text-align: center; margin: 32px 0;"><a href="${updateUrl}" class="button">Update Your Application</a></p>
-  <p>This link will expire in <strong>7 days</strong>.</p>
-  ${footer([['Update Your Application', updateUrl]])}
+  <p>Log in to your account to update your application and resubmit it for review.</p>
+  <p style="text-align: center; margin: 32px 0;"><a href="${loginUrl}" class="button">Log In</a></p>
+  ${footer([['Log In', loginUrl]])}
 </div></body></html>`
 }
 
 export async function sendApplicationReopenedEmail({
   to,
   name,
-  updateToken,
   applicantNotes,
 }: {
   to: string
   name: string
-  updateToken: string
   applicantNotes?: string
 }): Promise<boolean> {
-  const updateUrl = `${env.APP_URL}/update-application?token=${updateToken}`
+  const loginUrl = `${env.APP_URL}/login?email=${encodeURIComponent(to)}`
   return sendEmail(
     to,
     'Your Catalyse application has been reopened',
-    buildApplicationReopenedHtml(name, updateUrl, applicantNotes),
+    buildApplicationReopenedHtml(name, loginUrl, applicantNotes),
   )
 }
 

@@ -253,6 +253,32 @@ export const volunteersRouter = {
       }
     }),
 
+  myApplication: authedProcedure.handler(async ({ context }) => {
+    const volunteer = context.volunteer
+    return {
+      approvalStatus: volunteer.approvalStatus,
+      applicationMessage: volunteer.applicationMessage,
+      applicationApplicantNotes: volunteer.applicationApplicantNotes,
+    }
+  }),
+
+  resubmitApplication: authedProcedure.handler(async ({ context }) => {
+    const volunteer = context.volunteer
+    if (
+      volunteer.approvalStatus !== ApprovalStatus.pending &&
+      volunteer.approvalStatus !== ApprovalStatus.needs_info
+    ) {
+      throw new ORPCError('BAD_REQUEST', {
+        message: `Cannot resubmit a ${volunteer.approvalStatus} application`,
+      })
+    }
+    await prisma.volunteer.update({
+      where: { id: volunteer.id },
+      data: { approvalStatus: ApprovalStatus.under_review, updatedAt: new Date() },
+    })
+    return { message: 'Application resubmitted for review' }
+  }),
+
   updateMe: authedProcedure.input(UpdateVolunteerSchema).handler(async ({ input, context }) => {
     const volunteer = context.volunteer
     const data: Record<string, unknown> = { updatedAt: new Date() }

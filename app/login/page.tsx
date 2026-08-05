@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback, FormEvent } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useCallback, FormEvent, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Script from 'next/script'
 import { useQuery, useMutation } from '@tanstack/react-query'
@@ -10,9 +10,18 @@ import { useAuth } from '@/lib/auth-context'
 import { orpc } from '@/lib/orpc'
 
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginPageContent />
+    </Suspense>
+  )
+}
+
+function LoginPageContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user, loading, setToken } = useAuth()
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(searchParams.get('email') ?? '')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
 
@@ -135,7 +144,7 @@ export default function LoginPage() {
                   id="email"
                   name="email"
                   required
-                  autoFocus
+                  autoFocus={!email}
                   placeholder="you@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -151,6 +160,7 @@ export default function LoginPage() {
                   id="password"
                   name="password"
                   required
+                  autoFocus={!!email}
                   placeholder="Your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
