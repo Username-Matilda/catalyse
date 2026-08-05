@@ -20,7 +20,9 @@ export default function ApplicationReviewPage() {
   const [adminNotes, setAdminNotes] = useState('')
   const [applicantNotes, setApplicantNotes] = useState('')
   const [initialized, setInitialized] = useState(false)
-  const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | null>(null)
+  const [confirmAction, setConfirmAction] = useState<
+    'approve' | 'reject' | 'request_info' | 'reopen' | null
+  >(null)
 
   const { data: app, isPending: loadingData } = useQuery({
     ...orpc.admin.applications.getById.queryOptions({ input: { id: Number(id) } }),
@@ -46,13 +48,17 @@ export default function ApplicationReviewPage() {
     },
   })
 
+  const actionLabels: Record<string, string> = {
+    approve: 'Application approved',
+    reject: 'Application rejected',
+    request_info: 'More information requested',
+    reopen: 'Application reopened',
+  }
+
   const actionMutation = useMutation({
     ...orpc.admin.applications.action.mutationOptions(),
     onSuccess: (_, variables) => {
-      showToast(
-        variables.action === 'approve' ? 'Application approved' : 'Application rejected',
-        'success',
-      )
+      showToast(actionLabels[variables.action] ?? 'Application updated', 'success')
       router.push('/admin/applications')
     },
     onError: (err: unknown) => {
@@ -112,6 +118,7 @@ export default function ApplicationReviewPage() {
   const canAction =
     app.approvalStatus === ApprovalStatus.pending ||
     app.approvalStatus === ApprovalStatus.under_review
+  const canReopen = app.approvalStatus === ApprovalStatus.rejected
 
   return (
     <main className="w-full max-w-2xl mx-auto px-6 py-5 pb-15">
@@ -277,6 +284,13 @@ export default function ApplicationReviewPage() {
           {canAction && (
             <>
               <Button
+                variant="secondary"
+                onClick={() => setConfirmAction('request_info')}
+                disabled={submitting}
+              >
+                Request More Info
+              </Button>
+              <Button
                 variant="danger"
                 onClick={() => setConfirmAction('reject')}
                 disabled={submitting}
@@ -287,6 +301,11 @@ export default function ApplicationReviewPage() {
                 Approve
               </Button>
             </>
+          )}
+          {canReopen && (
+            <Button onClick={() => setConfirmAction('reopen')} disabled={submitting}>
+              Reopen Application
+            </Button>
           )}
         </div>
       </div>
@@ -303,12 +322,24 @@ export default function ApplicationReviewPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="mb-2">
-              {confirmAction === 'approve' ? 'Approve' : 'Reject'} application?
+              {
+                {
+                  approve: 'Approve',
+                  reject: 'Reject',
+                  request_info: 'Request more info from',
+                  reopen: 'Reopen',
+                }[confirmAction]
+              }{' '}
+              application?
             </h2>
             <p className="text-sm text-text-light mb-6">
-              {confirmAction === 'approve'
-                ? `${app.name} will be approved and notified by email.`
-                : `${app.name} will be rejected${applicantNotes ? ' and sent your message' : ''} by email.`}
+              {confirmAction === 'approve' && `${app.name} will be approved and notified by email.`}
+              {confirmAction === 'reject' &&
+                `${app.name} will be rejected${applicantNotes ? ' and sent your message' : ''} by email.`}
+              {confirmAction === 'request_info' &&
+                `${app.name} will be emailed a link to update and resubmit their application${applicantNotes ? ', along with your message' : ''}.`}
+              {confirmAction === 'reopen' &&
+                `${app.name}'s application will be reset to pending and they'll be emailed a link to update and resubmit it.`}
             </p>
             <div className="flex gap-2 justify-end">
               <Button variant="secondary" onClick={() => setConfirmAction(null)}>
@@ -319,7 +350,14 @@ export default function ApplicationReviewPage() {
                 disabled={submitting}
                 onClick={handleConfirm}
               >
-                {confirmAction === 'approve' ? 'Approve' : 'Reject'}
+                {
+                  {
+                    approve: 'Approve',
+                    reject: 'Reject',
+                    request_info: 'Request Info',
+                    reopen: 'Reopen',
+                  }[confirmAction]
+                }
               </Button>
             </div>
           </div>

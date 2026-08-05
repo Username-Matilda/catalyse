@@ -255,7 +255,7 @@ export default function Header() {
                       {user.isAdmin && (
                         <>
                           <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-text-light border-t border-brand-border mt-1">
-                            Admin
+                            {user.isSuperAdmin ? 'Super Admin' : 'Admin'}
                           </div>
                           {ADMIN_NAV_ITEMS.filter(
                             (i) => !i.superAdminOnly || user.isSuperAdmin,
@@ -425,7 +425,9 @@ export default function Header() {
 
                   {user.isAdmin && (
                     <>
-                      <MobileNavSection admin>Admin</MobileNavSection>
+                      <MobileNavSection admin>
+                        {user.isSuperAdmin ? 'Super Admin' : 'Admin'}
+                      </MobileNavSection>
                       {ADMIN_NAV_ITEMS.filter((i) => !i.superAdminOnly || user.isSuperAdmin).map(
                         (i) => (
                           <MobileNavLink key={i.href} href={i.href}>

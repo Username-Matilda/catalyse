@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRequireSuperAdmin } from '@/lib/hooks/auth'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import Button from '@/components/Button'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
@@ -26,6 +26,7 @@ export default function ApplicationsPage() {
       { value: 'mine', label: 'Pending & Under Review by Me' },
       { value: 'others', label: 'Under Review by Others' },
       { value: 'approved', label: 'Approved' },
+      { value: 'needs_info', label: 'Needs Info' },
       { value: 'rejected', label: 'Rejected' },
       { value: 'rejected_anonymised', label: 'Rejected – Anonymised' },
     ],
@@ -298,6 +299,20 @@ type AnonymisedApplication =
   InferRouterOutputs<AppRouter>['admin']['rejectedApplications']['list'][number]
 
 function AnonymisedCard({ app }: { app: AnonymisedApplication }) {
+  const showToast = useToast()
+  const queryClient = useQueryClient()
+
+  const allowReapplyMutation = useMutation({
+    ...orpc.admin.rejectedApplications.allowReapply.mutationOptions(),
+    onSuccess: () => {
+      showToast('Reapplication allowed', 'success')
+      void queryClient.invalidateQueries({ queryKey: orpc.admin.rejectedApplications.list.key() })
+    },
+    onError: (err: unknown) => {
+      showToast(err instanceof Error ? err.message : 'Failed to allow reapply', 'error')
+    },
+  })
+
   return (
     <div role="article" className="bg-surface rounded-xl shadow p-6 opacity-75">
       <p className="text-sm text-text-light mb-4">
@@ -318,6 +333,21 @@ function AnonymisedCard({ app }: { app: AnonymisedApplication }) {
           <p className="text-sm whitespace-pre-wrap">{app.applicantNotes}</p>
         </div>
       )}
+      <div className="flex justify-end border-t border-brand-border pt-4 mt-2">
+        {app.reapplyAllowedAt ? (
+          <p className="text-sm text-text-light">
+            Reapplication allowed since {formatDate(app.reapplyAllowedAt)}
+          </p>
+        ) : (
+          <Button
+            variant="secondary"
+            onClick={() => allowReapplyMutation.mutate({ emailHash: app.emailHash })}
+            disabled={allowReapplyMutation.isPending}
+          >
+            Allow Reapply
+          </Button>
+        )}
+      </div>
     </div>
   )
 }

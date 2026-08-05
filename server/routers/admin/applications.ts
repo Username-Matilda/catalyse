@@ -2,17 +2,28 @@ import { createHash } from 'crypto'
 import { z } from 'zod'
 import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
-import { sendApplicationApprovedEmail, sendApplicationRejectedEmail } from '@/lib/email'
+import {
+  sendApplicationApprovedEmail,
+  sendApplicationRejectedEmail,
+  sendApplicationNeedsInfoEmail,
+  sendApplicationReopenedEmail,
+} from '@/lib/email'
 import { APPLICATION_ANONYMISATION_MS } from '@/lib/applications'
 import { ApplicationActionSchema } from '@/lib/schemas'
+import { generateAuthToken } from '@/lib/auth'
 import { superAdminProcedure } from '../../procedures'
 import { ApprovalStatus } from '@/generated/prisma/enums'
+
+const APPLICATION_UPDATE_TOKEN_MS = 7 * 24 * 60 * 60 * 1000
 
 export const adminApplicationsRouter = {
   list: superAdminProcedure
     .input(
       z.object({
-        filter: z.enum(['mine', 'others', 'approved', 'rejected']).optional().default('mine'),
+        filter: z
+          .enum(['mine', 'others', 'approved', 'rejected', 'needs_info'])
+          .optional()
+          .default('mine'),
       }),
     )
     .handler(async ({ input, context }) => {
@@ -37,6 +48,8 @@ export const adminApplicationsRouter = {
             return { deletedAt: null, approvalStatus: ApprovalStatus.approved }
           case 'rejected':
             return { deletedAt: null, approvalStatus: ApprovalStatus.rejected }
+          case 'needs_info':
+            return { deletedAt: null, approvalStatus: ApprovalStatus.needs_info }
         }
       })()
 
@@ -253,6 +266,82 @@ export const adminApplicationsRouter = {
           },
         })
         return { message: 'Review started' }
+      }
+
+      if (action === 'request_info') {
+        if (
+          volunteer.approvalStatus !== ApprovalStatus.pending &&
+          volunteer.approvalStatus !== ApprovalStatus.under_review
+        ) {
+          throw new ORPCError('BAD_REQUEST', {
+            message: `Cannot request info on a ${volunteer.approvalStatus} application`,
+          })
+        }
+        await prisma.volunteer.update({
+          where: { id: input.id },
+          data: {
+            approvalStatus: ApprovalStatus.needs_info,
+            reviewerId: admin.id,
+            ...(adminNotes !== undefined && { applicationAdminNotes: adminNotes }),
+            ...(applicantNotes !== undefined && { applicationApplicantNotes: applicantNotes }),
+          },
+        })
+        if (volunteer.email) {
+          const updateToken = generateAuthToken()
+          await prisma.applicationUpdateToken.create({
+            data: {
+              volunteerId: volunteer.id,
+              token: updateToken,
+              expiresAt: new Date(Date.now() + APPLICATION_UPDATE_TOKEN_MS),
+            },
+          })
+          const resolvedApplicantNotes =
+            applicantNotes ?? volunteer.applicationApplicantNotes ?? undefined
+          sendApplicationNeedsInfoEmail({
+            to: volunteer.email,
+            name: volunteer.name,
+            updateToken,
+            applicantNotes: resolvedApplicantNotes,
+          }).catch((e) => console.error('[APPLICATIONS] Needs-info email failed:', e))
+        }
+        return { message: 'More information requested' }
+      }
+
+      if (action === 'reopen') {
+        if (volunteer.approvalStatus !== ApprovalStatus.rejected) {
+          throw new ORPCError('BAD_REQUEST', {
+            message: `Cannot reopen a ${volunteer.approvalStatus} application`,
+          })
+        }
+        await prisma.volunteer.update({
+          where: { id: input.id },
+          data: {
+            approvalStatus: ApprovalStatus.pending,
+            rejectedAt: null,
+            reviewerId: admin.id,
+            ...(adminNotes !== undefined && { applicationAdminNotes: adminNotes }),
+            ...(applicantNotes !== undefined && { applicationApplicantNotes: applicantNotes }),
+          },
+        })
+        if (volunteer.email) {
+          const updateToken = generateAuthToken()
+          await prisma.applicationUpdateToken.create({
+            data: {
+              volunteerId: volunteer.id,
+              token: updateToken,
+              expiresAt: new Date(Date.now() + APPLICATION_UPDATE_TOKEN_MS),
+            },
+          })
+          const resolvedApplicantNotes =
+            applicantNotes ?? volunteer.applicationApplicantNotes ?? undefined
+          sendApplicationReopenedEmail({
+            to: volunteer.email,
+            name: volunteer.name,
+            updateToken,
+            applicantNotes: resolvedApplicantNotes,
+          }).catch((e) => console.error('[APPLICATIONS] Reopened email failed:', e))
+        }
+        return { message: 'Application reopened' }
       }
 
       if (

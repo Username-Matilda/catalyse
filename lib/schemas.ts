@@ -188,8 +188,9 @@ export const OutcomeProjectSchema = z.object({
 // ─── Admin: applications ──────────────────────────────────────────────────────
 
 export const ApplicationActionSchema = z.object({
-  action: z.enum(['start_review', 'approve', 'reject', 'update_notes'], {
-    error: 'action must be "start_review", "approve", "reject", or "update_notes"',
+  action: z.enum(['start_review', 'approve', 'reject', 'update_notes', 'request_info', 'reopen'], {
+    error:
+      'action must be "start_review", "approve", "reject", "update_notes", "request_info", or "reopen"',
   }),
   adminNotes: z.string().optional().nullable(),
   applicantNotes: z.string().optional().nullable(),
