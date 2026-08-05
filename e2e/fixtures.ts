@@ -31,6 +31,7 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
   adminPage: async ({ browser, baseUrl }, runFixture) => {
     const authFile = workerAuthFile(parallelIndexFromBaseUrl(baseUrl))
     const context = await browser.newContext({ storageState: authFile })
+    await context.addInitScript(dismissCookieConsentScript)
     const page = await context.newPage()
     await runFixture(page)
     await context.close()
@@ -69,6 +70,7 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
     await context.addInitScript((token: string) => {
       localStorage.setItem('authToken', token)
     }, auth_token)
+    await context.addInitScript(dismissCookieConsentScript)
     const page = await context.newPage()
     await runFixture({ page, ...credentials })
     await context.close()
@@ -76,6 +78,15 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
 })
 
 export { expect } from '@playwright/test'
+
+// The cookie consent banner is fixed to the bottom of the viewport and, on a fresh
+// context, stays mounted (nothing dismisses it) for the whole test. Under CPU load its
+// mount is delayed just enough to land between Playwright's actionability check and the
+// actual click, occasionally swallowing clicks on content near the bottom of the page.
+// Pre-seeding localStorage keeps it from ever rendering in tests.
+export function dismissCookieConsentScript(): void {
+  localStorage.setItem('cookieConsent', 'false')
+}
 
 export async function confirmVolunteerEmail(baseUrl: string, token: string): Promise<void> {
   const api = createApiClient(baseUrl)
@@ -155,6 +166,34 @@ export async function approveVolunteer(baseUrl: string, volunteerId: number): Pr
   await api.admin.applications.action({
     params: { id: volunteerId },
     body: { action: 'approve' },
+  })
+}
+
+export async function requestMoreInfo(
+  baseUrl: string,
+  volunteerId: number,
+  applicantNotes?: string,
+): Promise<void> {
+  const adminToken = readAdminToken(baseUrl)
+  if (!adminToken) return
+  const api = createApiClient(baseUrl, adminToken)
+  await api.admin.applications.action({
+    params: { id: volunteerId },
+    body: { action: 'request_info', ...(applicantNotes && { applicantNotes }) },
+  })
+}
+
+export async function reopenApplication(
+  baseUrl: string,
+  volunteerId: number,
+  applicantNotes?: string,
+): Promise<void> {
+  const adminToken = readAdminToken(baseUrl)
+  if (!adminToken) return
+  const api = createApiClient(baseUrl, adminToken)
+  await api.admin.applications.action({
+    params: { id: volunteerId },
+    body: { action: 'reopen', ...(applicantNotes && { applicantNotes }) },
   })
 }
 

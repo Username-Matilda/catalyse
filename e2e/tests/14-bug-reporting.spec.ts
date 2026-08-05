@@ -1,4 +1,4 @@
-import { test, expect } from '../fixtures'
+import { test, expect, dismissCookieConsentScript } from '../fixtures'
 import { openBugReportForm, fillAndSubmitBugReport } from '../actions/bugs'
 import { goToDashboardNotifications } from '../actions/dashboard'
 import { fake } from '../fake'
@@ -38,6 +38,7 @@ test.describe('Bug Reporting', () => {
 
   test('Anonymous visitor has no way to submit a bug report', async ({ browser, baseUrl }) => {
     const context = await browser.newContext()
+    await context.addInitScript(dismissCookieConsentScript)
     const page = await context.newPage()
     try {
       await page.goto(`${baseUrl}/`)

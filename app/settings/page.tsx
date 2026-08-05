@@ -113,6 +113,44 @@ function SettingsPageContent() {
   const { data: localGroupsData } = useQuery(orpc.localGroups.list.queryOptions({ input: {} }))
   const allLocalGroups: LocalGroupOption[] = localGroupsData?.groups ?? []
 
+  const { data: myApplication } = useQuery({
+    ...orpc.volunteers.myApplication.queryOptions(),
+    enabled: !!user && user.approvalStatus === 'needs_info',
+  })
+  const [applicationMessage, setApplicationMessage] = useState('')
+  const [syncedApplicationMessage, setSyncedApplicationMessage] = useState(false)
+
+  useEffect(() => {
+    if (!myApplication || syncedApplicationMessage) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSyncedApplicationMessage(true)
+    setApplicationMessage(myApplication.applicationMessage ?? '')
+  }, [myApplication, syncedApplicationMessage])
+
+  const updateApplicationMutation = useMutation({
+    ...orpc.volunteers.updateMe.mutationOptions(),
+    onError: (err: unknown) => {
+      showToast(err instanceof Error ? err.message : 'Failed to save application', 'error')
+    },
+  })
+
+  const resubmitMutation = useMutation({
+    ...orpc.volunteers.resubmitApplication.mutationOptions(),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: orpc.volunteers.myApplication.key() })
+      await refreshUser()
+      showToast('Application resubmitted for review', 'success')
+    },
+    onError: (err: unknown) => {
+      showToast(err instanceof Error ? err.message : 'Failed to resubmit application', 'error')
+    },
+  })
+
+  async function handleResubmitApplication() {
+    await updateApplicationMutation.mutateAsync({ applicationMessage })
+    resubmitMutation.mutate({})
+  }
+
   useEffect(() => {
     if (!me) return
     const updatedAtKey = String(me.updatedAt)
@@ -301,6 +339,51 @@ function SettingsPageContent() {
       <h1>Settings</h1>
 
       <Tabs tabs={TABS} activeTab={activeTab} onChange={setTab} />
+
+      {activeTab === 'profile' && user.approvalStatus === 'needs_info' && (
+        <div className="bg-surface rounded-xl shadow p-6 mb-4 max-w-4xl border-2 border-amber-300 dark:border-amber-700">
+          <h2 className="mt-0">Your Application</h2>
+          {myApplication?.applicationApplicantNotes && (
+            <>
+              <p className="text-sm font-semibold text-text-light mb-1">Message from the team</p>
+              <div className="bg-background rounded-lg p-4 mb-4 whitespace-pre-wrap text-sm">
+                {myApplication.applicationApplicantNotes}
+              </div>
+            </>
+          )}
+          <div className="mb-4">
+            <label htmlFor="applicationMessage">Your Application</label>
+            <textarea
+              id="applicationMessage"
+              rows={5}
+              value={applicationMessage}
+              onChange={(e) => setApplicationMessage(e.target.value)}
+            />
+          </div>
+          <Button
+            onClick={handleResubmitApplication}
+            disabled={updateApplicationMutation.isPending || resubmitMutation.isPending}
+          >
+            {updateApplicationMutation.isPending || resubmitMutation.isPending
+              ? 'Resubmitting…'
+              : 'Resubmit for Review'}
+          </Button>
+          <p className="text-sm text-text-light mt-3">
+            Update your skills, contact details, or availability below, then resubmit when
+            you&apos;re ready — an admin will review your application again.
+          </p>
+        </div>
+      )}
+
+      {activeTab === 'profile' && user.approvalStatus === 'under_review' && (
+        <div className="bg-surface rounded-xl shadow p-6 mb-4 max-w-4xl">
+          <p className="text-text-light m-0">
+            Your application has been resubmitted and is awaiting review. You can still update your
+            profile below, but your application won&apos;t need resubmitting again unless an admin
+            asks for more information.
+          </p>
+        </div>
+      )}
 
       {activeTab === 'profile' && (
         <form

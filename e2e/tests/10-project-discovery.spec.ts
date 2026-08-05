@@ -1,5 +1,5 @@
 import type { Browser } from '@playwright/test'
-import { test, expect, createPendingVolunteer } from '../fixtures'
+import { test, expect, createPendingVolunteer, dismissCookieConsentScript } from '../fixtures'
 import { adminCreateProject } from '../actions/projects'
 import { fake } from '../fake'
 
@@ -43,6 +43,7 @@ test.describe('Unauthenticated Project Access', () => {
   }) => {
     const context = await browser.newContext()
     await context.addInitScript(() => localStorage.setItem('authToken', 'not-a-real-token'))
+    await context.addInitScript(dismissCookieConsentScript)
     const page = await context.newPage()
     const errors: string[] = []
     page.on('console', (m) => {
@@ -89,6 +90,7 @@ test.describe('Pending Volunteer Project Access', () => {
     await context.addInitScript((token: string) => {
       localStorage.setItem('authToken', token)
     }, pending.token)
+    await context.addInitScript(dismissCookieConsentScript)
     const page = await context.newPage()
     return { page, context }
   }

@@ -1,4 +1,4 @@
-import { test, expect, getAlert } from '../fixtures'
+import { test, expect, getAlert, dismissCookieConsentScript } from '../fixtures'
 import { fake } from '../fake'
 import { ADMIN_EMAIL } from '../config'
 import { signup } from '../actions/auth'
@@ -88,6 +88,7 @@ test.describe('Admin: Admin Team Management', () => {
     const token = await createAdminInvite(adminPage, baseUrl, person.email)
 
     const ctx = await browser.newContext()
+    await ctx.addInitScript(dismissCookieConsentScript)
     const page = await ctx.newPage()
     try {
       await page.goto(`${baseUrl}/accept-invite?token=${token}`)

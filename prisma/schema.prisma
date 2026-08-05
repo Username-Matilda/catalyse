@@ -56,6 +56,7 @@ enum InterestStatus {
 enum ApprovalStatus {
   pending
   under_review
+  needs_info
   approved
   rejected
 }
@@ -558,9 +559,10 @@ model RejectedApplication {
 }
 
 model AnonymisedEmail {
-  id        Int      @id @default(autoincrement())
-  emailHash String   @unique @map("email_hash")
-  createdAt DateTime @default(now()) @map("created_at")
+  id                Int       @id @default(autoincrement())
+  emailHash         String    @unique @map("email_hash")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  reapplyAllowedAt  DateTime? @map("reapply_allowed_at")
 
   @@map("anonymised_emails")
 }

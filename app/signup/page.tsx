@@ -104,6 +104,8 @@ export default function SignupPage() {
   })
   const { data: localGroupsData } = useQuery(orpc.localGroups.list.queryOptions({ input: {} }))
   const allLocalGroups: LocalGroupOption[] = localGroupsData?.groups ?? []
+  // The Google-signup name field is read-only (see g_name below), so there's no user
+  // input competing with this — always safe to take the latest value from the server.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (meData?.name) setName(meData.name)
@@ -218,7 +220,8 @@ export default function SignupPage() {
     const formData = new FormData(e.currentTarget)
     try {
       await updateMeMutation.mutateAsync({
-        name: formData.get('name') as string,
+        // Name is read-only here (see g_name below) — always the Google-supplied value.
+        name,
         applicationMessage: formData.get('applicationMessage') as string,
         bio: textField(formData, 'bio'),
         discordHandle: textField(formData, 'discordHandle'),
@@ -365,19 +368,12 @@ export default function SignupPage() {
               onSubmit={handleGoogleApplicationSubmit}
             >
               <div className="mb-5">
-                <label htmlFor="g_name" className="required">
-                  Your Name
-                </label>
-                <input
-                  type="text"
-                  id="g_name"
-                  name="name"
-                  autoComplete="name"
-                  required
-                  placeholder="How should we call you?"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
+                <label htmlFor="g_name">Your Name</label>
+                <input type="text" id="g_name" value={name} disabled />
+                <p className="text-sm text-text-light mt-1">
+                  From your Google account. To use a different name, change it on your Google
+                  account or update it later in your profile settings.
+                </p>
               </div>
 
               <div className="mb-5">

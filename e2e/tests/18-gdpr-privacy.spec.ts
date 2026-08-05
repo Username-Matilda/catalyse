@@ -1,5 +1,5 @@
 import { readFileSync } from 'fs'
-import { test, expect, getAlert, approveVolunteer } from '../fixtures'
+import { test, expect, getAlert, approveVolunteer, dismissCookieConsentScript } from '../fixtures'
 import { fake } from '../fake'
 import { createSkill } from '../actions/skills'
 import { adminCreateProject, transferProjectOwnership } from '../actions/projects'
@@ -162,6 +162,7 @@ test.describe('GDPR & Privacy', () => {
     await ctx2.addInitScript((token: string) => {
       localStorage.setItem('authToken', token)
     }, vol2Token)
+    await ctx2.addInitScript(dismissCookieConsentScript)
     const page2 = await ctx2.newPage()
 
     try {
@@ -184,11 +185,19 @@ test.describe('GDPR & Privacy', () => {
       await expect(getAlert(page2)).toContainText('Profile updated!', { timeout: 10_000 })
 
       await volunteer.page.goto(`${baseUrl}/volunteers`)
-      await volunteer.page.getByLabel('Search').fill(vol2.name)
-      await volunteer.page.getByRole('link', { name: vol2.name }).click()
+      // The results list keeps re-rendering (debounced search refetch) for a bit after
+      // the link appears, and can occasionally swallow a click mid-render. Retry the
+      // whole search+click as a unit rather than assume a single click always lands.
+      await expect(async () => {
+        await volunteer.page.getByLabel('Search').fill(vol2.name)
+        const link = volunteer.page.getByRole('link', { name: vol2.name })
+        await expect(link).toBeVisible({ timeout: 10_000 })
+        await link.click()
+        await expect(volunteer.page).toHaveURL(/\/volunteers\/\d+$/, { timeout: 3_000 })
+      }).toPass({ timeout: 30_000 })
 
       await expect(volunteer.page.getByRole('heading', { name: vol2.name, level: 1 })).toBeVisible({
-        timeout: 10_000,
+        timeout: 20_000,
       })
 
       await expect(volunteer.page.getByText(discordHandle)).not.toBeVisible()

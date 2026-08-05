@@ -1,4 +1,4 @@
-import { test, expect, getAlert } from '../fixtures'
+import { test, expect, getAlert, dismissCookieConsentScript } from '../fixtures'
 import { login } from '../actions/auth'
 
 test.describe('Account Management', () => {
@@ -19,6 +19,7 @@ test.describe('Account Management', () => {
     await expect(getAlert(volunteer.page)).toContainText('successfully')
 
     const ctx2 = await browser.newContext()
+    await ctx2.addInitScript(dismissCookieConsentScript)
     const page2 = await ctx2.newPage()
     try {
       await login(baseUrl, page2, volunteer.email, newPassword)
@@ -59,6 +60,7 @@ test.describe('Account Management', () => {
     await expect(getAlert(volunteer.page)).toBeVisible({ timeout: 10_000 })
 
     const ctx2 = await browser.newContext()
+    await ctx2.addInitScript(dismissCookieConsentScript)
     const page2 = await ctx2.newPage()
     try {
       await page2.goto(`${baseUrl}/login`)

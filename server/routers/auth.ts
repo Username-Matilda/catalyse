@@ -1,5 +1,5 @@
 import { ORPCError } from '@orpc/server'
-import { randomBytes } from 'crypto'
+import { randomBytes, createHash } from 'crypto'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import {
@@ -232,6 +232,17 @@ export const authRouter = {
         message: existing.deletedAt
           ? 'This email was previously registered. Contact us to restore your account.'
           : 'Email already registered',
+      })
+    }
+
+    const emailHash = createHash('sha256').update(email).digest('hex')
+    const anonymisedEmail = await prisma.anonymisedEmail.findUnique({
+      where: { emailHash },
+      select: { reapplyAllowedAt: true },
+    })
+    if (anonymisedEmail && !anonymisedEmail.reapplyAllowedAt) {
+      throw new ORPCError('BAD_REQUEST', {
+        message: 'This email was previously rejected. Contact us if you would like to reapply.',
       })
     }
 

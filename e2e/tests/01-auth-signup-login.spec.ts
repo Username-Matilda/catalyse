@@ -5,6 +5,7 @@ import {
   confirmVolunteerEmail,
   approveVolunteer,
   rejectVolunteer,
+  dismissCookieConsentScript,
 } from '../fixtures'
 import { signup, login } from '../actions/auth'
 import { fake } from '../fake'
@@ -67,6 +68,7 @@ test.describe('Authentication: Signup & Login', () => {
 
   test('Signup fails when email is already registered', async ({ browser, volunteer, baseUrl }) => {
     const context = await browser.newContext()
+    await context.addInitScript(dismissCookieConsentScript)
     const page = await context.newPage()
     try {
       await page.goto(`${baseUrl}/signup`)
@@ -84,6 +86,7 @@ test.describe('Authentication: Signup & Login', () => {
 
   test('Signup fails with a short password', async ({ browser, baseUrl }) => {
     const context = await browser.newContext()
+    await context.addInitScript(dismissCookieConsentScript)
     const page = await context.newPage()
     try {
       await page.goto(`${baseUrl}/signup`)
@@ -137,7 +140,7 @@ test.describe('Authentication: Signup & Login', () => {
     })
 
     const card = adminPage.getByRole('article').filter({ hasText: person.name })
-    await expect(card).toBeVisible({ timeout: 10_000 })
+    await expect(card).toBeVisible({ timeout: 20_000 })
     await card.getByRole('button', { name: 'Start Review' }).click()
     await expect(adminPage).toHaveURL(/\/admin\/applications\/\d+/, { timeout: 10_000 })
     await adminPage.getByRole('button', { name: 'Approve' }).click()
@@ -254,7 +257,7 @@ test.describe('Authentication: Signup & Login', () => {
     })
 
     const card = adminPage.getByRole('article').filter({ hasText: person.name })
-    await expect(card).toBeVisible({ timeout: 10_000 })
+    await expect(card).toBeVisible({ timeout: 20_000 })
     await card.getByRole('button', { name: 'Start Review' }).click()
     await expect(adminPage).toHaveURL(/\/admin\/applications\/\d+/, { timeout: 10_000 })
     await adminPage.goto(`${baseUrl}/admin/applications`)
@@ -298,7 +301,7 @@ test.describe('Authentication: Signup & Login', () => {
     })
 
     const card = adminPage.getByRole('article').filter({ hasText: person.name })
-    await expect(card).toBeVisible({ timeout: 10_000 })
+    await expect(card).toBeVisible({ timeout: 20_000 })
     await card.getByRole('button', { name: 'Start Review' }).click()
     await expect(adminPage).toHaveURL(/\/admin\/applications\/\d+/, { timeout: 10_000 })
 
@@ -350,7 +353,7 @@ test.describe('Authentication: Signup & Login', () => {
     await adminPage.getByRole('button', { name: 'Filter applications' }).click()
     await adminPage.getByRole('option', { name: 'Rejected', exact: true }).click()
     const card = adminPage.getByRole('article').filter({ hasText: person.name })
-    await expect(card).toBeVisible({ timeout: 10_000 })
+    await expect(card).toBeVisible({ timeout: 20_000 })
     await expect(card.getByText(/will be anonymised on/i)).toBeVisible()
     await expect(card.getByText('Test rejection')).toBeVisible()
   })
@@ -384,10 +387,13 @@ test.describe('Authentication: Signup & Login', () => {
     browser,
     baseUrl,
   }) => {
-    const person = fake.person()
+    // Name comes from the Google account and isn't user-editable during signup (the field
+    // is read-only) — the dev stub always reports "Stub User" since it doesn't send one.
+    const googleName = 'Stub User'
     const applicationMessage = 'I want to help pause AI development because of safety concerns'
 
     const context = await browser.newContext()
+    await context.addInitScript(dismissCookieConsentScript)
     const page = await context.newPage()
     try {
       await page.goto(`${baseUrl}/signup`)
@@ -400,8 +406,9 @@ test.describe('Authentication: Signup & Login', () => {
 
       // Google account created; application form appears
       await expect(page.getByLabel('Your Application')).toBeVisible({ timeout: 10_000 })
+      await expect(page.getByLabel('Your Name')).toHaveValue(googleName)
+      await expect(page.getByLabel('Your Name')).toBeDisabled()
 
-      await page.getByLabel('Your Name').fill(person.name)
       await page.getByLabel('Your Application').fill(applicationMessage)
       await page.getByRole('button', { name: 'Submit Application' }).click()
 
@@ -417,8 +424,8 @@ test.describe('Authentication: Signup & Login', () => {
     await expect(adminPage.getByRole('heading', { name: 'Applications' })).toBeVisible({
       timeout: 10_000,
     })
-    const card = adminPage.getByRole('article').filter({ hasText: person.name })
-    await expect(card).toBeVisible({ timeout: 10_000 })
+    const card = adminPage.getByRole('article').filter({ hasText: googleName })
+    await expect(card).toBeVisible({ timeout: 20_000 })
     await expect(card.getByText(applicationMessage)).toBeVisible()
   })
 

@@ -1,10 +1,11 @@
-import { test, expect, getAlert } from '../fixtures'
+import { test, expect, getAlert, dismissCookieConsentScript } from '../fixtures'
 import { proposeProject, adminCreateProject, adminApproveProject } from '../actions/projects'
 import { fake } from '../fake'
 
 test.describe('Access Control', () => {
   test('Unauthenticated user cannot access the dashboard', async ({ browser, baseUrl }) => {
     const context = await browser.newContext()
+    await context.addInitScript(dismissCookieConsentScript)
     const page = await context.newPage()
     try {
       await page.goto(`${baseUrl}/dashboard`)
