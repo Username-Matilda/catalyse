@@ -356,13 +356,21 @@ function SettingsPageContent() {
             <textarea
               id="applicationMessage"
               rows={5}
+              minLength={20}
               value={applicationMessage}
               onChange={(e) => setApplicationMessage(e.target.value)}
             />
+            {applicationMessage.trim().length < 20 && (
+              <p className="text-sm text-text-light mt-1">Please write at least 20 characters.</p>
+            )}
           </div>
           <Button
             onClick={handleResubmitApplication}
-            disabled={updateApplicationMutation.isPending || resubmitMutation.isPending}
+            disabled={
+              updateApplicationMutation.isPending ||
+              resubmitMutation.isPending ||
+              applicationMessage.trim().length < 20
+            }
           >
             {updateApplicationMutation.isPending || resubmitMutation.isPending
               ? 'Resubmitting…'

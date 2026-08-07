@@ -175,6 +175,10 @@ test.describe('Volunteer Profile', () => {
         name: vol2.name,
         email: vol2.email,
         password: 'testpassword1',
+        bio: 'e2e test bio, at least twenty characters long',
+        country: 'UK',
+        availabilityHoursPerWeek: 5,
+        applicationMessage: 'e2e test application message',
         consentMakeProfileVisibleInDirectory: true,
         consentContactableByProjectOwners: true,
       },
@@ -227,17 +231,13 @@ test.describe('Volunteer Profile', () => {
 
     // Create a UK local group via admin so the volunteer can select it
     await navigateToAdminLocalGroups(baseUrl, adminPage)
-    await adminAddGroup(adminPage, 'UK', groupName)
+    await adminAddGroup(adminPage, 'United Kingdom', groupName)
 
     await volunteer.page.goto(`${baseUrl}/profile`)
     await expect(volunteer.page.getByLabel('Your Name')).toBeVisible({ timeout: 10_000 })
 
-    // No local group dropdown yet (no country selected)
-    await expect(volunteer.page.getByLabel('Select local group', { exact: true })).not.toBeVisible()
-    await expect(volunteer.page.getByLabel('City / Area')).not.toBeVisible()
-
-    // Select UK — local group dropdown should appear, city should stay hidden
-    await selectFilterDropdown(volunteer.page, 'Select country', 'UK')
+    // Country is required at signup, so the volunteer's profile already has "United Kingdom"
+    // set — the local group dropdown is visible immediately, city input stays hidden.
     await expect(volunteer.page.getByLabel('Select local group', { exact: true })).toBeVisible({
       timeout: 5_000,
     })

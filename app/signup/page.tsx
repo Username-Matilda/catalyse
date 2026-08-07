@@ -7,6 +7,7 @@ import Script from 'next/script'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
+import Radio from '@/components/Radio'
 import SkillPicker from '@/components/SkillPicker'
 import { useAuth } from '@/lib/auth-context'
 import { orpc } from '@/lib/orpc'
@@ -22,6 +23,17 @@ interface SelectedSkill {
   proficiencyLevel: string
 }
 
+// Holds the verified Google identity between the initial "Sign up with Google" click
+// and the application form submission. No volunteer row exists yet at this point — it's
+// only created once completeGoogleSignup succeeds, so an abandoned application never
+// leaves a blank ghost row in the admin queue.
+interface PendingGoogleAuth {
+  credential?: string
+  stub?: boolean
+  name: string
+  email: string
+}
+
 // Reads plain text/textarea fields from the actual submitted DOM via FormData
 // rather than React state, so browser/password-manager autofill that sets
 // input.value without firing a React-visible change event can't silently
@@ -30,6 +42,33 @@ interface SelectedSkill {
 function textField(formData: FormData, key: string): string | undefined {
   const value = formData.get(key)
   return typeof value === 'string' && value !== '' ? value : undefined
+}
+
+type ContactMethod = 'email' | 'discord' | 'signal' | 'whatsapp'
+
+function PreferredRadio({
+  method,
+  contactPref,
+  onPrefChange,
+  disabled,
+}: {
+  method: ContactMethod
+  contactPref: string
+  onPrefChange: (v: ContactMethod) => void
+  disabled?: boolean
+}) {
+  return (
+    <div className={`mt-1 text-sm ${disabled ? 'opacity-50' : ''}`}>
+      <Radio
+        name="contactPreference"
+        checked={contactPref === method}
+        disabled={disabled}
+        onChange={() => onPrefChange(method)}
+      >
+        <span className="text-text-light">Preferred contact method</span>
+      </Radio>
+    </div>
+  )
 }
 
 export default function SignupPage() {
@@ -43,7 +82,7 @@ export default function SignupPage() {
 
   // Form fields
   const [applicationPending, setApplicationPending] = useState(false)
-  const [googlePendingToken, setGooglePendingToken] = useState<string | null>(null)
+  const [pendingGoogleAuth, setPendingGoogleAuth] = useState<PendingGoogleAuth | null>(null)
   const [googleApplicationStep, setGoogleApplicationStep] = useState(false)
   const [googleApplicationMessage, setGoogleApplicationMessage] = useState('')
   const [googleApplicationSubmitting, setGoogleApplicationSubmitting] = useState(false)
@@ -57,20 +96,7 @@ export default function SignupPage() {
   const [discord, setDiscord] = useState('')
   const [signal, setSignal] = useState('')
   const [whatsapp, setWhatsapp] = useState('')
-  const {
-    value: contactPref,
-    onChange: setContactPref,
-    options: contactPrefOptions,
-  } = useFilterOptions(
-    [
-      { value: '', label: 'Select…' },
-      { value: 'email', label: 'Email' },
-      { value: 'discord', label: 'Discord' },
-      { value: 'signal', label: 'Signal' },
-      { value: 'whatsapp', label: 'WhatsApp' },
-    ],
-    '',
-  )
+  const [contactPref, setContactPref] = useState<ContactMethod | ''>('')
   const [contactNotes, setContactNotes] = useState('')
   const [availability, setAvailability] = useState('')
   const [location, setLocation] = useState('')
@@ -98,37 +124,33 @@ export default function SignupPage() {
     if (!loading && user) router.replace('/dashboard')
   }, [user, loading, router])
 
-  const { data: meData } = useQuery({
-    ...orpc.auth.me.queryOptions(),
-    enabled: !!googlePendingToken,
-  })
   const { data: localGroupsData } = useQuery(orpc.localGroups.list.queryOptions({ input: {} }))
   const allLocalGroups: LocalGroupOption[] = localGroupsData?.groups ?? []
-  // The Google-signup name field is read-only (see g_name below), so there's no user
-  // input competing with this — always safe to take the latest value from the server.
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (meData?.name) setName(meData.name)
-  }, [meData])
 
   // Restore pending Google application from sessionStorage (survives refresh)
   useEffect(() => {
-    const pending = sessionStorage.getItem('google_pending_token')
-    if (pending) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setGooglePendingToken(pending)
-      setGoogleApplicationStep(true)
+    const stored = sessionStorage.getItem('google_pending_auth')
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored) as PendingGoogleAuth
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setPendingGoogleAuth(parsed)
+        setName(parsed.name)
+        setGoogleApplicationStep(true)
+      } catch {
+        sessionStorage.removeItem('google_pending_auth')
+      }
     }
   }, [])
 
-  // Persist/clear pending token in sessionStorage
+  // Persist/clear pending Google identity in sessionStorage
   useEffect(() => {
-    if (googleApplicationStep && googlePendingToken) {
-      sessionStorage.setItem('google_pending_token', googlePendingToken)
+    if (googleApplicationStep && pendingGoogleAuth) {
+      sessionStorage.setItem('google_pending_auth', JSON.stringify(pendingGoogleAuth))
     } else {
-      sessionStorage.removeItem('google_pending_token')
+      sessionStorage.removeItem('google_pending_auth')
     }
-  }, [googleApplicationStep, googlePendingToken])
+  }, [googleApplicationStep, pendingGoogleAuth])
 
   // Warn before leaving while application form is open
   useEffect(() => {
@@ -162,19 +184,26 @@ export default function SignupPage() {
   const resendMutation = useMutation({ ...orpc.auth.resendVerification.mutationOptions() })
   const googleAuthMutation = useMutation({
     ...orpc.auth.google.mutationOptions(),
-    onSuccess: async (data) => {
+    onSuccess: async (data, variables) => {
       if (data.isPending) {
-        setGooglePendingToken(data.token)
-        if (data.name) setName(data.name)
+        setPendingGoogleAuth({
+          credential: variables.credential,
+          stub: variables.stub,
+          name: data.name,
+          email: data.email,
+        })
+        setName(data.name)
         setGoogleApplicationStep(true)
-      } else {
+      } else if (data.token) {
         await setToken(data.token)
         router.push('/dashboard')
       }
     },
     onError: (err) => setError(err instanceof Error ? err.message : 'Google sign-up failed'),
   })
-  const updateMeMutation = useMutation({ ...orpc.volunteers.updateMe.mutationOptions() })
+  const completeGoogleSignupMutation = useMutation({
+    ...orpc.auth.completeGoogleSignup.mutationOptions(),
+  })
   const signupMutation = useMutation({ ...orpc.auth.signup.mutationOptions() })
 
   async function handleResend() {
@@ -212,28 +241,39 @@ export default function SignupPage() {
 
   async function handleGoogleApplicationSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    if (!googlePendingToken) return
-    setGoogleApplicationSubmitting(true)
-    // Write directly to localStorage (not setToken) so the orpc client sends
-    // the auth header without triggering auth state and the dashboard redirect.
-    localStorage.setItem('authToken', googlePendingToken)
+    if (!pendingGoogleAuth) return
     const formData = new FormData(e.currentTarget)
+
+    const bioValue = textField(formData, 'bio')
+    if (!bioValue || bioValue.trim().length < 20) {
+      setError('About You must be at least 20 characters')
+      return
+    }
+    if (!countryValue) {
+      setError('Country is required')
+      return
+    }
+    const availabilityValue = textField(formData, 'availabilityHoursPerWeek')
+    if (!availabilityValue) {
+      setError('Availability is required')
+      return
+    }
+
+    setGoogleApplicationSubmitting(true)
     try {
-      await updateMeMutation.mutateAsync({
-        // Name is read-only here (see g_name below) — always the Google-supplied value.
-        name,
+      const data = await completeGoogleSignupMutation.mutateAsync({
+        credential: pendingGoogleAuth.credential,
+        stub: pendingGoogleAuth.stub,
         applicationMessage: formData.get('applicationMessage') as string,
-        bio: textField(formData, 'bio'),
+        bio: bioValue,
         discordHandle: textField(formData, 'discordHandle'),
         signalNumber: textField(formData, 'signalNumber'),
         whatsappNumber: textField(formData, 'whatsappNumber'),
         contactPreference: contactPref || undefined,
         contactNotes: textField(formData, 'contactNotes'),
-        availabilityHoursPerWeek: textField(formData, 'availabilityHoursPerWeek')
-          ? Number(formData.get('availabilityHoursPerWeek'))
-          : undefined,
+        availabilityHoursPerWeek: Number(availabilityValue),
         location: textField(formData, 'location'),
-        country: countryValue || undefined,
+        country: countryValue,
         localGroup:
           localGroupValue && localGroupValue !== NO_LOCAL_GROUP ? localGroupValue : undefined,
         otherSkills: textField(formData, 'otherSkills'),
@@ -243,9 +283,14 @@ export default function SignupPage() {
         consentShareContactInfoWithProjectOwner: shareDirectly,
         emailDigest,
       })
-      sessionStorage.removeItem('google_pending_token')
+      sessionStorage.removeItem('google_pending_auth')
       setGoogleApplicationStep(false)
-      setApplicationPending(true)
+      if (data.pending) {
+        setApplicationPending(true)
+      } else if (data.token) {
+        await setToken(data.token)
+        router.push('/dashboard')
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit application')
     } finally {
@@ -298,6 +343,21 @@ export default function SignupPage() {
       return
     }
 
+    const bioValue = textField(formData, 'bio')
+    if (!bioValue || bioValue.trim().length < 20) {
+      setError('About You must be at least 20 characters')
+      return
+    }
+    if (!countryValue) {
+      setError('Country is required')
+      return
+    }
+    const availabilityValue = textField(formData, 'availabilityHoursPerWeek')
+    if (!availabilityValue) {
+      setError('Availability is required')
+      return
+    }
+
     setSubmitting(true)
     try {
       const data = await signupMutation.mutateAsync({
@@ -305,17 +365,15 @@ export default function SignupPage() {
         email: (formData.get('email') as string).trim(),
         password,
         applicationMessage: formData.get('applicationMessage') as string,
-        bio: textField(formData, 'bio'),
+        bio: bioValue,
         discordHandle: textField(formData, 'discordHandle'),
         signalNumber: textField(formData, 'signalNumber'),
         whatsappNumber: textField(formData, 'whatsappNumber'),
         contactPreference: contactPref || undefined,
         contactNotes: textField(formData, 'contactNotes'),
-        availabilityHoursPerWeek: textField(formData, 'availabilityHoursPerWeek')
-          ? Number(formData.get('availabilityHoursPerWeek'))
-          : undefined,
+        availabilityHoursPerWeek: Number(availabilityValue),
         location: textField(formData, 'location'),
-        country: countryValue || undefined,
+        country: countryValue,
         localGroup:
           localGroupValue && localGroupValue !== NO_LOCAL_GROUP ? localGroupValue : undefined,
         otherSkills: textField(formData, 'otherSkills'),
@@ -381,24 +439,27 @@ export default function SignupPage() {
                   Your Application
                 </label>
                 <aside className="bg-brand-bg border border-brand-border rounded-lg px-4 py-3 mb-2 text-sm text-text-light">
-                  Tell us about your relationship to PauseAI, why you are excited about the mission,
-                  and how you would like to contribute. This is reviewed by admins only and is not
-                  shown on your public profile.
+                  If you&apos;re already involved in PauseAI through the whatsapp or discord, tell
+                  us how we know you. If we don&apos;t know you, tell us why you&apos;d like to
+                  contribute to PauseAI. This is reviewed by admins only and is not shown on your
+                  public profile.
                 </aside>
                 <textarea
                   id="g_applicationMessage"
                   name="applicationMessage"
                   autoComplete="off"
                   required
+                  minLength={20}
                   rows={6}
-                  placeholder="Your connection to PauseAI, motivation, and how you'd like to contribute…"
                   value={googleApplicationMessage}
                   onChange={(e) => setGoogleApplicationMessage(e.target.value)}
                 />
               </div>
 
               <div className="mb-5">
-                <label htmlFor="g_bio">About You</label>
+                <label htmlFor="g_bio" className="required">
+                  About You
+                </label>
                 <aside className="bg-brand-bg border border-brand-border rounded-lg px-4 py-3 mb-2 text-sm text-text-light">
                   Shown to other volunteers in the directory if you choose to make your profile
                   visible. Tell us about your background and what brings you to PauseAI.
@@ -407,6 +468,8 @@ export default function SignupPage() {
                   id="g_bio"
                   name="bio"
                   autoComplete="off"
+                  required
+                  minLength={20}
                   placeholder="Your background and what brings you to PauseAI…"
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
@@ -428,7 +491,17 @@ export default function SignupPage() {
                     autoComplete="off"
                     placeholder="username#1234"
                     value={discord}
-                    onChange={(e) => setDiscord(e.target.value)}
+                    onChange={(e) => {
+                      setDiscord(e.target.value)
+                      if (e.target.value.trim() === '' && contactPref === 'discord')
+                        setContactPref('')
+                    }}
+                  />
+                  <PreferredRadio
+                    method="discord"
+                    contactPref={contactPref}
+                    onPrefChange={setContactPref}
+                    disabled={discord.trim() === ''}
                   />
                 </div>
                 <div className="mb-5">
@@ -440,7 +513,17 @@ export default function SignupPage() {
                     autoComplete="tel"
                     placeholder="+44…"
                     value={signal}
-                    onChange={(e) => setSignal(e.target.value)}
+                    onChange={(e) => {
+                      setSignal(e.target.value)
+                      if (e.target.value.trim() === '' && contactPref === 'signal')
+                        setContactPref('')
+                    }}
+                  />
+                  <PreferredRadio
+                    method="signal"
+                    contactPref={contactPref}
+                    onPrefChange={setContactPref}
+                    disabled={signal.trim() === ''}
                   />
                 </div>
                 <div className="mb-5">
@@ -452,17 +535,32 @@ export default function SignupPage() {
                     autoComplete="tel"
                     placeholder="+44…"
                     value={whatsapp}
-                    onChange={(e) => setWhatsapp(e.target.value)}
+                    onChange={(e) => {
+                      setWhatsapp(e.target.value)
+                      if (e.target.value.trim() === '' && contactPref === 'whatsapp')
+                        setContactPref('')
+                    }}
+                  />
+                  <PreferredRadio
+                    method="whatsapp"
+                    contactPref={contactPref}
+                    onPrefChange={setContactPref}
+                    disabled={whatsapp.trim() === ''}
                   />
                 </div>
                 <div className="mb-5">
-                  <FilterDropdown
-                    id="g_contactPreference"
-                    label="Preferred Contact Method"
-                    ariaLabel="Preferred Contact Method"
-                    value={contactPref}
-                    options={contactPrefOptions}
-                    onChange={setContactPref}
+                  <label htmlFor="g_email_display">Contact Email</label>
+                  <input
+                    type="text"
+                    id="g_email_display"
+                    value={pendingGoogleAuth?.email ?? ''}
+                    disabled
+                  />
+                  <PreferredRadio
+                    method="email"
+                    contactPref={contactPref}
+                    onPrefChange={setContactPref}
+                    disabled={!pendingGoogleAuth?.email}
                   />
                 </div>
               </div>
@@ -482,12 +580,15 @@ export default function SignupPage() {
 
               <h3 className="mt-6">Availability</h3>
               <div className="mb-5">
-                <label htmlFor="g_availability">Hours per Week</label>
+                <label htmlFor="g_availability" className="required">
+                  Hours per Week
+                </label>
                 <input
                   type="number"
                   id="g_availability"
                   name="availabilityHoursPerWeek"
                   autoComplete="off"
+                  required
                   min={1}
                   max={40}
                   placeholder="e.g., 5"
@@ -504,6 +605,7 @@ export default function SignupPage() {
                   options={COUNTRY_OPTIONS}
                   onChange={handleCountryChange}
                   searchable
+                  required
                 />
               </div>
               {countryValue && hasLocalGroups && (
@@ -527,7 +629,6 @@ export default function SignupPage() {
                     id="g_location"
                     name="location"
                     autoComplete="address-level2"
-                    placeholder="e.g., Shoreditch"
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
                   />
@@ -627,7 +728,7 @@ export default function SignupPage() {
   }
 
   if (applicationPending) {
-    const isGoogleSignup = !!googlePendingToken
+    const isGoogleSignup = !!pendingGoogleAuth
     return (
       <main className="container py-5 pb-15">
         <div className="max-w-2xl mx-auto">
@@ -765,7 +866,10 @@ export default function SignupPage() {
                 required
                 placeholder="you@example.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value)
+                  if (e.target.value.trim() === '' && contactPref === 'email') setContactPref('')
+                }}
               />
               <p className="text-sm text-text-light mt-1">
                 Used for login and notifications. Not shown publicly — see contact settings below.
@@ -820,15 +924,17 @@ export default function SignupPage() {
                 name="applicationMessage"
                 autoComplete="off"
                 required
+                minLength={20}
                 rows={6}
-                placeholder="Your connection to PauseAI, motivation, and how you'd like to contribute…"
                 value={applicationMessage}
                 onChange={(e) => setApplicationMessage(e.target.value)}
               />
             </div>
 
             <div className="mb-5">
-              <label htmlFor="bio">About You</label>
+              <label htmlFor="bio" className="required">
+                About You
+              </label>
               <aside className="bg-brand-bg border border-brand-border rounded-lg px-4 py-3 mb-2 text-sm text-text-light">
                 Shown to other volunteers in the directory if you choose to make your profile
                 visible. Tell us about your background and what brings you to PauseAI.
@@ -837,6 +943,8 @@ export default function SignupPage() {
                 id="bio"
                 name="bio"
                 autoComplete="off"
+                required
+                minLength={20}
                 placeholder="Your background and what brings you to PauseAI…"
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
@@ -858,7 +966,17 @@ export default function SignupPage() {
                   autoComplete="off"
                   placeholder="username#1234"
                   value={discord}
-                  onChange={(e) => setDiscord(e.target.value)}
+                  onChange={(e) => {
+                    setDiscord(e.target.value)
+                    if (e.target.value.trim() === '' && contactPref === 'discord')
+                      setContactPref('')
+                  }}
+                />
+                <PreferredRadio
+                  method="discord"
+                  contactPref={contactPref}
+                  onPrefChange={setContactPref}
+                  disabled={discord.trim() === ''}
                 />
               </div>
               <div className="mb-5">
@@ -870,7 +988,16 @@ export default function SignupPage() {
                   autoComplete="tel"
                   placeholder="+44…"
                   value={signal}
-                  onChange={(e) => setSignal(e.target.value)}
+                  onChange={(e) => {
+                    setSignal(e.target.value)
+                    if (e.target.value.trim() === '' && contactPref === 'signal') setContactPref('')
+                  }}
+                />
+                <PreferredRadio
+                  method="signal"
+                  contactPref={contactPref}
+                  onPrefChange={setContactPref}
+                  disabled={signal.trim() === ''}
                 />
               </div>
               <div className="mb-5">
@@ -882,17 +1009,27 @@ export default function SignupPage() {
                   autoComplete="tel"
                   placeholder="+44…"
                   value={whatsapp}
-                  onChange={(e) => setWhatsapp(e.target.value)}
+                  onChange={(e) => {
+                    setWhatsapp(e.target.value)
+                    if (e.target.value.trim() === '' && contactPref === 'whatsapp')
+                      setContactPref('')
+                  }}
+                />
+                <PreferredRadio
+                  method="whatsapp"
+                  contactPref={contactPref}
+                  onPrefChange={setContactPref}
+                  disabled={whatsapp.trim() === ''}
                 />
               </div>
               <div className="mb-5">
-                <FilterDropdown
-                  id="contactPreference"
-                  label="Preferred Contact Method"
-                  ariaLabel="Preferred Contact Method"
-                  value={contactPref}
-                  options={contactPrefOptions}
-                  onChange={setContactPref}
+                <label htmlFor="email_display">Contact Email</label>
+                <input type="text" id="email_display" value={email} disabled />
+                <PreferredRadio
+                  method="email"
+                  contactPref={contactPref}
+                  onPrefChange={setContactPref}
+                  disabled={email.trim() === ''}
                 />
               </div>
             </div>
@@ -912,12 +1049,15 @@ export default function SignupPage() {
 
             <h3 className="mt-6">Availability</h3>
             <div className="mb-5">
-              <label htmlFor="availability">Hours per Week</label>
+              <label htmlFor="availability" className="required">
+                Hours per Week
+              </label>
               <input
                 type="number"
                 id="availability"
                 name="availabilityHoursPerWeek"
                 autoComplete="off"
+                required
                 min={1}
                 max={40}
                 placeholder="e.g., 5"
@@ -934,6 +1074,7 @@ export default function SignupPage() {
                 options={COUNTRY_OPTIONS}
                 onChange={handleCountryChange}
                 searchable
+                required
               />
             </div>
             {countryValue && hasLocalGroups && (

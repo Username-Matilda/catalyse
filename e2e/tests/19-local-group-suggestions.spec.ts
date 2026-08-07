@@ -16,18 +16,17 @@ test.describe('Local Group Suggestions', () => {
     volunteer,
     baseUrl,
   }) => {
-    const country = 'UK'
     const groupName = fake.localGroupName()
 
-    await submitLocalGroupSuggestion(baseUrl, volunteer.page, country, groupName)
+    await submitLocalGroupSuggestion(baseUrl, volunteer.page, 'United Kingdom', groupName)
 
     const item = volunteer.page.getByRole('article').filter({ hasText: groupName })
     await expect(item).toBeVisible({ timeout: 10_000 })
-    await expect(item).toContainText('UK')
+    await expect(item).toContainText('United Kingdom')
     await expect(item).toContainText('Pending Review')
   })
 
-  test('Submit button is disabled until both country and name are filled', async ({
+  test('Submit button is disabled until name is filled (country prefills from profile)', async ({
     volunteer,
     baseUrl,
   }) => {
@@ -36,19 +35,21 @@ test.describe('Local Group Suggestions', () => {
       .getByRole('heading', { name: 'Suggest a Local Group', level: 1 })
       .waitFor({ timeout: 10_000 })
 
+    // Country is required at signup, so it's already prefilled from the volunteer's own
+    // profile — only the group name is missing at this point.
+    await expect(volunteer.page.getByLabel('Select country/group', { exact: true })).not.toHaveText(
+      'Select…',
+    )
     await expect(volunteer.page.getByRole('button', { name: 'Submit Suggestion' })).toBeDisabled()
 
     await volunteer.page.getByLabel('Local Group Name').fill('TestCity')
-    await expect(volunteer.page.getByRole('button', { name: 'Submit Suggestion' })).toBeDisabled()
-
-    await selectFilterDropdown(volunteer.page, 'Select country/group', 'UK')
     await expect(volunteer.page.getByRole('button', { name: 'Submit Suggestion' })).toBeEnabled()
   })
 
   test('Admin sees pending suggestion', async ({ volunteer, adminPage, baseUrl }) => {
     const groupName = fake.localGroupName()
 
-    await submitLocalGroupSuggestion(baseUrl, volunteer.page, 'UK', groupName)
+    await submitLocalGroupSuggestion(baseUrl, volunteer.page, 'United Kingdom', groupName)
     await navigateToAdminLocalGroups(baseUrl, adminPage)
 
     await expect(adminPage.getByRole('article').filter({ hasText: groupName })).toBeVisible({
@@ -63,7 +64,7 @@ test.describe('Local Group Suggestions', () => {
   }) => {
     const groupName = fake.localGroupName()
 
-    await submitLocalGroupSuggestion(baseUrl, volunteer.page, 'UK', groupName)
+    await submitLocalGroupSuggestion(baseUrl, volunteer.page, 'United Kingdom', groupName)
     await navigateToAdminLocalGroups(baseUrl, adminPage)
     await adminReviewSuggestion(adminPage, groupName, 'accept')
 
@@ -71,9 +72,13 @@ test.describe('Local Group Suggestions', () => {
 
     await volunteer.page.goto(`${baseUrl}/projects`)
     await volunteer.page.waitForLoadState('networkidle', { timeout: 15_000 })
-    await selectFilterDropdown(volunteer.page, 'Country/Group filter', `UK - ${groupName}`)
+    await selectFilterDropdown(
+      volunteer.page,
+      'Country/Group filter',
+      `United Kingdom - ${groupName}`,
+    )
     await expect(volunteer.page.getByLabel('Country/Group filter', { exact: true })).toContainText(
-      `UK - ${groupName}`,
+      `United Kingdom - ${groupName}`,
     )
   })
 
@@ -85,7 +90,7 @@ test.describe('Local Group Suggestions', () => {
     const original = fake.localGroupName()
     const adjusted = `${original} (Adjusted)`
 
-    await submitLocalGroupSuggestion(baseUrl, volunteer.page, 'UK', original)
+    await submitLocalGroupSuggestion(baseUrl, volunteer.page, 'United Kingdom', original)
     await navigateToAdminLocalGroups(baseUrl, adminPage)
     await adminReviewSuggestion(adminPage, original, 'accept', { editName: adjusted })
 
@@ -93,9 +98,13 @@ test.describe('Local Group Suggestions', () => {
 
     await volunteer.page.goto(`${baseUrl}/projects`)
     await volunteer.page.waitForLoadState('networkidle', { timeout: 15_000 })
-    await selectFilterDropdown(volunteer.page, 'Country/Group filter', `UK - ${adjusted}`)
+    await selectFilterDropdown(
+      volunteer.page,
+      'Country/Group filter',
+      `United Kingdom - ${adjusted}`,
+    )
     await expect(volunteer.page.getByLabel('Country/Group filter', { exact: true })).toContainText(
-      `UK - ${adjusted}`,
+      `United Kingdom - ${adjusted}`,
     )
   })
 
@@ -106,7 +115,7 @@ test.describe('Local Group Suggestions', () => {
   }) => {
     const groupName = fake.localGroupName()
 
-    await submitLocalGroupSuggestion(baseUrl, volunteer.page, 'UK', groupName)
+    await submitLocalGroupSuggestion(baseUrl, volunteer.page, 'United Kingdom', groupName)
     await navigateToAdminLocalGroups(baseUrl, adminPage)
     await adminReviewSuggestion(adminPage, groupName, 'accept')
     await expect(getAlert(adminPage)).toContainText('accepted', { timeout: 10_000 })
@@ -117,7 +126,11 @@ test.describe('Local Group Suggestions', () => {
       .waitFor({ timeout: 10_000 })
     await volunteer.page.waitForLoadState('networkidle', { timeout: 15_000 })
 
-    await selectFilterDropdown(volunteer.page, 'Select country/group', `UK - ${groupName}`)
+    await selectFilterDropdown(
+      volunteer.page,
+      'Select country/group',
+      `United Kingdom - ${groupName}`,
+    )
     await expect(volunteer.page.getByLabel('Select country/group', { exact: true })).toContainText(
       groupName,
     )
@@ -130,10 +143,10 @@ test.describe('Local Group Suggestions', () => {
   }) => {
     const groupName = fake.localGroupName()
 
-    await submitLocalGroupSuggestion(baseUrl, volunteer.page, 'UK', groupName)
+    await submitLocalGroupSuggestion(baseUrl, volunteer.page, 'United Kingdom', groupName)
     await navigateToAdminLocalGroups(baseUrl, adminPage)
     await adminReviewSuggestion(adminPage, groupName, 'merge', {
-      mergeTarget: 'UK — London',
+      mergeTarget: 'United Kingdom — London',
     })
 
     await expect(getAlert(adminPage)).toContainText('merged', { timeout: 10_000 })
@@ -148,7 +161,7 @@ test.describe('Local Group Suggestions', () => {
     const groupName = fake.localGroupName()
     const note = 'Reviewing similar groups in this area first'
 
-    await submitLocalGroupSuggestion(baseUrl, volunteer.page, 'UK', groupName)
+    await submitLocalGroupSuggestion(baseUrl, volunteer.page, 'United Kingdom', groupName)
     await navigateToAdminLocalGroups(baseUrl, adminPage)
     await adminReviewSuggestion(adminPage, groupName, 'on_hold', { adminNotes: note })
 
@@ -165,7 +178,7 @@ test.describe('Local Group Suggestions', () => {
     const groupName = fake.localGroupName()
     const note = 'This area is covered by an existing group'
 
-    await submitLocalGroupSuggestion(baseUrl, volunteer.page, 'UK', groupName)
+    await submitLocalGroupSuggestion(baseUrl, volunteer.page, 'United Kingdom', groupName)
     await navigateToAdminLocalGroups(baseUrl, adminPage)
     await adminReviewSuggestion(adminPage, groupName, 'decline', { adminNotes: note })
 
@@ -185,7 +198,7 @@ test.describe('Local Group Suggestions', () => {
   }) => {
     const groupName = fake.localGroupName()
 
-    await submitLocalGroupSuggestion(baseUrl, volunteer.page, 'UK', groupName)
+    await submitLocalGroupSuggestion(baseUrl, volunteer.page, 'United Kingdom', groupName)
     await navigateToAdminLocalGroups(baseUrl, adminPage)
     await adminReviewSuggestion(adminPage, groupName, 'decline')
     await expect(getAlert(adminPage)).toContainText('declined', { timeout: 10_000 })
@@ -207,7 +220,7 @@ test.describe('Local Group Suggestions', () => {
   }) => {
     const groupName = fake.localGroupName()
 
-    await submitLocalGroupSuggestion(baseUrl, volunteer.page, 'UK', groupName)
+    await submitLocalGroupSuggestion(baseUrl, volunteer.page, 'United Kingdom', groupName)
     await navigateToAdminLocalGroups(baseUrl, adminPage)
     await adminReviewSuggestion(adminPage, groupName, 'decline')
 
@@ -229,7 +242,7 @@ test.describe('Local Group Suggestions', () => {
   }) => {
     const groupName = fake.localGroupName()
 
-    await submitLocalGroupSuggestion(baseUrl, volunteer.page, 'UK', groupName)
+    await submitLocalGroupSuggestion(baseUrl, volunteer.page, 'United Kingdom', groupName)
     await navigateToAdminLocalGroups(baseUrl, adminPage)
     await adminReviewSuggestion(adminPage, groupName, 'accept')
     await expect(getAlert(adminPage)).toContainText('accepted', { timeout: 10_000 })
@@ -258,7 +271,7 @@ test.describe('Admin Local Group Management', () => {
     const groupName = fake.localGroupName()
 
     await navigateToAdminLocalGroups(baseUrl, adminPage)
-    await adminAddGroup(adminPage, 'UK', groupName)
+    await adminAddGroup(adminPage, 'United Kingdom', groupName)
 
     await expect(getAlert(adminPage)).toContainText('added', { timeout: 10_000 })
 
@@ -267,7 +280,7 @@ test.describe('Admin Local Group Management', () => {
     const card = adminPage.getByRole('article').filter({ hasText: groupName })
     await expect(card).toBeVisible({ timeout: 10_000 })
     await expect(card).toContainText('Active')
-    await expect(card).toContainText('UK')
+    await expect(card).toContainText('United Kingdom')
   })
 
   test('Admin edits a group name', async ({ adminPage, baseUrl }) => {
@@ -275,7 +288,7 @@ test.describe('Admin Local Group Management', () => {
     const updatedName = `${groupName} Updated`
 
     await navigateToAdminLocalGroups(baseUrl, adminPage)
-    await adminAddGroup(adminPage, 'UK', groupName)
+    await adminAddGroup(adminPage, 'United Kingdom', groupName)
     await expect(getAlert(adminPage)).toContainText('added', { timeout: 10_000 })
 
     await selectFilterDropdown(adminPage, 'Status filter', 'Active')
@@ -293,7 +306,7 @@ test.describe('Admin Local Group Management', () => {
     const groupName = fake.localGroupName()
 
     await navigateToAdminLocalGroups(baseUrl, adminPage)
-    await adminAddGroup(adminPage, 'UK', groupName)
+    await adminAddGroup(adminPage, 'United Kingdom', groupName)
     await expect(getAlert(adminPage)).toContainText('added', { timeout: 10_000 })
 
     await selectFilterDropdown(adminPage, 'Status filter', 'Active')
@@ -313,7 +326,7 @@ test.describe('Admin Local Group Management', () => {
     const groupName = fake.localGroupName()
 
     await navigateToAdminLocalGroups(baseUrl, adminPage)
-    await adminAddGroup(adminPage, 'UK', groupName)
+    await adminAddGroup(adminPage, 'United Kingdom', groupName)
     await expect(getAlert(adminPage)).toContainText('added', { timeout: 10_000 })
 
     await volunteer.page.goto(`${baseUrl}/suggest`)
@@ -322,7 +335,11 @@ test.describe('Admin Local Group Management', () => {
       .waitFor({ timeout: 10_000 })
     await volunteer.page.waitForLoadState('networkidle', { timeout: 15_000 })
 
-    await selectFilterDropdown(volunteer.page, 'Select country/group', `UK - ${groupName}`)
+    await selectFilterDropdown(
+      volunteer.page,
+      'Select country/group',
+      `United Kingdom - ${groupName}`,
+    )
     await expect(volunteer.page.getByLabel('Select country/group', { exact: true })).toContainText(
       groupName,
     )

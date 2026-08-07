@@ -37,15 +37,12 @@ export const SignupSchema = VolunteerSchema.pick({
   applicationMessage: true,
 })
   .partial({
-    bio: true,
     discordHandle: true,
     signalNumber: true,
     whatsappNumber: true,
     contactPreference: true,
     contactNotes: true,
-    availabilityHoursPerWeek: true,
     location: true,
-    country: true,
     localGroup: true,
     otherSkills: true,
     consentMakeProfileVisibleInDirectory: true,
@@ -61,8 +58,31 @@ export const SignupSchema = VolunteerSchema.pick({
       .string()
       .min(8, 'Password must be at least 8 characters')
       .max(128, 'Password must be no more than 128 characters'),
+    applicationMessage: z
+      .string()
+      .min(20, 'Please write at least 20 characters')
+      .max(5000, 'Application message must be no more than 5000 characters'),
+    bio: z
+      .string()
+      .min(20, 'Please write at least 20 characters')
+      .max(5000, 'About You must be no more than 5000 characters'),
+    country: z.string().min(1, 'Country is required'),
+    availabilityHoursPerWeek: z
+      .number()
+      .int()
+      .min(1, 'Availability is required')
+      .max(40, 'Availability must be no more than 40 hours per week'),
     skillIds: z.array(z.number().int()).optional(),
   })
+
+export const CompleteGoogleSignupSchema = SignupSchema.omit({
+  email: true,
+  password: true,
+  name: true,
+}).extend({
+  credential: z.string().optional(),
+  stub: z.boolean().optional(),
+})
 
 export const ChangePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
@@ -336,5 +356,11 @@ export const UpdateVolunteerSchema = VolunteerSchema.omit({
 })
   .partial()
   .extend({
+    applicationMessage: z
+      .string()
+      .min(20, 'Please write at least 20 characters')
+      .max(5000, 'Application message must be no more than 5000 characters')
+      .nullable()
+      .optional(),
     skillIds: z.array(z.number().int()).optional(),
   })

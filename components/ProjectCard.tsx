@@ -3,6 +3,7 @@ import Link from 'next/link'
 import Button from '@/components/Button'
 import { Badge, badgeClasses, type BadgeVariant } from '@/components/Badge'
 import { matchGradeLabel } from '@/lib/matching'
+import { countryLabel } from '@/lib/filter-options'
 
 export interface Project {
   id: number
@@ -110,7 +111,7 @@ export function ProjectCard({
       <div className="row-start-3 flex items-center gap-3 flex-wrap text-xs text-text-light self-start">
         <span>👤 {p.owner ? p.owner.name : 'No owner yet'}</span>
         {(p.localGroup || p.country) && (
-          <span>📍 {[p.country, p.localGroup].filter(Boolean).join(' · ')}</span>
+          <span>📍 {[countryLabel(p.country), p.localGroup].filter(Boolean).join(' · ')}</span>
         )}
         {p.projectType && <span>📋 {PROJECT_TYPE_LABELS[p.projectType] ?? p.projectType}</span>}
         {p.timeCommitmentHoursPerWeek && <span>🕐 {p.timeCommitmentHoursPerWeek}h/week</span>}

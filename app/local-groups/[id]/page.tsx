@@ -8,6 +8,7 @@ import { useRequireApproved } from '@/lib/hooks/auth'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import Button from '@/components/Button'
+import { countryLabel } from '@/lib/filter-options'
 
 export default function LocalGroupAdoptPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idStr } = use(params)
@@ -54,7 +55,7 @@ export default function LocalGroupAdoptPage({ params }: { params: Promise<{ id: 
     <main className="container py-5 pb-15">
       <div className="bg-surface rounded-xl shadow p-6 max-w-125">
         <h1 className="mt-0 mb-1">{group.name}</h1>
-        <p className="text-text-light mb-5">{group.country}</p>
+        <p className="text-text-light mb-5">{countryLabel(group.country)}</p>
         <p className="mb-5">
           Want to set this as your local group? You&apos;ll be listed under {group.name} and matched
           with local projects and volunteers there.

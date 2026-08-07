@@ -34,6 +34,7 @@ interface Props<T extends string = string> {
   options: readonly FilterOption<T>[]
   onChange: (value: T) => void
   searchable?: boolean
+  required?: boolean
 }
 
 export default function FilterDropdown<T extends string>({
@@ -44,6 +45,7 @@ export default function FilterDropdown<T extends string>({
   options,
   onChange,
   searchable,
+  required,
 }: Props<T>) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -169,7 +171,9 @@ export default function FilterDropdown<T extends string>({
   // min-w-[200px]: deliberate minimum to prevent dropdown from collapsing on short labels
   return (
     <div ref={ref} className="min-w-[200px]">
-      <label htmlFor={id}>{label}</label>
+      <label htmlFor={id} className={required ? 'required' : undefined}>
+        {label}
+      </label>
       <div className="relative">
         <button
           ref={triggerRef}

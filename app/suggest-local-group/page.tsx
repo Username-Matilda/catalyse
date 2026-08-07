@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import FilterDropdown from '@/components/FilterDropdown'
 import { orpc } from '@/lib/orpc'
-import { COUNTRY_OPTIONS } from '@/lib/filter-options'
+import { COUNTRY_OPTIONS, countryLabel } from '@/lib/filter-options'
 import { useToast } from '@/lib/toast'
 import { formatDate } from '@/lib/format-date'
 
@@ -125,7 +125,7 @@ export default function SuggestLocalGroupPage() {
                   >
                     <div>
                       <p className="font-semibold m-0">
-                        {s.country} — {s.name}
+                        {countryLabel(s.country)} — {s.name}
                         {s.mergedInto && (
                           <span className="text-text-light font-normal text-sm">
                             {' '}

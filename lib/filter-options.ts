@@ -37,7 +37,7 @@ export const BASE_LOCATION_OPTIONS: FilterOption[] = [
   { value: 'Spain', label: 'Spain' },
   { value: 'Sweden', label: 'Sweden' },
   // { value: 'Switzerland', label: 'Switzerland' },
-  { value: 'UK', label: 'UK' },
+  { value: 'UK', label: 'United Kingdom' },
   // { value: 'US', label: 'US' },
   { value: 'Other', label: 'Other' },
 ]
@@ -53,7 +53,7 @@ export function buildLocationOptions(
       for (const g of countryGroups) {
         result.push({
           value: `${option.value}:${g.name}`,
-          label: `${option.value} - ${g.name}`,
+          label: `${option.label} - ${g.name}`,
           indent: true,
         })
       }
@@ -80,3 +80,11 @@ export const COUNTRY_OPTIONS: FilterOption[] = [
   { value: '', label: 'Select…' },
   ...BASE_LOCATION_OPTIONS.filter((o) => o.value !== '' && !o.indent),
 ]
+
+// Stored country values are short codes/names (e.g. "UK"); this resolves the
+// display label (e.g. "United Kingdom") so raw values are never shown in the UI.
+// Falls back to the raw value for anything not in BASE_LOCATION_OPTIONS.
+export function countryLabel(value: string | null | undefined): string {
+  if (!value) return ''
+  return BASE_LOCATION_OPTIONS.find((o) => o.value === value)?.label ?? value
+}

@@ -8,6 +8,7 @@ import {
   dismissCookieConsentScript,
 } from '../fixtures'
 import { signup, login } from '../actions/auth'
+import { selectFilterDropdown } from '../actions/ui'
 import { fake } from '../fake'
 import { createApiClient } from '../client'
 
@@ -77,6 +78,9 @@ test.describe('Authentication: Signup & Login', () => {
       await page.getByLabel('Password', { exact: true }).fill('testpassword1')
       await page.getByLabel('Confirm Password').fill('testpassword1')
       await page.getByLabel('Your Application').fill('e2e test application message')
+      await page.getByLabel('About You').fill('e2e test bio, at least twenty characters long')
+      await page.getByLabel('Hours per Week').fill('5')
+      await selectFilterDropdown(page, 'Select country', 'United Kingdom')
       await page.getByRole('button', { name: 'Create Account' }).click()
       await expect(getAlert(page)).toBeVisible({ timeout: 10_000 })
     } finally {
@@ -101,6 +105,9 @@ test.describe('Authentication: Signup & Login', () => {
       await page.getByLabel('Password', { exact: true }).fill('abc')
       await page.getByLabel('Confirm Password').fill('abc')
       await page.getByLabel('Your Application').fill('e2e test application message')
+      await page.getByLabel('About You').fill('e2e test bio, at least twenty characters long')
+      await page.getByLabel('Hours per Week').fill('5')
+      await selectFilterDropdown(page, 'Select country', 'United Kingdom')
       await page.getByRole('button', { name: 'Create Account' }).click()
       await expect(getAlert(page)).toBeVisible({ timeout: 10_000 })
     } finally {
@@ -122,6 +129,9 @@ test.describe('Authentication: Signup & Login', () => {
         email: person.email,
         password: 'testpassword1',
         applicationMessage: 'I want to contribute to AI safety',
+        bio: 'e2e test bio, at least twenty characters long',
+        country: 'UK',
+        availabilityHoursPerWeek: 5,
         consentMakeProfileVisibleInDirectory: true,
         consentContactableByProjectOwners: true,
       },
@@ -196,6 +206,10 @@ test.describe('Authentication: Signup & Login', () => {
         name: person.name,
         email: person.email,
         password: 'testpassword1',
+        bio: 'e2e test bio, at least twenty characters long',
+        country: 'UK',
+        availabilityHoursPerWeek: 5,
+        applicationMessage: 'e2e test application message',
         consentMakeProfileVisibleInDirectory: true,
         consentContactableByProjectOwners: true,
       },
@@ -219,6 +233,10 @@ test.describe('Authentication: Signup & Login', () => {
         name: person.name,
         email: person.email,
         password: 'testpassword1',
+        bio: 'e2e test bio, at least twenty characters long',
+        country: 'UK',
+        availabilityHoursPerWeek: 5,
+        applicationMessage: 'e2e test application message',
         consentMakeProfileVisibleInDirectory: true,
         consentContactableByProjectOwners: true,
       },
@@ -246,6 +264,10 @@ test.describe('Authentication: Signup & Login', () => {
         name: person.name,
         email: person.email,
         password: 'testpassword1',
+        bio: 'e2e test bio, at least twenty characters long',
+        country: 'UK',
+        availabilityHoursPerWeek: 5,
+        applicationMessage: 'e2e test application message',
         consentMakeProfileVisibleInDirectory: true,
         consentContactableByProjectOwners: true,
       },
@@ -290,6 +312,10 @@ test.describe('Authentication: Signup & Login', () => {
         name: person.name,
         email: person.email,
         password: 'testpassword1',
+        bio: 'e2e test bio, at least twenty characters long',
+        country: 'UK',
+        availabilityHoursPerWeek: 5,
+        applicationMessage: 'e2e test application message',
         consentMakeProfileVisibleInDirectory: true,
         consentContactableByProjectOwners: true,
       },
@@ -336,6 +362,10 @@ test.describe('Authentication: Signup & Login', () => {
         name: person.name,
         email: person.email,
         password: 'testpassword1',
+        bio: 'e2e test bio, at least twenty characters long',
+        country: 'UK',
+        availabilityHoursPerWeek: 5,
+        applicationMessage: 'e2e test application message',
         consentMakeProfileVisibleInDirectory: true,
         consentContactableByProjectOwners: true,
       },
@@ -366,6 +396,10 @@ test.describe('Authentication: Signup & Login', () => {
         name: person.name,
         email: person.email,
         password: 'testpassword1',
+        bio: 'e2e test bio, at least twenty characters long',
+        country: 'UK',
+        availabilityHoursPerWeek: 5,
+        applicationMessage: 'e2e test application message',
         consentMakeProfileVisibleInDirectory: true,
         consentContactableByProjectOwners: true,
       },
@@ -404,12 +438,15 @@ test.describe('Authentication: Signup & Login', () => {
       })
       await page.getByRole('button', { name: /Sign up with Google/ }).click()
 
-      // Google account created; application form appears
+      // Google identity verified (no account created yet); application form appears
       await expect(page.getByLabel('Your Application')).toBeVisible({ timeout: 10_000 })
       await expect(page.getByLabel('Your Name')).toHaveValue(googleName)
       await expect(page.getByLabel('Your Name')).toBeDisabled()
 
       await page.getByLabel('Your Application').fill(applicationMessage)
+      await page.getByLabel('About You').fill('e2e test bio, at least twenty characters long')
+      await page.getByLabel('Hours per Week').fill('5')
+      await selectFilterDropdown(page, 'Select country', 'United Kingdom')
       await page.getByRole('button', { name: 'Submit Application' }).click()
 
       await expect(page.getByRole('heading', { name: 'Application submitted' })).toBeVisible({

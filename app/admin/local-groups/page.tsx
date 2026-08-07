@@ -8,7 +8,7 @@ import Button from '@/components/Button'
 import Radio from '@/components/Radio'
 import FilterDropdown, { FilterOption, useFilterOptions } from '@/components/FilterDropdown'
 import { orpc } from '@/lib/orpc'
-import { COUNTRY_OPTIONS } from '@/lib/filter-options'
+import { COUNTRY_OPTIONS, countryLabel } from '@/lib/filter-options'
 import { useToast } from '@/lib/toast'
 import { formatDate } from '@/lib/format-date'
 import { LocalGroupSuggestionStatus } from '@/generated/prisma/enums'
@@ -209,12 +209,15 @@ export default function AdminLocalGroupsPage() {
     { value: '', label: 'All countries' },
     ...Array.from(new Set(items.map((i) => i.country)))
       .sort()
-      .map((c) => ({ value: c, label: c })),
+      .map((c) => ({ value: c, label: countryLabel(c) })),
   ]
 
   const mergeOptions = [
     { value: '', label: 'Select an existing group…' },
-    ...allGroups.map((g) => ({ value: String(g.id), label: `${g.country} — ${g.name}` })),
+    ...allGroups.map((g) => ({
+      value: String(g.id),
+      label: `${countryLabel(g.country)} — ${g.name}`,
+    })),
   ]
 
   function openEdit(group: LocalGroup) {
@@ -381,7 +384,7 @@ export default function AdminLocalGroupsPage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold">
-                        {item.country} — {item.name}
+                        {countryLabel(item.country)} — {item.name}
                       </span>
                       <span
                         className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_BADGE[status] ?? ''}`}
@@ -564,7 +567,7 @@ export default function AdminLocalGroupsPage() {
                 Suggested by {reviewSuggestion.suggestedBy.name}
               </p>
               <p className="font-semibold mb-5">
-                {reviewSuggestion.country} — {reviewSuggestion.name}
+                {countryLabel(reviewSuggestion.country)} — {reviewSuggestion.name}
               </p>
 
               <form onSubmit={submitReview}>
@@ -708,7 +711,7 @@ export default function AdminLocalGroupsPage() {
               <p>
                 Delete{' '}
                 <strong>
-                  {deleteTarget.country} — {deleteTarget.name}
+                  {countryLabel(deleteTarget.country)} — {deleteTarget.name}
                 </strong>
                 ? This cannot be undone.
               </p>
