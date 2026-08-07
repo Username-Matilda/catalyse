@@ -21,6 +21,7 @@ import { checkRateLimit } from '@/lib/rate-limit'
 import { notifyAdmins } from '@/lib/notify'
 import {
   SignupSchema,
+  CompleteGoogleSignupSchema,
   ChangePasswordSchema,
   ChangeEmailSchema,
   ResetPasswordSchema,
@@ -684,7 +685,64 @@ export const authRouter = {
           isNewUser: false,
           isPending: false,
           name: existing.name,
+          email,
         }
+      }
+
+      // Don't create a volunteer row yet — the applicant still needs to fill in the
+      // required application fields (bio, country, availability, application message).
+      // The row is created by completeGoogleSignup once that form is submitted, so an
+      // abandoned Google auth never leaves a blank ghost application in the admin queue.
+      return {
+        token: null,
+        wasPromoted: false,
+        isNewUser: true,
+        isPending: true,
+        name,
+        email,
+      }
+    }),
+
+  completeGoogleSignup: publicProcedure
+    .input(CompleteGoogleSignupSchema)
+    .handler(async ({ input, context }) => {
+      const { allowed, retryAfterMs } = checkRateLimit(context.request, 'signup', {
+        limit: 10,
+        windowMs: 60 * 60 * 1000,
+      })
+      if (!allowed)
+        throw new ORPCError('TOO_MANY_REQUESTS', {
+          message: `Rate limited. Retry after ${retryAfterMs}ms`,
+        })
+      if (!GOOGLE_CLIENT_ID && !STUB_GOOGLE)
+        throw new ORPCError('INTERNAL_SERVER_ERROR', {
+          message: 'Google Sign-In is not configured',
+        })
+
+      let email: string
+      let name: string
+      if (STUB_GOOGLE && input.stub) {
+        email = 'stub@example.com'
+        name = 'Stub User'
+      } else {
+        const googleUser = await verifyGoogleToken(input.credential ?? '')
+        if (!googleUser)
+          throw new ORPCError('UNAUTHORIZED', {
+            message: 'Your Google sign-in has expired — please sign in with Google again',
+          })
+        ;({ email, name } = googleUser)
+      }
+
+      const existing = await prisma.volunteer.findFirst({
+        where: { email },
+        select: { id: true, deletedAt: true },
+      })
+      if (existing) {
+        throw new ORPCError('BAD_REQUEST', {
+          message: existing.deletedAt
+            ? 'This email was previously registered. Contact us to restore your account.'
+            : 'Email already registered',
+        })
       }
 
       const authToken = generateAuthToken()
@@ -694,11 +752,36 @@ export const authRouter = {
           email,
           authToken,
           emailConfirmed: true,
-          consentMakeProfileVisibleInDirectory: true,
-          consentContactableByProjectOwners: true,
+          applicationMessage: input.applicationMessage,
+          bio: input.bio,
+          discordHandle: input.discordHandle ?? null,
+          signalNumber: input.signalNumber ?? null,
+          whatsappNumber: input.whatsappNumber ?? null,
+          contactPreference: input.contactPreference ?? null,
+          contactNotes: input.contactNotes ?? null,
+          availabilityHoursPerWeek: input.availabilityHoursPerWeek,
+          location: input.location ?? null,
+          country: input.country,
+          localGroup: input.localGroup ?? null,
+          locationConfirmedAt: new Date(),
+          otherSkills: input.otherSkills ?? null,
+          consentMakeProfileVisibleInDirectory: input.consentMakeProfileVisibleInDirectory ?? true,
+          consentContactableByProjectOwners: input.consentContactableByProjectOwners ?? true,
+          consentShareContactInfoWithProjectOwner:
+            input.consentShareContactInfoWithProjectOwner ?? false,
           consentGivenAt: new Date(),
+          emailDigest: input.emailDigest ?? 'none',
         },
       })
+
+      for (const skillId of input.skillIds ?? []) {
+        await prisma.volunteerSkill.upsert({
+          where: { volunteerId_skillId: { volunteerId: volunteer.id, skillId } },
+          create: { volunteerId: volunteer.id, skillId },
+          update: {},
+        })
+      }
+
       const wasBootstrapped = await checkAdminBootstrap(email, volunteer.id).catch(() => false)
       const wasInvited = await acceptPendingInvite(email, volunteer.id).catch(() => false)
       const isApproved = wasBootstrapped || wasInvited
@@ -713,8 +796,7 @@ export const authRouter = {
       return {
         token: authToken,
         wasPromoted: wasBootstrapped || wasInvited,
-        isNewUser: true,
-        isPending: !isApproved,
+        pending: !isApproved,
         name,
       }
     }),

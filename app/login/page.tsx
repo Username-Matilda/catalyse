@@ -47,9 +47,25 @@ function LoginPageContent() {
 
   const googleSignInMutation = useMutation({
     ...orpc.auth.google.mutationOptions(),
-    onSuccess: async (data) => {
-      await setToken(data.token)
-      router.push(data.isNewUser ? '/profile' : '/dashboard')
+    onSuccess: async (data, variables) => {
+      if (data.isPending) {
+        // No account exists yet — hand off to the signup page's application form
+        // rather than creating one now, so a Google sign-in never bypasses the
+        // mandatory application fields.
+        sessionStorage.setItem(
+          'google_pending_auth',
+          JSON.stringify({
+            credential: variables.credential,
+            stub: variables.stub,
+            name: data.name,
+            email: data.email,
+          }),
+        )
+        router.push('/signup')
+      } else if (data.token) {
+        await setToken(data.token)
+        router.push('/dashboard')
+      }
     },
     onError: (err) => setError(err instanceof Error ? err.message : 'Google sign-in failed'),
   })

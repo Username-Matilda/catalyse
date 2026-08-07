@@ -9,6 +9,7 @@ import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import { formatDate } from '@/lib/format-date'
+import { countryLabel } from '@/lib/filter-options'
 import { InferRouterOutputs } from '@orpc/server'
 import { AppRouter } from '@/server/router'
 import { ApprovalStatus } from '@/generated/prisma/enums'
@@ -139,7 +140,7 @@ function ApplicationCard({
     ? Math.ceil((anonymiseDate.getTime() - now) / (1000 * 60 * 60 * 24))
     : null
 
-  const locationParts = [app.localGroup, app.country ?? app.location].filter(Boolean)
+  const locationParts = [app.localGroup, countryLabel(app.country) || app.location].filter(Boolean)
   const meta = [
     locationParts.length ? locationParts.join(' · ') : null,
     `Applied ${formatDate(app.createdAt!)}`,

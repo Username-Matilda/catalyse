@@ -8,6 +8,7 @@ import Button from '@/components/Button'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import { formatDate } from '@/lib/format-date'
+import { countryLabel } from '@/lib/filter-options'
 import { ApprovalStatus } from '@/generated/prisma/enums'
 
 export default function ApplicationReviewPage() {
@@ -108,7 +109,7 @@ export default function ApplicationReviewPage() {
     ? Math.ceil((anonymiseDate.getTime() - now) / (1000 * 60 * 60 * 24))
     : null
 
-  const locationParts = [app.localGroup, app.country ?? app.location].filter(Boolean)
+  const locationParts = [app.localGroup, countryLabel(app.country) || app.location].filter(Boolean)
   const meta = [
     locationParts.length ? locationParts.join(' · ') : null,
     app.createdAt ? `Applied ${formatDate(app.createdAt)}` : null,
