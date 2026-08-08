@@ -14,7 +14,10 @@ export const bugReportsRouter = {
     .handler(async ({ input, context }) => {
       const report = await prisma.bugReport.findUnique({
         where: { id: input.id },
-        include: { reporter: { select: { name: true } } },
+        include: {
+          reporter: { select: { name: true } },
+          assignee: { select: { name: true } },
+        },
       })
       if (!report) throw new ORPCError('NOT_FOUND', { message: 'Bug report not found' })
 
@@ -37,6 +40,8 @@ export const bugReportsRouter = {
         resolutionNotes: report.resolutionNotes,
         resolvedById: report.resolvedById,
         resolvedAt: report.resolvedAt,
+        assigneeId: report.assigneeId,
+        assigneeName: report.assignee?.name ?? null,
         githubIssueUrl: report.githubIssueUrl,
         createdAt: report.createdAt,
         isMine: report.reporterId === viewer.id,
