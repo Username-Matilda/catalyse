@@ -4,7 +4,7 @@ import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
 import { sendAdminInviteEmail } from '@/lib/email'
 import { InviteAdminSchema } from '@/lib/schemas'
-import { adminProcedure, authedProcedure } from '../../procedures'
+import { adminProcedure, authedProcedure, superAdminProcedure } from '../../procedures'
 import { env } from '@/lib/env'
 import { InviteStatus } from '@/generated/prisma/enums'
 
@@ -26,7 +26,7 @@ export const adminAdminsRouter = {
     }))
   }),
 
-  revoke: adminProcedure
+  revoke: superAdminProcedure
     .input(z.object({ id: z.number().int() }))
     .handler(async ({ input, context }) => {
       if (input.id === context.volunteer.id) {
@@ -62,7 +62,7 @@ export const adminAdminsRouter = {
     }))
   }),
 
-  invite: adminProcedure.input(InviteAdminSchema).handler(async ({ input, context }) => {
+  invite: superAdminProcedure.input(InviteAdminSchema).handler(async ({ input, context }) => {
     const admin = context.volunteer
     const email = input.email.trim().toLowerCase()
 
@@ -108,7 +108,7 @@ export const adminAdminsRouter = {
     return result
   }),
 
-  revokeInvite: adminProcedure
+  revokeInvite: superAdminProcedure
     .input(z.object({ id: z.number().int() }))
     .handler(async ({ input }) => {
       const invite = await prisma.adminInvite.findFirst({

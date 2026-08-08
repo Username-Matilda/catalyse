@@ -101,7 +101,7 @@ export default function AdminTeamPage() {
       <main className="container py-5 pb-15">
         <div className="flex justify-between items-center mb-6">
           <h1>Team Management</h1>
-          <Button onClick={openInviteDialog}>Invite Admin</Button>
+          {user.isSuperAdmin && <Button onClick={openInviteDialog}>Invite Admin</Button>}
         </div>
 
         <Tabs
@@ -133,7 +133,7 @@ export default function AdminTeamPage() {
                           <strong>{a.name}</strong>
                           <p className="text-text-light text-sm m-0">{a.email}</p>
                         </div>
-                        {a.id !== user.id && (
+                        {a.id !== user.id && user.isSuperAdmin && (
                           <Button
                             variant="danger"
                             size="sm"
@@ -167,9 +167,15 @@ export default function AdminTeamPage() {
                             Invited by {inv.invitedByName} · Expires {formatDate(inv.expiresAt)}
                           </p>
                         </div>
-                        <Button variant="secondary" size="sm" onClick={() => cancelInvite(inv.id)}>
-                          Cancel
-                        </Button>
+                        {user.isSuperAdmin && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => cancelInvite(inv.id)}
+                          >
+                            Cancel
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))

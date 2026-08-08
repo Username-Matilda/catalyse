@@ -53,7 +53,7 @@ const nextConfig: NextConfig = {
         permanent: false,
       },
       { source: '/admin/starter-tasks', destination: '/quick-tasks', permanent: false },
-      { source: '/static/admin/stats.html', destination: '/admin/stats', permanent: false },
+      { source: '/static/admin/stats.html', destination: '/admin', permanent: false },
       { source: '/static/admin/team.html', destination: '/admin/team', permanent: false },
       { source: '/static/admin/triage.html', destination: '/admin/triage', permanent: false },
       { source: '/static/dashboard.html', destination: '/dashboard', permanent: false },
