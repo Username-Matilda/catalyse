@@ -1,0 +1,6 @@
+-- CreateTable
+CREATE TABLE "applications_summary_runs" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "sent_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+

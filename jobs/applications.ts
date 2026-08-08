@@ -5,7 +5,17 @@ import { sendPendingApplicationsSummaryEmail } from '@/lib/email'
 import { APPLICATION_ANONYMISATION_MS } from '@/lib/applications'
 import { ApprovalStatus } from '@/generated/prisma/enums'
 
+function startOfToday(): Date {
+  const now = new Date()
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate())
+}
+
 export async function runApplicationsSummaryJob(): Promise<Record<string, unknown>> {
+  const sentToday = await prisma.applicationsSummaryRun.findFirst({
+    where: { sentAt: { gte: startOfToday() } },
+  })
+  if (sentToday) return { skipped: true, reason: 'already sent today' }
+
   const count = await prisma.volunteer.count({
     where: {
       approvalStatus: { in: [ApprovalStatus.pending, ApprovalStatus.under_review] },
@@ -32,6 +42,7 @@ export async function runApplicationsSummaryJob(): Promise<Record<string, unknow
     }
   }
 
+  await prisma.applicationsSummaryRun.create({ data: {} })
   return { sent, pending: count }
 }
 

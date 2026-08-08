@@ -399,6 +399,25 @@ model DigestRun {
   @@map("digest_runs")
 }
 
+model ApplicationsSummaryRun {
+  id     Int      @id @default(autoincrement())
+  sentAt DateTime @default(now()) @map("sent_at")
+
+  @@map("applications_summary_runs")
+}
+
+model CronJobRun {
+  id         Int       @id @default(autoincrement())
+  jobName    String    @map("job_name")
+  startedAt  DateTime  @default(now()) @map("started_at")
+  finishedAt DateTime? @map("finished_at")
+  status     String // running | success | error
+  summary    String?
+
+  @@index([jobName], map: "idx_cron_job_runs_job_name")
+  @@map("cron_job_runs")
+}
+
 /// Not exposed via Prisma Client — no valid unique identifier.
 model SchemaMigration {
   filename  String?   @id
