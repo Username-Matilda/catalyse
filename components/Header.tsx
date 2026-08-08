@@ -119,6 +119,7 @@ const ADMIN_NAV_ITEMS: { href: string; label: string; superAdminOnly?: boolean }
   { href: '/admin/stats', label: 'Platform Stats' },
   { href: '/admin/applications', label: 'Manage Applications', superAdminOnly: true },
   { href: '/admin/platform-settings', label: 'Platform Settings', superAdminOnly: true },
+  { href: '/admin/cron-runs', label: 'Cron Job Runs', superAdminOnly: true },
   { href: '/admin/local-groups', label: 'Manage Local Groups' },
 ]
 

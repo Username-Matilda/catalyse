@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkCronAuth } from '@/lib/cron-auth'
-import { runApplicationsAnonymisationJob } from '@/jobs/applications'
+import { CRON_JOBS } from '@/lib/cron-jobs'
 
 // Can be triggered manually: POST with Authorization: Bearer <CRON_SECRET>
 export async function POST(request: NextRequest) {
   const authError = checkCronAuth(request)
   if (authError) return authError
 
-  const result = await runApplicationsAnonymisationJob()
+  const result = await CRON_JOBS['applications-anonymisation']()
   return NextResponse.json({ anonymisation: result })
 }

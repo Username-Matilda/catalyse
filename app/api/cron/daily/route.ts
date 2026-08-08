@@ -1,29 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkCronAuth } from '@/lib/cron-auth'
-import { runBackupJob } from '@/jobs/backup'
-import { runDigestJob } from '@/jobs/digest'
-import { runNudgesJob } from '@/jobs/nudges'
-import { runApplicationsSummaryJob, runApplicationsAnonymisationJob } from '@/jobs/applications'
-
-const JOBS: { name: string; run: () => Promise<unknown> }[] = [
-  { name: 'backup', run: runBackupJob },
-  { name: 'digest', run: runDigestJob },
-  { name: 'nudges', run: runNudgesJob },
-  { name: 'applications', run: runApplicationsSummaryJob },
-  { name: 'anonymisation', run: runApplicationsAnonymisationJob },
-]
+import { CRON_JOBS, CRON_JOB_NAMES } from '@/lib/cron-jobs'
 
 // Can be triggered manually: POST with Authorization: Bearer <CRON_SECRET>
 export async function POST(request: NextRequest) {
   const authError = checkCronAuth(request)
   if (authError) return authError
 
-  const results = await Promise.allSettled(JOBS.map((j) => j.run()))
+  const results = await Promise.allSettled(CRON_JOB_NAMES.map((name) => CRON_JOBS[name]()))
 
   const body = Object.fromEntries(
-    JOBS.map((job, i) => {
+    CRON_JOB_NAMES.map((name, i) => {
       const r = results[i]
-      return [job.name, r.status === 'fulfilled' ? r.value : { error: String(r.reason) }]
+      return [name, r.status === 'fulfilled' ? r.value : { error: String(r.reason) }]
     }),
   )
 

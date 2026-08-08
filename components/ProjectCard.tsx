@@ -89,7 +89,7 @@ export function ProjectCard({
   action?: React.ReactNode
 }) {
   return (
-    <div className="card bg-surface rounded-xl shadow px-5 pt-5 pb-4 overflow-hidden wrap-break-word grid grid-rows-subgrid row-span-6 gap-y-2 relative">
+    <div className="card bg-surface rounded-xl shadow px-5 pt-5 pb-4 overflow-hidden wrap-break-word grid grid-rows-subgrid row-span-6 gap-y-2 relative min-w-0">
       <div className="card-header row-start-1">
         <Link
           role="link"
@@ -117,7 +117,7 @@ export function ProjectCard({
         {p.timeCommitmentHoursPerWeek && <span>🕐 {p.timeCommitmentHoursPerWeek}h/week</span>}
         {p.urgency && <span>⚡ {p.urgency} priority</span>}
       </div>
-      <p className="row-start-4 text-text-light text-sm m-0">
+      <p className="row-start-4 min-w-0 text-text-light text-sm m-0 wrap-break-word">
         {p.description
           ? `${p.description.slice(0, 150)}${p.description.length > 150 ? '…' : ''}`
           : ''}
