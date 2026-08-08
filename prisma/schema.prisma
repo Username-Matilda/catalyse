@@ -129,6 +129,7 @@ model BugReport {
   resolutionNotes String?    @map("resolution_notes")
   resolvedById    Int?       @map("resolved_by_id")
   resolvedAt      DateTime?  @map("resolved_at")
+  githubIssueUrl  String?    @map("github_issue_url")
   createdAt       DateTime?  @default(now()) @map("created_at")
   resolvedBy      Volunteer? @relation("BugReportResolvedBy", fields: [resolvedById], references: [id], onUpdate: NoAction)
   reporter        Volunteer? @relation("BugReportReporter", fields: [reporterId], references: [id], onUpdate: NoAction)

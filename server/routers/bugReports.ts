@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { createNotification } from '@/lib/notify'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { canViewBugReport } from '@/lib/bug-report-access'
+import { createGithubIssue } from '@/lib/github'
 import { CreateBugReportSchema } from '@/lib/schemas'
 import { authedProcedure } from '../procedures'
 
@@ -36,6 +37,7 @@ export const bugReportsRouter = {
         resolutionNotes: report.resolutionNotes,
         resolvedById: report.resolvedById,
         resolvedAt: report.resolvedAt,
+        githubIssueUrl: report.githubIssueUrl,
         createdAt: report.createdAt,
         isMine: report.reporterId === viewer.id,
       }
@@ -77,6 +79,17 @@ export const bugReportsRouter = {
         ).catch((e) => console.error('[NOTIFY ERROR]', e)),
       ),
     )
+
+    const githubIssueUrl = await createGithubIssue({
+      title: report.title,
+      description: report.description,
+      category: report.category,
+      severity: report.severity,
+      pageUrl: report.pageUrl,
+    })
+    if (githubIssueUrl) {
+      await prisma.bugReport.update({ where: { id: report.id }, data: { githubIssueUrl } })
+    }
 
     return { id: report.id, message: 'Thank you for your feedback!' }
   }),

@@ -121,6 +121,17 @@ export default function BugReportDetailPage({ params }: { params: Promise<{ id: 
           <p className="mt-4 text-sm italic">Resolution: {report.resolutionNotes}</p>
         )}
 
+        {user.isAdmin && report.githubIssueUrl && (
+          <a
+            href={report.githubIssueUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 inline-block text-sm underline text-primary-text"
+          >
+            View on GitHub →
+          </a>
+        )}
+
         {user.isAdmin && (
           <div className="mt-5 pt-5 border-t border-brand-border">
             <div className="mb-5">
