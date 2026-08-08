@@ -91,6 +91,7 @@ export default function BugReportDetailPage({ params }: { params: Promise<{ id: 
           {report.category && <span>{report.category}</span>}
           {report.severity && <span>· {report.severity}</span>}
           {report.reporterName && <span>· {report.reporterName}</span>}
+          {user.isAdmin && report.assigneeName && <span>· Assigned to: {report.assigneeName}</span>}
           <span>· {report.createdAt ? formatDate(report.createdAt) : ''}</span>
           {report.pageUrl &&
             (() => {
@@ -119,6 +120,17 @@ export default function BugReportDetailPage({ params }: { params: Promise<{ id: 
 
         {!user.isAdmin && report.resolutionNotes && (
           <p className="mt-4 text-sm italic">Resolution: {report.resolutionNotes}</p>
+        )}
+
+        {user.isAdmin && report.githubIssueUrl && (
+          <a
+            href={report.githubIssueUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 inline-block text-sm underline text-primary-text"
+          >
+            View on GitHub →
+          </a>
         )}
 
         {user.isAdmin && (
