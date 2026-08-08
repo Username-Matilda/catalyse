@@ -110,19 +110,6 @@ function DashboardNavButtons({ unreadCount }: { unreadCount: number }) {
   )
 }
 
-const ADMIN_NAV_ITEMS: { href: string; label: string; superAdminOnly?: boolean }[] = [
-  { href: '/admin/triage', label: 'Triage Queue' },
-  { href: '/admin/projects/new', label: 'Create Org Project' },
-  { href: '/admin/skills', label: 'Manage Skills' },
-  { href: '/admin/bugs', label: 'Bug Reports' },
-  { href: '/admin/team', label: 'Admin Team' },
-  { href: '/admin/stats', label: 'Platform Stats' },
-  { href: '/admin/applications', label: 'Manage Applications', superAdminOnly: true },
-  { href: '/admin/platform-settings', label: 'Platform Settings', superAdminOnly: true },
-  { href: '/admin/cron-runs', label: 'Cron Job Runs', superAdminOnly: true },
-  { href: '/admin/local-groups', label: 'Manage Local Groups' },
-]
-
 export default function Header() {
   const { user, loading, logout } = useAuth()
   const { show: showLocationModal } = useLocationModal()
@@ -254,22 +241,12 @@ export default function Header() {
                         Privacy &amp; Data
                       </Link>
                       {user.isAdmin && (
-                        <>
-                          <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-text-light border-t border-brand-border mt-1">
-                            {user.isSuperAdmin ? 'Super Admin' : 'Admin'}
-                          </div>
-                          {ADMIN_NAV_ITEMS.filter(
-                            (i) => !i.superAdminOnly || user.isSuperAdmin,
-                          ).map((i) => (
-                            <Link
-                              key={i.href}
-                              href={i.href}
-                              className="block px-4 py-3 text-brand-text no-underline"
-                            >
-                              {i.label}
-                            </Link>
-                          ))}
-                        </>
+                        <Link
+                          href="/admin"
+                          className="block px-4 py-3 text-brand-text no-underline border-t border-brand-border mt-1 font-semibold"
+                        >
+                          {user.isSuperAdmin ? 'Superadmin panel' : 'Admin panel'}
+                        </Link>
                       )}
                       <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-text-light border-t border-brand-border mt-1">
                         Session
@@ -429,13 +406,9 @@ export default function Header() {
                       <MobileNavSection admin>
                         {user.isSuperAdmin ? 'Super Admin' : 'Admin'}
                       </MobileNavSection>
-                      {ADMIN_NAV_ITEMS.filter((i) => !i.superAdminOnly || user.isSuperAdmin).map(
-                        (i) => (
-                          <MobileNavLink key={i.href} href={i.href}>
-                            {i.label}
-                          </MobileNavLink>
-                        ),
-                      )}
+                      <MobileNavLink href="/admin">
+                        {user.isSuperAdmin ? 'Superadmin panel' : 'Admin panel'}
+                      </MobileNavLink>
                     </>
                   )}
 

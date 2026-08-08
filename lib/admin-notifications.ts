@@ -1,0 +1,6 @@
+export const ADMIN_NOTIFICATION_TYPES: string[] = [
+  'new_volunteer_signup',
+  'new_project_proposal',
+  'local_group_suggestion',
+  'bug_report_comment',
+]

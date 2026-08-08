@@ -30,6 +30,8 @@ import { adminInterestsRouter } from './routers/admin/interests'
 import { adminEmailPreviewRouter } from './routers/admin/emailPreview'
 import { adminRejectedApplicationsRouter } from './routers/admin/rejectedApplications'
 import { adminCronRunsRouter } from './routers/admin/cronRuns'
+import { adminOverviewRouter } from './routers/admin/overview'
+import { adminNotificationsRouter } from './routers/admin/notifications'
 import { versionRouter } from './routers/version'
 
 export const appRouter = {
@@ -67,6 +69,8 @@ export const appRouter = {
     emailPreview: adminEmailPreviewRouter,
     rejectedApplications: adminRejectedApplicationsRouter,
     cronRuns: adminCronRunsRouter,
+    overview: adminOverviewRouter,
+    notifications: adminNotificationsRouter,
   },
 }
 
