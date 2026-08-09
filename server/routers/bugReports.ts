@@ -1,10 +1,9 @@
 import { z } from 'zod'
 import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
-import { createNotification } from '@/lib/notify'
+import { createNotification, notifyUser } from '@/lib/notify'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { canViewBugReport } from '@/lib/bug-report-access'
-import { createGithubIssue } from '@/lib/github'
 import { CreateBugReportSchema } from '@/lib/schemas'
 import { authedProcedure } from '../procedures'
 
@@ -42,7 +41,6 @@ export const bugReportsRouter = {
         resolvedAt: report.resolvedAt,
         assigneeId: report.assigneeId,
         assigneeName: report.assignee?.name ?? null,
-        githubIssueUrl: report.githubIssueUrl,
         createdAt: report.createdAt,
         isMine: report.reporterId === viewer.id,
       }
@@ -71,30 +69,28 @@ export const bugReportsRouter = {
 
     const admins = await prisma.volunteer.findMany({
       where: { isAdmin: true },
-      select: { id: true },
+      select: { id: true, isTechnicalAdmin: true },
     })
+    const notifyTitle = `New ${input.category ?? 'bug'}: ${input.title.trim()}`
+    const notifyBody = `Severity: ${input.severity ?? 'medium'}`
     await Promise.all(
       admins.map((admin) =>
-        createNotification(
-          admin.id,
-          'new_bug_report',
-          `New ${input.category ?? 'bug'}: ${input.title.trim()}`,
-          `Severity: ${input.severity ?? 'medium'}`,
-          '/admin/bugs',
-        ).catch((e) => console.error('[NOTIFY ERROR]', e)),
+        admin.isTechnicalAdmin
+          ? notifyUser(admin.id, 'new_bug_report', notifyTitle, notifyBody, '/admin/bugs', {
+              subject: notifyTitle,
+              message: notifyBody,
+              ctaLabel: 'View Bug Report',
+              ctaUrl: '/admin/bugs',
+            }).catch((e) => console.error('[NOTIFY ERROR]', e))
+          : createNotification(
+              admin.id,
+              'new_bug_report',
+              notifyTitle,
+              notifyBody,
+              '/admin/bugs',
+            ).catch((e) => console.error('[NOTIFY ERROR]', e)),
       ),
     )
-
-    const githubIssueUrl = await createGithubIssue({
-      title: report.title,
-      description: report.description,
-      category: report.category,
-      severity: report.severity,
-      pageUrl: report.pageUrl,
-    })
-    if (githubIssueUrl) {
-      await prisma.bugReport.update({ where: { id: report.id }, data: { githubIssueUrl } })
-    }
 
     return { id: report.id, message: 'Thank you for your feedback!' }
   }),

@@ -36,7 +36,6 @@ export const adminBugReportsRouter = {
         resolvedAt: r.resolvedAt,
         assigneeId: r.assigneeId,
         assigneeName: r.assignee?.name ?? null,
-        githubIssueUrl: r.githubIssueUrl,
         createdAt: r.createdAt,
         reporterName: r.reporter?.name ?? null,
       }))

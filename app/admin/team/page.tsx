@@ -68,6 +68,17 @@ export default function AdminTeamPage() {
     },
   })
 
+  const setTechnicalAdminMutation = useMutation({
+    ...orpc.admin.admins.setTechnicalAdmin.mutationOptions(),
+    onSuccess: (data) => {
+      showToast(data.message, 'success')
+      void queryClient.invalidateQueries({ queryKey: orpc.admin.admins.list.key() })
+    },
+    onError: (err: unknown) => {
+      showToast(err instanceof Error ? err.message : 'Failed to update', 'error')
+    },
+  })
+
   function openInviteDialog() {
     setInviteEmail('')
     setInviteSuccess('')
@@ -128,20 +139,44 @@ export default function AdminTeamPage() {
                       key={a.id}
                       className="card bg-surface rounded-xl shadow p-6 mb-3 overflow-hidden wrap-break-word"
                     >
-                      <div className="flex justify-between items-center">
+                      <div className="flex justify-between items-center gap-4">
                         <div>
                           <strong>{a.name}</strong>
                           <p className="text-text-light text-sm m-0">{a.email}</p>
                         </div>
-                        {a.id !== user.id && user.isSuperAdmin && (
-                          <Button
-                            variant="danger"
-                            size="sm"
-                            onClick={() => revokeAdmin(a.id, a.name)}
-                          >
-                            Revoke Access
-                          </Button>
-                        )}
+                        <div className="flex items-center gap-4 shrink-0">
+                          {user.isSuperAdmin ? (
+                            <label className="flex items-center gap-2 text-sm whitespace-nowrap">
+                              <input
+                                type="checkbox"
+                                checked={a.isTechnicalAdmin}
+                                disabled={setTechnicalAdminMutation.isPending}
+                                onChange={(e) =>
+                                  setTechnicalAdminMutation.mutate({
+                                    id: a.id,
+                                    isTechnicalAdmin: e.target.checked,
+                                  })
+                                }
+                              />
+                              Notify of bug reports
+                            </label>
+                          ) : (
+                            a.isTechnicalAdmin && (
+                              <span className="text-text-light text-sm whitespace-nowrap">
+                                Notified of bug reports
+                              </span>
+                            )
+                          )}
+                          {a.id !== user.id && user.isSuperAdmin && (
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              onClick={() => revokeAdmin(a.id, a.name)}
+                            >
+                              Revoke Access
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))
