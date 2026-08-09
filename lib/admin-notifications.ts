@@ -3,4 +3,5 @@ export const ADMIN_NOTIFICATION_TYPES: string[] = [
   'new_project_proposal',
   'local_group_suggestion',
   'bug_report_comment',
+  'new_bug_report',
 ]

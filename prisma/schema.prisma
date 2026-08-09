@@ -129,13 +129,16 @@ model BugReport {
   resolutionNotes String?    @map("resolution_notes")
   resolvedById    Int?       @map("resolved_by_id")
   resolvedAt      DateTime?  @map("resolved_at")
+  assigneeId      Int?       @map("assignee_id")
   createdAt       DateTime?  @default(now()) @map("created_at")
   resolvedBy      Volunteer? @relation("BugReportResolvedBy", fields: [resolvedById], references: [id], onUpdate: NoAction)
   reporter        Volunteer? @relation("BugReportReporter", fields: [reporterId], references: [id], onUpdate: NoAction)
+  assignee        Volunteer? @relation("BugReportAssignee", fields: [assigneeId], references: [id], onUpdate: NoAction)
   comments        BugReportComment[]
 
   @@index([reporterId], map: "idx_bug_reports_reporter")
   @@index([status], map: "idx_bug_reports_status")
+  @@index([assigneeId], map: "idx_bug_reports_assignee")
   @@map("bug_reports")
 }
 
@@ -517,6 +520,7 @@ model Volunteer {
   /// @zod.custom.omit([model])
   passwordHash                            String?                  @map("password_hash")
   isAdmin                                 Boolean?                 @default(false) @map("is_admin")
+  isTechnicalAdmin                        Boolean?                 @default(false) @map("is_technical_admin")
   createdAt                               DateTime?                @default(now()) @map("created_at")
   updatedAt                               DateTime?                @default(now()) @map("updated_at")
   deletedAt                               DateTime?                @map("deleted_at")
@@ -539,6 +543,7 @@ model Volunteer {
   adminNotesAbout                         AdminNote[]              @relation("AdminNoteVolunteer")
   bugReportsResolved                      BugReport[]              @relation("BugReportResolvedBy")
   bugReportsReported                      BugReport[]              @relation("BugReportReporter")
+  bugReportsAssigned                      BugReport[]              @relation("BugReportAssignee")
   bugReportComments                       BugReportComment[]       @relation("BugReportCommentAuthor")
   messagesSent                            Message[]                @relation("MessageFrom")
   messagesReceived                        Message[]                @relation("MessageTo")

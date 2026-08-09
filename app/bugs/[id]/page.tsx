@@ -91,6 +91,7 @@ export default function BugReportDetailPage({ params }: { params: Promise<{ id: 
           {report.category && <span>{report.category}</span>}
           {report.severity && <span>· {report.severity}</span>}
           {report.reporterName && <span>· {report.reporterName}</span>}
+          {user.isAdmin && report.assigneeName && <span>· Assigned to: {report.assigneeName}</span>}
           <span>· {report.createdAt ? formatDate(report.createdAt) : ''}</span>
           {report.pageUrl &&
             (() => {

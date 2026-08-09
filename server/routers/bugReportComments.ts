@@ -67,7 +67,7 @@ export const bugReportCommentsRouter = {
         if (report.reporterId && report.reporterId !== volunteer.id) {
           await notifyUser(
             report.reporterId,
-            'bug_report_comment',
+            'bug_report_comment_reply',
             `New reply on your bug report: ${report.title}`,
             input.content.slice(0, 200),
             link,

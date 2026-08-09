@@ -15,7 +15,7 @@ export const adminAdminsRouter = {
   list: adminProcedure.handler(async () => {
     const admins = await prisma.volunteer.findMany({
       where: { isAdmin: true, deletedAt: null },
-      select: { id: true, name: true, email: true, createdAt: true },
+      select: { id: true, name: true, email: true, createdAt: true, isTechnicalAdmin: true },
       orderBy: { name: 'asc' },
     })
     return admins.map((a) => ({
@@ -23,8 +23,29 @@ export const adminAdminsRouter = {
       name: a.name,
       email: a.email,
       createdAt: a.createdAt,
+      isTechnicalAdmin: Boolean(a.isTechnicalAdmin),
     }))
   }),
+
+  setTechnicalAdmin: superAdminProcedure
+    .input(z.object({ id: z.number().int(), isTechnicalAdmin: z.boolean() }))
+    .handler(async ({ input }) => {
+      const target = await prisma.volunteer.findFirst({
+        where: { id: input.id, isAdmin: true },
+        select: { id: true, name: true },
+      })
+      if (!target) throw new ORPCError('NOT_FOUND', { message: 'Admin not found' })
+
+      await prisma.volunteer.update({
+        where: { id: input.id },
+        data: { isTechnicalAdmin: input.isTechnicalAdmin },
+      })
+      return {
+        message: input.isTechnicalAdmin
+          ? `${target.name} will now be notified of bug reports`
+          : `${target.name} will no longer be notified of bug reports`,
+      }
+    }),
 
   revoke: superAdminProcedure
     .input(z.object({ id: z.number().int() }))

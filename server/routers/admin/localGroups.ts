@@ -192,7 +192,7 @@ export const adminLocalGroupsRouter = {
 
       await createNotification(
         suggestion.suggestedBy.id,
-        'local_group_suggestion',
+        'local_group_suggestion_reviewed',
         title,
         adminNotes,
         notificationLink,

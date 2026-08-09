@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
+import { ApprovalStatus } from '@/generated/prisma/enums'
 import { UpdateBugReportSchema } from '@/lib/schemas'
 import { adminProcedure } from '../../procedures'
 
@@ -13,7 +14,10 @@ export const adminBugReportsRouter = {
           ...(input.status ? { status: input.status } : {}),
           ...(input.category ? { category: input.category } : {}),
         },
-        include: { reporter: { select: { name: true } } },
+        include: {
+          reporter: { select: { name: true } },
+          assignee: { select: { name: true } },
+        },
         orderBy: { createdAt: 'desc' },
       })
 
@@ -30,9 +34,32 @@ export const adminBugReportsRouter = {
         resolutionNotes: r.resolutionNotes,
         resolvedById: r.resolvedById,
         resolvedAt: r.resolvedAt,
+        assigneeId: r.assigneeId,
+        assigneeName: r.assignee?.name ?? null,
         createdAt: r.createdAt,
         reporterName: r.reporter?.name ?? null,
       }))
+    }),
+
+  assign: adminProcedure
+    .input(z.object({ id: z.number().int(), volunteerId: z.number().int() }))
+    .handler(async ({ input }) => {
+      const report = await prisma.bugReport.findUnique({ where: { id: input.id } })
+      if (!report) throw new ORPCError('NOT_FOUND', { message: 'Bug report not found' })
+
+      const assignee = await prisma.volunteer.findFirst({
+        where: { id: input.volunteerId, deletedAt: null },
+      })
+      if (!assignee) throw new ORPCError('BAD_REQUEST', { message: 'Volunteer not found' })
+      if (assignee.approvalStatus !== ApprovalStatus.approved) {
+        throw new ORPCError('BAD_REQUEST', {
+          message: 'Cannot assign a bug report to a volunteer who is not yet approved',
+        })
+      }
+
+      await prisma.bugReport.update({ where: { id: input.id }, data: { assigneeId: assignee.id } })
+
+      return { message: 'Bug report assigned' }
     }),
 
   update: adminProcedure

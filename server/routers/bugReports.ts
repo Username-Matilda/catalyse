@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
-import { createNotification } from '@/lib/notify'
+import { createNotification, notifyUser } from '@/lib/notify'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { canViewBugReport } from '@/lib/bug-report-access'
 import { CreateBugReportSchema } from '@/lib/schemas'
@@ -13,7 +13,10 @@ export const bugReportsRouter = {
     .handler(async ({ input, context }) => {
       const report = await prisma.bugReport.findUnique({
         where: { id: input.id },
-        include: { reporter: { select: { name: true } } },
+        include: {
+          reporter: { select: { name: true } },
+          assignee: { select: { name: true } },
+        },
       })
       if (!report) throw new ORPCError('NOT_FOUND', { message: 'Bug report not found' })
 
@@ -36,6 +39,8 @@ export const bugReportsRouter = {
         resolutionNotes: report.resolutionNotes,
         resolvedById: report.resolvedById,
         resolvedAt: report.resolvedAt,
+        assigneeId: report.assigneeId,
+        assigneeName: report.assignee?.name ?? null,
         createdAt: report.createdAt,
         isMine: report.reporterId === viewer.id,
       }
@@ -63,18 +68,34 @@ export const bugReportsRouter = {
     })
 
     const admins = await prisma.volunteer.findMany({
-      where: { isAdmin: true },
-      select: { id: true },
+      where: { isAdmin: true, id: { not: volunteer.id } },
+      select: { id: true, isTechnicalAdmin: true },
     })
+    const notifyTitle = `New ${input.category ?? 'bug'}: ${input.title.trim()}`
+    const notifyBody = `Severity: ${input.severity ?? 'medium'}`
+    await createNotification(
+      volunteer.id,
+      'bug_report_submitted',
+      'Bug report submitted',
+      `We've received your report: ${input.title.trim()}`,
+      `/bugs/${report.id}`,
+    ).catch((e) => console.error('[NOTIFY ERROR]', e))
     await Promise.all(
       admins.map((admin) =>
-        createNotification(
-          admin.id,
-          'new_bug_report',
-          `New ${input.category ?? 'bug'}: ${input.title.trim()}`,
-          `Severity: ${input.severity ?? 'medium'}`,
-          '/admin/bugs',
-        ).catch((e) => console.error('[NOTIFY ERROR]', e)),
+        admin.isTechnicalAdmin
+          ? notifyUser(admin.id, 'new_bug_report', notifyTitle, notifyBody, '/admin/bugs', {
+              subject: notifyTitle,
+              message: notifyBody,
+              ctaLabel: 'View Bug Report',
+              ctaUrl: '/admin/bugs',
+            }).catch((e) => console.error('[NOTIFY ERROR]', e))
+          : createNotification(
+              admin.id,
+              'new_bug_report',
+              notifyTitle,
+              notifyBody,
+              '/admin/bugs',
+            ).catch((e) => console.error('[NOTIFY ERROR]', e)),
       ),
     )
 
