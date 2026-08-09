@@ -4,7 +4,7 @@ import { goToDashboardNotifications } from '../actions/dashboard'
 import { fake } from '../fake'
 
 test.describe('Bug Reporting', () => {
-  test('Logged-in volunteer submits a bug report; admin receives a notification', async ({
+  test('Logged-in volunteer submits a bug report; reporter and admin are each notified in their own panel', async ({
     adminPage,
     volunteer,
     baseUrl,
@@ -30,7 +30,12 @@ test.describe('Bug Reporting', () => {
       timeout: 10_000,
     })
 
-    await goToDashboardNotifications(baseUrl, adminPage)
+    await goToDashboardNotifications(baseUrl, volunteer.page)
+    await expect(
+      volunteer.page.locator('strong').filter({ hasText: 'Bug report submitted' }),
+    ).toBeVisible({ timeout: 10_000 })
+
+    await adminPage.goto(`${baseUrl}/admin`)
     await expect(adminPage.locator('strong').filter({ hasText: `New bug: ${title}` })).toBeVisible({
       timeout: 10_000,
     })

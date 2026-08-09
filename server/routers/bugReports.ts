@@ -68,11 +68,18 @@ export const bugReportsRouter = {
     })
 
     const admins = await prisma.volunteer.findMany({
-      where: { isAdmin: true },
+      where: { isAdmin: true, id: { not: volunteer.id } },
       select: { id: true, isTechnicalAdmin: true },
     })
     const notifyTitle = `New ${input.category ?? 'bug'}: ${input.title.trim()}`
     const notifyBody = `Severity: ${input.severity ?? 'medium'}`
+    await createNotification(
+      volunteer.id,
+      'bug_report_submitted',
+      'Bug report submitted',
+      `We've received your report: ${input.title.trim()}`,
+      `/bugs/${report.id}`,
+    ).catch((e) => console.error('[NOTIFY ERROR]', e))
     await Promise.all(
       admins.map((admin) =>
         admin.isTechnicalAdmin
