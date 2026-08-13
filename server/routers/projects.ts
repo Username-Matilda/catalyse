@@ -234,6 +234,7 @@ export const projectsRouter = {
           collaborationLink: input.collaborationLink ?? null,
           country: input.country ?? null,
           localGroup: input.localGroup ?? null,
+          remoteEligibility: input.remoteEligibility ?? 'NONE',
           isSeekingHelp: input.isSeekingHelp !== false,
           isSeekingOwner: !wantToOwn,
         },
@@ -486,6 +487,7 @@ export const projectsRouter = {
         'collaborationLink',
         'country',
         'localGroup',
+        'remoteEligibility',
         'outcome',
         'outcomeNotes',
       ] as const

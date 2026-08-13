@@ -4,6 +4,7 @@ import {
   InterestStatus,
   ProjectStatus,
   QuickTaskStatus,
+  RemoteEligibility,
   WorkItemType,
 } from '@/generated/prisma/enums'
 
@@ -134,6 +135,7 @@ export type EnrichedProject = {
   isSeekingHelp: boolean | null
   isSeekingOwner: boolean | null
   localGroup: string | null
+  remoteEligibility: RemoteEligibility
   skills: WorkItemSkillWithRelations[]
   assignee: { id: number; name: string } | null
   creator: { id: number; name: string } | null
@@ -175,6 +177,7 @@ export function withProjectExtras(p: EnrichedProject, volunteerSkillIds?: Set<nu
     isSeekingHelp: p.isSeekingHelp,
     isSeekingOwner: p.isSeekingOwner,
     localGroup: p.localGroup,
+    remoteEligibility: p.remoteEligibility,
     skills: p.skills.map((ps) => ({
       id: ps.skill.id,
       categoryId: ps.skill.categoryId,

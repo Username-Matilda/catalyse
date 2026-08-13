@@ -33,6 +33,12 @@ enum WorkItemType {
   QUICK_TASK
 }
 
+enum RemoteEligibility {
+  NONE
+  COUNTRY
+  GLOBAL
+}
+
 enum TaskStatus {
   open
   in_progress
@@ -283,10 +289,11 @@ model WorkItem {
   sortOrder           Int?      @default(0) @map("sort_order")
   featuredAsQuickTask Boolean?  @default(false) @map("featured_as_quick_task") // TASK only — also list on the Quick Tasks page
 
-  country    String?
-  localGroup String?   @map("local_group")
-  createdAt  DateTime? @default(now()) @map("created_at")
-  updatedAt  DateTime? @default(now()) @map("updated_at")
+  country           String?
+  localGroup        String?           @map("local_group")
+  remoteEligibility RemoteEligibility @default(NONE) @map("remote_eligibility")
+  createdAt         DateTime?         @default(now()) @map("created_at")
+  updatedAt         DateTime?         @default(now()) @map("updated_at")
 
   creator     Volunteer?         @relation("WorkItemCreator", fields: [creatorId], references: [id], onUpdate: NoAction)
   assignee    Volunteer?         @relation("WorkItemAssignee", fields: [assigneeId], references: [id], onUpdate: NoAction)
@@ -526,6 +533,7 @@ model Volunteer {
   deletedAt                               DateTime?                @map("deleted_at")
   country                                 String?
   emailDigest                             String?                  @default("none") @map("email_digest") // TODO: enum — none, daily, weekly
+  notifyRemoteProjects                    Boolean                  @default(false) @map("notify_remote_projects")
   localGroup                              String?                  @map("local_group")
   locationConfirmedAt                     DateTime?                @map("location_confirmed_at")
   approvalStatus                          ApprovalStatus           @default(pending) @map("approval_status")

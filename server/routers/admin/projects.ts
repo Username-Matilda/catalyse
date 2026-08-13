@@ -35,6 +35,7 @@ export const adminProjectsRouter = {
           collaborationLink: input.collaborationLink ?? null,
           country: input.country ?? null,
           localGroup: input.localGroup ?? null,
+          remoteEligibility: input.remoteEligibility ?? 'NONE',
           isSeekingHelp: input.isSeekingHelp !== false,
           isSeekingOwner: input.isSeekingOwner === true,
         },

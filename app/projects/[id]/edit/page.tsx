@@ -31,6 +31,12 @@ const PROJECT_TYPES = [
   { value: 'one_off', label: 'One-off task' },
 ] as const
 
+const REMOTE_ELIGIBILITY_OPTIONS = [
+  { value: 'NONE', label: 'No - in-person / local only' },
+  { value: 'COUNTRY', label: 'Yes - remote OK, within the same country' },
+  { value: 'GLOBAL', label: 'Yes - remote OK, from any country' },
+] as const
+
 export default function EditProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = use(params)
   const router = useRouter()
@@ -49,6 +55,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
   const [hoursPerWeek, setHoursPerWeek] = useState('')
   const [urgency, setUrgency] = useState('medium')
   const [locationValue, setLocationValue] = useState('') // 'UK' or 'UK:London'
+  const [remoteEligibility, setRemoteEligibility] = useState<'NONE' | 'COUNTRY' | 'GLOBAL'>('NONE')
   const [estimatedDuration, setEstimatedDuration] = useState('')
   const [seekingHelp, setSeekingHelp] = useState(true)
   const [seekingOwner, setSeekingOwner] = useState(true)
@@ -79,6 +86,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
     const country = data.country ?? ''
     const localGroup = data.localGroup ?? ''
     setLocationValue(country && localGroup ? `${country}:${localGroup}` : country)
+    setRemoteEligibility(data.remoteEligibility ?? 'NONE')
     setEstimatedDuration(data.estimatedDuration ?? '')
     setSeekingHelp(data.isSeekingHelp ?? false)
     setSeekingOwner(data.isSeekingOwner ?? false)
@@ -118,6 +126,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
       urgency,
       country: country || null,
       localGroup: localGroup || null,
+      remoteEligibility,
       estimatedDuration: estimatedDuration.trim() || null,
       isSeekingHelp: seekingHelp,
       isSeekingOwner: seekingOwner,
@@ -246,6 +255,20 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
             />
             <p className="text-sm text-text-light mt-1">
               Local groups appear indented under their country.
+            </p>
+          </div>
+
+          <div className="mb-5">
+            <FilterDropdown
+              id="remote-eligibility"
+              label="Can this be done remotely?"
+              ariaLabel="Select remote eligibility"
+              value={remoteEligibility}
+              options={REMOTE_ELIGIBILITY_OPTIONS}
+              onChange={setRemoteEligibility}
+            />
+            <p className="text-sm text-text-light mt-1">
+              Controls who gets project-match alerts outside the country above.
             </p>
           </div>
 

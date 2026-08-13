@@ -38,6 +38,12 @@ const PROJECT_TYPES = [
   { value: 'one_off', label: 'One-off task - Single deliverable, minimal coordination' },
 ]
 
+const REMOTE_ELIGIBILITY_OPTIONS = [
+  { value: 'NONE', label: 'No - in-person / local only' },
+  { value: 'COUNTRY', label: 'Yes - remote OK, within the same country' },
+  { value: 'GLOBAL', label: 'Yes - remote OK, from any country' },
+]
+
 type ProjectCreateInput = InferRouterInputs<AppRouter>['projects']['create']
 
 interface ProjectFormProps {
@@ -63,6 +69,7 @@ export default function ProjectForm({
   const [hoursPerWeek, setHoursPerWeek] = useState('')
   const [urgency, setUrgency] = useState('medium')
   const [locationValue, setLocationValue] = useState('') // 'UK' or 'UK:London'
+  const [remoteEligibility, setRemoteEligibility] = useState('NONE')
   const [duration, setDuration] = useState('')
   const [collaborationLink, setCollaborationLink] = useState('')
   const [skills, setSkills] = useState<SelectedSkill[]>([])
@@ -118,6 +125,7 @@ export default function ProjectForm({
         urgency,
         country: country || null,
         localGroup: localGroup || null,
+        remoteEligibility: remoteEligibility as ProjectCreateInput['remoteEligibility'],
         estimatedDuration: duration.trim() || null,
         collaborationLink: collaborationLink.trim() || null,
         skillIds: skills.map((s) => s.skillId),
@@ -298,6 +306,20 @@ export default function ProjectForm({
             </a>
           </p>
         )}
+      </div>
+
+      <div className="mb-5">
+        <FilterDropdown
+          id="remote-eligibility"
+          label="Can this be done remotely?"
+          ariaLabel="Select remote eligibility"
+          value={remoteEligibility}
+          options={REMOTE_ELIGIBILITY_OPTIONS}
+          onChange={setRemoteEligibility}
+        />
+        <p className="text-sm text-text-light mt-1">
+          Controls who gets project-match alerts outside the country above.
+        </p>
       </div>
 
       <div className="mb-5">

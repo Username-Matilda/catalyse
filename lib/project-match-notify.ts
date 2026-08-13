@@ -1,6 +1,6 @@
 import { prisma } from './prisma'
 import { sendDigestEmail, isEmailConfigured } from './email'
-import { calculateMatchScore, matchGradeLabel, MATCH_GRADES } from './matching'
+import { calculateMatchScore, matchGradeLabel, isGeoEligible, MATCH_GRADES } from './matching'
 import { WorkItemType } from '@/generated/prisma/enums'
 
 const NOTIFIABLE_GRADES = new Set(MATCH_GRADES.filter((g) => g.notifiable).map((g) => g.label))
@@ -36,6 +36,16 @@ export async function notifyMatchingVolunteers(projectId: number): Promise<void>
 
   await Promise.all(
     volunteers.map((vol) => {
+      if (
+        !isGeoEligible(
+          vol.country,
+          vol.notifyRemoteProjects,
+          project.country,
+          project.remoteEligibility,
+        )
+      )
+        return
+
       const volSkillIds = new Set(vol.skills.map((vs) => vs.skillId))
       const score = calculateMatchScore(volSkillIds, projectSkills)
       const grade = matchGradeLabel(score.matchedRequiredCount)

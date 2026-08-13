@@ -297,6 +297,7 @@ export const volunteersRouter = {
       'localGroup',
       'otherSkills',
       'emailDigest',
+      'notifyRemoteProjects',
       'applicationMessage',
     ] as const
     for (const field of scalarFields) {

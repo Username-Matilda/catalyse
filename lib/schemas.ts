@@ -122,16 +122,19 @@ const PROJECT_INPUT_FIELDS = {
   collaborationLink: true,
   country: true,
   localGroup: true,
+  remoteEligibility: true,
   isSeekingHelp: true,
   isSeekingOwner: true,
 } as const
 
-export const CreateProjectSchema = WorkItemSchema.pick(PROJECT_INPUT_FIELDS).extend({
-  tasks: z.array(TaskInputSchema).optional().default([]),
-  wantToOwn: z.boolean().optional().default(false),
-  skillIds: z.array(z.number().int()).optional().default([]),
-  skillRequiredMap: z.record(z.string(), z.boolean()).optional().default({}),
-})
+export const CreateProjectSchema = WorkItemSchema.pick(PROJECT_INPUT_FIELDS)
+  .partial({ remoteEligibility: true })
+  .extend({
+    tasks: z.array(TaskInputSchema).optional().default([]),
+    wantToOwn: z.boolean().optional().default(false),
+    skillIds: z.array(z.number().int()).optional().default([]),
+    skillRequiredMap: z.record(z.string(), z.boolean()).optional().default({}),
+  })
 
 export const UpdateProjectSchema = WorkItemSchema.pick({
   ...PROJECT_INPUT_FIELDS,
@@ -183,12 +186,14 @@ export const CreateProjectUpdateSchema = WorkItemCommentSchema.pick({
 
 // ─── Admin: projects ──────────────────────────────────────────────────────────
 
-export const AdminCreateProjectSchema = WorkItemSchema.pick(PROJECT_INPUT_FIELDS).extend({
-  tasks: z.array(TaskInputSchema).optional().default([]),
-  wantToOwn: z.boolean().optional().default(false),
-  skillIds: z.array(z.number().int()).optional().default([]),
-  skillRequiredMap: z.record(z.string(), z.boolean()).optional().default({}),
-})
+export const AdminCreateProjectSchema = WorkItemSchema.pick(PROJECT_INPUT_FIELDS)
+  .partial({ remoteEligibility: true })
+  .extend({
+    tasks: z.array(TaskInputSchema).optional().default([]),
+    wantToOwn: z.boolean().optional().default(false),
+    skillIds: z.array(z.number().int()).optional().default([]),
+    skillRequiredMap: z.record(z.string(), z.boolean()).optional().default({}),
+  })
 
 export const ReviewProjectSchema = z.object({
   status: z.enum(['approved', 'needs_discussion'], {
