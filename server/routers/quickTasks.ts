@@ -55,6 +55,36 @@ export const quickTasksRouter = {
       }))
     }),
 
+  // Project tasks flagged featuredAsQuickTask, regardless of status/assignee — so an admin
+  // checking this page can confirm a flag actually took effect and see who holds it,
+  // instead of only being able to see it once claimed via `available` (open+unclaimed only).
+  // Management (edit/assign/unassign) still happens on the task's own project page — these
+  // aren't WorkItemType.QUICK_TASK rows, so the quick-task-specific mutations don't apply.
+  featuredProjectTasks: adminProcedure.handler(async () => {
+    const tasks = await prisma.workItem.findMany({
+      where: { type: WorkItemType.TASK, featuredAsQuickTask: true },
+      include: {
+        parent: { select: { id: true, title: true } },
+        assignee: { select: { name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    return tasks
+      .filter((t) => t.parentId !== null)
+      .map((t) => ({
+        id: t.id,
+        projectId: t.parentId as number,
+        projectTitle: t.parent?.title ?? null,
+        title: t.title,
+        status: t.status,
+        assignedToId: t.assigneeId,
+        assignedToName: t.assignee?.name ?? null,
+        estimatedHours: t.estimatedHours,
+        createdAt: t.createdAt,
+      }))
+  }),
+
   // The open, unclaimed browse pool: real quick tasks plus project tasks a
   // project owner/admin has flagged to also surface here (featuredAsQuickTask).
   available: approvedProcedure.handler(async ({ context }) => {

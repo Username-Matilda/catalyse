@@ -41,10 +41,30 @@ interface Volunteer {
   name: string
 }
 
+interface FeaturedProjectTask {
+  id: number
+  projectId: number
+  projectTitle: string | null
+  title: string
+  status: string
+  assignedToId: number | null
+  assignedToName: string | null
+  estimatedHours: number | null
+  createdAt: string
+}
+
 const STATUS_VARIANTS: Record<string, BadgeVariant> = {
   open: 'warning',
   in_progress: 'info',
   under_review: 'caution',
+  completed: 'success',
+}
+
+// Project tasks use TaskStatus (open/in_progress/completed), not QuickTaskStatus —
+// no under_review here, since submitting for review is a quick-task-only concept.
+const PROJECT_TASK_STATUS_VARIANTS: Record<string, BadgeVariant> = {
+  open: 'warning',
+  in_progress: 'info',
   completed: 'success',
 }
 
@@ -349,6 +369,12 @@ function AdminQuickTasksView() {
     enabled: !!user?.isAdmin,
   })
   const tasks = tasksRaw as unknown as AdminQuickTask[]
+
+  const { data: featuredProjectTasksRaw = [] } = useQuery({
+    ...orpc.quickTasks.featuredProjectTasks.queryOptions(),
+    enabled: !!user?.isAdmin,
+  })
+  const featuredProjectTasks = featuredProjectTasksRaw as unknown as FeaturedProjectTask[]
 
   const { data: skillCats = [] } = useQuery({
     ...orpc.skills.list.queryOptions(),
@@ -745,6 +771,57 @@ function AdminQuickTasksView() {
               </div>
             )
           })
+        )}
+
+        {featuredProjectTasks.length > 0 && (
+          <>
+            <h2 className="mt-8">Featured project tasks</h2>
+            <p className="text-text-light mb-6">
+              Project tasks flagged to also appear on this page for volunteers. Manage them (edit,
+              assign, unassign) from their own project — this list is for visibility only.
+            </p>
+            {featuredProjectTasks.map((task) => (
+              <div
+                key={`project-task-${task.id}`}
+                role="article"
+                className="card bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
+              >
+                <div className="flex justify-between items-start gap-3 min-w-0 mb-2">
+                  <div className="min-w-0">
+                    <h3 className="mb-1">
+                      <Link href={`/projects/${task.projectId}/tasks/${task.id}`}>
+                        {task.title}
+                      </Link>
+                    </h3>
+                    <div className="text-text-light flex gap-2 flex-wrap text-[0.8rem]">
+                      {task.projectTitle && (
+                        <span>
+                          Part of:{' '}
+                          <Link href={`/projects/${task.projectId}`}>{task.projectTitle}</Link>
+                        </span>
+                      )}
+                      {task.estimatedHours !== null && <span>~{task.estimatedHours}h</span>}
+                      {task.assignedToId && task.assignedToName && (
+                        <span>
+                          Assigned to:{' '}
+                          <Link href={`/admin/volunteers/${task.assignedToId}`}>
+                            {task.assignedToName}
+                          </Link>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <Badge
+                    role="status"
+                    variant={PROJECT_TASK_STATUS_VARIANTS[task.status] ?? 'neutral'}
+                    className="whitespace-nowrap shrink-0"
+                  >
+                    {task.status}
+                  </Badge>
+                </div>
+              </div>
+            ))}
+          </>
         )}
       </main>
 

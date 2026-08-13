@@ -117,6 +117,56 @@ test.describe('Quick Tasks: self-serve', () => {
     expect(autoInterest?.message).toContain(taskTitle)
   })
 
+  test('A superadmin sees a featured project task on the Quick Tasks admin page', async ({
+    adminPage,
+    baseUrl,
+  }) => {
+    const adminApi = createApiClient(baseUrl, readAdminToken(baseUrl))
+    const taskTitle = `Admin-visible-flagged ${Date.now()}`
+    const projectCreated = await adminApi.admin.projects.create({
+      body: {
+        title: fake.projectTitle(),
+        description: 'Admin visibility test project',
+        projectType: null,
+        estimatedDuration: null,
+        timeCommitmentHoursPerWeek: null,
+        urgency: 'medium',
+        collaborationLink: null,
+        country: null,
+        localGroup: null,
+        isSeekingHelp: true,
+        isSeekingOwner: false,
+        tasks: [{ title: 'Seed task' }],
+      },
+    })
+    const projectId = (projectCreated.body as { id: number }).id
+
+    const taskCreated = await adminApi.projects.createTask({
+      body: { projectId, title: taskTitle, featuredAsQuickTask: true },
+    })
+    const taskId = (taskCreated.body as { id: number }).id
+
+    // Regression: the admin Quick Tasks page only ever queried real QuickTask rows
+    // (quickTasks.list), never project tasks flagged featuredAsQuickTask — so a task
+    // flagged this way was invisible here even though it correctly appeared in the
+    // volunteer-facing browse pool.
+    await adminPage.goto(`${baseUrl}/quick-tasks`)
+    await expect(adminPage.getByRole('heading', { name: 'Quick Tasks', level: 1 })).toBeVisible({
+      timeout: 10_000,
+    })
+    await expect(
+      adminPage.getByRole('heading', { name: 'Featured project tasks', level: 2 }),
+    ).toBeVisible({ timeout: 10_000 })
+
+    const card = adminPage.getByRole('article').filter({ hasText: taskTitle })
+    await expect(card).toBeVisible({ timeout: 10_000 })
+    await expect(card.getByRole('link', { name: taskTitle })).toHaveAttribute(
+      'href',
+      `/projects/${projectId}/tasks/${taskId}`,
+    )
+    await expect(card.getByRole('status')).toContainText('open')
+  })
+
   test('Self-claim does not create a duplicate interest for a volunteer who already has one', async ({
     baseUrl,
   }) => {
