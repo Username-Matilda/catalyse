@@ -32,7 +32,7 @@ export default function Footer() {
           rel="noopener noreferrer"
           className="underline hover:text-foreground transition-colors"
         >
-          PauseAI UK
+          PauseAI
         </a>
         {prNumber && (
           <a

@@ -3,9 +3,9 @@ import Link from 'next/link'
 import LandingCTA from '@/components/LandingCTA'
 
 export const metadata: Metadata = {
-  title: 'Volunteer with PauseAI UK',
+  title: 'Volunteer with PauseAI',
   description:
-    'Catalyse is the volunteer platform for PauseAI UK. Find campaign, policy, organising and creative work that matches your skills.',
+    'Catalyse is the volunteer platform for PauseAI. Find campaign, policy, organising and creative work that matches your skills.',
 }
 
 /**
@@ -112,11 +112,11 @@ export default function LandingPage() {
               No size utilities here: globals.css styles `h1` outside a cascade
               layer, so `text-*` classes on a heading are silently ignored.
             */}
-            <h1>Volunteer for PauseAI UK</h1>
+            <h1>Volunteer for PauseAI</h1>
             <p className="text-lg text-text-light mb-8">
-              Catalyse is the volunteer platform for PauseAI UK. It allows anyone to join projects
-              or complete tasks that help advance our mission. You can also propose your own
-              projects to get help from other volunteers on things that you want to work on.
+              Catalyse is the volunteer platform for PauseAI. It allows anyone to join projects or
+              complete tasks that help advance our mission. You can also propose your own projects
+              to get help from other volunteers on things that you want to work on.
             </p>
             <div className="md:flex md:justify-center">
               <LandingCTA />
@@ -128,7 +128,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* What PauseAI UK is */}
+      {/* What PauseAI is */}
       <section className="container py-12 md:py-16">
         <div className="max-w-3xl">
           <h2>Who we are</h2>
@@ -140,7 +140,7 @@ export default function LandingPage() {
           </p>
           <p className="text-text-light mb-0">
             PauseAI is focused on the risks of superhuman AI. This focus is the thing that is unique
-            about PauseAI UK and distinguishes us from other movements in the UK.
+            about PauseAI and distinguishes us from other movements in the UK.
           </p>
         </div>
       </section>
@@ -195,8 +195,8 @@ export default function LandingPage() {
             <h2>Before you apply</h2>
             <ul className="text-text-light space-y-2 pl-5 list-disc marker:text-primary">
               <li>
-                Applications are reviewed by one of the PauseAI UK paid staff, so there is a short
-                wait before you can access the full site. We will email you either way.
+                Applications are reviewed by one of the PauseAI paid staff, so there is a short wait
+                before you can access the full site. We will email you either way.
               </li>
               <li>
                 There is no minimum commitment. Just an hour here and there can go a long way.
@@ -207,7 +207,7 @@ export default function LandingPage() {
                 <a href="https://luma.com/pauseai.uk" target="_blank" rel="noopener noreferrer">
                   calendar
                 </a>
-                . To chat with other PauseAI UK members, join the{' '}
+                . To chat with other PauseAI members, join the{' '}
                 <a
                   href="https://chat.whatsapp.com/F0nj2RjLNeB1P1hyoDFsTz"
                   target="_blank"
