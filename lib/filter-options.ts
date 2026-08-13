@@ -18,6 +18,7 @@ export const BASE_LOCATION_OPTIONS: FilterOption[] = [
   // { value: 'Finland', label: 'Finland' },
   { value: 'France', label: 'France' },
   { value: 'Germany', label: 'Germany' },
+  { value: 'Ghana', label: 'Ghana' },
   // { value: 'India', label: 'India' },
   // { value: 'Ireland', label: 'Ireland' },
   { value: 'Italy', label: 'Italy' },
@@ -36,9 +37,9 @@ export const BASE_LOCATION_OPTIONS: FilterOption[] = [
   // { value: 'South Korea', label: 'South Korea' },
   { value: 'Spain', label: 'Spain' },
   { value: 'Sweden', label: 'Sweden' },
-  // { value: 'Switzerland', label: 'Switzerland' },
+  { value: 'Switzerland', label: 'Switzerland' },
   { value: 'UK', label: 'United Kingdom' },
-  // { value: 'US', label: 'US' },
+  { value: 'US', label: 'United States' },
   { value: 'Other', label: 'Other' },
 ]
 
