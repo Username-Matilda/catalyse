@@ -21,6 +21,7 @@ import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import { formatDate } from '@/lib/format-date'
+import { projectLocationParts } from '@/lib/filter-options'
 import { InterestStatus, ProjectStatus, TaskStatus } from '@/generated/prisma/enums'
 import type { InferRouterOutputs } from '@orpc/server'
 import type { AppRouter } from '@/server/router'
@@ -724,6 +725,18 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           <Badge variant={projectStatusVariant(project.status)} aria-label="project status">
             {STATUS_LABELS[project.status] ?? project.status}
           </Badge>
+          {(() => {
+            const parts = projectLocationParts(
+              project.country,
+              project.localGroup,
+              project.remoteEligibility,
+            )
+            return (
+              parts.length > 0 && (
+                <span className="text-sm text-text-light">📍 {parts.join(' · ')}</span>
+              )
+            )
+          })()}
           {isOwnerOrAdmin && (
             <Button href={`/projects/${idParam}/edit`} variant="secondary" size="sm">
               Edit

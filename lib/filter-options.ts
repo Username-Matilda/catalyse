@@ -88,3 +88,19 @@ export function countryLabel(value: string | null | undefined): string {
   if (!value) return ''
   return BASE_LOCATION_OPTIONS.find((o) => o.value === value)?.label ?? value
 }
+
+// Builds the parts of a project's location line, e.g. ['Remote', 'Global', 'United Kingdom', 'London']
+// for a worldwide-remote project, or ['United Kingdom', 'London'] for an in-person one.
+// Join with ' · ' and prefix with 📍 to render.
+export function projectLocationParts(
+  country: string | null | undefined,
+  localGroup: string | null | undefined,
+  remoteEligibility: string | null | undefined,
+): string[] {
+  const parts: string[] = []
+  if (remoteEligibility === 'COUNTRY' || remoteEligibility === 'GLOBAL') parts.push('Remote')
+  if (remoteEligibility === 'GLOBAL') parts.push('Global')
+  if (country) parts.push(countryLabel(country))
+  if (localGroup) parts.push(localGroup)
+  return parts
+}

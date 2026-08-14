@@ -3,7 +3,7 @@ import Link from 'next/link'
 import Button from '@/components/Button'
 import { Badge, badgeClasses, type BadgeVariant } from '@/components/Badge'
 import { matchGradeLabel } from '@/lib/matching'
-import { countryLabel } from '@/lib/filter-options'
+import { projectLocationParts } from '@/lib/filter-options'
 
 export interface Project {
   id: number
@@ -18,6 +18,7 @@ export interface Project {
   projectType?: string | null
   country?: string | null
   localGroup?: string | null
+  remoteEligibility?: string | null
   timeCommitmentHoursPerWeek?: number | null
   urgency?: string | null
   owner?: { name: string } | null
@@ -110,9 +111,10 @@ export function ProjectCard({
       </div>
       <div className="row-start-3 flex items-center gap-3 flex-wrap text-xs text-text-light self-start">
         <span>👤 {p.owner ? p.owner.name : 'No owner yet'}</span>
-        {(p.localGroup || p.country) && (
-          <span>📍 {[countryLabel(p.country), p.localGroup].filter(Boolean).join(' · ')}</span>
-        )}
+        {(() => {
+          const parts = projectLocationParts(p.country, p.localGroup, p.remoteEligibility)
+          return parts.length > 0 && <span>📍 {parts.join(' · ')}</span>
+        })()}
         {p.projectType && <span>📋 {PROJECT_TYPE_LABELS[p.projectType] ?? p.projectType}</span>}
         {p.timeCommitmentHoursPerWeek && <span>🕐 {p.timeCommitmentHoursPerWeek}h/week</span>}
         {p.urgency && <span>⚡ {p.urgency} priority</span>}
