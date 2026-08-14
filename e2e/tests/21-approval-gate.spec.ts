@@ -20,7 +20,6 @@ async function createAdminProject(
       country: null,
       localGroup: null,
       isSeekingHelp: opts?.isSeekingHelp ?? true,
-      isSeekingOwner: false,
       tasks: opts?.tasks ?? [{ title: 'Seed task' }],
     },
   })

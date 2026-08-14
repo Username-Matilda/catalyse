@@ -46,6 +46,7 @@ interface FeaturedProjectTask {
   projectId: number
   projectTitle: string | null
   title: string
+  description: string
   status: string
   assignedToId: number | null
   assignedToName: string | null
@@ -333,7 +334,6 @@ function AdminQuickTasksView() {
     '',
   )
   const toast = useToast()
-  const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set())
   // useRef so the hash is captured client-side in a useEffect (useState initializer runs on server)
   const deepLinkHash = useRef('')
 
@@ -353,6 +353,12 @@ function AdminQuickTasksView() {
 
   // Assign — inline dropdown per task, matching the project-task assign pattern
   const [taskAssignSelections, setTaskAssignSelections] = useState<Record<number, string>>({})
+
+  // Assign for featured project tasks — same inline dropdown, backed by the project
+  // task mutations (these rows are WorkItemType.TASK, not QUICK_TASK).
+  const [projectTaskAssignSelections, setProjectTaskAssignSelections] = useState<
+    Record<number, string>
+  >({})
 
   // Review modal
   const [reviewModal, setReviewModal] = useState<AdminQuickTask | null>(null)
@@ -390,18 +396,17 @@ function AdminQuickTasksView() {
   })
   const volunteers: Volunteer[] = (volunteersData?.volunteers ?? []) as Volunteer[]
 
+  // Cards are always fully expanded now, so a deep link just needs to scroll to the
+  // right card rather than toggle anything open.
   useEffect(() => {
-    function expandFromHash(hash: string) {
+    function scrollToHash(hash: string) {
       if (!hash.startsWith('#task-')) return
-      const taskId = parseInt(hash.slice('#task-'.length), 10)
-      if (isNaN(taskId)) return
-      setExpandedCards((prev) => new Set(prev).add(taskId))
+      document.getElementById(hash.slice(1))?.scrollIntoView({ block: 'start' })
     }
     deepLinkHash.current = window.location.hash
     const onHashChange = () => {
       deepLinkHash.current = window.location.hash
-      // Tasks are already loaded when a hashchange fires mid-session
-      expandFromHash(deepLinkHash.current)
+      scrollToHash(deepLinkHash.current)
     }
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
@@ -411,19 +416,8 @@ function AdminQuickTasksView() {
   useEffect(() => {
     const hash = deepLinkHash.current
     if (!hash.startsWith('#task-') || tasks.length === 0) return
-    const taskId = parseInt(hash.slice('#task-'.length), 10)
-    if (isNaN(taskId)) return
-    setExpandedCards((prev) => new Set(prev).add(taskId))
+    document.getElementById(hash.slice(1))?.scrollIntoView({ block: 'start' })
   }, [tasks])
-
-  function toggleCard(id: number) {
-    setExpandedCards((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
 
   const createTaskMutation = useMutation({
     ...orpc.quickTasks.create.mutationOptions(),
@@ -471,6 +465,31 @@ function AdminQuickTasksView() {
     onSuccess: () => {
       toast('Assignee removed', 'success')
       void queryClient.invalidateQueries({ queryKey: orpc.quickTasks.list.key() })
+    },
+    onError: (err: unknown) =>
+      toast(err instanceof Error ? err.message : 'Failed to unassign', 'error'),
+  })
+
+  const assignProjectTaskMutation = useMutation({
+    ...orpc.projects.assignTask.mutationOptions(),
+    onSuccess: (_data, variables) => {
+      toast('Task assigned!', 'success')
+      setProjectTaskAssignSelections((s) => {
+        const next = { ...s }
+        delete next[variables.taskId]
+        return next
+      })
+      void queryClient.invalidateQueries({ queryKey: orpc.quickTasks.featuredProjectTasks.key() })
+    },
+    onError: (err: unknown) =>
+      toast(err instanceof Error ? err.message : 'Failed to assign', 'error'),
+  })
+
+  const unassignProjectTaskMutation = useMutation({
+    ...orpc.projects.updateTask.mutationOptions(),
+    onSuccess: () => {
+      toast('Assignee removed', 'success')
+      void queryClient.invalidateQueries({ queryKey: orpc.quickTasks.featuredProjectTasks.key() })
     },
     onError: (err: unknown) =>
       toast(err instanceof Error ? err.message : 'Failed to unassign', 'error'),
@@ -537,6 +556,24 @@ function AdminQuickTasksView() {
     unassignTaskMutation.mutate({ id: taskId })
   }
 
+  function handleAssignProjectTask(task: FeaturedProjectTask) {
+    const selected = projectTaskAssignSelections[task.id]
+    if (!selected) return
+    assignProjectTaskMutation.mutate({
+      projectId: task.projectId,
+      taskId: task.id,
+      assigneeId: parseInt(selected, 10),
+    })
+  }
+
+  function handleUnassignProjectTask(task: FeaturedProjectTask) {
+    unassignProjectTaskMutation.mutate({
+      projectId: task.projectId,
+      taskId: task.id,
+      data: { status: TaskStatus.open },
+    })
+  }
+
   function deleteTask(task: AdminQuickTask) {
     if (!confirm(`Delete "${task.title}"? This cannot be undone.`)) return
     deleteTaskMutation.mutate({ id: task.id })
@@ -598,219 +635,146 @@ function AdminQuickTasksView() {
             </p>
           </div>
         ) : (
-          tasks.map((task) => {
-            const expanded = expandedCards.has(task.id)
-            return (
-              <div
-                key={task.id}
-                role="article"
-                id={`task-${task.id}`}
-                className="card bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
-              >
-                <div
-                  className={`card-header flex justify-between items-start gap-3 min-w-0 cursor-pointer ${expanded ? 'mb-3' : 'mb-0'}`}
-                  onClick={() => toggleCard(task.id)}
+          tasks.map((task) => (
+            <div
+              key={task.id}
+              role="article"
+              id={`task-${task.id}`}
+              className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
+            >
+              <div className="flex justify-between items-start gap-3 mb-2">
+                <h3 className="m-0">{task.title}</h3>
+                <Badge
+                  role="status"
+                  variant={STATUS_VARIANTS[task.status] ?? 'neutral'}
+                  className="whitespace-nowrap shrink-0"
                 >
-                  <div className="flex items-start gap-2 min-w-0">
-                    <span
-                      className="inline-block transition-transform shrink-0 mt-1 text-text-light text-xs"
-                      // dynamic: transform rotates based on expanded state
-                      style={{ transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
-                    >
-                      ▶
-                    </span>
-                    <div className="min-w-0">
-                      <h3 className="mb-1">{task.title}</h3>
-                      <div className="text-text-light flex gap-2 flex-wrap text-[0.8rem]">
-                        {task.skillName && <span>Skill: {task.skillName}</span>}
-                        {task.estimatedHours !== null && <span>~{task.estimatedHours}h</span>}
-                        {task.assignedToId && task.assignedToName && (
-                          <span>
-                            Assigned to:{' '}
-                            <Link
-                              href={`/admin/volunteers/${task.assignedToId}`}
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              {task.assignedToName}
-                            </Link>
-                          </span>
-                        )}
-                        {task.reviewRating && (
-                          <span className={RATING_CLASSES[task.reviewRating]}>
-                            {RATING_LABELS[task.reviewRating]}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <Badge
-                    role="status"
-                    variant={STATUS_VARIANTS[task.status] ?? 'neutral'}
-                    className="whitespace-nowrap shrink-0"
-                  >
-                    {task.status}
-                  </Badge>
-                </div>
+                  {task.status}
+                </Badge>
+              </div>
 
-                {expanded && (
-                  <>
-                    <p className="whitespace-pre-wrap mb-3 text-[0.9rem]">{task.description}</p>
-
-                    {task.reviewRating && (
-                      <p className={`mb-2 font-medium ${RATING_CLASSES[task.reviewRating]}`}>
-                        Rating: {RATING_LABELS[task.reviewRating]}
-                      </p>
-                    )}
-                    {task.reviewNotes && (
-                      <p className="text-sm text-text-light mb-2">Notes: {task.reviewNotes}</p>
-                    )}
-
-                    <div className="mb-3">
-                      <strong className="text-sm">Comments</strong>
-                      <CommentThread workItemId={task.id} />
-                    </div>
-
-                    {task.status === QuickTaskStatus.open && (
-                      <div
-                        className="flex gap-2 items-end mb-3"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <div className="flex-1 max-w-75">
-                          <FilterDropdown
-                            id={`assign-task-${task.id}`}
-                            label="Assign to"
-                            ariaLabel={`Assign volunteer to ${task.title}`}
-                            value={taskAssignSelections[task.id] ?? ''}
-                            options={[
-                              { value: '', label: 'Select volunteer…' },
-                              ...volunteers.map((v) => ({ value: String(v.id), label: v.name })),
-                            ]}
-                            onChange={(v) =>
-                              setTaskAssignSelections((s) => ({ ...s, [task.id]: v }))
-                            }
-                            searchable
-                          />
-                        </div>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          disabled={!taskAssignSelections[task.id] || assignTaskMutation.isPending}
-                          onClick={() => handleAssignTask(task.id)}
-                        >
-                          Assign
-                        </Button>
-                      </div>
-                    )}
-
-                    <div className="flex justify-between items-center mt-3 pt-3 border-t border-brand-border">
-                      <span className="text-sm text-text-light">
-                        Created {formatDate(task.createdAt)}
-                      </span>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            void copyLink(task.id)
-                          }}
-                        >
-                          Copy share link
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            openEdit(task)
-                          }}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            deleteTask(task)
-                          }}
-                        >
-                          Delete
-                        </Button>
-                        {task.assignedToId && (
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            disabled={unassignTaskMutation.isPending}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleUnassignTask(task.id)
-                            }}
-                          >
-                            Unassign
-                          </Button>
-                        )}
-                        {task.status === QuickTaskStatus.under_review && (
-                          <Button
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setReviewModal(task)
-                              setReviewRating('good')
-                              setReviewFeedback('')
-                              setReviewNotes('')
-                            }}
-                          >
-                            Review
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </>
+              <div className="flex gap-2 mb-3 flex-wrap items-center">
+                {task.skillName && (
+                  <span className="inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-gray-700 dark:text-gray-300">
+                    {task.skillName}
+                  </span>
+                )}
+                {task.estimatedHours !== null && (
+                  <span className="text-text-light text-sm">~{task.estimatedHours}h</span>
+                )}
+                {task.assignedToId && task.assignedToName && (
+                  <span className="text-text-light text-sm">
+                    Assigned to:{' '}
+                    <Link href={`/admin/volunteers/${task.assignedToId}`}>
+                      {task.assignedToName}
+                    </Link>
+                  </span>
+                )}
+                {task.reviewRating && (
+                  <span className={`text-sm ${RATING_CLASSES[task.reviewRating]}`}>
+                    {RATING_LABELS[task.reviewRating]}
+                  </span>
                 )}
               </div>
-            )
-          })
+
+              <p className="whitespace-pre-wrap mb-4">{task.description}</p>
+
+              {task.reviewNotes && (
+                <p className="text-sm text-text-light mb-3">Notes: {task.reviewNotes}</p>
+              )}
+
+              <div className="mb-3">
+                <strong className="text-sm">Comments</strong>
+                <CommentThread workItemId={task.id} />
+              </div>
+
+              {task.status === QuickTaskStatus.open && (
+                <div className="flex gap-2 items-end mb-3">
+                  <div className="flex-1 max-w-75">
+                    <FilterDropdown
+                      id={`assign-task-${task.id}`}
+                      label="Assign to"
+                      ariaLabel={`Assign volunteer to ${task.title}`}
+                      value={taskAssignSelections[task.id] ?? ''}
+                      options={[
+                        { value: '', label: 'Select volunteer…' },
+                        ...volunteers.map((v) => ({ value: String(v.id), label: v.name })),
+                      ]}
+                      onChange={(v) => setTaskAssignSelections((s) => ({ ...s, [task.id]: v }))}
+                      searchable
+                    />
+                  </div>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={!taskAssignSelections[task.id] || assignTaskMutation.isPending}
+                    onClick={() => handleAssignTask(task.id)}
+                  >
+                    Assign
+                  </Button>
+                </div>
+              )}
+
+              <div className="flex justify-between items-center mt-3 pt-3 border-t border-brand-border">
+                <span className="text-sm text-text-light">
+                  Created {formatDate(task.createdAt)}
+                </span>
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => void copyLink(task.id)}>
+                    Copy share link
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={() => openEdit(task)}>
+                    Edit
+                  </Button>
+                  <Button variant="danger" size="sm" onClick={() => deleteTask(task)}>
+                    Delete
+                  </Button>
+                  {task.assignedToId && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      disabled={unassignTaskMutation.isPending}
+                      onClick={() => handleUnassignTask(task.id)}
+                    >
+                      Unassign
+                    </Button>
+                  )}
+                  {task.status === QuickTaskStatus.under_review && (
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setReviewModal(task)
+                        setReviewRating('good')
+                        setReviewFeedback('')
+                        setReviewNotes('')
+                      }}
+                    >
+                      Review
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))
         )}
 
         {featuredProjectTasks.length > 0 && (
           <>
             <h2 className="mt-8">Featured project tasks</h2>
             <p className="text-text-light mb-6">
-              Project tasks flagged to also appear on this page for volunteers. Manage them (edit,
-              assign, unassign) from their own project — this list is for visibility only.
+              Project tasks flagged to also appear on this page for volunteers. Assign or unassign
+              them here, or edit them from their own project.
             </p>
             {featuredProjectTasks.map((task) => (
               <div
                 key={`project-task-${task.id}`}
                 role="article"
-                className="card bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
+                className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
               >
-                <div className="flex justify-between items-start gap-3 min-w-0 mb-2">
-                  <div className="min-w-0">
-                    <h3 className="mb-1">
-                      <Link href={`/projects/${task.projectId}/tasks/${task.id}`}>
-                        {task.title}
-                      </Link>
-                    </h3>
-                    <div className="text-text-light flex gap-2 flex-wrap text-[0.8rem]">
-                      {task.projectTitle && (
-                        <span>
-                          Part of:{' '}
-                          <Link href={`/projects/${task.projectId}`}>{task.projectTitle}</Link>
-                        </span>
-                      )}
-                      {task.estimatedHours !== null && <span>~{task.estimatedHours}h</span>}
-                      {task.assignedToId && task.assignedToName && (
-                        <span>
-                          Assigned to:{' '}
-                          <Link href={`/admin/volunteers/${task.assignedToId}`}>
-                            {task.assignedToName}
-                          </Link>
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                <div className="flex justify-between items-start gap-3 mb-2">
+                  <h3 className="m-0">
+                    <Link href={`/projects/${task.projectId}/tasks/${task.id}`}>{task.title}</Link>
+                  </h3>
                   <Badge
                     role="status"
                     variant={PROJECT_TASK_STATUS_VARIANTS[task.status] ?? 'neutral'}
@@ -819,6 +783,70 @@ function AdminQuickTasksView() {
                     {task.status}
                   </Badge>
                 </div>
+
+                <div className="flex gap-2 mb-3 flex-wrap items-center">
+                  {task.projectTitle && (
+                    <span className="text-text-light text-sm">
+                      Part of: <Link href={`/projects/${task.projectId}`}>{task.projectTitle}</Link>
+                    </span>
+                  )}
+                  {task.estimatedHours !== null && (
+                    <span className="text-text-light text-sm">~{task.estimatedHours}h</span>
+                  )}
+                  {task.assignedToId && task.assignedToName && (
+                    <span className="text-text-light text-sm">
+                      Assigned to:{' '}
+                      <Link href={`/admin/volunteers/${task.assignedToId}`}>
+                        {task.assignedToName}
+                      </Link>
+                    </span>
+                  )}
+                </div>
+
+                {task.description && <p className="whitespace-pre-wrap mb-4">{task.description}</p>}
+
+                {task.status === TaskStatus.open && (
+                  <div className="flex gap-2 items-end mt-3">
+                    <div className="flex-1 max-w-75">
+                      <FilterDropdown
+                        id={`assign-project-task-${task.id}`}
+                        label="Assign to"
+                        ariaLabel={`Assign volunteer to ${task.title}`}
+                        value={projectTaskAssignSelections[task.id] ?? ''}
+                        options={[
+                          { value: '', label: 'Select volunteer…' },
+                          ...volunteers.map((v) => ({ value: String(v.id), label: v.name })),
+                        ]}
+                        onChange={(v) =>
+                          setProjectTaskAssignSelections((s) => ({ ...s, [task.id]: v }))
+                        }
+                        searchable
+                      />
+                    </div>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      disabled={
+                        !projectTaskAssignSelections[task.id] || assignProjectTaskMutation.isPending
+                      }
+                      onClick={() => handleAssignProjectTask(task)}
+                    >
+                      Assign
+                    </Button>
+                  </div>
+                )}
+                {task.assignedToId && (
+                  <div className="mt-3">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      disabled={unassignProjectTaskMutation.isPending}
+                      onClick={() => handleUnassignProjectTask(task)}
+                    >
+                      Unassign
+                    </Button>
+                  </div>
+                )}
               </div>
             ))}
           </>

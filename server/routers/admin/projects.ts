@@ -24,7 +24,9 @@ export const adminProjectsRouter = {
           type: WorkItemType.PROJECT,
           title: input.title,
           description: input.description,
-          status: ProjectStatus.in_progress,
+          // Org projects skip review, so they go live immediately — owned by the admin
+          // who created it, or `ready` for someone to pick up.
+          status: wantToOwn ? ProjectStatus.in_progress : ProjectStatus.ready,
           assigneeId: wantToOwn ? admin.id : null,
           creatorId: admin.id,
           isOrgProposed: true,
@@ -35,8 +37,8 @@ export const adminProjectsRouter = {
           collaborationLink: input.collaborationLink ?? null,
           country: input.country ?? null,
           localGroup: input.localGroup ?? null,
+          remoteEligibility: input.remoteEligibility ?? 'NONE',
           isSeekingHelp: input.isSeekingHelp !== false,
-          isSeekingOwner: input.isSeekingOwner === true,
         },
       })
 
@@ -81,21 +83,17 @@ export const adminProjectsRouter = {
       const { status, reviewNotes = null, comment = null } = input
 
       if (status === 'approved') {
-        const hasOwner = project.assigneeId !== null
-        const newStatus = !hasOwner
-          ? ProjectStatus.seeking_owner
-          : project.isSeekingHelp
-            ? ProjectStatus.seeking_help
-            : ProjectStatus.in_progress
-        const isSeekingOwner = !hasOwner
-        const isSeekingHelp = !hasOwner || project.isSeekingHelp
+        // A proposer who offered to lead it owns it from the moment it's approved;
+        // otherwise it goes live as `ready` for someone to pick up. Whether it also wants
+        // contributors is the proposer's call — approval no longer overrides an explicit
+        // "no thanks" by force-setting isSeekingHelp on every unowned project.
+        const newStatus =
+          project.assigneeId === null ? ProjectStatus.ready : ProjectStatus.in_progress
 
         await prisma.workItem.update({
           where: { id: input.id },
           data: {
             status: newStatus,
-            isSeekingHelp,
-            isSeekingOwner,
             reviewNotes,
             stakeholderId: admin.id,
             reviewedById: admin.id,
@@ -186,7 +184,10 @@ export const adminProjectsRouter = {
           outcome,
           outcomeNotes,
           completedAt: isCompleted ? new Date() : null,
-          ...(isCompleted ? { status: ProjectStatus.completed } : {}),
+          // Completing here has to stop advertising the project, exactly as completing it
+          // via projects.update does — otherwise a finished project keeps its "Seeking
+          // Help" badge and stays in the "Looking for People" group.
+          ...(isCompleted ? { status: ProjectStatus.completed, isSeekingHelp: false } : {}),
           updatedAt: new Date(),
         },
       })
@@ -254,6 +255,8 @@ export const adminProjectsRouter = {
     return projects.map((p) => withProjectExtras(p as EnrichedProject))
   }),
 
+  // Owned projects with an empty backlog — the same condition the `needsTasks` badge
+  // derives, from the admin side.
   staleInProgress: adminProcedure.handler(async () => {
     const projects = await prisma.workItem.findMany({
       where: {

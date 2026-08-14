@@ -16,6 +16,12 @@ export function badgeClasses(variant: BadgeVariant, className = '') {
   return `status-badge inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${BADGE_VARIANTS[variant]} ${className}`.trim()
 }
 
+// Just the color classes, with none of badgeClasses' layout utilities — for
+// callers building their own pill-shaped control (e.g. a colored select trigger).
+export function badgeColorClasses(variant: BadgeVariant) {
+  return BADGE_VARIANTS[variant]
+}
+
 export function Badge({
   variant = 'neutral',
   className = '',

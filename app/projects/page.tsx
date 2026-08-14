@@ -14,10 +14,12 @@ import { ORPCError } from '@orpc/client'
 import { orpc } from '@/lib/orpc'
 import { AppRouter } from '@/server/router'
 import { type Project, ProjectList, statusBadgeClasses } from '@/components/ProjectCard'
+import { badgeClasses } from '@/components/Badge'
 import { ProjectStatus } from '@/generated/prisma/enums'
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All Active' },
+  { value: 'ready', label: 'Ready' },
   { value: 'in_progress', label: 'In Progress' },
   { value: 'on_hold', label: 'On Hold' },
   { value: 'completed', label: 'Completed' },
@@ -142,7 +144,7 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
       (p) =>
         !p.isSeekingHelp &&
         !p.isSeekingOwner &&
-        !['in_progress', 'on_hold', 'completed'].includes(p.status),
+        !['ready', 'in_progress', 'on_hold', 'completed'].includes(p.status),
     ),
   )
 
@@ -306,7 +308,7 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
             {!statusFilter && !needsFilter && projects.length > 1 && (
               <div className="flex flex-wrap gap-2 mb-6">
                 {seeking.length > 0 && (
-                  <span className={statusBadgeClasses('seeking_help')}>
+                  <span className={badgeClasses('caution')}>
                     Looking for People: {seeking.length}
                   </span>
                 )}

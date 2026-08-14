@@ -1,0 +1,264 @@
+import { test, expect, readAdminToken, createApprovedVolunteer } from '../fixtures'
+import { fake } from '../fake'
+import { createApiClient } from '../client'
+import { removeProjectOwner } from '../actions/projects'
+import { selectFilterDropdown } from '../actions/ui'
+
+// Whether a project wants an owner is derived from (status, assignee), never stored, and
+// `ready` is the status for "approved but nobody owns it yet". These tests pin the two
+// halves of that: assigning or removing an owner moves the project between `ready` and
+// `in_progress`, and what each state advertises to volunteers stays in step.
+
+async function createOrgProject(
+  baseUrl: string,
+  opts: { isSeekingHelp?: boolean; skillIds?: number[]; title?: string } = {},
+): Promise<{ id: number; title: string }> {
+  const title = opts.title ?? fake.projectTitle()
+  const adminApi = createApiClient(baseUrl, readAdminToken(baseUrl))
+  const created = await adminApi.admin.projects.create({
+    body: {
+      title,
+      description: 'e2e ownership-state project description',
+      projectType: null,
+      estimatedDuration: null,
+      timeCommitmentHoursPerWeek: null,
+      urgency: 'medium',
+      collaborationLink: null,
+      country: null,
+      localGroup: null,
+      isSeekingHelp: opts.isSeekingHelp ?? false,
+      ...(opts.skillIds
+        ? {
+            skillIds: opts.skillIds,
+            skillRequiredMap: Object.fromEntries(opts.skillIds.map((id) => [id, true])),
+          }
+        : {}),
+      tasks: [{ title: 'Initial task' }],
+    },
+  })
+  if (created.status !== 200)
+    throw new Error(`Project creation failed: ${JSON.stringify(created.body)}`)
+  return { id: (created.body as { id: number }).id, title }
+}
+
+async function getProject(baseUrl: string, token: string, id: number) {
+  const result = await createApiClient(baseUrl, token).projects.getById({ body: { id } })
+  expect(result.status).toBe(200)
+  return result.body as {
+    status: string
+    ownerId: number | null
+    isSeekingOwner: boolean
+    isSeekingHelp: boolean
+  }
+}
+
+test.describe('Project ownership states', () => {
+  test('An org project with no owner starts Ready and seeking an owner', async ({ baseUrl }) => {
+    const adminToken = readAdminToken(baseUrl)
+    const { id } = await createOrgProject(baseUrl)
+
+    const project = await getProject(baseUrl, adminToken, id)
+    expect(project.status).toBe('ready')
+    expect(project.ownerId).toBeNull()
+    expect(project.isSeekingOwner).toBe(true)
+  })
+
+  // Regression: assigning someone as owner used to create the accepted interest and clear
+  // the stored is_seeking_owner flag without ever setting assignee_id, leaving the project
+  // ownerless *and* no longer advertising for one.
+  test('Assigning a volunteer as owner sets the owner and starts the project', async ({
+    baseUrl,
+  }) => {
+    const adminToken = readAdminToken(baseUrl)
+    const { id } = await createOrgProject(baseUrl)
+    const volunteer = await createApprovedVolunteer(baseUrl)
+
+    const assigned = await createApiClient(baseUrl, adminToken).projects.assign({
+      body: { projectId: id, volunteerId: volunteer.id, interestType: 'want_to_own' },
+    })
+    expect(assigned.status).toBe(200)
+
+    const project = await getProject(baseUrl, adminToken, id)
+    expect(project.ownerId).toBe(volunteer.id)
+    expect(project.status).toBe('in_progress')
+    expect(project.isSeekingOwner).toBe(false)
+  })
+
+  test('Accepting a want_to_own interest sets the owner and starts the project', async ({
+    baseUrl,
+  }) => {
+    const adminToken = readAdminToken(baseUrl)
+    const adminApi = createApiClient(baseUrl, adminToken)
+    const { id } = await createOrgProject(baseUrl)
+    const volunteer = await createApprovedVolunteer(baseUrl)
+
+    const interest = await createApiClient(baseUrl, volunteer.token).projects.expressInterest({
+      body: { projectId: id, interestType: 'want_to_own' },
+    })
+    expect(interest.status).toBe(200)
+
+    const withInterest = await adminApi.projects.getById({ body: { id } })
+    const interestId = (
+      withInterest.body as { interests: { id: number; volunteerId: number }[] }
+    ).interests.find((i) => i.volunteerId === volunteer.id)!.id
+    const accepted = await adminApi.projects.respondToInterest({
+      body: { projectId: id, interestId, status: 'accepted' },
+    })
+    expect(accepted.status).toBe(200)
+
+    const project = await getProject(baseUrl, adminToken, id)
+    expect(project.ownerId).toBe(volunteer.id)
+    expect(project.status).toBe('in_progress')
+    expect(project.isSeekingOwner).toBe(false)
+  })
+
+  // Regression: removing the owner left the project In Progress with nobody on it and no
+  // "seeking owner" flag, so nothing browsing for a project to lead could ever find it.
+  test('Removing the owner returns the project to Ready and re-advertises it', async ({
+    adminPage,
+    baseUrl,
+  }) => {
+    const adminToken = readAdminToken(baseUrl)
+    const { id, title } = await createOrgProject(baseUrl)
+    const volunteer = await createApprovedVolunteer(baseUrl)
+
+    await createApiClient(baseUrl, adminToken).projects.assign({
+      body: { projectId: id, volunteerId: volunteer.id, interestType: 'want_to_own' },
+    })
+
+    await adminPage.goto(`${baseUrl}/projects/${id}`)
+    await expect(adminPage.getByLabel('project status')).toContainText('In Progress', {
+      timeout: 10_000,
+    })
+
+    await removeProjectOwner(baseUrl, adminPage, id)
+
+    await expect(adminPage.getByLabel('project status')).toContainText('Ready', { timeout: 10_000 })
+    const project = await getProject(baseUrl, adminToken, id)
+    expect(project.ownerId).toBeNull()
+    expect(project.isSeekingOwner).toBe(true)
+
+    // And it is findable again by someone filtering for projects that need a lead.
+    await adminPage.goto(`${baseUrl}/projects`)
+    await selectFilterDropdown(adminPage, 'Needs filter', 'Seeking Owner')
+    await expect(adminPage.getByRole('link', { name: title })).toBeVisible({ timeout: 10_000 })
+  })
+
+  // Regression: an owned project used to be able to sit in the retired `seeking_owner`
+  // status with the flag cleared, and the card suppressed the status badge for exactly
+  // that status — so the card rendered no status at all.
+  test('An owned project shows its status and is excluded from the Seeking Owner filter', async ({
+    adminPage,
+    baseUrl,
+  }) => {
+    const adminToken = readAdminToken(baseUrl)
+    const { id, title } = await createOrgProject(baseUrl)
+    const volunteer = await createApprovedVolunteer(baseUrl)
+    await createApiClient(baseUrl, adminToken).projects.assign({
+      body: { projectId: id, volunteerId: volunteer.id, interestType: 'want_to_own' },
+    })
+
+    await adminPage.goto(`${baseUrl}/projects`)
+    await selectFilterDropdown(adminPage, 'Needs filter', 'Seeking Owner')
+    await expect(adminPage.getByRole('link', { name: title })).toBeHidden({ timeout: 10_000 })
+
+    await adminPage.goto(`${baseUrl}/projects/${id}`)
+    await expect(adminPage.getByLabel('project status')).toContainText('In Progress', {
+      timeout: 10_000,
+    })
+    await expect(adminPage.getByText('Seeking Owner')).toBeHidden()
+  })
+
+  // Regression: setOutcome completes a project directly, and used to do it without
+  // clearing isSeekingHelp — unlike projects.update, the other route to `completed`. A
+  // finished project then kept its "Seeking Help" badge and its place in the "Looking for
+  // People" group. Driven through the API because the UI's outcome panel only appears once
+  // the project is already completed, which is the path that always cleared the flag.
+  test('Recording an outcome stops the project advertising for help', async ({
+    adminPage,
+    baseUrl,
+  }) => {
+    const adminToken = readAdminToken(baseUrl)
+    const adminApi = createApiClient(baseUrl, adminToken)
+    const { id, title } = await createOrgProject(baseUrl, { isSeekingHelp: true })
+    const volunteer = await createApprovedVolunteer(baseUrl)
+    await adminApi.projects.assign({
+      body: { projectId: id, volunteerId: volunteer.id, interestType: 'want_to_own' },
+    })
+
+    const recorded = await adminApi.admin.projects.setOutcome({
+      body: { id, outcome: 'successful', outcomeNotes: 'Delivered in full' },
+    })
+    expect(recorded.status).toBe(200)
+
+    const project = await getProject(baseUrl, adminToken, id)
+    expect(project.status).toBe('completed')
+    expect(project.isSeekingHelp).toBe(false)
+    expect(project.isSeekingOwner).toBe(false)
+
+    await adminPage.goto(`${baseUrl}/projects`)
+    await selectFilterDropdown(adminPage, 'Needs filter', 'Looking for People')
+    await expect(adminPage.getByRole('link', { name: title })).toBeHidden({ timeout: 10_000 })
+  })
+
+  // Regression: "Suggested for You" matched on the seeking flags alone. Every project is
+  // created with isSeekingHelp true, so proposals were recommended to volunteers before an
+  // admin had reviewed them.
+  test('A proposal awaiting review is not suggested to matching volunteers', async ({
+    baseUrl,
+  }) => {
+    const api = createApiClient(baseUrl)
+    const skillsResult = await api.skills.list()
+    expect(skillsResult.status).toBe(200)
+    const allSkills = (skillsResult.body as Array<{ skills: Array<{ id: number }> }>).flatMap(
+      (c) => c.skills,
+    )
+    const skillIds = [allSkills[0].id]
+
+    // A volunteer who proposes a project, and a second who matches its skills.
+    const proposer = await createApprovedVolunteer(baseUrl)
+    const title = fake.projectTitle()
+    const proposed = await createApiClient(baseUrl, proposer.token).projects.create({
+      body: {
+        title,
+        description: 'Proposal that should stay private until reviewed',
+        projectType: null,
+        estimatedDuration: null,
+        timeCommitmentHoursPerWeek: null,
+        urgency: 'medium',
+        collaborationLink: null,
+        country: null,
+        localGroup: null,
+        isSeekingHelp: true,
+        skillIds,
+        skillRequiredMap: Object.fromEntries(skillIds.map((id) => [id, true])),
+        tasks: [{ title: 'Initial task' }],
+      },
+    })
+    expect(proposed.status).toBe(200)
+    const projectId = (proposed.body as { id: number }).id
+
+    const matcher = await createApprovedVolunteer(baseUrl)
+    const matcherApi = createApiClient(baseUrl, matcher.token)
+    const updated = await matcherApi.volunteers.updateMe({ body: { skillIds } })
+    expect(updated.status).toBe(200)
+
+    const beforeReview = await matcherApi.dashboard.get()
+    expect(beforeReview.status).toBe(200)
+    const suggestedBefore = (beforeReview.body as { suggestedProjects: { id: number }[] })
+      .suggestedProjects
+    expect(suggestedBefore.map((p) => p.id)).not.toContain(projectId)
+
+    // Once approved it goes live as `ready`, and the same volunteer should now see it.
+    const approved = await createApiClient(baseUrl, readAdminToken(baseUrl)).admin.projects.review({
+      body: { id: projectId, status: 'approved' },
+    })
+    expect(approved.status).toBe(200)
+
+    const afterReview = await matcherApi.dashboard.get()
+    expect(afterReview.status).toBe(200)
+    const suggestedAfter = (afterReview.body as { suggestedProjects: { id: number }[] })
+      .suggestedProjects
+    expect(suggestedAfter.map((p) => p.id)).toContain(projectId)
+  })
+})

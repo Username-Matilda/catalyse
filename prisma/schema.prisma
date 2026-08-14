@@ -15,13 +15,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Lifecycle position only. Whether a project wants an owner or more help is not a
+// status: `isSeekingOwner` is derived (see lib/project-status.ts) and `isSeekingHelp`
+// is an independent flag the owner controls.
+//   pending_review → needs_discussion → ready → in_progress → on_hold → completed → archived
+// `ready` = approved and live, but nobody owns it yet.
 enum ProjectStatus {
   pending_review
   needs_discussion
+  ready
   in_progress
-  needs_tasks
-  seeking_help
-  seeking_owner
   on_hold
   completed
   archived
@@ -31,6 +34,12 @@ enum WorkItemType {
   PROJECT
   TASK
   QUICK_TASK
+}
+
+enum RemoteEligibility {
+  NONE
+  COUNTRY
+  GLOBAL
 }
 
 enum TaskStatus {
@@ -269,8 +278,9 @@ model WorkItem {
   timeCommitmentHoursPerWeek Int?      @map("time_commitment_hours_per_week")
   collaborationLink          String?   @map("collaboration_link")
   isOrgProposed              Boolean?  @default(false) @map("is_org_proposed")
+  // No `is_seeking_owner` column: it is derived from (status, assigneeId). See
+  // isSeekingOwner() in lib/project-status.ts.
   isSeekingHelp              Boolean?  @default(false) @map("is_seeking_help")
-  isSeekingOwner             Boolean?  @default(false) @map("is_seeking_owner")
   outcome                    String? // TODO: enum — successful, partial, not_completed, ongoing
   outcomeNotes               String?   @map("outcome_notes")
   completedAt                DateTime? @map("completed_at")
@@ -283,10 +293,11 @@ model WorkItem {
   sortOrder           Int?      @default(0) @map("sort_order")
   featuredAsQuickTask Boolean?  @default(false) @map("featured_as_quick_task") // TASK only — also list on the Quick Tasks page
 
-  country    String?
-  localGroup String?   @map("local_group")
-  createdAt  DateTime? @default(now()) @map("created_at")
-  updatedAt  DateTime? @default(now()) @map("updated_at")
+  country           String?
+  localGroup        String?           @map("local_group")
+  remoteEligibility RemoteEligibility @default(NONE) @map("remote_eligibility")
+  createdAt         DateTime?         @default(now()) @map("created_at")
+  updatedAt         DateTime?         @default(now()) @map("updated_at")
 
   creator     Volunteer?         @relation("WorkItemCreator", fields: [creatorId], references: [id], onUpdate: NoAction)
   assignee    Volunteer?         @relation("WorkItemAssignee", fields: [assigneeId], references: [id], onUpdate: NoAction)
@@ -526,6 +537,7 @@ model Volunteer {
   deletedAt                               DateTime?                @map("deleted_at")
   country                                 String?
   emailDigest                             String?                  @default("none") @map("email_digest") // TODO: enum — none, daily, weekly
+  notifyRemoteProjects                    Boolean                  @default(false) @map("notify_remote_projects")
   localGroup                              String?                  @map("local_group")
   locationConfirmedAt                     DateTime?                @map("location_confirmed_at")
   approvalStatus                          ApprovalStatus           @default(pending) @map("approval_status")

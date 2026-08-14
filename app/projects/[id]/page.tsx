@@ -8,19 +8,22 @@ import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import Checkbox from '@/components/Checkbox'
-import { Badge } from '@/components/Badge'
+import { Badge, badgeClasses, badgeColorClasses } from '@/components/Badge'
 import Tooltip from '@/components/Tooltip'
-import {
-  STATUS_LABELS,
-  INTEREST_STATUS_LABELS,
-  projectStatusVariant,
-} from '@/components/ProjectCard'
+import { INTEREST_STATUS_LABELS, projectStatusVariant } from '@/components/ProjectCard'
 import CommentThread from '@/components/CommentThread'
 import Modal from '@/components/ui/Modal'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import { formatDate } from '@/lib/format-date'
+import { projectLocationParts } from '@/lib/filter-options'
+import {
+  ADMIN_ONLY_STATUSES,
+  OWNER_ALLOWED_STATUSES,
+  TERMINAL_STATUSES,
+  projectStatusLabel,
+} from '@/lib/project-status'
 import { InterestStatus, ProjectStatus, TaskStatus } from '@/generated/prisma/enums'
 import type { InferRouterOutputs } from '@orpc/server'
 import type { AppRouter } from '@/server/router'
@@ -44,24 +47,21 @@ import { CSS } from '@dnd-kit/utilities'
 
 type ProjectTask = InferRouterOutputs<AppRouter>['projects']['getById']['tasks'][number]
 
-const OWNER_STATUSES = [
-  { value: 'seeking_owner', label: 'Seeking Owner' },
-  { value: 'seeking_help', label: 'Seeking Help' },
-  { value: 'needs_tasks', label: 'Needs Tasks' },
-  { value: 'in_progress', label: 'In Progress' },
-  { value: 'on_hold', label: 'On Hold' },
-  { value: 'completed', label: 'Completed' },
-]
-
-const ADMIN_EXTRA_STATUSES = [
-  { value: 'archived', label: 'Archived' },
-  { value: 'pending_review', label: 'Pending Review' },
-  { value: 'needs_discussion', label: 'Needs Discussion' },
-]
+// Both lists come from lib/project-status.ts, which the server's permission check reads
+// too — they used to be hand-synced copies.
+const toOptions = (statuses: string[]) =>
+  statuses.map((value) => ({ value, label: projectStatusLabel(value) }))
+const OWNER_STATUSES = toOptions(OWNER_ALLOWED_STATUSES)
+const ADMIN_EXTRA_STATUSES = toOptions(ADMIN_ONLY_STATUSES)
 
 // ── Tailwind class constants ──────────────────────────────────────────────────
 
 const card = 'bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word'
+
+// The status select's trigger is colored like a Badge, but as a full-width, clickable pill.
+function statusTriggerClasses(status: string) {
+  return `w-full flex items-center justify-between gap-2 px-3 py-2 rounded-full text-sm font-semibold cursor-pointer focus:outline-none focus:ring-2 focus:ring-secondary transition-colors ${badgeColorClasses(projectStatusVariant(status))}`
+}
 
 // ── Task list item ──────────────────────────────────────────────────────────
 
@@ -531,9 +531,14 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const canSeeInterest =
     !isOwnerOrAdmin &&
     (project.isSeekingHelp || project.isSeekingOwner) &&
-    !['completed', 'archived'].includes(project.status)
+    !TERMINAL_STATUSES.includes(project.status)
 
-  const statusOptions = isAdmin ? [...OWNER_STATUSES, ...ADMIN_EXTRA_STATUSES] : OWNER_STATUSES
+  const pickableStatuses = isAdmin ? [...OWNER_STATUSES, ...ADMIN_EXTRA_STATUSES] : OWNER_STATUSES
+  // Every status is pickable by someone now, but an owner viewing a project an admin put
+  // into an admin-only status still needs the control to show its real current value.
+  const statusOptions = pickableStatuses.some((o) => o.value === project.status)
+    ? pickableStatuses
+    : [{ value: project.status, label: projectStatusLabel(project.status) }, ...pickableStatuses]
 
   // Excludes the current owner — they're already shown in the Owner box above.
   const volunteerInterests = (project.interests ?? []).filter(
@@ -720,18 +725,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     <>
       <main className="container py-5 pb-15">
         {/* [test hook] projectContent id used by action helpers to confirm page has loaded */}
-        <div id="projectContent" className="flex items-center gap-3 flex-wrap mb-2">
-          <Badge variant={projectStatusVariant(project.status)} aria-label="project status">
-            {STATUS_LABELS[project.status] ?? project.status}
-          </Badge>
-          {isOwnerOrAdmin && (
-            <Button href={`/projects/${idParam}/edit`} variant="secondary" size="sm">
-              Edit
-            </Button>
-          )}
-        </div>
-
-        <h1 role="heading" aria-level={1}>
+        <h1 id="projectContent" role="heading" aria-level={1}>
           {project.title}
         </h1>
 
@@ -1096,6 +1090,75 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
           {/* Sidebar */}
           <div className="lg:col-span-1 min-w-0 flex flex-col gap-4">
+            {/* Status */}
+            <div className={card}>
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <h2 className="m-0">Status</h2>
+                {isOwnerOrAdmin && (
+                  <Button href={`/projects/${idParam}/edit`} variant="secondary" size="sm">
+                    Edit Project
+                  </Button>
+                )}
+              </div>
+              {isOwnerOrAdmin ? (
+                <FilterDropdown
+                  id="change-status"
+                  label="Status"
+                  ariaLabel="project status"
+                  value={newStatus}
+                  options={statusOptions}
+                  onChange={handleSelectStatus}
+                  triggerClassName={statusTriggerClasses(newStatus)}
+                  renderOption={(opt) => (
+                    <span className={badgeClasses(projectStatusVariant(opt.value))}>
+                      {opt.label}
+                    </span>
+                  )}
+                  hideLabel
+                />
+              ) : (
+                <Badge variant={projectStatusVariant(project.status)} aria-label="project status">
+                  {projectStatusLabel(project.status)}
+                </Badge>
+              )}
+              <div className="flex gap-1 flex-wrap mt-2">
+                {project.isSeekingOwner && <Badge variant="caution">Seeking Owner</Badge>}
+                {project.isSeekingHelp && <Badge variant="caution">Seeking Help</Badge>}
+                {project.needsTasks && <Badge variant="warning">Needs Tasks</Badge>}
+              </div>
+              {(() => {
+                const parts = projectLocationParts(
+                  project.country,
+                  project.localGroup,
+                  project.remoteEligibility,
+                )
+                return (
+                  parts.length > 0 && (
+                    <p className="text-sm text-text-light mt-3 mb-0">📍 {parts.join(' · ')}</p>
+                  )
+                )
+              })()}
+              <Modal
+                id="confirm-status-change"
+                title="Change project status?"
+                isOpen={pendingStatus !== null}
+                onClose={() => setPendingStatus(null)}
+              >
+                <p>
+                  Change status from <strong>{projectStatusLabel(newStatus)}</strong> to{' '}
+                  <strong>{pendingStatus ? projectStatusLabel(pendingStatus) : ''}</strong>?
+                </p>
+                <div className="mt-4 flex justify-end gap-2">
+                  <Button variant="secondary" onClick={() => setPendingStatus(null)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleConfirmStatus} disabled={updateProjectMutation.isPending}>
+                    {updateProjectMutation.isPending ? 'Updating…' : 'Confirm'}
+                  </Button>
+                </div>
+              </Modal>
+            </div>
+
             {/* Admin triage */}
             {isAdmin &&
               (project.status === ProjectStatus.pending_review ||
@@ -1176,46 +1239,6 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     {setOutcomeMutation.isPending ? 'Recording…' : 'Record Outcome'}
                   </Button>
                 </form>
-              </div>
-            )}
-
-            {/* Manage status */}
-            {isOwnerOrAdmin && (
-              <div className={card}>
-                <h2>Manage Project Status</h2>
-                <FilterDropdown
-                  id="change-status"
-                  label="Change Status"
-                  ariaLabel="Change Status"
-                  value={newStatus}
-                  options={statusOptions}
-                  onChange={handleSelectStatus}
-                />
-                <Modal
-                  id="confirm-status-change"
-                  title="Change project status?"
-                  isOpen={pendingStatus !== null}
-                  onClose={() => setPendingStatus(null)}
-                >
-                  <p>
-                    Change status from <strong>{STATUS_LABELS[newStatus] ?? newStatus}</strong> to{' '}
-                    <strong>
-                      {pendingStatus ? (STATUS_LABELS[pendingStatus] ?? pendingStatus) : ''}
-                    </strong>
-                    ?
-                  </p>
-                  <div className="mt-4 flex justify-end gap-2">
-                    <Button variant="secondary" onClick={() => setPendingStatus(null)}>
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleConfirmStatus}
-                      disabled={updateProjectMutation.isPending}
-                    >
-                      {updateProjectMutation.isPending ? 'Updating…' : 'Confirm'}
-                    </Button>
-                  </div>
-                </Modal>
               </div>
             )}
 

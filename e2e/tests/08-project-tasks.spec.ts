@@ -25,11 +25,11 @@ async function setupInProgressProject(
 }
 
 test.describe('Project Tasks', () => {
-  // A project can only reach `needs_tasks` after creation (every project now requires at
-  // least one task up front) — e.g. by accepting a `want_to_own` interest once its only
-  // task has been removed. Reproduce that path via the API, then verify the UI promotes
-  // the project back to In Progress as soon as a new task is added.
-  test('Adding a task to a needs_tasks project auto-promotes it to In Progress', async ({
+  // An owned project with an empty backlog is still owned, so it stays In Progress and
+  // shows a derived "Needs Tasks" badge rather than moving to a status of its own. Get
+  // there via the API (every project requires a task up front, so the only route is
+  // deleting the last one), then check the badge clears as soon as a task is added.
+  test('An owned project with no open tasks shows a Needs Tasks badge until one is added', async ({
     adminPage,
     baseUrl,
   }) => {
@@ -48,7 +48,6 @@ test.describe('Project Tasks', () => {
         country: null,
         localGroup: null,
         isSeekingHelp: false,
-        isSeekingOwner: true,
         tasks: [{ title: 'Initial task' }],
       },
     })
@@ -77,18 +76,19 @@ test.describe('Project Tasks', () => {
     expect(accepted.status).toBe(200)
 
     await adminPage.goto(`${baseUrl}/projects/${projectId}`)
-    await expect(adminPage.getByLabel('project status')).toContainText('Needs Tasks', {
+    // Accepting the owner started the work, empty backlog or not.
+    await expect(adminPage.getByLabel('project status')).toContainText('In Progress', {
       timeout: 10_000,
     })
+    await expect(adminPage.getByText('Needs Tasks')).toBeVisible({ timeout: 10_000 })
 
     await adminPage.getByRole('button', { name: 'Add Task' }).click()
     await adminPage.getByLabel('Task title').fill('First task')
     await adminPage.getByRole('button', { name: 'Create Task' }).click()
     await expect(getAlert(adminPage)).toContainText('Task added!', { timeout: 10_000 })
 
-    await expect(adminPage.getByLabel('project status')).toContainText('In Progress', {
-      timeout: 10_000,
-    })
+    await expect(adminPage.getByText('Needs Tasks')).toBeHidden({ timeout: 10_000 })
+    await expect(adminPage.getByLabel('project status')).toContainText('In Progress')
   })
 
   test('A volunteer can claim an open task', async ({ adminPage, volunteer, baseUrl }) => {
@@ -152,7 +152,6 @@ test.describe('Project Tasks', () => {
         country: null,
         localGroup: null,
         isSeekingHelp: false,
-        isSeekingOwner: false,
         tasks: [{ title: 'Setup task' }],
       },
     })

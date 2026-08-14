@@ -3,7 +3,8 @@ import Link from 'next/link'
 import Button from '@/components/Button'
 import { Badge, badgeClasses, type BadgeVariant } from '@/components/Badge'
 import { matchGradeLabel } from '@/lib/matching'
-import { countryLabel } from '@/lib/filter-options'
+import { projectLocationParts } from '@/lib/filter-options'
+import { PROJECT_STATUS_CONFIG as PROJECT_LIFECYCLE_CONFIG } from '@/lib/project-status'
 
 export interface Project {
   id: number
@@ -13,11 +14,15 @@ export interface Project {
   updatedAt?: string | Date | null
   pendingInterestCount?: number
   isSeekingHelp?: boolean | null
+  /** Derived server-side: live but ownerless. */
   isSeekingOwner?: boolean | null
+  /** Derived server-side: owned, but no open tasks. */
+  needsTasks?: boolean | null
   isOrgProposed?: boolean | null
   projectType?: string | null
   country?: string | null
   localGroup?: string | null
+  remoteEligibility?: string | null
   timeCommitmentHoursPerWeek?: number | null
   urgency?: string | null
   owner?: { name: string } | null
@@ -31,16 +36,11 @@ export interface Project {
   } | null
 }
 
+// Project lifecycle statuses come from lib/project-status.ts (shared with the server and
+// e2e helpers); the interest statuses below are badged by the same helpers, so they're
+// merged in here rather than kept in the lifecycle map.
 export const PROJECT_STATUS_CONFIG: Record<string, { label: string; variant: BadgeVariant }> = {
-  seeking_owner: { label: 'Seeking Owner', variant: 'caution' },
-  seeking_help: { label: 'Seeking Help', variant: 'caution' },
-  needs_tasks: { label: 'Needs Tasks', variant: 'warning' },
-  in_progress: { label: 'In Progress', variant: 'info' },
-  on_hold: { label: 'On Hold', variant: 'neutral' },
-  completed: { label: 'Completed', variant: 'success' },
-  archived: { label: 'Archived', variant: 'neutral' },
-  needs_discussion: { label: 'Needs Discussion', variant: 'neutral' },
-  pending_review: { label: 'Pending Review', variant: 'warning' },
+  ...PROJECT_LIFECYCLE_CONFIG,
   accepted: { label: 'Accepted', variant: 'success' },
   declined: { label: 'Declined', variant: 'neutral' },
   withdrawn: { label: 'Withdrawn', variant: 'neutral' },
@@ -99,20 +99,22 @@ export function ProjectCard({
           {p.title}
         </Link>
       </div>
+      {/* Status is the lifecycle position; Seeking Owner/Help/Tasks are separate,
+          independently-derived facts and can co-occur with any status, including Ready. */}
       <div className="row-start-2 flex gap-1 flex-wrap self-start">
-        {!['seeking_owner', 'seeking_help'].includes(p.status) && (
-          <Badge variant={projectStatusVariant(p.status)}>
-            {STATUS_LABELS[p.status] ?? p.status.replace(/_/g, ' ')}
-          </Badge>
-        )}
-        {p.isSeekingHelp && <Badge variant="caution">Seeking Help</Badge>}
+        <Badge variant={projectStatusVariant(p.status)}>
+          {STATUS_LABELS[p.status] ?? p.status.replace(/_/g, ' ')}
+        </Badge>
         {p.isSeekingOwner && <Badge variant="caution">Seeking Owner</Badge>}
+        {p.isSeekingHelp && <Badge variant="caution">Seeking Help</Badge>}
+        {p.needsTasks && <Badge variant="warning">Needs Tasks</Badge>}
       </div>
       <div className="row-start-3 flex items-center gap-3 flex-wrap text-xs text-text-light self-start">
         <span>👤 {p.owner ? p.owner.name : 'No owner yet'}</span>
-        {(p.localGroup || p.country) && (
-          <span>📍 {[countryLabel(p.country), p.localGroup].filter(Boolean).join(' · ')}</span>
-        )}
+        {(() => {
+          const parts = projectLocationParts(p.country, p.localGroup, p.remoteEligibility)
+          return parts.length > 0 && <span>📍 {parts.join(' · ')}</span>
+        })()}
         {p.projectType && <span>📋 {PROJECT_TYPE_LABELS[p.projectType] ?? p.projectType}</span>}
         {p.timeCommitmentHoursPerWeek && <span>🕐 {p.timeCommitmentHoursPerWeek}h/week</span>}
         {p.urgency && <span>⚡ {p.urgency} priority</span>}

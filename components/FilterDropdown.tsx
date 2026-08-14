@@ -35,6 +35,16 @@ interface Props<T extends string = string> {
   onChange: (value: T) => void
   searchable?: boolean
   required?: boolean
+  // Full override of the trigger button's classes, for callers that need a
+  // custom look (e.g. a colored pill) instead of the default bordered box.
+  triggerClassName?: string
+  // Full override of an option's rendered content, for a custom look per option
+  // (e.g. a colored pill matching that option's own color). Selection/focus
+  // highlighting on the row itself still applies underneath.
+  renderOption?: (opt: FilterOption<T>) => React.ReactNode
+  // Visually hides the <label> above the trigger (still rendered for a11y) —
+  // for use inside a card that already has its own heading for the field.
+  hideLabel?: boolean
 }
 
 export default function FilterDropdown<T extends string>({
@@ -46,6 +56,9 @@ export default function FilterDropdown<T extends string>({
   onChange,
   searchable,
   required,
+  triggerClassName,
+  renderOption,
+  hideLabel,
 }: Props<T>) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -166,12 +179,16 @@ export default function FilterDropdown<T extends string>({
   }
 
   const triggerClass =
+    triggerClassName ??
     'w-full flex items-center justify-between p-3 bg-surface text-brand-text border-2 border-brand-border rounded-lg text-base font-body cursor-pointer focus:outline-none focus:border-secondary transition-colors'
 
   // min-w-[200px]: deliberate minimum to prevent dropdown from collapsing on short labels
   return (
     <div ref={ref} className="min-w-[200px]">
-      <label htmlFor={id} className={required ? 'required' : undefined}>
+      <label
+        htmlFor={id}
+        className={[required && 'required', hideLabel && 'sr-only'].filter(Boolean).join(' ')}
+      >
         {label}
       </label>
       <div className="relative">
@@ -196,7 +213,11 @@ export default function FilterDropdown<T extends string>({
           tabIndex={searchable && open ? -1 : 0}
         >
           <span className="flex-1 text-left">{selectedLabel}</span>
-          <span className="ml-2 text-text-light">▾</span>
+          <span
+            className={`ml-2 ${triggerClassName ? 'text-current opacity-70' : 'text-text-light'}`}
+          >
+            ▾
+          </span>
         </button>
         {searchable && open && (
           <input
@@ -249,7 +270,7 @@ export default function FilterDropdown<T extends string>({
                     onClick={() => select(opt)}
                     className={`px-3 py-2 cursor-pointer rounded-md hover:bg-accent transition-colors text-sm ${value === opt.value || i === focusedIndex ? 'bg-accent' : ''} ${opt.indent ? 'pl-6' : ''}`}
                   >
-                    {opt.label}
+                    {renderOption ? renderOption(opt) : opt.label}
                   </div>
                 ),
               )}

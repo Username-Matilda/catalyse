@@ -19,22 +19,19 @@ import {
 } from '@/lib/schemas'
 import { authedProcedure, approvedProcedure, adminProcedure } from '../procedures'
 import {
+  OWNER_ALLOWED_STATUSES,
+  SEEKING_OWNER_SQL,
+  TERMINAL_STATUSES,
+  UNAPPROVED_STATUSES,
+  projectStatusLabel,
+} from '@/lib/project-status'
+import {
   ApprovalStatus,
   InterestStatus,
   ProjectStatus,
   TaskStatus,
   WorkItemType,
 } from '@/generated/prisma/enums'
-
-const STATUS_LABELS: Record<string, string> = {
-  seeking_owner: 'Seeking Owner',
-  seeking_help: 'Seeking Help',
-  needs_tasks: 'Needs Tasks',
-  in_progress: 'In Progress',
-  on_hold: 'On Hold',
-  completed: 'Completed',
-  archived: 'Archived',
-}
 
 /** Has this volunteer been declined from, or withdrawn from, this project? */
 async function isBlockedFromClaiming(projectId: number, volunteerId: number): Promise<boolean> {
@@ -71,15 +68,6 @@ async function releaseTasksHeldBy(projectId: number, volunteerId: number): Promi
     },
   })
 }
-
-const OWNER_ALLOWED_STATUSES: ProjectStatus[] = [
-  ProjectStatus.seeking_owner,
-  ProjectStatus.seeking_help,
-  ProjectStatus.needs_tasks,
-  ProjectStatus.in_progress,
-  ProjectStatus.on_hold,
-  ProjectStatus.completed,
-]
 
 // open and in_progress share a bucket so claiming/assigning a task doesn't
 // disturb its priority position — only completed tasks sink to the bottom.
@@ -131,7 +119,7 @@ export const projectsRouter = {
       } else {
         conditions.push(
           Prisma.raw(
-            `status NOT IN ('${ProjectStatus.archived}', '${ProjectStatus.pending_review}', '${ProjectStatus.needs_discussion}')`,
+            `status NOT IN ('${ProjectStatus.archived}', ${UNAPPROVED_STATUSES.map((s) => `'${s}'`).join(', ')})`,
           ),
         )
       }
@@ -158,18 +146,20 @@ export const projectsRouter = {
         conditions.push(Prisma.sql`is_seeking_help = ${input.isSeekingHelp ? 1 : 0}`)
       }
       if (input.isSeekingOwner !== undefined) {
-        conditions.push(Prisma.sql`is_seeking_owner = ${input.isSeekingOwner ? 1 : 0}`)
+        conditions.push(
+          Prisma.raw(input.isSeekingOwner ? SEEKING_OWNER_SQL : `NOT ${SEEKING_OWNER_SQL}`),
+        )
       }
       if (input.isSeekingAny) {
-        conditions.push(Prisma.raw(`(is_seeking_help = 1 OR is_seeking_owner = 1)`))
+        conditions.push(Prisma.raw(`(is_seeking_help = 1 OR ${SEEKING_OWNER_SQL})`))
       }
       if (input.notSeeking) {
-        conditions.push(Prisma.raw(`is_seeking_help = 0 AND is_seeking_owner = 0`))
+        conditions.push(Prisma.raw(`is_seeking_help = 0 AND NOT ${SEEKING_OWNER_SQL}`))
       }
 
       const whereClause = Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`
       const orderClause = Prisma.raw(`ORDER BY
-        CASE WHEN is_seeking_help = 1 OR is_seeking_owner = 1 THEN 0 ELSE 1 END,
+        CASE WHEN is_seeking_help = 1 OR ${SEEKING_OWNER_SQL} THEN 0 ELSE 1 END,
         CASE urgency WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
         created_at DESC`)
 
@@ -234,8 +224,8 @@ export const projectsRouter = {
           collaborationLink: input.collaborationLink ?? null,
           country: input.country ?? null,
           localGroup: input.localGroup ?? null,
+          remoteEligibility: input.remoteEligibility ?? 'NONE',
           isSeekingHelp: input.isSeekingHelp !== false,
-          isSeekingOwner: !wantToOwn,
         },
       })
 
@@ -486,6 +476,7 @@ export const projectsRouter = {
         'collaborationLink',
         'country',
         'localGroup',
+        'remoteEligibility',
         'outcome',
         'outcomeNotes',
       ] as const
@@ -494,12 +485,7 @@ export const projectsRouter = {
       }
       if (body.timeCommitmentHoursPerWeek !== undefined)
         data.timeCommitmentHoursPerWeek = body.timeCommitmentHoursPerWeek
-      if (body.assigneeId !== undefined) {
-        data.assigneeId = body.assigneeId
-        if (body.assigneeId !== null && body.isSeekingOwner === undefined) {
-          data.isSeekingOwner = false
-        }
-      }
+      if (body.assigneeId !== undefined) data.assigneeId = body.assigneeId
 
       if (newStatus !== undefined) {
         if (volunteer.isAdmin) {
@@ -510,11 +496,26 @@ export const projectsRouter = {
       }
 
       if (body.isSeekingHelp !== undefined) data.isSeekingHelp = body.isSeekingHelp
-      if (body.isSeekingOwner !== undefined) data.isSeekingOwner = body.isSeekingOwner
 
-      if (data.status === ProjectStatus.completed || data.status === ProjectStatus.archived) {
+      // Gaining an owner starts the work; losing one hands the project back to `ready`
+      // rather than leaving it in_progress with nobody on it. isSeekingOwner needs no
+      // maintenance here — it is derived from exactly these two fields.
+      const resultingAssigneeId =
+        body.assigneeId !== undefined ? body.assigneeId : project.assigneeId
+      if (data.status === undefined && !TERMINAL_STATUSES.includes(project.status)) {
+        if (resultingAssigneeId !== null && project.status === ProjectStatus.ready) {
+          data.status = ProjectStatus.in_progress
+        } else if (
+          resultingAssigneeId === null &&
+          project.status !== ProjectStatus.ready &&
+          !UNAPPROVED_STATUSES.includes(project.status)
+        ) {
+          data.status = ProjectStatus.ready
+        }
+      }
+
+      if (TERMINAL_STATUSES.includes(data.status as string)) {
         if (data.isSeekingHelp === undefined) data.isSeekingHelp = false
-        if (data.isSeekingOwner === undefined) data.isSeekingOwner = false
       }
 
       data.updatedAt = new Date()
@@ -534,8 +535,10 @@ export const projectsRouter = {
         }
       }
 
-      if (newStatus && newStatus !== project.status) {
-        const statusLabel = STATUS_LABELS[newStatus] ?? newStatus
+      // Covers the implicit ready ⇄ in_progress moves above, not just an explicit pick.
+      const effectiveStatus = data.status as string | undefined
+      if (effectiveStatus && effectiveStatus !== project.status) {
+        const statusLabel = projectStatusLabel(effectiveStatus)
         const notifyIds = new Set<number>()
         if (project.assigneeId && project.assigneeId !== volunteer.id)
           notifyIds.add(project.assigneeId)
@@ -590,12 +593,9 @@ export const projectsRouter = {
         where: {
           id: input.projectId,
           type: WorkItemType.PROJECT,
-          status: { notIn: [ProjectStatus.completed, ProjectStatus.archived] },
-          OR: [
-            { isSeekingHelp: true },
-            { isSeekingOwner: true },
-            { status: { in: [ProjectStatus.seeking_owner, ProjectStatus.seeking_help] } },
-          ],
+          status: { notIn: TERMINAL_STATUSES },
+          // Seeking help is a stored flag; seeking an owner is simply having none.
+          OR: [{ isSeekingHelp: true }, { assigneeId: null }],
         },
       })
       if (!project) {
@@ -727,19 +727,9 @@ export const projectsRouter = {
       }
 
       if (input.status === InterestStatus.accepted && interest.interestType === 'want_to_own') {
-        const openTaskCount = await prisma.workItem.count({
-          where: {
-            parentId: input.projectId,
-            type: WorkItemType.TASK,
-            status: { not: TaskStatus.completed },
-          },
-        })
         await prisma.workItem.update({
           where: { id: input.projectId },
-          data: {
-            assigneeId: interest.volunteerId,
-            status: openTaskCount > 0 ? ProjectStatus.in_progress : ProjectStatus.needs_tasks,
-          },
+          data: { assigneeId: interest.volunteerId, status: ProjectStatus.in_progress },
         })
       }
 
@@ -822,10 +812,20 @@ export const projectsRouter = {
         })
       }
 
-      if (input.interestType === 'want_to_own' && project.isSeekingOwner) {
+      // Assigning someone as owner has to actually set the owner. This previously only
+      // cleared the (now derived) isSeekingOwner flag, leaving the project ownerless and
+      // no longer advertising for one — unlike respondToInterest, which took the same
+      // intent and did set the assignee.
+      if (input.interestType === 'want_to_own' && project.assigneeId === null) {
         await prisma.workItem.update({
           where: { id: input.projectId },
-          data: { isSeekingOwner: false },
+          data: {
+            assigneeId: input.volunteerId,
+            status: TERMINAL_STATUSES.includes(project.status)
+              ? project.status
+              : ProjectStatus.in_progress,
+            updatedAt: new Date(),
+          },
         })
       }
 
@@ -977,12 +977,6 @@ export const projectsRouter = {
             sortOrder: (max._max.sortOrder ?? 0) + 1,
           },
         })
-        if (project.status === ProjectStatus.needs_tasks) {
-          await tx.workItem.update({
-            where: { id: input.projectId },
-            data: { status: ProjectStatus.in_progress },
-          })
-        }
         return newTask
       })
 

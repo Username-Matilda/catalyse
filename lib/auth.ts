@@ -81,6 +81,7 @@ export function redactVolunteer(
     approvalStatus: vol.approvalStatus,
     emailConfirmed: vol.emailConfirmed,
     emailDigest: vol.emailDigest,
+    notifyRemoteProjects: vol.notifyRemoteProjects,
     hasPassword: Boolean(vol.passwordHash),
     createdAt: vol.createdAt,
     updatedAt: vol.updatedAt,

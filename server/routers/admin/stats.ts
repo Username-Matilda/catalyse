@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { adminProcedure } from '../../procedures'
+import { ADVERTISABLE_STATUSES } from '@/lib/project-status'
 import { InterestStatus, ProjectStatus, WorkItemType } from '@/generated/prisma/enums'
 
 export const adminStatsRouter = {
@@ -27,7 +28,10 @@ export const adminStatsRouter = {
       prisma.workItem.count({
         where: {
           type: WorkItemType.PROJECT,
-          OR: [{ isSeekingHelp: true }, { isSeekingOwner: true }],
+          // Approved and unfinished only — this used to count pending-review proposals
+          // and completed projects carrying stale flags.
+          status: { in: ADVERTISABLE_STATUSES },
+          OR: [{ isSeekingHelp: true }, { assigneeId: null }],
         },
       }),
       prisma.workItem.count({
