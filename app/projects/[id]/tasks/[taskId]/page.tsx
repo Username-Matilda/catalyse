@@ -50,6 +50,7 @@ export default function TaskDetailPage({
   const [editDeadline, setEditDeadline] = useState('')
   const [editFeatured, setEditFeatured] = useState(false)
   const [initialized, setInitialized] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
 
   useEffect(() => {
     if (!task || initialized) return
@@ -66,6 +67,7 @@ export default function TaskDetailPage({
     ...orpc.projects.updateTask.mutationOptions(),
     onSuccess: () => {
       showToast('Task updated!', 'success')
+      setIsEditing(false)
       void queryClient.invalidateQueries({ queryKey: orpc.projects.getTask.key() })
     },
     onError: (err: unknown) =>
@@ -132,9 +134,16 @@ export default function TaskDetailPage({
       <div className="bg-surface rounded-xl shadow p-6 overflow-hidden wrap-break-word mb-5">
         <div className="flex justify-between items-start mb-3 gap-4">
           <h1 className="m-0">{task.title}</h1>
-          <Badge variant={statusVariant(task.status)}>
-            {TASK_STATUS_LABELS[task.status] ?? task.status}
-          </Badge>
+          <div className="flex items-center gap-2 shrink-0">
+            <Badge variant={statusVariant(task.status)}>
+              {TASK_STATUS_LABELS[task.status] ?? task.status}
+            </Badge>
+            {canEdit && !isEditing && (
+              <Button variant="secondary" size="sm" onClick={() => setIsEditing(true)}>
+                Edit
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="flex gap-3 mb-4 flex-wrap">
@@ -170,7 +179,7 @@ export default function TaskDetailPage({
           </div>
         )}
 
-        {canEdit && (
+        {canEdit && isEditing && (
           <form
             onSubmit={handleSaveEdit}
             className="mt-5 pt-5 border-t border-brand-border max-w-xl"
@@ -229,9 +238,30 @@ export default function TaskDetailPage({
               </Checkbox>
             </div>
 
-            <Button type="submit" disabled={updateMutation.isPending || !editTitle.trim()}>
-              {updateMutation.isPending ? 'Saving…' : 'Save Changes'}
-            </Button>
+            <div className="flex gap-3">
+              <Button type="submit" disabled={updateMutation.isPending || !editTitle.trim()}>
+                {updateMutation.isPending ? 'Saving…' : 'Save Changes'}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={updateMutation.isPending}
+                onClick={() => {
+                  setIsEditing(false)
+                  setEditTitle(task.title)
+                  setEditDescription(task.description ?? '')
+                  setEditEstimatedHours(
+                    task.estimatedHours !== null ? String(task.estimatedHours) : '',
+                  )
+                  setEditDeadline(
+                    task.deadline ? new Date(task.deadline).toISOString().slice(0, 10) : '',
+                  )
+                  setEditFeatured(task.featuredAsQuickTask)
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
           </form>
         )}
       </div>
