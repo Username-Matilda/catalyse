@@ -421,12 +421,13 @@ model ApplicationsSummaryRun {
 }
 
 model CronJobRun {
-  id         Int       @id @default(autoincrement())
-  jobName    String    @map("job_name")
-  startedAt  DateTime  @default(now()) @map("started_at")
-  finishedAt DateTime? @map("finished_at")
-  status     String // running | success | error
-  summary    String?
+  id          Int       @id @default(autoincrement())
+  jobName     String    @map("job_name")
+  triggeredBy String    @default("cron") @map("triggered_by") // cron | admin
+  startedAt   DateTime  @default(now()) @map("started_at")
+  finishedAt  DateTime? @map("finished_at")
+  status      String // running | success | error
+  summary     String?
 
   @@index([jobName], map: "idx_cron_job_runs_job_name")
   @@map("cron_job_runs")
