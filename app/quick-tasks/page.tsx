@@ -622,8 +622,8 @@ function AdminQuickTasksView() {
     deleteTaskMutation.mutate({ id: task.id })
   }
 
-  async function copyLink(taskId: number) {
-    const url = `${window.location.origin}/quick-tasks/${taskId}`
+  async function copyLink(path: string) {
+    const url = `${window.location.origin}${path}`
     try {
       await navigator.clipboard.writeText(url)
       toast('Link copied!', 'success')
@@ -753,7 +753,11 @@ function AdminQuickTasksView() {
                   Created {formatDate(task.createdAt)}
                 </span>
                 <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" onClick={() => void copyLink(task.id)}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => void copyLink(`/quick-tasks/${task.id}`)}
+                  >
                     Copy share link
                   </Button>
                   <Button variant="secondary" size="sm" onClick={() => openEdit(task)}>
@@ -861,16 +865,25 @@ function AdminQuickTasksView() {
                   <span className="text-sm text-text-light">
                     Created {formatDate(task.createdAt)}
                   </span>
-                  {task.assignedToId && (
+                  <div className="flex gap-2">
                     <Button
-                      variant="secondary"
+                      variant="ghost"
                       size="sm"
-                      disabled={unassignProjectTaskMutation.isPending}
-                      onClick={() => handleUnassignProjectTask(task)}
+                      onClick={() => void copyLink(`/projects/${task.projectId}/tasks/${task.id}`)}
                     >
-                      Unassign
+                      Copy share link
                     </Button>
-                  )}
+                    {task.assignedToId && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={unassignProjectTaskMutation.isPending}
+                        onClick={() => handleUnassignProjectTask(task)}
+                      >
+                        Unassign
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </QuickTaskCard>
             ))}
