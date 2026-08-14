@@ -14,6 +14,7 @@ import Modal from '@/components/ui/Modal'
 type CronRun = {
   id: number
   jobName: string
+  triggeredBy: string
   status: string
   startedAt: string | Date
   finishedAt: string | Date | null
@@ -100,6 +101,7 @@ export default function AdminCronRunsPage() {
             <thead>
               <tr className="border-b-2 border-brand-border text-left">
                 <th className="p-3">Job</th>
+                <th className="p-3">Triggered by</th>
                 <th className="p-3">Status</th>
                 <th className="p-3">Started</th>
                 <th className="p-3">Finished</th>
@@ -115,6 +117,11 @@ export default function AdminCronRunsPage() {
                   onClick={() => setSelectedRun(run)}
                 >
                   <td className="p-3 font-semibold whitespace-nowrap">{run.jobName}</td>
+                  <td className="p-3">
+                    <Badge variant={run.triggeredBy === 'admin' ? 'info' : 'neutral'}>
+                      {run.triggeredBy}
+                    </Badge>
+                  </td>
                   <td className="p-3">
                     <Badge variant={STATUS_VARIANT[run.status] ?? 'neutral'}>{run.status}</Badge>
                   </td>
@@ -143,6 +150,7 @@ export default function AdminCronRunsPage() {
       >
         {selectedRun && (
           <div>
+            <p className="text-sm text-text-light mb-1">Triggered by: {selectedRun.triggeredBy}</p>
             <p className="text-sm text-text-light mb-1">
               Started: {formatDateTime(selectedRun.startedAt)}
             </p>

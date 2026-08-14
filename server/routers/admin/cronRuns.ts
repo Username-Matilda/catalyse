@@ -21,7 +21,7 @@ export const adminCronRunsRouter = {
   run: superAdminProcedure
     .input(z.object({ jobName: z.enum([...CRON_JOB_NAMES] as [CronJobName, ...CronJobName[]]) }))
     .handler(async ({ input }) => {
-      const result = await CRON_JOBS[input.jobName]()
+      const result = await CRON_JOBS[input.jobName]('admin')
       return { result }
     }),
 }

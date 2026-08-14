@@ -10,9 +10,15 @@ function summarize(result: unknown): string {
   }
 }
 
-export async function recordCronRun<T>(jobName: string, fn: () => Promise<T>): Promise<T> {
+export type CronTriggerSource = 'cron' | 'admin'
+
+export async function recordCronRun<T>(
+  jobName: string,
+  fn: () => Promise<T>,
+  triggeredBy: CronTriggerSource = 'cron',
+): Promise<T> {
   const run = await prisma.cronJobRun.create({
-    data: { jobName, status: 'running' },
+    data: { jobName, status: 'running', triggeredBy },
   })
 
   try {
