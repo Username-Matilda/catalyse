@@ -147,11 +147,11 @@ export async function setProjectStatus(
   status: string,
 ): Promise<void> {
   await page.goto(`${baseUrl}/projects/${projectId}`)
-  await expect(page.getByRole('heading', { name: 'Manage Project Status' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Status', exact: true })).toBeVisible({
     timeout: 10_000,
   })
 
-  await selectFilterDropdown(page, 'Change Status', PROJECT_STATUS_LABELS[status] ?? status)
+  await selectFilterDropdown(page, 'project status', PROJECT_STATUS_LABELS[status] ?? status)
   await page.getByRole('button', { name: 'Confirm' }).click()
   await expect(getAlert(page)).toBeVisible({ timeout: 10_000 })
 }

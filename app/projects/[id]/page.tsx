@@ -8,7 +8,7 @@ import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import Checkbox from '@/components/Checkbox'
-import { Badge } from '@/components/Badge'
+import { Badge, badgeClasses, badgeColorClasses } from '@/components/Badge'
 import Tooltip from '@/components/Tooltip'
 import {
   STATUS_LABELS,
@@ -63,6 +63,11 @@ const ADMIN_EXTRA_STATUSES = [
 // ── Tailwind class constants ──────────────────────────────────────────────────
 
 const card = 'bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word'
+
+// The status select's trigger is colored like a Badge, but as a full-width, clickable pill.
+function statusTriggerClasses(status: string) {
+  return `w-full flex items-center justify-between gap-2 px-3 py-2 rounded-full text-sm font-semibold cursor-pointer focus:outline-none focus:ring-2 focus:ring-secondary transition-colors ${badgeColorClasses(projectStatusVariant(status))}`
+}
 
 // ── Task list item ──────────────────────────────────────────────────────────
 
@@ -721,30 +726,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     <>
       <main className="container py-5 pb-15">
         {/* [test hook] projectContent id used by action helpers to confirm page has loaded */}
-        <div id="projectContent" className="flex items-center gap-3 flex-wrap mb-2">
-          <Badge variant={projectStatusVariant(project.status)} aria-label="project status">
-            {STATUS_LABELS[project.status] ?? project.status}
-          </Badge>
-          {(() => {
-            const parts = projectLocationParts(
-              project.country,
-              project.localGroup,
-              project.remoteEligibility,
-            )
-            return (
-              parts.length > 0 && (
-                <span className="text-sm text-text-light">📍 {parts.join(' · ')}</span>
-              )
-            )
-          })()}
-          {isOwnerOrAdmin && (
-            <Button href={`/projects/${idParam}/edit`} variant="secondary" size="sm">
-              Edit
-            </Button>
-          )}
-        </div>
-
-        <h1 role="heading" aria-level={1}>
+        <h1 id="projectContent" role="heading" aria-level={1}>
           {project.title}
         </h1>
 
@@ -1109,6 +1091,76 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
           {/* Sidebar */}
           <div className="lg:col-span-1 min-w-0 flex flex-col gap-4">
+            {/* Status */}
+            <div className={card}>
+              <h2>Status</h2>
+              {isOwnerOrAdmin ? (
+                <FilterDropdown
+                  id="change-status"
+                  label="Status"
+                  ariaLabel="project status"
+                  value={newStatus}
+                  options={statusOptions}
+                  onChange={handleSelectStatus}
+                  triggerClassName={statusTriggerClasses(newStatus)}
+                  renderOption={(opt) => (
+                    <span className={badgeClasses(projectStatusVariant(opt.value))}>
+                      {opt.label}
+                    </span>
+                  )}
+                  hideLabel
+                />
+              ) : (
+                <Badge variant={projectStatusVariant(project.status)} aria-label="project status">
+                  {STATUS_LABELS[project.status] ?? project.status}
+                </Badge>
+              )}
+              {(() => {
+                const parts = projectLocationParts(
+                  project.country,
+                  project.localGroup,
+                  project.remoteEligibility,
+                )
+                return (
+                  parts.length > 0 && (
+                    <p className="text-sm text-text-light mt-3 mb-0">📍 {parts.join(' · ')}</p>
+                  )
+                )
+              })()}
+              {isOwnerOrAdmin && (
+                <Button
+                  href={`/projects/${idParam}/edit`}
+                  variant="secondary"
+                  size="sm"
+                  className="mt-3"
+                >
+                  Edit
+                </Button>
+              )}
+              <Modal
+                id="confirm-status-change"
+                title="Change project status?"
+                isOpen={pendingStatus !== null}
+                onClose={() => setPendingStatus(null)}
+              >
+                <p>
+                  Change status from <strong>{STATUS_LABELS[newStatus] ?? newStatus}</strong> to{' '}
+                  <strong>
+                    {pendingStatus ? (STATUS_LABELS[pendingStatus] ?? pendingStatus) : ''}
+                  </strong>
+                  ?
+                </p>
+                <div className="mt-4 flex justify-end gap-2">
+                  <Button variant="secondary" onClick={() => setPendingStatus(null)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleConfirmStatus} disabled={updateProjectMutation.isPending}>
+                    {updateProjectMutation.isPending ? 'Updating…' : 'Confirm'}
+                  </Button>
+                </div>
+              </Modal>
+            </div>
+
             {/* Admin triage */}
             {isAdmin &&
               (project.status === ProjectStatus.pending_review ||
@@ -1189,46 +1241,6 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     {setOutcomeMutation.isPending ? 'Recording…' : 'Record Outcome'}
                   </Button>
                 </form>
-              </div>
-            )}
-
-            {/* Manage status */}
-            {isOwnerOrAdmin && (
-              <div className={card}>
-                <h2>Manage Project Status</h2>
-                <FilterDropdown
-                  id="change-status"
-                  label="Change Status"
-                  ariaLabel="Change Status"
-                  value={newStatus}
-                  options={statusOptions}
-                  onChange={handleSelectStatus}
-                />
-                <Modal
-                  id="confirm-status-change"
-                  title="Change project status?"
-                  isOpen={pendingStatus !== null}
-                  onClose={() => setPendingStatus(null)}
-                >
-                  <p>
-                    Change status from <strong>{STATUS_LABELS[newStatus] ?? newStatus}</strong> to{' '}
-                    <strong>
-                      {pendingStatus ? (STATUS_LABELS[pendingStatus] ?? pendingStatus) : ''}
-                    </strong>
-                    ?
-                  </p>
-                  <div className="mt-4 flex justify-end gap-2">
-                    <Button variant="secondary" onClick={() => setPendingStatus(null)}>
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleConfirmStatus}
-                      disabled={updateProjectMutation.isPending}
-                    >
-                      {updateProjectMutation.isPending ? 'Updating…' : 'Confirm'}
-                    </Button>
-                  </div>
-                </Modal>
               </div>
             )}
 
