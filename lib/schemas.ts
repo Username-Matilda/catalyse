@@ -124,7 +124,6 @@ const PROJECT_INPUT_FIELDS = {
   localGroup: true,
   remoteEligibility: true,
   isSeekingHelp: true,
-  isSeekingOwner: true,
 } as const
 
 export const CreateProjectSchema = WorkItemSchema.pick(PROJECT_INPUT_FIELDS)

@@ -109,7 +109,6 @@ async function adminCreateRemoteProject(
       localGroup: null,
       remoteEligibility,
       isSeekingHelp: true,
-      isSeekingOwner: true,
       skillIds,
       skillRequiredMap: Object.fromEntries(skillIds.map((id) => [id, true])),
       tasks: [{ title: 'Initial task' }],

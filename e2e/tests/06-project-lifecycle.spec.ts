@@ -12,7 +12,7 @@ import {
 } from '../actions/projects'
 
 test.describe('Project Lifecycle', () => {
-  test('Volunteer proposes a project with tasks; admin approves; project moves to Seeking Owner', async ({
+  test('Volunteer proposes a project with tasks; admin approves; project moves to Ready', async ({
     adminPage,
     volunteer,
     baseUrl,
@@ -28,7 +28,7 @@ test.describe('Project Lifecycle', () => {
 
     await volunteer.page.goto(`${baseUrl}/projects/${projectId}`)
     await expect(volunteer.page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 })
-    await expect(volunteer.page.getByLabel('project status')).toContainText('Seeking Owner', {
+    await expect(volunteer.page.getByLabel('project status')).toContainText('Ready', {
       timeout: 10_000,
     })
   })
@@ -119,8 +119,9 @@ test.describe('Project Lifecycle', () => {
     const title = fake.projectTitle()
     await adminCreateProject(baseUrl, adminPage, title, 'Admin-created project description')
 
-    // Project starts in_progress since it must be created with at least one task
-    await expect(adminPage.getByLabel('project status')).toContainText('In Progress', {
+    // Org projects skip review, so this one is live immediately — but the admin didn't
+    // claim it, so it goes live as Ready rather than In Progress.
+    await expect(adminPage.getByLabel('project status')).toContainText('Ready', {
       timeout: 10_000,
     })
 
@@ -260,7 +261,6 @@ test.describe('Project Creation Requires At Least One Task', () => {
         country: null,
         localGroup: null,
         isSeekingHelp: true,
-        isSeekingOwner: true,
         tasks: [],
       },
     })
@@ -284,7 +284,6 @@ test.describe('Project Creation Requires At Least One Task', () => {
         country: null,
         localGroup: null,
         isSeekingHelp: false,
-        isSeekingOwner: false,
         tasks: [],
       },
     })

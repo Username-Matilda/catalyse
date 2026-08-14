@@ -71,7 +71,6 @@ test.describe('Quick Tasks: self-serve', () => {
         country: null,
         localGroup: null,
         isSeekingHelp: true,
-        isSeekingOwner: false,
         tasks: [{ title: 'Seed task' }],
       },
     })
@@ -135,7 +134,6 @@ test.describe('Quick Tasks: self-serve', () => {
         country: null,
         localGroup: null,
         isSeekingHelp: true,
-        isSeekingOwner: false,
         tasks: [{ title: 'Seed task' }],
       },
     })
@@ -183,7 +181,6 @@ test.describe('Quick Tasks: self-serve', () => {
         country: null,
         localGroup: null,
         isSeekingHelp: true,
-        isSeekingOwner: false,
         tasks: [{ title: 'Seed task' }],
       },
     })
@@ -268,7 +265,6 @@ test.describe('Leaving a project', () => {
         country: null,
         localGroup: null,
         isSeekingHelp: true,
-        isSeekingOwner: false,
         tasks: [{ title: 'Seed task' }],
       },
     })

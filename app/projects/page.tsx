@@ -19,6 +19,7 @@ import { ProjectStatus } from '@/generated/prisma/enums'
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All Active' },
+  { value: 'ready', label: 'Ready' },
   { value: 'in_progress', label: 'In Progress' },
   { value: 'on_hold', label: 'On Hold' },
   { value: 'completed', label: 'Completed' },
@@ -143,7 +144,7 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
       (p) =>
         !p.isSeekingHelp &&
         !p.isSeekingOwner &&
-        !['in_progress', 'on_hold', 'completed'].includes(p.status),
+        !['ready', 'in_progress', 'on_hold', 'completed'].includes(p.status),
     ),
   )
 

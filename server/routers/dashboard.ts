@@ -1,7 +1,8 @@
 import { prisma } from '@/lib/prisma'
 import { withProjectExtras, projectInclude, EnrichedProject } from '@/lib/work-item'
 import { authedProcedure } from '../procedures'
-import { ProjectStatus, WorkItemType } from '@/generated/prisma/enums'
+import { ADVERTISABLE_STATUSES } from '@/lib/project-status'
+import { WorkItemType } from '@/generated/prisma/enums'
 
 export const dashboardRouter = {
   get: authedProcedure.handler(async ({ context }) => {
@@ -50,12 +51,18 @@ export const dashboardRouter = {
               where: {
                 type: WorkItemType.PROJECT,
                 skills: { some: { skillId: { in: [...volunteerSkillIds] } } },
-                OR: [
-                  { isSeekingHelp: true },
-                  { isSeekingOwner: true },
-                  { status: ProjectStatus.seeking_owner },
+                // Approved and unfinished only. Without this, proposals still awaiting
+                // review were recommended to volunteers — every project is created with
+                // isSeekingHelp true, so the flag alone matched them before an admin had
+                // even seen them.
+                status: { in: ADVERTISABLE_STATUSES },
+                AND: [
+                  { OR: [{ isSeekingHelp: true }, { assigneeId: null }] },
+                  // `{ not: id }` alone drops rows where assignee_id IS NULL, which meant
+                  // ownerless projects — the ones most in need of someone — were never
+                  // suggested to anyone. Same workaround as proposedProjects above.
+                  { OR: [{ assigneeId: null }, { assigneeId: { not: volunteer.id } }] },
                 ],
-                assigneeId: { not: volunteer.id },
                 id: { notIn: interestedProjectIds.length > 0 ? interestedProjectIds : [-1] },
               },
               orderBy: { createdAt: 'desc' },

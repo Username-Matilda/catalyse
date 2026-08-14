@@ -58,7 +58,6 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
   const [remoteEligibility, setRemoteEligibility] = useState<'NONE' | 'COUNTRY' | 'GLOBAL'>('NONE')
   const [estimatedDuration, setEstimatedDuration] = useState('')
   const [seekingHelp, setSeekingHelp] = useState(true)
-  const [seekingOwner, setSeekingOwner] = useState(true)
 
   const { data: localGroupsData } = useQuery({
     ...orpc.localGroups.list.queryOptions({ input: {} }),
@@ -89,7 +88,6 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
     setRemoteEligibility(data.remoteEligibility ?? 'NONE')
     setEstimatedDuration(data.estimatedDuration ?? '')
     setSeekingHelp(data.isSeekingHelp ?? false)
-    setSeekingOwner(data.isSeekingOwner ?? false)
     const isOwner = data.ownerId === user?.id || data.proposedById === user?.id
     setCanEdit(isOwner || (user?.isAdmin ?? false))
     setPermissionChecked(true)
@@ -129,7 +127,6 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
       remoteEligibility,
       estimatedDuration: estimatedDuration.trim() || null,
       isSeekingHelp: seekingHelp,
-      isSeekingOwner: seekingOwner,
     })
   }
 
@@ -289,6 +286,9 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
             <SkillPicker value={skills} onChange={canEdit ? setSkills : () => {}} />
           </div>
 
+          {/* There is no "needs an owner" checkbox: a project needs one exactly when it
+              hasn't got one, so it's derived rather than asked for. Ownership is changed
+              from the project page's owner menu. */}
           <div className="mb-5">
             <p className="font-medium mb-2">This project needs:</p>
             <div className="flex flex-col gap-2">
@@ -298,13 +298,6 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                 disabled={!canEdit}
               >
                 Help / contributors
-              </Checkbox>
-              <Checkbox
-                checked={seekingOwner}
-                onChange={(e) => setSeekingOwner(e.target.checked)}
-                disabled={!canEdit}
-              >
-                An owner / lead
               </Checkbox>
             </div>
           </div>

@@ -1,10 +1,12 @@
 import { Prisma } from '@/generated/prisma/client'
 import { calculateMatchScore } from './matching'
+import { isSeekingOwner, UNAPPROVED_STATUSES } from './project-status'
 import {
   InterestStatus,
   ProjectStatus,
   QuickTaskStatus,
   RemoteEligibility,
+  TaskStatus,
   WorkItemType,
 } from '@/generated/prisma/enums'
 
@@ -21,10 +23,7 @@ export type WorkItemForAccess = {
 
 export type CommentViewer = { id: number; isAdmin: boolean; isApproved: boolean } | null
 
-const PROJECT_HIDDEN_STATUSES: string[] = [
-  ProjectStatus.pending_review,
-  ProjectStatus.needs_discussion,
-]
+const PROJECT_HIDDEN_STATUSES: string[] = UNAPPROVED_STATUSES
 
 // A volunteer the owner declined, or who withdrew themselves, is no longer a contributor
 // on that project: they cannot self-claim its tasks and its tasks are hidden from their
@@ -133,13 +132,12 @@ export type EnrichedProject = {
   updatedAt: Date | null
   country: string | null
   isSeekingHelp: boolean | null
-  isSeekingOwner: boolean | null
   localGroup: string | null
   remoteEligibility: RemoteEligibility
   skills: WorkItemSkillWithRelations[]
   assignee: { id: number; name: string } | null
   creator: { id: number; name: string } | null
-  _count: { interests: number }
+  _count: { interests: number; children: number }
 }
 
 // The serialized view keeps the public field names `owner`/`proposedBy`
@@ -175,7 +173,13 @@ export function withProjectExtras(p: EnrichedProject, volunteerSkillIds?: Set<nu
     updatedAt: p.updatedAt,
     country: p.country,
     isSeekingHelp: p.isSeekingHelp,
-    isSeekingOwner: p.isSeekingOwner,
+    // Derived, not stored — see isSeekingOwner() in lib/project-status.ts.
+    isSeekingOwner: isSeekingOwner(p),
+    // An owned project with an empty backlog. Surfaced as a badge rather than a status:
+    // as a status it flipped back and forth every time a task was completed, so nothing
+    // kept it up to date.
+    needsTasks: p.status === ProjectStatus.in_progress && p._count.children === 0,
+    openTaskCount: p._count.children,
     localGroup: p.localGroup,
     remoteEligibility: p.remoteEligibility,
     skills: p.skills.map((ps) => ({
@@ -206,5 +210,11 @@ export const projectInclude = {
   },
   assignee: { select: { id: true, name: true } },
   creator: { select: { id: true, name: true } },
-  _count: { select: { interests: { where: { status: InterestStatus.pending } } } },
+  _count: {
+    select: {
+      interests: { where: { status: InterestStatus.pending } },
+      // Open (non-completed) child tasks — feeds the derived `needsTasks` badge.
+      children: { where: { type: WorkItemType.TASK, status: { not: TaskStatus.completed } } },
+    },
+  },
 } satisfies Prisma.WorkItemInclude

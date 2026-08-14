@@ -15,12 +15,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Lifecycle position only. Whether a project wants an owner or more help is not a
+// status: `isSeekingOwner` is derived (see lib/project-status.ts) and `isSeekingHelp`
+// is an independent flag the owner controls.
+//   pending_review → needs_discussion → ready → in_progress → on_hold → completed → archived
+// `ready` = approved and live, but nobody owns it yet.
 enum ProjectStatus {
   pending_review
   needs_discussion
+  ready
   in_progress
-  needs_tasks
-  seeking_owner
   on_hold
   completed
   archived
@@ -274,8 +278,9 @@ model WorkItem {
   timeCommitmentHoursPerWeek Int?      @map("time_commitment_hours_per_week")
   collaborationLink          String?   @map("collaboration_link")
   isOrgProposed              Boolean?  @default(false) @map("is_org_proposed")
+  // No `is_seeking_owner` column: it is derived from (status, assigneeId). See
+  // isSeekingOwner() in lib/project-status.ts.
   isSeekingHelp              Boolean?  @default(false) @map("is_seeking_help")
-  isSeekingOwner             Boolean?  @default(false) @map("is_seeking_owner")
   outcome                    String? // TODO: enum — successful, partial, not_completed, ongoing
   outcomeNotes               String?   @map("outcome_notes")
   completedAt                DateTime? @map("completed_at")

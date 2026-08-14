@@ -131,7 +131,8 @@ export default function ProjectForm({
         skillIds: skills.map((s) => s.skillId),
         skillRequiredMap: Object.fromEntries(skills.map((s) => [s.skillId, true])),
         isSeekingHelp: seekingHelp,
-        isSeekingOwner: !wantToOwn,
+        // No isSeekingOwner: `wantToOwn` decides whether an owner is set, and "needs an
+        // owner" is derived from that.
         wantToOwn,
         tasks: validTasks.map((t) => ({
           title: t.title.trim(),

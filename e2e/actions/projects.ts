@@ -2,16 +2,7 @@ import { Page, expect } from '@playwright/test'
 import { getAlert } from '../fixtures'
 import { selectFilterDropdown } from './ui'
 
-const PROJECT_STATUS_LABELS: Record<string, string> = {
-  seeking_owner: 'Seeking Owner',
-  needs_tasks: 'Needs Tasks',
-  in_progress: 'In Progress',
-  on_hold: 'On Hold',
-  completed: 'Completed',
-  archived: 'Archived',
-  pending_review: 'Pending Review',
-  needs_discussion: 'Needs Discussion',
-}
+import { PROJECT_STATUS_LABELS } from '../../lib/project-status'
 
 const OUTCOME_LABELS: Record<string, string> = {
   successful: 'Successful',
@@ -136,6 +127,20 @@ export async function transferProjectOwnership(
   await selectFilterDropdown(adminPage, 'Transfer to', volunteerName)
   adminPage.once('dialog', (dialog) => dialog.accept())
   await adminPage.getByRole('menu').getByRole('button', { name: 'Transfer', exact: true }).click()
+  await expect(getAlert(adminPage)).toBeVisible({ timeout: 10_000 })
+}
+
+export async function removeProjectOwner(
+  baseUrl: string,
+  adminPage: Page,
+  projectId: number,
+): Promise<void> {
+  if (!adminPage.url().includes(`/projects/${projectId}`)) {
+    await adminPage.goto(`${baseUrl}/projects/${projectId}`)
+  }
+  await adminPage.getByRole('button', { name: 'Ownership actions' }).click()
+  adminPage.once('dialog', (dialog) => dialog.accept())
+  await adminPage.getByRole('menuitem', { name: 'Remove ownership' }).click()
   await expect(getAlert(adminPage)).toBeVisible({ timeout: 10_000 })
 }
 

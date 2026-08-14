@@ -10,11 +10,7 @@ import Button from '@/components/Button'
 import Checkbox from '@/components/Checkbox'
 import { Badge, badgeClasses, badgeColorClasses } from '@/components/Badge'
 import Tooltip from '@/components/Tooltip'
-import {
-  STATUS_LABELS,
-  INTEREST_STATUS_LABELS,
-  projectStatusVariant,
-} from '@/components/ProjectCard'
+import { INTEREST_STATUS_LABELS, projectStatusVariant } from '@/components/ProjectCard'
 import CommentThread from '@/components/CommentThread'
 import Modal from '@/components/ui/Modal'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
@@ -22,6 +18,12 @@ import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import { formatDate } from '@/lib/format-date'
 import { projectLocationParts } from '@/lib/filter-options'
+import {
+  ADMIN_ONLY_STATUSES,
+  OWNER_ALLOWED_STATUSES,
+  TERMINAL_STATUSES,
+  projectStatusLabel,
+} from '@/lib/project-status'
 import { InterestStatus, ProjectStatus, TaskStatus } from '@/generated/prisma/enums'
 import type { InferRouterOutputs } from '@orpc/server'
 import type { AppRouter } from '@/server/router'
@@ -45,21 +47,12 @@ import { CSS } from '@dnd-kit/utilities'
 
 type ProjectTask = InferRouterOutputs<AppRouter>['projects']['getById']['tasks'][number]
 
-// 'needs_tasks' is deliberately excluded — it's a system-derived state (an assigned
-// project with zero open tasks), never a status someone should pick from a menu.
-// The server auto-promotes it back to 'in_progress' as soon as a task is added.
-const OWNER_STATUSES = [
-  { value: 'seeking_owner', label: 'Seeking Owner' },
-  { value: 'in_progress', label: 'In Progress' },
-  { value: 'on_hold', label: 'On Hold' },
-  { value: 'completed', label: 'Completed' },
-]
-
-const ADMIN_EXTRA_STATUSES = [
-  { value: 'archived', label: 'Archived' },
-  { value: 'pending_review', label: 'Pending Review' },
-  { value: 'needs_discussion', label: 'Needs Discussion' },
-]
+// Both lists come from lib/project-status.ts, which the server's permission check reads
+// too — they used to be hand-synced copies.
+const toOptions = (statuses: string[]) =>
+  statuses.map((value) => ({ value, label: projectStatusLabel(value) }))
+const OWNER_STATUSES = toOptions(OWNER_ALLOWED_STATUSES)
+const ADMIN_EXTRA_STATUSES = toOptions(ADMIN_ONLY_STATUSES)
 
 // ── Tailwind class constants ──────────────────────────────────────────────────
 
@@ -538,18 +531,14 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const canSeeInterest =
     !isOwnerOrAdmin &&
     (project.isSeekingHelp || project.isSeekingOwner) &&
-    !['completed', 'archived'].includes(project.status)
+    !TERMINAL_STATUSES.includes(project.status)
 
   const pickableStatuses = isAdmin ? [...OWNER_STATUSES, ...ADMIN_EXTRA_STATUSES] : OWNER_STATUSES
-  // If the project is currently sitting in a non-pickable derived status (e.g.
-  // 'needs_tasks'), still surface it so the control displays the real current value —
-  // it just isn't offered as something to switch *to* from any other status.
+  // Every status is pickable by someone now, but an owner viewing a project an admin put
+  // into an admin-only status still needs the control to show its real current value.
   const statusOptions = pickableStatuses.some((o) => o.value === project.status)
     ? pickableStatuses
-    : [
-        { value: project.status, label: STATUS_LABELS[project.status] ?? project.status },
-        ...pickableStatuses,
-      ]
+    : [{ value: project.status, label: projectStatusLabel(project.status) }, ...pickableStatuses]
 
   // Excludes the current owner — they're already shown in the Owner box above.
   const volunteerInterests = (project.interests ?? []).filter(
@@ -1129,9 +1118,16 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 />
               ) : (
                 <Badge variant={projectStatusVariant(project.status)} aria-label="project status">
-                  {STATUS_LABELS[project.status] ?? project.status}
+                  {projectStatusLabel(project.status)}
                 </Badge>
               )}
+              <div className="flex gap-1 flex-wrap mt-2">
+                {project.isSeekingOwner && project.status !== ProjectStatus.ready && (
+                  <Badge variant="caution">Seeking Owner</Badge>
+                )}
+                {project.isSeekingHelp && <Badge variant="caution">Seeking Help</Badge>}
+                {project.needsTasks && <Badge variant="warning">Needs Tasks</Badge>}
+              </div>
               {(() => {
                 const parts = projectLocationParts(
                   project.country,
@@ -1151,11 +1147,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 onClose={() => setPendingStatus(null)}
               >
                 <p>
-                  Change status from <strong>{STATUS_LABELS[newStatus] ?? newStatus}</strong> to{' '}
-                  <strong>
-                    {pendingStatus ? (STATUS_LABELS[pendingStatus] ?? pendingStatus) : ''}
-                  </strong>
-                  ?
+                  Change status from <strong>{projectStatusLabel(newStatus)}</strong> to{' '}
+                  <strong>{pendingStatus ? projectStatusLabel(pendingStatus) : ''}</strong>?
                 </p>
                 <div className="mt-4 flex justify-end gap-2">
                   <Button variant="secondary" onClick={() => setPendingStatus(null)}>
