@@ -1122,9 +1122,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 </Badge>
               )}
               <div className="flex gap-1 flex-wrap mt-2">
-                {project.isSeekingOwner && project.status !== ProjectStatus.ready && (
-                  <Badge variant="caution">Seeking Owner</Badge>
-                )}
+                {project.isSeekingOwner && <Badge variant="caution">Seeking Owner</Badge>}
                 {project.isSeekingHelp && <Badge variant="caution">Seeking Help</Badge>}
                 {project.needsTasks && <Badge variant="warning">Needs Tasks</Badge>}
               </div>

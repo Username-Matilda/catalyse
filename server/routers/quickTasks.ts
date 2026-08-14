@@ -77,6 +77,7 @@ export const quickTasksRouter = {
         projectId: t.parentId as number,
         projectTitle: t.parent?.title ?? null,
         title: t.title,
+        description: t.description,
         status: t.status,
         assignedToId: t.assigneeId,
         assignedToName: t.assignee?.name ?? null,

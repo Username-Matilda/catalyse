@@ -99,15 +99,13 @@ export function ProjectCard({
           {p.title}
         </Link>
       </div>
-      {/* Status is always shown. `Ready` and `Seeking Owner` used to be the same fact
-          wearing two badges, so the status badge had to be suppressed to avoid printing
-          it twice; now the status is the lifecycle position and the overlay badges are
-          genuinely separate facts. */}
+      {/* Status is the lifecycle position; Seeking Owner/Help/Tasks are separate,
+          independently-derived facts and can co-occur with any status, including Ready. */}
       <div className="row-start-2 flex gap-1 flex-wrap self-start">
         <Badge variant={projectStatusVariant(p.status)}>
           {STATUS_LABELS[p.status] ?? p.status.replace(/_/g, ' ')}
         </Badge>
-        {p.isSeekingOwner && p.status !== 'ready' && <Badge variant="caution">Seeking Owner</Badge>}
+        {p.isSeekingOwner && <Badge variant="caution">Seeking Owner</Badge>}
         {p.isSeekingHelp && <Badge variant="caution">Seeking Help</Badge>}
         {p.needsTasks && <Badge variant="warning">Needs Tasks</Badge>}
       </div>
