@@ -134,13 +134,13 @@ export default function LandingPage() {
           <h2>Who we are</h2>
           <p className="text-text-light">
             PauseAI is a civic movement, which means that we help citizens organise to take
-            collective actions and make their voice heard. Our volunteers engage with their MPs
-            about AI safety, march in protests, join conferences about AI safety in the European and
-            UK Parliaments and gather signatures for open letters.
+            collective actions and make their voice heard. Our volunteers engage with their elected
+            representatives about AI safety, march in protests, join conferences about AI safety and
+            gather signatures for open letters.
           </p>
           <p className="text-text-light mb-0">
             PauseAI is focused on the risks of superhuman AI. This focus is the thing that is unique
-            about PauseAI and distinguishes us from other movements in the UK.
+            about PauseAI and distinguishes us from other movements.
           </p>
         </div>
       </section>
@@ -204,20 +204,12 @@ export default function LandingPage() {
               <li>You can control what information other volunteers can see about you.</li>
               <li>
                 Catalyse is for coordinating volunteer tasks. To see upcoming events, see the{' '}
-                <a href="https://luma.com/pauseai.uk" target="_blank" rel="noopener noreferrer">
+                <a href="https://luma.com/PauseAI" target="_blank" rel="noopener noreferrer">
                   calendar
                 </a>
-                . To chat with other PauseAI members, join the{' '}
-                <a
-                  href="https://chat.whatsapp.com/F0nj2RjLNeB1P1hyoDFsTz"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  WhatsApp Community
-                </a>
                 . For other information go to{' '}
-                <a href="https://pauseai.uk" target="_blank" rel="noopener noreferrer">
-                  pauseai.uk
+                <a href="https://pauseai.info" target="_blank" rel="noopener noreferrer">
+                  pauseai.info
                 </a>
                 .
               </li>

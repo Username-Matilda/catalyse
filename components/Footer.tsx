@@ -27,7 +27,7 @@ export default function Footer() {
           Contact
         </a>
         <a
-          href="https://pauseai.uk"
+          href="https://pauseai.info"
           target="_blank"
           rel="noopener noreferrer"
           className="underline hover:text-foreground transition-colors"
