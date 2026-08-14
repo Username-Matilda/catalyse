@@ -105,6 +105,7 @@ test.describe('Task Detail Page', () => {
       timeout: 10_000,
     })
 
+    await adminPage.getByRole('button', { name: 'Edit' }).click()
     await adminPage.getByLabel('Task title').fill('Edited title')
     await adminPage.getByLabel('Description').fill('Edited description')
     await adminPage.getByLabel('Estimated hours').fill('4')

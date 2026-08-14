@@ -87,6 +87,55 @@ const STATUS_LABELS: Record<string, string> = {
   completed: 'Completed',
 }
 
+const SKILL_CHIP_CLASSES =
+  'inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-gray-700 dark:text-gray-300'
+
+// One card shape shared by every quick-task list — volunteer or admin, standalone quick
+// task or featured project task. What differs between them is the meta/description
+// content and whichever role-specific controls get passed in as children, not the card
+// itself.
+function QuickTaskCard({
+  anchorId,
+  title,
+  titleHref,
+  status,
+  statusVariant,
+  statusLabel,
+  meta,
+  description,
+  children,
+}: {
+  anchorId?: string
+  title: string
+  titleHref?: string
+  status: string
+  statusVariant: BadgeVariant
+  statusLabel?: string
+  meta?: React.ReactNode[]
+  description?: string | null
+  children?: React.ReactNode
+}) {
+  return (
+    <div
+      id={anchorId}
+      role="article"
+      className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
+    >
+      <div className="flex justify-between items-start gap-3 mb-2">
+        <h3 className="m-0">{titleHref ? <Link href={titleHref}>{title}</Link> : title}</h3>
+        <Badge role="status" variant={statusVariant} className="whitespace-nowrap shrink-0">
+          {statusLabel ?? status}
+        </Badge>
+      </div>
+      {meta && meta.some(Boolean) && (
+        <div className="flex gap-2 mb-3 flex-wrap items-center">{meta}</div>
+      )}
+      {description && <p className="whitespace-pre-wrap mb-4">{description}</p>}
+      {children}
+    </div>
+  )
+}
+
 export default function QuickTasksPage() {
   const { user, loading } = useRequireApproved()
 
@@ -158,7 +207,7 @@ function VolunteerQuickTasksView() {
       <main className="container py-5 pb-15">
         <h1>My Quick Tasks</h1>
         <p className="text-text-light mb-6">
-          Small, self-contained tasks to help you get started and demonstrate your skills.
+          Small, self-contained tasks to help you get started and make an impact quickly.
         </p>
 
         {loadingTasks ? (
@@ -173,40 +222,33 @@ function VolunteerQuickTasksView() {
           </div>
         ) : (
           tasks.map((task) => (
-            <div
+            <QuickTaskCard
               key={task.id}
-              id={`task-${task.id}`}
-              role="article"
-              className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
-            >
-              <div className="flex justify-between items-start mb-2">
-                <h3 className="m-0">
-                  <Link href={`/quick-tasks/${task.id}`}>{task.title}</Link>
-                </h3>
-                <Badge
-                  role="status"
-                  variant={task.status === QuickTaskStatus.completed ? 'success' : 'warning'}
-                >
-                  {STATUS_LABELS[task.status] ?? task.status}
-                </Badge>
-              </div>
-
-              <div className="flex gap-2 mb-3 flex-wrap">
-                {task.skillName && (
-                  <span className="inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-gray-700 dark:text-gray-300">
+              anchorId={`task-${task.id}`}
+              title={task.title}
+              titleHref={`/quick-tasks/${task.id}`}
+              status={task.status}
+              statusVariant={task.status === QuickTaskStatus.completed ? 'success' : 'warning'}
+              statusLabel={STATUS_LABELS[task.status] ?? task.status}
+              description={task.description}
+              meta={[
+                task.skillName && (
+                  <span key="skill" className={SKILL_CHIP_CLASSES}>
                     {task.skillName}
                   </span>
-                )}
-                {task.estimatedHours && (
-                  <span className="text-text-light text-sm">~{task.estimatedHours}h</span>
-                )}
-                {task.projectTitle && (
-                  <span className="text-text-light text-sm">Related: {task.projectTitle}</span>
-                )}
-              </div>
-
-              <p className="whitespace-pre-wrap mb-4">{task.description}</p>
-
+                ),
+                task.estimatedHours && (
+                  <span key="hours" className="text-text-light text-sm">
+                    ~{task.estimatedHours}h
+                  </span>
+                ),
+                task.projectTitle && (
+                  <span key="project" className="text-text-light text-sm">
+                    Related: {task.projectTitle}
+                  </span>
+                ),
+              ]}
+            >
               {task.status === QuickTaskStatus.in_progress && (
                 <Button
                   onClick={() => submitMutation.mutate({ id: task.id })}
@@ -217,13 +259,13 @@ function VolunteerQuickTasksView() {
                     : 'Mark as Complete'}
                 </Button>
               )}
-            </div>
+            </QuickTaskCard>
           ))
         )}
 
         <h2 className="mt-8">Browse Quick Tasks</h2>
         <p className="text-text-light mb-6">
-          Open tasks anyone approved can pick up right now — no need to browse projects first.
+          Open tasks to pick up right now — no need to browse projects first.
         </p>
 
         {loadingAvailable ? (
@@ -236,25 +278,27 @@ function VolunteerQuickTasksView() {
         ) : (
           availableTasks.map((task) =>
             task.kind === 'quick' ? (
-              <div
+              <QuickTaskCard
                 key={`quick-${task.id}`}
-                role="article"
-                className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
-              >
-                <h3 className="m-0 mb-2">
-                  <Link href={`/quick-tasks/${task.id}`}>{task.title}</Link>
-                </h3>
-                <div className="flex gap-2 mb-3 flex-wrap">
-                  {task.skillName && (
-                    <span className="inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-gray-700 dark:text-gray-300">
+                title={task.title}
+                titleHref={`/quick-tasks/${task.id}`}
+                status="open"
+                statusVariant="warning"
+                statusLabel="Open"
+                description={task.description}
+                meta={[
+                  task.skillName && (
+                    <span key="skill" className={SKILL_CHIP_CLASSES}>
                       {task.skillName}
                     </span>
-                  )}
-                  {task.estimatedHours !== null && (
-                    <span className="text-text-light text-sm">~{task.estimatedHours}h</span>
-                  )}
-                </div>
-                {task.description && <p className="whitespace-pre-wrap mb-4">{task.description}</p>}
+                  ),
+                  task.estimatedHours !== null && (
+                    <span key="hours" className="text-text-light text-sm">
+                      ~{task.estimatedHours}h
+                    </span>
+                  ),
+                ]}
+              >
                 <Button
                   onClick={() => claimQuickMutation.mutate({ id: task.id })}
                   disabled={
@@ -265,30 +309,29 @@ function VolunteerQuickTasksView() {
                     ? 'Claiming…'
                     : 'Claim'}
                 </Button>
-              </div>
+              </QuickTaskCard>
             ) : (
-              <div
+              <QuickTaskCard
                 key={`project-task-${task.id}`}
-                role="article"
-                className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
-              >
-                <h3 className="m-0 mb-2">
-                  <Link href={`/projects/${task.projectId}/tasks/${task.id}`}>{task.title}</Link>
-                </h3>
-                <div className="flex gap-2 mb-3 flex-wrap items-center">
-                  {task.estimatedHours !== null && (
-                    <span className="text-text-light text-sm">~{task.estimatedHours}h</span>
-                  )}
-                  {task.projectTitle && (
-                    <span className="text-text-light text-sm">
-                      Part of Project:{' '}
-                      <Link href={`/projects/${task.projectId}`} className="underline">
-                        {task.projectTitle}
-                      </Link>
+                title={task.title}
+                titleHref={`/projects/${task.projectId}/tasks/${task.id}`}
+                status="open"
+                statusVariant="warning"
+                statusLabel="Open"
+                description={task.description}
+                meta={[
+                  task.projectTitle && (
+                    <span key="project" className="text-text-light text-sm">
+                      Part of: <Link href={`/projects/${task.projectId}`}>{task.projectTitle}</Link>
                     </span>
-                  )}
-                </div>
-                {task.description && <p className="whitespace-pre-wrap mb-4">{task.description}</p>}
+                  ),
+                  task.estimatedHours !== null && (
+                    <span key="hours" className="text-text-light text-sm">
+                      ~{task.estimatedHours}h
+                    </span>
+                  ),
+                ]}
+              >
                 <Button
                   onClick={() =>
                     claimProjectTaskMutation.mutate({
@@ -307,7 +350,7 @@ function VolunteerQuickTasksView() {
                     ? 'Claiming…'
                     : 'Claim'}
                 </Button>
-              </div>
+              </QuickTaskCard>
             ),
           )
         )}
@@ -579,8 +622,8 @@ function AdminQuickTasksView() {
     deleteTaskMutation.mutate({ id: task.id })
   }
 
-  async function copyLink(taskId: number) {
-    const url = `${window.location.origin}/quick-tasks/${taskId}`
+  async function copyLink(path: string) {
+    const url = `${window.location.origin}${path}`
     try {
       await navigator.clipboard.writeText(url)
       toast('Link copied!', 'success')
@@ -611,7 +654,7 @@ function AdminQuickTasksView() {
         </div>
 
         <p className="text-text-light mb-6">
-          Small, scoped tasks to verify volunteer skills before assigning bigger projects.
+          Small, self-contained tasks to help you get started and make an impact quickly.
         </p>
 
         <div className="mb-6 max-w-[240px]">
@@ -636,49 +679,39 @@ function AdminQuickTasksView() {
           </div>
         ) : (
           tasks.map((task) => (
-            <div
+            <QuickTaskCard
               key={task.id}
-              role="article"
-              id={`task-${task.id}`}
-              className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
-            >
-              <div className="flex justify-between items-start gap-3 mb-2">
-                <h3 className="m-0">{task.title}</h3>
-                <Badge
-                  role="status"
-                  variant={STATUS_VARIANTS[task.status] ?? 'neutral'}
-                  className="whitespace-nowrap shrink-0"
-                >
-                  {task.status}
-                </Badge>
-              </div>
-
-              <div className="flex gap-2 mb-3 flex-wrap items-center">
-                {task.skillName && (
-                  <span className="inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-gray-700 dark:text-gray-300">
+              anchorId={`task-${task.id}`}
+              title={task.title}
+              status={task.status}
+              statusVariant={STATUS_VARIANTS[task.status] ?? 'neutral'}
+              description={task.description}
+              meta={[
+                task.skillName && (
+                  <span key="skill" className={SKILL_CHIP_CLASSES}>
                     {task.skillName}
                   </span>
-                )}
-                {task.estimatedHours !== null && (
-                  <span className="text-text-light text-sm">~{task.estimatedHours}h</span>
-                )}
-                {task.assignedToId && task.assignedToName && (
-                  <span className="text-text-light text-sm">
+                ),
+                task.estimatedHours !== null && (
+                  <span key="hours" className="text-text-light text-sm">
+                    ~{task.estimatedHours}h
+                  </span>
+                ),
+                task.assignedToId && task.assignedToName && (
+                  <span key="assignee" className="text-text-light text-sm">
                     Assigned to:{' '}
                     <Link href={`/admin/volunteers/${task.assignedToId}`}>
                       {task.assignedToName}
                     </Link>
                   </span>
-                )}
-                {task.reviewRating && (
-                  <span className={`text-sm ${RATING_CLASSES[task.reviewRating]}`}>
+                ),
+                task.reviewRating && (
+                  <span key="rating" className={`text-sm ${RATING_CLASSES[task.reviewRating]}`}>
                     {RATING_LABELS[task.reviewRating]}
                   </span>
-                )}
-              </div>
-
-              <p className="whitespace-pre-wrap mb-4">{task.description}</p>
-
+                ),
+              ]}
+            >
               {task.reviewNotes && (
                 <p className="text-sm text-text-light mb-3">Notes: {task.reviewNotes}</p>
               )}
@@ -720,7 +753,11 @@ function AdminQuickTasksView() {
                   Created {formatDate(task.createdAt)}
                 </span>
                 <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" onClick={() => void copyLink(task.id)}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => void copyLink(`/quick-tasks/${task.id}`)}
+                  >
                     Copy share link
                   </Button>
                   <Button variant="secondary" size="sm" onClick={() => openEdit(task)}>
@@ -754,7 +791,7 @@ function AdminQuickTasksView() {
                   )}
                 </div>
               </div>
-            </div>
+            </QuickTaskCard>
           ))
         )}
 
@@ -762,51 +799,39 @@ function AdminQuickTasksView() {
           <>
             <h2 className="mt-8">Featured project tasks</h2>
             <p className="text-text-light mb-6">
-              Project tasks flagged to also appear on this page for volunteers. Assign or unassign
-              them here, or edit them from their own project.
+              Project tasks flagged to also appear on this page for volunteers.
             </p>
             {featuredProjectTasks.map((task) => (
-              <div
+              <QuickTaskCard
                 key={`project-task-${task.id}`}
-                role="article"
-                className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
-              >
-                <div className="flex justify-between items-start gap-3 mb-2">
-                  <h3 className="m-0">
-                    <Link href={`/projects/${task.projectId}/tasks/${task.id}`}>{task.title}</Link>
-                  </h3>
-                  <Badge
-                    role="status"
-                    variant={PROJECT_TASK_STATUS_VARIANTS[task.status] ?? 'neutral'}
-                    className="whitespace-nowrap shrink-0"
-                  >
-                    {task.status}
-                  </Badge>
-                </div>
-
-                <div className="flex gap-2 mb-3 flex-wrap items-center">
-                  {task.projectTitle && (
-                    <span className="text-text-light text-sm">
+                title={task.title}
+                titleHref={`/projects/${task.projectId}/tasks/${task.id}`}
+                status={task.status}
+                statusVariant={PROJECT_TASK_STATUS_VARIANTS[task.status] ?? 'neutral'}
+                description={task.description}
+                meta={[
+                  task.projectTitle && (
+                    <span key="project" className="text-text-light text-sm">
                       Part of: <Link href={`/projects/${task.projectId}`}>{task.projectTitle}</Link>
                     </span>
-                  )}
-                  {task.estimatedHours !== null && (
-                    <span className="text-text-light text-sm">~{task.estimatedHours}h</span>
-                  )}
-                  {task.assignedToId && task.assignedToName && (
-                    <span className="text-text-light text-sm">
+                  ),
+                  task.estimatedHours !== null && (
+                    <span key="hours" className="text-text-light text-sm">
+                      ~{task.estimatedHours}h
+                    </span>
+                  ),
+                  task.assignedToId && task.assignedToName && (
+                    <span key="assignee" className="text-text-light text-sm">
                       Assigned to:{' '}
                       <Link href={`/admin/volunteers/${task.assignedToId}`}>
                         {task.assignedToName}
                       </Link>
                     </span>
-                  )}
-                </div>
-
-                {task.description && <p className="whitespace-pre-wrap mb-4">{task.description}</p>}
-
+                  ),
+                ]}
+              >
                 {task.status === TaskStatus.open && (
-                  <div className="flex gap-2 items-end mt-3">
+                  <div className="flex gap-2 items-end mb-3">
                     <div className="flex-1 max-w-75">
                       <FilterDropdown
                         id={`assign-project-task-${task.id}`}
@@ -835,19 +860,32 @@ function AdminQuickTasksView() {
                     </Button>
                   </div>
                 )}
-                {task.assignedToId && (
-                  <div className="mt-3">
+
+                <div className="flex justify-between items-center mt-3 pt-3 border-t border-brand-border">
+                  <span className="text-sm text-text-light">
+                    Created {formatDate(task.createdAt)}
+                  </span>
+                  <div className="flex gap-2">
                     <Button
-                      variant="secondary"
+                      variant="ghost"
                       size="sm"
-                      disabled={unassignProjectTaskMutation.isPending}
-                      onClick={() => handleUnassignProjectTask(task)}
+                      onClick={() => void copyLink(`/projects/${task.projectId}/tasks/${task.id}`)}
                     >
-                      Unassign
+                      Copy share link
                     </Button>
+                    {task.assignedToId && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={unassignProjectTaskMutation.isPending}
+                        onClick={() => handleUnassignProjectTask(task)}
+                      >
+                        Unassign
+                      </Button>
+                    )}
                   </div>
-                )}
-              </div>
+                </div>
+              </QuickTaskCard>
             ))}
           </>
         )}

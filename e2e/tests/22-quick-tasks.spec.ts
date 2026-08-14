@@ -84,7 +84,7 @@ test.describe('Quick Tasks: self-serve', () => {
     await volunteer.page.goto(`${baseUrl}/quick-tasks`)
     const card = volunteer.page.getByRole('article').filter({ hasText: taskTitle })
     await expect(card).toBeVisible({ timeout: 10_000 })
-    await expect(card).toContainText('Part of Project:')
+    await expect(card).toContainText('Part of:')
 
     // Task title links into the task's own page in the project, not a separate Quick Task page.
     await expect(card.getByRole('link', { name: taskTitle })).toHaveAttribute(
