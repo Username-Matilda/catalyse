@@ -53,7 +53,7 @@ export const dashboardRouter = {
                 OR: [
                   { isSeekingHelp: true },
                   { isSeekingOwner: true },
-                  { status: { in: [ProjectStatus.seeking_owner, ProjectStatus.seeking_help] } },
+                  { status: ProjectStatus.seeking_owner },
                 ],
                 assigneeId: { not: volunteer.id },
                 id: { notIn: interestedProjectIds.length > 0 ? interestedProjectIds : [-1] },

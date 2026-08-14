@@ -14,6 +14,7 @@ import { ORPCError } from '@orpc/client'
 import { orpc } from '@/lib/orpc'
 import { AppRouter } from '@/server/router'
 import { type Project, ProjectList, statusBadgeClasses } from '@/components/ProjectCard'
+import { badgeClasses } from '@/components/Badge'
 import { ProjectStatus } from '@/generated/prisma/enums'
 
 const STATUS_OPTIONS = [
@@ -306,7 +307,7 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
             {!statusFilter && !needsFilter && projects.length > 1 && (
               <div className="flex flex-wrap gap-2 mb-6">
                 {seeking.length > 0 && (
-                  <span className={statusBadgeClasses('seeking_help')}>
+                  <span className={badgeClasses('caution')}>
                     Looking for People: {seeking.length}
                   </span>
                 )}

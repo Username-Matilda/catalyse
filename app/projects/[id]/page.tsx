@@ -45,10 +45,11 @@ import { CSS } from '@dnd-kit/utilities'
 
 type ProjectTask = InferRouterOutputs<AppRouter>['projects']['getById']['tasks'][number]
 
+// 'needs_tasks' is deliberately excluded — it's a system-derived state (an assigned
+// project with zero open tasks), never a status someone should pick from a menu.
+// The server auto-promotes it back to 'in_progress' as soon as a task is added.
 const OWNER_STATUSES = [
   { value: 'seeking_owner', label: 'Seeking Owner' },
-  { value: 'seeking_help', label: 'Seeking Help' },
-  { value: 'needs_tasks', label: 'Needs Tasks' },
   { value: 'in_progress', label: 'In Progress' },
   { value: 'on_hold', label: 'On Hold' },
   { value: 'completed', label: 'Completed' },
@@ -539,7 +540,16 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     (project.isSeekingHelp || project.isSeekingOwner) &&
     !['completed', 'archived'].includes(project.status)
 
-  const statusOptions = isAdmin ? [...OWNER_STATUSES, ...ADMIN_EXTRA_STATUSES] : OWNER_STATUSES
+  const pickableStatuses = isAdmin ? [...OWNER_STATUSES, ...ADMIN_EXTRA_STATUSES] : OWNER_STATUSES
+  // If the project is currently sitting in a non-pickable derived status (e.g.
+  // 'needs_tasks'), still surface it so the control displays the real current value —
+  // it just isn't offered as something to switch *to* from any other status.
+  const statusOptions = pickableStatuses.some((o) => o.value === project.status)
+    ? pickableStatuses
+    : [
+        { value: project.status, label: STATUS_LABELS[project.status] ?? project.status },
+        ...pickableStatuses,
+      ]
 
   // Excludes the current owner — they're already shown in the Owner box above.
   const volunteerInterests = (project.interests ?? []).filter(
@@ -1093,7 +1103,14 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           <div className="lg:col-span-1 min-w-0 flex flex-col gap-4">
             {/* Status */}
             <div className={card}>
-              <h2>Status</h2>
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <h2 className="m-0">Status</h2>
+                {isOwnerOrAdmin && (
+                  <Button href={`/projects/${idParam}/edit`} variant="secondary" size="sm">
+                    Edit Project
+                  </Button>
+                )}
+              </div>
               {isOwnerOrAdmin ? (
                 <FilterDropdown
                   id="change-status"
@@ -1127,16 +1144,6 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   )
                 )
               })()}
-              {isOwnerOrAdmin && (
-                <Button
-                  href={`/projects/${idParam}/edit`}
-                  variant="secondary"
-                  size="sm"
-                  className="mt-3"
-                >
-                  Edit
-                </Button>
-              )}
               <Modal
                 id="confirm-status-change"
                 title="Change project status?"

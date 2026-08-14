@@ -83,11 +83,9 @@ export const adminProjectsRouter = {
 
       if (status === 'approved') {
         const hasOwner = project.assigneeId !== null
-        const newStatus = !hasOwner
-          ? ProjectStatus.seeking_owner
-          : project.isSeekingHelp
-            ? ProjectStatus.seeking_help
-            : ProjectStatus.in_progress
+        // Whether it also wants more help is tracked by isSeekingHelp alone, not status —
+        // an owned project is just 'in_progress', with isSeekingHelp as an overlay flag.
+        const newStatus = !hasOwner ? ProjectStatus.seeking_owner : ProjectStatus.in_progress
         const isSeekingOwner = !hasOwner
         const isSeekingHelp = !hasOwner || project.isSeekingHelp
 

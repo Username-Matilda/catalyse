@@ -20,7 +20,6 @@ enum ProjectStatus {
   needs_discussion
   in_progress
   needs_tasks
-  seeking_help
   seeking_owner
   on_hold
   completed

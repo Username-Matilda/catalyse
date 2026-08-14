@@ -28,7 +28,6 @@ import {
 
 const STATUS_LABELS: Record<string, string> = {
   seeking_owner: 'Seeking Owner',
-  seeking_help: 'Seeking Help',
   needs_tasks: 'Needs Tasks',
   in_progress: 'In Progress',
   on_hold: 'On Hold',
@@ -72,10 +71,10 @@ async function releaseTasksHeldBy(projectId: number, volunteerId: number): Promi
   })
 }
 
+// 'needs_tasks' is deliberately excluded — it's a system-derived state (an assigned
+// project with zero open tasks), not something an owner should be able to set directly.
 const OWNER_ALLOWED_STATUSES: ProjectStatus[] = [
   ProjectStatus.seeking_owner,
-  ProjectStatus.seeking_help,
-  ProjectStatus.needs_tasks,
   ProjectStatus.in_progress,
   ProjectStatus.on_hold,
   ProjectStatus.completed,
@@ -596,7 +595,7 @@ export const projectsRouter = {
           OR: [
             { isSeekingHelp: true },
             { isSeekingOwner: true },
-            { status: { in: [ProjectStatus.seeking_owner, ProjectStatus.seeking_help] } },
+            { status: ProjectStatus.seeking_owner },
           ],
         },
       })

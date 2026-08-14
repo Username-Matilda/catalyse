@@ -14,6 +14,7 @@ import {
   CARD_GRID_CLASSES,
 } from '@/components/ProjectCard'
 import Tabs from '@/components/Tabs'
+import { badgeClasses } from '@/components/Badge'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import { formatDate } from '@/lib/format-date'
@@ -201,12 +202,12 @@ export default function TriagePage() {
                         </p>
                       </div>
                       <span
-                        className={statusBadgeClasses(
+                        className={badgeClasses(
                           i.status === InterestStatus.pending
-                            ? 'seeking_help'
+                            ? 'caution'
                             : i.status === InterestStatus.accepted
-                              ? 'completed'
-                              : 'on_hold',
+                              ? 'success'
+                              : 'neutral',
                         )}
                       >
                         {i.status}

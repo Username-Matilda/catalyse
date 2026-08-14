@@ -4,7 +4,6 @@ import { selectFilterDropdown } from './ui'
 
 const PROJECT_STATUS_LABELS: Record<string, string> = {
   seeking_owner: 'Seeking Owner',
-  seeking_help: 'Seeking Help',
   needs_tasks: 'Needs Tasks',
   in_progress: 'In Progress',
   on_hold: 'On Hold',

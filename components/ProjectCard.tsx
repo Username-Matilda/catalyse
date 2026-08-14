@@ -34,7 +34,6 @@ export interface Project {
 
 export const PROJECT_STATUS_CONFIG: Record<string, { label: string; variant: BadgeVariant }> = {
   seeking_owner: { label: 'Seeking Owner', variant: 'caution' },
-  seeking_help: { label: 'Seeking Help', variant: 'caution' },
   needs_tasks: { label: 'Needs Tasks', variant: 'warning' },
   in_progress: { label: 'In Progress', variant: 'info' },
   on_hold: { label: 'On Hold', variant: 'neutral' },
@@ -101,7 +100,7 @@ export function ProjectCard({
         </Link>
       </div>
       <div className="row-start-2 flex gap-1 flex-wrap self-start">
-        {!['seeking_owner', 'seeking_help'].includes(p.status) && (
+        {p.status !== 'seeking_owner' && (
           <Badge variant={projectStatusVariant(p.status)}>
             {STATUS_LABELS[p.status] ?? p.status.replace(/_/g, ' ')}
           </Badge>
