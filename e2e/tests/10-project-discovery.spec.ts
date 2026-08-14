@@ -23,7 +23,7 @@ test.describe('Unauthenticated Project Access', () => {
 
     await page.goto(`${baseUrl}/`)
 
-    await expect(page.getByRole('heading', { name: 'Volunteer for PauseAI UK' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Volunteer for PauseAI' })).toBeVisible({
       timeout: 10_000,
     })
     // The CTA appears in both the hero and the closing section
@@ -53,7 +53,7 @@ test.describe('Unauthenticated Project Access', () => {
 
     try {
       await page.goto(`${baseUrl}/`)
-      await expect(page.getByRole('heading', { name: 'Volunteer for PauseAI UK' })).toBeVisible({
+      await expect(page.getByRole('heading', { name: 'Volunteer for PauseAI' })).toBeVisible({
         timeout: 10_000,
       })
       await page.waitForLoadState('networkidle')
