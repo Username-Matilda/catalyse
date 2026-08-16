@@ -2,5 +2,5 @@
 builder = "NIXPACKS"
 
 [deploy]
-startCommand = "npm start"
+startCommand = "node scripts/cron-trigger/trigger.mjs"
 restartPolicyType = "NEVER"

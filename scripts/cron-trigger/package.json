@@ -1,8 +1,0 @@
-{
-  "name": "cron-trigger",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "start": "node trigger.mjs"
-  }
-}
