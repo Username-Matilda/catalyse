@@ -173,18 +173,18 @@ async function cleanupB2Backups() {
   }
 }
 
-export async function runBackupJob(): Promise<{ local: boolean; b2: boolean }> {
+export async function runBackupJob(): Promise<{ localSuccess: boolean; b2Success: boolean }> {
   const dbPath = resolveDbPath()
   if (!dbPath || !existsSync(dbPath)) {
     console.log('[BACKUP] Database not found, skipping')
-    return { local: false, b2: false }
+    return { localSuccess: false, b2Success: false }
   }
 
   console.log(`[BACKUP] Starting backup at ${new Date().toISOString()}`)
   const backupPath = createLocalBackup(dbPath)
-  const b2 = await uploadToB2(backupPath)
+  const b2Success = await uploadToB2(backupPath)
   cleanupLocalBackups(dbPath)
   await cleanupB2Backups()
   console.log('[BACKUP] Backup cycle complete')
-  return { local: true, b2 }
+  return { localSuccess: true, b2Success }
 }
