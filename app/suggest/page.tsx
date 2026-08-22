@@ -20,7 +20,7 @@ export default function SuggestPage() {
       <main className="container py-5 pb-15">
         <h1 role="heading">Suggest a Project</h1>
         <p>
-          Have an idea for something PauseAI UK should do? Propose it here! Our team will review it
+          Have an idea for something PauseAI should do? Propose it here! Our team will review it
           and, if approved, it&apos;ll be visible to all volunteers.
         </p>
         <div className="max-w-4xl">

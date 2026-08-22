@@ -18,7 +18,7 @@ export default function AdminCreateProjectPage() {
       <main className="container py-5 pb-15">
         <h1 role="heading">Create Organisation Project</h1>
         <p className="text-text-light mb-6">
-          Create a project on behalf of PauseAI UK. This skips the approval process.
+          Create a project on behalf of PauseAI. This skips the approval process.
         </p>
         <div className="max-w-4xl">
           <ProjectForm
