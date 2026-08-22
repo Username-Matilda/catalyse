@@ -1,8 +1,8 @@
 # Catalyse
 
-**Volunteer & Project Matching Platform for PauseAI UK**
+**Volunteer & Project Matching Platform for PauseAI**
 
-Catalyse connects volunteers with projects, matching skills to needs and enabling effective coordination across PauseAI UK initiatives.
+Catalyse connects volunteers with projects, matching skills to needs and enabling effective coordination across PauseAI initiatives.
 
 ## Features
 
@@ -175,4 +175,4 @@ catalyse/
 
 ## License
 
-MIT - Built for PauseAI UK
+MIT - Built for PauseAI

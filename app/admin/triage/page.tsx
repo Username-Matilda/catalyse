@@ -289,14 +289,8 @@ export default function TriagePage() {
                 {visible.map((p) => (
                   <ProjectCard
                     key={p.id}
-                    project={{
-                      ...p,
-                      owner: p.proposedBy
-                        ? {
-                            name: `Proposed by: ${typeof p.proposedBy === 'string' ? p.proposedBy : p.proposedBy.name}`,
-                          }
-                        : null,
-                    }}
+                    project={p}
+                    showProposer
                     action={
                       <Button size="sm" href={`/projects/${p.id}`}>
                         Review

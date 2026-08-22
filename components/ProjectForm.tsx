@@ -423,7 +423,7 @@ export default function ProjectForm({
 
       {showReviewNotice && (
         <div className="flex items-center gap-3 p-4 rounded-lg mb-5 bg-[#DBEAFE] text-[#1E40AF] border border-[#93C5FD] dark:bg-[#1E3A5F] dark:text-[#93C5FD] dark:border-[#2563EB]">
-          Your project will be reviewed by PauseAI UK team leads before being published. We&apos;ll
+          Your project will be reviewed by PauseAI team leads before being published. We&apos;ll
           reach out if we have questions or suggestions.
         </div>
       )}

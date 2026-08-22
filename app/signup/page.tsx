@@ -799,7 +799,7 @@ export default function SignupPage() {
         <div className="max-w-2xl mx-auto">
           <h1>Join Catalyse</h1>
           <p className="text-text-light mb-6">
-            Connect with PauseAI UK projects and fellow volunteers.
+            Connect with PauseAI projects and fellow volunteers.
           </p>
 
           {error && (

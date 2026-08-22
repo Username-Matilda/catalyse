@@ -85,3 +85,28 @@ export const ADVERTISABLE_STATUSES_SQL = `status NOT IN (${quoted([...UNAPPROVED
 export const ADVERTISABLE_STATUSES: string[] = Object.keys(PROJECT_STATUS_CONFIG).filter(
   (s) => !UNAPPROVED_STATUSES.includes(s) && !TERMINAL_STATUSES.includes(s),
 )
+
+/**
+ * How an org-proposed project is attributed. `is_org_proposed` projects are created by an
+ * admin acting for the organisation, not for themselves, so surfacing the admin's personal
+ * name as the proposer misattributes the project to an individual.
+ */
+export const ORG_PROPOSER_NAME = 'PauseAI'
+
+export type ProposerDisplay = { name: string; volunteerId: number | null }
+
+/**
+ * Who to name as the proposer of a project, and whether that name links to a profile.
+ * `volunteerId` is null for the org — there is no profile page to link to.
+ * Returns null when there is nobody to attribute it to at all.
+ */
+export function proposerDisplay(p: {
+  isOrgProposed?: boolean | null
+  proposedById?: number | null
+  proposedBy?: { name: string } | string | null
+}): ProposerDisplay | null {
+  if (p.isOrgProposed) return { name: ORG_PROPOSER_NAME, volunteerId: null }
+  if (!p.proposedBy) return null
+  const name = typeof p.proposedBy === 'string' ? p.proposedBy : p.proposedBy.name
+  return { name, volunteerId: p.proposedById ?? null }
+}
