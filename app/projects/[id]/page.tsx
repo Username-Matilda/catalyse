@@ -23,6 +23,7 @@ import {
   OWNER_ALLOWED_STATUSES,
   TERMINAL_STATUSES,
   projectStatusLabel,
+  proposerDisplay,
 } from '@/lib/project-status'
 import { InterestStatus, ProjectStatus, TaskStatus } from '@/generated/prisma/enums'
 import type { InferRouterOutputs } from '@orpc/server'
@@ -526,6 +527,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   const isOwner = project.ownerId !== null && project.ownerId === user.id
   const isAdmin = user.isAdmin
+  // Org-proposed projects are attributed to the org, not to the admin who filed them.
+  const proposer = proposerDisplay(project)
   const isOwnerOrAdmin = isOwner || isAdmin
 
   const canSeeInterest =
@@ -1253,19 +1256,19 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                       {project.owner.name}
                     </Link>
                   </div>
-                ) : isAdmin && project.proposedBy ? (
+                ) : isAdmin && proposer ? (
                   // Ownerless projects still have a proposer. Admins triaging the queue need
                   // to know who to talk to, so show them that name in place of the empty state.
                   <div className="flex items-center gap-2 min-w-0">
-                    <TaskAvatar name={project.proposedBy.name} />
+                    <TaskAvatar name={proposer.name} />
                     <span className="truncate">
                       Proposer:{' '}
-                      {project.proposedById ? (
-                        <Link href={`/volunteers/${project.proposedById}`} className="underline">
-                          {project.proposedBy.name}
+                      {proposer.volunteerId ? (
+                        <Link href={`/volunteers/${proposer.volunteerId}`} className="underline">
+                          {proposer.name}
                         </Link>
                       ) : (
-                        project.proposedBy.name
+                        proposer.name
                       )}
                     </span>
                   </div>

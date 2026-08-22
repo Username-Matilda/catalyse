@@ -144,6 +144,47 @@ test.describe('Project ownership states', () => {
     await expect(adminPage.getByRole('link', { name: title })).toBeVisible({ timeout: 10_000 })
   })
 
+  // An ownerless project still has someone behind it. Org-proposed ones are filed by an
+  // admin on the organisation's behalf, so they are attributed to the org rather than to
+  // that admin personally.
+  test('An ownerless project names its proposer to admins: the org, or the volunteer who proposed it', async ({
+    adminPage,
+    baseUrl,
+  }) => {
+    const { id: orgProjectId } = await createOrgProject(baseUrl)
+
+    await adminPage.goto(`${baseUrl}/projects/${orgProjectId}`)
+    await expect(adminPage.getByText('Proposer: PauseAI')).toBeVisible({ timeout: 10_000 })
+
+    // A volunteer proposal is attributed to the volunteer, linked to their profile.
+    const volunteer = await createApprovedVolunteer(baseUrl)
+    const proposed = await createApiClient(baseUrl, volunteer.token).projects.create({
+      body: {
+        title: fake.projectTitle(),
+        description: 'e2e proposer-attribution project description',
+        projectType: null,
+        estimatedDuration: null,
+        timeCommitmentHoursPerWeek: null,
+        urgency: 'medium',
+        collaborationLink: null,
+        country: null,
+        localGroup: null,
+        isSeekingHelp: true,
+        tasks: [{ title: 'Initial task' }],
+      },
+    })
+    expect(proposed.status).toBe(200)
+    const proposedId = (proposed.body as { id: number }).id
+
+    await adminPage.goto(`${baseUrl}/projects/${proposedId}`)
+    await expect(adminPage.getByText(`Proposer: ${volunteer.name}`)).toBeVisible({
+      timeout: 10_000,
+    })
+    await expect(
+      adminPage.getByRole('link', { name: volunteer.name, exact: true }),
+    ).toHaveAttribute('href', `/volunteers/${volunteer.id}`)
+  })
+
   // Regression: an owned project used to be able to sit in the retired `seeking_owner`
   // status with the flag cleared, and the card suppressed the status badge for exactly
   // that status — so the card rendered no status at all.
