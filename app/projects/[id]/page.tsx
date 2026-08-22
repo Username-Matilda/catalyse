@@ -1253,6 +1253,22 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                       {project.owner.name}
                     </Link>
                   </div>
+                ) : isAdmin && project.proposedBy ? (
+                  // Ownerless projects still have a proposer. Admins triaging the queue need
+                  // to know who to talk to, so show them that name in place of the empty state.
+                  <div className="flex items-center gap-2 min-w-0">
+                    <TaskAvatar name={project.proposedBy.name} />
+                    <span className="truncate">
+                      Proposer:{' '}
+                      {project.proposedById ? (
+                        <Link href={`/volunteers/${project.proposedById}`} className="underline">
+                          {project.proposedBy.name}
+                        </Link>
+                      ) : (
+                        project.proposedBy.name
+                      )}
+                    </span>
+                  </div>
                 ) : (
                   <p className="text-text-light text-sm m-0">No owner yet.</p>
                 )}
