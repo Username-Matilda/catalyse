@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
 import { withProjectExtras, projectInclude, EnrichedProject } from '@/lib/work-item'
-import { notifyUser } from '@/lib/notify'
+import { notifyUser, clearNotifications } from '@/lib/notify'
 import { notifyMatchingVolunteers } from '@/lib/project-match-notify'
 import { AdminCreateProjectSchema, ReviewProjectSchema, OutcomeProjectSchema } from '@/lib/schemas'
 import { adminProcedure } from '../../procedures'
@@ -162,6 +162,8 @@ export const adminProjectsRouter = {
           )
         }
       }
+
+      await clearNotifications('new_project_proposal', input.id)
 
       return { message: `Project marked as ${status}` }
     }),
