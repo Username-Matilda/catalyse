@@ -325,6 +325,7 @@ export const authRouter = {
           ctaLabel: 'Review Application',
           ctaUrl: '/admin/applications',
         },
+        volunteer.id,
       ).catch((e) => console.error('[SIGNUP NOTIFY]', e))
     }
 

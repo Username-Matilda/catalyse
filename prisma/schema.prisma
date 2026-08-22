@@ -201,6 +201,11 @@ model Notification {
   title       String
   body        String?
   link        String?
+  // Identifies the resource this notification is about (e.g. a project or bug report id), so
+  // that when the underlying item is resolved by one person, matching notifications for the
+  // same (type, entityId) can be cleared for every other recipient. Null for types that aren't
+  // cleared this way.
+  entityId    Int?      @map("entity_id")
   readAt      DateTime? @map("read_at")
   emailedAt   DateTime? @map("emailed_at")
   createdAt   DateTime? @default(now()) @map("created_at")
@@ -208,6 +213,7 @@ model Notification {
 
   @@index([volunteerId, readAt], map: "idx_notifications_unread")
   @@index([volunteerId], map: "idx_notifications_volunteer")
+  @@index([type, entityId], map: "idx_notifications_type_entity")
   @@map("notifications")
 }
 

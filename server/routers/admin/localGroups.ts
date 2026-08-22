@@ -3,7 +3,7 @@ import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
 import { sendLocalGroupSuggestionEmail } from '@/lib/email'
 import { BASE_LOCATION_OPTIONS } from '@/lib/filter-options'
-import { createNotification } from '@/lib/notify'
+import { createNotification, clearNotifications } from '@/lib/notify'
 import { LocalGroupBodySchema, ReviewSuggestionSchema } from '@/lib/schemas'
 import { adminProcedure } from '../../procedures'
 import { LocalGroupSuggestionStatus } from '@/generated/prisma/enums'
@@ -205,6 +205,8 @@ export const adminLocalGroupsRouter = {
         groupName: finalName,
         adminNotes,
       })
+
+      await clearNotifications('local_group_suggestion', input.id)
 
       return { message: 'Suggestion updated' }
     }),

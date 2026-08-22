@@ -47,6 +47,8 @@ export const localGroupSuggestionsRouter = {
         `New local group suggestion: ${input.country} — ${input.name}`,
         null,
         '/admin/local-groups',
+        undefined,
+        suggestion.id,
       )
 
       return {

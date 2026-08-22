@@ -7,10 +7,27 @@ export async function createNotification(
   title: string,
   body?: string | null,
   link?: string | null,
+  entityId?: number | null,
 ) {
   return prisma.notification.create({
-    data: { volunteerId, type, title, body: body ?? null, link: link ?? null },
+    data: {
+      volunteerId,
+      type,
+      title,
+      body: body ?? null,
+      link: link ?? null,
+      entityId: entityId ?? null,
+    },
   })
+}
+
+// Removes every recipient's copy of a notification once the thing it's about has been
+// resolved by someone — e.g. a project proposal is approved, so the other admins no longer
+// need "new project proposal" in their list.
+export async function clearNotifications(type: string, entityId: number): Promise<void> {
+  await prisma.notification
+    .deleteMany({ where: { type, entityId } })
+    .catch((e) => console.error('[NOTIFY CLEAR ERROR]', e))
 }
 
 type NotifyEmailPayload =
@@ -30,8 +47,9 @@ export async function notifyUser(
   body: string | null | undefined,
   link: string | null | undefined,
   email?: NotifyEmailPayload,
+  entityId?: number | null,
 ): Promise<void> {
-  createNotification(volunteerId, type, title, body, link).catch((e) =>
+  createNotification(volunteerId, type, title, body, link, entityId).catch((e) =>
     console.error('[NOTIFY ERROR]', e),
   )
   if (!email) return
@@ -71,10 +89,13 @@ export async function notifyAdmins(
   body: string | null | undefined,
   link: string | null | undefined,
   email?: NotifyEmailPayload,
+  entityId?: number | null,
 ): Promise<void> {
   const admins = await prisma.volunteer.findMany({
     where: { isAdmin: true, deletedAt: null },
     select: { id: true },
   })
-  await Promise.all(admins.map((admin) => notifyUser(admin.id, type, title, body, link, email)))
+  await Promise.all(
+    admins.map((admin) => notifyUser(admin.id, type, title, body, link, email, entityId)),
+  )
 }

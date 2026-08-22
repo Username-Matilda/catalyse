@@ -83,18 +83,27 @@ export const bugReportsRouter = {
     await Promise.all(
       admins.map((admin) =>
         admin.isTechnicalAdmin
-          ? notifyUser(admin.id, 'new_bug_report', notifyTitle, notifyBody, '/admin/bugs', {
-              subject: notifyTitle,
-              message: notifyBody,
-              ctaLabel: 'View Bug Report',
-              ctaUrl: '/admin/bugs',
-            }).catch((e) => console.error('[NOTIFY ERROR]', e))
+          ? notifyUser(
+              admin.id,
+              'new_bug_report',
+              notifyTitle,
+              notifyBody,
+              '/admin/bugs',
+              {
+                subject: notifyTitle,
+                message: notifyBody,
+                ctaLabel: 'View Bug Report',
+                ctaUrl: '/admin/bugs',
+              },
+              report.id,
+            ).catch((e) => console.error('[NOTIFY ERROR]', e))
           : createNotification(
               admin.id,
               'new_bug_report',
               notifyTitle,
               notifyBody,
               '/admin/bugs',
+              report.id,
             ).catch((e) => console.error('[NOTIFY ERROR]', e)),
       ),
     )

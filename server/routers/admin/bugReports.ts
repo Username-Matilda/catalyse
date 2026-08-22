@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { ApprovalStatus } from '@/generated/prisma/enums'
 import { UpdateBugReportSchema } from '@/lib/schemas'
 import { adminProcedure } from '../../procedures'
+import { clearNotifications } from '@/lib/notify'
 
 export const adminBugReportsRouter = {
   list: adminProcedure
@@ -84,6 +85,10 @@ export const adminBugReportsRouter = {
 
       if (Object.keys(data).length > 0) {
         await prisma.bugReport.update({ where: { id: input.id }, data })
+      }
+
+      if (input.status === 'resolved' || input.status === 'wont_fix') {
+        await clearNotifications('new_bug_report', input.id)
       }
 
       return { message: 'Bug report updated' }

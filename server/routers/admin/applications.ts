@@ -12,6 +12,7 @@ import { APPLICATION_ANONYMISATION_MS } from '@/lib/applications'
 import { ApplicationActionSchema } from '@/lib/schemas'
 import { superAdminProcedure } from '../../procedures'
 import { ApprovalStatus } from '@/generated/prisma/enums'
+import { clearNotifications } from '@/lib/notify'
 
 export const adminApplicationsRouter = {
   list: superAdminProcedure
@@ -361,6 +362,8 @@ export const adminApplicationsRouter = {
           }).catch((e) => console.error('[APPLICATIONS] Rejected email failed:', e))
         }
       }
+
+      await clearNotifications('new_volunteer_signup', input.id)
 
       const label = action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : 'started'
       return { message: `Application ${label}` }

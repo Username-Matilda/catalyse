@@ -9,7 +9,7 @@ import {
   canViewWorkItem,
   CLAIM_BLOCKING_INTEREST_STATUSES,
 } from '@/lib/work-item'
-import { notifyUser, notifyAdmins } from '@/lib/notify'
+import { notifyUser, notifyAdmins, clearNotifications } from '@/lib/notify'
 import {
   CreateProjectSchema,
   UpdateProjectSchema,
@@ -263,6 +263,7 @@ export const projectsRouter = {
         projectTitle: project.title,
         projectId: project.id,
       },
+      project.id,
     )
 
     return { id: project.id, message: 'Project submitted for review' }
@@ -613,30 +614,28 @@ export const projectsRouter = {
 
       const { interestType, message = null } = input
 
-      if (existing) {
-        await prisma.workItemInterest.update({
-          where: {
-            volunteerId_workItemId: { volunteerId: volunteer.id, workItemId: input.projectId },
-          },
-          data: {
-            interestType,
-            message,
-            status: InterestStatus.pending,
-            respondedAt: null,
-            responseMessage: null,
-          },
-        })
-      } else {
-        await prisma.workItemInterest.create({
-          data: {
-            volunteerId: volunteer.id,
-            workItemId: input.projectId,
-            interestType,
-            message,
-            status: InterestStatus.pending,
-          },
-        })
-      }
+      const interest = existing
+        ? await prisma.workItemInterest.update({
+            where: {
+              volunteerId_workItemId: { volunteerId: volunteer.id, workItemId: input.projectId },
+            },
+            data: {
+              interestType,
+              message,
+              status: InterestStatus.pending,
+              respondedAt: null,
+              responseMessage: null,
+            },
+          })
+        : await prisma.workItemInterest.create({
+            data: {
+              volunteerId: volunteer.id,
+              workItemId: input.projectId,
+              interestType,
+              message,
+              status: InterestStatus.pending,
+            },
+          })
 
       const interestLabel = interestType === 'want_to_own' ? 'own / lead' : 'contribute to'
 
@@ -656,6 +655,7 @@ export const projectsRouter = {
               ? `<div style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"><strong>Their message:</strong> ${message}</div>`
               : undefined,
           },
+          interest.id,
         )
       }
 
@@ -721,6 +721,8 @@ export const projectsRouter = {
           respondedAt: new Date(),
         },
       })
+
+      await clearNotifications('new_interest', input.interestId)
 
       if (input.status === InterestStatus.declined) {
         await releaseTasksHeldBy(input.projectId, interest.volunteerId)

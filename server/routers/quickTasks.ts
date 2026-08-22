@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
-import { notifyUser } from '@/lib/notify'
+import { notifyUser, clearNotifications } from '@/lib/notify'
 import { CreateQuickTaskSchema, AssignQuickTaskSchema, ReviewQuickTaskSchema } from '@/lib/schemas'
 import { CLAIM_BLOCKING_INTEREST_STATUSES } from '@/lib/work-item'
 import { adminProcedure, approvedProcedure, authedProcedure } from '../procedures'
@@ -350,6 +350,8 @@ export const quickTasksRouter = {
           `${volunteer.name} submitted: ${task.title}`,
           'Ready for review',
           `/quick-tasks#task-${input.id}`,
+          undefined,
+          input.id,
         )
       }
 
@@ -384,6 +386,8 @@ export const quickTasksRouter = {
           data: { workItemId: input.id, authorId: admin.id, content: input.comment.trim() },
         })
       }
+
+      await clearNotifications('quick_task_submitted', input.id)
 
       if (task.assigneeId) {
         const noteContent = `Quick Task '${task.title}': ${input.reviewRating}${input.reviewNotes ? ` - ${input.reviewNotes}` : ''}`
