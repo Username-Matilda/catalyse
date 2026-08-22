@@ -4,7 +4,10 @@ import Button from '@/components/Button'
 import { Badge, badgeClasses, type BadgeVariant } from '@/components/Badge'
 import { matchGradeLabel } from '@/lib/matching'
 import { projectLocationParts } from '@/lib/filter-options'
-import { PROJECT_STATUS_CONFIG as PROJECT_LIFECYCLE_CONFIG } from '@/lib/project-status'
+import {
+  PROJECT_STATUS_CONFIG as PROJECT_LIFECYCLE_CONFIG,
+  proposerDisplay,
+} from '@/lib/project-status'
 
 export interface Project {
   id: number
@@ -83,11 +86,18 @@ export function ProjectCard({
   project: p,
   userSkillIds = new Set(),
   action,
+  showProposer = false,
 }: {
   project: Project
   userSkillIds?: Set<number>
   action?: React.ReactNode
+  /**
+   * Name the proposer in place of the empty owner state. Admin-only by convention:
+   * volunteers browsing need to know a project has no owner yet, not who filed it.
+   */
+  showProposer?: boolean
 }) {
+  const proposer = p.owner || !showProposer ? null : proposerDisplay(p)
   return (
     <div className="card bg-surface rounded-xl shadow px-5 pt-5 pb-4 overflow-hidden wrap-break-word grid grid-rows-subgrid row-span-6 gap-y-2 relative min-w-0">
       <div className="card-header row-start-1">
@@ -110,7 +120,9 @@ export function ProjectCard({
         {p.needsTasks && <Badge variant="warning">Needs Tasks</Badge>}
       </div>
       <div className="row-start-3 flex items-center gap-3 flex-wrap text-xs text-text-light self-start">
-        <span>👤 {p.owner ? p.owner.name : 'No owner yet'}</span>
+        <span>
+          👤 {p.owner ? p.owner.name : proposer ? `Proposer: ${proposer.name}` : 'No owner yet'}
+        </span>
         {(() => {
           const parts = projectLocationParts(p.country, p.localGroup, p.remoteEligibility)
           return parts.length > 0 && <span>📍 {parts.join(' · ')}</span>
@@ -179,15 +191,22 @@ export function ProjectList({
   projects,
   userSkillIds = new Set(),
   single = false,
+  showProposer = false,
 }: {
   projects: Project[]
   userSkillIds?: Set<number>
   single?: boolean
+  showProposer?: boolean
 }) {
   return (
     <div className={single ? CARD_GRID_SINGLE_CLASSES : CARD_GRID_CLASSES}>
       {projects.map((p) => (
-        <ProjectCard key={p.id} project={p} userSkillIds={userSkillIds} />
+        <ProjectCard
+          key={p.id}
+          project={p}
+          userSkillIds={userSkillIds}
+          showProposer={showProposer}
+        />
       ))}
     </div>
   )

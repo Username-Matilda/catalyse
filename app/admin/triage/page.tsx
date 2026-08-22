@@ -18,7 +18,6 @@ import { badgeClasses } from '@/components/Badge'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import { formatDate } from '@/lib/format-date'
-import { proposerDisplay } from '@/lib/project-status'
 import { InterestStatus, ProjectStatus } from '@/generated/prisma/enums'
 
 export default function TriagePage() {
@@ -290,13 +289,8 @@ export default function TriagePage() {
                 {visible.map((p) => (
                   <ProjectCard
                     key={p.id}
-                    project={{
-                      ...p,
-                      owner: (() => {
-                        const proposer = proposerDisplay(p)
-                        return proposer ? { name: `Proposed by: ${proposer.name}` } : null
-                      })(),
-                    }}
+                    project={p}
+                    showProposer
                     action={
                       <Button size="sm" href={`/projects/${p.id}`}>
                         Review

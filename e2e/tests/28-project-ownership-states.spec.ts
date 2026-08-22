@@ -1,4 +1,10 @@
-import { test, expect, readAdminToken, createApprovedVolunteer } from '../fixtures'
+import {
+  test,
+  expect,
+  readAdminToken,
+  createApprovedVolunteer,
+  dismissCookieConsentScript,
+} from '../fixtures'
 import { fake } from '../fake'
 import { createApiClient } from '../client'
 import { removeProjectOwner } from '../actions/projects'
@@ -183,6 +189,43 @@ test.describe('Project ownership states', () => {
     await expect(
       adminPage.getByRole('link', { name: volunteer.name, exact: true }),
     ).toHaveAttribute('href', `/volunteers/${volunteer.id}`)
+  })
+
+  // Browsing is where the missing name was first noticed. Admins triaging need to know who
+  // filed an ownerless project; a volunteer only needs to know that nobody owns it yet.
+  test('Browse cards name the proposer to admins and stay anonymous for volunteers', async ({
+    adminPage,
+    browser,
+    baseUrl,
+  }) => {
+    const { id, title } = await createOrgProject(baseUrl)
+
+    await adminPage.goto(`${baseUrl}/projects`)
+    const adminCard = adminPage.locator('.card').filter({ hasText: title })
+    await expect(adminCard).toBeVisible({ timeout: 10_000 })
+    await expect(adminCard).toContainText('Proposer: PauseAI')
+
+    const volunteer = await createApprovedVolunteer(baseUrl)
+    const ctx = await browser.newContext()
+    await ctx.addInitScript((token: string) => {
+      localStorage.setItem('authToken', token)
+    }, volunteer.token)
+    await ctx.addInitScript(dismissCookieConsentScript)
+    const volunteerPage = await ctx.newPage()
+    try {
+      await volunteerPage.goto(`${baseUrl}/projects`)
+      const volunteerCard = volunteerPage.locator('.card').filter({ hasText: title })
+      await expect(volunteerCard).toBeVisible({ timeout: 10_000 })
+      await expect(volunteerCard).toContainText('No owner yet')
+      await expect(volunteerCard).not.toContainText('Proposer:')
+
+      // Same on the project's own page: the empty state, not a name.
+      await volunteerPage.goto(`${baseUrl}/projects/${id}`)
+      await expect(volunteerPage.getByText('No owner yet.')).toBeVisible({ timeout: 10_000 })
+      await expect(volunteerPage.getByText('Proposer:')).toBeHidden()
+    } finally {
+      await ctx.close()
+    }
   })
 
   // Regression: an owned project used to be able to sit in the retired `seeking_owner`

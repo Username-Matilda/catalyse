@@ -323,7 +323,11 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
 
             {/* Grouped project cards */}
             {statusFilter || needsFilter ? (
-              <ProjectList projects={projects} userSkillIds={userSkillIds} />
+              <ProjectList
+                projects={projects}
+                userSkillIds={userSkillIds}
+                showProposer={user.isAdmin}
+              />
             ) : (
               groups
                 .filter((g) => g.projects.length > 0)
@@ -369,7 +373,11 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
                           key={String(completedOpen)}
                           className={isCompleted ? 'animate-fade-slide-in' : undefined}
                         >
-                          <ProjectList projects={g.projects} userSkillIds={userSkillIds} />
+                          <ProjectList
+                            projects={g.projects}
+                            userSkillIds={userSkillIds}
+                            showProposer={user.isAdmin}
+                          />
                         </div>
                       )}
                     </div>
