@@ -268,7 +268,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
               ariaLabel="Select team"
               value={teamId}
               options={[
-                { value: '', label: 'No team — visible to everyone' },
+                { value: '', label: 'No team: visible to everyone' },
                 ...teams.map((t) => ({ value: String(t.id), label: t.name })),
               ]}
               onChange={setTeamId}

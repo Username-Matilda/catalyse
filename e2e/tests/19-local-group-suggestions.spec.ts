@@ -146,7 +146,7 @@ test.describe('Local Group Suggestions', () => {
     await submitLocalGroupSuggestion(baseUrl, volunteer.page, 'United Kingdom', groupName)
     await navigateToAdminLocalGroups(baseUrl, adminPage)
     await adminReviewSuggestion(adminPage, groupName, 'merge', {
-      mergeTarget: 'United Kingdom — London',
+      mergeTarget: 'United Kingdom, London',
     })
 
     await expect(getAlert(adminPage)).toContainText('merged', { timeout: 10_000 })

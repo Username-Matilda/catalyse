@@ -527,7 +527,7 @@ export default function AdminTeamsPage() {
                         onChange={() => setReviewAction(opt.value)}
                       >
                         <span>
-                          <strong>{opt.label}</strong> — {opt.desc}
+                          <strong>{opt.label}</strong>: {opt.desc}
                         </span>
                       </Radio>
                     ))}
@@ -578,8 +578,7 @@ export default function AdminTeamsPage() {
                         searchable
                       />
                       <p className="text-sm text-text-light mt-1">
-                        Defaults to the suggester — pick someone else if they shouldn&apos;t lead
-                        it.
+                        Defaults to the suggester, pick someone else if they shouldn&apos;t lead it.
                       </p>
                     </div>
                   </>

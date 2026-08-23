@@ -144,7 +144,7 @@ export default function AdminCronRunsPage() {
 
       <Modal
         id="cron-run-detail"
-        title={selectedRun ? `${selectedRun.jobName} — ${selectedRun.status}` : ''}
+        title={selectedRun ? `${selectedRun.jobName}: ${selectedRun.status}` : ''}
         isOpen={!!selectedRun}
         onClose={() => setSelectedRun(null)}
       >

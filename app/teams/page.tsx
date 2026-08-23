@@ -20,7 +20,7 @@ export default function TeamsPage() {
   const applyMutation = useMutation({
     ...orpc.teams.apply.mutationOptions(),
     onSuccess: () => {
-      showToast('Application submitted — a team leader will review it', 'success')
+      showToast('Application submitted, a team leader will review it', 'success')
       void invalidate()
     },
     onError: (err: unknown) => {
@@ -52,7 +52,7 @@ export default function TeamsPage() {
         </Link>
       </div>
       <p className="text-text-light mb-6">
-        Teams are standing groups of volunteers with a recurring meeting and shared doc — apply to
+        Teams are standing groups of volunteers with a recurring meeting and shared doc, apply to
         join any number of teams alongside your local group. A team leader reviews applications.
       </p>
 

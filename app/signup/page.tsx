@@ -872,7 +872,7 @@ export default function SignupPage() {
                 }}
               />
               <p className="text-sm text-text-light mt-1">
-                Used for login and notifications. Not shown publicly — see contact settings below.
+                Used for login and notifications. Not shown publicly: see contact settings below.
               </p>
             </div>
 

@@ -116,7 +116,7 @@ export async function sendWelcomeAndConfirmEmail({
   const confirmUrl = `${env.APP_URL}/verify-email?token=${token}`
   return sendEmail(
     to,
-    'Welcome to Catalyse — please confirm your email',
+    'Welcome to Catalyse: please confirm your email',
     buildWelcomeAndConfirmHtml(name, confirmUrl),
   )
 }
@@ -686,9 +686,9 @@ export function buildTaskNudgeHtml(
   <h2>How's it going?</h2>
   <p>Hi ${n},</p>
   <p>It's been ${daysInactive} days since ${activityPhrase} <strong>${tt}</strong> in the project <strong>${pt}</strong> (on ${lastActivityDate}).</p>
-  <p>Could you leave a quick comment with a progress update? Even a brief note — like "ticking along, awaiting XYZ, will post another update in 2 weeks" — is really helpful so the project team knows things are in good hands.</p>
+  <p>Could you leave a quick comment with a progress update? Even a brief note, like "ticking along, awaiting XYZ, will post another update in 2 weeks", is really helpful so the project team knows things are in good hands.</p>
   <p>If you don't have capacity for the task right now, it's much better to update the project page with an ETA than for the team not to know what's happening.</p>
-  <p>We'll send another reminder in a week if we haven't heard from you — it's important that things move along smoothly so everyone can make progress.</p>
+  <p>We'll send another reminder in a week if we haven't heard from you, it's important that things move along smoothly so everyone can make progress.</p>
   <p style="text-align: center; margin: 32px 0;"><a href="${taskUrl}" class="button">Leave an update</a></p>
   <p>If you can no longer work on this task, please release it so someone else can pick it up.</p>
   <p>If you need support, please contact your project owner or admin.</p>
@@ -760,7 +760,7 @@ export function buildTaskFinalWarningHtml(
   <div class="warning">
     <strong>If there is no update by ${surrenderDate}, we'll open the task to other contributors</strong> so the project can keep moving forward.
   </div>
-  <p>Even a quick note is fine — anything to let the project team know you're still on it. If life has got busy, no worries at all, but it would really help to either leave an update or release the task so someone else can step in.</p>
+  <p>Even a quick note is fine: anything to let the project team know you're still on it. If life has got busy, no worries at all, but it would really help to either leave an update or release the task so someone else can step in.</p>
   <p style="text-align: center; margin: 32px 0;"><a href="${taskUrl}" class="button">Leave an update</a></p>
   <p>If you need support, please contact your project owner or a platform admin.</p>
   ${footer([['Leave an update', taskUrl]])}
@@ -870,7 +870,7 @@ export function buildTaskSurrenderedAssigneeHtml(
   <h2>Task now open to other contributors</h2>
   <p>Hi ${n},</p>
   <p>Because we haven't received updates from you on the task <strong>${tt}</strong> in <strong>${pt}</strong> for four weeks, we've opened the task to other contributors and removed you from it.</p>
-  <p>We hope things are going well — if you'd still like to contribute, you're always welcome to claim the task again or pick up something else on the project.</p>
+  <p>We hope things are going well, if you'd still like to contribute, you're always welcome to claim the task again or pick up something else on the project.</p>
   <p style="text-align: center; margin: 32px 0;"><a href="${projectUrl}" class="button">View Project</a></p>
   <p>If you need support, please contact your project owner or a platform admin.</p>
   ${footer([['View Project', projectUrl]])}

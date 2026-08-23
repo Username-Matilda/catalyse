@@ -87,7 +87,7 @@ export default function ForgotPasswordPage() {
               </div>
               {devUrl && (
                 <div className="mt-6 pt-4 border-t border-brand-border">
-                  <p className="text-[12px] text-text-light">Dev mode — Reset link:</p>
+                  <p className="text-[12px] text-text-light">Dev mode, Reset link:</p>
                   <a href={devUrl} className="break-all">
                     {devUrl}
                   </a>

@@ -125,7 +125,7 @@ export default function SuggestLocalGroupPage() {
                   >
                     <div>
                       <p className="font-semibold m-0">
-                        {countryLabel(s.country)} — {s.name}
+                        {countryLabel(s.country)}, {s.name}
                         {s.mergedInto && (
                           <span className="text-text-light font-normal text-sm">
                             {' '}

@@ -219,7 +219,7 @@ export default function DashboardPage() {
         {showEmailBanner && (
           <div className="flex items-center justify-between gap-3 p-4 rounded-lg mb-5 bg-blue-100 text-blue-800 border border-blue-300 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-600">
             <span>
-              Stay in the loop — set your email notification preference in your{' '}
+              Stay in the loop: set your email notification preference in your{' '}
               <Link href="/profile" className="underline font-semibold">
                 profile
               </Link>

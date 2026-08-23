@@ -58,6 +58,12 @@ export default function RootLayout({
         >{`try{var t=localStorage.getItem('theme');document.documentElement.setAttribute('data-theme',t==='dark'?'dark':t==='light'?'light':window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')}catch(e){}`}</Script>
       </head>
       <body className="min-h-screen flex flex-col">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:rounded-md focus:bg-surface focus:px-4 focus:py-2 focus:shadow-lg"
+        >
+          Skip to content
+        </a>
         <Providers>
           <ThemeProvider>
             <AuthProvider>
@@ -65,7 +71,7 @@ export default function RootLayout({
                 <CookieConsentProvider>
                   <LocationModalProvider>
                     <Header />
-                    {children}
+                    <main id="main-content">{children}</main>
                     <Footer />
                     <FloatingActions />
                     <CookieConsentBanner />

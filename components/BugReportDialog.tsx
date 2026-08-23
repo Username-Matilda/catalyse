@@ -6,6 +6,7 @@ import { useMutation } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import { orpc } from '@/lib/orpc'
+import { useFocusTrap } from '@/lib/hooks/useFocusTrap'
 
 interface BugReportDialogProps {
   isOpen: boolean
@@ -29,10 +30,10 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
     options: severityOptions,
   } = useFilterOptions(
     [
-      { value: 'low', label: 'Low — minor inconvenience' },
-      { value: 'medium', label: 'Medium — affects workflow' },
-      { value: 'high', label: 'High — blocking' },
-      { value: 'critical', label: 'Critical — site is broken' },
+      { value: 'low', label: 'Low: minor inconvenience' },
+      { value: 'medium', label: 'Medium: affects workflow' },
+      { value: 'high', label: 'High: blocking' },
+      { value: 'critical', label: 'Critical: site is broken' },
     ],
     'medium',
   )
@@ -85,6 +86,8 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
     )
   }
 
+  const trapRef = useFocusTrap(isOpen)
+
   if (!isOpen) return null
 
   return (
@@ -93,6 +96,7 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
       onClick={handleClose}
     >
       <div
+        ref={trapRef}
         role="dialog"
         aria-modal="true"
         aria-label="Report an Issue"

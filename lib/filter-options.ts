@@ -73,7 +73,7 @@ export function buildLocalGroupOptionsForCountry(
   return [
     { value: '', label: 'Select…' },
     ...countryGroups.map((g) => ({ value: g.name, label: g.name })),
-    { value: NO_LOCAL_GROUP, label: "None of these — I'll enter my city" },
+    { value: NO_LOCAL_GROUP, label: "None of these, I'll enter my city" },
   ]
 }
 

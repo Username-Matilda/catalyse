@@ -452,7 +452,7 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
                           tabIndex={0}
                           onKeyDown={(e) => e.key === 'Enter' && setCompletedOpen((o) => !o)}
                         >
-                          {g.label} — {g.total} project
+                          {g.label}: {g.total} project
                           {g.total !== 1 ? 's' : ''}
                           <svg
                             className={`text-text-light shrink-0 transition-transform ${completedOpen ? 'rotate-180' : 'rotate-0'}`}
@@ -470,7 +470,7 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
                         </h2>
                       ) : (
                         <h2 className={`text-lg mb-1 ${g.color}`}>
-                          {g.label} — {g.total} project
+                          {g.label}: {g.total} project
                           {g.total !== 1 ? 's' : ''}
                         </h2>
                       )}

@@ -55,7 +55,7 @@ const EMAIL_TYPES: { value: string; label: string; params: Record<string, Param>
       name: 'Alex',
       subject: 'Your project has been approved',
       message:
-        'Great news — your project AI Safety Explainer Series has been reviewed and approved.',
+        'Great news: your project AI Safety Explainer Series has been reviewed and approved.',
       project_id: 1,
     },
   },

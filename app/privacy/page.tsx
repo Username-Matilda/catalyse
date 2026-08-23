@@ -77,17 +77,17 @@ export default function PrivacyPage() {
             <p className="text-text-light">We process your data based on:</p>
             <ul className="list-disc text-text-light mb-4 pl-5">
               <li>
-                <strong>Consent</strong> — for sharing your profile with other volunteers and
+                <strong>Consent</strong>: for sharing your profile with other volunteers and
                 allowing project owners to contact you (you can withdraw consent at any time via
                 your privacy settings)
               </li>
               <li>
-                <strong>Legitimate interest</strong> — for operating the platform, matching
+                <strong>Legitimate interest</strong>: for operating the platform, matching
                 volunteers with projects, platform administration, and sending inactivity reminders
                 to volunteers who have claimed a task
               </li>
               <li>
-                <strong>Contract performance</strong> — for providing you the service you signed up
+                <strong>Contract performance</strong>: for providing you the service you signed up
                 for
               </li>
             </ul>
@@ -109,7 +109,7 @@ export default function PrivacyPage() {
                 posted an update for a period of time, and to automatically unassign you from the
                 task after continued inactivity so that other volunteers can take it on. Project
                 owners and admins are notified when a volunteer is unassigned due to inactivity
-                (legitimate interest basis — keeping projects moving)
+                (legitimate interest basis: keeping projects moving)
               </li>
               <li>
                 To notify project owners and admins when task updates are posted, so they can stay
@@ -125,7 +125,7 @@ export default function PrivacyPage() {
               <li>
                 We don&apos;t use your data for profiling or to make decisions that have legal or
                 significant effects on you. Automated task unassignment due to inactivity is a minor
-                operational measure to keep projects moving — it does not affect your account,
+                operational measure to keep projects moving, it does not affect your account,
                 profile, or ability to claim other tasks
               </li>
             </ul>
@@ -137,24 +137,24 @@ export default function PrivacyPage() {
             </p>
             <ul className="list-disc text-text-light mb-4 pl-5">
               <li>
-                <strong>Railway</strong> (hosting) — our application and database are hosted on
+                <strong>Railway</strong> (hosting): our application and database are hosted on
                 Railway&apos;s cloud infrastructure. Data may be processed in the United States. We
                 rely on Railway&apos;s standard contractual safeguards for international transfers.
               </li>
               <li>
-                <strong>Resend</strong> (email delivery) — used to send transactional emails
+                <strong>Resend</strong> (email delivery): used to send transactional emails
                 (password resets, welcome emails, admin invites) and relay messages between
                 volunteers. Resend processes your email address and name for delivery purposes only.
                 Data may be processed in the United States.
               </li>
               <li>
-                <strong>Backblaze B2</strong> (encrypted backups) — daily encrypted backups of the
+                <strong>Backblaze B2</strong> (encrypted backups): daily encrypted backups of the
                 database are stored in Backblaze&apos;s EU data centre (Amsterdam). Backups are
                 retained for 30 days and then automatically deleted. Backups are used solely for
                 disaster recovery and are never accessed for any other purpose.
               </li>
               <li>
-                <strong>Google Analytics</strong> (usage analytics) — used to understand how the
+                <strong>Google Analytics</strong> (usage analytics): used to understand how the
                 platform is used so we can improve it. Collects anonymised page view and interaction
                 data via cookies. IP addresses are anonymised. Only loaded if you accept cookies via
                 the consent banner. You can withdraw consent at any time by clearing your browser
@@ -162,7 +162,7 @@ export default function PrivacyPage() {
                 States.
               </li>
               <li>
-                <strong>Google Sign-In</strong> (authentication) — if you choose to sign in with
+                <strong>Google Sign-In</strong> (authentication): if you choose to sign in with
                 Google, Google verifies your identity and shares your name and email with us to
                 create or log into your account. No other Google data is accessed.
               </li>
@@ -193,12 +193,12 @@ export default function PrivacyPage() {
             <h4>Cookies</h4>
             <ul className="list-disc text-text-light mb-4 pl-5">
               <li>
-                <strong>Essential cookies</strong> — we use localStorage (not cookies) to store your
+                <strong>Essential cookies</strong>: we use localStorage (not cookies) to store your
                 login session and preferences (dark mode, cookie consent choice). These are
                 necessary for the site to function.
               </li>
               <li>
-                <strong>Analytics cookies</strong> — Google Analytics uses cookies to collect
+                <strong>Analytics cookies</strong>: Google Analytics uses cookies to collect
                 anonymised usage data. These are only loaded after you accept the cookie consent
                 banner. You can decline or withdraw consent at any time.
               </li>
@@ -221,28 +221,28 @@ export default function PrivacyPage() {
             </p>
             <ul className="list-disc text-text-light pl-5">
               <li>
-                <strong>Access</strong> (Article 15) — Download all your data using the export
+                <strong>Access</strong> (Article 15): Download all your data using the export
                 feature above
               </li>
               <li>
-                <strong>Rectification</strong> (Article 16) — Update your profile at any time
+                <strong>Rectification</strong> (Article 16): Update your profile at any time
               </li>
               <li>
-                <strong>Erasure</strong> (Article 17) — Delete your account and all personal data
+                <strong>Erasure</strong> (Article 17): Delete your account and all personal data
               </li>
               <li>
-                <strong>Restrict processing</strong> (Article 18) — Contact us to limit how we use
+                <strong>Restrict processing</strong> (Article 18): Contact us to limit how we use
                 your data
               </li>
               <li>
-                <strong>Portability</strong> (Article 20) — Export your data in a machine-readable
+                <strong>Portability</strong> (Article 20): Export your data in a machine-readable
                 format (JSON)
               </li>
               <li>
-                <strong>Object</strong> (Article 21) — Contact us to opt out of specific processing
+                <strong>Object</strong> (Article 21): Contact us to opt out of specific processing
               </li>
               <li>
-                <strong>Withdraw consent</strong> (Article 7) — Update your privacy settings or
+                <strong>Withdraw consent</strong> (Article 7): Update your privacy settings or
                 delete your account at any time
               </li>
             </ul>

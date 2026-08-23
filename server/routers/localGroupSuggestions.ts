@@ -44,7 +44,7 @@ export const localGroupSuggestionsRouter = {
 
       await notifyAdmins(
         'local_group_suggestion',
-        `New local group suggestion: ${input.country} — ${input.name}`,
+        `New local group suggestion: ${input.country}, ${input.name}`,
         null,
         '/admin/local-groups',
         undefined,

@@ -729,7 +729,7 @@ export const authRouter = {
         const googleUser = await verifyGoogleToken(input.credential ?? '')
         if (!googleUser)
           throw new ORPCError('UNAUTHORIZED', {
-            message: 'Your Google sign-in has expired — please sign in with Google again',
+            message: 'Your Google sign-in has expired, please sign in with Google again',
           })
         ;({ email, name } = googleUser)
       }

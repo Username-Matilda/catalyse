@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 
 const TRACK_RECORD: { when: string; body: React.ReactNode }[] = [
   {
-    when: 'Open Letter to Demis Hassabis — August 2025',
+    when: 'Open Letter to Demis Hassabis, August 2025',
     body: (
       <>
         We published an{' '}
@@ -43,11 +43,11 @@ const TRACK_RECORD: { when: string; body: React.ReactNode }[] = [
     ),
   },
   {
-    when: 'Westminster Hall Debate — December 2025',
+    when: 'Westminster Hall Debate, December 2025',
     body: 'We proposed and helped to organise a Westminster Hall debate in Parliament on AI Safety. We wrote a memo which was sent out to all MPs prior to the debate and also helped to draft some proposition speeches, putting us in a strong position to work with those MPs when proposing amendments to the Cyber Security and Resilience Bill.',
   },
   {
-    when: 'March for AI Safety — February 2026',
+    when: 'March for AI Safety, February 2026',
     body: (
       <>
         We co-organised a march past the offices of OpenAI and Big Tech companies in King&apos;s
