@@ -1,4 +1,5 @@
 import { Prisma } from '@/generated/prisma/client'
+import { prisma } from './prisma'
 import { calculateMatchScore } from './matching'
 import { isSeekingOwner, UNAPPROVED_STATUSES } from './project-status'
 import {
@@ -19,6 +20,7 @@ export type WorkItemForAccess = {
   status: string
   creatorId: number | null
   assigneeId: number | null
+  teamId?: number | null
 }
 
 export type CommentViewer = { id: number; isAdmin: boolean; isApproved: boolean } | null
@@ -36,18 +38,34 @@ export const CLAIM_BLOCKING_INTEREST_STATUSES: InterestStatus[] = [
 /**
  * Can `viewer` see this work item (and therefore its comment thread)?
  * For TASK, pass the parent PROJECT — task visibility follows the project.
+ *
+ * `isTeamPrivy` — viewer is a member of the project's team, or an accepted helper on it.
+ * The caller resolves it (requires a DB lookup); only relevant when the project has a
+ * team assigned, in which case it's otherwise restricted to the team, its owner/proposer,
+ * and admins.
  */
 export function canViewWorkItem(
   item: WorkItemForAccess,
   viewer: CommentViewer,
   parent?: WorkItemForAccess | null,
+  isTeamPrivy?: boolean,
 ): boolean {
   switch (item.type) {
-    case WorkItemType.PROJECT:
+    case WorkItemType.PROJECT: {
+      if (item.teamId !== null && item.teamId !== undefined) {
+        const isDirectParticipant = Boolean(
+          viewer &&
+          (viewer.isAdmin || viewer.id === item.creatorId || viewer.id === item.assigneeId),
+        )
+        if (!isDirectParticipant && !isTeamPrivy) return false
+      }
       if (!PROJECT_HIDDEN_STATUSES.includes(item.status)) return true
       return Boolean(viewer && (viewer.isAdmin || viewer.id === item.creatorId))
+    }
     case WorkItemType.TASK:
-      return parent ? canViewWorkItem(parent, viewer) : Boolean(viewer?.isAdmin)
+      return parent
+        ? canViewWorkItem(parent, viewer, undefined, isTeamPrivy)
+        : Boolean(viewer?.isAdmin)
     case WorkItemType.QUICK_TASK:
       // Open, unclaimed tasks are browsable by any approved volunteer before they claim one —
       // but not by a pending applicant, same as the approvedProcedure gate on the pages that
@@ -61,6 +79,30 @@ export function canViewWorkItem(
     default:
       return Boolean(viewer?.isAdmin)
   }
+}
+
+/**
+ * Resolves `isTeamPrivy` for `canViewWorkItem` — does `volunteerId` belong to the
+ * project's team, or hold an accepted interest on it? No-ops (returns false) when the
+ * project has no team, so callers can call this unconditionally.
+ */
+export async function resolveTeamPrivy(
+  teamId: number | null | undefined,
+  projectId: number,
+  volunteerId: number,
+): Promise<boolean> {
+  if (teamId === null || teamId === undefined) return false
+  const [membership, interest] = await Promise.all([
+    prisma.teamMembership.findUnique({
+      where: { teamId_volunteerId: { teamId, volunteerId } },
+      select: { id: true },
+    }),
+    prisma.workItemInterest.findFirst({
+      where: { workItemId: projectId, volunteerId, status: InterestStatus.accepted },
+      select: { id: true },
+    }),
+  ])
+  return Boolean(membership || interest)
 }
 
 /**
@@ -134,9 +176,11 @@ export type EnrichedProject = {
   isSeekingHelp: boolean | null
   localGroup: string | null
   remoteEligibility: RemoteEligibility
+  teamId: number | null
   skills: WorkItemSkillWithRelations[]
   assignee: { id: number; name: string } | null
   creator: { id: number; name: string } | null
+  team: { id: number; name: string } | null
   _count: { interests: number; children: number }
 }
 
@@ -182,6 +226,8 @@ export function withProjectExtras(p: EnrichedProject, volunteerSkillIds?: Set<nu
     openTaskCount: p._count.children,
     localGroup: p.localGroup,
     remoteEligibility: p.remoteEligibility,
+    teamId: p.teamId,
+    team: p.team,
     skills: p.skills.map((ps) => ({
       id: ps.skill.id,
       categoryId: ps.skill.categoryId,
@@ -210,6 +256,7 @@ export const projectInclude = {
   },
   assignee: { select: { id: true, name: true } },
   creator: { select: { id: true, name: true } },
+  team: { select: { id: true, name: true } },
   _count: {
     select: {
       interests: { where: { status: InterestStatus.pending } },

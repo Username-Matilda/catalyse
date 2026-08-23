@@ -17,14 +17,14 @@ export default function TeamsPage() {
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: orpc.teams.list.key() })
 
-  const joinMutation = useMutation({
-    ...orpc.teams.join.mutationOptions(),
+  const applyMutation = useMutation({
+    ...orpc.teams.apply.mutationOptions(),
     onSuccess: () => {
-      showToast('Joined team!', 'success')
+      showToast('Application submitted — a team leader will review it', 'success')
       void invalidate()
     },
     onError: (err: unknown) => {
-      showToast(err instanceof Error ? err.message : 'Failed to join team', 'error')
+      showToast(err instanceof Error ? err.message : 'Failed to apply', 'error')
     },
   })
 
@@ -52,8 +52,8 @@ export default function TeamsPage() {
         </Link>
       </div>
       <p className="text-text-light mb-6">
-        Teams are standing groups of volunteers with a recurring meeting and shared doc — join any
-        number of teams alongside your local group.
+        Teams are standing groups of volunteers with a recurring meeting and shared doc — apply to
+        join any number of teams alongside your local group. A team leader reviews applications.
       </p>
 
       {isLoading ? (
@@ -119,13 +119,17 @@ export default function TeamsPage() {
                     >
                       Leave
                     </Button>
+                  ) : team.viewerRequestStatus === 'pending' ? (
+                    <Button size="sm" variant="secondary" disabled>
+                      Application Pending
+                    </Button>
                   ) : (
                     <Button
                       size="sm"
-                      disabled={joinMutation.isPending}
-                      onClick={() => joinMutation.mutate({ id: team.id })}
+                      disabled={applyMutation.isPending}
+                      onClick={() => applyMutation.mutate({ id: team.id })}
                     >
-                      Join
+                      Apply to Join
                     </Button>
                   )}
                 </div>

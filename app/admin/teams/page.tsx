@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { useRequireAdmin } from '@/lib/hooks/auth'
 import Link from 'next/link'
-import { useMutation, useQueryClient, useQueries } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, useQueries } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import Radio from '@/components/Radio'
 import FilterDropdown, { FilterOption, useFilterOptions } from '@/components/FilterDropdown'
@@ -98,9 +98,19 @@ export default function AdminTeamsPage() {
   const [reviewAction, setReviewAction] = useState<ReviewAction>('accept')
   const [reviewEditName, setReviewEditName] = useState('')
   const [reviewEditDescription, setReviewEditDescription] = useState('')
+  const [reviewLeaderId, setReviewLeaderId] = useState('')
   const [mergeTargetId, setMergeTargetId] = useState<number | ''>('')
   const [adminNotes, setAdminNotes] = useState('')
   const [reviewSubmitting, setReviewSubmitting] = useState(false)
+
+  const [assignVolunteerId, setAssignVolunteerId] = useState('')
+
+  const { data: volunteersData } = useQuery({
+    ...orpc.volunteers.list.queryOptions({ input: { limit: 200 } }),
+    enabled: !!user?.isAdmin,
+  })
+  const volunteers = volunteersData?.volunteers ?? []
+  const volunteerOptions = volunteers.map((v) => ({ value: String(v.id), label: v.name }))
 
   const fetchTeams = statusFilter === 'all' || statusFilter === 'active'
   const fetchPending = statusFilter === 'all' || statusFilter === TeamSuggestionStatus.pending
@@ -192,8 +202,9 @@ export default function AdminTeamsPage() {
   const deleteSuggestionMutation = useMutation({
     ...orpc.admin.teams.deleteSuggestion.mutationOptions(),
   })
-  const setMemberRoleMutation = useMutation({ ...orpc.admin.teams.setMemberRole.mutationOptions() })
-  const removeMemberMutation = useMutation({ ...orpc.admin.teams.removeMember.mutationOptions() })
+  const setMemberRoleMutation = useMutation({ ...orpc.teams.setMemberRole.mutationOptions() })
+  const removeMemberMutation = useMutation({ ...orpc.teams.removeMember.mutationOptions() })
+  const assignMemberMutation = useMutation({ ...orpc.teams.assignMember.mutationOptions() })
 
   const mergeOptions = [
     { value: '', label: 'Select an existing team…' },
@@ -213,6 +224,7 @@ export default function AdminTeamsPage() {
     setReviewAction('accept')
     setReviewEditName(suggestion.name)
     setReviewEditDescription(suggestion.description ?? '')
+    setReviewLeaderId(String(suggestion.suggestedBy.id))
     setMergeTargetId('')
     setAdminNotes('')
   }
@@ -276,6 +288,7 @@ export default function AdminTeamsPage() {
       if (reviewAction === 'accept') {
         body.name = reviewEditName.trim()
         body.description = reviewEditDescription.trim() || null
+        if (reviewLeaderId) body.leaderId = Number(reviewLeaderId)
       } else if (reviewAction === 'merge') {
         body.mergedIntoId = mergeTargetId
       }
@@ -318,6 +331,24 @@ export default function AdminTeamsPage() {
       showToast(err instanceof Error ? err.message : 'Failed to delete', 'error')
     } finally {
       setDeleteTarget(null)
+    }
+  }
+
+  async function addMember() {
+    if (!membersTarget || !assignVolunteerId) return
+    try {
+      await assignMemberMutation.mutateAsync({
+        teamId: membersTarget.id,
+        volunteerId: Number(assignVolunteerId),
+      })
+      setAssignVolunteerId('')
+      await invalidateItems()
+      const updated = await queryClient.fetchQuery(orpc.admin.teams.list.queryOptions())
+      const refreshed = (updated.teams as Team[]).find((t) => t.id === membersTarget.id)
+      if (refreshed) setMembersTarget(refreshed)
+      showToast('Volunteer added to team', 'success')
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Failed to add member', 'error')
     }
   }
 
@@ -619,6 +650,29 @@ export default function AdminTeamsPage() {
               </Button>
             </div>
             <div className="p-6">
+              <JoinRequestsSection teamId={membersTarget.id} onReviewed={invalidateItems} />
+
+              <div className="mb-5 pb-5 border-b border-brand-border flex items-end gap-2">
+                <div className="flex-1">
+                  <FilterDropdown
+                    id="assign-volunteer"
+                    label="Add a volunteer directly"
+                    ariaLabel="Select volunteer to add"
+                    value={assignVolunteerId}
+                    options={[{ value: '', label: 'Select a volunteer…' }, ...volunteerOptions]}
+                    onChange={setAssignVolunteerId}
+                    searchable
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  disabled={!assignVolunteerId || assignMemberMutation.isPending}
+                  onClick={addMember}
+                >
+                  Add
+                </Button>
+              </div>
+
               {membersTarget.members.length === 0 ? (
                 <p className="text-text-light">No members yet.</p>
               ) : (
@@ -731,6 +785,21 @@ export default function AdminTeamsPage() {
                         className="w-full"
                       />
                     </div>
+                    <div className="mb-5">
+                      <FilterDropdown
+                        id="review-leader"
+                        label="Team Leader"
+                        ariaLabel="Select team leader"
+                        value={reviewLeaderId}
+                        options={volunteerOptions}
+                        onChange={setReviewLeaderId}
+                        searchable
+                      />
+                      <p className="text-sm text-text-light mt-1">
+                        Defaults to the suggester — pick someone else if they shouldn&apos;t lead
+                        it.
+                      </p>
+                    </div>
                   </>
                 )}
 
@@ -825,5 +894,50 @@ export default function AdminTeamsPage() {
         </div>
       )}
     </>
+  )
+}
+
+function JoinRequestsSection({ teamId, onReviewed }: { teamId: number; onReviewed: () => void }) {
+  const showToast = useToast()
+  const queryClient = useQueryClient()
+  const { data } = useQuery(orpc.teams.listJoinRequests.queryOptions({ input: { teamId } }))
+  const requests = data?.requests ?? []
+  const reviewMutation = useMutation({ ...orpc.teams.reviewJoinRequest.mutationOptions() })
+
+  async function review(id: number, action: 'accept' | 'decline') {
+    try {
+      await reviewMutation.mutateAsync({ id, action })
+      await queryClient.invalidateQueries({ queryKey: orpc.teams.listJoinRequests.key() })
+      await onReviewed()
+      showToast(action === 'accept' ? 'Request accepted' : 'Request declined', 'success')
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Failed to review request', 'error')
+    }
+  }
+
+  if (requests.length === 0) return null
+
+  return (
+    <div className="mb-5 pb-5 border-b border-brand-border">
+      <p className="font-medium mb-3">Pending Join Requests</p>
+      <div className="space-y-3">
+        {requests.map((r) => (
+          <div key={r.id} className="flex items-center justify-between gap-3">
+            <div>
+              <p className="m-0 font-medium">{r.volunteer.name}</p>
+              {r.message && <p className="m-0 text-xs text-text-light italic">{r.message}</p>}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button size="sm" onClick={() => review(r.id, 'accept')}>
+                Accept
+              </Button>
+              <Button size="sm" variant="danger" onClick={() => review(r.id, 'decline')}>
+                Decline
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }

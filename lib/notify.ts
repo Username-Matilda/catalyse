@@ -83,6 +83,31 @@ export async function notifyUser(
   send.catch((e) => console.error('[EMAIL ERROR]', e))
 }
 
+/** Alerts every member of a team that a project has been tagged to them and gone live. */
+export async function notifyTeamOfProject(
+  teamId: number,
+  projectId: number,
+  projectTitle: string,
+): Promise<void> {
+  const members = await prisma.teamMembership.findMany({
+    where: { teamId },
+    select: { volunteerId: true },
+  })
+  await Promise.all(
+    members.map((m) =>
+      notifyUser(
+        m.volunteerId,
+        'team_project_assigned',
+        `New project for your team: ${projectTitle}`,
+        null,
+        `/projects/${projectId}`,
+        undefined,
+        projectId,
+      ),
+    ),
+  )
+}
+
 export async function notifyAdmins(
   type: string,
   title: string,

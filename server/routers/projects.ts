@@ -7,9 +7,10 @@ import {
   projectInclude,
   EnrichedProject,
   canViewWorkItem,
+  resolveTeamPrivy,
   CLAIM_BLOCKING_INTEREST_STATUSES,
 } from '@/lib/work-item'
-import { notifyUser, notifyAdmins, clearNotifications } from '@/lib/notify'
+import { notifyUser, notifyAdmins, notifyTeamOfProject, clearNotifications } from '@/lib/notify'
 import {
   CreateProjectSchema,
   UpdateProjectSchema,
@@ -87,6 +88,7 @@ export const projectsRouter = {
         urgency: z.string().optional(),
         country: z.string().optional(),
         localGroup: z.string().optional(),
+        teamId: z.number().int().optional(),
         isOrgProposed: z.boolean().optional(),
         isSeekingHelp: z.boolean().optional(),
         isSeekingOwner: z.boolean().optional(),
@@ -138,6 +140,7 @@ export const projectsRouter = {
       if (input.urgency) conditions.push(Prisma.sql`urgency = ${input.urgency}`)
       if (input.country) conditions.push(Prisma.sql`country = ${input.country}`)
       if (input.localGroup) conditions.push(Prisma.sql`local_group = ${input.localGroup}`)
+      if (input.teamId) conditions.push(Prisma.sql`team_id = ${input.teamId}`)
 
       if (input.isOrgProposed !== undefined) {
         conditions.push(Prisma.sql`is_org_proposed = ${input.isOrgProposed ? 1 : 0}`)
@@ -155,6 +158,21 @@ export const projectsRouter = {
       }
       if (input.notSeeking) {
         conditions.push(Prisma.raw(`is_seeking_help = 0 AND NOT ${SEEKING_OWNER_SQL}`))
+      }
+
+      // A project tagged to a team is only browsable by that team's members, its
+      // owner/proposer, or an admin — everyone else never sees it in the list.
+      if (!volunteer.isAdmin) {
+        conditions.push(Prisma.sql`(
+          team_id IS NULL
+          OR creator_id = ${volunteer.id}
+          OR assignee_id = ${volunteer.id}
+          OR team_id IN (SELECT team_id FROM team_memberships WHERE volunteer_id = ${volunteer.id})
+          OR id IN (
+            SELECT work_item_id FROM work_item_interests
+            WHERE volunteer_id = ${volunteer.id} AND status = ${InterestStatus.accepted}
+          )
+        )`)
       }
 
       const whereClause = Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`
@@ -226,6 +244,7 @@ export const projectsRouter = {
           localGroup: input.localGroup ?? null,
           remoteEligibility: input.remoteEligibility ?? 'NONE',
           isSeekingHelp: input.isSeekingHelp !== false,
+          teamId: input.teamId ?? null,
         },
       })
 
@@ -280,6 +299,17 @@ export const projectsRouter = {
       })
 
       if (!project) throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
+
+      if (project.teamId !== null && !volunteer.isAdmin) {
+        const isDirectParticipant =
+          project.creatorId === volunteer.id || project.assigneeId === volunteer.id
+        if (
+          !isDirectParticipant &&
+          !(await resolveTeamPrivy(project.teamId, project.id, volunteer.id))
+        ) {
+          throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
+        }
+      }
 
       const hiddenStatuses: string[] = [
         ProjectStatus.pending_review,
@@ -481,6 +511,7 @@ export const projectsRouter = {
         'outcome',
         'outcomeNotes',
       ] as const
+      if (body.teamId !== undefined) data.teamId = body.teamId
       for (const field of stringFields) {
         if (body[field] !== undefined) data[field] = body[field]
       }
@@ -521,6 +552,18 @@ export const projectsRouter = {
 
       data.updatedAt = new Date()
       await prisma.workItem.update({ where: { id: input.id }, data })
+
+      // Tagging a team onto a project that's already visible alerts that team right away;
+      // tagging one still in review waits until it goes live (see admin/projects.ts).
+      if (
+        typeof data.teamId === 'number' &&
+        data.teamId !== project.teamId &&
+        !UNAPPROVED_STATUSES.includes(project.status)
+      ) {
+        notifyTeamOfProject(data.teamId, project.id, project.title).catch((e) =>
+          console.error('[TEAM NOTIFY]', e),
+        )
+      }
 
       if (body.skillIds !== undefined) {
         const skillRequiredMap = body.skillRequiredMap ?? {}
@@ -904,6 +947,7 @@ export const projectsRouter = {
       })
       if (!task) throw new ORPCError('NOT_FOUND', { message: 'Task not found' })
 
+      const isTeamPrivy = await resolveTeamPrivy(project.teamId, project.id, volunteer.id)
       if (
         !canViewWorkItem(
           task,
@@ -913,6 +957,7 @@ export const projectsRouter = {
             isApproved: volunteer.approvalStatus === ApprovalStatus.approved,
           },
           project,
+          isTeamPrivy,
         )
       ) {
         throw new ORPCError('NOT_FOUND', { message: 'Task not found' })

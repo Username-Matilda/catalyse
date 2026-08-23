@@ -69,6 +69,7 @@ export default function ProjectForm({
   const [hoursPerWeek, setHoursPerWeek] = useState('')
   const [urgency, setUrgency] = useState('medium')
   const [locationValue, setLocationValue] = useState('') // 'UK' or 'UK:London'
+  const [teamId, setTeamId] = useState('')
   const [remoteEligibility, setRemoteEligibility] = useState('NONE')
   const [duration, setDuration] = useState('')
   const [collaborationLink, setCollaborationLink] = useState('')
@@ -81,6 +82,9 @@ export default function ProjectForm({
 
   const { data: localGroupsData } = useQuery(orpc.localGroups.list.queryOptions({ input: {} }))
   const allLocalGroups: LocalGroupOption[] = localGroupsData?.groups ?? []
+
+  const { data: teamsData } = useQuery(orpc.teams.list.queryOptions())
+  const teams = teamsData?.teams ?? []
 
   function clearFieldError(field: string) {
     setFieldErrors((prev) => {
@@ -125,6 +129,7 @@ export default function ProjectForm({
         urgency,
         country: country || null,
         localGroup: localGroup || null,
+        teamId: teamId ? Number(teamId) : null,
         remoteEligibility: remoteEligibility as ProjectCreateInput['remoteEligibility'],
         estimatedDuration: duration.trim() || null,
         collaborationLink: collaborationLink.trim() || null,
@@ -307,6 +312,24 @@ export default function ProjectForm({
             </a>
           </p>
         )}
+      </div>
+
+      <div className="mb-5">
+        <FilterDropdown
+          id="team"
+          label="Team"
+          ariaLabel="Select team"
+          value={teamId}
+          options={[
+            { value: '', label: 'No team — visible to everyone' },
+            ...teams.map((t) => ({ value: String(t.id), label: t.name })),
+          ]}
+          onChange={setTeamId}
+          searchable
+        />
+        <p className="text-sm text-text-light mt-1">
+          Assigning a team restricts visibility to that team, plus the owner and proposer.
+        </p>
       </div>
 
       <div className="mb-5">

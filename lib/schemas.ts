@@ -126,10 +126,11 @@ const PROJECT_INPUT_FIELDS = {
   localGroup: true,
   remoteEligibility: true,
   isSeekingHelp: true,
+  teamId: true,
 } as const
 
 export const CreateProjectSchema = WorkItemSchema.pick(PROJECT_INPUT_FIELDS)
-  .partial({ remoteEligibility: true })
+  .partial({ remoteEligibility: true, teamId: true })
   .extend({
     tasks: z.array(TaskInputSchema).optional().default([]),
     wantToOwn: z.boolean().optional().default(false),
@@ -188,7 +189,7 @@ export const CreateProjectUpdateSchema = WorkItemCommentSchema.pick({
 // ─── Admin: projects ──────────────────────────────────────────────────────────
 
 export const AdminCreateProjectSchema = WorkItemSchema.pick(PROJECT_INPUT_FIELDS)
-  .partial({ remoteEligibility: true })
+  .partial({ remoteEligibility: true, teamId: true })
   .extend({
     tasks: z.array(TaskInputSchema).optional().default([]),
     wantToOwn: z.boolean().optional().default(false),
@@ -308,6 +309,8 @@ export const ReviewTeamSuggestionSchema = z.object({
   name: z.string().optional(),
   description: z.string().optional().nullable(),
   mergedIntoId: z.number().int().optional().nullable(),
+  // 'accept' only — who becomes the new team's first leader. Defaults to the suggester.
+  leaderId: z.number().int().optional(),
 })
 
 // ─── Admin: invite ────────────────────────────────────────────────────────────

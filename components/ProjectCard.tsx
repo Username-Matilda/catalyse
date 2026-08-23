@@ -26,6 +26,7 @@ export interface Project {
   country?: string | null
   localGroup?: string | null
   remoteEligibility?: string | null
+  team?: { id: number; name: string } | null
   timeCommitmentHoursPerWeek?: number | null
   urgency?: string | null
   owner?: { name: string } | null
@@ -127,6 +128,7 @@ export function ProjectCard({
           const parts = projectLocationParts(p.country, p.localGroup, p.remoteEligibility)
           return parts.length > 0 && <span>📍 {parts.join(' · ')}</span>
         })()}
+        {p.team && <span>🧑‍🤝‍🧑 {p.team.name}</span>}
         {p.projectType && <span>📋 {PROJECT_TYPE_LABELS[p.projectType] ?? p.projectType}</span>}
         {p.timeCommitmentHoursPerWeek && <span>🕐 {p.timeCommitmentHoursPerWeek}h/week</span>}
         {p.urgency && <span>⚡ {p.urgency} priority</span>}

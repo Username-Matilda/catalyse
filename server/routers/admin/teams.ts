@@ -83,36 +83,6 @@ export const adminTeamsRouter = {
     return { message: 'Team deleted' }
   }),
 
-  setMemberRole: adminProcedure
-    .input(
-      z.object({
-        teamId: z.number().int(),
-        volunteerId: z.number().int(),
-        role: z.enum([TeamMembershipRole.member, TeamMembershipRole.leader]),
-      }),
-    )
-    .handler(async ({ input }) => {
-      const membership = await prisma.teamMembership.findUnique({
-        where: { teamId_volunteerId: { teamId: input.teamId, volunteerId: input.volunteerId } },
-      })
-      if (!membership) throw new ORPCError('NOT_FOUND', { message: 'Not a team member' })
-
-      await prisma.teamMembership.update({
-        where: { id: membership.id },
-        data: { role: input.role },
-      })
-      return { message: 'Role updated' }
-    }),
-
-  removeMember: adminProcedure
-    .input(z.object({ teamId: z.number().int(), volunteerId: z.number().int() }))
-    .handler(async ({ input }) => {
-      await prisma.teamMembership.deleteMany({
-        where: { teamId: input.teamId, volunteerId: input.volunteerId },
-      })
-      return { message: 'Member removed' }
-    }),
-
   listSuggestions: adminProcedure
     .input(
       z.object({
@@ -171,6 +141,11 @@ export const adminTeamsRouter = {
         const name = input.name?.trim() || suggestion.name
         const description = input.description?.trim() || suggestion.description
         if (!name) throw new ORPCError('BAD_REQUEST', { message: 'Name required' })
+
+        const leaderId = input.leaderId ?? suggestion.suggestedBy.id
+        const leader = await prisma.volunteer.findUnique({ where: { id: leaderId } })
+        if (!leader) throw new ORPCError('BAD_REQUEST', { message: 'Leader not found' })
+
         finalName = name
         const [createdTeam] = await prisma.$transaction([
           prisma.team.create({ data: { name, description: description ?? null } }),
@@ -188,7 +163,7 @@ export const adminTeamsRouter = {
         await prisma.teamMembership.create({
           data: {
             teamId: createdTeam.id,
-            volunteerId: suggestion.suggestedBy.id,
+            volunteerId: leaderId,
             role: TeamMembershipRole.leader,
           },
         })

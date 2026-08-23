@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
 import { notifyUser } from '@/lib/notify'
-import { canViewWorkItem, canPostComment } from '@/lib/work-item'
+import { canViewWorkItem, canPostComment, resolveTeamPrivy } from '@/lib/work-item'
 import { publicProcedure, authedProcedure } from '../procedures'
 import { ApprovalStatus, InterestStatus, WorkItemType } from '@/generated/prisma/enums'
 
@@ -14,6 +14,7 @@ const WORK_ITEM_SELECT = {
   parentId: true,
   creatorId: true,
   assigneeId: true,
+  teamId: true,
 } as const
 
 type LoadedWorkItem = {
@@ -24,6 +25,7 @@ type LoadedWorkItem = {
   parentId: number | null
   creatorId: number | null
   assigneeId: number | null
+  teamId: number | null
 }
 
 async function loadWithParent(id: number) {
@@ -84,7 +86,15 @@ export const workItemCommentsRouter = {
             isApproved: context.volunteer.approvalStatus === ApprovalStatus.approved,
           }
         : null
-      if (!canViewWorkItem(loaded.item, viewer, loaded.parent)) {
+      const teamProject = loaded.item.type === WorkItemType.TASK ? loaded.parent : loaded.item
+      const isTeamPrivy = viewer
+        ? await resolveTeamPrivy(
+            teamProject?.teamId,
+            teamProject?.id ?? input.workItemId,
+            viewer.id,
+          )
+        : false
+      if (!canViewWorkItem(loaded.item, viewer, loaded.parent, isTeamPrivy)) {
         throw new ORPCError('NOT_FOUND', { message: 'Work item not found' })
       }
 
