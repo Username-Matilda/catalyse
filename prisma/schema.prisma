@@ -410,6 +410,70 @@ model LocalGroupSuggestion {
   @@map("local_group_suggestions")
 }
 
+enum TeamSuggestionStatus {
+  pending
+  accepted
+  merged
+  on_hold
+  declined
+}
+
+enum TeamMembershipRole {
+  member
+  leader
+}
+
+model Team {
+  id          Int              @id @default(autoincrement())
+  /// @zod.string.min(1, { message: "Team name is required" })
+  name        String
+  description String?
+  lumaUrl     String?          @map("luma_url")
+  docUrl      String?          @map("doc_url")
+  createdAt   DateTime?        @default(now()) @map("created_at")
+  members     TeamMembership[]
+  suggestions TeamSuggestion[] @relation("TeamSuggestionMergedInto")
+
+  @@map("teams")
+}
+
+model TeamMembership {
+  id          Int                 @id @default(autoincrement())
+  teamId      Int                 @map("team_id")
+  volunteerId Int                 @map("volunteer_id")
+  role        TeamMembershipRole  @default(member)
+  joinedAt    DateTime?           @default(now()) @map("joined_at")
+  team        Team                @relation(fields: [teamId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  volunteer   Volunteer           @relation(fields: [volunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([teamId, volunteerId], map: "uq_team_memberships_team_volunteer")
+  @@index([volunteerId], map: "idx_team_memberships_volunteer")
+  @@map("team_memberships")
+}
+
+model TeamSuggestion {
+  id            Int                  @id @default(autoincrement())
+  /// @zod.string.min(1, { message: "Team name is required" })
+  name          String
+  description   String?
+  status        TeamSuggestionStatus @default(pending)
+  suggestedById Int                  @map("suggested_by_id")
+  reviewedById  Int?                 @map("reviewed_by_id")
+  reviewedAt    DateTime?            @map("reviewed_at")
+  adminNotes    String?              @map("admin_notes")
+  mergedIntoId  Int?                 @map("merged_into_id")
+  createdAt     DateTime?            @default(now()) @map("created_at")
+  updatedAt     DateTime?            @default(now()) @map("updated_at")
+
+  suggestedBy Volunteer @relation("TeamSuggestionSuggestedBy", fields: [suggestedById], references: [id])
+  reviewedBy  Volunteer? @relation("TeamSuggestionReviewedBy", fields: [reviewedById], references: [id])
+  mergedInto  Team?     @relation("TeamSuggestionMergedInto", fields: [mergedIntoId], references: [id])
+
+  @@index([status], map: "idx_team_suggestions_status")
+  @@index([suggestedById], map: "idx_team_suggestions_suggested_by")
+  @@map("team_suggestions")
+}
+
 model DigestRun {
   id     Int      @id @default(autoincrement())
   type   String // TODO: enum — fortnightly
@@ -580,6 +644,9 @@ model Volunteer {
   skills                                  VolunteerSkill[]
   localGroupSuggestions                   LocalGroupSuggestion[]   @relation("LocalGroupSuggestionSuggestedBy")
   localGroupSuggestionsReviewed           LocalGroupSuggestion[]   @relation("LocalGroupSuggestionReviewedBy")
+  teamMemberships                         TeamMembership[]
+  teamSuggestions                         TeamSuggestion[]         @relation("TeamSuggestionSuggestedBy")
+  teamSuggestionsReviewed                 TeamSuggestion[]         @relation("TeamSuggestionReviewedBy")
 
   @@index([localGroup], map: "idx_volunteers_local_group")
   @@index([country], map: "idx_volunteers_country")
