@@ -9,6 +9,7 @@ import {
   canViewWorkItem,
   resolveTeamPrivy,
   CLAIM_BLOCKING_INTEREST_STATUSES,
+  serializeTask,
 } from '@/lib/work-item'
 import { notifyUser, notifyAdmins, notifyTeamOfProject, clearNotifications } from '@/lib/notify'
 import { html } from '@/lib/email'
@@ -534,21 +535,10 @@ export const projectsRouter = {
       })
 
       const mappedTasks = sortedTasks.map((t) => ({
-        id: t.id,
-        projectId: t.parentId,
-        title: t.title,
-        description: t.description,
-        assignedToId: t.assigneeId,
+        ...serializeTask(t),
         assignedToName: t.assignee?.name ?? null,
-        createdById: t.creatorId,
         createdByName: t.creator?.name ?? null,
-        status: t.status,
         sortOrder: t.sortOrder,
-        estimatedHours: t.estimatedHours,
-        deadline: t.deadline,
-        completedAt: t.completedAt,
-        createdAt: t.createdAt,
-        updatedAt: t.updatedAt,
         commentCount: t._count.comments,
         featuredAsQuickTask: t.featuredAsQuickTask ?? false,
       }))
@@ -1178,21 +1168,10 @@ export const projectsRouter = {
       })
 
       return tasks.map((t) => ({
-        id: t.id,
-        projectId: t.parentId,
-        title: t.title,
-        description: t.description,
-        assignedToId: t.assigneeId,
+        ...serializeTask(t),
         assignedToName: t.assignee?.name ?? null,
-        createdById: t.creatorId,
         createdByName: t.creator?.name ?? null,
-        status: t.status,
         sortOrder: t.sortOrder,
-        estimatedHours: t.estimatedHours,
-        deadline: t.deadline,
-        completedAt: t.completedAt,
-        createdAt: t.createdAt,
-        updatedAt: t.updatedAt,
       }))
     }),
 
@@ -1237,23 +1216,12 @@ export const projectsRouter = {
         !(await isBlockedFromClaiming(input.projectId, volunteer.id))
 
       return {
-        id: task.id,
-        projectId: task.parentId,
+        ...serializeTask(task),
         projectTitle: project.title,
         projectOwnerId: project.assigneeId,
         canClaim,
-        title: task.title,
-        description: task.description,
-        assignedToId: task.assigneeId,
         assignedToName: task.assignee?.name ?? null,
-        createdById: task.creatorId,
         createdByName: task.creator?.name ?? null,
-        status: task.status,
-        estimatedHours: task.estimatedHours,
-        deadline: task.deadline,
-        completedAt: task.completedAt,
-        createdAt: task.createdAt,
-        updatedAt: task.updatedAt,
         featuredAsQuickTask: task.featuredAsQuickTask ?? false,
       }
     }),

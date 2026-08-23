@@ -270,3 +270,79 @@ export const projectInclude = {
     },
   },
 } satisfies Prisma.WorkItemInclude
+
+// ── Task / starter-task serialization ───────────────────────────────────────────
+// The core fields shared by every route that returns a project TASK or a
+// QUICK_TASK ("starter task") in detail. Callers spread this and add whatever
+// denormalized display fields their own `include` fetched (assignedToName,
+// projectTitle, etc.) plus any route-specific extras.
+
+export type TaskLike = {
+  id: number
+  parentId: number | null
+  title: string
+  description: string | null
+  assigneeId: number | null
+  creatorId: number | null
+  status: string
+  estimatedHours: number | null
+  deadline: Date | null
+  completedAt: Date | null
+  createdAt: Date | null
+  updatedAt: Date | null
+}
+
+export function serializeTask(t: TaskLike) {
+  return {
+    id: t.id,
+    projectId: t.parentId,
+    title: t.title,
+    description: t.description,
+    assignedToId: t.assigneeId,
+    createdById: t.creatorId,
+    status: t.status,
+    estimatedHours: t.estimatedHours,
+    deadline: t.deadline,
+    completedAt: t.completedAt,
+    createdAt: t.createdAt,
+    updatedAt: t.updatedAt,
+  }
+}
+
+export type StarterTaskLike = {
+  id: number
+  contextProjectId: number | null
+  title: string
+  description: string | null
+  skillId: number | null
+  assigneeId: number | null
+  creatorId: number | null
+  status: string
+  reviewRating: string | null
+  reviewNotes: string | null
+  reviewedById: number | null
+  reviewedAt: Date | null
+  estimatedHours: number | null
+  createdAt: Date | null
+  updatedAt: Date | null
+}
+
+export function serializeStarterTask(t: StarterTaskLike) {
+  return {
+    id: t.id,
+    projectId: t.contextProjectId,
+    title: t.title,
+    description: t.description,
+    skillId: t.skillId,
+    assignedToId: t.assigneeId,
+    assignedById: t.creatorId,
+    status: t.status,
+    reviewRating: t.reviewRating,
+    reviewNotes: t.reviewNotes,
+    reviewedById: t.reviewedById,
+    reviewedAt: t.reviewedAt,
+    estimatedHours: t.estimatedHours,
+    createdAt: t.createdAt,
+    updatedAt: t.updatedAt,
+  }
+}
