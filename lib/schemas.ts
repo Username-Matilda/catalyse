@@ -8,6 +8,8 @@ import {
   SkillSchema,
   SkillCategorySchema,
   TaskStatusSchema,
+  TeamSchema,
+  TeamSuggestionSchema,
   WorkItemSchema,
   WorkItemCommentSchema,
   VolunteerSchema,
@@ -124,10 +126,11 @@ const PROJECT_INPUT_FIELDS = {
   localGroup: true,
   remoteEligibility: true,
   isSeekingHelp: true,
+  teamId: true,
 } as const
 
 export const CreateProjectSchema = WorkItemSchema.pick(PROJECT_INPUT_FIELDS)
-  .partial({ remoteEligibility: true })
+  .partial({ remoteEligibility: true, teamId: true })
   .extend({
     tasks: z.array(TaskInputSchema).optional().default([]),
     wantToOwn: z.boolean().optional().default(false),
@@ -186,7 +189,7 @@ export const CreateProjectUpdateSchema = WorkItemCommentSchema.pick({
 // ─── Admin: projects ──────────────────────────────────────────────────────────
 
 export const AdminCreateProjectSchema = WorkItemSchema.pick(PROJECT_INPUT_FIELDS)
-  .partial({ remoteEligibility: true })
+  .partial({ remoteEligibility: true, teamId: true })
   .extend({
     tasks: z.array(TaskInputSchema).optional().default([]),
     wantToOwn: z.boolean().optional().default(false),
@@ -289,6 +292,27 @@ export const ReviewSuggestionSchema = z.object({
   mergedIntoId: z.number().int().optional().nullable(),
 })
 
+// ─── Admin: teams ─────────────────────────────────────────────────────────────
+
+export const TeamBodySchema = TeamSchema.pick({
+  name: true,
+  description: true,
+  lumaUrl: true,
+  docUrl: true,
+})
+
+export const ReviewTeamSuggestionSchema = z.object({
+  action: z.enum(['accept', 'merge', 'on_hold', 'decline'], {
+    error: 'Invalid action',
+  }),
+  adminNotes: z.string().optional().nullable(),
+  name: z.string().optional(),
+  description: z.string().optional().nullable(),
+  mergedIntoId: z.number().int().optional().nullable(),
+  // 'accept' only — who becomes the new team's first leader. Defaults to the suggester.
+  leaderId: z.number().int().optional(),
+})
+
 // ─── Admin: invite ────────────────────────────────────────────────────────────
 
 export const InviteAdminSchema = AdminInviteSchema.pick({
@@ -340,6 +364,11 @@ export const CreateBugReportSchema = BugReportSchema.pick({
 export const LocalGroupSuggestionBodySchema = LocalGroupSuggestionSchema.pick({
   name: true,
   country: true,
+})
+
+export const TeamSuggestionBodySchema = TeamSuggestionSchema.pick({
+  name: true,
+  description: true,
 })
 
 // ─── Volunteer profile ────────────────────────────────────────────────────────

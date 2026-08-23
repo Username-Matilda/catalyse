@@ -1141,6 +1141,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   )
                 )
               })()}
+              {project.team && (
+                <p className="text-sm text-text-light mt-1 mb-0">🧑‍🤝‍🧑 {project.team.name}</p>
+              )}
               <Modal
                 id="confirm-status-change"
                 title="Change project status?"
@@ -1160,6 +1163,209 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   </Button>
                 </div>
               </Modal>
+
+              {/* Ownership — same panel as Status/Team above */}
+              <div className="mt-4 pt-4 border-t border-brand-border">
+                <h2>Owner</h2>
+                <div className="flex items-center justify-between gap-2">
+                  {project.owner ? (
+                    <div className="flex items-center gap-2 min-w-0">
+                      <TaskAvatar name={project.owner.name} />
+                      <Link href={`/volunteers/${project.owner.id}`} className="underline truncate">
+                        {project.owner.name}
+                      </Link>
+                    </div>
+                  ) : isAdmin && proposer ? (
+                    // Ownerless projects still have a proposer. Admins triaging the queue need
+                    // to know who to talk to, so show them that name in place of the empty state.
+                    <div className="flex items-center gap-2 min-w-0">
+                      <TaskAvatar name={proposer.name} />
+                      <span className="truncate">
+                        Proposer:{' '}
+                        {proposer.volunteerId ? (
+                          <Link href={`/volunteers/${proposer.volunteerId}`} className="underline">
+                            {proposer.name}
+                          </Link>
+                        ) : (
+                          proposer.name
+                        )}
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="text-text-light text-sm m-0">No owner yet.</p>
+                  )}
+                  {isAdmin && volunteers.length > 0 && (
+                    <ActionMenu ariaLabel="Ownership actions">
+                      {(close) => (
+                        <>
+                          <div className="px-3 py-2 flex flex-col gap-2">
+                            <h3 className="m-0 text-sm">Transfer Ownership</h3>
+                            <FilterDropdown
+                              id="transfer-to"
+                              label="Transfer to"
+                              ariaLabel="Transfer to"
+                              value={transferTo}
+                              options={[
+                                { value: '', label: '— Select volunteer —' },
+                                ...volunteers.map((v) => ({ value: String(v.id), label: v.name })),
+                              ]}
+                              onChange={(v) => setTransferTo(v)}
+                              searchable
+                            />
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              disabled={!transferTo || updateProjectMutation.isPending}
+                              onClick={() => {
+                                if (!transferTo) return
+                                if (!window.confirm('Transfer ownership to this volunteer?')) return
+                                updateProjectMutation.mutate({
+                                  id: parseInt(idParam, 10),
+                                  assigneeId: parseInt(transferTo, 10),
+                                })
+                                close()
+                              }}
+                            >
+                              {updateProjectMutation.isPending ? 'Transferring…' : 'Transfer'}
+                            </Button>
+                          </div>
+                          {project.owner && (
+                            <button
+                              role="menuitem"
+                              className="w-full text-left px-3 py-2 text-sm text-red-700 dark:text-red-400 hover:bg-accent transition-colors cursor-pointer border-t border-brand-border mt-1"
+                              onClick={() => {
+                                if (!window.confirm('Remove the current owner from this project?'))
+                                  return
+                                updateProjectMutation.mutate({
+                                  id: parseInt(idParam, 10),
+                                  assigneeId: null,
+                                })
+                                close()
+                              }}
+                            >
+                              Remove ownership
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </ActionMenu>
+                  )}
+                </div>
+                {project.ownerId && !isOwner && !isAdmin && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="mt-3"
+                    onClick={() => setShowContactModal(true)}
+                  >
+                    Contact Owner
+                  </Button>
+                )}
+
+                {isOwnerOrAdmin && Array.isArray(project.interests) && (
+                  <div className="mt-4 pt-4 border-t border-brand-border">
+                    <h3 className="text-sm mb-2">Volunteers</h3>
+
+                    {volunteerInterests.length === 0 ? (
+                      <p className="text-text-light text-sm">No interests yet.</p>
+                    ) : (
+                      <ul className="list-none p-0 m-0">
+                        {volunteerInterests.map((interest) => (
+                          // [test hook] interest-card class used as test selector
+                          <li
+                            key={interest.id}
+                            className="interest-card flex items-center gap-2 py-2 border-b border-brand-border last:border-0 flex-wrap"
+                          >
+                            <TaskAvatar name={interest.volunteerName} />
+                            <div className="flex-1 min-w-0">
+                              <div className="truncate">{interest.volunteerName}</div>
+                              <div className="text-text-light text-xs">
+                                {interest.status === InterestStatus.accepted
+                                  ? interest.interestType === 'want_to_own'
+                                    ? 'Owner'
+                                    : 'Helper'
+                                  : interest.status === InterestStatus.pending
+                                    ? interest.interestType === 'want_to_own'
+                                      ? 'wants to own'
+                                      : 'wants to help'
+                                    : interest.interestType === 'want_to_own'
+                                      ? 'wanted to own'
+                                      : 'wanted to help'}
+                              </div>
+                            </div>
+                            {interest.status === InterestStatus.pending ? (
+                              <div className="flex gap-2 shrink-0">
+                                <Button size="sm" onClick={() => handleAcceptInterest(interest.id)}>
+                                  Accept
+                                </Button>
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={() => handleDeclineInterest(interest.id)}
+                                >
+                                  Decline
+                                </Button>
+                              </div>
+                            ) : interest.status === InterestStatus.accepted ? (
+                              <div className="flex items-center gap-2 shrink-0">
+                                <Badge variant={projectStatusVariant(interest.status)}>
+                                  {INTEREST_STATUS_LABELS[interest.status] ?? interest.status}
+                                </Badge>
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={() => handleDeclineInterest(interest.id)}
+                                >
+                                  Remove
+                                </Button>
+                              </div>
+                            ) : (
+                              <Badge variant={projectStatusVariant(interest.status)}>
+                                {INTEREST_STATUS_LABELS[interest.status] ?? interest.status}
+                              </Badge>
+                            )}
+                            {interest.message && interest.status !== InterestStatus.accepted && (
+                              <p className="text-sm text-text-light w-full m-0">
+                                {interest.message}
+                              </p>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+
+                    {volunteers.length > 0 && (
+                      <form
+                        onSubmit={handleAssign}
+                        className="flex gap-2 items-center flex-wrap mt-3 pt-3 border-t border-brand-border"
+                      >
+                        <span className="text-text-light text-sm shrink-0">+ Add</span>
+                        <div className="flex-1 min-w-40">
+                          <FilterDropdown
+                            id="assign-volunteer"
+                            label=""
+                            ariaLabel="Volunteer to assign"
+                            value={assignTo}
+                            options={[
+                              { value: '', label: '— Select volunteer —' },
+                              ...volunteers.map((v) => ({ value: String(v.id), label: v.name })),
+                            ]}
+                            onChange={(v) => setAssignTo(v)}
+                            searchable
+                          />
+                        </div>
+                        <Button
+                          type="submit"
+                          size="sm"
+                          disabled={!assignTo || assignMutation.isPending}
+                        >
+                          {assignMutation.isPending ? 'Assigning…' : 'Assign'}
+                        </Button>
+                      </form>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Admin triage */}
@@ -1244,207 +1450,6 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 </form>
               </div>
             )}
-
-            {/* Ownership */}
-            <div className={card}>
-              <h2>Owner</h2>
-              <div className="flex items-center justify-between gap-2">
-                {project.owner ? (
-                  <div className="flex items-center gap-2 min-w-0">
-                    <TaskAvatar name={project.owner.name} />
-                    <Link href={`/volunteers/${project.owner.id}`} className="underline truncate">
-                      {project.owner.name}
-                    </Link>
-                  </div>
-                ) : isAdmin && proposer ? (
-                  // Ownerless projects still have a proposer. Admins triaging the queue need
-                  // to know who to talk to, so show them that name in place of the empty state.
-                  <div className="flex items-center gap-2 min-w-0">
-                    <TaskAvatar name={proposer.name} />
-                    <span className="truncate">
-                      Proposer:{' '}
-                      {proposer.volunteerId ? (
-                        <Link href={`/volunteers/${proposer.volunteerId}`} className="underline">
-                          {proposer.name}
-                        </Link>
-                      ) : (
-                        proposer.name
-                      )}
-                    </span>
-                  </div>
-                ) : (
-                  <p className="text-text-light text-sm m-0">No owner yet.</p>
-                )}
-                {isAdmin && volunteers.length > 0 && (
-                  <ActionMenu ariaLabel="Ownership actions">
-                    {(close) => (
-                      <>
-                        <div className="px-3 py-2 flex flex-col gap-2">
-                          <h3 className="m-0 text-sm">Transfer Ownership</h3>
-                          <FilterDropdown
-                            id="transfer-to"
-                            label="Transfer to"
-                            ariaLabel="Transfer to"
-                            value={transferTo}
-                            options={[
-                              { value: '', label: '— Select volunteer —' },
-                              ...volunteers.map((v) => ({ value: String(v.id), label: v.name })),
-                            ]}
-                            onChange={(v) => setTransferTo(v)}
-                            searchable
-                          />
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            disabled={!transferTo || updateProjectMutation.isPending}
-                            onClick={() => {
-                              if (!transferTo) return
-                              if (!window.confirm('Transfer ownership to this volunteer?')) return
-                              updateProjectMutation.mutate({
-                                id: parseInt(idParam, 10),
-                                assigneeId: parseInt(transferTo, 10),
-                              })
-                              close()
-                            }}
-                          >
-                            {updateProjectMutation.isPending ? 'Transferring…' : 'Transfer'}
-                          </Button>
-                        </div>
-                        {project.owner && (
-                          <button
-                            role="menuitem"
-                            className="w-full text-left px-3 py-2 text-sm text-red-700 dark:text-red-400 hover:bg-accent transition-colors cursor-pointer border-t border-brand-border mt-1"
-                            onClick={() => {
-                              if (!window.confirm('Remove the current owner from this project?'))
-                                return
-                              updateProjectMutation.mutate({
-                                id: parseInt(idParam, 10),
-                                assigneeId: null,
-                              })
-                              close()
-                            }}
-                          >
-                            Remove ownership
-                          </button>
-                        )}
-                      </>
-                    )}
-                  </ActionMenu>
-                )}
-              </div>
-              {project.ownerId && !isOwner && !isAdmin && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="mt-3"
-                  onClick={() => setShowContactModal(true)}
-                >
-                  Contact Owner
-                </Button>
-              )}
-
-              {isOwnerOrAdmin && Array.isArray(project.interests) && (
-                <div className="mt-4 pt-4 border-t border-brand-border">
-                  <h3 className="text-sm mb-2">Volunteers</h3>
-
-                  {volunteerInterests.length === 0 ? (
-                    <p className="text-text-light text-sm">No interests yet.</p>
-                  ) : (
-                    <ul className="list-none p-0 m-0">
-                      {volunteerInterests.map((interest) => (
-                        // [test hook] interest-card class used as test selector
-                        <li
-                          key={interest.id}
-                          className="interest-card flex items-center gap-2 py-2 border-b border-brand-border last:border-0 flex-wrap"
-                        >
-                          <TaskAvatar name={interest.volunteerName} />
-                          <div className="flex-1 min-w-0">
-                            <div className="truncate">{interest.volunteerName}</div>
-                            <div className="text-text-light text-xs">
-                              {interest.status === InterestStatus.accepted
-                                ? interest.interestType === 'want_to_own'
-                                  ? 'Owner'
-                                  : 'Helper'
-                                : interest.status === InterestStatus.pending
-                                  ? interest.interestType === 'want_to_own'
-                                    ? 'wants to own'
-                                    : 'wants to help'
-                                  : interest.interestType === 'want_to_own'
-                                    ? 'wanted to own'
-                                    : 'wanted to help'}
-                            </div>
-                          </div>
-                          {interest.status === InterestStatus.pending ? (
-                            <div className="flex gap-2 shrink-0">
-                              <Button size="sm" onClick={() => handleAcceptInterest(interest.id)}>
-                                Accept
-                              </Button>
-                              <Button
-                                variant="secondary"
-                                size="sm"
-                                onClick={() => handleDeclineInterest(interest.id)}
-                              >
-                                Decline
-                              </Button>
-                            </div>
-                          ) : interest.status === InterestStatus.accepted ? (
-                            <div className="flex items-center gap-2 shrink-0">
-                              <Badge variant={projectStatusVariant(interest.status)}>
-                                {INTEREST_STATUS_LABELS[interest.status] ?? interest.status}
-                              </Badge>
-                              <Button
-                                variant="secondary"
-                                size="sm"
-                                onClick={() => handleDeclineInterest(interest.id)}
-                              >
-                                Remove
-                              </Button>
-                            </div>
-                          ) : (
-                            <Badge variant={projectStatusVariant(interest.status)}>
-                              {INTEREST_STATUS_LABELS[interest.status] ?? interest.status}
-                            </Badge>
-                          )}
-                          {interest.message && interest.status !== InterestStatus.accepted && (
-                            <p className="text-sm text-text-light w-full m-0">{interest.message}</p>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-
-                  {volunteers.length > 0 && (
-                    <form
-                      onSubmit={handleAssign}
-                      className="flex gap-2 items-center flex-wrap mt-3 pt-3 border-t border-brand-border"
-                    >
-                      <span className="text-text-light text-sm shrink-0">+ Add</span>
-                      <div className="flex-1 min-w-40">
-                        <FilterDropdown
-                          id="assign-volunteer"
-                          label=""
-                          ariaLabel="Volunteer to assign"
-                          value={assignTo}
-                          options={[
-                            { value: '', label: '— Select volunteer —' },
-                            ...volunteers.map((v) => ({ value: String(v.id), label: v.name })),
-                          ]}
-                          onChange={(v) => setAssignTo(v)}
-                          searchable
-                        />
-                      </div>
-                      <Button
-                        type="submit"
-                        size="sm"
-                        disabled={!assignTo || assignMutation.isPending}
-                      >
-                        {assignMutation.isPending ? 'Assigning…' : 'Assign'}
-                      </Button>
-                    </form>
-                  )}
-                </div>
-              )}
-            </div>
 
             {/* Interest section */}
             {canSeeInterest && (

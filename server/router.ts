@@ -8,6 +8,8 @@ import { messagesRouter } from './routers/messages'
 import { bugReportsRouter } from './routers/bugReports'
 import { localGroupsRouter } from './routers/localGroups'
 import { localGroupSuggestionsRouter } from './routers/localGroupSuggestions'
+import { teamsRouter } from './routers/teams'
+import { teamSuggestionsRouter } from './routers/teamSuggestions'
 import { quickTasksRouter } from './routers/quickTasks'
 import { workItemCommentsRouter } from './routers/workItemComments'
 import { bugReportCommentsRouter } from './routers/bugReportComments'
@@ -21,6 +23,7 @@ import { adminProjectsRouter } from './routers/admin/projects'
 import { adminSkillsRouter } from './routers/admin/skills'
 import { adminSkillCategoriesRouter } from './routers/admin/skillCategories'
 import { adminLocalGroupsRouter } from './routers/admin/localGroups'
+import { adminTeamsRouter } from './routers/admin/teams'
 import { adminBugReportsRouter } from './routers/admin/bugReports'
 import { adminAdminsRouter } from './routers/admin/admins'
 import { adminPlatformSettingsRouter } from './routers/admin/platformSettings'
@@ -46,6 +49,8 @@ export const appRouter = {
   bugReportComments: bugReportCommentsRouter,
   localGroups: localGroupsRouter,
   localGroupSuggestions: localGroupSuggestionsRouter,
+  teams: teamsRouter,
+  teamSuggestions: teamSuggestionsRouter,
   quickTasks: quickTasksRouter,
   workItemComments: workItemCommentsRouter,
   my: myRouter,
@@ -60,6 +65,7 @@ export const appRouter = {
     skills: adminSkillsRouter,
     skillCategories: adminSkillCategoriesRouter,
     localGroups: adminLocalGroupsRouter,
+    teams: adminTeamsRouter,
     bugReports: adminBugReportsRouter,
     admins: adminAdminsRouter,
     platformSettings: adminPlatformSettingsRouter,

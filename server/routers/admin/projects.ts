@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
 import { withProjectExtras, projectInclude, EnrichedProject } from '@/lib/work-item'
-import { notifyUser, clearNotifications } from '@/lib/notify'
+import { notifyUser, notifyTeamOfProject, clearNotifications } from '@/lib/notify'
 import { notifyMatchingVolunteers } from '@/lib/project-match-notify'
 import { AdminCreateProjectSchema, ReviewProjectSchema, OutcomeProjectSchema } from '@/lib/schemas'
 import { adminProcedure } from '../../procedures'
@@ -39,6 +39,7 @@ export const adminProjectsRouter = {
           localGroup: input.localGroup ?? null,
           remoteEligibility: input.remoteEligibility ?? 'NONE',
           isSeekingHelp: input.isSeekingHelp !== false,
+          teamId: input.teamId ?? null,
         },
       })
 
@@ -67,6 +68,12 @@ export const adminProjectsRouter = {
     })
 
     notifyMatchingVolunteers(project.id).catch((e) => console.error('[MATCH NOTIFY]', e))
+
+    if (input.teamId) {
+      notifyTeamOfProject(input.teamId, project.id, project.title).catch((e) =>
+        console.error('[TEAM NOTIFY]', e),
+      )
+    }
 
     return { id: project.id, message: 'Org project created' }
   }),
@@ -125,6 +132,12 @@ export const adminProjectsRouter = {
         }
 
         notifyMatchingVolunteers(input.id).catch((e) => console.error('[MATCH NOTIFY]', e))
+
+        if (project.teamId) {
+          notifyTeamOfProject(project.teamId, project.id, project.title).catch((e) =>
+            console.error('[TEAM NOTIFY]', e),
+          )
+        }
       } else {
         await prisma.workItem.update({
           where: { id: input.id },

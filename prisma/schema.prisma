@@ -302,6 +302,9 @@ model WorkItem {
   country           String?
   localGroup        String?           @map("local_group")
   remoteEligibility RemoteEligibility @default(NONE) @map("remote_eligibility")
+  // Optional standing team this PROJECT belongs to (Team is orthogonal to LocalGroup —
+  // see Team model). Nullable, TASK/QUICK_TASK don't use it.
+  teamId            Int?              @map("team_id")
   createdAt         DateTime?         @default(now()) @map("created_at")
   updatedAt         DateTime?         @default(now()) @map("updated_at")
 
@@ -310,6 +313,7 @@ model WorkItem {
   stakeholder Volunteer?         @relation("WorkItemStakeholder", fields: [stakeholderId], references: [id], onUpdate: NoAction)
   reviewedBy  Volunteer?         @relation("WorkItemReviewedBy", fields: [reviewedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
   skill       Skill?             @relation(fields: [skillId], references: [id], onUpdate: NoAction)
+  team        Team?              @relation(fields: [teamId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   comments    WorkItemComment[]
   skills      WorkItemSkill[]
   interests   WorkItemInterest[]
@@ -325,6 +329,7 @@ model WorkItem {
   @@index([skillId], map: "idx_work_items_skill")
   @@index([localGroup], map: "idx_work_items_local_group")
   @@index([country], map: "idx_work_items_country")
+  @@index([teamId], map: "idx_work_items_team")
   @@map("work_items")
 }
 
@@ -408,6 +413,100 @@ model LocalGroupSuggestion {
   @@index([status], map: "idx_local_group_suggestions_status")
   @@index([suggestedById], map: "idx_local_group_suggestions_suggested_by")
   @@map("local_group_suggestions")
+}
+
+enum TeamSuggestionStatus {
+  pending
+  accepted
+  merged
+  on_hold
+  declined
+}
+
+enum TeamMembershipRole {
+  member
+  leader
+}
+
+enum TeamJoinRequestStatus {
+  pending
+  accepted
+  declined
+}
+
+model Team {
+  id           Int               @id @default(autoincrement())
+  /// @zod.string.min(1, { message: "Team name is required" })
+  name         String
+  description  String?
+  lumaUrl      String?           @map("luma_url")
+  docUrl       String?           @map("doc_url")
+  createdAt    DateTime?         @default(now()) @map("created_at")
+  members      TeamMembership[]
+  joinRequests TeamJoinRequest[]
+  suggestions  TeamSuggestion[]  @relation("TeamSuggestionMergedInto")
+  workItems    WorkItem[]
+
+  @@map("teams")
+}
+
+model TeamMembership {
+  id          Int                 @id @default(autoincrement())
+  teamId      Int                 @map("team_id")
+  volunteerId Int                 @map("volunteer_id")
+  role        TeamMembershipRole  @default(member)
+  joinedAt    DateTime?           @default(now()) @map("joined_at")
+  team        Team                @relation(fields: [teamId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  volunteer   Volunteer           @relation(fields: [volunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([teamId, volunteerId], map: "uq_team_memberships_team_volunteer")
+  @@index([volunteerId], map: "idx_team_memberships_volunteer")
+  @@map("team_memberships")
+}
+
+// A volunteer applies to join; a team leader or admin accepts (creating the
+// TeamMembership) or declines. Unlike LocalGroup/Team suggestions this isn't a
+// moderation queue for new entities — it's per-team membership approval.
+model TeamJoinRequest {
+  id           Int                    @id @default(autoincrement())
+  teamId       Int                    @map("team_id")
+  volunteerId  Int                    @map("volunteer_id")
+  message      String?
+  status       TeamJoinRequestStatus  @default(pending)
+  reviewedById Int?                   @map("reviewed_by_id")
+  reviewedAt   DateTime?              @map("reviewed_at")
+  createdAt    DateTime?              @default(now()) @map("created_at")
+
+  team       Team       @relation(fields: [teamId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  volunteer  Volunteer  @relation("TeamJoinRequestVolunteer", fields: [volunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  reviewedBy Volunteer? @relation("TeamJoinRequestReviewedBy", fields: [reviewedById], references: [id], onUpdate: NoAction)
+
+  @@index([teamId, status], map: "idx_team_join_requests_team_status")
+  @@index([volunteerId], map: "idx_team_join_requests_volunteer")
+  @@map("team_join_requests")
+}
+
+model TeamSuggestion {
+  id            Int                  @id @default(autoincrement())
+  /// @zod.string.min(1, { message: "Team name is required" })
+  name          String
+  description   String?
+  status        TeamSuggestionStatus @default(pending)
+  suggestedById Int                  @map("suggested_by_id")
+  reviewedById  Int?                 @map("reviewed_by_id")
+  reviewedAt    DateTime?            @map("reviewed_at")
+  adminNotes    String?              @map("admin_notes")
+  mergedIntoId  Int?                 @map("merged_into_id")
+  createdAt     DateTime?            @default(now()) @map("created_at")
+  updatedAt     DateTime?            @default(now()) @map("updated_at")
+
+  suggestedBy Volunteer @relation("TeamSuggestionSuggestedBy", fields: [suggestedById], references: [id])
+  reviewedBy  Volunteer? @relation("TeamSuggestionReviewedBy", fields: [reviewedById], references: [id])
+  mergedInto  Team?     @relation("TeamSuggestionMergedInto", fields: [mergedIntoId], references: [id])
+
+  @@index([status], map: "idx_team_suggestions_status")
+  @@index([suggestedById], map: "idx_team_suggestions_suggested_by")
+  @@map("team_suggestions")
 }
 
 model DigestRun {
@@ -580,6 +679,11 @@ model Volunteer {
   skills                                  VolunteerSkill[]
   localGroupSuggestions                   LocalGroupSuggestion[]   @relation("LocalGroupSuggestionSuggestedBy")
   localGroupSuggestionsReviewed           LocalGroupSuggestion[]   @relation("LocalGroupSuggestionReviewedBy")
+  teamMemberships                         TeamMembership[]
+  teamSuggestions                         TeamSuggestion[]         @relation("TeamSuggestionSuggestedBy")
+  teamSuggestionsReviewed                 TeamSuggestion[]         @relation("TeamSuggestionReviewedBy")
+  teamJoinRequests                        TeamJoinRequest[]        @relation("TeamJoinRequestVolunteer")
+  teamJoinRequestsReviewed                TeamJoinRequest[]        @relation("TeamJoinRequestReviewedBy")
 
   @@index([localGroup], map: "idx_volunteers_local_group")
   @@index([country], map: "idx_volunteers_country")

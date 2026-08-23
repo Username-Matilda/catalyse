@@ -83,6 +83,7 @@ export default function AdminLandingPage() {
       links: [
         { href: '/admin/skills', label: 'Manage Skills' },
         { href: '/admin/local-groups', label: 'Manage Local Groups' },
+        { href: '/admin/teams', label: 'Manage Teams' },
         { href: '/admin/bugs', label: 'Bug Reports', count: counts?.openBugReports },
       ],
     },

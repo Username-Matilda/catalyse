@@ -21,6 +21,9 @@ import type {
   CreateSkillCategorySchema,
   UpdateSkillCategorySchema,
   LocalGroupBodySchema,
+  TeamBodySchema,
+  ReviewTeamSuggestionSchema,
+  TeamSuggestionBodySchema,
   UpdateBugReportSchema,
   ReviewSuggestionSchema,
   InviteAdminSchema,
@@ -61,6 +64,9 @@ export type UpdateSkillBody = z.infer<typeof UpdateSkillSchema>
 export type CreateSkillCategoryBody = z.infer<typeof CreateSkillCategorySchema>
 export type UpdateSkillCategoryBody = z.infer<typeof UpdateSkillCategorySchema>
 export type LocalGroupBody = z.infer<typeof LocalGroupBodySchema>
+export type TeamBody = z.infer<typeof TeamBodySchema>
+export type ReviewTeamSuggestionBody = z.infer<typeof ReviewTeamSuggestionSchema>
+export type TeamSuggestionBody = z.infer<typeof TeamSuggestionBodySchema>
 export type UpdateBugReportBody = z.infer<typeof UpdateBugReportSchema>
 export type ReviewSuggestionBody = z.infer<typeof ReviewSuggestionSchema>
 export type InviteAdminBody = z.infer<typeof InviteAdminSchema>

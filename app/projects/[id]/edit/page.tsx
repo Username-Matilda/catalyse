@@ -55,6 +55,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
   const [hoursPerWeek, setHoursPerWeek] = useState('')
   const [urgency, setUrgency] = useState('medium')
   const [locationValue, setLocationValue] = useState('') // 'UK' or 'UK:London'
+  const [teamId, setTeamId] = useState('')
   const [remoteEligibility, setRemoteEligibility] = useState<'NONE' | 'COUNTRY' | 'GLOBAL'>('NONE')
   const [estimatedDuration, setEstimatedDuration] = useState('')
   const [seekingHelp, setSeekingHelp] = useState(true)
@@ -64,6 +65,9 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
     enabled: true,
   })
   const allLocalGroups = localGroupsData?.groups ?? []
+
+  const { data: teamsData } = useQuery(orpc.teams.list.queryOptions())
+  const teams = teamsData?.teams ?? []
 
   const { data: projectData, isPending: loadingProject } = useQuery({
     ...orpc.projects.getById.queryOptions({ input: { id: parseInt(idParam, 10) } }),
@@ -85,6 +89,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
     const country = data.country ?? ''
     const localGroup = data.localGroup ?? ''
     setLocationValue(country && localGroup ? `${country}:${localGroup}` : country)
+    setTeamId(data.teamId ? String(data.teamId) : '')
     setRemoteEligibility(data.remoteEligibility ?? 'NONE')
     setEstimatedDuration(data.estimatedDuration ?? '')
     setSeekingHelp(data.isSeekingHelp ?? false)
@@ -124,6 +129,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
       urgency,
       country: country || null,
       localGroup: localGroup || null,
+      teamId: teamId ? Number(teamId) : null,
       remoteEligibility,
       estimatedDuration: estimatedDuration.trim() || null,
       isSeekingHelp: seekingHelp,
@@ -252,6 +258,24 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
             />
             <p className="text-sm text-text-light mt-1">
               Local groups appear indented under their country.
+            </p>
+          </div>
+
+          <div className="mb-5">
+            <FilterDropdown
+              id="team"
+              label="Team"
+              ariaLabel="Select team"
+              value={teamId}
+              options={[
+                { value: '', label: 'No team — visible to everyone' },
+                ...teams.map((t) => ({ value: String(t.id), label: t.name })),
+              ]}
+              onChange={setTeamId}
+              searchable
+            />
+            <p className="text-sm text-text-light mt-1">
+              Assigning a team restricts visibility to that team, plus the owner and proposer.
             </p>
           </div>
 
