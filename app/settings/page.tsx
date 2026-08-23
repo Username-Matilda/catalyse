@@ -429,6 +429,10 @@ function SettingsPageContent() {
           </div>
 
           <h3 className="mt-6 mb-4">Contact Information</h3>
+          <aside className="bg-brand-bg border border-brand-border rounded-lg px-4 py-3 mb-4 text-sm text-text-light">
+            Always visible to you and admins. Shared with other volunteers and project owners only
+            if you enable both consent checkboxes in the Privacy &amp; Data tab.
+          </aside>
           <div className="grid grid-cols-2 gap-5 mb-5 max-sm:grid-cols-1">
             <div>
               <label htmlFor="discord_handle">Discord Handle</label>
