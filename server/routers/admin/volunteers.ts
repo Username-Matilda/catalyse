@@ -5,6 +5,8 @@ import { redactVolunteer } from '@/lib/auth'
 import { adminProcedure } from '../../procedures'
 import { WorkItemType } from '@/generated/prisma/enums'
 
+const MAX_DETAIL_ROWS = 100
+
 const EndorsementInputSchema = z.object({
   skillId: z.number().int({ message: 'skillId is required' }),
   rating: z.string().optional().default('verified'),
@@ -35,6 +37,7 @@ export const adminVolunteersRouter = {
         where: { volunteerId: input.id },
         include: { author: { select: { name: true } } },
         orderBy: { createdAt: 'desc' },
+        take: MAX_DETAIL_ROWS,
       }),
       prisma.skillEndorsement.findMany({
         where: { volunteerId: input.id },
@@ -43,11 +46,13 @@ export const adminVolunteersRouter = {
           endorsedBy: { select: { name: true } },
         },
         orderBy: { createdAt: 'desc' },
+        take: MAX_DETAIL_ROWS,
       }),
       prisma.workItem.findMany({
         where: { type: WorkItemType.QUICK_TASK, assigneeId: input.id },
         include: { skill: { select: { name: true } } },
         orderBy: { createdAt: 'desc' },
+        take: MAX_DETAIL_ROWS,
       }),
       prisma.workItem.findMany({
         where: {
@@ -55,6 +60,7 @@ export const adminVolunteersRouter = {
           OR: [{ assigneeId: input.id }, { creatorId: input.id }],
         },
         orderBy: { createdAt: 'desc' },
+        take: MAX_DETAIL_ROWS,
       }),
     ])
 
@@ -149,6 +155,7 @@ export const adminVolunteersRouter = {
           endorsedBy: { select: { name: true } },
         },
         orderBy: { createdAt: 'desc' },
+        take: MAX_DETAIL_ROWS,
       })
       return endorsements.map((e) => ({
         id: e.id,
