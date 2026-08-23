@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense } from 'react'
+import { Suspense, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useRequireAuth } from '@/lib/hooks/auth'
 import { useUrlParam, useUrlSearchInput } from '@/lib/hooks/url-filters'
@@ -21,10 +21,14 @@ type FlatSkill = SkillCategory['skills'][number] & { categoryName: string }
 type Volunteer = InferRouterOutputs<AppRouter>['volunteers']['list']['volunteers'][number]
 type AuthUser = NonNullable<ReturnType<typeof useRequireAuth>['user']>
 
+const PAGE_SIZE = 50
+
 function VolunteersPageContent({ user }: { user: AuthUser }) {
   const [searchInput, setSearchInput, urlSearch] = useUrlSearchInput('q')
   const [skillFilter, setSkillFilter] = useUrlParam('skill')
   const [locationFilter, setLocationFilter] = useUrlParam('location')
+  const [pageParam, setPageParam] = useUrlParam('page')
+  const page = Math.max(1, parseInt(pageParam, 10) || 1)
   const router = useRouter()
   function clearFilters() {
     setSearchInput('')
@@ -32,6 +36,17 @@ function VolunteersPageContent({ user }: { user: AuthUser }) {
   }
 
   const hasFilters = searchInput || skillFilter || locationFilter
+
+  // Reset to page 1 whenever a filter changes, but not on the initial mount
+  // (which would clobber a deep-linked ?page=N&skill=... URL).
+  const isFirstRender = useRef(true)
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false
+      return
+    }
+    setPageParam('')
+  }, [urlSearch, skillFilter, locationFilter, setPageParam])
 
   const { data: skillsData } = useQuery({
     ...orpc.skills.list.queryOptions({ input: {} }),
@@ -56,6 +71,8 @@ function VolunteersPageContent({ user }: { user: AuthUser }) {
         ...(locationFilter && locationFilter.split(':')[1]
           ? { localGroup: locationFilter.split(':')[1] }
           : {}),
+        limit: PAGE_SIZE,
+        offset: (page - 1) * PAGE_SIZE,
       },
     }),
     enabled: !!user,
@@ -67,6 +84,8 @@ function VolunteersPageContent({ user }: { user: AuthUser }) {
     placeholderData: keepPreviousData,
   })
   const volunteers: Volunteer[] = volunteersData?.volunteers ?? []
+  const total = volunteersData?.total ?? 0
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   return (
     <>
@@ -210,6 +229,30 @@ function VolunteersPageContent({ user }: { user: AuthUser }) {
             </div>
           )}
         </div>
+
+        {!loadingVolunteers && totalPages > 1 && (
+          <div className="flex items-center justify-center gap-4 mt-6">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => setPageParam(page - 1 === 1 ? '' : String(page - 1))}
+            >
+              Previous
+            </Button>
+            <span className="text-sm text-text-light">
+              Page {page} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages}
+              onClick={() => setPageParam(String(page + 1))}
+            >
+              Next
+            </Button>
+          </div>
+        )}
       </main>
     </>
   )

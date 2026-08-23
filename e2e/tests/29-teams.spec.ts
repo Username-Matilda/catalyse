@@ -370,7 +370,9 @@ test.describe('Teams', () => {
 
     await expect(async () => {
       const notifications = await memberApi.notifications.list({})
-      const match = (notifications.body as { type: string; link: string | null }[]).find(
+      const match = (
+        notifications.body as { notifications: { type: string; link: string | null }[] }
+      ).notifications.find(
         (n) => n.type === 'team_project_assigned' && n.link === `/projects/${project.id}`,
       )
       expect(match).toBeTruthy()
