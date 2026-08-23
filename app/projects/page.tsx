@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { useRequireApproved } from '@/lib/hooks/auth'
 import { useUrlParam, useUrlSearchInput } from '@/lib/hooks/url-filters'
@@ -15,7 +15,6 @@ import { orpc } from '@/lib/orpc'
 import { AppRouter } from '@/server/router'
 import { type Project, ProjectList, statusBadgeClasses } from '@/components/ProjectCard'
 import { badgeClasses } from '@/components/Badge'
-import { ProjectStatus } from '@/generated/prisma/enums'
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All Active' },
@@ -60,6 +59,8 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
   const [locationFilter, setLocationFilter] = useUrlParam('location')
   const [teamFilter, setTeamFilter] = useUrlParam('team')
   const [sortBy, setSortBy] = useUrlParam('sort')
+  const [pageParam, setPageParam] = useUrlParam('page')
+  const page = Math.max(1, parseInt(pageParam, 10) || 1)
   const router = useRouter()
   function clearFilters() {
     setSearchInput('')
@@ -67,6 +68,29 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
   }
 
   const [completedOpen, setCompletedOpen] = useState(false)
+
+  const isFlatView = Boolean(statusFilter || needsFilter)
+  const PAGE_SIZE = 50
+
+  // Reset to page 1 whenever a filter changes, but not on the initial mount
+  // (which would clobber a deep-linked ?page=N&status=... URL).
+  const isFirstRender = useRef(true)
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false
+      return
+    }
+    setPageParam('')
+  }, [
+    urlSearch,
+    statusFilter,
+    needsFilter,
+    urgencyFilter,
+    locationFilter,
+    teamFilter,
+    sortBy,
+    setPageParam,
+  ])
 
   const { data: pendingTriageList = [] } = useQuery({
     ...orpc.admin.triage.list.queryOptions(),
@@ -114,13 +138,20 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
   }
   if (teamFilter) projectsInput.teamId = Number(teamFilter)
   if (sortBy) projectsInput.sortBy = sortBy
+  if (isFlatView) {
+    projectsInput.limit = PAGE_SIZE
+    projectsInput.offset = (page - 1) * PAGE_SIZE
+  }
 
   const {
     data: projectsData,
-    isPending: loadingProjects,
+    isPending: loadingFlatProjects,
     error: projectsError,
   } = useQuery({
     ...orpc.projects.list.queryOptions({ input: projectsInput }),
+    // Kept running even while the grouped overview is showing (not gated on isFlatView), so
+    // switching into a status/needs filter has a previous result to hold onto via
+    // placeholderData instead of flashing a loading spinner on the very first fetch.
     enabled: !!user,
     // Keep showing the previous result set while a filter change refetches, instead of
     // swapping the whole list to a loading spinner. Without this, isPending flips true on
@@ -130,6 +161,29 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
     placeholderData: keepPreviousData,
   })
   const projects = projectsData?.projects ?? []
+  const flatTotal = projectsData?.total ?? 0
+  const flatTotalPages = Math.max(1, Math.ceil(flatTotal / PAGE_SIZE))
+
+  // Filters shared with the grouped-overview query — everything except status/needs, which
+  // define the sections rather than filtering within them.
+  const groupedInput: InferRouterInputs<AppRouter>['projects']['listGrouped'] = {}
+  if (urlSearch) groupedInput.search = urlSearch
+  if (urgencyFilter) groupedInput.urgency = urgencyFilter
+  if (locationFilter) {
+    const [country, localGroup] = locationFilter.split(':')
+    groupedInput.country = country
+    if (localGroup) groupedInput.localGroup = localGroup
+  }
+  if (teamFilter) groupedInput.teamId = Number(teamFilter)
+
+  const { data: groupedData, isPending: loadingGroupedProjects } = useQuery({
+    ...orpc.projects.listGrouped.queryOptions({ input: groupedInput }),
+    // Same reasoning as the `list` query above, in the other direction.
+    enabled: !!user,
+    placeholderData: keepPreviousData,
+  })
+
+  const loadingProjects = isFlatView ? loadingFlatProjects : loadingGroupedProjects
 
   const hasFilters =
     searchInput ||
@@ -148,72 +202,53 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
   const sortGroup = (list: Project[]) =>
     userSkillIds.size > 0 ? [...list].sort(byMatchScore) : list
 
-  const yourTeamProjects = sortGroup(projects.filter((p) => p.isMyTeam))
-  const seeking = sortGroup(projects.filter((p) => p.isSeekingHelp || p.isSeekingOwner))
-  const inProgress = sortGroup(
-    projects.filter(
-      (p) => !p.isSeekingHelp && !p.isSeekingOwner && p.status === ProjectStatus.in_progress,
-    ),
-  )
-  const onHold = sortGroup(
-    projects.filter(
-      (p) => !p.isSeekingHelp && !p.isSeekingOwner && p.status === ProjectStatus.on_hold,
-    ),
-  )
-  const completed = sortGroup(projects.filter((p) => p.status === ProjectStatus.completed))
-  const other = sortGroup(
-    projects.filter(
-      (p) =>
-        !p.isSeekingHelp &&
-        !p.isSeekingOwner &&
-        !['ready', 'in_progress', 'on_hold', 'completed'].includes(p.status),
-    ),
-  )
-
-  const groups = [
-    // Admins see every team's projects, so "your teams" isn't a meaningful cut for them —
-    // this is only a quick-jump section for a volunteer's own team memberships.
-    ...(!user.isAdmin
-      ? [
-          {
-            key: 'your_team',
-            projects: yourTeamProjects,
-            label: 'Your Team Projects',
-            desc: 'Tagged to a team you belong to',
-            color: 'text-primary',
-          },
-        ]
-      : []),
-    {
-      key: 'seeking',
-      projects: seeking,
+  const GROUP_META: Record<
+    string,
+    { label: string; desc: string; color: string; viewAllHref?: string }
+  > = {
+    your_team: {
+      label: 'Your Team Projects',
+      desc: 'Tagged to a team you belong to',
+      color: 'text-primary',
+    },
+    seeking: {
       label: 'Looking for People',
       desc: 'These projects need your help',
       color: 'text-orange-600 dark:text-orange-400',
+      viewAllHref: '/projects?needs=looking_for_people',
     },
-    {
-      key: 'in_progress',
-      projects: inProgress,
+    in_progress: {
       label: 'In Progress',
       desc: 'Actively being worked on',
       color: 'text-blue-600 dark:text-blue-400',
+      viewAllHref: '/projects?status=in_progress',
     },
-    { key: 'other', projects: other, label: 'Other Active', desc: '', color: 'text-text-light' },
-    {
-      key: 'on_hold',
-      projects: onHold,
+    other: { label: 'Other Active', desc: '', color: 'text-text-light' },
+    on_hold: {
       label: 'On Hold',
       desc: '',
       color: 'text-red-600 dark:text-red-400',
+      viewAllHref: '/projects?status=on_hold',
     },
-    {
-      key: 'completed',
-      projects: completed,
+    completed: {
       label: 'Completed',
       desc: '',
       color: 'text-green-600 dark:text-green-400',
+      viewAllHref: '/projects?status=completed',
     },
-  ]
+  }
+  const GROUP_ORDER = ['your_team', 'seeking', 'in_progress', 'other', 'on_hold', 'completed']
+
+  const groups = GROUP_ORDER.map((key) => groupedData?.groups.find((g) => g.key === key))
+    .filter((g): g is NonNullable<typeof g> => g !== undefined)
+    .map((g) => ({
+      key: g.key,
+      total: g.total,
+      projects: sortGroup(g.projects),
+      ...GROUP_META[g.key],
+    }))
+  const seeking = groups.find((g) => g.key === 'seeking')?.projects ?? []
+  const inProgress = groups.find((g) => g.key === 'in_progress')?.projects ?? []
 
   return (
     <>
@@ -338,7 +373,7 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
               </p>
             )}
           </div>
-        ) : projects.length === 0 ? (
+        ) : (isFlatView ? projects.length : groups.length) === 0 ? (
           <div className="text-center py-15 px-5 text-text-light">
             <h3>No projects found</h3>
             <p>
@@ -352,35 +387,60 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
         ) : (
           <>
             {/* Status summary bar */}
-            {!statusFilter && !needsFilter && projects.length > 1 && (
+            {!isFlatView && groups.length > 1 && (
               <div className="flex flex-wrap gap-2 mb-6">
                 {seeking.length > 0 && (
                   <span className={badgeClasses('caution')}>
-                    Looking for People: {seeking.length}
+                    Looking for People: {groups.find((g) => g.key === 'seeking')?.total ?? 0}
                   </span>
                 )}
                 {inProgress.length > 0 && (
                   <span className={statusBadgeClasses('in_progress')}>
-                    In Progress: {inProgress.length}
+                    In Progress: {groups.find((g) => g.key === 'in_progress')?.total ?? 0}
                   </span>
                 )}
-                <span className="text-sm text-text-light self-center">{projects.length} total</span>
               </div>
             )}
 
             {/* Grouped project cards */}
-            {statusFilter || needsFilter ? (
-              <ProjectList
-                projects={projects}
-                userSkillIds={userSkillIds}
-                showProposer={user.isAdmin}
-              />
+            {isFlatView ? (
+              <>
+                <ProjectList
+                  projects={projects}
+                  userSkillIds={userSkillIds}
+                  showProposer={user.isAdmin}
+                />
+                {flatTotalPages > 1 && (
+                  <div className="flex items-center justify-center gap-4 mt-6">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={page <= 1}
+                      onClick={() => setPageParam(page - 1 === 1 ? '' : String(page - 1))}
+                    >
+                      Previous
+                    </Button>
+                    <span className="text-sm text-text-light">
+                      Page {page} of {flatTotalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={page >= flatTotalPages}
+                      onClick={() => setPageParam(String(page + 1))}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                )}
+              </>
             ) : (
               groups
                 .filter((g) => g.projects.length > 0)
                 .map((g) => {
                   const isCompleted = g.key === 'completed'
                   const isOpen = !isCompleted || completedOpen
+                  const overflow = g.total - g.projects.length
                   return (
                     <div key={g.key} className="mb-8">
                       {isCompleted ? (
@@ -392,8 +452,8 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
                           tabIndex={0}
                           onKeyDown={(e) => e.key === 'Enter' && setCompletedOpen((o) => !o)}
                         >
-                          {g.label} — {g.projects.length} project
-                          {g.projects.length !== 1 ? 's' : ''}
+                          {g.label} — {g.total} project
+                          {g.total !== 1 ? 's' : ''}
                           <svg
                             className={`text-text-light shrink-0 transition-transform ${completedOpen ? 'rotate-180' : 'rotate-0'}`}
                             width="32"
@@ -410,8 +470,8 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
                         </h2>
                       ) : (
                         <h2 className={`text-lg mb-1 ${g.color}`}>
-                          {g.label} — {g.projects.length} project
-                          {g.projects.length !== 1 ? 's' : ''}
+                          {g.label} — {g.total} project
+                          {g.total !== 1 ? 's' : ''}
                         </h2>
                       )}
                       {g.desc && <p className="text-text-light text-sm mb-3">{g.desc}</p>}
@@ -425,6 +485,13 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
                             userSkillIds={userSkillIds}
                             showProposer={user.isAdmin}
                           />
+                          {overflow > 0 && g.viewAllHref && (
+                            <div className="mt-3">
+                              <Link href={g.viewAllHref} className="text-sm underline">
+                                View all {g.total} →
+                              </Link>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

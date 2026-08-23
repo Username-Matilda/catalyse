@@ -128,10 +128,10 @@ export default function Header() {
   }, [])
 
   const { data: notificationsData } = useQuery({
-    ...orpc.notifications.list.queryOptions({ input: {} }),
+    ...orpc.notifications.list.queryOptions({ input: { filter: 'unread', limit: 1 } }),
     enabled: !!user,
   })
-  const unreadCount = notificationsData?.filter((n) => !n.readAt).length ?? 0
+  const unreadCount = notificationsData?.total ?? 0
 
   useEffect(() => {
     if (user) void queryClient.invalidateQueries({ queryKey: orpc.notifications.list.key() })

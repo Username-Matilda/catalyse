@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import { useRequireAuth } from '@/lib/hooks/auth'
 import Link from 'next/link'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import CommentThread from '@/components/CommentThread'
 import { orpc } from '@/lib/orpc'
@@ -13,6 +13,10 @@ import Tabs from '@/components/Tabs'
 import type { InferRouterOutputs } from '@orpc/server'
 import type { AppRouter } from '@/server/router'
 import { ApprovalStatus, QuickTaskStatus } from '@/generated/prisma/enums'
+import { friendlyDate } from '@/lib/format-date'
+
+const NOTIFICATIONS_PAGE_SIZE = 20
+type NotificationFilter = 'all' | 'unread' | 'read'
 
 type Interest = InferRouterOutputs<AppRouter>['dashboard']['get']['myInterests'][number]
 
@@ -38,6 +42,13 @@ export default function DashboardPage() {
   })
   const [expandedTasks, setExpandedTasks] = useState<Set<number>>(new Set())
   const [emailBannerDismissed, setEmailBannerDismissed] = useState(false)
+  const [notificationFilter, setNotificationFilter] = useState<NotificationFilter>('all')
+  const [notificationPage, setNotificationPage] = useState(1)
+
+  function setNotificationFilterAndResetPage(filter: NotificationFilter) {
+    setNotificationFilter(filter)
+    setNotificationPage(1)
+  }
 
   useEffect(() => {
     function onHashChange() {
@@ -71,10 +82,23 @@ export default function DashboardPage() {
     (t) => t.status === QuickTaskStatus.in_progress || t.status === QuickTaskStatus.under_review,
   )
 
-  const { data: notifications = [] } = useQuery({
-    ...orpc.notifications.list.queryOptions({ input: {} }),
+  const { data: notificationsData } = useQuery({
+    ...orpc.notifications.list.queryOptions({
+      input: {
+        filter: notificationFilter,
+        limit: NOTIFICATIONS_PAGE_SIZE,
+        offset: (notificationPage - 1) * NOTIFICATIONS_PAGE_SIZE,
+      },
+    }),
     enabled: !!user && activeTab === 'notifications',
+    placeholderData: keepPreviousData,
   })
+  const notifications = notificationsData?.notifications ?? []
+  const notificationsTotal = notificationsData?.total ?? 0
+  const notificationsTotalPages = Math.max(
+    1,
+    Math.ceil(notificationsTotal / NOTIFICATIONS_PAGE_SIZE),
+  )
 
   const submitTaskMutation = useMutation({
     ...orpc.quickTasks.submit.mutationOptions(),
@@ -89,6 +113,22 @@ export default function DashboardPage() {
 
   const readAllMutation = useMutation({
     ...orpc.notifications.readAll.mutationOptions(),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: orpc.notifications.list.key() })
+      void queryClient.invalidateQueries({ queryKey: orpc.dashboard.get.key() })
+    },
+  })
+
+  const markReadMutation = useMutation({
+    ...orpc.notifications.markRead.mutationOptions(),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: orpc.notifications.list.key() })
+      void queryClient.invalidateQueries({ queryKey: orpc.dashboard.get.key() })
+    },
+  })
+
+  const markUnreadMutation = useMutation({
+    ...orpc.notifications.markUnread.mutationOptions(),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: orpc.notifications.list.key() })
       void queryClient.invalidateQueries({ queryKey: orpc.dashboard.get.key() })
@@ -326,30 +366,108 @@ export default function DashboardPage() {
 
         {activeTab === 'notifications' && (
           <div>
-            {unreadCount > 0 && (
-              <Button className="mb-4" onClick={() => readAllMutation.mutate({})}>
-                Mark all as read
-              </Button>
-            )}
-            {!notifications.length ? (
-              <p className="text-text-light">No notifications yet.</p>
-            ) : (
-              notifications.map((n) => (
-                <div
-                  key={n.id}
-                  className={`bg-surface rounded-xl shadow p-5 mb-3 wrap-break-word ${!n.readAt ? 'border-l-4 border-primary' : ''}`}
+            <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
+              <div className="flex gap-2">
+                <Button
+                  variant={notificationFilter === 'unread' ? 'primary' : 'outline'}
+                  size="sm"
+                  onClick={() =>
+                    setNotificationFilterAndResetPage(
+                      notificationFilter === 'unread' ? 'all' : 'unread',
+                    )
+                  }
                 >
-                  <strong className={!n.readAt ? 'text-brand-text' : 'text-text-light'}>
-                    {n.title}
-                  </strong>
-                  <p className="text-sm mt-1 mb-0">{n.body}</p>
-                  {n.link && (
-                    <Link href={n.link} className="text-sm underline mt-1 inline-block">
-                      View
-                    </Link>
-                  )}
-                </div>
-              ))
+                  Unread
+                </Button>
+                <Button
+                  variant={notificationFilter === 'read' ? 'primary' : 'outline'}
+                  size="sm"
+                  onClick={() =>
+                    setNotificationFilterAndResetPage(
+                      notificationFilter === 'read' ? 'all' : 'read',
+                    )
+                  }
+                >
+                  Read
+                </Button>
+              </div>
+              {unreadCount > 0 && (
+                <Button size="sm" onClick={() => readAllMutation.mutate({})}>
+                  Mark all as read
+                </Button>
+              )}
+            </div>
+            {!notifications.length ? (
+              <p className="text-text-light">
+                No notifications
+                {notificationFilter !== 'all' ? ` marked ${notificationFilter}` : ''}.
+              </p>
+            ) : (
+              <>
+                {notifications.map((n) => (
+                  <div
+                    key={n.id}
+                    className={`bg-surface rounded-xl shadow p-5 mb-3 wrap-break-word ${!n.readAt ? 'border-l-4 border-primary' : ''}`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <strong className={!n.readAt ? 'text-brand-text' : 'text-text-light'}>
+                        {n.title}
+                      </strong>
+                      <span className="text-xs text-text-light whitespace-nowrap">
+                        {n.createdAt ? friendlyDate(n.createdAt) : ''}
+                      </span>
+                    </div>
+                    <p className="text-sm mt-1 mb-0">{n.body}</p>
+                    <div className="flex items-center gap-3 mt-2">
+                      {n.link && (
+                        <Link href={n.link} className="text-sm underline">
+                          View
+                        </Link>
+                      )}
+                      {n.readAt ? (
+                        <button
+                          type="button"
+                          className="text-sm underline text-text-light cursor-pointer bg-transparent border-0 p-0"
+                          onClick={() => markUnreadMutation.mutate({ id: n.id })}
+                        >
+                          Mark as unread
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="text-sm underline text-text-light cursor-pointer bg-transparent border-0 p-0"
+                          onClick={() => markReadMutation.mutate({ id: n.id })}
+                        >
+                          Mark as read
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {notificationsTotalPages > 1 && (
+                  <div className="flex items-center justify-center gap-4 mt-6">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={notificationPage <= 1}
+                      onClick={() => setNotificationPage((p) => p - 1)}
+                    >
+                      Previous
+                    </Button>
+                    <span className="text-sm text-text-light">
+                      Page {notificationPage} of {notificationsTotalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={notificationPage >= notificationsTotalPages}
+                      onClick={() => setNotificationPage((p) => p + 1)}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}

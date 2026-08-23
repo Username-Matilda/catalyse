@@ -222,6 +222,155 @@ export const projectsRouter = {
       return { projects, total }
     }),
 
+  /**
+   * The unfiltered projects page groups by status/seeking-state into sections (Your Team,
+   * Looking for People, In Progress, On Hold, Completed). A single capped `list` query can't
+   * back that: whichever 50 rows happen to come back get sliced client-side into sections, so
+   * a section can silently lose members to whichever other section ate the cap first. Each
+   * section gets its own capped query + total here instead, so every section is complete up
+   * to its own cap and knows how many more there are.
+   */
+  listGrouped: approvedProcedure
+    .input(
+      z.object({
+        skillIds: z.array(z.number().int()).optional(),
+        search: z.string().optional(),
+        urgency: z.string().optional(),
+        country: z.string().optional(),
+        localGroup: z.string().optional(),
+        teamId: z.number().int().optional(),
+        isOrgProposed: z.boolean().optional(),
+        previewLimit: z.number().int().min(1).max(100).optional().default(50),
+      }),
+    )
+    .handler(async ({ input, context }) => {
+      const volunteer = context.volunteer
+
+      if (!volunteer.emailConfirmed && !volunteer.isAdmin) {
+        throw new ORPCError('FORBIDDEN', {
+          message: 'Please confirm your email address to browse projects',
+        })
+      }
+
+      const v = await prisma.volunteer.findUnique({
+        where: { id: volunteer.id },
+        select: { skills: { select: { skillId: true } } },
+      })
+      const volunteerSkillIds = new Set((v?.skills ?? []).map((s) => s.skillId))
+
+      const teamMemberships = await prisma.teamMembership.findMany({
+        where: { volunteerId: volunteer.id },
+        select: { teamId: true },
+      })
+      const viewerTeamIds = new Set(teamMemberships.map((m) => m.teamId))
+
+      const sharedConditions: Prisma.Sql[] = [
+        Prisma.sql`type = ${WorkItemType.PROJECT}`,
+        Prisma.raw(
+          `status NOT IN ('${ProjectStatus.archived}', ${UNAPPROVED_STATUSES.map((s) => `'${s}'`).join(', ')})`,
+        ),
+      ]
+      if (input.skillIds && input.skillIds.length > 0) {
+        sharedConditions.push(
+          Prisma.sql`id IN (SELECT work_item_id FROM work_item_skills WHERE skill_id IN (${Prisma.join(input.skillIds)}))`,
+        )
+      }
+      if (input.search) {
+        const like = `%${input.search}%`
+        sharedConditions.push(Prisma.sql`(title LIKE ${like} OR description LIKE ${like})`)
+      }
+      if (input.urgency) sharedConditions.push(Prisma.sql`urgency = ${input.urgency}`)
+      if (input.country) sharedConditions.push(Prisma.sql`country = ${input.country}`)
+      if (input.localGroup) sharedConditions.push(Prisma.sql`local_group = ${input.localGroup}`)
+      if (input.teamId) sharedConditions.push(Prisma.sql`team_id = ${input.teamId}`)
+      if (input.isOrgProposed !== undefined) {
+        sharedConditions.push(Prisma.sql`is_org_proposed = ${input.isOrgProposed ? 1 : 0}`)
+      }
+      if (!volunteer.isAdmin) {
+        sharedConditions.push(Prisma.sql`(
+          team_id IS NULL
+          OR creator_id = ${volunteer.id}
+          OR assignee_id = ${volunteer.id}
+          OR team_id IN (SELECT team_id FROM team_memberships WHERE volunteer_id = ${volunteer.id})
+          OR id IN (
+            SELECT work_item_id FROM work_item_interests
+            WHERE volunteer_id = ${volunteer.id} AND status = ${InterestStatus.accepted}
+          )
+        )`)
+      }
+
+      const seekingSqlStr = `(is_seeking_help = 1 OR ${SEEKING_OWNER_SQL})`
+      const orderClause = Prisma.raw(`ORDER BY
+        CASE WHEN is_seeking_help = 1 OR ${SEEKING_OWNER_SQL} THEN 0 ELSE 1 END,
+        CASE urgency WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
+        created_at DESC`)
+
+      const bucketDefs: { key: string; extra: Prisma.Sql }[] = [
+        { key: 'seeking', extra: Prisma.raw(seekingSqlStr) },
+        {
+          key: 'in_progress',
+          extra: Prisma.raw(`NOT ${seekingSqlStr} AND status = '${ProjectStatus.in_progress}'`),
+        },
+        {
+          key: 'on_hold',
+          extra: Prisma.raw(`NOT ${seekingSqlStr} AND status = '${ProjectStatus.on_hold}'`),
+        },
+        { key: 'completed', extra: Prisma.sql`status = ${ProjectStatus.completed}` },
+        {
+          key: 'other',
+          extra: Prisma.raw(
+            `NOT ${seekingSqlStr} AND status NOT IN ('${ProjectStatus.ready}', '${ProjectStatus.in_progress}', '${ProjectStatus.on_hold}', '${ProjectStatus.completed}')`,
+          ),
+        },
+        // Cross-cuts the other buckets rather than partitioning them — a project can be both
+        // "your team" and "seeking". Only meaningful for non-admins, to whom "your team" is a
+        // quick-jump; admins see every team's projects so it isn't a distinguishing cut.
+        ...(!volunteer.isAdmin
+          ? [
+              {
+                key: 'your_team',
+                extra:
+                  viewerTeamIds.size > 0
+                    ? Prisma.sql`team_id IN (${Prisma.join([...viewerTeamIds])})`
+                    : Prisma.sql`1 = 0`,
+              },
+            ]
+          : []),
+      ]
+
+      const bucketResults = await Promise.all(
+        bucketDefs.map(async ({ key, extra }) => {
+          const whereClause = Prisma.sql`WHERE ${Prisma.join([...sharedConditions, extra], ' AND ')}`
+          const [countResult, idRows] = await Promise.all([
+            prisma.$queryRaw<
+              [{ count: bigint }]
+            >`SELECT COUNT(*) as count FROM work_items ${whereClause}`,
+            prisma.$queryRaw<{ id: number }[]>`
+              SELECT id FROM work_items ${whereClause} ${orderClause} LIMIT ${input.previewLimit}`,
+          ])
+          return { key, total: Number(countResult[0].count), ids: idRows.map((r) => r.id) }
+        }),
+      )
+
+      const allIds = [...new Set(bucketResults.flatMap((b) => b.ids))]
+      const rawProjects = await prisma.workItem.findMany({
+        where: { id: { in: allIds } },
+        include: projectInclude,
+      })
+      const projectMap = new Map(rawProjects.map((p) => [p.id, p]))
+
+      return {
+        groups: bucketResults.map(({ key, total, ids }) => ({
+          key,
+          total,
+          projects: ids
+            .map((id) => projectMap.get(id))
+            .filter((p): p is NonNullable<typeof p> => p !== undefined)
+            .map((p) => withProjectExtras(p as EnrichedProject, volunteerSkillIds, viewerTeamIds)),
+        })),
+      }
+    }),
+
   create: approvedProcedure.input(CreateProjectSchema).handler(async ({ input, context }) => {
     const volunteer = context.volunteer
     const { tasks, wantToOwn, skillIds, skillRequiredMap } = input
