@@ -6,11 +6,14 @@ import {
   verifyPassword,
   hashPassword,
   generateAuthToken,
+  authTokenExpiry,
   checkAdminBootstrap,
   acceptPendingInvite,
   redactVolunteer,
 } from '@/lib/auth'
 import {
+  html,
+  rawHtml,
   sendWelcomeEmail,
   sendWelcomeAndConfirmEmail,
   sendPasswordResetEmail,
@@ -156,14 +159,34 @@ async function sendAccountDeletionNotifications(deletedId: number, deletedName: 
     }
     if (r.email) {
       const allProjects = [...r.taskProjects, ...r.ownerlessProjects]
-      const msgParts = [`<p><strong>${deletedName}</strong> has deleted their account.</p>`]
+      const msgParts = [html`<p><strong>${deletedName}</strong> has deleted their account.</p>`]
       if (r.taskProjects.length)
         msgParts.push(
-          `<p>The following tasks need a new assignee:</p><ul>${r.taskProjects.map((p) => `<li>${p.taskCount} ${p.taskCount === 1 ? 'task' : 'tasks'} in <strong>${p.projectTitle}</strong></li>`).join('')}</ul>`,
+          html`<p>The following tasks need a new assignee:</p>
+            <ul>
+              ${rawHtml(
+                r.taskProjects
+                  .map(
+                    (p) =>
+                      html`<li>
+                        ${p.taskCount} ${p.taskCount === 1 ? 'task' : 'tasks'} in
+                        <strong>${p.projectTitle}</strong>
+                      </li>`,
+                  )
+                  .join(''),
+              )}
+            </ul>`,
         )
       if (r.ownerlessProjects.length)
         msgParts.push(
-          `<p>The following projects need a new owner:</p><ul>${r.ownerlessProjects.map((p) => `<li><strong>${p.projectTitle}</strong></li>`).join('')}</ul>`,
+          html`<p>The following projects need a new owner:</p>
+            <ul>
+              ${rawHtml(
+                r.ownerlessProjects
+                  .map((p) => html`<li><strong>${p.projectTitle}</strong></li>`)
+                  .join(''),
+              )}
+            </ul>`,
         )
       await sendProjectNotificationEmail({
         to: r.email,
@@ -180,7 +203,16 @@ async function sendAccountDeletionNotifications(deletedId: number, deletedName: 
 export const authRouter = {
   login: publicProcedure
     .input(z.object({ email: z.string(), password: z.string() }))
-    .handler(async ({ input }) => {
+    .handler(async ({ input, context }) => {
+      const { allowed, retryAfterMs } = checkRateLimit(context.request, 'login', {
+        limit: 10,
+        windowMs: 15 * 60 * 1000,
+      })
+      if (!allowed)
+        throw new ORPCError('TOO_MANY_REQUESTS', {
+          message: `Rate limited. Retry after ${retryAfterMs}ms`,
+        })
+
       const email = input.email.toLowerCase().trim()
       if (!email || !input.password)
         throw new ORPCError('UNAUTHORIZED', { message: 'Invalid email or password' })
@@ -201,7 +233,7 @@ export const authRouter = {
       const authToken = generateAuthToken()
       await prisma.volunteer.update({
         where: { id: volunteer.id },
-        data: { authToken, updatedAt: new Date() },
+        data: { authToken, authTokenExpiresAt: authTokenExpiry(), updatedAt: new Date() },
       })
 
       return {
@@ -254,6 +286,7 @@ export const authRouter = {
         email,
         passwordHash: hashPassword(input.password),
         authToken,
+        authTokenExpiresAt: authTokenExpiry(),
         applicationMessage: input.applicationMessage ?? null,
         bio: input.bio ?? null,
         discordHandle: input.discordHandle ?? null,
@@ -321,7 +354,8 @@ export const authRouter = {
         `${volunteer.name} has applied to join Catalyse`,
         '/admin/applications',
         {
-          message: `<strong>${volunteer.name}</strong> (${email}) has applied to join Catalyse. Please review their application.`,
+          message: html`<strong>${volunteer.name}</strong> (${email}) has applied to join Catalyse.
+            Please review their application.`,
           ctaLabel: 'Review Application',
           ctaUrl: '/admin/applications',
         },
@@ -340,7 +374,7 @@ export const authRouter = {
   logout: authedProcedure.handler(async ({ context }) => {
     await prisma.volunteer.update({
       where: { id: context.volunteer.id },
-      data: { authToken: null },
+      data: { authToken: null, authTokenExpiresAt: null },
     })
     return { message: 'Logged out' }
   }),
@@ -380,6 +414,15 @@ export const authRouter = {
   changePassword: authedProcedure
     .input(ChangePasswordSchema)
     .handler(async ({ input, context }) => {
+      const { allowed, retryAfterMs } = checkRateLimit(context.request, 'change-password', {
+        limit: 10,
+        windowMs: 15 * 60 * 1000,
+      })
+      if (!allowed)
+        throw new ORPCError('TOO_MANY_REQUESTS', {
+          message: `Rate limited. Retry after ${retryAfterMs}ms`,
+        })
+
       const vol = await prisma.volunteer.findUnique({
         where: { id: context.volunteer.id },
         select: { passwordHash: true },
@@ -387,11 +430,19 @@ export const authRouter = {
       if (!vol?.passwordHash || !verifyPassword(input.currentPassword, vol.passwordHash)) {
         throw new ORPCError('BAD_REQUEST', { message: 'Current password is incorrect' })
       }
+      // Rotate the session token: a password change must invalidate any session opened
+      // with the old password. The caller gets the replacement so it stays signed in.
+      const authToken = generateAuthToken()
       await prisma.volunteer.update({
         where: { id: context.volunteer.id },
-        data: { passwordHash: hashPassword(input.newPassword), updatedAt: new Date() },
+        data: {
+          passwordHash: hashPassword(input.newPassword),
+          authToken,
+          authTokenExpiresAt: authTokenExpiry(),
+          updatedAt: new Date(),
+        },
       })
-      return { message: 'Password changed successfully' }
+      return { message: 'Password changed successfully', token: authToken }
     }),
 
   changeEmail: authedProcedure.input(ChangeEmailSchema).handler(async ({ input, context }) => {
@@ -463,7 +514,16 @@ export const authRouter = {
       }
     }),
 
-  resetPassword: publicProcedure.input(ResetPasswordSchema).handler(async ({ input }) => {
+  resetPassword: publicProcedure.input(ResetPasswordSchema).handler(async ({ input, context }) => {
+    const { allowed, retryAfterMs } = checkRateLimit(context.request, 'reset-password', {
+      limit: 10,
+      windowMs: 15 * 60 * 1000,
+    })
+    if (!allowed)
+      throw new ORPCError('TOO_MANY_REQUESTS', {
+        message: `Rate limited. Retry after ${retryAfterMs}ms`,
+      })
+
     const tokenRecord = await prisma.passwordResetToken.findFirst({
       where: {
         token: input.token,
@@ -480,6 +540,7 @@ export const authRouter = {
       data: {
         passwordHash: hashPassword(input.newPassword),
         authToken: null,
+        authTokenExpiresAt: null,
         updatedAt: new Date(),
       },
     })
@@ -676,7 +737,7 @@ export const authRouter = {
         const authToken = generateAuthToken()
         await prisma.volunteer.update({
           where: { id: existing.id },
-          data: { authToken, updatedAt: new Date() },
+          data: { authToken, authTokenExpiresAt: authTokenExpiry(), updatedAt: new Date() },
         })
         let wasPromoted = await checkAdminBootstrap(email, existing.id)
         if (await acceptPendingInvite(email, existing.id)) wasPromoted = true
@@ -752,6 +813,7 @@ export const authRouter = {
           name,
           email,
           authToken,
+          authTokenExpiresAt: authTokenExpiry(),
           emailConfirmed: true,
           applicationMessage: input.applicationMessage,
           bio: input.bio,

@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
 import { notifyUser } from '@/lib/notify'
+import { html } from '@/lib/email'
 import { TeamBodySchema } from '@/lib/schemas'
 import { publicProcedure, approvedProcedure } from '../procedures'
 import { TeamMembershipRole, TeamJoinRequestStatus } from '@/generated/prisma/enums'
@@ -197,8 +198,9 @@ export const teamsRouter = {
             notifyUser(id, 'team_join_request', title, null, '/teams', {
               subject: title,
               message: input.message
-                ? `${context.volunteer.name} applied to join <strong>${team.name}</strong>: "${input.message.trim()}"`
-                : `${context.volunteer.name} applied to join <strong>${team.name}</strong>.`,
+                ? html`${context.volunteer.name} applied to join <strong>${team.name}</strong>:
+                    "${input.message.trim()}"`
+                : html`${context.volunteer.name} applied to join <strong>${team.name}</strong>.`,
               ctaLabel: 'Review Application',
               ctaUrl: '/teams',
             }),

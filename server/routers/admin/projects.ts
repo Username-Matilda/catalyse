@@ -3,6 +3,7 @@ import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
 import { withProjectExtras, projectInclude, EnrichedProject } from '@/lib/work-item'
 import { notifyUser, notifyTeamOfProject, clearNotifications } from '@/lib/notify'
+import { html } from '@/lib/email'
 import { notifyMatchingVolunteers } from '@/lib/project-match-notify'
 import { AdminCreateProjectSchema, ReviewProjectSchema, OutcomeProjectSchema } from '@/lib/schemas'
 import { adminProcedure } from '../../procedures'
@@ -170,7 +171,11 @@ export const adminProjectsRouter = {
                 'A team lead would like to discuss your project proposal before it goes live.',
               projectTitle: project.title,
               projectId: input.id,
-              extraHtml: `<div style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"><strong>Feedback:</strong> ${feedback}</div>`,
+              extraHtml: html`<div
+                style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"
+              >
+                <strong>Feedback:</strong> ${feedback}
+              </div>`,
             },
           )
         }

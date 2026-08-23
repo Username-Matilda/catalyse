@@ -30,14 +30,26 @@ export function generateAuthToken(): string {
   return randomBytes(32).toString('base64url')
 }
 
+// Sessions expire 30 days after the token was issued. Every write of `authToken`
+// must set `authTokenExpiresAt` alongside it — a null expiry means "never expires",
+// which is what getCurrentVolunteer falls back to for pre-existing rows.
+export const AUTH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000
+
+export function authTokenExpiry(): Date {
+  return new Date(Date.now() + AUTH_TOKEN_TTL_MS)
+}
+
 export async function getCurrentVolunteer(authorization: string | null | undefined) {
   if (!authorization) return null
   const token = authorization.startsWith('Bearer ') ? authorization.slice(7) : authorization
+  // A null expiry is treated as expired, not as "never expires" — every code path that
+  // issues a token sets one (see authTokenExpiry), and the backfill migration gave
+  // pre-existing sessions an expiry too.
   return prisma.volunteer.findFirst({
     where: {
       authToken: token,
       deletedAt: null,
-      OR: [{ authTokenExpiresAt: null }, { authTokenExpiresAt: { gt: new Date() } }],
+      authTokenExpiresAt: { gt: new Date() },
     },
   })
 }

@@ -11,6 +11,7 @@ import {
   CLAIM_BLOCKING_INTEREST_STATUSES,
 } from '@/lib/work-item'
 import { notifyUser, notifyAdmins, notifyTeamOfProject, clearNotifications } from '@/lib/notify'
+import { html } from '@/lib/email'
 import {
   CreateProjectSchema,
   UpdateProjectSchema,
@@ -433,7 +434,8 @@ export const projectsRouter = {
       `Proposed by ${volunteer.name}`,
       '/admin/triage',
       {
-        message: `<strong>${volunteer.name}</strong> has submitted a new project proposal: <strong>${project.title}</strong>. Please review it in the triage queue.`,
+        message: html`<strong>${volunteer.name}</strong> has submitted a new project proposal:
+          <strong>${project.title}</strong>. Please review it in the triage queue.`,
         projectTitle: project.title,
         projectId: project.id,
       },
@@ -766,7 +768,8 @@ export const projectsRouter = {
             `Status changed by ${volunteer.name}`,
             `/projects/${input.id}`,
             {
-              message: `The project <strong>${project.title}</strong> has been updated to <strong>${statusLabel}</strong>.`,
+              message: html`The project <strong>${project.title}</strong> has been updated to
+                <strong>${statusLabel}</strong>.`,
               projectTitle: project.title,
               projectId: input.id,
             },
@@ -852,11 +855,16 @@ export const projectsRouter = {
           `/projects/${input.projectId}`,
           {
             subject: `${volunteer.name} wants to ${interestLabel} '${project.title}'`,
-            message: `<strong>${volunteer.name}</strong> has expressed interest in your project <strong>${project.title}</strong>.`,
+            message: html`<strong>${volunteer.name}</strong> has expressed interest in your project
+              <strong>${project.title}</strong>.`,
             projectTitle: project.title,
             projectId: input.projectId,
             extraHtml: message
-              ? `<div style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"><strong>Their message:</strong> ${message}</div>`
+              ? html`<div
+                  style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"
+                >
+                  <strong>Their message:</strong> ${message}
+                </div>`
               : undefined,
           },
           interest.id,
@@ -946,11 +954,16 @@ export const projectsRouter = {
         input.responseMessage ?? null,
         `/projects/${input.projectId}`,
         {
-          message: `The team has <strong>${input.status}</strong> your interest in the project <strong>${project.title}</strong>.`,
+          message: html`The team has <strong>${input.status}</strong> your interest in the project
+            <strong>${project.title}</strong>.`,
           projectTitle: project.title,
           projectId: input.projectId,
           extraHtml: input.responseMessage
-            ? `<div style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"><strong>Message:</strong> ${input.responseMessage}</div>`
+            ? html`<div
+                style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"
+              >
+                <strong>Message:</strong> ${input.responseMessage}
+              </div>`
             : undefined,
         },
       )
@@ -1042,7 +1055,8 @@ export const projectsRouter = {
         `Assigned by ${volunteer.name}`,
         `/projects/${input.projectId}`,
         {
-          message: `<strong>${volunteer.name}</strong> has assigned you to the project <strong>${project.title}</strong>.`,
+          message: html`<strong>${volunteer.name}</strong> has assigned you to the project
+            <strong>${project.title}</strong>.`,
           projectTitle: project.title,
           projectId: input.projectId,
         },
@@ -1053,7 +1067,32 @@ export const projectsRouter = {
 
   listTasks: approvedProcedure
     .input(z.object({ projectId: z.number().int() }))
-    .handler(async ({ input }) => {
+    .handler(async ({ input, context }) => {
+      const volunteer = context.volunteer
+
+      // Task visibility follows the project's: without this any approved volunteer could
+      // read the task list of a team-restricted or still-unapproved project by id.
+      const project = await prisma.workItem.findFirst({
+        where: { id: input.projectId, type: WorkItemType.PROJECT },
+      })
+      if (!project) throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
+
+      const isTeamPrivy = await resolveTeamPrivy(project.teamId, project.id, volunteer.id)
+      if (
+        !canViewWorkItem(
+          project,
+          {
+            id: volunteer.id,
+            isAdmin: Boolean(volunteer.isAdmin),
+            isApproved: volunteer.approvalStatus === ApprovalStatus.approved,
+          },
+          undefined,
+          isTeamPrivy,
+        )
+      ) {
+        throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
+      }
+
       const tasks = await prisma.workItem.findMany({
         where: { parentId: input.projectId, type: WorkItemType.TASK },
         include: {
@@ -1378,7 +1417,8 @@ export const projectsRouter = {
         task.title,
         `/projects/${input.projectId}`,
         {
-          message: `You've been assigned the task <strong>${task.title}</strong> on the project <strong>${project.title}</strong>.`,
+          message: html`You've been assigned the task <strong>${task.title}</strong> on the project
+            <strong>${project.title}</strong>.`,
           projectTitle: project.title,
           projectId: input.projectId,
         },

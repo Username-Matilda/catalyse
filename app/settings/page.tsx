@@ -43,7 +43,7 @@ export default function SettingsPage() {
 }
 
 function SettingsPageContent() {
-  const { user, loading, refreshUser, logout } = useRequireAuth()
+  const { user, loading, refreshUser, logout, setToken } = useRequireAuth()
   const showToast = useToast()
   const queryClient = useQueryClient()
 
@@ -209,7 +209,10 @@ function SettingsPageContent() {
 
   const changePasswordMutation = useMutation({
     ...orpc.auth.changePassword.mutationOptions(),
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
+      // The server rotates the session token on a password change; adopt the new one
+      // so this tab stays signed in.
+      await setToken(data.token)
       showToast(data.message, 'success')
       setCurrentPassword('')
       setNewPassword('')
