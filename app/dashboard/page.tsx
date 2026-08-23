@@ -287,7 +287,7 @@ export default function DashboardPage() {
         )}
 
         {/* Quick stats */}
-        <div className="grid grid-cols-3 gap-5 mb-8 max-[600px]:grid-cols-1">
+        <div className="grid grid-cols-3 gap-5 mb-8 max-[900px]:grid-cols-2 max-[600px]:grid-cols-1">
           {/* [test hook] card, stat-number classes used as test selectors */}
           <div className="card bg-surface rounded-xl shadow p-6 text-center">
             <div className="stat-number text-4xl font-bold text-primary mb-1">

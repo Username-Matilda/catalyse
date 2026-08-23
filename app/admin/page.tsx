@@ -101,7 +101,7 @@ export default function AdminLandingPage() {
       <h1>{user.isSuperAdmin ? 'Super Admin' : 'Admin'}</h1>
 
       {!loadingStats && stats && (
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6 max-[500px]:grid-cols-1">
           <div className="bg-surface rounded-xl shadow p-6 overflow-hidden">
             <h2 className="mt-0">Volunteers</h2>
             <div className="grid grid-cols-2 gap-5 mt-4">
