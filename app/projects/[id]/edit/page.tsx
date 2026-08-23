@@ -206,7 +206,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-5 mb-5">
+          <div className="grid grid-cols-2 gap-5 mb-5 max-[600px]:grid-cols-1">
             <div>
               <label htmlFor="hours-per-week">Hours per Week</label>
               <input

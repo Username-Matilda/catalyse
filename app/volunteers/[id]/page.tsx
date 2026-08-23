@@ -102,7 +102,7 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4 mt-5">
+            <div className="grid grid-cols-2 gap-4 mt-5 max-[600px]:grid-cols-1">
               {volunteer.availabilityHoursPerWeek && (
                 <div>
                   <h4 className="text-text-light">Availability</h4>
