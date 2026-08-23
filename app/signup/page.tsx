@@ -1098,7 +1098,6 @@ export default function SignupPage() {
                   id="location"
                   name="location"
                   autoComplete="address-level2"
-                  placeholder="e.g., Shoreditch"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                 />

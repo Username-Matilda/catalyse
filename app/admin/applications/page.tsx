@@ -187,7 +187,7 @@ function ApplicationCard({
         app.whatsappNumber ||
         app.discordHandle ||
         app.contactNotes) && (
-        <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-2 gap-4 mb-4 max-[600px]:grid-cols-1">
           {app.availabilityHoursPerWeek && (
             <div>
               <h4 className="text-text-light">Availability</h4>

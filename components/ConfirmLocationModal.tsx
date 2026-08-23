@@ -111,7 +111,6 @@ export default function ConfirmLocationModal() {
             id="confirm-location-city"
             value={location}
             onChange={(e) => setLocation(e.target.value)}
-            placeholder="e.g. Shoreditch"
           />
         </div>
       )}

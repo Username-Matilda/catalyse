@@ -3,7 +3,7 @@ import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
 import { notifyUser, clearNotifications } from '@/lib/notify'
 import { CreateQuickTaskSchema, AssignQuickTaskSchema, ReviewQuickTaskSchema } from '@/lib/schemas'
-import { CLAIM_BLOCKING_INTEREST_STATUSES } from '@/lib/work-item'
+import { CLAIM_BLOCKING_INTEREST_STATUSES, serializeStarterTask } from '@/lib/work-item'
 import { adminProcedure, approvedProcedure, authedProcedure } from '../procedures'
 import { ApprovalStatus, QuickTaskStatus, TaskStatus, WorkItemType } from '@/generated/prisma/enums'
 
@@ -32,26 +32,12 @@ export const quickTasksRouter = {
       })
 
       return tasks.map((t) => ({
-        id: t.id,
-        projectId: t.contextProjectId,
-        title: t.title,
-        description: t.description,
-        skillId: t.skillId,
+        ...serializeStarterTask(t),
         skillName: t.skill?.name ?? null,
         skillCategory: t.skill?.category?.name ?? null,
         projectTitle: t.contextProject?.title ?? null,
-        assignedToId: t.assigneeId,
         assignedToName: t.assignee?.name ?? null,
-        assignedById: t.creatorId,
-        status: t.status,
-        reviewRating: t.reviewRating,
-        reviewNotes: t.reviewNotes,
-        reviewedById: t.reviewedById,
         reviewedByName: t.reviewedBy?.name ?? null,
-        reviewedAt: t.reviewedAt,
-        estimatedHours: t.estimatedHours,
-        createdAt: t.createdAt,
-        updatedAt: t.updatedAt,
       }))
     }),
 
@@ -170,23 +156,9 @@ export const quickTasksRouter = {
         throw new ORPCError('FORBIDDEN', { message: 'You do not have access to this task' })
       }
       return {
-        id: task.id,
-        projectId: task.contextProjectId,
+        ...serializeStarterTask(task),
         projectTitle: task.contextProject?.title ?? null,
-        title: task.title,
-        description: task.description,
-        skillId: task.skillId,
         skillName: task.skill?.name ?? null,
-        assignedToId: task.assigneeId,
-        assignedById: task.creatorId,
-        status: task.status,
-        reviewRating: task.reviewRating,
-        reviewNotes: task.reviewNotes,
-        reviewedById: task.reviewedById,
-        reviewedAt: task.reviewedAt,
-        estimatedHours: task.estimatedHours,
-        createdAt: task.createdAt,
-        updatedAt: task.updatedAt,
       }
     }),
 
