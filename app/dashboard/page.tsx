@@ -13,6 +13,7 @@ import Tabs from '@/components/Tabs'
 import type { InferRouterOutputs } from '@orpc/server'
 import type { AppRouter } from '@/server/router'
 import { ApprovalStatus, QuickTaskStatus } from '@/generated/prisma/enums'
+import { ApprovalStepper } from '@/components/ApprovalStepper'
 import { friendlyDate } from '@/lib/format-date'
 
 const NOTIFICATIONS_PAGE_SIZE = 20
@@ -196,12 +197,14 @@ export default function DashboardPage() {
         <h1 role="heading">Welcome back, {user.name}!</h1>
 
         {/* Pending approval banner */}
-        {user.approvalStatus === ApprovalStatus.pending && (
-          <div className="flex items-center gap-3 p-4 rounded-lg mb-5 bg-yellow-100 text-yellow-800 border border-yellow-300 dark:bg-yellow-950 dark:text-yellow-300 dark:border-yellow-800">
+        {(user.approvalStatus === ApprovalStatus.pending ||
+          user.approvalStatus === ApprovalStatus.under_review) && (
+          <div className="flex flex-col gap-3 p-4 rounded-lg mb-5 bg-yellow-100 text-yellow-800 border border-yellow-300 dark:bg-yellow-950 dark:text-yellow-300 dark:border-yellow-800">
             <span>
               Your account is pending approval. You&apos;ll be able to browse and join projects once
               an admin reviews your application.
             </span>
+            <ApprovalStepper status={user.approvalStatus} />
           </div>
         )}
 
