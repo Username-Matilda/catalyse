@@ -58,6 +58,7 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
   const [needsFilter, setNeedsFilter] = useUrlParam('needs')
   const [urgencyFilter, setUrgencyFilter] = useUrlParam('urgency')
   const [locationFilter, setLocationFilter] = useUrlParam('location')
+  const [teamFilter, setTeamFilter] = useUrlParam('team')
   const [sortBy, setSortBy] = useUrlParam('sort')
   const router = useRouter()
   function clearFilters() {
@@ -85,6 +86,19 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
   })
   const localGroups: LocalGroupOption[] = localGroupsData?.groups ?? []
 
+  const { data: teamsData } = useQuery({ ...orpc.teams.list.queryOptions(), enabled: !!user })
+  const allTeamsList = teamsData?.teams ?? []
+  const myTeams = allTeamsList.filter((t) => t.viewerRole !== null)
+  const teamOptions = user.isAdmin
+    ? [
+        { value: '', label: 'All teams' },
+        ...allTeamsList.map((t) => ({ value: String(t.id), label: t.name })),
+      ]
+    : [
+        { value: '', label: 'All my teams' },
+        ...myTeams.map((t) => ({ value: String(t.id), label: t.name })),
+      ]
+
   const projectsInput: InferRouterInputs<AppRouter>['projects']['list'] = {}
   if (urlSearch) projectsInput.search = urlSearch
   if (statusFilter) projectsInput.status = statusFilter
@@ -98,6 +112,7 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
     projectsInput.country = country
     if (localGroup) projectsInput.localGroup = localGroup
   }
+  if (teamFilter) projectsInput.teamId = Number(teamFilter)
   if (sortBy) projectsInput.sortBy = sortBy
 
   const {
@@ -117,7 +132,13 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
   const projects = projectsData?.projects ?? []
 
   const hasFilters =
-    searchInput || statusFilter || needsFilter || urgencyFilter || locationFilter || sortBy
+    searchInput ||
+    statusFilter ||
+    needsFilter ||
+    urgencyFilter ||
+    locationFilter ||
+    teamFilter ||
+    sortBy
 
   function byMatchScore(a: Project, b: Project) {
     const scoreA = a.match?.matchedRequiredCount ?? 0
@@ -127,6 +148,7 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
   const sortGroup = (list: Project[]) =>
     userSkillIds.size > 0 ? [...list].sort(byMatchScore) : list
 
+  const yourTeamProjects = sortGroup(projects.filter((p) => p.isMyTeam))
   const seeking = sortGroup(projects.filter((p) => p.isSeekingHelp || p.isSeekingOwner))
   const inProgress = sortGroup(
     projects.filter(
@@ -149,6 +171,19 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
   )
 
   const groups = [
+    // Admins see every team's projects, so "your teams" isn't a meaningful cut for them —
+    // this is only a quick-jump section for a volunteer's own team memberships.
+    ...(!user.isAdmin
+      ? [
+          {
+            key: 'your_team',
+            projects: yourTeamProjects,
+            label: 'Your Team Projects',
+            desc: 'Tagged to a team you belong to',
+            color: 'text-primary',
+          },
+        ]
+      : []),
     {
       key: 'seeking',
       projects: seeking,
@@ -255,6 +290,18 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
               onChange={setLocationFilter}
               searchable
             />
+
+            {(user.isAdmin || myTeams.length > 0) && (
+              <FilterDropdown
+                id="team-filter"
+                label="Team"
+                ariaLabel="Team filter"
+                value={teamFilter}
+                options={teamOptions}
+                onChange={setTeamFilter}
+                searchable
+              />
+            )}
 
             <FilterDropdown
               id="sort-filter"

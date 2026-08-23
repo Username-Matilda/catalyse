@@ -32,12 +32,18 @@ export const teamSuggestionsRouter = {
       },
     })
 
+    const title = `New team suggestion: ${input.name}`
     await notifyAdmins(
       'team_suggestion',
-      `New team suggestion: ${input.name}`,
+      title,
       null,
       '/admin/teams',
-      undefined,
+      {
+        subject: title,
+        message: `${context.volunteer.name} suggested a new team: <strong>${input.name}</strong>.`,
+        ctaLabel: 'Review Suggestion',
+        ctaUrl: '/admin/teams',
+      },
       suggestion.id,
     )
 

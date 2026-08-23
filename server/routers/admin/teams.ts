@@ -50,24 +50,6 @@ export const adminTeamsRouter = {
     return { id: team.id, name: team.name }
   }),
 
-  update: adminProcedure
-    .input(z.object({ id: z.number().int() }).merge(TeamBodySchema))
-    .handler(async ({ input }) => {
-      const existing = await prisma.team.findUnique({ where: { id: input.id } })
-      if (!existing) throw new ORPCError('NOT_FOUND', { message: 'Not found' })
-
-      const team = await prisma.team.update({
-        where: { id: input.id },
-        data: {
-          name: input.name,
-          description: input.description ?? null,
-          lumaUrl: input.lumaUrl ?? null,
-          docUrl: input.docUrl ?? null,
-        },
-      })
-      return { id: team.id, name: team.name }
-    }),
-
   delete: adminProcedure.input(z.object({ id: z.number().int() })).handler(async ({ input }) => {
     const existing = await prisma.team.findUnique({ where: { id: input.id } })
     if (!existing) throw new ORPCError('NOT_FOUND', { message: 'Not found' })

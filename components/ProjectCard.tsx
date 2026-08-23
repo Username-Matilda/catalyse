@@ -27,6 +27,8 @@ export interface Project {
   localGroup?: string | null
   remoteEligibility?: string | null
   team?: { id: number; name: string } | null
+  /** Derived server-side: is the viewer a member of this project's team? */
+  isMyTeam?: boolean
   timeCommitmentHoursPerWeek?: number | null
   urgency?: string | null
   owner?: { name: string } | null
@@ -100,7 +102,9 @@ export function ProjectCard({
 }) {
   const proposer = p.owner || !showProposer ? null : proposerDisplay(p)
   return (
-    <div className="card bg-surface rounded-xl shadow px-5 pt-5 pb-4 overflow-hidden wrap-break-word grid grid-rows-subgrid row-span-6 gap-y-2 relative min-w-0">
+    <div
+      className={`card bg-surface rounded-xl shadow px-5 pt-5 pb-4 overflow-hidden wrap-break-word grid grid-rows-subgrid row-span-6 gap-y-2 relative min-w-0 ${p.isMyTeam ? 'border-l-4 border-primary' : ''}`}
+    >
       <div className="card-header row-start-1">
         <Link
           role="link"

@@ -71,7 +71,12 @@ export default function TeamsPage() {
               >
                 <div>
                   <p className="font-semibold m-0">
-                    {team.name}
+                    <Link
+                      href={`/teams/${team.id}`}
+                      className="text-secondary-dark no-underline hover:text-primary"
+                    >
+                      {team.name}
+                    </Link>
                     {team.viewerRole === 'leader' && (
                       <span className="text-xs px-2 py-0.5 ml-2 rounded-full font-medium bg-primary/10 text-primary">
                         Leader
@@ -110,7 +115,13 @@ export default function TeamsPage() {
                   </div>
                 </div>
                 <div className="shrink-0">
-                  {isMember ? (
+                  {user.isAdmin || team.viewerRole === 'leader' ? (
+                    <Link href={`/admin/teams/${team.id}`}>
+                      <Button size="sm" variant="secondary">
+                        Manage Members
+                      </Button>
+                    </Link>
+                  ) : isMember ? (
                     <Button
                       size="sm"
                       variant="secondary"

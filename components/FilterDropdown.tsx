@@ -34,6 +34,11 @@ interface Props<T extends string = string> {
   options: readonly FilterOption<T>[]
   onChange: (value: T) => void
   searchable?: boolean
+  // Called with the raw search text as the user types (searchable only). Lets a caller
+  // whose full option set isn't loaded client-side (e.g. paged from the server) run its
+  // own debounced fetch and feed back a fresh `options` array — the built-in client-side
+  // filter above still applies to whatever `options` currently holds.
+  onQueryChange?: (query: string) => void
   required?: boolean
   // Full override of the trigger button's classes, for callers that need a
   // custom look (e.g. a colored pill) instead of the default bordered box.
@@ -55,6 +60,7 @@ export default function FilterDropdown<T extends string>({
   options,
   onChange,
   searchable,
+  onQueryChange,
   required,
   triggerClassName,
   renderOption,
@@ -232,6 +238,7 @@ export default function FilterDropdown<T extends string>({
             onChange={(e) => {
               setQuery(e.target.value)
               setFocusedIndex(-1)
+              onQueryChange?.(e.target.value)
             }}
             onKeyDown={handleKeyDown}
             className="absolute inset-0 m-0"

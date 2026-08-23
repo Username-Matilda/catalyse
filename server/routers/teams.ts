@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
 import { notifyUser } from '@/lib/notify'
+import { TeamBodySchema } from '@/lib/schemas'
 import { publicProcedure, approvedProcedure } from '../procedures'
 import { TeamMembershipRole, TeamJoinRequestStatus } from '@/generated/prisma/enums'
 
@@ -20,16 +21,20 @@ function serializeTeam(
   },
   viewerId?: number,
   viewerRequestStatus?: TeamJoinRequestStatus | null,
+  viewerIsAdmin?: boolean,
 ) {
   const viewerMembership = viewerId
     ? team.members.find((m) => m.volunteerId === viewerId)
     : undefined
+  // Meeting calendar and doc are for accepted members and admins only — not a public
+  // recruitment page, and not visible while an application is merely pending.
+  const isPrivy = Boolean(viewerMembership) || Boolean(viewerIsAdmin)
   return {
     id: team.id,
     name: team.name,
     description: team.description,
-    lumaUrl: team.lumaUrl,
-    docUrl: team.docUrl,
+    lumaUrl: isPrivy ? team.lumaUrl : null,
+    docUrl: isPrivy ? team.docUrl : null,
     memberCount: team.members.length,
     leaders: team.members
       .filter((m) => m.role === TeamMembershipRole.leader)
@@ -67,8 +72,11 @@ export const teamsRouter = {
         })
       : []
     const pendingByTeam = new Map(pendingRequests.map((r) => [r.teamId, r.status]))
+    const viewerIsAdmin = Boolean(context.volunteer?.isAdmin)
     return {
-      teams: teams.map((t) => serializeTeam(t, viewerId, pendingByTeam.get(t.id) ?? null)),
+      teams: teams.map((t) =>
+        serializeTeam(t, viewerId, pendingByTeam.get(t.id) ?? null, viewerIsAdmin),
+      ),
     }
   }),
 
@@ -90,7 +98,59 @@ export const teamsRouter = {
             },
           })
         : null
-      return serializeTeam(team, viewerId, pending?.status ?? null)
+      return serializeTeam(
+        team,
+        viewerId,
+        pending?.status ?? null,
+        Boolean(context.volunteer?.isAdmin),
+      )
+    }),
+
+  /** Full team detail for management — admin or that team's leader only. */
+  getManageable: approvedProcedure
+    .input(z.object({ id: z.number().int() }))
+    .handler(async ({ input, context }) => {
+      await assertCanManageTeam(input.id, context.volunteer)
+      const team = await prisma.team.findUnique({
+        where: { id: input.id },
+        include: {
+          members: { include: { volunteer: { select: { id: true, name: true, email: true } } } },
+        },
+      })
+      if (!team) throw new ORPCError('NOT_FOUND', { message: 'Team not found' })
+      return {
+        id: team.id,
+        name: team.name,
+        description: team.description,
+        lumaUrl: team.lumaUrl,
+        docUrl: team.docUrl,
+        members: team.members.map((m) => ({
+          id: m.volunteer.id,
+          name: m.volunteer.name,
+          email: m.volunteer.email,
+          role: m.role,
+        })),
+      }
+    }),
+
+  /** Edit team details — admin or that team's leader only. Deleting a team stays admin-only. */
+  update: approvedProcedure
+    .input(z.object({ id: z.number().int() }).merge(TeamBodySchema))
+    .handler(async ({ input, context }) => {
+      await assertCanManageTeam(input.id, context.volunteer)
+      const existing = await prisma.team.findUnique({ where: { id: input.id } })
+      if (!existing) throw new ORPCError('NOT_FOUND', { message: 'Team not found' })
+
+      const team = await prisma.team.update({
+        where: { id: input.id },
+        data: {
+          name: input.name,
+          description: input.description ?? null,
+          lumaUrl: input.lumaUrl ?? null,
+          docUrl: input.docUrl ?? null,
+        },
+      })
+      return { id: team.id, name: team.name }
     }),
 
   apply: approvedProcedure
@@ -131,15 +191,17 @@ export const teamsRouter = {
       })
       const recipientIds = leaders.length > 0 ? leaders.map((l) => l.volunteerId) : null
       if (recipientIds) {
+        const title = `${context.volunteer.name} applied to join ${team.name}`
         await Promise.all(
           recipientIds.map((id) =>
-            notifyUser(
-              id,
-              'team_join_request',
-              `${context.volunteer.name} applied to join ${team.name}`,
-              null,
-              '/teams',
-            ),
+            notifyUser(id, 'team_join_request', title, null, '/teams', {
+              subject: title,
+              message: input.message
+                ? `${context.volunteer.name} applied to join <strong>${team.name}</strong>: "${input.message.trim()}"`
+                : `${context.volunteer.name} applied to join <strong>${team.name}</strong>.`,
+              ctaLabel: 'Review Application',
+              ctaUrl: '/teams',
+            }),
           ),
         )
       }

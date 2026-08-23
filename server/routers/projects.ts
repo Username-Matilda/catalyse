@@ -114,6 +114,12 @@ export const projectsRouter = {
       })
       const volunteerSkillIds = new Set((v?.skills ?? []).map((s) => s.skillId))
 
+      const teamMemberships = await prisma.teamMembership.findMany({
+        where: { volunteerId: volunteer.id },
+        select: { teamId: true },
+      })
+      const viewerTeamIds = new Set(teamMemberships.map((m) => m.teamId))
+
       const conditions: Prisma.Sql[] = [Prisma.sql`type = ${WorkItemType.PROJECT}`]
 
       if (input.status) {
@@ -206,7 +212,7 @@ export const projectsRouter = {
       const projects = ids
         .map((id) => projectMap.get(id))
         .filter((p): p is NonNullable<typeof p> => p !== undefined)
-        .map((p) => withProjectExtras(p as EnrichedProject, volunteerSkillIds))
+        .map((p) => withProjectExtras(p as EnrichedProject, volunteerSkillIds, viewerTeamIds))
 
       if (input.sortBy === 'match' && volunteerSkillIds && volunteerSkillIds.size > 0) {
         projects.sort((a, b) => (b.match?.overallScore ?? 0) - (a.match?.overallScore ?? 0))
@@ -327,7 +333,13 @@ export const projectsRouter = {
       })
       const volunteerSkillIds = new Set((v?.skills ?? []).map((s) => s.skillId))
 
-      const base = withProjectExtras(project as EnrichedProject, volunteerSkillIds)
+      const teamMemberships = await prisma.teamMembership.findMany({
+        where: { volunteerId: volunteer.id },
+        select: { teamId: true },
+      })
+      const viewerTeamIds = new Set(teamMemberships.map((m) => m.teamId))
+
+      const base = withProjectExtras(project as EnrichedProject, volunteerSkillIds, viewerTeamIds)
 
       const tasks = await prisma.workItem.findMany({
         where: { parentId: input.id, type: WorkItemType.TASK },

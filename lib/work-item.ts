@@ -188,7 +188,11 @@ export type EnrichedProject = {
 // (mapped from the WorkItem `assignee`/`creator` columns) so the ProjectCard
 // contract and all consuming pages stay stable.
 
-export function withProjectExtras(p: EnrichedProject, volunteerSkillIds?: Set<number>) {
+export function withProjectExtras(
+  p: EnrichedProject,
+  volunteerSkillIds?: Set<number>,
+  viewerTeamIds?: Set<number>,
+) {
   const matchInput = p.skills.map((ps) => ({ id: ps.skillId, isRequired: ps.isRequired }))
   const match =
     volunteerSkillIds !== undefined ? calculateMatchScore(volunteerSkillIds, matchInput) : undefined
@@ -228,6 +232,7 @@ export function withProjectExtras(p: EnrichedProject, volunteerSkillIds?: Set<nu
     remoteEligibility: p.remoteEligibility,
     teamId: p.teamId,
     team: p.team,
+    isMyTeam: p.teamId !== null && Boolean(viewerTeamIds?.has(p.teamId)),
     skills: p.skills.map((ps) => ({
       id: ps.skill.id,
       categoryId: ps.skill.categoryId,

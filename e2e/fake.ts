@@ -26,4 +26,5 @@ export const fake = {
   username: () => faker.internet.username(),
   phoneNumber: () => faker.phone.number({ style: 'international' }),
   localGroupName: () => faker.location.city(),
+  teamName: () => `${faker.word.adjective()} ${faker.word.noun()} Squad`,
 }
