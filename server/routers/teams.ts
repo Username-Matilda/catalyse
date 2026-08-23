@@ -2,8 +2,9 @@ import { z } from 'zod'
 import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
 import { notifyUser } from '@/lib/notify'
+import { html } from '@/lib/email'
 import { TeamBodySchema } from '@/lib/schemas'
-import { publicProcedure, approvedProcedure } from '../procedures'
+import { authedProcedure, approvedProcedure } from '../procedures'
 import { TeamMembershipRole, TeamJoinRequestStatus } from '@/generated/prisma/enums'
 
 function serializeTeam(
@@ -59,7 +60,7 @@ async function assertCanManageTeam(
 }
 
 export const teamsRouter = {
-  list: publicProcedure.handler(async ({ context }) => {
+  list: authedProcedure.handler(async ({ context }) => {
     const teams = await prisma.team.findMany({
       orderBy: { name: 'asc' },
       include: { members: { include: { volunteer: { select: { id: true, name: true } } } } },
@@ -80,7 +81,7 @@ export const teamsRouter = {
     }
   }),
 
-  getById: publicProcedure
+  getById: authedProcedure
     .input(z.object({ id: z.number().int() }))
     .handler(async ({ input, context }) => {
       const team = await prisma.team.findUnique({
@@ -197,8 +198,9 @@ export const teamsRouter = {
             notifyUser(id, 'team_join_request', title, null, '/teams', {
               subject: title,
               message: input.message
-                ? `${context.volunteer.name} applied to join <strong>${team.name}</strong>: "${input.message.trim()}"`
-                : `${context.volunteer.name} applied to join <strong>${team.name}</strong>.`,
+                ? html`${context.volunteer.name} applied to join <strong>${team.name}</strong>:
+                    "${input.message.trim()}"`
+                : html`${context.volunteer.name} applied to join <strong>${team.name}</strong>.`,
               ctaLabel: 'Review Application',
               ctaUrl: '/teams',
             }),

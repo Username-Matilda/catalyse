@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 
 function useSetParam() {
   const searchParams = useSearchParams()
@@ -44,12 +44,18 @@ export function useUrlSearchInput(
   delayMs = 300,
 ): [string, (value: string) => void, string] {
   const searchParams = useSearchParams()
+  const pathname = usePathname()
   const urlValue = searchParams.get(key) ?? ''
   const [input, setInput] = useState(urlValue)
 
   useEffect(() => {
     if (input === urlValue) return
     const t = setTimeout(() => {
+      // Clicking a result navigates away; the timer is cleared on unmount, but the new
+      // route can commit before that cleanup runs. Writing a bare `?q=...` at that point
+      // resolves against whatever page is showing now and stamps the search onto it
+      // (/projects/39?q=...), so bail out once we've left the page this input belongs to.
+      if (window.location.pathname !== pathname) return
       const params = new URLSearchParams(searchParams.toString())
       if (input) params.set(key, input)
       else params.delete(key)
@@ -58,10 +64,10 @@ export function useUrlSearchInput(
       // the router's navigation queue — router.replace() here would otherwise race a
       // pending router.push() from clicking a result (e.g. a search result link clicked
       // just as the debounce fires) and silently cancel that navigation.
-      window.history.replaceState(null, '', `?${params.toString()}`)
+      window.history.replaceState(null, '', `${pathname}?${params.toString()}`)
     }, delayMs)
     return () => clearTimeout(t)
-  }, [input, searchParams]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [input, searchParams, pathname]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return [input, setInput, urlValue]
 }

@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
 import { sendRelayMessage, isEmailConfigured } from '@/lib/email'
+import { checkRateLimit } from '@/lib/rate-limit'
 import { authedProcedure, approvedProcedure } from '../procedures'
 import { WorkItemType } from '@/generated/prisma/enums'
 
@@ -68,6 +69,17 @@ export const messagesRouter = {
     }),
 
   send: approvedProcedure.input(ContactSchema).handler(async ({ input, context }) => {
+    // Every send fans out to a real email; without a cap one account can use the relay
+    // to spam the directory.
+    const { allowed, retryAfterMs } = checkRateLimit(context.request, 'messages-send', {
+      limit: 20,
+      windowMs: 60 * 60 * 1000,
+    })
+    if (!allowed)
+      throw new ORPCError('TOO_MANY_REQUESTS', {
+        message: `Rate limited. Retry after ${retryAfterMs}ms`,
+      })
+
     const sender = context.volunteer
     if (sender.id === input.recipientId) {
       throw new ORPCError('BAD_REQUEST', { message: 'Cannot message yourself' })

@@ -3,7 +3,7 @@ import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
 import { notifyUser } from '@/lib/notify'
 import { canViewWorkItem, canPostComment, resolveTeamPrivy } from '@/lib/work-item'
-import { publicProcedure, authedProcedure } from '../procedures'
+import { authedProcedure } from '../procedures'
 import { ApprovalStatus, InterestStatus, WorkItemType } from '@/generated/prisma/enums'
 
 const WORK_ITEM_SELECT = {
@@ -73,7 +73,7 @@ async function resolveCanPost(
 }
 
 export const workItemCommentsRouter = {
-  list: publicProcedure
+  list: authedProcedure
     .input(z.object({ workItemId: z.number().int() }))
     .handler(async ({ input, context }) => {
       const loaded = await loadWithParent(input.workItemId)

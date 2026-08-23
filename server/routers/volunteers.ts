@@ -3,7 +3,7 @@ import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
 import { redactVolunteer } from '@/lib/auth'
 import { UpdateVolunteerSchema } from '@/lib/schemas'
-import { publicProcedure, authedProcedure } from '../procedures'
+import { approvedProcedure, authedProcedure } from '../procedures'
 import {
   ApprovalStatus,
   ProjectStatus,
@@ -12,7 +12,7 @@ import {
 } from '@/generated/prisma/enums'
 
 export const volunteersRouter = {
-  list: publicProcedure
+  list: approvedProcedure
     .input(
       z.object({
         skillIds: z.array(z.number().int()).optional(),
@@ -25,15 +25,7 @@ export const volunteersRouter = {
     )
     .handler(async ({ input, context }) => {
       const currentVolunteer = context.volunteer
-      if (
-        currentVolunteer &&
-        currentVolunteer.approvalStatus !== ApprovalStatus.approved &&
-        !currentVolunteer.isAdmin
-      ) {
-        throw new ORPCError('FORBIDDEN', { message: 'Your account is pending approval' })
-      }
-
-      const isAdmin = currentVolunteer?.isAdmin ?? false
+      const isAdmin = currentVolunteer.isAdmin ?? false
 
       const where: Record<string, unknown> = {
         deletedAt: null,
@@ -125,17 +117,10 @@ export const volunteersRouter = {
       }
     }),
 
-  getById: publicProcedure
+  getById: approvedProcedure
     .input(z.object({ id: z.number().int() }))
     .handler(async ({ input, context }) => {
       const currentVolunteer = context.volunteer
-      if (
-        currentVolunteer &&
-        currentVolunteer.approvalStatus !== ApprovalStatus.approved &&
-        !currentVolunteer.isAdmin
-      ) {
-        throw new ORPCError('FORBIDDEN', { message: 'Your account is pending approval' })
-      }
 
       const vol = await prisma.volunteer.findFirst({
         where: { id: input.id, deletedAt: null, consentMakeProfileVisibleInDirectory: true },

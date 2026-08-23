@@ -294,18 +294,19 @@ export const quickTasksRouter = {
         where: { id: input.id, type: WorkItemType.QUICK_TASK },
       })
       if (!task) throw new ORPCError('NOT_FOUND', { message: 'Task not found' })
-      if (task.status !== QuickTaskStatus.open || task.assigneeId !== null) {
-        throw new ORPCError('BAD_REQUEST', { message: 'This task has already been claimed' })
-      }
-
-      await prisma.workItem.update({
-        where: { id: input.id },
+      // Guarded update rather than check-then-write: two volunteers claiming at the same
+      // moment must not both succeed, with the second silently taking the task.
+      const claimed = await prisma.workItem.updateMany({
+        where: { id: input.id, status: QuickTaskStatus.open, assigneeId: null },
         data: {
           assigneeId: volunteer.id,
           status: QuickTaskStatus.in_progress,
           updatedAt: new Date(),
         },
       })
+      if (claimed.count === 0) {
+        throw new ORPCError('BAD_REQUEST', { message: 'This task has already been claimed' })
+      }
 
       return { message: 'Task claimed' }
     }),

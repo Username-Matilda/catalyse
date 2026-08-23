@@ -11,6 +11,7 @@ import {
   CLAIM_BLOCKING_INTEREST_STATUSES,
 } from '@/lib/work-item'
 import { notifyUser, notifyAdmins, notifyTeamOfProject, clearNotifications } from '@/lib/notify'
+import { html } from '@/lib/email'
 import {
   CreateProjectSchema,
   UpdateProjectSchema,
@@ -33,6 +34,25 @@ import {
   TaskStatus,
   WorkItemType,
 } from '@/generated/prisma/enums'
+
+/**
+ * Can this volunteer reach a team-restricted project at all? Mirrors the list/getById
+ * gate: a project tagged to a team is only reachable by that team's members, its
+ * owner/proposer, an accepted helper, or an admin.
+ */
+async function canReachProject(
+  project: {
+    id: number
+    teamId: number | null
+    creatorId: number | null
+    assigneeId: number | null
+  },
+  volunteer: { id: number; isAdmin: boolean | null },
+): Promise<boolean> {
+  if (project.teamId === null || volunteer.isAdmin) return true
+  if (project.creatorId === volunteer.id || project.assigneeId === volunteer.id) return true
+  return resolveTeamPrivy(project.teamId, project.id, volunteer.id)
+}
 
 /** Has this volunteer been declined from, or withdrawn from, this project? */
 async function isBlockedFromClaiming(projectId: number, volunteerId: number): Promise<boolean> {
@@ -214,8 +234,13 @@ export const projectsRouter = {
         .filter((p): p is NonNullable<typeof p> => p !== undefined)
         .map((p) => withProjectExtras(p as EnrichedProject, volunteerSkillIds, viewerTeamIds))
 
-      if (input.sortBy === 'match' && volunteerSkillIds && volunteerSkillIds.size > 0) {
-        projects.sort((a, b) => (b.match?.overallScore ?? 0) - (a.match?.overallScore ?? 0))
+      // Match sorting can't be done in SQL, so this branch fetched every matching id and
+      // paginates here. The slice has to happen whether or not the volunteer has skills to
+      // sort by — without it, a volunteer with no skills got the entire result set back.
+      if (input.sortBy === 'match') {
+        if (volunteerSkillIds.size > 0) {
+          projects.sort((a, b) => (b.match?.overallScore ?? 0) - (a.match?.overallScore ?? 0))
+        }
         return { projects: projects.slice(input.offset, input.offset + input.limit), total }
       }
 
@@ -433,7 +458,8 @@ export const projectsRouter = {
       `Proposed by ${volunteer.name}`,
       '/admin/triage',
       {
-        message: `<strong>${volunteer.name}</strong> has submitted a new project proposal: <strong>${project.title}</strong>. Please review it in the triage queue.`,
+        message: html`<strong>${volunteer.name}</strong> has submitted a new project proposal:
+          <strong>${project.title}</strong>. Please review it in the triage queue.`,
         projectTitle: project.title,
         projectId: project.id,
       },
@@ -672,13 +698,53 @@ export const projectsRouter = {
         'outcome',
         'outcomeNotes',
       ] as const
-      if (body.teamId !== undefined) data.teamId = body.teamId
+      // Handing the project to a different owner or team is the owner's call (or an
+      // admin's) — a proposer who never owned it can't appoint themselves. Submitting the
+      // current value is always fine: the edit form posts every field back unchanged.
+      const canReassign = isAssignee || Boolean(volunteer.isAdmin)
+
+      if (body.teamId !== undefined && body.teamId !== project.teamId) {
+        if (!canReassign) {
+          throw new ORPCError('FORBIDDEN', {
+            message: 'Only the project owner or an admin can change the team',
+          })
+        }
+        if (body.teamId !== null) {
+          const team = await prisma.team.findUnique({
+            where: { id: body.teamId },
+            select: { id: true },
+          })
+          if (!team) throw new ORPCError('BAD_REQUEST', { message: 'Team not found' })
+        }
+        data.teamId = body.teamId
+      }
+
       for (const field of stringFields) {
         if (body[field] !== undefined) data[field] = body[field]
       }
       if (body.timeCommitmentHoursPerWeek !== undefined)
         data.timeCommitmentHoursPerWeek = body.timeCommitmentHoursPerWeek
-      if (body.assigneeId !== undefined) data.assigneeId = body.assigneeId
+
+      if (body.assigneeId !== undefined && body.assigneeId !== project.assigneeId) {
+        if (!canReassign) {
+          throw new ORPCError('FORBIDDEN', {
+            message: 'Only the project owner or an admin can change the owner',
+          })
+        }
+        if (body.assigneeId !== null) {
+          const newOwner = await prisma.volunteer.findFirst({
+            where: { id: body.assigneeId, deletedAt: null },
+            select: { approvalStatus: true },
+          })
+          if (!newOwner) throw new ORPCError('BAD_REQUEST', { message: 'Volunteer not found' })
+          if (newOwner.approvalStatus !== ApprovalStatus.approved) {
+            throw new ORPCError('BAD_REQUEST', {
+              message: 'Cannot assign a project to a volunteer who is not yet approved',
+            })
+          }
+        }
+        data.assigneeId = body.assigneeId
+      }
 
       if (newStatus !== undefined) {
         if (volunteer.isAdmin) {
@@ -766,7 +832,8 @@ export const projectsRouter = {
             `Status changed by ${volunteer.name}`,
             `/projects/${input.id}`,
             {
-              message: `The project <strong>${project.title}</strong> has been updated to <strong>${statusLabel}</strong>.`,
+              message: html`The project <strong>${project.title}</strong> has been updated to
+                <strong>${statusLabel}</strong>.`,
               projectTitle: project.title,
               projectId: input.id,
             },
@@ -807,6 +874,10 @@ export const projectsRouter = {
         throw new ORPCError('NOT_FOUND', {
           message: 'This project is not currently seeking volunteers',
         })
+      }
+
+      if (!(await canReachProject(project, volunteer))) {
+        throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
       }
 
       const existing = await prisma.workItemInterest.findFirst({
@@ -852,11 +923,16 @@ export const projectsRouter = {
           `/projects/${input.projectId}`,
           {
             subject: `${volunteer.name} wants to ${interestLabel} '${project.title}'`,
-            message: `<strong>${volunteer.name}</strong> has expressed interest in your project <strong>${project.title}</strong>.`,
+            message: html`<strong>${volunteer.name}</strong> has expressed interest in your project
+              <strong>${project.title}</strong>.`,
             projectTitle: project.title,
             projectId: input.projectId,
             extraHtml: message
-              ? `<div style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"><strong>Their message:</strong> ${message}</div>`
+              ? html`<div
+                  style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"
+                >
+                  <strong>Their message:</strong> ${message}
+                </div>`
               : undefined,
           },
           interest.id,
@@ -946,11 +1022,16 @@ export const projectsRouter = {
         input.responseMessage ?? null,
         `/projects/${input.projectId}`,
         {
-          message: `The team has <strong>${input.status}</strong> your interest in the project <strong>${project.title}</strong>.`,
+          message: html`The team has <strong>${input.status}</strong> your interest in the project
+            <strong>${project.title}</strong>.`,
           projectTitle: project.title,
           projectId: input.projectId,
           extraHtml: input.responseMessage
-            ? `<div style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"><strong>Message:</strong> ${input.responseMessage}</div>`
+            ? html`<div
+                style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"
+              >
+                <strong>Message:</strong> ${input.responseMessage}
+              </div>`
             : undefined,
         },
       )
@@ -1042,7 +1123,8 @@ export const projectsRouter = {
         `Assigned by ${volunteer.name}`,
         `/projects/${input.projectId}`,
         {
-          message: `<strong>${volunteer.name}</strong> has assigned you to the project <strong>${project.title}</strong>.`,
+          message: html`<strong>${volunteer.name}</strong> has assigned you to the project
+            <strong>${project.title}</strong>.`,
           projectTitle: project.title,
           projectId: input.projectId,
         },
@@ -1053,7 +1135,32 @@ export const projectsRouter = {
 
   listTasks: approvedProcedure
     .input(z.object({ projectId: z.number().int() }))
-    .handler(async ({ input }) => {
+    .handler(async ({ input, context }) => {
+      const volunteer = context.volunteer
+
+      // Task visibility follows the project's: without this any approved volunteer could
+      // read the task list of a team-restricted or still-unapproved project by id.
+      const project = await prisma.workItem.findFirst({
+        where: { id: input.projectId, type: WorkItemType.PROJECT },
+      })
+      if (!project) throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
+
+      const isTeamPrivy = await resolveTeamPrivy(project.teamId, project.id, volunteer.id)
+      if (
+        !canViewWorkItem(
+          project,
+          {
+            id: volunteer.id,
+            isAdmin: Boolean(volunteer.isAdmin),
+            isApproved: volunteer.approvalStatus === ApprovalStatus.approved,
+          },
+          undefined,
+          isTeamPrivy,
+        )
+      ) {
+        throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
+      }
+
       const tasks = await prisma.workItem.findMany({
         where: { parentId: input.projectId, type: WorkItemType.TASK },
         include: {
@@ -1270,15 +1377,16 @@ export const projectsRouter = {
         throw new ORPCError('FORBIDDEN', { message: 'Not authorized to update this task' })
       }
 
-      if (
-        isSelfClaim &&
-        !isAssignee &&
-        !volunteer.isAdmin &&
-        (await isBlockedFromClaiming(input.projectId, volunteer.id))
-      ) {
-        throw new ORPCError('FORBIDDEN', {
-          message: 'You are no longer contributing to this project, so you cannot claim its tasks',
-        })
+      if (isSelfClaim && !isAssignee && !volunteer.isAdmin) {
+        if (await isBlockedFromClaiming(input.projectId, volunteer.id)) {
+          throw new ORPCError('FORBIDDEN', {
+            message:
+              'You are no longer contributing to this project, so you cannot claim its tasks',
+          })
+        }
+        if (!(await canReachProject(project, volunteer))) {
+          throw new ORPCError('NOT_FOUND', { message: 'Project or task not found' })
+        }
       }
 
       const data: Record<string, unknown> = {}
@@ -1301,7 +1409,19 @@ export const projectsRouter = {
       data.nudgeSentAt = null
       data.finalWarningSentAt = null
 
-      await prisma.workItem.update({ where: { id: input.taskId }, data })
+      if (isSelfClaim) {
+        // Two volunteers hitting claim at once must not both win — only the update that
+        // still sees the task open and unheld takes it.
+        const claimed = await prisma.workItem.updateMany({
+          where: { id: input.taskId, status: TaskStatus.open, assigneeId: null },
+          data,
+        })
+        if (claimed.count === 0) {
+          throw new ORPCError('BAD_REQUEST', { message: 'This task has already been claimed' })
+        }
+      } else {
+        await prisma.workItem.update({ where: { id: input.taskId }, data })
+      }
 
       if (isSelfClaim) {
         const existingInterest = await prisma.workItemInterest.findFirst({
@@ -1378,7 +1498,8 @@ export const projectsRouter = {
         task.title,
         `/projects/${input.projectId}`,
         {
-          message: `You've been assigned the task <strong>${task.title}</strong> on the project <strong>${project.title}</strong>.`,
+          message: html`You've been assigned the task <strong>${task.title}</strong> on the project
+            <strong>${project.title}</strong>.`,
           projectTitle: project.title,
           projectId: input.projectId,
         },

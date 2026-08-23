@@ -10,6 +10,34 @@ function escapeHtml(s: string): string {
     .replace(/'/g, '&#39;')
 }
 
+/**
+ * Marks a string as already-safe HTML so `html` won't escape it again — for fragments
+ * this module (or a caller) has itself built out of escaped pieces.
+ */
+class SafeHtml {
+  constructor(readonly value: string) {}
+}
+
+export function rawHtml(value: string): SafeHtml {
+  return new SafeHtml(value)
+}
+
+/**
+ * Tagged template for the HTML bodies passed to notifyUser/notifyAdmins as `message`
+ * and `extraHtml`. Every interpolated value is escaped, so volunteer names, project
+ * titles and free-text messages can't inject markup into an email we send. Wrap a
+ * deliberate fragment in `rawHtml()` to opt out.
+ */
+export function html(strings: TemplateStringsArray, ...values: unknown[]): string {
+  let out = strings[0]
+  for (let i = 0; i < values.length; i++) {
+    const v = values[i]
+    out += v instanceof SafeHtml ? v.value : escapeHtml(String(v ?? ''))
+    out += strings[i + 1]
+  }
+  return out
+}
+
 const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null
 
 export function isEmailConfigured(): boolean {
@@ -74,7 +102,7 @@ function footer(buttons: Array<[string, string]> = []): string {
   const fallbacks = buttons
     .map(
       ([label, url]) =>
-        `<p style="font-size: 12px;">If the "${label}" button doesn't work, copy this link: <a href="${url}" style="color: #718096; word-break: break-all;">${url}</a></p>`,
+        `<p style="font-size: 12px;">If the "${escapeHtml(label)}" button doesn't work, copy this link: <a href="${escapeHtml(url)}" style="color: #718096; word-break: break-all;">${escapeHtml(url)}</a></p>`,
     )
     .join('')
   return `<div class="footer">
@@ -412,7 +440,7 @@ export function buildProjectNotificationHtml(
   const n = escapeHtml(name)
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
 <body><div class="container">
-  <h2>${subject}</h2>
+  <h2>${escapeHtml(subject)}</h2>
   <p>Hi ${n},</p>
   <p>${message}</p>
   ${extraHtml}
@@ -433,11 +461,11 @@ export function buildAdminAlertHtml(
   const n = escapeHtml(name)
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
 <body><div class="container">
-  <h2>${subject}</h2>
+  <h2>${escapeHtml(subject)}</h2>
   <p>Hi ${n},</p>
   <p>${message}</p>
   <p style="text-align: center; margin: 32px 0;">
-    <a href="${ctaUrl}" class="button">${ctaLabel}</a>
+    <a href="${escapeHtml(ctaUrl)}" class="button">${escapeHtml(ctaLabel)}</a>
   </p>
   ${footer([[ctaLabel, ctaUrl]])}
 </div></body></html>`

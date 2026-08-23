@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { TeamSuggestionBodySchema } from '@/lib/schemas'
 import { notifyAdmins } from '@/lib/notify'
+import { html } from '@/lib/email'
 import { authedProcedure, approvedProcedure } from '../procedures'
 
 export const teamSuggestionsRouter = {
@@ -40,7 +41,8 @@ export const teamSuggestionsRouter = {
       '/admin/teams',
       {
         subject: title,
-        message: `${context.volunteer.name} suggested a new team: <strong>${input.name}</strong>.`,
+        message: html`${context.volunteer.name} suggested a new team:
+          <strong>${input.name}</strong>.`,
         ctaLabel: 'Review Suggestion',
         ctaUrl: '/admin/teams',
       },
