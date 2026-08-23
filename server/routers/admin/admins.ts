@@ -69,10 +69,11 @@ export const adminAdminsRouter = {
       include: { invitedBy: { select: { name: true } } },
       orderBy: { createdAt: 'desc' },
     })
+    // The token itself stays server-side: it is the credential in the invite link, and
+    // the admin list only needs to show who was invited and where the invite stands.
     return invites.map((i) => ({
       id: i.id,
       email: i.email,
-      inviteToken: i.inviteToken,
       invitedById: i.invitedById,
       status: i.status,
       acceptedById: i.acceptedById,

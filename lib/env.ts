@@ -27,6 +27,9 @@ export function validateEnv(): void {
   // Railway PR deployments run as NODE_ENV=production but aren't the live environment
   if (process.env.RAILWAY_ENVIRONMENT_NAME && process.env.RAILWAY_ENVIRONMENT_NAME !== 'production')
     return
+  // The e2e harness serves a production build locally with the stub flags on (see
+  // e2e/global-setup.ts); it is not a deployment and must not be held to these rules.
+  if (process.env.E2E === '1') return
 
   const errors: EnvError[] = []
 
@@ -38,11 +41,23 @@ export function validateEnv(): void {
     errors.push({ var: 'CRON_SECRET', reason: 'required to authenticate cron endpoints' })
   }
 
-  if (!env.STUB_EMAIL && !env.RESEND_API_KEY) {
-    errors.push({
-      var: 'RESEND_API_KEY',
-      reason: 'required to send emails (or set STUB_EMAIL=true)',
-    })
+  if (!env.RESEND_API_KEY) {
+    errors.push({ var: 'RESEND_API_KEY', reason: 'required to send emails' })
+  }
+
+  // Development shortcuts that are unsafe in the live environment: STUB_GOOGLE accepts a
+  // sign-in for any email with no Google credential, STUB_EMAIL returns password-reset and
+  // invite tokens in API responses instead of mailing them, and DISABLE_RATE_LIMIT turns
+  // off every limiter. Refuse to boot rather than run with any of them on.
+  const unsafeStubs: Array<[string, boolean]> = [
+    ['STUB_GOOGLE', env.STUB_GOOGLE],
+    ['STUB_EMAIL', env.STUB_EMAIL],
+    ['DISABLE_RATE_LIMIT', env.DISABLE_RATE_LIMIT],
+  ]
+  for (const [name, enabled] of unsafeStubs) {
+    if (enabled) {
+      errors.push({ var: name, reason: 'development-only flag, must be off in production' })
+    }
   }
 
   const b2Vars = ['B2_KEY_ID', 'B2_APP_KEY', 'B2_BUCKET_NAME'] as const

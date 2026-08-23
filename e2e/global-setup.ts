@@ -77,6 +77,9 @@ function startWorkerNextJs(parallelIndex: number): number {
       STUB_EMAIL: 'true',
       STUB_GOOGLE: 'true',
       DISABLE_RATE_LIMIT: 'true',
+      // These stubs are refused in a production deployment (lib/env.ts); mark this
+      // production build as the test harness so startup validation lets them through.
+      E2E: '1',
     },
     cwd: PROJECT_ROOT,
     detached: false,

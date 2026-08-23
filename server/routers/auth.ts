@@ -465,11 +465,33 @@ export const authRouter = {
       throw new ORPCError('BAD_REQUEST', {
         message: 'This email is already registered to another account',
       })
+    // The new address is unproven: drop confirmed status and send a fresh confirmation
+    // link there, otherwise a verified account could point itself at any address.
+    await prisma.emailVerificationToken.updateMany({
+      where: { volunteerId: context.volunteer.id, usedAt: null },
+      data: { usedAt: new Date() },
+    })
+    const vt = await prisma.emailVerificationToken.create({
+      data: {
+        volunteerId: context.volunteer.id,
+        token: randomBytes(32).toString('hex'),
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      },
+    })
     await prisma.volunteer.update({
       where: { id: context.volunteer.id },
-      data: { email: newEmail, updatedAt: new Date() },
+      data: { email: newEmail, emailConfirmed: false, updatedAt: new Date() },
     })
-    return { message: 'Email changed successfully' }
+    sendWelcomeAndConfirmEmail({
+      to: newEmail,
+      token: vt.token,
+      name: context.volunteer.name,
+    }).catch((e) => console.error('[CHANGE_EMAIL]', e))
+
+    return {
+      message: 'Email changed. Check your new address for a confirmation link.',
+      ...(STUB_EMAIL ? { emailVerificationToken: vt.token } : {}),
+    }
   }),
 
   forgotPassword: publicProcedure

@@ -35,6 +35,25 @@ import {
   WorkItemType,
 } from '@/generated/prisma/enums'
 
+/**
+ * Can this volunteer reach a team-restricted project at all? Mirrors the list/getById
+ * gate: a project tagged to a team is only reachable by that team's members, its
+ * owner/proposer, an accepted helper, or an admin.
+ */
+async function canReachProject(
+  project: {
+    id: number
+    teamId: number | null
+    creatorId: number | null
+    assigneeId: number | null
+  },
+  volunteer: { id: number; isAdmin: boolean | null },
+): Promise<boolean> {
+  if (project.teamId === null || volunteer.isAdmin) return true
+  if (project.creatorId === volunteer.id || project.assigneeId === volunteer.id) return true
+  return resolveTeamPrivy(project.teamId, project.id, volunteer.id)
+}
+
 /** Has this volunteer been declined from, or withdrawn from, this project? */
 async function isBlockedFromClaiming(projectId: number, volunteerId: number): Promise<boolean> {
   const blocking = await prisma.workItemInterest.findFirst({
@@ -674,13 +693,53 @@ export const projectsRouter = {
         'outcome',
         'outcomeNotes',
       ] as const
-      if (body.teamId !== undefined) data.teamId = body.teamId
+      // Handing the project to a different owner or team is the owner's call (or an
+      // admin's) — a proposer who never owned it can't appoint themselves. Submitting the
+      // current value is always fine: the edit form posts every field back unchanged.
+      const canReassign = isAssignee || Boolean(volunteer.isAdmin)
+
+      if (body.teamId !== undefined && body.teamId !== project.teamId) {
+        if (!canReassign) {
+          throw new ORPCError('FORBIDDEN', {
+            message: 'Only the project owner or an admin can change the team',
+          })
+        }
+        if (body.teamId !== null) {
+          const team = await prisma.team.findUnique({
+            where: { id: body.teamId },
+            select: { id: true },
+          })
+          if (!team) throw new ORPCError('BAD_REQUEST', { message: 'Team not found' })
+        }
+        data.teamId = body.teamId
+      }
+
       for (const field of stringFields) {
         if (body[field] !== undefined) data[field] = body[field]
       }
       if (body.timeCommitmentHoursPerWeek !== undefined)
         data.timeCommitmentHoursPerWeek = body.timeCommitmentHoursPerWeek
-      if (body.assigneeId !== undefined) data.assigneeId = body.assigneeId
+
+      if (body.assigneeId !== undefined && body.assigneeId !== project.assigneeId) {
+        if (!canReassign) {
+          throw new ORPCError('FORBIDDEN', {
+            message: 'Only the project owner or an admin can change the owner',
+          })
+        }
+        if (body.assigneeId !== null) {
+          const newOwner = await prisma.volunteer.findFirst({
+            where: { id: body.assigneeId, deletedAt: null },
+            select: { approvalStatus: true },
+          })
+          if (!newOwner) throw new ORPCError('BAD_REQUEST', { message: 'Volunteer not found' })
+          if (newOwner.approvalStatus !== ApprovalStatus.approved) {
+            throw new ORPCError('BAD_REQUEST', {
+              message: 'Cannot assign a project to a volunteer who is not yet approved',
+            })
+          }
+        }
+        data.assigneeId = body.assigneeId
+      }
 
       if (newStatus !== undefined) {
         if (volunteer.isAdmin) {
@@ -810,6 +869,10 @@ export const projectsRouter = {
         throw new ORPCError('NOT_FOUND', {
           message: 'This project is not currently seeking volunteers',
         })
+      }
+
+      if (!(await canReachProject(project, volunteer))) {
+        throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
       }
 
       const existing = await prisma.workItemInterest.findFirst({
@@ -1309,15 +1372,16 @@ export const projectsRouter = {
         throw new ORPCError('FORBIDDEN', { message: 'Not authorized to update this task' })
       }
 
-      if (
-        isSelfClaim &&
-        !isAssignee &&
-        !volunteer.isAdmin &&
-        (await isBlockedFromClaiming(input.projectId, volunteer.id))
-      ) {
-        throw new ORPCError('FORBIDDEN', {
-          message: 'You are no longer contributing to this project, so you cannot claim its tasks',
-        })
+      if (isSelfClaim && !isAssignee && !volunteer.isAdmin) {
+        if (await isBlockedFromClaiming(input.projectId, volunteer.id)) {
+          throw new ORPCError('FORBIDDEN', {
+            message:
+              'You are no longer contributing to this project, so you cannot claim its tasks',
+          })
+        }
+        if (!(await canReachProject(project, volunteer))) {
+          throw new ORPCError('NOT_FOUND', { message: 'Project or task not found' })
+        }
       }
 
       const data: Record<string, unknown> = {}
@@ -1340,7 +1404,19 @@ export const projectsRouter = {
       data.nudgeSentAt = null
       data.finalWarningSentAt = null
 
-      await prisma.workItem.update({ where: { id: input.taskId }, data })
+      if (isSelfClaim) {
+        // Two volunteers hitting claim at once must not both win — only the update that
+        // still sees the task open and unheld takes it.
+        const claimed = await prisma.workItem.updateMany({
+          where: { id: input.taskId, status: TaskStatus.open, assigneeId: null },
+          data,
+        })
+        if (claimed.count === 0) {
+          throw new ORPCError('BAD_REQUEST', { message: 'This task has already been claimed' })
+        }
+      } else {
+        await prisma.workItem.update({ where: { id: input.taskId }, data })
+      }
 
       if (isSelfClaim) {
         const existingInterest = await prisma.workItemInterest.findFirst({
