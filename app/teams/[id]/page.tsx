@@ -29,7 +29,7 @@ export default function TeamDetailPage({ params }: { params: Promise<{ id: strin
   const applyMutation = useMutation({
     ...orpc.teams.apply.mutationOptions(),
     onSuccess: () => {
-      showToast('Application submitted — a team leader will review it', 'success')
+      showToast('Application submitted, a team leader will review it', 'success')
       void invalidate()
     },
     onError: (err: unknown) => {

@@ -174,7 +174,7 @@ export const teamsRouter = {
         },
       })
       if (existingRequest) {
-        throw new ORPCError('BAD_REQUEST', { message: 'Already applied — awaiting review' })
+        throw new ORPCError('BAD_REQUEST', { message: 'Already applied, awaiting review' })
       }
 
       await prisma.teamJoinRequest.create({

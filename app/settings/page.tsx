@@ -381,7 +381,7 @@ function SettingsPageContent() {
           </Button>
           <p className="text-sm text-text-light mt-3">
             Update your skills, contact details, or availability below, then resubmit when
-            you&apos;re ready — an admin will review your application again.
+            you&apos;re ready: an admin will review your application again.
           </p>
         </div>
       )}

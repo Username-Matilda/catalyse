@@ -55,7 +55,7 @@ const EMAIL_PREVIEW_REGISTRY: Record<string, { subject: string; build: () => str
     build: () => buildWelcomeHtml('Alex', APP_URL),
   },
   'welcome-and-confirm': {
-    subject: 'Welcome to Catalyse — please confirm your email',
+    subject: 'Welcome to Catalyse: please confirm your email',
     build: () =>
       buildWelcomeAndConfirmHtml('Alex', `${APP_URL}/verify-email?token=sample-token-abc123`),
   },
@@ -95,7 +95,7 @@ const EMAIL_PREVIEW_REGISTRY: Record<string, { subject: string; build: () => str
       buildProjectNotificationHtml(
         'Alex',
         'Your project has been approved',
-        'Great news — your project AI Safety Explainer Series has been reviewed and approved.',
+        'Great news: your project AI Safety Explainer Series has been reviewed and approved.',
         1,
         APP_URL,
       ),

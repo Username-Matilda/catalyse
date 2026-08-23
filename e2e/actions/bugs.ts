@@ -2,10 +2,10 @@ import { Page, expect } from '@playwright/test'
 import { selectFilterDropdown } from './ui'
 
 const SEVERITY_LABELS: Record<string, string> = {
-  low: 'Low — minor inconvenience',
-  medium: 'Medium — affects workflow',
-  high: 'High — blocking',
-  critical: 'Critical — site is broken',
+  low: 'Low: minor inconvenience',
+  medium: 'Medium: affects workflow',
+  high: 'High: blocking',
+  critical: 'Critical: site is broken',
 }
 
 export async function openBugReportForm(page: Page): Promise<void> {

@@ -216,7 +216,7 @@ export default function AdminLocalGroupsPage() {
     { value: '', label: 'Select an existing group…' },
     ...allGroups.map((g) => ({
       value: String(g.id),
-      label: `${countryLabel(g.country)} — ${g.name}`,
+      label: `${countryLabel(g.country)}, ${g.name}`,
     })),
   ]
 
@@ -384,7 +384,7 @@ export default function AdminLocalGroupsPage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold">
-                        {countryLabel(item.country)} — {item.name}
+                        {countryLabel(item.country)}, {item.name}
                       </span>
                       <span
                         className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_BADGE[status] ?? ''}`}
@@ -567,7 +567,7 @@ export default function AdminLocalGroupsPage() {
                 Suggested by {reviewSuggestion.suggestedBy.name}
               </p>
               <p className="font-semibold mb-5">
-                {countryLabel(reviewSuggestion.country)} — {reviewSuggestion.name}
+                {countryLabel(reviewSuggestion.country)}, {reviewSuggestion.name}
               </p>
 
               <form onSubmit={submitReview}>
@@ -590,7 +590,7 @@ export default function AdminLocalGroupsPage() {
                         onChange={() => setReviewAction(opt.value)}
                       >
                         <span>
-                          <strong>{opt.label}</strong> — {opt.desc}
+                          <strong>{opt.label}</strong>: {opt.desc}
                         </span>
                       </Radio>
                     ))}
@@ -711,7 +711,7 @@ export default function AdminLocalGroupsPage() {
               <p>
                 Delete{' '}
                 <strong>
-                  {countryLabel(deleteTarget.country)} — {deleteTarget.name}
+                  {countryLabel(deleteTarget.country)}, {deleteTarget.name}
                 </strong>
                 ? This cannot be undone.
               </p>

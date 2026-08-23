@@ -56,7 +56,7 @@ function VerifyEmailContent() {
       <div className="bg-surface rounded-xl shadow p-8 text-center">
         <h1>Email confirmed!</h1>
         <p className="text-text-light mt-4 mb-6">
-          Your email address has been confirmed. Your application is now under review — we&#39;ll
+          Your email address has been confirmed. Your application is now under review, we&#39;ll
           notify you by email once it&#39;s been assessed.
         </p>
         <p className="text-text-light mb-6">In the meantime, you can browse available projects.</p>

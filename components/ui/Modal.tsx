@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import Button from '@/components/Button'
+import { useFocusTrap } from '@/lib/hooks/useFocusTrap'
 
 interface ModalProps {
   id: string
@@ -21,6 +22,8 @@ export default function Modal({ id, title, children, isOpen, onClose }: ModalPro
     return () => document.removeEventListener('keydown', handler)
   }, [isOpen, onClose])
 
+  const trapRef = useFocusTrap(isOpen)
+
   if (!isOpen) return null
 
   return (
@@ -29,6 +32,7 @@ export default function Modal({ id, title, children, isOpen, onClose }: ModalPro
       onClick={onClose}
     >
       <div
+        ref={trapRef}
         id={id}
         className="bg-surface max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg p-6 shadow-lg"
         role="dialog"

@@ -247,7 +247,7 @@ test.describe('Volunteer Profile', () => {
     await selectFilterDropdown(
       volunteer.page,
       'Select local group',
-      "None of these — I'll enter my city",
+      "None of these, I'll enter my city",
     )
     await expect(volunteer.page.getByLabel('City / Area')).toBeVisible({ timeout: 5_000 })
 

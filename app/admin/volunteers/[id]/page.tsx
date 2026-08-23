@@ -291,7 +291,7 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
             {vol.endorsements.length > 0 ? (
               vol.endorsements.map((e) => (
                 <div key={e.id} className="py-1.5 border-b border-brand-border text-sm">
-                  <strong>{e.skillName}</strong> — {e.rating} · by {e.endorsedByName}
+                  <strong>{e.skillName}</strong>: {e.rating} · by {e.endorsedByName}
                 </div>
               ))
             ) : (

@@ -79,7 +79,7 @@ const RATING_LABELS: Record<string, string> = {
 
 const STATUS_LABELS: Record<string, string> = {
   in_progress: 'Assigned',
-  under_review: 'Submitted — awaiting review',
+  under_review: 'Submitted, awaiting review',
   completed: 'Completed',
 }
 
@@ -261,7 +261,7 @@ function VolunteerQuickTasksView() {
 
         <h2 className="mt-8">Browse Quick Tasks</h2>
         <p className="text-text-light mb-6">
-          Open tasks to pick up right now — no need to browse projects first.
+          Open tasks to pick up right now, no need to browse projects first.
         </p>
 
         {loadingAvailable ? (
@@ -1082,10 +1082,10 @@ function AdminQuickTasksView() {
                         <span>
                           <strong>{RATING_LABELS[r]}</strong>
                           {r === 'excellent'
-                            ? ' — Exceeded expectations'
+                            ? ': Exceeded expectations'
                             : r === 'good'
-                              ? ' — Met expectations'
-                              : ' — Not quite there yet'}
+                              ? ': Met expectations'
+                              : ': Not quite there yet'}
                         </span>
                       </label>
                     ))}
