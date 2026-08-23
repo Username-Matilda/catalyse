@@ -21,6 +21,7 @@ import {
   sendApplicationApprovedEmail,
 } from '@/lib/email'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { verifyGoogleToken } from '@/lib/google-auth'
 import { notifyAdmins } from '@/lib/notify'
 import {
   SignupSchema,
@@ -36,20 +37,6 @@ import { ApprovalStatus, ProjectStatus, WorkItemType } from '@/generated/prisma/
 const STUB_EMAIL = env.STUB_EMAIL
 const GOOGLE_CLIENT_ID = env.GOOGLE_CLIENT_ID
 const STUB_GOOGLE = env.STUB_GOOGLE || (!GOOGLE_CLIENT_ID && env.NODE_ENV !== 'production')
-
-async function verifyGoogleToken(credential: string) {
-  if (!GOOGLE_CLIENT_ID) return null
-  try {
-    const resp = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`)
-    if (!resp.ok) return null
-    const data = (await resp.json()) as Record<string, string>
-    if (data.aud !== GOOGLE_CLIENT_ID) return null
-    if (data.email_verified !== 'true') return null
-    return { email: data.email, name: data.name || data.email.split('@')[0] }
-  } catch {
-    return null
-  }
-}
 
 async function sendAccountDeletionNotifications(deletedId: number, deletedName: string) {
   const taskRows = await prisma.$queryRaw<

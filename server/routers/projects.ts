@@ -234,8 +234,13 @@ export const projectsRouter = {
         .filter((p): p is NonNullable<typeof p> => p !== undefined)
         .map((p) => withProjectExtras(p as EnrichedProject, volunteerSkillIds, viewerTeamIds))
 
-      if (input.sortBy === 'match' && volunteerSkillIds && volunteerSkillIds.size > 0) {
-        projects.sort((a, b) => (b.match?.overallScore ?? 0) - (a.match?.overallScore ?? 0))
+      // Match sorting can't be done in SQL, so this branch fetched every matching id and
+      // paginates here. The slice has to happen whether or not the volunteer has skills to
+      // sort by — without it, a volunteer with no skills got the entire result set back.
+      if (input.sortBy === 'match') {
+        if (volunteerSkillIds.size > 0) {
+          projects.sort((a, b) => (b.match?.overallScore ?? 0) - (a.match?.overallScore ?? 0))
+        }
         return { projects: projects.slice(input.offset, input.offset + input.limit), total }
       }
 
