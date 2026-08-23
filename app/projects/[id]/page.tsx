@@ -14,6 +14,7 @@ import { INTEREST_STATUS_LABELS, projectStatusVariant } from '@/components/Proje
 import CommentThread from '@/components/CommentThread'
 import Modal from '@/components/ui/Modal'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
+import VolunteerSelect from '@/components/VolunteerSelect'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import { formatDate } from '@/lib/format-date'
@@ -1200,17 +1201,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                         <>
                           <div className="px-3 py-2 flex flex-col gap-2">
                             <h3 className="m-0 text-sm">Transfer Ownership</h3>
-                            <FilterDropdown
+                            <VolunteerSelect
                               id="transfer-to"
                               label="Transfer to"
                               ariaLabel="Transfer to"
                               value={transferTo}
-                              options={[
-                                { value: '', label: '— Select volunteer —' },
-                                ...volunteers.map((v) => ({ value: String(v.id), label: v.name })),
-                              ]}
                               onChange={(v) => setTransferTo(v)}
-                              searchable
                             />
                             <Button
                               variant="secondary"
@@ -1341,17 +1337,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                       >
                         <span className="text-text-light text-sm shrink-0">+ Add</span>
                         <div className="flex-1 min-w-40">
-                          <FilterDropdown
+                          <VolunteerSelect
                             id="assign-volunteer"
                             label=""
                             ariaLabel="Volunteer to assign"
                             value={assignTo}
-                            options={[
-                              { value: '', label: '— Select volunteer —' },
-                              ...volunteers.map((v) => ({ value: String(v.id), label: v.name })),
-                            ]}
                             onChange={(v) => setAssignTo(v)}
-                            searchable
                           />
                         </div>
                         <Button

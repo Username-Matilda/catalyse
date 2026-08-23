@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ORPCError } from '@orpc/client'
 import Button from '@/components/Button'
-import FilterDropdown from '@/components/FilterDropdown'
+import VolunteerSelect from '@/components/VolunteerSelect'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 
@@ -53,26 +53,6 @@ export default function AdminTeamDetailPage({ params }: { params: Promise<{ id: 
   }, [team, initialized])
 
   const [assignVolunteerId, setAssignVolunteerId] = useState('')
-
-  // Server-side search rather than a client-side filter over one page — the volunteer
-  // list can be far bigger than any single page we'd otherwise preload.
-  const [volunteerSearchInput, setVolunteerSearchInput] = useState('')
-  const [volunteerSearch, setVolunteerSearch] = useState('')
-  useEffect(() => {
-    const t = setTimeout(() => setVolunteerSearch(volunteerSearchInput), 300)
-    return () => clearTimeout(t)
-  }, [volunteerSearchInput])
-
-  const { data: volunteersData } = useQuery({
-    ...orpc.volunteers.list.queryOptions({
-      input: { limit: 20, search: volunteerSearch || undefined },
-    }),
-    enabled: !!user,
-  })
-  const volunteerOptions = (volunteersData?.volunteers ?? []).map((v) => ({
-    value: String(v.id),
-    label: v.name,
-  }))
 
   const { data: joinRequestsData } = useQuery({
     ...orpc.teams.listJoinRequests.queryOptions({ input: { teamId } }),
@@ -305,15 +285,14 @@ export default function AdminTeamDetailPage({ params }: { params: Promise<{ id: 
 
         <div className="mb-5 pb-5 border-b border-brand-border flex items-end gap-2">
           <div className="flex-1">
-            <FilterDropdown
+            <VolunteerSelect
               id="assign-volunteer"
               label="Add a volunteer directly"
               ariaLabel="Select volunteer to add"
               value={assignVolunteerId}
-              options={[{ value: '', label: 'Select a volunteer…' }, ...volunteerOptions]}
               onChange={setAssignVolunteerId}
-              onQueryChange={setVolunteerSearchInput}
-              searchable
+              placeholder="Select a volunteer…"
+              enabled={!!user}
             />
           </div>
           <Button

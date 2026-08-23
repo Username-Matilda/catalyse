@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useRequireAdmin } from '@/lib/hooks/auth'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
+import VolunteerSelect from '@/components/VolunteerSelect'
 import Button from '@/components/Button'
 import { orpc } from '@/lib/orpc'
 import { formatDate } from '@/lib/format-date'
@@ -45,12 +46,6 @@ export default function AdminBugsPage() {
     ...listQuery,
     enabled: !!user?.isAdmin,
   })
-
-  const { data: volunteersData } = useQuery({
-    ...orpc.volunteers.list.queryOptions({ input: { limit: 100 } }),
-    enabled: !!user?.isAdmin,
-  })
-  const volunteers = volunteersData?.volunteers ?? []
 
   const [assignSelections, setAssignSelections] = useState<Record<number, string>>({})
 
@@ -163,17 +158,14 @@ export default function AdminBugsPage() {
               )}
 
               <div className="flex-1 min-w-50 max-w-75">
-                <FilterDropdown
+                <VolunteerSelect
                   id={`assign-bug-${r.id}`}
                   label="Assign to"
                   ariaLabel={`Assign volunteer to ${r.title}`}
                   value={assignSelections[r.id] ?? ''}
-                  options={[
-                    { value: '', label: 'Select volunteer…' },
-                    ...volunteers.map((v) => ({ value: String(v.id), label: v.name })),
-                  ]}
                   onChange={(v) => setAssignSelections((s) => ({ ...s, [r.id]: v }))}
-                  searchable
+                  placeholder="Select volunteer…"
+                  enabled={!!user?.isAdmin}
                 />
               </div>
               <Button
