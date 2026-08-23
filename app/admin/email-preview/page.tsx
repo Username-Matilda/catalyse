@@ -203,25 +203,27 @@ function EmailRow({
           Open in new tab ↗
         </button>
       </div>
-      <div className="grid grid-cols-[300px_1fr] gap-8 items-start">
+      <div className="grid grid-cols-[300px_1fr] gap-8 items-start max-[700px]:grid-cols-1">
         <div>
           <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-[0.05em] mb-2">
             Parameters
           </p>
-          <table className="w-full border-collapse text-[13px]">
-            <tbody>
-              {Object.entries(type.params).map(([key, val]) => (
-                <tr key={key}>
-                  <td className="py-1 pr-2 pl-0 text-gray-500 whitespace-nowrap align-top">
-                    {key}
-                  </td>
-                  <td className="py-1 text-secondary break-words">
-                    {typeof val === 'boolean' ? (val ? 'true' : 'false') : String(val)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-[13px]">
+              <tbody>
+                {Object.entries(type.params).map(([key, val]) => (
+                  <tr key={key}>
+                    <td className="py-1 pr-2 pl-0 text-gray-500 whitespace-nowrap align-top">
+                      {key}
+                    </td>
+                    <td className="py-1 text-secondary break-words">
+                      {typeof val === 'boolean' ? (val ? 'true' : 'false') : String(val)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
         <div>
           {preview?.subject && (
