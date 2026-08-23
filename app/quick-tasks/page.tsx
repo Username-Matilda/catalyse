@@ -9,6 +9,7 @@ import { Badge, type BadgeVariant } from '@/components/Badge'
 import Button from '@/components/Button'
 import CommentThread from '@/components/CommentThread'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
+import VolunteerSelect from '@/components/VolunteerSelect'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import { formatDate } from '@/lib/format-date'
@@ -34,11 +35,6 @@ interface AdminQuickTask {
   reviewNotes: string | null
   estimatedHours: number | null
   createdAt: string
-}
-
-interface Volunteer {
-  id: number
-  name: string
 }
 
 interface FeaturedProjectTask {
@@ -433,12 +429,6 @@ function AdminQuickTasksView() {
     cat.skills.map((s) => ({ ...s, categoryName: cat.name })),
   )
 
-  const { data: volunteersData } = useQuery({
-    ...orpc.volunteers.list.queryOptions({ input: { limit: 100 } }),
-    enabled: !!user?.isAdmin,
-  })
-  const volunteers: Volunteer[] = (volunteersData?.volunteers ?? []) as Volunteer[]
-
   // Cards are always fully expanded now, so a deep link just needs to scroll to the
   // right card rather than toggle anything open.
   useEffect(() => {
@@ -724,17 +714,14 @@ function AdminQuickTasksView() {
               {task.status === QuickTaskStatus.open && (
                 <div className="flex gap-2 items-end mb-3">
                   <div className="flex-1 max-w-75">
-                    <FilterDropdown
+                    <VolunteerSelect
                       id={`assign-task-${task.id}`}
                       label="Assign to"
                       ariaLabel={`Assign volunteer to ${task.title}`}
                       value={taskAssignSelections[task.id] ?? ''}
-                      options={[
-                        { value: '', label: 'Select volunteer…' },
-                        ...volunteers.map((v) => ({ value: String(v.id), label: v.name })),
-                      ]}
                       onChange={(v) => setTaskAssignSelections((s) => ({ ...s, [task.id]: v }))}
-                      searchable
+                      placeholder="Select volunteer…"
+                      enabled={!!user?.isAdmin}
                     />
                   </div>
                   <Button
@@ -833,19 +820,16 @@ function AdminQuickTasksView() {
                 {task.status === TaskStatus.open && (
                   <div className="flex gap-2 items-end mb-3">
                     <div className="flex-1 max-w-75">
-                      <FilterDropdown
+                      <VolunteerSelect
                         id={`assign-project-task-${task.id}`}
                         label="Assign to"
                         ariaLabel={`Assign volunteer to ${task.title}`}
                         value={projectTaskAssignSelections[task.id] ?? ''}
-                        options={[
-                          { value: '', label: 'Select volunteer…' },
-                          ...volunteers.map((v) => ({ value: String(v.id), label: v.name })),
-                        ]}
                         onChange={(v) =>
                           setProjectTaskAssignSelections((s) => ({ ...s, [task.id]: v }))
                         }
-                        searchable
+                        placeholder="Select volunteer…"
+                        enabled={!!user?.isAdmin}
                       />
                     </div>
                     <Button
