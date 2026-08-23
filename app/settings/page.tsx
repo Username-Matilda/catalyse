@@ -533,7 +533,6 @@ function SettingsPageContent() {
                 id="location"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                placeholder="e.g. Shoreditch"
               />
             </div>
           )}
