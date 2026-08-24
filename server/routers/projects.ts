@@ -401,7 +401,7 @@ export const projectsRouter = {
   create: approvedProcedure.input(CreateProjectSchema).handler(async ({ input, context }) => {
     const volunteer = context.volunteer
     const { tasks, wantToOwn, skillIds, skillRequiredMap, saveAsDraft } = input
-    if (tasks.length === 0) {
+    if (!saveAsDraft && tasks.length === 0) {
       throw new ORPCError('BAD_REQUEST', {
         message: 'At least one task is required to submit a project proposal',
       })
@@ -417,7 +417,7 @@ export const projectsRouter = {
       })
       if (draftCount >= MAX_VOLUNTEER_DRAFTS) {
         throw new ORPCError('BAD_REQUEST', {
-          message: `You already have ${MAX_VOLUNTEER_DRAFTS} drafts — publish or delete one before saving another.`,
+          message: `You already have ${MAX_VOLUNTEER_DRAFTS} drafts. Publish or delete one before saving another.`,
         })
       }
     }
@@ -516,6 +516,15 @@ export const projectsRouter = {
       if (!project) throw new ORPCError('NOT_FOUND', { message: 'Draft not found' })
       if (project.creatorId !== volunteer.id || project.status !== ProjectStatus.draft) {
         throw new ORPCError('FORBIDDEN', { message: 'Not authorized to publish this draft' })
+      }
+
+      const taskCount = await prisma.workItem.count({
+        where: { parentId: input.id, type: WorkItemType.TASK },
+      })
+      if (taskCount === 0) {
+        throw new ORPCError('BAD_REQUEST', {
+          message: 'Add at least one task before submitting this draft for review',
+        })
       }
 
       await prisma.workItem.update({
@@ -1321,7 +1330,10 @@ export const projectsRouter = {
       })
       if (!project) throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
 
-      if (project.assigneeId !== volunteer.id && !volunteer.isAdmin) {
+      // A draft has no owner yet, so its creator manages its own tasks until publish.
+      const isDraftCreator =
+        project.creatorId === volunteer.id && project.status === ProjectStatus.draft
+      if (project.assigneeId !== volunteer.id && !volunteer.isAdmin && !isDraftCreator) {
         throw new ORPCError('FORBIDDEN', {
           message: 'Only project owner or admin can create tasks',
         })
@@ -1366,7 +1378,9 @@ export const projectsRouter = {
       })
       if (!project) throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
 
-      if (project.assigneeId !== volunteer.id && !volunteer.isAdmin) {
+      const isDraftCreator =
+        project.creatorId === volunteer.id && project.status === ProjectStatus.draft
+      if (project.assigneeId !== volunteer.id && !volunteer.isAdmin && !isDraftCreator) {
         throw new ORPCError('FORBIDDEN', {
           message: 'Only project owner or admin can reorder tasks',
         })
@@ -1427,7 +1441,9 @@ export const projectsRouter = {
         isTaskAssignee &&
         task.status === TaskStatus.in_progress
 
-      if (!isAssignee && !volunteer.isAdmin && !isSelfClaim && !isMarkingDone) {
+      const isDraftCreator =
+        project.creatorId === volunteer.id && project.status === ProjectStatus.draft
+      if (!isAssignee && !volunteer.isAdmin && !isSelfClaim && !isMarkingDone && !isDraftCreator) {
         throw new ORPCError('FORBIDDEN', { message: 'Not authorized to update this task' })
       }
 
@@ -1571,7 +1587,9 @@ export const projectsRouter = {
       })
       if (!project) throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
 
-      if (project.assigneeId !== volunteer.id && !volunteer.isAdmin) {
+      const isDraftCreator =
+        project.creatorId === volunteer.id && project.status === ProjectStatus.draft
+      if (project.assigneeId !== volunteer.id && !volunteer.isAdmin && !isDraftCreator) {
         throw new ORPCError('FORBIDDEN', { message: 'Not authorized' })
       }
 

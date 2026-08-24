@@ -57,6 +57,9 @@ export default function SuggestPage() {
         {drafts.length > 0 && (
           <div className="max-w-4xl bg-surface rounded-xl shadow p-6 mb-4">
             <h2 className="mt-0 mb-3">My Drafts</h2>
+            <p className="text-sm text-text-light mt-0 mb-3">
+              Open a draft to add tasks. It needs at least one before it can be published.
+            </p>
             <ul className="flex flex-col gap-2">
               {drafts.map((draft) => (
                 <li
