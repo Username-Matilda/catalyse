@@ -55,6 +55,8 @@ interface ProjectFormProps {
   /** When set, renders a secondary "Save as draft" action alongside the main submit. */
   onSaveDraft?: (data: ProjectCreateInput) => Promise<{ id: number }>
   draftLabel?: string
+  /** Called instead of onSuccess after a successful draft save, if provided. */
+  onDraftSuccess?: (id: number) => void
 }
 
 export default function ProjectForm({
@@ -65,6 +67,7 @@ export default function ProjectForm({
   onCancel,
   onSaveDraft,
   draftLabel = 'Save as Draft',
+  onDraftSuccess,
 }: ProjectFormProps) {
   const toast = useToast()
 
@@ -170,7 +173,8 @@ export default function ProjectForm({
     setSubmitting(true)
     try {
       const result = await onSaveDraft(buildPayload())
-      onSuccess(result.id)
+      ;(onDraftSuccess ?? onSuccess)(result.id)
+      setSubmitting(false)
     } catch (err: unknown) {
       toast(err instanceof Error ? err.message : 'Failed to save draft', 'error')
       setSubmitting(false)

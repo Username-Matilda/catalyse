@@ -10,8 +10,8 @@ import { ProjectStatus } from '@/generated/prisma/enums'
  *   draft → pending_review → needs_discussion → ready → in_progress → on_hold → completed → archived
  *
  * `ready` means approved and live, but unowned. Assigning an owner is what moves a
- * project to `in_progress`. `draft` is org-proposed only — an admin still preparing a
- * project before it enters review or goes live.
+ * project to `in_progress`. `draft` is a creator still preparing a project before it
+ * enters review (volunteer proposals) or goes live (org projects, which skip review).
  */
 export const PROJECT_STATUS_CONFIG: Record<string, { label: string; variant: BadgeVariant }> = {
   draft: { label: 'Draft', variant: 'neutral' },
@@ -96,6 +96,9 @@ export const ADVERTISABLE_STATUSES: string[] = Object.keys(PROJECT_STATUS_CONFIG
  * name as the proposer misattributes the project to an individual.
  */
 export const ORG_PROPOSER_NAME = 'PauseAI'
+
+/** A volunteer may have at most this many of their own proposals sitting in `draft` at once. */
+export const MAX_VOLUNTEER_DRAFTS = 2
 
 export type ProposerDisplay = { name: string; volunteerId: number | null }
 

@@ -136,6 +136,7 @@ export const CreateProjectSchema = WorkItemSchema.pick(PROJECT_INPUT_FIELDS)
     wantToOwn: z.boolean().optional().default(false),
     skillIds: z.array(z.number().int()).optional().default([]),
     skillRequiredMap: z.record(z.string(), z.boolean()).optional().default({}),
+    saveAsDraft: z.boolean().optional().default(false),
   })
 
 export const UpdateProjectSchema = WorkItemSchema.pick({

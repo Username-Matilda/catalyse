@@ -26,6 +26,7 @@ import {
   SEEKING_OWNER_SQL,
   TERMINAL_STATUSES,
   UNAPPROVED_STATUSES,
+  MAX_VOLUNTEER_DRAFTS,
   projectStatusLabel,
 } from '@/lib/project-status'
 import {
@@ -399,11 +400,26 @@ export const projectsRouter = {
 
   create: approvedProcedure.input(CreateProjectSchema).handler(async ({ input, context }) => {
     const volunteer = context.volunteer
-    const { tasks, wantToOwn, skillIds, skillRequiredMap } = input
+    const { tasks, wantToOwn, skillIds, skillRequiredMap, saveAsDraft } = input
     if (tasks.length === 0) {
       throw new ORPCError('BAD_REQUEST', {
         message: 'At least one task is required to submit a project proposal',
       })
+    }
+
+    if (saveAsDraft) {
+      const draftCount = await prisma.workItem.count({
+        where: {
+          type: WorkItemType.PROJECT,
+          creatorId: volunteer.id,
+          status: ProjectStatus.draft,
+        },
+      })
+      if (draftCount >= MAX_VOLUNTEER_DRAFTS) {
+        throw new ORPCError('BAD_REQUEST', {
+          message: `You already have ${MAX_VOLUNTEER_DRAFTS} drafts — publish or delete one before saving another.`,
+        })
+      }
     }
 
     const project = await prisma.$transaction(async (tx) => {
@@ -412,7 +428,8 @@ export const projectsRouter = {
           type: WorkItemType.PROJECT,
           title: input.title,
           description: input.description,
-          status: ProjectStatus.pending_review,
+          // A draft stays invisible to admins until the volunteer explicitly publishes it.
+          status: saveAsDraft ? ProjectStatus.draft : ProjectStatus.pending_review,
           assigneeId: wantToOwn ? volunteer.id : null,
           creatorId: volunteer.id,
           isOrgProposed: false,
@@ -453,22 +470,90 @@ export const projectsRouter = {
       return newProject
     })
 
-    await notifyAdmins(
-      'new_project_proposal',
-      `New project proposal: ${project.title}`,
-      `Proposed by ${volunteer.name}`,
-      '/admin/triage',
-      {
-        message: html`<strong>${volunteer.name}</strong> has submitted a new project proposal:
-          <strong>${project.title}</strong>. Please review it in the triage queue.`,
-        projectTitle: project.title,
-        projectId: project.id,
-      },
-      project.id,
-    )
+    if (!saveAsDraft) {
+      await notifyAdmins(
+        'new_project_proposal',
+        `New project proposal: ${project.title}`,
+        `Proposed by ${volunteer.name}`,
+        '/admin/triage',
+        {
+          message: html`<strong>${volunteer.name}</strong> has submitted a new project proposal:
+            <strong>${project.title}</strong>. Please review it in the triage queue.`,
+          projectTitle: project.title,
+          projectId: project.id,
+        },
+        project.id,
+      )
+    }
 
-    return { id: project.id, message: 'Project submitted for review' }
+    return {
+      id: project.id,
+      message: saveAsDraft ? 'Draft saved' : 'Project submitted for review',
+    }
   }),
+
+  myDrafts: approvedProcedure.handler(async ({ context }) => {
+    const volunteer = context.volunteer
+    const drafts = await prisma.workItem.findMany({
+      where: {
+        type: WorkItemType.PROJECT,
+        creatorId: volunteer.id,
+        status: ProjectStatus.draft,
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, title: true, createdAt: true },
+    })
+    return drafts
+  }),
+
+  publishDraft: approvedProcedure
+    .input(z.object({ id: z.number().int() }))
+    .handler(async ({ input, context }) => {
+      const volunteer = context.volunteer
+      const project = await prisma.workItem.findFirst({
+        where: { id: input.id, type: WorkItemType.PROJECT },
+      })
+      if (!project) throw new ORPCError('NOT_FOUND', { message: 'Draft not found' })
+      if (project.creatorId !== volunteer.id || project.status !== ProjectStatus.draft) {
+        throw new ORPCError('FORBIDDEN', { message: 'Not authorized to publish this draft' })
+      }
+
+      await prisma.workItem.update({
+        where: { id: input.id },
+        data: { status: ProjectStatus.pending_review, updatedAt: new Date() },
+      })
+
+      await notifyAdmins(
+        'new_project_proposal',
+        `New project proposal: ${project.title}`,
+        `Proposed by ${volunteer.name}`,
+        '/admin/triage',
+        {
+          message: html`<strong>${volunteer.name}</strong> has submitted a new project proposal:
+            <strong>${project.title}</strong>. Please review it in the triage queue.`,
+          projectTitle: project.title,
+          projectId: project.id,
+        },
+        project.id,
+      )
+
+      return { message: 'Project submitted for review' }
+    }),
+
+  deleteDraft: approvedProcedure
+    .input(z.object({ id: z.number().int() }))
+    .handler(async ({ input, context }) => {
+      const volunteer = context.volunteer
+      const project = await prisma.workItem.findFirst({
+        where: { id: input.id, type: WorkItemType.PROJECT },
+      })
+      if (!project) throw new ORPCError('NOT_FOUND', { message: 'Draft not found' })
+      if (project.creatorId !== volunteer.id || project.status !== ProjectStatus.draft) {
+        throw new ORPCError('FORBIDDEN', { message: 'Not authorized to delete this draft' })
+      }
+      await prisma.workItem.delete({ where: { id: input.id } })
+      return { message: 'Draft deleted' }
+    }),
 
   getById: approvedProcedure
     .input(z.object({ id: z.number().int() }))
