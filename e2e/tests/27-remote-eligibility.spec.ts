@@ -139,9 +139,9 @@ test.describe('Project form & settings: remote eligibility', () => {
     const title = fake.projectTitle()
 
     await adminPage.goto(`${baseUrl}/admin/projects/new`)
-    await expect(
-      adminPage.getByRole('heading', { name: 'Create Organisation Project' }),
-    ).toBeVisible({ timeout: 10_000 })
+    await expect(adminPage.getByRole('heading', { name: 'Org Projects' })).toBeVisible({
+      timeout: 10_000,
+    })
 
     await adminPage.getByLabel('Project Title').fill(title)
     await adminPage.getByLabel('Description').fill('e2e test project description')

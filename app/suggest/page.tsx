@@ -2,7 +2,7 @@
 
 import { useRequireAuth } from '@/lib/hooks/auth'
 import { useRouter } from 'next/navigation'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import ProjectForm from '@/components/ProjectForm'
 import { useToast } from '@/lib/toast'
@@ -12,7 +12,6 @@ export default function SuggestPage() {
   const router = useRouter()
   const { user, loading } = useRequireAuth()
   const toast = useToast()
-  const queryClient = useQueryClient()
   const createMutation = useMutation({ ...orpc.projects.create.mutationOptions() })
 
   const { data: drafts = [] } = useQuery({
@@ -63,9 +62,9 @@ export default function SuggestPage() {
               setTimeout(() => router.push('/dashboard#tab-proposed'), 2000)
             }}
             onSaveDraft={(data) => createMutation.mutateAsync({ ...data, saveAsDraft: true })}
-            onDraftSuccess={() => {
+            onDraftSuccess={(id) => {
               toast('Draft saved.', 'success')
-              queryClient.invalidateQueries({ queryKey: orpc.projects.myDrafts.key() })
+              router.push(`/projects/${id}/edit`)
             }}
           />
         </div>

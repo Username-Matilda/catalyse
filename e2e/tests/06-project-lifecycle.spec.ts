@@ -232,9 +232,9 @@ test.describe('Project Creation Requires At Least One Task', () => {
     baseUrl,
   }) => {
     await adminPage.goto(`${baseUrl}/admin/projects/new`)
-    await expect(
-      adminPage.getByRole('heading', { name: 'Create Organisation Project' }),
-    ).toBeVisible({ timeout: 10_000 })
+    await expect(adminPage.getByRole('heading', { name: 'Org Projects' })).toBeVisible({
+      timeout: 10_000,
+    })
 
     await adminPage.getByLabel('Project Title').fill(fake.projectTitle())
     await adminPage.getByLabel('Description').fill('Org project with no tasks')

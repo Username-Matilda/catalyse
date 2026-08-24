@@ -52,9 +52,9 @@ export async function adminCreateProject(
   description: string,
 ): Promise<number> {
   await adminPage.goto(`${baseUrl}/admin/projects/new`)
-  await expect(adminPage.getByRole('heading', { name: 'Create Organisation Project' })).toBeVisible(
-    { timeout: 10_000 },
-  )
+  await expect(adminPage.getByRole('heading', { name: 'Org Projects' })).toBeVisible({
+    timeout: 10_000,
+  })
 
   await adminPage.getByLabel('Project Title').fill(title)
   await adminPage.getByLabel('Description').fill(description)
@@ -76,9 +76,9 @@ export async function adminSaveProjectDraft(
   title: string,
 ): Promise<number> {
   await adminPage.goto(`${baseUrl}/admin/projects/new`)
-  await expect(adminPage.getByRole('heading', { name: 'Create Organisation Project' })).toBeVisible(
-    { timeout: 10_000 },
-  )
+  await expect(adminPage.getByRole('heading', { name: 'Org Projects' })).toBeVisible({
+    timeout: 10_000,
+  })
 
   await adminPage.getByLabel('Project Title').fill(title)
 
@@ -110,6 +110,7 @@ export async function volunteerSaveProjectDraft(
   ])
   if (!response.ok()) throw new Error(`Draft save failed: ${await response.text()}`)
   const { id } = (await response.json()).json as { id: number }
+  await page.waitForURL(`${baseUrl}/projects/${id}/edit`, { timeout: 15_000 })
   return id
 }
 

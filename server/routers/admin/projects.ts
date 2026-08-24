@@ -10,6 +10,21 @@ import { adminProcedure } from '../../procedures'
 import { ProjectStatus, TaskStatus, WorkItemType } from '@/generated/prisma/enums'
 
 export const adminProjectsRouter = {
+  myDrafts: adminProcedure.handler(async ({ context }) => {
+    const admin = context.volunteer
+    const drafts = await prisma.workItem.findMany({
+      where: {
+        type: WorkItemType.PROJECT,
+        creatorId: admin.id,
+        status: ProjectStatus.draft,
+        isOrgProposed: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, title: true, createdAt: true },
+    })
+    return drafts
+  }),
+
   create: adminProcedure.input(AdminCreateProjectSchema).handler(async ({ input, context }) => {
     const admin = context.volunteer
     const { wantToOwn, skillIds, skillRequiredMap, tasks, saveAsDraft } = input

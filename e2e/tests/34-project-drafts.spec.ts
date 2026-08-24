@@ -16,9 +16,17 @@ test.describe('Admin project drafts', () => {
     baseUrl,
   }) => {
     const title = fake.projectTitle()
+    // Saving a draft lands directly on its edit page.
     const projectId = await adminSaveProjectDraft(baseUrl, adminPage, title)
 
-    await expect(adminPage.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 })
+    // Also shows up in "My Drafts" back on the Org Projects page
+    await adminPage.goto(`${baseUrl}/admin/projects/new`)
+    await expect(adminPage.getByRole('heading', { name: 'My Drafts' })).toBeVisible({
+      timeout: 10_000,
+    })
+    await expect(adminPage.getByText(title)).toBeVisible()
+
+    await adminPage.goto(`${baseUrl}/projects/${projectId}`)
     await expect(adminPage.getByLabel('project status')).toContainText('Draft', {
       timeout: 10_000,
     })
@@ -54,9 +62,10 @@ test.describe('Volunteer project drafts', () => {
     baseUrl,
   }) => {
     const title = fake.projectTitle()
+    // Saving a draft lands directly on its edit page.
     const projectId = await volunteerSaveProjectDraft(baseUrl, volunteer.page, title)
 
-    // Shows up in "My Drafts" on the suggest page
+    // Also shows up in "My Drafts" back on the suggest page
     await volunteer.page.goto(`${baseUrl}/suggest`)
     await expect(volunteer.page.getByRole('heading', { name: 'My Drafts' })).toBeVisible({
       timeout: 10_000,
@@ -69,9 +78,8 @@ test.describe('Volunteer project drafts', () => {
       timeout: 5_000,
     })
 
-    // Edit the draft: add the required task, then publish
-    await volunteer.page.getByRole('link', { name: 'Edit' }).first().click()
-    await volunteer.page.waitForURL(`${baseUrl}/projects/${projectId}/edit`, { timeout: 10_000 })
+    // Back to the draft's edit page: add the required task, then publish
+    await volunteer.page.goto(`${baseUrl}/projects/${projectId}/edit`)
     await addTaskFromEditPage(baseUrl, volunteer.page, projectId, 'Initial task')
     await publishDraftFromEditPage(baseUrl, volunteer.page, projectId)
 
