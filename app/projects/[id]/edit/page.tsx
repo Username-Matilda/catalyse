@@ -53,6 +53,9 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
   const [showDeleteProjectModal, setShowDeleteProjectModal] = useState(false)
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [newTaskDescription, setNewTaskDescription] = useState('')
+  const [editingTaskId, setEditingTaskId] = useState<number | null>(null)
+  const [editTaskTitle, setEditTaskTitle] = useState('')
+  const [editTaskDescription, setEditTaskDescription] = useState('')
 
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -173,6 +176,17 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
     },
   })
 
+  const updateTaskMutation = useMutation({
+    ...orpc.projects.updateTask.mutationOptions(),
+    onSuccess: () => {
+      setEditingTaskId(null)
+      queryClient.invalidateQueries({ queryKey: orpc.projects.getById.key() })
+    },
+    onError: (err: unknown) => {
+      showToast(err instanceof Error ? err.message : 'Failed to update task', 'error')
+    },
+  })
+
   function handleAddTask(e: React.FormEvent) {
     e.preventDefault()
     if (!newTaskTitle.trim()) return
@@ -186,6 +200,24 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
   function handleDeleteTask(taskId: number) {
     if (!window.confirm('Delete this task?')) return
     deleteTaskMutation.mutate({ projectId: parseInt(idParam, 10), taskId })
+  }
+
+  function startEditingTask(task: { id: number; title: string; description: string | null }) {
+    setEditingTaskId(task.id)
+    setEditTaskTitle(task.title)
+    setEditTaskDescription(task.description ?? '')
+  }
+
+  function handleSaveTask(taskId: number) {
+    if (!editTaskTitle.trim()) return
+    updateTaskMutation.mutate({
+      projectId: parseInt(idParam, 10),
+      taskId,
+      data: {
+        title: editTaskTitle.trim(),
+        description: editTaskDescription.trim() || null,
+      },
+    })
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -389,23 +421,87 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
               </p>
               {(projectData?.tasks ?? []).length > 0 && (
                 <ul className="list-none p-0 m-0 mb-3 flex flex-col gap-2">
-                  {(projectData?.tasks ?? []).map((task) => (
-                    <li
-                      key={task.id}
-                      className="flex items-center justify-between gap-3 bg-brand-bg rounded-lg p-3 border border-brand-border"
-                    >
-                      <span>{task.title}</span>
-                      <Button
-                        type="button"
-                        variant="danger"
-                        size="sm"
-                        onClick={() => handleDeleteTask(task.id)}
-                        disabled={deleteTaskMutation.isPending}
+                  {(projectData?.tasks ?? []).map((task) =>
+                    editingTaskId === task.id ? (
+                      <li
+                        key={task.id}
+                        className="bg-brand-bg rounded-lg p-3 border border-brand-border"
                       >
-                        Delete
-                      </Button>
-                    </li>
-                  ))}
+                        <div className="mb-2">
+                          <label htmlFor={`edit-task-title-${task.id}`} className="text-sm">
+                            Edit task title
+                          </label>
+                          <input
+                            id={`edit-task-title-${task.id}`}
+                            type="text"
+                            value={editTaskTitle}
+                            onChange={(e) => setEditTaskTitle(e.target.value)}
+                            autoFocus
+                          />
+                        </div>
+                        <div className="mb-2">
+                          <label htmlFor={`edit-task-description-${task.id}`} className="text-sm">
+                            Edit task details (optional)
+                          </label>
+                          <textarea
+                            id={`edit-task-description-${task.id}`}
+                            rows={2}
+                            value={editTaskDescription}
+                            onChange={(e) => setEditTaskDescription(e.target.value)}
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => handleSaveTask(task.id)}
+                            disabled={updateTaskMutation.isPending || !editTaskTitle.trim()}
+                          >
+                            {updateTaskMutation.isPending ? 'Saving…' : 'Save'}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditingTaskId(null)}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </li>
+                    ) : (
+                      <li
+                        key={task.id}
+                        className="flex items-center justify-between gap-3 bg-brand-bg rounded-lg p-3 border border-brand-border"
+                      >
+                        <div className="min-w-0">
+                          <p className="m-0">{task.title}</p>
+                          {task.description && (
+                            <p className="m-0 text-sm text-text-light">{task.description}</p>
+                          )}
+                        </div>
+                        <div className="flex gap-2 shrink-0">
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => startEditingTask(task)}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="danger"
+                            size="sm"
+                            onClick={() => handleDeleteTask(task.id)}
+                            disabled={deleteTaskMutation.isPending}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </li>
+                    ),
+                  )}
                 </ul>
               )}
               <div className="bg-brand-bg rounded-lg p-3 border border-brand-border">

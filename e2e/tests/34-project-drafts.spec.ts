@@ -110,6 +110,26 @@ test.describe('Volunteer project drafts', () => {
     })
   })
 
+  test('Volunteer edits a task title and details on the draft edit page', async ({
+    volunteer,
+    baseUrl,
+  }) => {
+    const projectId = await volunteerSaveProjectDraft(baseUrl, volunteer.page, fake.projectTitle())
+    await addTaskFromEditPage(baseUrl, volunteer.page, projectId, 'Original task title')
+
+    await volunteer.page
+      .locator('li', { hasText: 'Original task title' })
+      .getByRole('button', { name: 'Edit' })
+      .click()
+    await volunteer.page.getByLabel('Edit task title').fill('Updated task title')
+    await volunteer.page.getByLabel('Edit task details (optional)').fill('Updated task details')
+    await volunteer.page.getByRole('button', { name: 'Save', exact: true }).click()
+
+    await expect(volunteer.page.getByText('Updated task title')).toBeVisible({ timeout: 10_000 })
+    await expect(volunteer.page.getByText('Updated task details')).toBeVisible()
+    await expect(volunteer.page.getByText('Original task title')).toHaveCount(0)
+  })
+
   test('Publishing a draft with no tasks is rejected', async ({ volunteer, baseUrl }) => {
     const title = fake.projectTitle()
     const projectId = await volunteerSaveProjectDraft(baseUrl, volunteer.page, title)
