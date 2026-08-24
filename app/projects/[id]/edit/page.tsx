@@ -6,7 +6,9 @@ import { useRouter } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import Checkbox from '@/components/Checkbox'
+import Radio from '@/components/Radio'
 import FilterDropdown from '@/components/FilterDropdown'
+import DescriptionTips from '@/components/DescriptionTips'
 import SkillPicker from '@/components/SkillPicker'
 import Modal from '@/components/ui/Modal'
 import { orpc } from '@/lib/orpc'
@@ -26,10 +28,10 @@ const URGENCY_OPTIONS = [
 
 const PROJECT_TYPES = [
   { value: '', label: 'Select a project type…' },
-  { value: 'sprint', label: 'Sprint (1-2 weeks)' },
-  { value: 'container', label: 'Time-boxed (1-3 months)' },
-  { value: 'ongoing', label: 'Ongoing' },
-  { value: 'one_off', label: 'One-off task' },
+  { value: 'sprint', label: 'Sprint (1-2 weeks) - Focused burst of work with clear deliverable' },
+  { value: 'container', label: 'Time-boxed (1-3 months) - Defined scope with end date' },
+  { value: 'ongoing', label: 'Ongoing - Continuous work without fixed end date' },
+  { value: 'one_off', label: 'One-off task - Single deliverable, minimal coordination' },
 ] as const
 
 const REMOTE_ELIGIBILITY_OPTIONS = [
@@ -53,9 +55,9 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
   const [showDeleteProjectModal, setShowDeleteProjectModal] = useState(false)
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [newTaskDescription, setNewTaskDescription] = useState('')
-  const [editingTaskId, setEditingTaskId] = useState<number | null>(null)
-  const [editTaskTitle, setEditTaskTitle] = useState('')
-  const [editTaskDescription, setEditTaskDescription] = useState('')
+  const [taskDrafts, setTaskDrafts] = useState<
+    Record<number, { title: string; description: string }>
+  >({})
 
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -69,6 +71,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
   const [remoteEligibility, setRemoteEligibility] = useState<'NONE' | 'COUNTRY' | 'GLOBAL'>('NONE')
   const [estimatedDuration, setEstimatedDuration] = useState('')
   const [seekingHelp, setSeekingHelp] = useState(true)
+  const [wantToOwn, setWantToOwn] = useState(false)
 
   const { data: localGroupsData } = useQuery({
     ...orpc.localGroups.list.queryOptions({ input: {} }),
@@ -103,14 +106,40 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
     setRemoteEligibility(data.remoteEligibility ?? 'NONE')
     setEstimatedDuration(data.estimatedDuration ?? '')
     setSeekingHelp(data.isSeekingHelp ?? false)
+    setWantToOwn(data.ownerId === user?.id)
     const isOwner = data.ownerId === user?.id || data.proposedById === user?.id
     setCanEdit(isOwner || (user?.isAdmin ?? false))
     setPermissionChecked(true)
   }, [projectData, initialized, user])
 
+  // Seeds local editable copies of each task, without clobbering one mid-edit — a task
+  // added or deleted elsewhere (or a save round-tripping through the server) should show
+  // up or disappear, but a field the volunteer is still typing into shouldn't reset.
+  useEffect(() => {
+    if (!projectData?.tasks) return
+    const tasks = projectData.tasks
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setTaskDrafts((prev) => {
+      const next: typeof prev = {}
+      for (const t of tasks) {
+        next[t.id] = prev[t.id] ?? { title: t.title, description: t.description ?? '' }
+      }
+      return next
+    })
+  }, [projectData?.tasks])
+
   const updateMutation = useMutation({
     ...orpc.projects.update.mutationOptions(),
-    onSuccess: () => router.push(`/projects/${idParam}`),
+    onSuccess: () => {
+      // Redirecting a draft to its own /projects/[id] would just bounce straight back
+      // here, since that page redirects away from drafts.
+      if (isDraft) {
+        showToast('Draft saved', 'success')
+        queryClient.invalidateQueries({ queryKey: orpc.projects.getById.key() })
+      } else {
+        router.push(`/projects/${idParam}`)
+      }
+    },
     onError: (err: unknown) => {
       showToast(err instanceof Error ? err.message : 'Failed to save changes', 'error')
     },
@@ -179,7 +208,6 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
   const updateTaskMutation = useMutation({
     ...orpc.projects.updateTask.mutationOptions(),
     onSuccess: () => {
-      setEditingTaskId(null)
       queryClient.invalidateQueries({ queryKey: orpc.projects.getById.key() })
     },
     onError: (err: unknown) => {
@@ -202,21 +230,19 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
     deleteTaskMutation.mutate({ projectId: parseInt(idParam, 10), taskId })
   }
 
-  function startEditingTask(task: { id: number; title: string; description: string | null }) {
-    setEditingTaskId(task.id)
-    setEditTaskTitle(task.title)
-    setEditTaskDescription(task.description ?? '')
-  }
-
-  function handleSaveTask(taskId: number) {
-    if (!editTaskTitle.trim()) return
+  // Saves a task's title/description on blur, only if it actually changed from what's
+  // currently persisted — otherwise every click into and out of a field would fire a
+  // mutation.
+  function handleTaskFieldBlur(task: { id: number; title: string; description: string | null }) {
+    const draft = taskDrafts[task.id]
+    if (!draft || !draft.title.trim()) return
+    const newTitle = draft.title.trim()
+    const newDescription = draft.description.trim()
+    if (newTitle === task.title && newDescription === (task.description ?? '')) return
     updateTaskMutation.mutate({
       projectId: parseInt(idParam, 10),
-      taskId,
-      data: {
-        title: editTaskTitle.trim(),
-        description: editTaskDescription.trim() || null,
-      },
+      taskId: task.id,
+      data: { title: newTitle, description: newDescription || null },
     })
   }
 
@@ -239,6 +265,9 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
       remoteEligibility,
       estimatedDuration: estimatedDuration.trim() || null,
       isSeekingHelp: seekingHelp,
+      // Ownership is only settable here while it's still a draft — once live, it's
+      // changed from the project page's owner menu instead.
+      ...(isDraft ? { assigneeId: wantToOwn ? (user?.id ?? null) : null } : {}),
     })
   }
 
@@ -276,7 +305,9 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
           onSubmit={handleSubmit}
         >
           <div className="mb-5">
-            <label htmlFor="edit-title">Project Title</label>
+            <label htmlFor="edit-title" className="required">
+              Project Title
+            </label>
             <input
               id="edit-title"
               type="text"
@@ -284,18 +315,27 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
               onChange={(e) => setTitle(e.target.value)}
               disabled={!canEdit}
               required
+              placeholder="A clear, descriptive name for the project"
             />
           </div>
 
           <div className="mb-5">
-            <label htmlFor="edit-description">Description</label>
+            <label htmlFor="edit-description" className="required">
+              Description
+            </label>
+            <DescriptionTips />
             <textarea
               id="edit-description"
               rows={6}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               disabled={!canEdit}
+              placeholder="Describe the project: goals, approach, what success looks like, and what kind of help is needed."
             />
+            <p className="text-sm text-text-light mt-1">
+              The more detail you provide, the easier it is to find the right contributors and get
+              started.
+            </p>
           </div>
 
           <div className="mb-5">
@@ -307,6 +347,9 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
               options={PROJECT_TYPES}
               onChange={setProjectType}
             />
+            <p className="text-sm text-text-light mt-1">
+              This helps contributors understand the commitment involved
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-5 mb-5 max-[600px]:grid-cols-1">
@@ -322,6 +365,9 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                 onChange={(e) => setHoursPerWeek(e.target.value)}
                 disabled={!canEdit}
               />
+              <p className="text-sm text-text-light mt-1">
+                Estimated weekly time from each contributor
+              </p>
             </div>
             <div>
               <FilterDropdown
@@ -346,6 +392,9 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                 onChange={(e) => setEstimatedDuration(e.target.value)}
                 disabled={!canEdit}
               />
+              <p className="text-sm text-text-light mt-1">
+                Roughly how long do you expect this to take?
+              </p>
             </div>
           )}
 
@@ -360,7 +409,10 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
               searchable
             />
             <p className="text-sm text-text-light mt-1">
-              Local groups appear indented under their country.
+              Where is this project based? Local groups appear indented under their country.{' '}
+              <a href="/suggest-local-group" className="underline">
+                Don&apos;t see your group? Suggest one.
+              </a>
             </p>
           </div>
 
@@ -397,116 +449,140 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
           </div>
 
           <div className="mb-5">
-            <label htmlFor="edit-collab">Collaboration Doc / Link</label>
+            <label htmlFor="edit-collab">Collaboration Doc / Link (optional)</label>
             <input
               id="edit-collab"
               type="text"
-              placeholder="https://…"
+              placeholder="e.g., https://docs.google.com/… or 'Will create a shared doc once team forms'"
               value={collaborationLink}
               onChange={(e) => setCollaborationLink(e.target.value)}
               disabled={!canEdit}
             />
+            <p className="text-sm text-text-light mt-1">
+              A URL to a planning doc or workspace, or just describe your plans for collaboration
+            </p>
           </div>
 
           <div className="mb-5">
-            <label>Skills needed</label>
+            <label>Skills Needed</label>
+            <p className="text-sm text-text-light mt-0 mb-2">
+              What skills would be helpful for this project?
+            </p>
             <SkillPicker value={skills} onChange={canEdit ? setSkills : () => {}} />
           </div>
 
+          <div className="mb-5">
+            <p className="font-medium mb-2">This project needs:</p>
+            <div className="flex flex-col gap-2">
+              <Checkbox
+                checked={seekingHelp}
+                onChange={(e) => setSeekingHelp(e.target.checked)}
+                disabled={!canEdit}
+              >
+                Help / contributors
+              </Checkbox>
+            </div>
+          </div>
+
+          {/* Ownership is only settable here while it's still a draft. Once live, it's
+              changed from the project page's owner menu instead. */}
+          {isDraft && (
+            <div className="mb-5">
+              <p className="font-medium mb-2">Project ownership:</p>
+              <div className="flex flex-col gap-2">
+                <Radio
+                  name="ownership"
+                  checked={!wantToOwn}
+                  onChange={() => setWantToOwn(false)}
+                  disabled={!canEdit}
+                >
+                  This project needs an owner / lead
+                </Radio>
+                <Radio
+                  name="ownership"
+                  checked={wantToOwn}
+                  onChange={() => setWantToOwn(true)}
+                  disabled={!canEdit}
+                >
+                  <span>
+                    <strong>I want to lead this project</strong> &mdash; I&apos;ll be the owner and
+                    coordinate the work
+                  </span>
+                </Radio>
+              </div>
+            </div>
+          )}
+
           {isDraft && canEdit && (
             <div className="mb-5">
-              <label>Tasks</label>
+              <label>Initial Tasks</label>
               <p className="text-sm text-text-light mt-0 mb-2">
-                At least one task is required before this draft can be published.
+                Break the project into concrete tasks. This helps contributors understand the scope
+                and gives them something to pick up.
               </p>
-              {(projectData?.tasks ?? []).length > 0 && (
-                <ul className="list-none p-0 m-0 mb-3 flex flex-col gap-2">
-                  {(projectData?.tasks ?? []).map((task) =>
-                    editingTaskId === task.id ? (
-                      <li
-                        key={task.id}
-                        className="bg-brand-bg rounded-lg p-3 border border-brand-border"
+              {(projectData?.tasks ?? []).map((task) => {
+                const draft = taskDrafts[task.id] ?? {
+                  title: task.title,
+                  description: task.description ?? '',
+                }
+                return (
+                  <div
+                    key={task.id}
+                    className="bg-brand-bg rounded-lg p-4 mb-3 border border-brand-border"
+                  >
+                    <div className="mb-3">
+                      <label htmlFor={`task-title-${task.id}`} className="text-sm required">
+                        Task title
+                      </label>
+                      <input
+                        id={`task-title-${task.id}`}
+                        type="text"
+                        value={draft.title}
+                        onChange={(e) =>
+                          setTaskDrafts((prev) => ({
+                            ...prev,
+                            [task.id]: { ...draft, title: e.target.value },
+                          }))
+                        }
+                        onBlur={() => handleTaskFieldBlur(task)}
+                        placeholder="e.g. Draft copy for homepage"
+                      />
+                    </div>
+                    <div className="mb-2">
+                      <label htmlFor={`task-desc-${task.id}`} className="text-sm">
+                        Details (optional)
+                      </label>
+                      <textarea
+                        id={`task-desc-${task.id}`}
+                        value={draft.description}
+                        onChange={(e) =>
+                          setTaskDrafts((prev) => ({
+                            ...prev,
+                            [task.id]: { ...draft, description: e.target.value },
+                          }))
+                        }
+                        onBlur={() => handleTaskFieldBlur(task)}
+                        placeholder="More detail about what needs doing…"
+                        className="min-h-14"
+                      />
+                    </div>
+                    <div className="flex justify-end mt-2">
+                      <Button
+                        type="button"
+                        variant="danger"
+                        size="sm"
+                        onClick={() => handleDeleteTask(task.id)}
+                        disabled={deleteTaskMutation.isPending}
                       >
-                        <div className="mb-2">
-                          <label htmlFor={`edit-task-title-${task.id}`} className="text-sm">
-                            Edit task title
-                          </label>
-                          <input
-                            id={`edit-task-title-${task.id}`}
-                            type="text"
-                            value={editTaskTitle}
-                            onChange={(e) => setEditTaskTitle(e.target.value)}
-                            autoFocus
-                          />
-                        </div>
-                        <div className="mb-2">
-                          <label htmlFor={`edit-task-description-${task.id}`} className="text-sm">
-                            Edit task details (optional)
-                          </label>
-                          <textarea
-                            id={`edit-task-description-${task.id}`}
-                            rows={2}
-                            value={editTaskDescription}
-                            onChange={(e) => setEditTaskDescription(e.target.value)}
-                          />
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => handleSaveTask(task.id)}
-                            disabled={updateTaskMutation.isPending || !editTaskTitle.trim()}
-                          >
-                            {updateTaskMutation.isPending ? 'Saving…' : 'Save'}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setEditingTaskId(null)}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </li>
-                    ) : (
-                      <li
-                        key={task.id}
-                        className="flex items-center justify-between gap-3 bg-brand-bg rounded-lg p-3 border border-brand-border"
-                      >
-                        <div className="min-w-0">
-                          <p className="m-0">{task.title}</p>
-                          {task.description && (
-                            <p className="m-0 text-sm text-text-light">{task.description}</p>
-                          )}
-                        </div>
-                        <div className="flex gap-2 shrink-0">
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => startEditingTask(task)}
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="danger"
-                            size="sm"
-                            onClick={() => handleDeleteTask(task.id)}
-                            disabled={deleteTaskMutation.isPending}
-                          >
-                            Delete
-                          </Button>
-                        </div>
-                      </li>
-                    ),
-                  )}
-                </ul>
-              )}
+                        Delete task
+                      </Button>
+                    </div>
+                  </div>
+                )
+              })}
               <div className="bg-brand-bg rounded-lg p-3 border border-brand-border">
                 <div className="mb-2">
-                  <label htmlFor="new-task-title" className="text-sm">
+                  <label htmlFor="new-task-title" className="text-sm required">
                     Task title
                   </label>
                   <input
@@ -541,25 +617,16 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
             </div>
           )}
 
-          {/* There is no "needs an owner" checkbox: a project needs one exactly when it
-              hasn't got one, so it's derived rather than asked for. Ownership is changed
-              from the project page's owner menu. */}
-          <div className="mb-5">
-            <p className="font-medium mb-2">This project needs:</p>
-            <div className="flex flex-col gap-2">
-              <Checkbox
-                checked={seekingHelp}
-                onChange={(e) => setSeekingHelp(e.target.checked)}
-                disabled={!canEdit}
-              >
-                Help / contributors
-              </Checkbox>
+          {isDraft && !isOrgDraft && (
+            <div className="flex items-center gap-3 p-4 rounded-lg mb-5 bg-[#DBEAFE] text-[#1E40AF] border border-[#93C5FD] dark:bg-[#1E3A5F] dark:text-[#93C5FD] dark:border-[#2563EB]">
+              Your project will be reviewed by PauseAI team leads before being published. We&apos;ll
+              reach out if we have questions or suggestions.
             </div>
-          </div>
+          )}
 
           <div className="flex gap-3 flex-wrap">
             <Button type="submit" disabled={!canEdit || updateMutation.isPending}>
-              {updateMutation.isPending ? 'Saving…' : 'Save Changes'}
+              {updateMutation.isPending ? 'Saving…' : isDraft ? 'Save draft' : 'Save Changes'}
             </Button>
 
             {!isDraft && (

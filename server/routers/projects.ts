@@ -414,6 +414,7 @@ export const projectsRouter = {
           type: WorkItemType.PROJECT,
           creatorId: volunteer.id,
           status: ProjectStatus.draft,
+          isOrgProposed: false,
         },
       })
       if (draftCount >= MAX_VOLUNTEER_DRAFTS) {
@@ -500,6 +501,8 @@ export const projectsRouter = {
         type: WorkItemType.PROJECT,
         creatorId: volunteer.id,
         status: ProjectStatus.draft,
+        // Org drafts belong to the "Org Projects" admin page's own My Drafts list.
+        isOrgProposed: false,
       },
       orderBy: { createdAt: 'desc' },
       select: { id: true, title: true, createdAt: true },
@@ -807,7 +810,12 @@ export const projectsRouter = {
       // Handing the project to a different owner or team is the owner's call (or an
       // admin's) — a proposer who never owned it can't appoint themselves. Submitting the
       // current value is always fine: the edit form posts every field back unchanged.
-      const canReassign = isAssignee || Boolean(volunteer.isAdmin)
+      // A draft has no owner yet, so its creator can set themselves as owner while it's
+      // still a draft — the "I want to lead this project" choice from the create form.
+      const canReassign =
+        isAssignee ||
+        Boolean(volunteer.isAdmin) ||
+        (isCreator && project.status === ProjectStatus.draft)
 
       if (body.teamId !== undefined && body.teamId !== project.teamId) {
         if (!canReassign) {

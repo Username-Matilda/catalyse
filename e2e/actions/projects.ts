@@ -32,12 +32,16 @@ export async function proposeProject(
       .click()
   }
   await page.getByLabel('Task title').first().fill('Initial task')
+  await page.getByRole('button', { name: 'Submit Project Proposal' }).click()
+  await expect(page.getByRole('heading', { name: 'Submit for review?' })).toBeVisible({
+    timeout: 10_000,
+  })
 
   // Ideally we'd extract the project ID from the dashboard UI after redirect, but that
   // races against the async render. Intercepting the API response is more reliable for now.
   const [response] = await Promise.all([
     page.waitForResponse((resp) => resp.url().includes('/api/rpc/projects/create')),
-    page.getByRole('button', { name: 'Submit Project Proposal' }).click(),
+    page.getByRole('dialog').getByRole('button', { name: 'Submit Project Proposal' }).click(),
   ])
   if (!response.ok()) throw new Error(`Project creation failed: ${await response.text()}`)
   const { id } = (await response.json()).json as { id: number }
@@ -59,7 +63,11 @@ export async function adminCreateProject(
   await adminPage.getByLabel('Project Title').fill(title)
   await adminPage.getByLabel('Description').fill(description)
   await adminPage.getByLabel('Task title').first().fill('Initial task')
-  await adminPage.getByRole('button', { name: 'Publish' }).click()
+  await adminPage.getByRole('button', { name: 'Publish', exact: true }).click()
+  await expect(adminPage.getByRole('heading', { name: 'Publish this project?' })).toBeVisible({
+    timeout: 10_000,
+  })
+  await adminPage.getByRole('dialog').getByRole('button', { name: 'Publish', exact: true }).click()
 
   await adminPage.waitForURL(/\/projects\/\d+/, { timeout: 15_000 })
   // Wait for project content to render — this ensures auth has completed before we return,
@@ -84,7 +92,7 @@ export async function adminSaveProjectDraft(
 
   const [response] = await Promise.all([
     adminPage.waitForResponse((resp) => resp.url().includes('/api/rpc/admin/projects/create')),
-    adminPage.getByRole('button', { name: 'Save as Draft' }).click(),
+    adminPage.getByRole('button', { name: 'Save draft' }).click(),
   ])
   if (!response.ok()) throw new Error(`Draft save failed: ${await response.text()}`)
   const { id } = (await response.json()).json as { id: number }
@@ -106,7 +114,7 @@ export async function volunteerSaveProjectDraft(
 
   const [response] = await Promise.all([
     page.waitForResponse((resp) => resp.url().includes('/api/rpc/projects/create')),
-    page.getByRole('button', { name: 'Save as Draft' }).click(),
+    page.getByRole('button', { name: 'Save draft' }).click(),
   ])
   if (!response.ok()) throw new Error(`Draft save failed: ${await response.text()}`)
   const { id } = (await response.json()).json as { id: number }
@@ -126,9 +134,11 @@ export async function addTaskFromEditPage(
   await expect(page.getByRole('heading', { name: 'Edit Project' })).toBeVisible({
     timeout: 10_000,
   })
-  await page.getByLabel('Task title').fill(taskTitle)
+  // Existing tasks are also labeled "Task title" — target the add-task form's stable id.
+  await page.locator('#new-task-title').fill(taskTitle)
   await page.getByRole('button', { name: 'Add Task' }).click()
-  await expect(page.getByText(taskTitle)).toBeVisible({ timeout: 10_000 })
+  // Existing tasks render as editable inputs, so the title is a value, not a text node.
+  await expect(page.locator(`input[value="${taskTitle}"]`)).toBeVisible({ timeout: 10_000 })
 }
 
 // For a volunteer's own draft: submits it into the review queue.

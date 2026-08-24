@@ -117,17 +117,23 @@ test.describe('Volunteer project drafts', () => {
     const projectId = await volunteerSaveProjectDraft(baseUrl, volunteer.page, fake.projectTitle())
     await addTaskFromEditPage(baseUrl, volunteer.page, projectId, 'Original task title')
 
-    await volunteer.page
-      .locator('li', { hasText: 'Original task title' })
-      .getByRole('button', { name: 'Edit' })
-      .click()
-    await volunteer.page.getByLabel('Edit task title').fill('Updated task title')
-    await volunteer.page.getByLabel('Edit task details (optional)').fill('Updated task details')
-    await volunteer.page.getByRole('button', { name: 'Save', exact: true }).click()
+    // Existing tasks use a stable `task-title-{id}` / `task-desc-{id}` id, unlike the
+    // always-present add-task form's `new-task-title` — target that instead of the
+    // (identical, ambiguous) "Task title" label text shared by both.
+    const isUpdateTaskResponse = (resp: { url: () => string }) =>
+      resp.url().includes('/api/rpc/projects/updateTask')
+    const taskTitleInput = volunteer.page.locator('input[id^="task-title-"]')
+    const taskDescInput = volunteer.page.locator('textarea[id^="task-desc-"]')
 
-    await expect(volunteer.page.getByText('Updated task title')).toBeVisible({ timeout: 10_000 })
-    await expect(volunteer.page.getByText('Updated task details')).toBeVisible()
-    await expect(volunteer.page.getByText('Original task title')).toHaveCount(0)
+    await taskTitleInput.fill('Updated task title')
+    await Promise.all([volunteer.page.waitForResponse(isUpdateTaskResponse), taskTitleInput.blur()])
+
+    await taskDescInput.fill('Updated task details')
+    await Promise.all([volunteer.page.waitForResponse(isUpdateTaskResponse), taskDescInput.blur()])
+
+    await volunteer.page.reload()
+    await expect(taskTitleInput).toHaveValue('Updated task title', { timeout: 10_000 })
+    await expect(taskDescInput).toHaveValue('Updated task details')
   })
 
   test('Publishing a draft with no tasks is rejected', async ({ volunteer, baseUrl }) => {
@@ -148,7 +154,7 @@ test.describe('Volunteer project drafts', () => {
 
     await volunteer.page.goto(`${baseUrl}/suggest`)
     await volunteer.page.getByLabel('Project Title').fill(fake.projectTitle())
-    await volunteer.page.getByRole('button', { name: 'Save as Draft' }).click()
+    await volunteer.page.getByRole('button', { name: 'Save draft' }).click()
 
     await expect(getAlert(volunteer.page)).toContainText('You already have 2 drafts', {
       timeout: 10_000,

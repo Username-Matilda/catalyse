@@ -9,6 +9,7 @@ import Radio from '@/components/Radio'
 import FilterDropdown from '@/components/FilterDropdown'
 import DescriptionTips from '@/components/DescriptionTips'
 import SkillPicker from '@/components/SkillPicker'
+import Modal from '@/components/ui/Modal'
 import { buildLocationOptions, type LocalGroupOption } from '@/lib/filter-options'
 import { useToast } from '@/lib/toast'
 import { orpc } from '@/lib/orpc'
@@ -66,10 +67,11 @@ export default function ProjectForm({
   onSuccess,
   onCancel,
   onSaveDraft,
-  draftLabel = 'Save as Draft',
+  draftLabel = 'Save draft',
   onDraftSuccess,
 }: ProjectFormProps) {
   const toast = useToast()
+  const [showSubmitModal, setShowSubmitModal] = useState(false)
 
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -116,7 +118,7 @@ export default function ProjectForm({
   }
 
   function removeTask(index: number) {
-    if (tasks.length > 1) setTasks((prev) => prev.filter((_, i) => i !== index))
+    setTasks((prev) => prev.filter((_, i) => i !== index))
   }
 
   function buildPayload(): ProjectCreateInput {
@@ -147,20 +149,26 @@ export default function ProjectForm({
     }
   }
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const validTasks = tasks.filter((t) => t.title.trim())
     if (!validTasks.length) {
       toast('At least one task with a title is required.', 'error')
       return
     }
+    setShowSubmitModal(true)
+  }
+
+  async function performSubmit() {
     setSubmitting(true)
     try {
       const result = await onSubmitForm(buildPayload())
+      setShowSubmitModal(false)
       onSuccess(result.id)
     } catch (err: unknown) {
       toast(err instanceof Error ? err.message : 'Failed to submit', 'error')
       setSubmitting(false)
+      setShowSubmitModal(false)
     }
   }
 
@@ -182,320 +190,354 @@ export default function ProjectForm({
   }
 
   return (
-    <form
-      className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
-      onSubmit={handleSubmit}
-    >
-      <div className="mb-5">
-        <label htmlFor="project-title" className="required">
-          Project Title
-        </label>
-        <input
-          id="project-title"
-          type="text"
-          value={title}
-          onChange={(e) => {
-            setTitle(e.target.value)
-            clearFieldError('title')
-          }}
-          required
-          placeholder="A clear, descriptive name for the project"
-          aria-invalid={!!fe('title') || undefined}
-        />
-        {fe('title') && <p className="text-sm mt-1 text-error">{fe('title')}</p>}
-      </div>
-
-      <div className="mb-5">
-        <label htmlFor="project-description" className="required">
-          Description
-        </label>
-        <DescriptionTips />
-        <textarea
-          id="project-description"
-          rows={6}
-          value={description}
-          onChange={(e) => {
-            setDescription(e.target.value)
-            clearFieldError('description')
-          }}
-          required
-          placeholder="Describe the project: goals, approach, what success looks like, and what kind of help is needed."
-          aria-invalid={!!fe('description') || undefined}
-        />
-        {fe('description') ? (
-          <p className="text-sm mt-1 text-error">{fe('description')}</p>
-        ) : (
-          <p className="text-sm text-text-light mt-1">
-            The more detail you provide, the easier it is to find the right contributors and get
-            started.
-          </p>
-        )}
-      </div>
-
-      <div className="mb-5">
-        <FilterDropdown
-          id="project-type"
-          label="Project Type"
-          ariaLabel="Select project type"
-          value={projectType}
-          options={PROJECT_TYPES}
-          onChange={(v) => {
-            setProjectType(v)
-            clearFieldError('project_type')
-          }}
-        />
-        {fe('project_type') ? (
-          <p className="text-sm mt-1 text-error">{fe('project_type')}</p>
-        ) : (
-          <p className="text-sm text-text-light mt-1">
-            This helps contributors understand the commitment involved
-          </p>
-        )}
-      </div>
-
-      <div className="grid grid-cols-2 gap-5 mb-5">
-        <div>
-          <label htmlFor="hours-per-week">Hours per Week</label>
-          <input
-            id="hours-per-week"
-            type="number"
-            min={1}
-            max={40}
-            placeholder="e.g., 5"
-            value={hoursPerWeek}
-            onChange={(e) => {
-              setHoursPerWeek(e.target.value)
-              clearFieldError('time_commitment_hours_per_week')
-            }}
-            aria-invalid={!!fe('time_commitment_hours_per_week') || undefined}
-          />
-          {fe('time_commitment_hours_per_week') ? (
-            <p className="text-sm mt-1 text-error">{fe('time_commitment_hours_per_week')}</p>
-          ) : (
-            <p className="text-sm text-text-light mt-1">
-              Estimated weekly time from each contributor
-            </p>
-          )}
-        </div>
-
-        <div>
-          <FilterDropdown
-            id="urgency"
-            label="Urgency"
-            ariaLabel="Select urgency"
-            value={urgency}
-            options={URGENCY_OPTIONS}
-            onChange={(v) => {
-              setUrgency(v)
-              clearFieldError('urgency')
-            }}
-          />
-          {fe('urgency') && <p className="text-sm mt-1 text-error">{fe('urgency')}</p>}
-        </div>
-      </div>
-
-      {['sprint', 'container'].includes(projectType) && (
+    <>
+      <form
+        className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
+        onSubmit={handleSubmit}
+      >
         <div className="mb-5">
-          <label htmlFor="duration">Estimated Duration</label>
+          <label htmlFor="project-title" className="required">
+            Project Title
+          </label>
           <input
-            id="duration"
+            id="project-title"
             type="text"
-            placeholder="e.g., 6 weeks, 2 months"
-            value={duration}
+            value={title}
             onChange={(e) => {
-              setDuration(e.target.value)
-              clearFieldError('estimated_duration')
+              setTitle(e.target.value)
+              clearFieldError('title')
             }}
-            aria-invalid={!!fe('estimated_duration') || undefined}
+            required
+            placeholder="A clear, descriptive name for the project"
+            aria-invalid={!!fe('title') || undefined}
           />
-          {fe('estimated_duration') ? (
-            <p className="text-sm mt-1 text-error">{fe('estimated_duration')}</p>
+          {fe('title') && <p className="text-sm mt-1 text-error">{fe('title')}</p>}
+        </div>
+
+        <div className="mb-5">
+          <label htmlFor="project-description" className="required">
+            Description
+          </label>
+          <DescriptionTips />
+          <textarea
+            id="project-description"
+            rows={6}
+            value={description}
+            onChange={(e) => {
+              setDescription(e.target.value)
+              clearFieldError('description')
+            }}
+            required
+            placeholder="Describe the project: goals, approach, what success looks like, and what kind of help is needed."
+            aria-invalid={!!fe('description') || undefined}
+          />
+          {fe('description') ? (
+            <p className="text-sm mt-1 text-error">{fe('description')}</p>
           ) : (
             <p className="text-sm text-text-light mt-1">
-              Roughly how long do you expect this to take?
+              The more detail you provide, the easier it is to find the right contributors and get
+              started.
             </p>
           )}
         </div>
-      )}
 
-      <div className="mb-5">
-        <FilterDropdown
-          id="country"
-          label="Country/Group"
-          ariaLabel="Select country/group"
-          value={locationValue}
-          options={buildLocationOptions(allLocalGroups)}
-          onChange={(v) => {
-            setLocationValue(v)
-            clearFieldError('country')
-            clearFieldError('local_group')
-          }}
-          searchable
-        />
-        {fe('country') || fe('local_group') ? (
-          <p className="text-sm mt-1 text-error">{fe('country') ?? fe('local_group')}</p>
-        ) : (
-          <p className="text-sm text-text-light mt-1">
-            Where is this project based? Local groups appear indented under their country.{' '}
-            <a href="/suggest-local-group" className="underline">
-              Don&apos;t see your group? Suggest one.
-            </a>
-          </p>
-        )}
-      </div>
-
-      <div className="mb-5">
-        <FilterDropdown
-          id="team"
-          label="Team"
-          ariaLabel="Select team"
-          value={teamId}
-          options={[
-            { value: '', label: 'No team: visible to everyone' },
-            ...teams.map((t) => ({ value: String(t.id), label: t.name })),
-          ]}
-          onChange={setTeamId}
-          searchable
-        />
-        <p className="text-sm text-text-light mt-1">
-          Assigning a team restricts visibility to that team, plus the owner and proposer.
-        </p>
-      </div>
-
-      <div className="mb-5">
-        <FilterDropdown
-          id="remote-eligibility"
-          label="Can this be done remotely?"
-          ariaLabel="Select remote eligibility"
-          value={remoteEligibility}
-          options={REMOTE_ELIGIBILITY_OPTIONS}
-          onChange={setRemoteEligibility}
-        />
-        <p className="text-sm text-text-light mt-1">
-          Controls who gets project-match alerts outside the country above.
-        </p>
-      </div>
-
-      <div className="mb-5">
-        <label htmlFor="collaboration-link">Collaboration Doc / Link (optional)</label>
-        <input
-          id="collaboration-link"
-          type="text"
-          placeholder="e.g., https://docs.google.com/… or 'Will create a shared doc once team forms'"
-          value={collaborationLink}
-          onChange={(e) => {
-            setCollaborationLink(e.target.value)
-            clearFieldError('collaboration_link')
-          }}
-          aria-invalid={!!fe('collaboration_link') || undefined}
-        />
-        {fe('collaboration_link') ? (
-          <p className="text-sm mt-1 text-error">{fe('collaboration_link')}</p>
-        ) : (
-          <p className="text-sm text-text-light mt-1">
-            A URL to a planning doc or workspace, or just describe your plans for collaboration
-          </p>
-        )}
-      </div>
-
-      <div className="mb-5">
-        <label>Skills Needed</label>
-        <p className="text-sm text-text-light mt-0 mb-2">
-          What skills would be helpful for this project?
-        </p>
-        <SkillPicker value={skills} onChange={setSkills} />
-      </div>
-
-      <div className="mb-5">
-        <p className="font-medium mb-2">This project needs:</p>
-        <div className="flex flex-col gap-2 mb-4">
-          <Checkbox checked={seekingHelp} onChange={(e) => setSeekingHelp(e.target.checked)}>
-            Help / contributors
-          </Checkbox>
+        <div className="mb-5">
+          <FilterDropdown
+            id="project-type"
+            label="Project Type"
+            ariaLabel="Select project type"
+            value={projectType}
+            options={PROJECT_TYPES}
+            onChange={(v) => {
+              setProjectType(v)
+              clearFieldError('project_type')
+            }}
+          />
+          {fe('project_type') ? (
+            <p className="text-sm mt-1 text-error">{fe('project_type')}</p>
+          ) : (
+            <p className="text-sm text-text-light mt-1">
+              This helps contributors understand the commitment involved
+            </p>
+          )}
         </div>
-        <p className="font-medium mb-2">Project ownership:</p>
-        <div className="flex flex-col gap-2">
-          <Radio name="ownership" checked={!wantToOwn} onChange={() => setWantToOwn(false)}>
-            This project needs an owner / lead
-          </Radio>
-          <Radio name="ownership" checked={wantToOwn} onChange={() => setWantToOwn(true)}>
-            <span>
-              <strong>I want to lead this project</strong> &mdash; I&apos;ll be the owner and
-              coordinate the work
-            </span>
-          </Radio>
-        </div>
-      </div>
 
-      <div className="mb-5">
-        <label>Initial Tasks</label>
-        <p className="text-sm text-text-light mt-0 mb-2">
-          Break the project into concrete tasks. This helps contributors understand the scope and
-          gives them something to pick up.
-        </p>
-        {tasks.map((task, i) => (
-          <div key={i} className="bg-brand-bg rounded-lg p-4 mb-3 border border-brand-border">
-            <div className="mb-3">
-              <label htmlFor={`task-title-${i}`} className="text-sm required">
-                Task title
-              </label>
-              <input
-                id={`task-title-${i}`}
-                type="text"
-                aria-label="Task title"
-                placeholder="e.g. Draft copy for homepage"
-                value={task.title}
-                onChange={(e) => updateTask(i, 'title', e.target.value)}
-              />
-            </div>
-            <div className="mb-2">
-              <label htmlFor={`task-desc-${i}`} className="text-sm">
-                Details (optional)
-              </label>
-              <textarea
-                id={`task-desc-${i}`}
-                placeholder="More detail about what needs doing…"
-                value={task.description}
-                onChange={(e) => updateTask(i, 'description', e.target.value)}
-                className="min-h-14"
-              />
-            </div>
-            {tasks.length > 1 && (
+        <div className="grid grid-cols-2 gap-5 mb-5">
+          <div>
+            <label htmlFor="hours-per-week">Hours per Week</label>
+            <input
+              id="hours-per-week"
+              type="number"
+              min={1}
+              max={40}
+              placeholder="e.g., 5"
+              value={hoursPerWeek}
+              onChange={(e) => {
+                setHoursPerWeek(e.target.value)
+                clearFieldError('time_commitment_hours_per_week')
+              }}
+              aria-invalid={!!fe('time_commitment_hours_per_week') || undefined}
+            />
+            {fe('time_commitment_hours_per_week') ? (
+              <p className="text-sm mt-1 text-error">{fe('time_commitment_hours_per_week')}</p>
+            ) : (
+              <p className="text-sm text-text-light mt-1">
+                Estimated weekly time from each contributor
+              </p>
+            )}
+          </div>
+
+          <div>
+            <FilterDropdown
+              id="urgency"
+              label="Urgency"
+              ariaLabel="Select urgency"
+              value={urgency}
+              options={URGENCY_OPTIONS}
+              onChange={(v) => {
+                setUrgency(v)
+                clearFieldError('urgency')
+              }}
+            />
+            {fe('urgency') && <p className="text-sm mt-1 text-error">{fe('urgency')}</p>}
+          </div>
+        </div>
+
+        {['sprint', 'container'].includes(projectType) && (
+          <div className="mb-5">
+            <label htmlFor="duration">Estimated Duration</label>
+            <input
+              id="duration"
+              type="text"
+              placeholder="e.g., 6 weeks, 2 months"
+              value={duration}
+              onChange={(e) => {
+                setDuration(e.target.value)
+                clearFieldError('estimated_duration')
+              }}
+              aria-invalid={!!fe('estimated_duration') || undefined}
+            />
+            {fe('estimated_duration') ? (
+              <p className="text-sm mt-1 text-error">{fe('estimated_duration')}</p>
+            ) : (
+              <p className="text-sm text-text-light mt-1">
+                Roughly how long do you expect this to take?
+              </p>
+            )}
+          </div>
+        )}
+
+        <div className="mb-5">
+          <FilterDropdown
+            id="country"
+            label="Country/Group"
+            ariaLabel="Select country/group"
+            value={locationValue}
+            options={buildLocationOptions(allLocalGroups)}
+            onChange={(v) => {
+              setLocationValue(v)
+              clearFieldError('country')
+              clearFieldError('local_group')
+            }}
+            searchable
+          />
+          {fe('country') || fe('local_group') ? (
+            <p className="text-sm mt-1 text-error">{fe('country') ?? fe('local_group')}</p>
+          ) : (
+            <p className="text-sm text-text-light mt-1">
+              Where is this project based? Local groups appear indented under their country.{' '}
+              <a href="/suggest-local-group" className="underline">
+                Don&apos;t see your group? Suggest one.
+              </a>
+            </p>
+          )}
+        </div>
+
+        <div className="mb-5">
+          <FilterDropdown
+            id="team"
+            label="Team"
+            ariaLabel="Select team"
+            value={teamId}
+            options={[
+              { value: '', label: 'No team: visible to everyone' },
+              ...teams.map((t) => ({ value: String(t.id), label: t.name })),
+            ]}
+            onChange={setTeamId}
+            searchable
+          />
+          <p className="text-sm text-text-light mt-1">
+            Assigning a team restricts visibility to that team, plus the owner and proposer.
+          </p>
+        </div>
+
+        <div className="mb-5">
+          <FilterDropdown
+            id="remote-eligibility"
+            label="Can this be done remotely?"
+            ariaLabel="Select remote eligibility"
+            value={remoteEligibility}
+            options={REMOTE_ELIGIBILITY_OPTIONS}
+            onChange={setRemoteEligibility}
+          />
+          <p className="text-sm text-text-light mt-1">
+            Controls who gets project-match alerts outside the country above.
+          </p>
+        </div>
+
+        <div className="mb-5">
+          <label htmlFor="collaboration-link">Collaboration Doc / Link (optional)</label>
+          <input
+            id="collaboration-link"
+            type="text"
+            placeholder="e.g., https://docs.google.com/… or 'Will create a shared doc once team forms'"
+            value={collaborationLink}
+            onChange={(e) => {
+              setCollaborationLink(e.target.value)
+              clearFieldError('collaboration_link')
+            }}
+            aria-invalid={!!fe('collaboration_link') || undefined}
+          />
+          {fe('collaboration_link') ? (
+            <p className="text-sm mt-1 text-error">{fe('collaboration_link')}</p>
+          ) : (
+            <p className="text-sm text-text-light mt-1">
+              A URL to a planning doc or workspace, or just describe your plans for collaboration
+            </p>
+          )}
+        </div>
+
+        <div className="mb-5">
+          <label>Skills Needed</label>
+          <p className="text-sm text-text-light mt-0 mb-2">
+            What skills would be helpful for this project?
+          </p>
+          <SkillPicker value={skills} onChange={setSkills} />
+        </div>
+
+        <div className="mb-5">
+          <p className="font-medium mb-2">This project needs:</p>
+          <div className="flex flex-col gap-2 mb-4">
+            <Checkbox checked={seekingHelp} onChange={(e) => setSeekingHelp(e.target.checked)}>
+              Help / contributors
+            </Checkbox>
+          </div>
+          <p className="font-medium mb-2">Project ownership:</p>
+          <div className="flex flex-col gap-2">
+            <Radio name="ownership" checked={!wantToOwn} onChange={() => setWantToOwn(false)}>
+              This project needs an owner / lead
+            </Radio>
+            <Radio name="ownership" checked={wantToOwn} onChange={() => setWantToOwn(true)}>
+              <span>
+                <strong>I want to lead this project</strong> &mdash; I&apos;ll be the owner and
+                coordinate the work
+              </span>
+            </Radio>
+          </div>
+        </div>
+
+        <div className="mb-5">
+          <label>Initial Tasks</label>
+          <p className="text-sm text-text-light mt-0 mb-2">
+            Break the project into concrete tasks. This helps contributors understand the scope and
+            gives them something to pick up.
+          </p>
+          {tasks.map((task, i) => (
+            <div key={i} className="bg-brand-bg rounded-lg p-4 mb-3 border border-brand-border">
+              <div className="mb-3">
+                <label htmlFor={`task-title-${i}`} className="text-sm required">
+                  Task title
+                </label>
+                <input
+                  id={`task-title-${i}`}
+                  type="text"
+                  aria-label="Task title"
+                  placeholder="e.g. Draft copy for homepage"
+                  value={task.title}
+                  onChange={(e) => updateTask(i, 'title', e.target.value)}
+                />
+              </div>
+              <div className="mb-2">
+                <label htmlFor={`task-desc-${i}`} className="text-sm">
+                  Details (optional)
+                </label>
+                <textarea
+                  id={`task-desc-${i}`}
+                  placeholder="More detail about what needs doing…"
+                  value={task.description}
+                  onChange={(e) => updateTask(i, 'description', e.target.value)}
+                  className="min-h-14"
+                />
+              </div>
               <div className="flex justify-end mt-2">
                 <Button type="button" variant="danger" size="sm" onClick={() => removeTask(i)}>
                   Delete task
                 </Button>
               </div>
-            )}
-          </div>
-        ))}
-        <Button type="button" variant="secondary" onClick={addTask}>
-          + Add another task
-        </Button>
-      </div>
-
-      {showReviewNotice && (
-        <div className="flex items-center gap-3 p-4 rounded-lg mb-5 bg-[#DBEAFE] text-[#1E40AF] border border-[#93C5FD] dark:bg-[#1E3A5F] dark:text-[#93C5FD] dark:border-[#2563EB]">
-          Your project will be reviewed by PauseAI team leads before being published. We&apos;ll
-          reach out if we have questions or suggestions.
-        </div>
-      )}
-
-      <div className="flex items-center gap-3">
-        <Button type="submit" disabled={submitting}>
-          {submitting ? 'Submitting…' : submitLabel}
-        </Button>
-        {onSaveDraft && (
-          <Button type="button" variant="secondary" disabled={submitting} onClick={handleSaveDraft}>
-            {draftLabel}
+            </div>
+          ))}
+          <Button type="button" variant="secondary" onClick={addTask}>
+            + Add another task
           </Button>
+        </div>
+
+        {showReviewNotice && (
+          <div className="flex items-center gap-3 p-4 rounded-lg mb-5 bg-[#DBEAFE] text-[#1E40AF] border border-[#93C5FD] dark:bg-[#1E3A5F] dark:text-[#93C5FD] dark:border-[#2563EB]">
+            Your project will be reviewed by PauseAI team leads before being published. We&apos;ll
+            reach out if we have questions or suggestions.
+          </div>
         )}
-        {onCancel && (
-          <Button type="button" variant="secondary" onClick={onCancel}>
+
+        <div className="flex items-center gap-3">
+          <Button type="submit" disabled={submitting}>
+            {submitting ? 'Submitting…' : submitLabel}
+          </Button>
+          {onSaveDraft && (
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={submitting}
+              onClick={handleSaveDraft}
+            >
+              {draftLabel}
+            </Button>
+          )}
+          {onCancel && (
+            <Button type="button" variant="secondary" onClick={onCancel}>
+              Cancel
+            </Button>
+          )}
+        </div>
+      </form>
+
+      <Modal
+        id="confirm-submit-project"
+        title={showReviewNotice ? 'Submit for review?' : 'Publish this project?'}
+        isOpen={showSubmitModal}
+        onClose={() => setShowSubmitModal(false)}
+      >
+        <p>
+          {showReviewNotice ? (
+            <>
+              This will submit <strong>{title || 'this project'}</strong> to PauseAI team leads for
+              review.
+            </>
+          ) : (
+            <>
+              This will publish <strong>{title || 'this project'}</strong> immediately. It will be
+              visible to volunteers straight away.
+            </>
+          )}
+        </p>
+        <div className="mt-4 flex justify-end gap-2">
+          <Button type="button" variant="secondary" onClick={() => setShowSubmitModal(false)}>
             Cancel
           </Button>
-        )}
-      </div>
-    </form>
+          <Button type="button" onClick={performSubmit} disabled={submitting}>
+            {submitting ? 'Submitting…' : submitLabel}
+          </Button>
+        </div>
+      </Modal>
+    </>
   )
 }
