@@ -6,7 +6,6 @@ import {
   addTaskFromEditPage,
   publishDraftFromEditPage,
   deleteDraftFromEditPage,
-  setProjectStatus,
 } from '../actions/projects'
 
 test.describe('Admin project drafts', () => {
@@ -26,10 +25,9 @@ test.describe('Admin project drafts', () => {
     })
     await expect(adminPage.getByText(title)).toBeVisible()
 
+    // Visiting the project page while it's still a draft redirects to its edit page
     await adminPage.goto(`${baseUrl}/projects/${projectId}`)
-    await expect(adminPage.getByLabel('project status')).toContainText('Draft', {
-      timeout: 10_000,
-    })
+    await adminPage.waitForURL(`${baseUrl}/projects/${projectId}/edit`, { timeout: 10_000 })
 
     // Not in the triage queue — drafts never entered the review pipeline
     await adminPage.goto(`${baseUrl}/admin/triage`)
@@ -41,13 +39,31 @@ test.describe('Admin project drafts', () => {
     await volunteer.page.goto(`${baseUrl}/projects`)
     await expect(volunteer.page.getByRole('link', { name: title })).toHaveCount(0)
 
-    // Admin adds a task and publishes it live
+    // Admin adds a task, then publishes via the edit page — straight live, no review step
     await addTaskFromEditPage(baseUrl, adminPage, projectId, 'Initial task')
-    await setProjectStatus(baseUrl, adminPage, projectId, 'ready')
+    await adminPage.goto(`${baseUrl}/projects/${projectId}/edit`)
+    await adminPage.getByRole('button', { name: 'Publish', exact: true }).click()
+    const publishModal = adminPage.getByRole('dialog')
+    await expect(publishModal.getByRole('heading', { name: 'Publish this project?' })).toBeVisible({
+      timeout: 10_000,
+    })
+    // No mention of a review step — org projects skip it entirely
+    await expect(publishModal).not.toContainText('review')
+    await expect(publishModal).not.toContainText('team leads')
+    await publishModal.getByRole('button', { name: 'Publish', exact: true }).click()
 
+    await expect(getAlert(adminPage)).toContainText('Project published', { timeout: 10_000 })
+    await adminPage.waitForURL(`${baseUrl}/projects/${projectId}`, { timeout: 10_000 })
     await expect(adminPage.getByLabel('project status')).toContainText('Ready', {
       timeout: 10_000,
     })
+
+    // Never touched the triage queue
+    await adminPage.goto(`${baseUrl}/admin/triage`)
+    await expect(adminPage.locator('.card').filter({ hasText: title })).not.toBeVisible({
+      timeout: 5_000,
+    })
+
     await volunteer.page.goto(`${baseUrl}/projects`)
     await expect(volunteer.page.getByRole('link', { name: title })).toBeVisible({
       timeout: 10_000,

@@ -12,6 +12,7 @@ import {
   serializeTask,
 } from '@/lib/work-item'
 import { notifyUser, notifyAdmins, notifyTeamOfProject, clearNotifications } from '@/lib/notify'
+import { notifyMatchingVolunteers } from '@/lib/project-match-notify'
 import { html } from '@/lib/email'
 import {
   CreateProjectSchema,
@@ -525,6 +526,26 @@ export const projectsRouter = {
         throw new ORPCError('BAD_REQUEST', {
           message: 'Add at least one task before submitting this draft for review',
         })
+      }
+
+      if (project.isOrgProposed) {
+        // Org projects skip review entirely — publishing a draft goes straight live,
+        // same as a non-draft org project created directly.
+        const newStatus =
+          project.assigneeId === null ? ProjectStatus.ready : ProjectStatus.in_progress
+        await prisma.workItem.update({
+          where: { id: input.id },
+          data: { status: newStatus, updatedAt: new Date() },
+        })
+
+        notifyMatchingVolunteers(project.id).catch((e) => console.error('[MATCH NOTIFY]', e))
+        if (project.teamId) {
+          notifyTeamOfProject(project.teamId, project.id, project.title).catch((e) =>
+            console.error('[TEAM NOTIFY]', e),
+          )
+        }
+
+        return { message: 'Project published' }
       }
 
       await prisma.workItem.update({

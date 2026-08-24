@@ -131,6 +131,7 @@ export async function addTaskFromEditPage(
   await expect(page.getByText(taskTitle)).toBeVisible({ timeout: 10_000 })
 }
 
+// For a volunteer's own draft: submits it into the review queue.
 export async function publishDraftFromEditPage(
   baseUrl: string,
   page: Page,
@@ -139,11 +140,27 @@ export async function publishDraftFromEditPage(
   if (!page.url().includes(`/projects/${projectId}/edit`)) {
     await page.goto(`${baseUrl}/projects/${projectId}/edit`)
   }
-  await page.getByRole('button', { name: 'Publish', exact: true }).click()
+  await page.getByRole('button', { name: 'Submit', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Submit draft for review?' })).toBeVisible({
     timeout: 10_000,
   })
   await page.getByRole('button', { name: 'Submit for Review' }).click()
+}
+
+// For an org-proposed draft: publishes it live, skipping review entirely.
+export async function publishOrgDraftFromEditPage(
+  baseUrl: string,
+  page: Page,
+  projectId: number,
+): Promise<void> {
+  if (!page.url().includes(`/projects/${projectId}/edit`)) {
+    await page.goto(`${baseUrl}/projects/${projectId}/edit`)
+  }
+  await page.getByRole('button', { name: 'Publish', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Publish this project?' })).toBeVisible({
+    timeout: 10_000,
+  })
+  await page.getByRole('dialog').getByRole('button', { name: 'Publish', exact: true }).click()
 }
 
 export async function deleteDraftFromEditPage(

@@ -320,6 +320,13 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     }
   }, [loadingProject, project, user, router])
 
+  // A draft has no read-only view of its own — everything happens on its edit page.
+  useEffect(() => {
+    if (project?.status === 'draft') {
+      router.replace(`/projects/${idParam}/edit`)
+    }
+  }, [project?.status, idParam, router])
+
   const { data: volunteersData } = useQuery({
     ...orpc.volunteers.list.queryOptions({ input: { limit: 100 } }),
     enabled: !!project && (!!user?.isAdmin || project.ownerId === user?.id),
@@ -525,6 +532,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     )
   }
   if (!project) return null
+  if (project.status === 'draft') return null
 
   const isOwner = project.ownerId !== null && project.ownerId === user.id
   const isAdmin = user.isAdmin

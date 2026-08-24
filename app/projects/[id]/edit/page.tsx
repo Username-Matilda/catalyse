@@ -50,6 +50,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
   const [initialized, setInitialized] = useState(false)
   const [showPublishModal, setShowPublishModal] = useState(false)
   const [showDeleteDraftModal, setShowDeleteDraftModal] = useState(false)
+  const [showDeleteProjectModal, setShowDeleteProjectModal] = useState(false)
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [newTaskDescription, setNewTaskDescription] = useState('')
 
@@ -117,15 +118,20 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
     onSuccess: () => router.push('/projects'),
     onError: (err: unknown) => {
       showToast(err instanceof Error ? err.message : 'Failed to delete project', 'error')
+      setShowDeleteProjectModal(false)
     },
   })
 
   const publishMutation = useMutation({
     ...orpc.projects.publishDraft.mutationOptions(),
     onSuccess: () => {
-      showToast('Draft submitted for review!', 'success')
+      showToast(isOrgDraft ? 'Project published!' : 'Draft submitted for review!', 'success')
       setShowPublishModal(false)
-      setTimeout(() => router.push('/dashboard#tab-proposed'), 1500)
+      // Otherwise the project page picks up the pre-publish cached `draft` status and
+      // immediately redirects back here.
+      queryClient.invalidateQueries({ queryKey: orpc.projects.getById.key() })
+      const destination = isOrgDraft ? `/projects/${idParam}` : '/dashboard#tab-proposed'
+      setTimeout(() => router.push(destination), 1500)
     },
     onError: (err: unknown) => {
       showToast(err instanceof Error ? err.message : 'Failed to publish draft', 'error')
@@ -204,15 +210,10 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
     })
   }
 
-  function handleDelete() {
-    if (!window.confirm('Are you sure you want to delete this project? This cannot be undone.'))
-      return
-    deleteMutation.mutate({ id: parseInt(idParam, 10) })
-  }
-
   if (loading || !user) return null
 
   const isDraft = projectData?.status === 'draft'
+  const isOrgDraft = projectData?.isOrgProposed === true
 
   if (loadingProject) {
     return (
@@ -465,9 +466,11 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
               {updateMutation.isPending ? 'Saving…' : 'Save Changes'}
             </Button>
 
-            <Button href={`/projects/${idParam}`} variant="secondary">
-              View Project
-            </Button>
+            {!isDraft && (
+              <Button href={`/projects/${idParam}`} variant="secondary">
+                View Project
+              </Button>
+            )}
 
             {isDraft && canEdit && (
               <Button
@@ -475,7 +478,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                 onClick={() => setShowPublishModal(true)}
                 disabled={publishMutation.isPending}
               >
-                Publish
+                {isOrgDraft ? 'Publish' : 'Submit'}
               </Button>
             )}
 
@@ -490,11 +493,11 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
               </Button>
             )}
 
-            {user.isAdmin && projectData && (
+            {user.isAdmin && projectData && !isDraft && (
               <Button
                 type="button"
                 variant="danger"
-                onClick={handleDelete}
+                onClick={() => setShowDeleteProjectModal(true)}
                 disabled={deleteMutation.isPending}
               >
                 {deleteMutation.isPending ? 'Deleting…' : 'Delete Project'}
@@ -504,14 +507,48 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
         </form>
 
         <Modal
+          id="confirm-delete-project"
+          title="Delete this project?"
+          isOpen={showDeleteProjectModal}
+          onClose={() => setShowDeleteProjectModal(false)}
+        >
+          <p>
+            This will permanently delete <strong>{title || 'this project'}</strong>, including its
+            tasks, comments, and interest history. This cannot be undone.
+          </p>
+          <div className="mt-4 flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setShowDeleteProjectModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => deleteMutation.mutate({ id: parseInt(idParam, 10) })}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? 'Deleting…' : 'Delete Project'}
+            </Button>
+          </div>
+        </Modal>
+
+        <Modal
           id="confirm-publish-draft"
-          title="Submit draft for review?"
+          title={isOrgDraft ? 'Publish this project?' : 'Submit draft for review?'}
           isOpen={showPublishModal}
           onClose={() => setShowPublishModal(false)}
         >
           <p>
-            This will submit <strong>{title || 'this project'}</strong> to PauseAI team leads for
-            review. You won&apos;t be able to edit it as a draft anymore.
+            {isOrgDraft ? (
+              <>
+                This will publish <strong>{title || 'this project'}</strong> immediately. It will be
+                visible to volunteers straight away, and you won&apos;t be able to edit it as a
+                draft anymore.
+              </>
+            ) : (
+              <>
+                This will submit <strong>{title || 'this project'}</strong> to PauseAI team leads
+                for review. You won&apos;t be able to edit it as a draft anymore.
+              </>
+            )}
           </p>
           <div className="mt-4 flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setShowPublishModal(false)}>
@@ -521,7 +558,13 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
               onClick={() => publishMutation.mutate({ id: parseInt(idParam, 10) })}
               disabled={publishMutation.isPending}
             >
-              {publishMutation.isPending ? 'Submitting…' : 'Submit for Review'}
+              {isOrgDraft
+                ? publishMutation.isPending
+                  ? 'Publishing…'
+                  : 'Publish'
+                : publishMutation.isPending
+                  ? 'Submitting…'
+                  : 'Submit for Review'}
             </Button>
           </div>
         </Modal>
