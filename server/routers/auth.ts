@@ -6,7 +6,10 @@ import {
   verifyPassword,
   hashPassword,
   generateAuthToken,
-  authTokenExpiry,
+  createSession,
+  deleteSession,
+  deleteAllSessions,
+  deleteOtherSessions,
   checkAdminBootstrap,
   acceptPendingInvite,
   redactVolunteer,
@@ -217,14 +220,10 @@ export const authRouter = {
       const inviteAccepted = await acceptPendingInvite(email, volunteer.id)
       if (inviteAccepted) wasPromoted = true
 
-      const authToken = generateAuthToken()
-      await prisma.volunteer.update({
-        where: { id: volunteer.id },
-        data: { authToken, authTokenExpiresAt: authTokenExpiry(), updatedAt: new Date() },
-      })
+      const token = await createSession(volunteer.id)
 
       return {
-        token: authToken,
+        token,
         wasPromoted,
         message: wasPromoted
           ? "Login successful - you've been granted admin access!"
@@ -266,14 +265,11 @@ export const authRouter = {
       })
     }
 
-    const authToken = generateAuthToken()
     const volunteer = await prisma.volunteer.create({
       data: {
         name: input.name,
         email,
         passwordHash: hashPassword(input.password),
-        authToken,
-        authTokenExpiresAt: authTokenExpiry(),
         applicationMessage: input.applicationMessage ?? null,
         bio: input.bio ?? null,
         discordHandle: input.discordHandle ?? null,
@@ -350,20 +346,24 @@ export const authRouter = {
       ).catch((e) => console.error('[SIGNUP NOTIFY]', e))
     }
 
+    const token = await createSession(volunteer.id)
     return {
       id: volunteer.id,
-      token: authToken,
+      token,
       pending: !isApproved,
       ...(STUB_EMAIL && emailVerificationToken ? { emailVerificationToken } : {}),
     }
   }),
 
   logout: authedProcedure.handler(async ({ context }) => {
-    await prisma.volunteer.update({
-      where: { id: context.volunteer.id },
-      data: { authToken: null, authTokenExpiresAt: null },
-    })
+    if (context.token) await deleteSession(context.token)
     return { message: 'Logged out' }
+  }),
+
+  logoutOtherSessions: authedProcedure.handler(async ({ context }) => {
+    if (!context.token) throw new ORPCError('UNAUTHORIZED')
+    await deleteOtherSessions(context.volunteer.id, context.token)
+    return { message: 'Signed out of all other sessions' }
   }),
 
   me: authedProcedure.handler(async ({ context }) => {
@@ -417,19 +417,19 @@ export const authRouter = {
       if (!vol?.passwordHash || !verifyPassword(input.currentPassword, vol.passwordHash)) {
         throw new ORPCError('BAD_REQUEST', { message: 'Current password is incorrect' })
       }
-      // Rotate the session token: a password change must invalidate any session opened
-      // with the old password. The caller gets the replacement so it stays signed in.
-      const authToken = generateAuthToken()
+      // A password change must invalidate every session opened with the old password —
+      // not just this one. Drop them all, then issue a fresh one so the caller stays
+      // signed in.
       await prisma.volunteer.update({
         where: { id: context.volunteer.id },
         data: {
           passwordHash: hashPassword(input.newPassword),
-          authToken,
-          authTokenExpiresAt: authTokenExpiry(),
           updatedAt: new Date(),
         },
       })
-      return { message: 'Password changed successfully', token: authToken }
+      await deleteAllSessions(context.volunteer.id)
+      const token = await createSession(context.volunteer.id)
+      return { message: 'Password changed successfully', token }
     }),
 
   changeEmail: authedProcedure.input(ChangeEmailSchema).handler(async ({ input, context }) => {
@@ -548,11 +548,10 @@ export const authRouter = {
       where: { id: tokenRecord.volunteerId },
       data: {
         passwordHash: hashPassword(input.newPassword),
-        authToken: null,
-        authTokenExpiresAt: null,
         updatedAt: new Date(),
       },
     })
+    await deleteAllSessions(tokenRecord.volunteerId)
     await prisma.passwordResetToken.update({
       where: { id: tokenRecord.id },
       data: { usedAt: new Date() },
@@ -685,6 +684,7 @@ export const authRouter = {
         },
       })
       await sendAccountDeletionNotifications(context.volunteer.id, context.volunteer.name)
+      await deleteAllSessions(context.volunteer.id)
       await prisma.volunteer.update({
         where: { id: context.volunteer.id },
         data: {
@@ -743,15 +743,11 @@ export const authRouter = {
 
       const existing = await prisma.volunteer.findFirst({ where: { email, deletedAt: null } })
       if (existing) {
-        const authToken = generateAuthToken()
-        await prisma.volunteer.update({
-          where: { id: existing.id },
-          data: { authToken, authTokenExpiresAt: authTokenExpiry(), updatedAt: new Date() },
-        })
+        const token = await createSession(existing.id)
         let wasPromoted = await checkAdminBootstrap(email, existing.id)
         if (await acceptPendingInvite(email, existing.id)) wasPromoted = true
         return {
-          token: authToken,
+          token,
           wasPromoted,
           isNewUser: false,
           isPending: false,
@@ -816,13 +812,10 @@ export const authRouter = {
         })
       }
 
-      const authToken = generateAuthToken()
       const volunteer = await prisma.volunteer.create({
         data: {
           name,
           email,
-          authToken,
-          authTokenExpiresAt: authTokenExpiry(),
           emailConfirmed: true,
           applicationMessage: input.applicationMessage,
           bio: input.bio,
@@ -865,8 +858,9 @@ export const authRouter = {
           console.error('[GOOGLE_SIGNUP]', e),
         )
       }
+      const token = await createSession(volunteer.id)
       return {
-        token: authToken,
+        token,
         wasPromoted: wasBootstrapped || wasInvited,
         pending: !isApproved,
         name,

@@ -9,7 +9,7 @@ export const publicProcedure = base
 
 export const authedProcedure = base.use(({ context, next }) => {
   if (!context.volunteer) throw new ORPCError('UNAUTHORIZED')
-  return next({ context: { volunteer: context.volunteer } })
+  return next({ context: { volunteer: context.volunteer, token: context.token } })
 })
 
 export const approvedProcedure = authedProcedure.use(({ context, next }) => {

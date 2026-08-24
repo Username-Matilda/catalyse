@@ -223,6 +223,16 @@ function SettingsPageContent() {
     },
   })
 
+  const logoutOtherSessionsMutation = useMutation({
+    ...orpc.auth.logoutOtherSessions.mutationOptions(),
+    onSuccess: (data) => {
+      showToast(data.message, 'success')
+    },
+    onError: (err: unknown) => {
+      showToast(err instanceof Error ? err.message : 'Failed to sign out other sessions', 'error')
+    },
+  })
+
   const deleteAccountMutation = useMutation({
     ...orpc.auth.deleteAccount.mutationOptions(),
     onSuccess: (data) => {
@@ -639,6 +649,23 @@ function SettingsPageContent() {
                 {changePasswordMutation.isPending ? 'Changing…' : 'Change Password'}
               </Button>
             </form>
+          </div>
+
+          <div className="bg-surface rounded-xl shadow p-6 mb-6 overflow-hidden wrap-break-word">
+            <h2>Sessions</h2>
+            <p className="text-text-light mb-4">
+              Sign out everywhere except this device — use this if you signed in somewhere you no
+              longer trust.
+            </p>
+            <Button
+              variant="outline"
+              disabled={logoutOtherSessionsMutation.isPending}
+              onClick={() => logoutOtherSessionsMutation.mutate({})}
+            >
+              {logoutOtherSessionsMutation.isPending
+                ? 'Signing out other sessions…'
+                : 'Log out of all other sessions'}
+            </Button>
           </div>
 
           <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word">
