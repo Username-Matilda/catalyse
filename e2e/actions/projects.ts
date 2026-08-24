@@ -32,12 +32,16 @@ export async function proposeProject(
       .click()
   }
   await page.getByLabel('Task title').first().fill('Initial task')
+  await page.getByRole('button', { name: 'Submit Project Proposal' }).click()
+  await expect(page.getByRole('heading', { name: 'Submit for review?' })).toBeVisible({
+    timeout: 10_000,
+  })
 
   // Ideally we'd extract the project ID from the dashboard UI after redirect, but that
   // races against the async render. Intercepting the API response is more reliable for now.
   const [response] = await Promise.all([
     page.waitForResponse((resp) => resp.url().includes('/api/rpc/projects/create')),
-    page.getByRole('button', { name: 'Submit Project Proposal' }).click(),
+    page.getByRole('dialog').getByRole('button', { name: 'Submit Project Proposal' }).click(),
   ])
   if (!response.ok()) throw new Error(`Project creation failed: ${await response.text()}`)
   const { id } = (await response.json()).json as { id: number }
@@ -52,14 +56,18 @@ export async function adminCreateProject(
   description: string,
 ): Promise<number> {
   await adminPage.goto(`${baseUrl}/admin/projects/new`)
-  await expect(adminPage.getByRole('heading', { name: 'Create Organisation Project' })).toBeVisible(
-    { timeout: 10_000 },
-  )
+  await expect(adminPage.getByRole('heading', { name: 'Org Projects' })).toBeVisible({
+    timeout: 10_000,
+  })
 
   await adminPage.getByLabel('Project Title').fill(title)
   await adminPage.getByLabel('Description').fill(description)
   await adminPage.getByLabel('Task title').first().fill('Initial task')
-  await adminPage.getByRole('button', { name: 'Create Project' }).click()
+  await adminPage.getByRole('button', { name: 'Publish', exact: true }).click()
+  await expect(adminPage.getByRole('heading', { name: 'Publish this project?' })).toBeVisible({
+    timeout: 10_000,
+  })
+  await adminPage.getByRole('dialog').getByRole('button', { name: 'Publish', exact: true }).click()
 
   await adminPage.waitForURL(/\/projects\/\d+/, { timeout: 15_000 })
   // Wait for project content to render — this ensures auth has completed before we return,
@@ -68,6 +76,116 @@ export async function adminCreateProject(
   const match = adminPage.url().match(/\/projects\/(\d+)/)
   if (!match) throw new Error(`Could not extract project ID from URL: ${adminPage.url()}`)
   return parseInt(match[1])
+}
+
+export async function adminSaveProjectDraft(
+  baseUrl: string,
+  adminPage: Page,
+  title: string,
+): Promise<number> {
+  await adminPage.goto(`${baseUrl}/admin/projects/new`)
+  await expect(adminPage.getByRole('heading', { name: 'Org Projects' })).toBeVisible({
+    timeout: 10_000,
+  })
+
+  await adminPage.getByLabel('Project Title').fill(title)
+
+  const [response] = await Promise.all([
+    adminPage.waitForResponse((resp) => resp.url().includes('/api/rpc/admin/projects/create')),
+    adminPage.getByRole('button', { name: 'Save draft' }).click(),
+  ])
+  if (!response.ok()) throw new Error(`Draft save failed: ${await response.text()}`)
+  const { id } = (await response.json()).json as { id: number }
+  await adminPage.waitForURL(`${baseUrl}/projects/${id}**`, { timeout: 15_000 })
+  return id
+}
+
+export async function volunteerSaveProjectDraft(
+  baseUrl: string,
+  page: Page,
+  title: string,
+): Promise<number> {
+  await page.goto(`${baseUrl}/suggest`)
+  await expect(page.getByRole('button', { name: 'Submit Project Proposal' })).toBeVisible({
+    timeout: 10_000,
+  })
+
+  await page.getByLabel('Project Title').fill(title)
+
+  const [response] = await Promise.all([
+    page.waitForResponse((resp) => resp.url().includes('/api/rpc/projects/create')),
+    page.getByRole('button', { name: 'Save draft' }).click(),
+  ])
+  if (!response.ok()) throw new Error(`Draft save failed: ${await response.text()}`)
+  const { id } = (await response.json()).json as { id: number }
+  await page.waitForURL(`${baseUrl}/projects/${id}/edit`, { timeout: 15_000 })
+  return id
+}
+
+export async function addTaskFromEditPage(
+  baseUrl: string,
+  page: Page,
+  projectId: number,
+  taskTitle: string,
+): Promise<void> {
+  if (!page.url().includes(`/projects/${projectId}/edit`)) {
+    await page.goto(`${baseUrl}/projects/${projectId}/edit`)
+  }
+  await expect(page.getByRole('heading', { name: 'Edit Project' })).toBeVisible({
+    timeout: 10_000,
+  })
+  // Existing tasks are also labeled "Task title" — target the add-task form's stable id.
+  await page.locator('#new-task-title').fill(taskTitle)
+  await page.getByRole('button', { name: 'Add Task' }).click()
+  // Existing tasks render as editable inputs, so the title is a value, not a text node.
+  await expect(page.locator(`input[value="${taskTitle}"]`)).toBeVisible({ timeout: 10_000 })
+}
+
+// For a volunteer's own draft: submits it into the review queue.
+export async function publishDraftFromEditPage(
+  baseUrl: string,
+  page: Page,
+  projectId: number,
+): Promise<void> {
+  if (!page.url().includes(`/projects/${projectId}/edit`)) {
+    await page.goto(`${baseUrl}/projects/${projectId}/edit`)
+  }
+  await page.getByRole('button', { name: 'Submit', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Submit draft for review?' })).toBeVisible({
+    timeout: 10_000,
+  })
+  await page.getByRole('button', { name: 'Submit for Review' }).click()
+}
+
+// For an org-proposed draft: publishes it live, skipping review entirely.
+export async function publishOrgDraftFromEditPage(
+  baseUrl: string,
+  page: Page,
+  projectId: number,
+): Promise<void> {
+  if (!page.url().includes(`/projects/${projectId}/edit`)) {
+    await page.goto(`${baseUrl}/projects/${projectId}/edit`)
+  }
+  await page.getByRole('button', { name: 'Publish', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Publish this project?' })).toBeVisible({
+    timeout: 10_000,
+  })
+  await page.getByRole('dialog').getByRole('button', { name: 'Publish', exact: true }).click()
+}
+
+export async function deleteDraftFromEditPage(
+  baseUrl: string,
+  page: Page,
+  projectId: number,
+): Promise<void> {
+  if (!page.url().includes(`/projects/${projectId}/edit`)) {
+    await page.goto(`${baseUrl}/projects/${projectId}/edit`)
+  }
+  await page.getByRole('button', { name: 'Delete Draft', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Delete this draft?' })).toBeVisible({
+    timeout: 10_000,
+  })
+  await page.getByRole('dialog').getByRole('button', { name: 'Delete Draft' }).click()
 }
 
 export async function adminApproveProject(

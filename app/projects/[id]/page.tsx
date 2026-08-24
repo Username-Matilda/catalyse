@@ -320,6 +320,13 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     }
   }, [loadingProject, project, user, router])
 
+  // A draft has no read-only view of its own — everything happens on its edit page.
+  useEffect(() => {
+    if (project?.status === 'draft') {
+      router.replace(`/projects/${idParam}/edit`)
+    }
+  }, [project?.status, idParam, router])
+
   const { data: volunteersData } = useQuery({
     ...orpc.volunteers.list.queryOptions({ input: { limit: 100 } }),
     enabled: !!project && (!!user?.isAdmin || project.ownerId === user?.id),
@@ -525,12 +532,16 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     )
   }
   if (!project) return null
+  if (project.status === 'draft') return null
 
   const isOwner = project.ownerId !== null && project.ownerId === user.id
   const isAdmin = user.isAdmin
   // Org-proposed projects are attributed to the org, not to the admin who filed them.
   const proposer = proposerDisplay(project)
   const isOwnerOrAdmin = isOwner || isAdmin
+  // A draft has no owner yet, so its creator manages its own tasks until they publish it.
+  const canManageTasks =
+    isOwnerOrAdmin || (project.status === 'draft' && project.proposedById === user.id)
 
   const canSeeInterest =
     !isOwnerOrAdmin &&
@@ -811,14 +822,14 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             <div className={card}>
               <div className="flex justify-between items-center mb-3">
                 <h2 className="m-0">Tasks</h2>
-                {isOwnerOrAdmin && (
+                {canManageTasks && (
                   <Button variant="secondary" onClick={() => setShowTaskForm((v) => !v)}>
                     Add Task
                   </Button>
                 )}
               </div>
 
-              {showTaskForm && isOwnerOrAdmin && (
+              {showTaskForm && canManageTasks && (
                 <div className="bg-brand-bg rounded-lg p-3 mb-4 border border-brand-border">
                   <form onSubmit={handleAddTask}>
                     <div className="mb-3">
@@ -897,7 +908,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 <DndContext
                   sensors={taskDragSensors}
                   collisionDetection={closestCenter}
-                  onDragEnd={isOwnerOrAdmin ? handleTaskDragEnd : undefined}
+                  onDragEnd={canManageTasks ? handleTaskDragEnd : undefined}
                 >
                   <SortableContext
                     items={orderedTasks.map((t) => t.id)}
@@ -923,7 +934,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                           <SortableTaskItem
                             key={task.id}
                             task={task}
-                            draggable={isOwnerOrAdmin}
+                            draggable={canManageTasks}
                             title={
                               <Link
                                 href={`/projects/${idParam}/tasks/${task.id}`}
@@ -1007,7 +1018,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                               </>
                             }
                             menu={
-                              (canAssign || isOwnerOrAdmin) && (
+                              (canAssign || canManageTasks) && (
                                 <ActionMenu ariaLabel={`Task actions for ${task.title}`}>
                                   {(close) => (
                                     <>
@@ -1055,7 +1066,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                           Unassign
                                         </button>
                                       )}
-                                      {isOwnerOrAdmin && (
+                                      {canManageTasks && (
                                         <button
                                           role="menuitem"
                                           className={`w-full text-left px-3 py-2 text-sm text-red-700 dark:text-red-400 hover:bg-accent transition-colors cursor-pointer ${canAssign || canUnassign ? 'border-t border-brand-border mt-1' : ''}`}
@@ -1098,7 +1109,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             <div className={card}>
               <div className="flex items-center justify-between gap-2 mb-3">
                 <h2 className="m-0">Status</h2>
-                {isOwnerOrAdmin && (
+                {canManageTasks && (
                   <Button href={`/projects/${idParam}/edit`} variant="secondary" size="sm">
                     Edit Project
                   </Button>

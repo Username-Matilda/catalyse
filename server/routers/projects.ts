@@ -12,6 +12,7 @@ import {
   serializeTask,
 } from '@/lib/work-item'
 import { notifyUser, notifyAdmins, notifyTeamOfProject, clearNotifications } from '@/lib/notify'
+import { notifyMatchingVolunteers } from '@/lib/project-match-notify'
 import { html } from '@/lib/email'
 import {
   CreateProjectSchema,
@@ -26,6 +27,7 @@ import {
   SEEKING_OWNER_SQL,
   TERMINAL_STATUSES,
   UNAPPROVED_STATUSES,
+  MAX_VOLUNTEER_DRAFTS,
   projectStatusLabel,
 } from '@/lib/project-status'
 import {
@@ -399,11 +401,27 @@ export const projectsRouter = {
 
   create: approvedProcedure.input(CreateProjectSchema).handler(async ({ input, context }) => {
     const volunteer = context.volunteer
-    const { tasks, wantToOwn, skillIds, skillRequiredMap } = input
-    if (tasks.length === 0) {
+    const { tasks, wantToOwn, skillIds, skillRequiredMap, saveAsDraft } = input
+    if (!saveAsDraft && tasks.length === 0) {
       throw new ORPCError('BAD_REQUEST', {
         message: 'At least one task is required to submit a project proposal',
       })
+    }
+
+    if (saveAsDraft) {
+      const draftCount = await prisma.workItem.count({
+        where: {
+          type: WorkItemType.PROJECT,
+          creatorId: volunteer.id,
+          status: ProjectStatus.draft,
+          isOrgProposed: false,
+        },
+      })
+      if (draftCount >= MAX_VOLUNTEER_DRAFTS) {
+        throw new ORPCError('BAD_REQUEST', {
+          message: `You already have ${MAX_VOLUNTEER_DRAFTS} drafts. Publish or delete one before saving another.`,
+        })
+      }
     }
 
     const project = await prisma.$transaction(async (tx) => {
@@ -412,7 +430,8 @@ export const projectsRouter = {
           type: WorkItemType.PROJECT,
           title: input.title,
           description: input.description,
-          status: ProjectStatus.pending_review,
+          // A draft stays invisible to admins until the volunteer explicitly publishes it.
+          status: saveAsDraft ? ProjectStatus.draft : ProjectStatus.pending_review,
           assigneeId: wantToOwn ? volunteer.id : null,
           creatorId: volunteer.id,
           isOrgProposed: false,
@@ -453,22 +472,121 @@ export const projectsRouter = {
       return newProject
     })
 
-    await notifyAdmins(
-      'new_project_proposal',
-      `New project proposal: ${project.title}`,
-      `Proposed by ${volunteer.name}`,
-      '/admin/triage',
-      {
-        message: html`<strong>${volunteer.name}</strong> has submitted a new project proposal:
-          <strong>${project.title}</strong>. Please review it in the triage queue.`,
-        projectTitle: project.title,
-        projectId: project.id,
-      },
-      project.id,
-    )
+    if (!saveAsDraft) {
+      await notifyAdmins(
+        'new_project_proposal',
+        `New project proposal: ${project.title}`,
+        `Proposed by ${volunteer.name}`,
+        '/admin/triage',
+        {
+          message: html`<strong>${volunteer.name}</strong> has submitted a new project proposal:
+            <strong>${project.title}</strong>. Please review it in the triage queue.`,
+          projectTitle: project.title,
+          projectId: project.id,
+        },
+        project.id,
+      )
+    }
 
-    return { id: project.id, message: 'Project submitted for review' }
+    return {
+      id: project.id,
+      message: saveAsDraft ? 'Draft saved' : 'Project submitted for review',
+    }
   }),
+
+  myDrafts: approvedProcedure.handler(async ({ context }) => {
+    const volunteer = context.volunteer
+    const drafts = await prisma.workItem.findMany({
+      where: {
+        type: WorkItemType.PROJECT,
+        creatorId: volunteer.id,
+        status: ProjectStatus.draft,
+        // Org drafts belong to the "Org Projects" admin page's own My Drafts list.
+        isOrgProposed: false,
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, title: true, createdAt: true },
+    })
+    return drafts
+  }),
+
+  publishDraft: approvedProcedure
+    .input(z.object({ id: z.number().int() }))
+    .handler(async ({ input, context }) => {
+      const volunteer = context.volunteer
+      const project = await prisma.workItem.findFirst({
+        where: { id: input.id, type: WorkItemType.PROJECT },
+      })
+      if (!project) throw new ORPCError('NOT_FOUND', { message: 'Draft not found' })
+      if (project.creatorId !== volunteer.id || project.status !== ProjectStatus.draft) {
+        throw new ORPCError('FORBIDDEN', { message: 'Not authorized to publish this draft' })
+      }
+
+      const taskCount = await prisma.workItem.count({
+        where: { parentId: input.id, type: WorkItemType.TASK },
+      })
+      if (taskCount === 0) {
+        throw new ORPCError('BAD_REQUEST', {
+          message: 'Add at least one task before submitting this draft for review',
+        })
+      }
+
+      if (project.isOrgProposed) {
+        // Org projects skip review entirely — publishing a draft goes straight live,
+        // same as a non-draft org project created directly.
+        const newStatus =
+          project.assigneeId === null ? ProjectStatus.ready : ProjectStatus.in_progress
+        await prisma.workItem.update({
+          where: { id: input.id },
+          data: { status: newStatus, updatedAt: new Date() },
+        })
+
+        notifyMatchingVolunteers(project.id).catch((e) => console.error('[MATCH NOTIFY]', e))
+        if (project.teamId) {
+          notifyTeamOfProject(project.teamId, project.id, project.title).catch((e) =>
+            console.error('[TEAM NOTIFY]', e),
+          )
+        }
+
+        return { message: 'Project published' }
+      }
+
+      await prisma.workItem.update({
+        where: { id: input.id },
+        data: { status: ProjectStatus.pending_review, updatedAt: new Date() },
+      })
+
+      await notifyAdmins(
+        'new_project_proposal',
+        `New project proposal: ${project.title}`,
+        `Proposed by ${volunteer.name}`,
+        '/admin/triage',
+        {
+          message: html`<strong>${volunteer.name}</strong> has submitted a new project proposal:
+            <strong>${project.title}</strong>. Please review it in the triage queue.`,
+          projectTitle: project.title,
+          projectId: project.id,
+        },
+        project.id,
+      )
+
+      return { message: 'Project submitted for review' }
+    }),
+
+  deleteDraft: approvedProcedure
+    .input(z.object({ id: z.number().int() }))
+    .handler(async ({ input, context }) => {
+      const volunteer = context.volunteer
+      const project = await prisma.workItem.findFirst({
+        where: { id: input.id, type: WorkItemType.PROJECT },
+      })
+      if (!project) throw new ORPCError('NOT_FOUND', { message: 'Draft not found' })
+      if (project.creatorId !== volunteer.id || project.status !== ProjectStatus.draft) {
+        throw new ORPCError('FORBIDDEN', { message: 'Not authorized to delete this draft' })
+      }
+      await prisma.workItem.delete({ where: { id: input.id } })
+      return { message: 'Draft deleted' }
+    }),
 
   getById: approvedProcedure
     .input(z.object({ id: z.number().int() }))
@@ -494,6 +612,7 @@ export const projectsRouter = {
       }
 
       const hiddenStatuses: string[] = [
+        ProjectStatus.draft,
         ProjectStatus.pending_review,
         ProjectStatus.needs_discussion,
       ]
@@ -691,7 +810,12 @@ export const projectsRouter = {
       // Handing the project to a different owner or team is the owner's call (or an
       // admin's) — a proposer who never owned it can't appoint themselves. Submitting the
       // current value is always fine: the edit form posts every field back unchanged.
-      const canReassign = isAssignee || Boolean(volunteer.isAdmin)
+      // A draft has no owner yet, so its creator can set themselves as owner while it's
+      // still a draft — the "I want to lead this project" choice from the create form.
+      const canReassign =
+        isAssignee ||
+        Boolean(volunteer.isAdmin) ||
+        (isCreator && project.status === ProjectStatus.draft)
 
       if (body.teamId !== undefined && body.teamId !== project.teamId) {
         if (!canReassign) {
@@ -1235,7 +1359,10 @@ export const projectsRouter = {
       })
       if (!project) throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
 
-      if (project.assigneeId !== volunteer.id && !volunteer.isAdmin) {
+      // A draft has no owner yet, so its creator manages its own tasks until publish.
+      const isDraftCreator =
+        project.creatorId === volunteer.id && project.status === ProjectStatus.draft
+      if (project.assigneeId !== volunteer.id && !volunteer.isAdmin && !isDraftCreator) {
         throw new ORPCError('FORBIDDEN', {
           message: 'Only project owner or admin can create tasks',
         })
@@ -1280,7 +1407,9 @@ export const projectsRouter = {
       })
       if (!project) throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
 
-      if (project.assigneeId !== volunteer.id && !volunteer.isAdmin) {
+      const isDraftCreator =
+        project.creatorId === volunteer.id && project.status === ProjectStatus.draft
+      if (project.assigneeId !== volunteer.id && !volunteer.isAdmin && !isDraftCreator) {
         throw new ORPCError('FORBIDDEN', {
           message: 'Only project owner or admin can reorder tasks',
         })
@@ -1341,7 +1470,9 @@ export const projectsRouter = {
         isTaskAssignee &&
         task.status === TaskStatus.in_progress
 
-      if (!isAssignee && !volunteer.isAdmin && !isSelfClaim && !isMarkingDone) {
+      const isDraftCreator =
+        project.creatorId === volunteer.id && project.status === ProjectStatus.draft
+      if (!isAssignee && !volunteer.isAdmin && !isSelfClaim && !isMarkingDone && !isDraftCreator) {
         throw new ORPCError('FORBIDDEN', { message: 'Not authorized to update this task' })
       }
 
@@ -1485,7 +1616,9 @@ export const projectsRouter = {
       })
       if (!project) throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
 
-      if (project.assigneeId !== volunteer.id && !volunteer.isAdmin) {
+      const isDraftCreator =
+        project.creatorId === volunteer.id && project.status === ProjectStatus.draft
+      if (project.assigneeId !== volunteer.id && !volunteer.isAdmin && !isDraftCreator) {
         throw new ORPCError('FORBIDDEN', { message: 'Not authorized' })
       }
 

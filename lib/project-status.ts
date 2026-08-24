@@ -7,12 +7,14 @@ import { ProjectStatus } from '@/generated/prisma/enums'
  * here; previously each kept its own copy and they drifted (notification emails were
  * sending raw enum strings for statuses the server's copy had never heard of).
  *
- *   pending_review → needs_discussion → ready → in_progress → on_hold → completed → archived
+ *   draft → pending_review → needs_discussion → ready → in_progress → on_hold → completed → archived
  *
  * `ready` means approved and live, but unowned. Assigning an owner is what moves a
- * project to `in_progress`.
+ * project to `in_progress`. `draft` is a creator still preparing a project before it
+ * enters review (volunteer proposals) or goes live (org projects, which skip review).
  */
 export const PROJECT_STATUS_CONFIG: Record<string, { label: string; variant: BadgeVariant }> = {
+  draft: { label: 'Draft', variant: 'neutral' },
   pending_review: { label: 'Pending Review', variant: 'warning' },
   needs_discussion: { label: 'Needs Discussion', variant: 'neutral' },
   ready: { label: 'Ready', variant: 'caution' },
@@ -41,12 +43,14 @@ export const OWNER_ALLOWED_STATUSES: ProjectStatus[] = [
 /** Additional statuses only an admin may set. */
 export const ADMIN_ONLY_STATUSES: ProjectStatus[] = [
   ProjectStatus.archived,
+  ProjectStatus.draft,
   ProjectStatus.pending_review,
   ProjectStatus.needs_discussion,
 ]
 
 /** Pre-approval: hidden from browse, never advertised to volunteers. */
 export const UNAPPROVED_STATUSES: string[] = [
+  ProjectStatus.draft,
   ProjectStatus.pending_review,
   ProjectStatus.needs_discussion,
 ]
@@ -92,6 +96,9 @@ export const ADVERTISABLE_STATUSES: string[] = Object.keys(PROJECT_STATUS_CONFIG
  * name as the proposer misattributes the project to an individual.
  */
 export const ORG_PROPOSER_NAME = 'PauseAI'
+
+/** A volunteer may have at most this many of their own proposals sitting in `draft` at once. */
+export const MAX_VOLUNTEER_DRAFTS = 2
 
 export type ProposerDisplay = { name: string; volunteerId: number | null }
 

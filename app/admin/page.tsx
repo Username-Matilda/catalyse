@@ -75,7 +75,7 @@ export default function AdminLandingPage() {
       title: 'Projects',
       links: [
         { href: '/admin/triage', label: 'Triage Queue', count: counts?.pendingTriage },
-        { href: '/admin/projects/new', label: 'Create Org Project' },
+        { href: '/admin/projects/new', label: 'Org Projects' },
       ],
     },
     {

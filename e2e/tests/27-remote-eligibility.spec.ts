@@ -139,9 +139,9 @@ test.describe('Project form & settings: remote eligibility', () => {
     const title = fake.projectTitle()
 
     await adminPage.goto(`${baseUrl}/admin/projects/new`)
-    await expect(
-      adminPage.getByRole('heading', { name: 'Create Organisation Project' }),
-    ).toBeVisible({ timeout: 10_000 })
+    await expect(adminPage.getByRole('heading', { name: 'Org Projects' })).toBeVisible({
+      timeout: 10_000,
+    })
 
     await adminPage.getByLabel('Project Title').fill(title)
     await adminPage.getByLabel('Description').fill('e2e test project description')
@@ -151,7 +151,11 @@ test.describe('Project form & settings: remote eligibility', () => {
       'Yes - remote OK, from any country',
     )
     await adminPage.getByLabel('Task title').first().fill('Initial task')
-    await adminPage.getByRole('button', { name: 'Create Project' }).click()
+    await adminPage.getByRole('button', { name: 'Publish', exact: true }).click()
+    await adminPage
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Publish', exact: true })
+      .click()
 
     await adminPage.waitForURL(/\/projects\/\d+/, { timeout: 15_000 })
     await expect(adminPage.locator('#projectContent')).toBeVisible({ timeout: 10_000 })

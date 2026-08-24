@@ -10,10 +10,25 @@ import { adminProcedure } from '../../procedures'
 import { ProjectStatus, TaskStatus, WorkItemType } from '@/generated/prisma/enums'
 
 export const adminProjectsRouter = {
+  myDrafts: adminProcedure.handler(async ({ context }) => {
+    const admin = context.volunteer
+    const drafts = await prisma.workItem.findMany({
+      where: {
+        type: WorkItemType.PROJECT,
+        creatorId: admin.id,
+        status: ProjectStatus.draft,
+        isOrgProposed: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, title: true, createdAt: true },
+    })
+    return drafts
+  }),
+
   create: adminProcedure.input(AdminCreateProjectSchema).handler(async ({ input, context }) => {
     const admin = context.volunteer
-    const { wantToOwn, skillIds, skillRequiredMap, tasks } = input
-    if (tasks.length === 0) {
+    const { wantToOwn, skillIds, skillRequiredMap, tasks, saveAsDraft } = input
+    if (!saveAsDraft && tasks.length === 0) {
       throw new ORPCError('BAD_REQUEST', {
         message: 'At least one task is required to create a project',
       })
@@ -25,9 +40,14 @@ export const adminProjectsRouter = {
           type: WorkItemType.PROJECT,
           title: input.title,
           description: input.description,
-          // Org projects skip review, so they go live immediately — owned by the admin
-          // who created it, or `ready` for someone to pick up.
-          status: wantToOwn ? ProjectStatus.in_progress : ProjectStatus.ready,
+          // Org projects skip review, so a published one goes live immediately — owned by
+          // the admin who created it, or `ready` for someone to pick up. A draft stays
+          // invisible to volunteers until the admin explicitly publishes it.
+          status: saveAsDraft
+            ? ProjectStatus.draft
+            : wantToOwn
+              ? ProjectStatus.in_progress
+              : ProjectStatus.ready,
           assigneeId: wantToOwn ? admin.id : null,
           creatorId: admin.id,
           isOrgProposed: true,
@@ -68,15 +88,17 @@ export const adminProjectsRouter = {
       return newProject
     })
 
-    notifyMatchingVolunteers(project.id).catch((e) => console.error('[MATCH NOTIFY]', e))
+    if (!saveAsDraft) {
+      notifyMatchingVolunteers(project.id).catch((e) => console.error('[MATCH NOTIFY]', e))
 
-    if (input.teamId) {
-      notifyTeamOfProject(input.teamId, project.id, project.title).catch((e) =>
-        console.error('[TEAM NOTIFY]', e),
-      )
+      if (input.teamId) {
+        notifyTeamOfProject(input.teamId, project.id, project.title).catch((e) =>
+          console.error('[TEAM NOTIFY]', e),
+        )
+      }
     }
 
-    return { id: project.id, message: 'Org project created' }
+    return { id: project.id, message: saveAsDraft ? 'Draft saved' : 'Org project created' }
   }),
 
   review: adminProcedure
