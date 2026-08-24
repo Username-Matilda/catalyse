@@ -3,11 +3,12 @@
 import React, { use, useEffect, useState } from 'react'
 import { useRequireAuth } from '@/lib/hooks/auth'
 import { useRouter } from 'next/navigation'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import Checkbox from '@/components/Checkbox'
 import FilterDropdown from '@/components/FilterDropdown'
 import SkillPicker from '@/components/SkillPicker'
+import Modal from '@/components/ui/Modal'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import { buildLocationOptions } from '@/lib/filter-options'
@@ -42,10 +43,15 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
   const router = useRouter()
   const { user, loading } = useRequireAuth()
   const showToast = useToast()
+  const queryClient = useQueryClient()
 
   const [canEdit, setCanEdit] = useState(false)
   const [permissionChecked, setPermissionChecked] = useState(false)
   const [initialized, setInitialized] = useState(false)
+  const [showPublishModal, setShowPublishModal] = useState(false)
+  const [showDeleteDraftModal, setShowDeleteDraftModal] = useState(false)
+  const [newTaskTitle, setNewTaskTitle] = useState('')
+  const [newTaskDescription, setNewTaskDescription] = useState('')
 
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -114,6 +120,68 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
     },
   })
 
+  const publishMutation = useMutation({
+    ...orpc.projects.publishDraft.mutationOptions(),
+    onSuccess: () => {
+      showToast('Draft submitted for review!', 'success')
+      setShowPublishModal(false)
+      setTimeout(() => router.push('/dashboard#tab-proposed'), 1500)
+    },
+    onError: (err: unknown) => {
+      showToast(err instanceof Error ? err.message : 'Failed to publish draft', 'error')
+      setShowPublishModal(false)
+    },
+  })
+
+  const deleteDraftMutation = useMutation({
+    ...orpc.projects.deleteDraft.mutationOptions(),
+    onSuccess: () => {
+      showToast('Draft deleted', 'success')
+      router.push('/suggest')
+    },
+    onError: (err: unknown) => {
+      showToast(err instanceof Error ? err.message : 'Failed to delete draft', 'error')
+      setShowDeleteDraftModal(false)
+    },
+  })
+
+  const createTaskMutation = useMutation({
+    ...orpc.projects.createTask.mutationOptions(),
+    onSuccess: () => {
+      setNewTaskTitle('')
+      setNewTaskDescription('')
+      queryClient.invalidateQueries({ queryKey: orpc.projects.getById.key() })
+    },
+    onError: (err: unknown) => {
+      showToast(err instanceof Error ? err.message : 'Failed to create task', 'error')
+    },
+  })
+
+  const deleteTaskMutation = useMutation({
+    ...orpc.projects.deleteTask.mutationOptions(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: orpc.projects.getById.key() })
+    },
+    onError: (err: unknown) => {
+      showToast(err instanceof Error ? err.message : 'Failed to delete task', 'error')
+    },
+  })
+
+  function handleAddTask(e: React.FormEvent) {
+    e.preventDefault()
+    if (!newTaskTitle.trim()) return
+    createTaskMutation.mutate({
+      projectId: parseInt(idParam, 10),
+      title: newTaskTitle.trim(),
+      description: newTaskDescription.trim() || undefined,
+    })
+  }
+
+  function handleDeleteTask(taskId: number) {
+    if (!window.confirm('Delete this task?')) return
+    deleteTaskMutation.mutate({ projectId: parseInt(idParam, 10), taskId })
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!canEdit) return
@@ -143,6 +211,8 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
   }
 
   if (loading || !user) return null
+
+  const isDraft = projectData?.status === 'draft'
 
   if (loadingProject) {
     return (
@@ -310,6 +380,70 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
             <SkillPicker value={skills} onChange={canEdit ? setSkills : () => {}} />
           </div>
 
+          {isDraft && canEdit && (
+            <div className="mb-5">
+              <label>Tasks</label>
+              <p className="text-sm text-text-light mt-0 mb-2">
+                At least one task is required before this draft can be published.
+              </p>
+              {(projectData?.tasks ?? []).length > 0 && (
+                <ul className="list-none p-0 m-0 mb-3 flex flex-col gap-2">
+                  {(projectData?.tasks ?? []).map((task) => (
+                    <li
+                      key={task.id}
+                      className="flex items-center justify-between gap-3 bg-brand-bg rounded-lg p-3 border border-brand-border"
+                    >
+                      <span>{task.title}</span>
+                      <Button
+                        type="button"
+                        variant="danger"
+                        size="sm"
+                        onClick={() => handleDeleteTask(task.id)}
+                        disabled={deleteTaskMutation.isPending}
+                      >
+                        Delete
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="bg-brand-bg rounded-lg p-3 border border-brand-border">
+                <div className="mb-2">
+                  <label htmlFor="new-task-title" className="text-sm">
+                    Task title
+                  </label>
+                  <input
+                    id="new-task-title"
+                    type="text"
+                    value={newTaskTitle}
+                    onChange={(e) => setNewTaskTitle(e.target.value)}
+                    placeholder="e.g. Draft copy for homepage"
+                  />
+                </div>
+                <div className="mb-2">
+                  <label htmlFor="new-task-description" className="text-sm">
+                    Details (optional)
+                  </label>
+                  <textarea
+                    id="new-task-description"
+                    rows={2}
+                    value={newTaskDescription}
+                    onChange={(e) => setNewTaskDescription(e.target.value)}
+                    placeholder="More detail about what needs doing…"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleAddTask}
+                  disabled={createTaskMutation.isPending || !newTaskTitle.trim()}
+                >
+                  {createTaskMutation.isPending ? 'Adding…' : 'Add Task'}
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* There is no "needs an owner" checkbox: a project needs one exactly when it
               hasn't got one, so it's derived rather than asked for. Ownership is changed
               from the project page's owner menu. */}
@@ -331,6 +465,31 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
               {updateMutation.isPending ? 'Saving…' : 'Save Changes'}
             </Button>
 
+            <Button href={`/projects/${idParam}`} variant="secondary">
+              View Project
+            </Button>
+
+            {isDraft && canEdit && (
+              <Button
+                type="button"
+                onClick={() => setShowPublishModal(true)}
+                disabled={publishMutation.isPending}
+              >
+                Publish
+              </Button>
+            )}
+
+            {isDraft && canEdit && (
+              <Button
+                type="button"
+                variant="danger"
+                onClick={() => setShowDeleteDraftModal(true)}
+                disabled={deleteDraftMutation.isPending}
+              >
+                Delete Draft
+              </Button>
+            )}
+
             {user.isAdmin && projectData && (
               <Button
                 type="button"
@@ -343,6 +502,53 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
             )}
           </div>
         </form>
+
+        <Modal
+          id="confirm-publish-draft"
+          title="Submit draft for review?"
+          isOpen={showPublishModal}
+          onClose={() => setShowPublishModal(false)}
+        >
+          <p>
+            This will submit <strong>{title || 'this project'}</strong> to PauseAI team leads for
+            review. You won&apos;t be able to edit it as a draft anymore.
+          </p>
+          <div className="mt-4 flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setShowPublishModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => publishMutation.mutate({ id: parseInt(idParam, 10) })}
+              disabled={publishMutation.isPending}
+            >
+              {publishMutation.isPending ? 'Submitting…' : 'Submit for Review'}
+            </Button>
+          </div>
+        </Modal>
+
+        <Modal
+          id="confirm-delete-draft"
+          title="Delete this draft?"
+          isOpen={showDeleteDraftModal}
+          onClose={() => setShowDeleteDraftModal(false)}
+        >
+          <p>
+            This will permanently delete <strong>{title || 'this draft'}</strong>, including any
+            tasks you&apos;ve added. This cannot be undone.
+          </p>
+          <div className="mt-4 flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setShowDeleteDraftModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => deleteDraftMutation.mutate({ id: parseInt(idParam, 10) })}
+              disabled={deleteDraftMutation.isPending}
+            >
+              {deleteDraftMutation.isPending ? 'Deleting…' : 'Delete Draft'}
+            </Button>
+          </div>
+        </Modal>
       </main>
     </>
   )

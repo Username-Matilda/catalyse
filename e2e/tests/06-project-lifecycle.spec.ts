@@ -238,7 +238,7 @@ test.describe('Project Creation Requires At Least One Task', () => {
 
     await adminPage.getByLabel('Project Title').fill(fake.projectTitle())
     await adminPage.getByLabel('Description').fill('Org project with no tasks')
-    await adminPage.getByRole('button', { name: 'Create Project' }).click()
+    await adminPage.getByRole('button', { name: 'Publish' }).click()
 
     await expect(getAlert(adminPage)).toContainText('At least one task with a title is required.', {
       timeout: 10_000,

@@ -151,7 +151,7 @@ test.describe('Project form & settings: remote eligibility', () => {
       'Yes - remote OK, from any country',
     )
     await adminPage.getByLabel('Task title').first().fill('Initial task')
-    await adminPage.getByRole('button', { name: 'Create Project' }).click()
+    await adminPage.getByRole('button', { name: 'Publish' }).click()
 
     await adminPage.waitForURL(/\/projects\/\d+/, { timeout: 15_000 })
     await expect(adminPage.locator('#projectContent')).toBeVisible({ timeout: 10_000 })

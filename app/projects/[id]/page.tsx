@@ -1101,7 +1101,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             <div className={card}>
               <div className="flex items-center justify-between gap-2 mb-3">
                 <h2 className="m-0">Status</h2>
-                {isOwnerOrAdmin && (
+                {canManageTasks && (
                   <Button href={`/projects/${idParam}/edit`} variant="secondary" size="sm">
                     Edit Project
                   </Button>
