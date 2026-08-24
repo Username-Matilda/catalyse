@@ -494,6 +494,7 @@ export const projectsRouter = {
       }
 
       const hiddenStatuses: string[] = [
+        ProjectStatus.draft,
         ProjectStatus.pending_review,
         ProjectStatus.needs_discussion,
       ]

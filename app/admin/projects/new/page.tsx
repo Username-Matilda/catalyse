@@ -23,7 +23,8 @@ export default function AdminCreateProjectPage() {
         <div className="max-w-4xl">
           <ProjectForm
             onSubmitForm={(data) => createMutation.mutateAsync(data)}
-            submitLabel="Create Project"
+            submitLabel="Publish"
+            onSaveDraft={(data) => createMutation.mutateAsync({ ...data, saveAsDraft: true })}
             onSuccess={(id) => router.push(`/projects/${id}`)}
             onCancel={() => router.back()}
           />

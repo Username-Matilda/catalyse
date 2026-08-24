@@ -52,6 +52,9 @@ interface ProjectFormProps {
   showReviewNotice?: boolean
   onSuccess: (id: number) => void
   onCancel?: () => void
+  /** When set, renders a secondary "Save as draft" action alongside the main submit. */
+  onSaveDraft?: (data: ProjectCreateInput) => Promise<{ id: number }>
+  draftLabel?: string
 }
 
 export default function ProjectForm({
@@ -60,6 +63,8 @@ export default function ProjectForm({
   showReviewNotice = false,
   onSuccess,
   onCancel,
+  onSaveDraft,
+  draftLabel = 'Save as Draft',
 }: ProjectFormProps) {
   const toast = useToast()
 
@@ -111,6 +116,34 @@ export default function ProjectForm({
     if (tasks.length > 1) setTasks((prev) => prev.filter((_, i) => i !== index))
   }
 
+  function buildPayload(): ProjectCreateInput {
+    const validTasks = tasks.filter((t) => t.title.trim())
+    const [country, localGroup] = locationValue.split(':')
+    return {
+      title: title.trim(),
+      description: description.trim(),
+      projectType: projectType || null,
+      timeCommitmentHoursPerWeek: hoursPerWeek ? Number(hoursPerWeek) : null,
+      urgency,
+      country: country || null,
+      localGroup: localGroup || null,
+      teamId: teamId ? Number(teamId) : null,
+      remoteEligibility: remoteEligibility as ProjectCreateInput['remoteEligibility'],
+      estimatedDuration: duration.trim() || null,
+      collaborationLink: collaborationLink.trim() || null,
+      skillIds: skills.map((s) => s.skillId),
+      skillRequiredMap: Object.fromEntries(skills.map((s) => [s.skillId, true])),
+      isSeekingHelp: seekingHelp,
+      // No isSeekingOwner: `wantToOwn` decides whether an owner is set, and "needs an
+      // owner" is derived from that.
+      wantToOwn,
+      tasks: validTasks.map((t) => ({
+        title: t.title.trim(),
+        description: t.description.trim() || undefined,
+      })),
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const validTasks = tasks.filter((t) => t.title.trim())
@@ -119,34 +152,27 @@ export default function ProjectForm({
       return
     }
     setSubmitting(true)
-    const [country, localGroup] = locationValue.split(':')
     try {
-      const result = await onSubmitForm({
-        title: title.trim(),
-        description: description.trim(),
-        projectType: projectType || null,
-        timeCommitmentHoursPerWeek: hoursPerWeek ? Number(hoursPerWeek) : null,
-        urgency,
-        country: country || null,
-        localGroup: localGroup || null,
-        teamId: teamId ? Number(teamId) : null,
-        remoteEligibility: remoteEligibility as ProjectCreateInput['remoteEligibility'],
-        estimatedDuration: duration.trim() || null,
-        collaborationLink: collaborationLink.trim() || null,
-        skillIds: skills.map((s) => s.skillId),
-        skillRequiredMap: Object.fromEntries(skills.map((s) => [s.skillId, true])),
-        isSeekingHelp: seekingHelp,
-        // No isSeekingOwner: `wantToOwn` decides whether an owner is set, and "needs an
-        // owner" is derived from that.
-        wantToOwn,
-        tasks: validTasks.map((t) => ({
-          title: t.title.trim(),
-          description: t.description.trim() || undefined,
-        })),
-      })
+      const result = await onSubmitForm(buildPayload())
       onSuccess(result.id)
     } catch (err: unknown) {
       toast(err instanceof Error ? err.message : 'Failed to submit', 'error')
+      setSubmitting(false)
+    }
+  }
+
+  async function handleSaveDraft() {
+    if (!onSaveDraft) return
+    if (!title.trim()) {
+      toast('A title is required, even for a draft.', 'error')
+      return
+    }
+    setSubmitting(true)
+    try {
+      const result = await onSaveDraft(buildPayload())
+      onSuccess(result.id)
+    } catch (err: unknown) {
+      toast(err instanceof Error ? err.message : 'Failed to save draft', 'error')
       setSubmitting(false)
     }
   }
@@ -455,6 +481,11 @@ export default function ProjectForm({
         <Button type="submit" disabled={submitting}>
           {submitting ? 'Submitting…' : submitLabel}
         </Button>
+        {onSaveDraft && (
+          <Button type="button" variant="secondary" disabled={submitting} onClick={handleSaveDraft}>
+            {draftLabel}
+          </Button>
+        )}
         {onCancel && (
           <Button type="button" variant="secondary" onClick={onCancel}>
             Cancel

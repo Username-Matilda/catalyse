@@ -18,9 +18,11 @@ datasource db {
 // Lifecycle position only. Whether a project wants an owner or more help is not a
 // status: `isSeekingOwner` is derived (see lib/project-status.ts) and `isSeekingHelp`
 // is an independent flag the owner controls.
-//   pending_review → needs_discussion → ready → in_progress → on_hold → completed → archived
+//   draft → pending_review → needs_discussion → ready → in_progress → on_hold → completed → archived
 // `ready` = approved and live, but nobody owns it yet.
+// `draft` = org-proposed only, admin still preparing it; never enters the review queue.
 enum ProjectStatus {
+  draft
   pending_review
   needs_discussion
   ready
