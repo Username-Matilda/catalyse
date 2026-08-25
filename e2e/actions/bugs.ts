@@ -1,5 +1,6 @@
 import { Page, expect } from '@playwright/test'
 import { selectFilterDropdown } from './ui'
+import { createApiClient } from '../client'
 
 const SEVERITY_LABELS: Record<string, string> = {
   low: 'Low: minor inconvenience',
@@ -61,4 +62,24 @@ export async function submitBugReport(
       .getByRole('dialog', { name: 'Report an Issue' })
       .getByRole('heading', { name: 'Thank you!' }),
   ).toBeVisible({ timeout: 10_000 })
+}
+
+// API-equivalent of submitBugReport, for tests that need "a bug report exists" purely as setup
+// for testing admin status/assignment changes — the report dialog itself is already proven
+// end-to-end by 14-bug-reporting.spec.ts.
+export async function submitBugReportViaApi(
+  baseUrl: string,
+  volunteerPage: Page,
+  title: string,
+  description: string,
+): Promise<number> {
+  // localStorage is only readable once the page has loaded a real origin — a fresh
+  // volunteer.page fixture starts at about:blank, where evaluate throws a SecurityError.
+  if (volunteerPage.url() === 'about:blank') await volunteerPage.goto(baseUrl)
+  const token = await volunteerPage.evaluate(() => localStorage.getItem('authToken'))
+  const api = createApiClient(baseUrl, token)
+  const result = await api.bugReports.create({ body: { title, description } })
+  if (result.status !== 200)
+    throw new Error(`Bug report creation failed: ${JSON.stringify(result.body)}`)
+  return (result.body as { id: number }).id
 }

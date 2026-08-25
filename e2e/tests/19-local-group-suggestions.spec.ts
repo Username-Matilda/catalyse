@@ -2,6 +2,7 @@ import { test, expect, getAlert } from '../fixtures'
 import { goToDashboardNotifications } from '../actions/dashboard'
 import {
   submitLocalGroupSuggestion,
+  submitLocalGroupSuggestionViaApi,
   navigateToAdminLocalGroups,
   adminReviewSuggestion,
   adminAddGroup,
@@ -50,7 +51,7 @@ test.describe('Local Group Suggestions', () => {
   test('Admin sees pending suggestion', async ({ volunteer, adminPage, baseUrl }) => {
     const groupName = fake.localGroupName()
 
-    await submitLocalGroupSuggestion(baseUrl, volunteer.page, 'United Kingdom', groupName)
+    await submitLocalGroupSuggestionViaApi(baseUrl, volunteer.page, 'United Kingdom', groupName)
     await navigateToAdminLocalGroups(baseUrl, adminPage)
 
     await expect(adminPage.getByRole('article').filter({ hasText: groupName })).toBeVisible({
@@ -65,7 +66,7 @@ test.describe('Local Group Suggestions', () => {
   }) => {
     const groupName = fake.localGroupName()
 
-    await submitLocalGroupSuggestion(baseUrl, volunteer.page, 'United Kingdom', groupName)
+    await submitLocalGroupSuggestionViaApi(baseUrl, volunteer.page, 'United Kingdom', groupName)
     await navigateToAdminLocalGroups(baseUrl, adminPage)
     await adminReviewSuggestion(adminPage, groupName, 'accept')
 
@@ -91,7 +92,7 @@ test.describe('Local Group Suggestions', () => {
     const original = fake.localGroupName()
     const adjusted = `${original} (Adjusted)`
 
-    await submitLocalGroupSuggestion(baseUrl, volunteer.page, 'United Kingdom', original)
+    await submitLocalGroupSuggestionViaApi(baseUrl, volunteer.page, 'United Kingdom', original)
     await navigateToAdminLocalGroups(baseUrl, adminPage)
     await adminReviewSuggestion(adminPage, original, 'accept', { editName: adjusted })
 
@@ -116,7 +117,7 @@ test.describe('Local Group Suggestions', () => {
   }) => {
     const groupName = fake.localGroupName()
 
-    await submitLocalGroupSuggestion(baseUrl, volunteer.page, 'United Kingdom', groupName)
+    await submitLocalGroupSuggestionViaApi(baseUrl, volunteer.page, 'United Kingdom', groupName)
     await navigateToAdminLocalGroups(baseUrl, adminPage)
     await adminReviewSuggestion(adminPage, groupName, 'accept')
     await expect(getAlert(adminPage)).toContainText('accepted', { timeout: 10_000 })
@@ -142,7 +143,7 @@ test.describe('Local Group Suggestions', () => {
   }) => {
     const groupName = fake.localGroupName()
 
-    await submitLocalGroupSuggestion(baseUrl, volunteer.page, 'United Kingdom', groupName)
+    await submitLocalGroupSuggestionViaApi(baseUrl, volunteer.page, 'United Kingdom', groupName)
     await navigateToAdminLocalGroups(baseUrl, adminPage)
     await adminReviewSuggestion(adminPage, groupName, 'merge', {
       mergeTarget: 'United Kingdom, London',
@@ -160,7 +161,7 @@ test.describe('Local Group Suggestions', () => {
     const groupName = fake.localGroupName()
     const note = 'Reviewing similar groups in this area first'
 
-    await submitLocalGroupSuggestion(baseUrl, volunteer.page, 'United Kingdom', groupName)
+    await submitLocalGroupSuggestionViaApi(baseUrl, volunteer.page, 'United Kingdom', groupName)
     await navigateToAdminLocalGroups(baseUrl, adminPage)
     await adminReviewSuggestion(adminPage, groupName, 'on_hold', { adminNotes: note })
 
@@ -177,7 +178,7 @@ test.describe('Local Group Suggestions', () => {
     const groupName = fake.localGroupName()
     const note = 'This area is covered by an existing group'
 
-    await submitLocalGroupSuggestion(baseUrl, volunteer.page, 'United Kingdom', groupName)
+    await submitLocalGroupSuggestionViaApi(baseUrl, volunteer.page, 'United Kingdom', groupName)
     await navigateToAdminLocalGroups(baseUrl, adminPage)
     await adminReviewSuggestion(adminPage, groupName, 'decline', { adminNotes: note })
 
@@ -197,7 +198,7 @@ test.describe('Local Group Suggestions', () => {
   }) => {
     const groupName = fake.localGroupName()
 
-    await submitLocalGroupSuggestion(baseUrl, volunteer.page, 'United Kingdom', groupName)
+    await submitLocalGroupSuggestionViaApi(baseUrl, volunteer.page, 'United Kingdom', groupName)
     await navigateToAdminLocalGroups(baseUrl, adminPage)
     await adminReviewSuggestion(adminPage, groupName, 'decline')
     await expect(getAlert(adminPage)).toContainText('declined', { timeout: 10_000 })
@@ -219,7 +220,7 @@ test.describe('Local Group Suggestions', () => {
   }) => {
     const groupName = fake.localGroupName()
 
-    await submitLocalGroupSuggestion(baseUrl, volunteer.page, 'United Kingdom', groupName)
+    await submitLocalGroupSuggestionViaApi(baseUrl, volunteer.page, 'United Kingdom', groupName)
     await navigateToAdminLocalGroups(baseUrl, adminPage)
     await adminReviewSuggestion(adminPage, groupName, 'decline')
 
@@ -241,7 +242,7 @@ test.describe('Local Group Suggestions', () => {
   }) => {
     const groupName = fake.localGroupName()
 
-    await submitLocalGroupSuggestion(baseUrl, volunteer.page, 'United Kingdom', groupName)
+    await submitLocalGroupSuggestionViaApi(baseUrl, volunteer.page, 'United Kingdom', groupName)
     await navigateToAdminLocalGroups(baseUrl, adminPage)
     await adminReviewSuggestion(adminPage, groupName, 'accept')
     await expect(getAlert(adminPage)).toContainText('accepted', { timeout: 10_000 })

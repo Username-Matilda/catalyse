@@ -8,7 +8,7 @@ import {
   createApprovedVolunteer,
 } from '../fixtures'
 import { fake } from '../fake'
-import { proposeProject, adminCreateProject, adminApproveProject } from '../actions/projects'
+import { proposeProject, adminCreateProjectViaApi, adminApproveProject } from '../actions/projects'
 import { Page } from '@playwright/test'
 import { createApiClient } from '../client'
 
@@ -228,12 +228,13 @@ test.describe('Project Tasks', () => {
 
   test('Admin deletes a task', async ({ adminPage, baseUrl }) => {
     test.setTimeout(60_000)
-    await adminCreateProject(
+    const projectId = await adminCreateProjectViaApi(
       baseUrl,
-      adminPage,
       fake.projectTitle(),
       'Project for task deletion test',
     )
+    await adminPage.goto(`${baseUrl}/projects/${projectId}`)
+    await expect(adminPage.locator('#projectContent')).toBeVisible({ timeout: 10_000 })
 
     await adminPage.getByRole('button', { name: 'Add Task' }).click()
     await adminPage.getByLabel('Task title').fill('Task to delete')

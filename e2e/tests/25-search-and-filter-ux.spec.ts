@@ -1,5 +1,5 @@
 import { test, expect } from '../fixtures'
-import { adminCreateProject } from '../actions/projects'
+import { adminCreateProjectViaApi } from '../actions/projects'
 import { fake } from '../fake'
 
 test.describe('Search and filter UX', () => {
@@ -36,12 +36,11 @@ test.describe('Search and filter UX', () => {
   })
 
   test('Clicking a project search result right after typing is not cancelled by the debounced URL sync', async ({
-    adminPage,
     volunteer,
     baseUrl,
   }) => {
     const title = fake.projectTitle()
-    await adminCreateProject(baseUrl, adminPage, title, 'Search-click race regression test')
+    await adminCreateProjectViaApi(baseUrl, title, 'Search-click race regression test')
 
     await volunteer.page.goto(`${baseUrl}/projects`)
     await expect(
@@ -67,7 +66,7 @@ test.describe('Search and filter UX', () => {
     baseUrl,
   }) => {
     const title = fake.projectTitle()
-    await adminCreateProject(baseUrl, adminPage, title, 'keepPreviousData regression test')
+    await adminCreateProjectViaApi(baseUrl, title, 'keepPreviousData regression test')
 
     await adminPage.goto(`${baseUrl}/projects`)
     await expect(adminPage.getByRole('heading', { name: 'Projects', exact: true })).toBeVisible({

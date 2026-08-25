@@ -1,35 +1,29 @@
 import { test, expect, getAlert, readAdminToken, createApprovedVolunteer } from '../fixtures'
 import type { Page } from '@playwright/test'
-import { createSkill } from '../actions/skills'
+import { createSkillViaApi } from '../actions/skills'
 import type { SkillInfo } from '../actions/skills'
 import { goToDashboardNotifications } from '../actions/dashboard'
 import { fake } from '../fake'
 import { selectFilterDropdown } from '../actions/ui'
 import { createApiClient } from '../client'
 
-async function createOpenQuickTask(
-  baseUrl: string,
-  adminPage: Page,
-  skill: SkillInfo,
-): Promise<string> {
+// API-equivalent of driving the create-quick-task dialog, for tests that need "an open quick
+// task exists" purely as setup for testing claim/assign/complete/comment flows — the
+// create-dialog UI flow itself is already proven end-to-end by "Admin creates a quick task"
+// below.
+async function createOpenQuickTaskViaApi(baseUrl: string, skill: SkillInfo): Promise<string> {
   const taskTitle = fake.quickTaskTitle()
-
-  await adminPage.goto(`${baseUrl}/quick-tasks`)
-  await expect(adminPage.getByRole('heading', { name: 'Quick Tasks', level: 1 })).toBeVisible({
-    timeout: 10_000,
+  const adminApi = createApiClient(baseUrl, readAdminToken(baseUrl))
+  const result = await adminApi.quickTasks.create({
+    body: {
+      title: taskTitle,
+      description: 'E2E test task description',
+      skillId: skill.id,
+      estimatedHours: 2,
+    },
   })
-
-  await adminPage.getByRole('button', { name: 'Create Task' }).click()
-  const createDialog = adminPage.getByRole('dialog', { name: 'Create Quick Task' })
-  await expect(createDialog).toBeVisible({ timeout: 10_000 })
-
-  await createDialog.getByLabel('Title').fill(taskTitle)
-  await createDialog.getByLabel('Description').fill('E2E test task description')
-  await selectFilterDropdown(adminPage, 'Skill Being Tested', skill.optionLabel, createDialog)
-  await createDialog.getByLabel('Estimated Hours').fill('2')
-  await createDialog.getByRole('button', { name: 'Create Task' }).click()
-  await expect(getAlert(adminPage)).toBeVisible({ timeout: 10_000 })
-
+  if (result.status !== 200)
+    throw new Error(`Quick task creation failed: ${JSON.stringify(result.body)}`)
   return taskTitle
 }
 
@@ -77,7 +71,7 @@ async function submitQuickTask(
 
 test.describe('Quick Tasks (admin)', () => {
   test('Admin creates a quick task', async ({ adminPage, baseUrl }) => {
-    const skill = await createSkill(baseUrl, adminPage)
+    const skill = await createSkillViaApi(baseUrl)
     const taskTitle = fake.quickTaskTitle()
 
     await adminPage.goto(`${baseUrl}/quick-tasks`)
@@ -108,8 +102,13 @@ test.describe('Quick Tasks (admin)', () => {
     volunteer,
     baseUrl,
   }) => {
-    const skill = await createSkill(baseUrl, adminPage)
-    const taskTitle = await createOpenQuickTask(baseUrl, adminPage, skill)
+    const skill = await createSkillViaApi(baseUrl)
+    const taskTitle = await createOpenQuickTaskViaApi(baseUrl, skill)
+
+    await adminPage.goto(`${baseUrl}/quick-tasks`)
+    await expect(adminPage.getByRole('heading', { name: 'Quick Tasks', level: 1 })).toBeVisible({
+      timeout: 10_000,
+    })
 
     // Expand the card to reveal the inline assign dropdown
     const taskCard = adminPage.getByRole('article').filter({ hasText: taskTitle })
@@ -137,9 +136,14 @@ test.describe('Quick Tasks (admin)', () => {
     adminPage,
     baseUrl,
   }) => {
-    const skill = await createSkill(baseUrl, adminPage)
-    const taskTitle = await createOpenQuickTask(baseUrl, adminPage, skill)
+    const skill = await createSkillViaApi(baseUrl)
+    const taskTitle = await createOpenQuickTaskViaApi(baseUrl, skill)
     const commentText = `comment ${Date.now()}`
+
+    await adminPage.goto(`${baseUrl}/quick-tasks`)
+    await expect(adminPage.getByRole('heading', { name: 'Quick Tasks', level: 1 })).toBeVisible({
+      timeout: 10_000,
+    })
 
     const taskCard = adminPage.getByRole('article').filter({ hasText: taskTitle })
     await expect(taskCard).toBeVisible({ timeout: 10_000 })
@@ -156,8 +160,8 @@ test.describe('Quick Tasks (admin)', () => {
     volunteer,
     baseUrl,
   }) => {
-    const skill = await createSkill(baseUrl, adminPage)
-    const taskTitle = await createOpenQuickTask(baseUrl, adminPage, skill)
+    const skill = await createSkillViaApi(baseUrl)
+    const taskTitle = await createOpenQuickTaskViaApi(baseUrl, skill)
     await assignQuickTask(baseUrl, adminPage, taskTitle, volunteer.name)
     const adminComment = `admin note ${Date.now()}`
     const volunteerReply = `volunteer reply ${Date.now()}`
@@ -196,8 +200,8 @@ test.describe('Quick Tasks (admin)', () => {
     volunteer,
     baseUrl,
   }) => {
-    const skill = await createSkill(baseUrl, adminPage)
-    const taskTitle = await createOpenQuickTask(baseUrl, adminPage, skill)
+    const skill = await createSkillViaApi(baseUrl)
+    const taskTitle = await createOpenQuickTaskViaApi(baseUrl, skill)
     await assignQuickTask(baseUrl, adminPage, taskTitle, volunteer.name)
 
     await volunteer.page.goto(`${baseUrl}/dashboard`)
@@ -217,8 +221,8 @@ test.describe('Quick Tasks (admin)', () => {
     volunteer,
     baseUrl,
   }) => {
-    const skill = await createSkill(baseUrl, adminPage)
-    const taskTitle = await createOpenQuickTask(baseUrl, adminPage, skill)
+    const skill = await createSkillViaApi(baseUrl)
+    const taskTitle = await createOpenQuickTaskViaApi(baseUrl, skill)
     await assignQuickTask(baseUrl, adminPage, taskTitle, volunteer.name)
 
     // Volunteer expands the task card and submits it
@@ -261,8 +265,8 @@ test.describe('Quick Tasks (admin)', () => {
     volunteer,
     baseUrl,
   }) => {
-    const skill = await createSkill(baseUrl, adminPage)
-    const taskTitle = await createOpenQuickTask(baseUrl, adminPage, skill)
+    const skill = await createSkillViaApi(baseUrl)
+    const taskTitle = await createOpenQuickTaskViaApi(baseUrl, skill)
     await assignQuickTask(baseUrl, adminPage, taskTitle, volunteer.name)
     await submitQuickTask(baseUrl, volunteer.page, taskTitle)
 
@@ -308,8 +312,8 @@ test.describe('Quick Tasks (admin)', () => {
     volunteer,
     baseUrl,
   }) => {
-    const skill = await createSkill(baseUrl, adminPage)
-    const taskTitle = await createOpenQuickTask(baseUrl, adminPage, skill)
+    const skill = await createSkillViaApi(baseUrl)
+    const taskTitle = await createOpenQuickTaskViaApi(baseUrl, skill)
     await assignQuickTask(baseUrl, adminPage, taskTitle, volunteer.name)
     await submitQuickTask(baseUrl, volunteer.page, taskTitle)
 
@@ -358,8 +362,13 @@ test.describe('Quick Tasks (admin)', () => {
     adminPage,
     baseUrl,
   }) => {
-    const skill = await createSkill(baseUrl, adminPage)
-    const taskTitle = await createOpenQuickTask(baseUrl, adminPage, skill)
+    const skill = await createSkillViaApi(baseUrl)
+    const taskTitle = await createOpenQuickTaskViaApi(baseUrl, skill)
+
+    await adminPage.goto(`${baseUrl}/quick-tasks`)
+    await expect(adminPage.getByRole('heading', { name: 'Quick Tasks', level: 1 })).toBeVisible({
+      timeout: 10_000,
+    })
 
     const taskCard = adminPage.getByRole('article').filter({ hasText: taskTitle })
     await expect(taskCard).toBeVisible({ timeout: 10_000 })
@@ -377,8 +386,13 @@ test.describe('Quick Tasks (admin)', () => {
     adminPage,
     baseUrl,
   }) => {
-    const skill = await createSkill(baseUrl, adminPage)
-    const taskTitle = await createOpenQuickTask(baseUrl, adminPage, skill)
+    const skill = await createSkillViaApi(baseUrl)
+    const taskTitle = await createOpenQuickTaskViaApi(baseUrl, skill)
+
+    await adminPage.goto(`${baseUrl}/quick-tasks`)
+    await expect(adminPage.getByRole('heading', { name: 'Quick Tasks', level: 1 })).toBeVisible({
+      timeout: 10_000,
+    })
 
     // Get the task ID from the card's DOM id attribute (card has id="task-N")
     const taskCard = adminPage.getByRole('article').filter({ hasText: taskTitle })

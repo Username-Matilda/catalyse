@@ -1,8 +1,8 @@
 import { readFileSync } from 'fs'
 import { test, expect, getAlert, approveVolunteer, dismissCookieConsentScript } from '../fixtures'
 import { fake } from '../fake'
-import { createSkill } from '../actions/skills'
-import { adminCreateProject, transferProjectOwnership } from '../actions/projects'
+import { createSkillViaApi } from '../actions/skills'
+import { adminCreateProjectViaApi, transferProjectOwnership } from '../actions/projects'
 import { createApiClient } from '../client'
 
 test.describe('GDPR & Privacy', () => {
@@ -14,7 +14,7 @@ test.describe('GDPR & Privacy', () => {
   }) => {
     test.setTimeout(120_000)
     // Add a skill to the volunteer's profile
-    const skill = await createSkill(baseUrl, adminPage)
+    const skill = await createSkillViaApi(baseUrl)
     await volunteer.page.goto(`${baseUrl}/profile`)
     await expect(
       volunteer.page.locator('.skill-option').filter({ hasText: skill.name }),
@@ -28,18 +28,16 @@ test.describe('GDPR & Privacy', () => {
 
     // Admin creates a project and transfers ownership to the volunteer so they have a project in the
     // export and a contactable owner page for the inbound message step
-    const volunteerProjectId = await adminCreateProject(
+    const volunteerProjectId = await adminCreateProjectViaApi(
       baseUrl,
-      adminPage,
       fake.projectTitle(),
       'GDPR export test project',
     )
     await transferProjectOwnership(baseUrl, adminPage, volunteerProjectId, volunteer.name)
 
     // Admin creates a seeking-help project (no owner); volunteer expresses interest
-    const seekingProjectId = await adminCreateProject(
+    const seekingProjectId = await adminCreateProjectViaApi(
       baseUrl,
-      adminPage,
       fake.projectTitle(),
       'GDPR test seeking-help project',
     )
@@ -71,9 +69,8 @@ test.describe('GDPR & Privacy', () => {
     await approveVolunteer(baseUrl, vol2Id)
 
     // Admin creates a project and transfers ownership to vol2 so it has a contactable owner
-    const contactProjectId = await adminCreateProject(
+    const contactProjectId = await adminCreateProjectViaApi(
       baseUrl,
-      adminPage,
       fake.projectTitle(),
       'GDPR test contact project',
     )

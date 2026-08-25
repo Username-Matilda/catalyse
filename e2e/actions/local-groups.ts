@@ -1,5 +1,7 @@
 import { type Page } from '@playwright/test'
 import { selectFilterDropdown } from './ui'
+import { createApiClient } from '../client'
+import { BASE_LOCATION_OPTIONS } from '../../lib/filter-options'
 
 export async function submitLocalGroupSuggestion(
   baseUrl: string,
@@ -15,6 +17,31 @@ export async function submitLocalGroupSuggestion(
   await page.getByLabel('Local Group Name').fill(name)
   await page.getByRole('button', { name: 'Submit Suggestion' }).click()
   await page.getByText('Suggestion submitted!').waitFor({ timeout: 10_000 })
+}
+
+// API-equivalent of submitLocalGroupSuggestion, for tests that need "a pending suggestion
+// exists" purely as setup for testing the admin review flow — the submission form itself is
+// already proven end-to-end by the first two tests in 19-local-group-suggestions.spec.ts.
+// `country` takes the same display label the UI dropdown shows (e.g. "United Kingdom") —
+// it's translated to the underlying option value (e.g. "UK") the API actually expects.
+export async function submitLocalGroupSuggestionViaApi(
+  baseUrl: string,
+  volunteerPage: Page,
+  country: string,
+  name: string,
+): Promise<void> {
+  const countryValue = BASE_LOCATION_OPTIONS.find((o) => o.label === country)?.value ?? country
+
+  // localStorage is only readable once the page has loaded a real origin — a fresh
+  // volunteer.page fixture starts at about:blank, where evaluate throws a SecurityError.
+  if (volunteerPage.url() === 'about:blank') await volunteerPage.goto(baseUrl)
+  const token = await volunteerPage.evaluate(() => localStorage.getItem('authToken'))
+  const api = createApiClient(baseUrl, token)
+  const result = await api.localGroupSuggestions.create({
+    body: { country: countryValue, name },
+  })
+  if (result.status !== 200)
+    throw new Error(`Local group suggestion creation failed: ${JSON.stringify(result.body)}`)
 }
 
 export async function navigateToAdminLocalGroups(baseUrl: string, adminPage: Page): Promise<void> {

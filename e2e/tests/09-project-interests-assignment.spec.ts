@@ -4,20 +4,19 @@ import { fake } from '../fake'
 import {
   proposeProject,
   adminApproveProject,
-  adminCreateProject,
+  adminCreateProjectViaApi,
   transferProjectOwnership,
 } from '../actions/projects'
-import { Page } from '@playwright/test'
 import { selectFilterDropdown } from '../actions/ui'
 
 // Creates an org project that immediately accepts interest (is_seeking_help = true by default)
-async function setupSeekingProject(baseUrl: string, adminPage: Page): Promise<number> {
-  return adminCreateProject(baseUrl, adminPage, fake.projectTitle(), 'Project seeking volunteers')
+async function setupSeekingProject(baseUrl: string): Promise<number> {
+  return adminCreateProjectViaApi(baseUrl, fake.projectTitle(), 'Project seeking volunteers')
 }
 
 test.describe('Project Interests and Assignment', () => {
-  test('Volunteer expresses interest to contribute', async ({ adminPage, volunteer, baseUrl }) => {
-    const projectId = await setupSeekingProject(baseUrl, adminPage)
+  test('Volunteer expresses interest to contribute', async ({ volunteer, baseUrl }) => {
+    const projectId = await setupSeekingProject(baseUrl)
 
     await volunteer.page.goto(`${baseUrl}/projects/${projectId}`)
     await expect(volunteer.page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 })
@@ -37,8 +36,8 @@ test.describe('Project Interests and Assignment', () => {
     })
   })
 
-  test('Volunteer expresses interest to own / lead', async ({ adminPage, volunteer, baseUrl }) => {
-    const projectId = await setupSeekingProject(baseUrl, adminPage)
+  test('Volunteer expresses interest to own / lead', async ({ volunteer, baseUrl }) => {
+    const projectId = await setupSeekingProject(baseUrl)
 
     await volunteer.page.goto(`${baseUrl}/projects/${projectId}`)
     await expect(volunteer.page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 })
@@ -57,7 +56,7 @@ test.describe('Project Interests and Assignment', () => {
     volunteer,
     baseUrl,
   }) => {
-    const projectId = await setupSeekingProject(baseUrl, adminPage)
+    const projectId = await setupSeekingProject(baseUrl)
 
     await volunteer.page.goto(`${baseUrl}/projects/${projectId}`)
     await volunteer.page.getByRole('radio', { name: /I want to own/ }).click()
@@ -84,7 +83,7 @@ test.describe('Project Interests and Assignment', () => {
     volunteer,
     baseUrl,
   }) => {
-    const projectId = await setupSeekingProject(baseUrl, adminPage)
+    const projectId = await setupSeekingProject(baseUrl)
     const applicantMessage = fake.feedbackText()
 
     await volunteer.page.goto(`${baseUrl}/projects/${projectId}`)
@@ -106,7 +105,7 @@ test.describe('Project Interests and Assignment', () => {
     volunteer,
     baseUrl,
   }) => {
-    const projectId = await setupSeekingProject(baseUrl, adminPage)
+    const projectId = await setupSeekingProject(baseUrl)
 
     // Volunteer expresses interest
     await volunteer.page.goto(`${baseUrl}/projects/${projectId}`)
@@ -137,7 +136,7 @@ test.describe('Project Interests and Assignment', () => {
   })
 
   test('Project owner declines a pending interest', async ({ adminPage, volunteer, baseUrl }) => {
-    const projectId = await setupSeekingProject(baseUrl, adminPage)
+    const projectId = await setupSeekingProject(baseUrl)
     const declineMessage = fake.feedbackText()
 
     // Volunteer expresses interest
@@ -166,8 +165,8 @@ test.describe('Project Interests and Assignment', () => {
     ).toContainText('Declined', { timeout: 10_000 })
   })
 
-  test('Volunteer withdraws their pending interest', async ({ adminPage, volunteer, baseUrl }) => {
-    const projectId = await setupSeekingProject(baseUrl, adminPage)
+  test('Volunteer withdraws their pending interest', async ({ volunteer, baseUrl }) => {
+    const projectId = await setupSeekingProject(baseUrl)
 
     // Express interest first
     await volunteer.page.goto(`${baseUrl}/projects/${projectId}`)
@@ -195,7 +194,7 @@ test.describe('Project Interests and Assignment', () => {
     volunteer,
     baseUrl,
   }) => {
-    const projectId = await setupSeekingProject(baseUrl, adminPage)
+    const projectId = await setupSeekingProject(baseUrl)
 
     await adminPage.goto(`${baseUrl}/projects/${projectId}`)
     await expect(adminPage.getByRole('heading', { name: 'Volunteers' })).toBeVisible({
@@ -220,7 +219,7 @@ test.describe('Project Interests and Assignment', () => {
   })
 
   test('Owner removes an already-accepted volunteer', async ({ adminPage, volunteer, baseUrl }) => {
-    const projectId = await setupSeekingProject(baseUrl, adminPage)
+    const projectId = await setupSeekingProject(baseUrl)
 
     await adminPage.goto(`${baseUrl}/projects/${projectId}`)
     await selectFilterDropdown(adminPage, 'Volunteer to assign', volunteer.name)
@@ -244,7 +243,7 @@ test.describe('Project Interests and Assignment', () => {
     volunteer,
     baseUrl,
   }) => {
-    const projectId = await setupSeekingProject(baseUrl, adminPage)
+    const projectId = await setupSeekingProject(baseUrl)
     const commentText = `admin note ${Date.now()}`
 
     // Admin posts a comment on the project
@@ -269,7 +268,7 @@ test.describe('Project Interests and Assignment', () => {
     volunteer,
     baseUrl,
   }) => {
-    const projectId = await setupSeekingProject(baseUrl, adminPage)
+    const projectId = await setupSeekingProject(baseUrl)
 
     // Volunteer expresses interest to contribute
     await volunteer.page.goto(`${baseUrl}/projects/${projectId}`)
@@ -301,7 +300,7 @@ test.describe('Project Interests and Assignment', () => {
     baseUrl,
   }) => {
     const title = fake.projectTitle()
-    const projectId = await adminCreateProject(baseUrl, adminPage, title, 'Notify-on-comment test')
+    const projectId = await adminCreateProjectViaApi(baseUrl, title, 'Notify-on-comment test')
     // Admin is the creator; make the volunteer the owner (assignee)
     await transferProjectOwnership(baseUrl, adminPage, projectId, volunteer.name)
 
