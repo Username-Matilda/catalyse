@@ -1,5 +1,5 @@
 import { test, expect, getAlert, dismissCookieConsentScript } from '../fixtures'
-import { proposeProject, adminCreateProject, adminApproveProject } from '../actions/projects'
+import { proposeProject, adminCreateProjectViaApi, adminApproveProject } from '../actions/projects'
 import { fake } from '../fake'
 
 test.describe('Access Control', () => {
@@ -21,14 +21,9 @@ test.describe('Access Control', () => {
     await volunteer.page.waitForURL(`${baseUrl}/projects`, { timeout: 10_000 })
   })
 
-  test("Non-owner cannot update another volunteer's project", async ({
-    adminPage,
-    volunteer,
-    baseUrl,
-  }) => {
-    const projectId = await adminCreateProject(
+  test("Non-owner cannot update another volunteer's project", async ({ volunteer, baseUrl }) => {
+    const projectId = await adminCreateProjectViaApi(
       baseUrl,
-      adminPage,
       fake.projectTitle(),
       'Test project for access control',
     )
@@ -41,14 +36,9 @@ test.describe('Access Control', () => {
     await expect(volunteer.page.getByLabel('Project Title')).toBeDisabled()
   })
 
-  test("Non-owner cannot delete another volunteer's project", async ({
-    adminPage,
-    volunteer,
-    baseUrl,
-  }) => {
-    const projectId = await adminCreateProject(
+  test("Non-owner cannot delete another volunteer's project", async ({ volunteer, baseUrl }) => {
+    const projectId = await adminCreateProjectViaApi(
       baseUrl,
-      adminPage,
       fake.projectTitle(),
       'Test project for delete access control',
     )

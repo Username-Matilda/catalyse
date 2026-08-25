@@ -1,6 +1,6 @@
 import type { Browser } from '@playwright/test'
 import { test, expect, createPendingVolunteer, dismissCookieConsentScript } from '../fixtures'
-import { adminCreateProject } from '../actions/projects'
+import { adminCreateProjectViaApi } from '../actions/projects'
 import { fake } from '../fake'
 
 // Both the project list and individual project pages redirect unauthenticated
@@ -13,13 +13,9 @@ test.describe('Unauthenticated Project Access', () => {
     await page.waitForURL(`${baseUrl}/login**`, { timeout: 10_000 })
   })
 
-  test('Visitor sees the public landing page and no project data', async ({
-    page,
-    adminPage,
-    baseUrl,
-  }) => {
+  test('Visitor sees the public landing page and no project data', async ({ page, baseUrl }) => {
     const title = fake.projectTitle()
-    await adminCreateProject(baseUrl, adminPage, title, 'A project that must not leak to visitors')
+    await adminCreateProjectViaApi(baseUrl, title, 'A project that must not leak to visitors')
 
     await page.goto(`${baseUrl}/`)
 
@@ -64,14 +60,9 @@ test.describe('Unauthenticated Project Access', () => {
     }
   })
 
-  test('Visitor views a project detail page unauthenticated', async ({
-    page,
-    adminPage,
-    baseUrl,
-  }) => {
-    const projectId = await adminCreateProject(
+  test('Visitor views a project detail page unauthenticated', async ({ page, baseUrl }) => {
+    const projectId = await adminCreateProjectViaApi(
       baseUrl,
-      adminPage,
       fake.projectTitle(),
       'A project for the unauthenticated access test',
     )
@@ -109,12 +100,10 @@ test.describe('Pending Volunteer Project Access', () => {
 
   test('Pending volunteer is redirected away from a project detail page', async ({
     browser,
-    adminPage,
     baseUrl,
   }) => {
-    const projectId = await adminCreateProject(
+    const projectId = await adminCreateProjectViaApi(
       baseUrl,
-      adminPage,
       fake.projectTitle(),
       'A project for the pending-volunteer access test',
     )
@@ -128,9 +117,9 @@ test.describe('Pending Volunteer Project Access', () => {
 })
 
 test.describe('Project Discovery', () => {
-  test('Volunteer searches projects by keyword', async ({ adminPage, volunteer, baseUrl }) => {
+  test('Volunteer searches projects by keyword', async ({ volunteer, baseUrl }) => {
     const title = fake.projectTitle()
-    await adminCreateProject(baseUrl, adminPage, title, 'A searchable project for discovery tests')
+    await adminCreateProjectViaApi(baseUrl, title, 'A searchable project for discovery tests')
 
     await volunteer.page.goto(`${baseUrl}/projects`)
     await expect(
@@ -142,14 +131,10 @@ test.describe('Project Discovery', () => {
     await expect(volunteer.page.getByRole('link', { name: title })).toBeVisible({ timeout: 5_000 })
   })
 
-  test('Volunteer filters projects by "Seeking Help" status', async ({
-    adminPage,
-    volunteer,
-    baseUrl,
-  }) => {
+  test('Volunteer filters projects by "Seeking Help" status', async ({ volunteer, baseUrl }) => {
     const title = fake.projectTitle()
     // Admin-created projects have is_seeking_help = true by default
-    await adminCreateProject(baseUrl, adminPage, title, 'Project for seeking-filter discovery test')
+    await adminCreateProjectViaApi(baseUrl, title, 'Project for seeking-filter discovery test')
 
     await volunteer.page.goto(`${baseUrl}/projects`)
     await expect(

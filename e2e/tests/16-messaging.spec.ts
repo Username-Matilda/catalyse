@@ -1,5 +1,5 @@
 import { test, expect, getAlert, approveVolunteer, dismissCookieConsentScript } from '../fixtures'
-import { adminCreateProject, transferProjectOwnership } from '../actions/projects'
+import { adminCreateProjectViaApi, transferProjectOwnership } from '../actions/projects'
 import { fake } from '../fake'
 import { createApiClient } from '../client'
 
@@ -13,9 +13,8 @@ test.describe('Messaging', () => {
     const subject = fake.messageSubject()
     const body = fake.messageBody()
 
-    const projectId = await adminCreateProject(
+    const projectId = await adminCreateProjectViaApi(
       baseUrl,
-      adminPage,
       fake.projectTitle(),
       'Project for contact test',
     )
@@ -76,9 +75,8 @@ test.describe('Messaging', () => {
     test.setTimeout(60_000)
     const subject = fake.messageSubject()
 
-    const projectId = await adminCreateProject(
+    const projectId = await adminCreateProjectViaApi(
       baseUrl,
-      adminPage,
       fake.projectTitle(),
       'Project for notification test',
     )

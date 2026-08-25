@@ -1,5 +1,6 @@
 import { Page, expect } from '@playwright/test'
-import { getAlert } from '../fixtures'
+import { getAlert, readAdminToken } from '../fixtures'
+import { createApiClient } from '../client'
 import { selectFilterDropdown } from './ui'
 
 import { PROJECT_STATUS_LABELS } from '../../lib/project-status'
@@ -110,6 +111,40 @@ export async function adminCreateProject(
   // so callers don't interrupt the in-flight /api/auth/me fetch and accidentally clear the token.
   await expect(adminPage.locator('#projectContent')).toBeVisible({ timeout: 10_000 })
   return id
+}
+
+// API-equivalent of adminCreateProject, for tests that need "a published org project exists"
+// purely as setup for some other assertion and don't need to re-prove the create+publish UI
+// flow itself — that's already covered end-to-end by 06-project-lifecycle.spec.ts. Produces
+// the same resulting state (status ready, isSeekingHelp true, one task) without the form
+// fill / Add Task / Publish / confirm-dialog round trip.
+export async function adminCreateProjectViaApi(
+  baseUrl: string,
+  title: string,
+  description: string,
+): Promise<number> {
+  const adminApi = createApiClient(baseUrl, readAdminToken(baseUrl))
+  const created = await adminApi.admin.projects.create({
+    body: {
+      title,
+      description,
+      projectType: null,
+      estimatedDuration: null,
+      timeCommitmentHoursPerWeek: null,
+      urgency: 'medium',
+      collaborationLink: null,
+      country: null,
+      localGroup: null,
+      remoteEligibility: 'NONE',
+      isSeekingHelp: true,
+      skillIds: [],
+      skillRequiredMap: {},
+      tasks: [{ title: 'Initial task' }],
+    },
+  })
+  if (created.status !== 200)
+    throw new Error(`Project creation failed: ${JSON.stringify(created.body)}`)
+  return (created.body as { id: number }).id
 }
 
 export async function adminSaveProjectDraft(
