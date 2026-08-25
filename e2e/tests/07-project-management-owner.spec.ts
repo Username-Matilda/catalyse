@@ -33,12 +33,17 @@ test.describe('Project Management (Owner)', () => {
       timeout: 10_000,
     })
 
+    // Fields autosave on blur now, so tab through each rather than clicking a save button.
     await volunteer.page.getByLabel('Project Title').fill(newTitle)
     await volunteer.page.getByLabel('Description').fill(newDescription)
-    await volunteer.page.getByLabel('Collaboration Doc / Link').fill(collaborationLink)
-    await volunteer.page.getByRole('button', { name: 'Save Changes' }).click()
+    const collabField = volunteer.page.getByLabel('Collaboration Doc / Link')
+    await collabField.fill(collaborationLink)
+    await Promise.all([
+      volunteer.page.waitForResponse((resp) => resp.url().includes('/api/rpc/projects/update')),
+      collabField.blur(),
+    ])
 
-    await volunteer.page.waitForURL(`${baseUrl}/projects/${projectId}`, { timeout: 15_000 })
+    await volunteer.page.goto(`${baseUrl}/projects/${projectId}`)
     await expect(volunteer.page.getByRole('heading', { level: 1 })).toContainText(newTitle, {
       timeout: 10_000,
     })
@@ -60,13 +65,16 @@ test.describe('Project Management (Owner)', () => {
       timeout: 10_000,
     })
 
-    await volunteer.page
-      .locator('label.skill-option')
-      .filter({ hasText: /^\s*Web Development\s*$/ })
-      .click()
-    await volunteer.page.getByRole('button', { name: 'Save Changes' }).click()
+    // Skills commit immediately on selection now, not via a save button.
+    await Promise.all([
+      volunteer.page.waitForResponse((resp) => resp.url().includes('/api/rpc/projects/update')),
+      volunteer.page
+        .locator('label.skill-option')
+        .filter({ hasText: /^\s*Web Development\s*$/ })
+        .click(),
+    ])
 
-    await volunteer.page.waitForURL(`${baseUrl}/projects/${projectId}`, { timeout: 15_000 })
+    await volunteer.page.goto(`${baseUrl}/projects/${projectId}`)
     await expect(volunteer.page.getByText('Web Development')).toBeVisible({ timeout: 10_000 })
   })
 
