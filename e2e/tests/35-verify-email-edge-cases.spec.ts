@@ -105,6 +105,10 @@ test.describe('Verify Email page (edge cases)', () => {
       const dbPath = path.join(workerDbDir(parallelIndexFromBaseUrl(baseUrl)), 'catalyse.db')
       const db = new DatabaseSync(dbPath)
       try {
+        // The app server (via Prisma) holds this same file open, and other tests are
+        // writing to it concurrently under fullyParallel — without a busy timeout a
+        // momentary lock throws immediately instead of waiting it out.
+        db.exec('PRAGMA busy_timeout = 5000')
         db.prepare('UPDATE email_verification_tokens SET expires_at = ? WHERE token = ?').run(
           new Date(Date.now() - 60_000).toISOString(),
           token!,
