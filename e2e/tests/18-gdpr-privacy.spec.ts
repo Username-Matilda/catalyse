@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs'
 import { test, expect, getAlert, approveVolunteer, dismissCookieConsentScript } from '../fixtures'
 import { fake } from '../fake'
-import { createSkill } from '../actions/skills'
+import { createSkillViaApi } from '../actions/skills'
 import { adminCreateProjectViaApi, transferProjectOwnership } from '../actions/projects'
 import { createApiClient } from '../client'
 
@@ -14,7 +14,7 @@ test.describe('GDPR & Privacy', () => {
   }) => {
     test.setTimeout(120_000)
     // Add a skill to the volunteer's profile
-    const skill = await createSkill(baseUrl, adminPage)
+    const skill = await createSkillViaApi(baseUrl)
     await volunteer.page.goto(`${baseUrl}/profile`)
     await expect(
       volunteer.page.locator('.skill-option').filter({ hasText: skill.name }),

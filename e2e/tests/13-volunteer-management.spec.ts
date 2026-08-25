@@ -1,6 +1,6 @@
 import { test, expect, getAlert } from '../fixtures'
 import type { Page } from '@playwright/test'
-import { createSkill } from '../actions/skills'
+import { createSkillViaApi } from '../actions/skills'
 import { fake } from '../fake'
 import { selectFilterDropdown } from '../actions/ui'
 
@@ -185,7 +185,7 @@ test.describe('Volunteer Management', () => {
     volunteer,
     baseUrl,
   }) => {
-    const skill = await createSkill(baseUrl, adminPage)
+    const skill = await createSkillViaApi(baseUrl)
 
     await navigateToAdminVolunteerDetail(baseUrl, adminPage, volunteer.name)
 

@@ -1,5 +1,5 @@
 import { test, expect, confirmVolunteerEmail, approveVolunteer } from '../fixtures'
-import { openBugReportForm, fillAndSubmitBugReport } from '../actions/bugs'
+import { submitBugReportViaApi } from '../actions/bugs'
 import { goToDashboardNotifications } from '../actions/dashboard'
 import { createApiClient } from '../client'
 import { fake } from '../fake'
@@ -40,21 +40,14 @@ test.describe('Bug Report Detail Page', () => {
   }) => {
     const title = fake.bugTitle()
 
-    await volunteer.page.goto(`${baseUrl}/dashboard`)
-    await expect(volunteer.page.getByRole('heading', { name: /Welcome back/ })).toBeVisible({
-      timeout: 10_000,
-    })
-    await openBugReportForm(volunteer.page)
-    await fillAndSubmitBugReport(volunteer.page, {
+    const reportId = await submitBugReportViaApi(
+      baseUrl,
+      volunteer.page,
       title,
-      description: 'A bug report to exercise its own comment thread',
-    })
+      'A bug report to exercise its own comment thread',
+    )
 
-    const dialog = volunteer.page.getByRole('dialog', { name: 'Report an Issue' })
-    await expect(dialog.getByRole('heading', { name: 'Thank you!' })).toBeVisible({
-      timeout: 10_000,
-    })
-    await dialog.getByRole('link', { name: 'View your report' }).click()
+    await volunteer.page.goto(`${baseUrl}/bugs/${reportId}`)
     await expect(volunteer.page.getByRole('heading', { name: title, level: 1 })).toBeVisible({
       timeout: 10_000,
     })

@@ -1,6 +1,6 @@
 import { test, expect, getAlert } from '../fixtures'
 import type { Page } from '@playwright/test'
-import { submitBugReport } from '../actions/bugs'
+import { submitBugReportViaApi } from '../actions/bugs'
 import { selectFilterDropdown } from '../actions/ui'
 import { fake } from '../fake'
 
@@ -51,7 +51,7 @@ test.describe('Bug Report Management', () => {
   test('Admin views the bug reports list', async ({ adminPage, volunteer, baseUrl }) => {
     const title = fake.bugTitle()
 
-    await submitBugReport(
+    await submitBugReportViaApi(
       baseUrl,
       volunteer.page,
       title,
@@ -67,7 +67,7 @@ test.describe('Bug Report Management', () => {
   test('Admin filters bug reports by status', async ({ adminPage, volunteer, baseUrl }) => {
     const title = fake.bugTitle()
 
-    await submitBugReport(
+    await submitBugReportViaApi(
       baseUrl,
       volunteer.page,
       title,
@@ -89,7 +89,7 @@ test.describe('Bug Report Management', () => {
   test('Admin moves a bug report to in_progress', async ({ adminPage, volunteer, baseUrl }) => {
     const title = fake.bugTitle()
 
-    await submitBugReport(
+    await submitBugReportViaApi(
       baseUrl,
       volunteer.page,
       title,
@@ -113,7 +113,7 @@ test.describe('Bug Report Management', () => {
     const title = fake.bugTitle()
     const notes = fake.resolutionNotes()
 
-    await submitBugReport(
+    await submitBugReportViaApi(
       baseUrl,
       volunteer.page,
       title,
@@ -138,7 +138,7 @@ test.describe('Bug Report Management', () => {
   test('Admin marks a bug report as wont_fix', async ({ adminPage, volunteer, baseUrl }) => {
     const title = fake.bugTitle()
 
-    await submitBugReport(
+    await submitBugReportViaApi(
       baseUrl,
       volunteer.page,
       title,
