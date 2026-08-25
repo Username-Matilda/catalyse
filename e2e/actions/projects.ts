@@ -11,6 +11,34 @@ const OUTCOME_LABELS: Record<string, string> = {
   ongoing: 'Ongoing',
 }
 
+// The new-project form is tucked behind a "New Project" button once the volunteer/admin
+// already has drafts — click through it if present, otherwise the form is already showing
+// (either shown directly, or reached via an automatic redirect for a volunteer with no
+// drafts yet). The drafts query is still loading when the page first renders, so neither
+// is visible yet — wait for whichever one lands rather than checking immediately.
+export async function openNewProjectForm(page: Page): Promise<void> {
+  // The Button component renders as a link (not a button element) when given an href, so
+  // match either role rather than assuming which one it picked.
+  const newProjectButton = page
+    .getByRole('link', { name: 'New Project' })
+    .or(page.getByRole('button', { name: 'New Project' }))
+  const titleField = page.getByLabel('Project Title')
+  await Promise.race([
+    newProjectButton.first().waitFor({ state: 'visible', timeout: 10_000 }),
+    titleField.waitFor({ state: 'visible', timeout: 10_000 }),
+  ]).catch(() => {})
+
+  if (
+    await newProjectButton
+      .first()
+      .isVisible()
+      .catch(() => false)
+  ) {
+    await newProjectButton.first().click()
+  }
+  await expect(titleField).toBeVisible({ timeout: 10_000 })
+}
+
 export async function proposeProject(
   baseUrl: string,
   page: Page,
@@ -19,9 +47,7 @@ export async function proposeProject(
   skillName?: string,
 ): Promise<number> {
   await page.goto(`${baseUrl}/suggest`)
-  await expect(page.getByRole('button', { name: 'Submit Project Proposal' })).toBeVisible({
-    timeout: 10_000,
-  })
+  await openNewProjectForm(page)
 
   await page.getByLabel('Project Title').fill(title)
   await page.getByLabel('Description').fill(description)
@@ -31,20 +57,23 @@ export async function proposeProject(
       .filter({ hasText: new RegExp(`^\\s*${skillName}\\s*$`) })
       .click()
   }
-  await page.getByLabel('Task title').first().fill('Initial task')
-  await page.getByRole('button', { name: 'Submit Project Proposal' }).click()
-  await expect(page.getByRole('heading', { name: 'Submit for review?' })).toBeVisible({
-    timeout: 10_000,
-  })
+  // A project has no tasks yet, so the add-task form is the only task input on the page.
+  await page.locator('#new-task-title').fill('Initial task')
 
-  // Ideally we'd extract the project ID from the dashboard UI after redirect, but that
-  // races against the async render. Intercepting the API response is more reliable for now.
+  // Adding the first task lazily creates the draft project it needs a parent id for.
   const [response] = await Promise.all([
     page.waitForResponse((resp) => resp.url().includes('/api/rpc/projects/create')),
-    page.getByRole('dialog').getByRole('button', { name: 'Submit Project Proposal' }).click(),
+    page.getByRole('button', { name: 'Add Task' }).click(),
   ])
   if (!response.ok()) throw new Error(`Project creation failed: ${await response.text()}`)
   const { id } = (await response.json()).json as { id: number }
+
+  await page.waitForURL(`${baseUrl}/projects/${id}/edit`, { timeout: 15_000 })
+  await page.getByRole('button', { name: 'Submit', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Submit draft for review?' })).toBeVisible({
+    timeout: 10_000,
+  })
+  await page.getByRole('button', { name: 'Submit for Review' }).click()
   await page.waitForURL(`${baseUrl}/dashboard**`, { timeout: 15_000 })
   return id
 }
@@ -56,26 +85,31 @@ export async function adminCreateProject(
   description: string,
 ): Promise<number> {
   await adminPage.goto(`${baseUrl}/admin/projects/new`)
-  await expect(adminPage.getByRole('heading', { name: 'Org Projects' })).toBeVisible({
-    timeout: 10_000,
-  })
+  await openNewProjectForm(adminPage)
 
   await adminPage.getByLabel('Project Title').fill(title)
   await adminPage.getByLabel('Description').fill(description)
-  await adminPage.getByLabel('Task title').first().fill('Initial task')
+  await adminPage.locator('#new-task-title').fill('Initial task')
+
+  const [response] = await Promise.all([
+    adminPage.waitForResponse((resp) => resp.url().includes('/api/rpc/admin/projects/create')),
+    adminPage.getByRole('button', { name: 'Add Task' }).click(),
+  ])
+  if (!response.ok()) throw new Error(`Project creation failed: ${await response.text()}`)
+  const { id } = (await response.json()).json as { id: number }
+
+  await adminPage.waitForURL(`${baseUrl}/projects/${id}/edit`, { timeout: 15_000 })
   await adminPage.getByRole('button', { name: 'Publish', exact: true }).click()
   await expect(adminPage.getByRole('heading', { name: 'Publish this project?' })).toBeVisible({
     timeout: 10_000,
   })
   await adminPage.getByRole('dialog').getByRole('button', { name: 'Publish', exact: true }).click()
 
-  await adminPage.waitForURL(/\/projects\/\d+/, { timeout: 15_000 })
+  await adminPage.waitForURL(`${baseUrl}/projects/${id}`, { timeout: 15_000 })
   // Wait for project content to render — this ensures auth has completed before we return,
   // so callers don't interrupt the in-flight /api/auth/me fetch and accidentally clear the token.
   await expect(adminPage.locator('#projectContent')).toBeVisible({ timeout: 10_000 })
-  const match = adminPage.url().match(/\/projects\/(\d+)/)
-  if (!match) throw new Error(`Could not extract project ID from URL: ${adminPage.url()}`)
-  return parseInt(match[1])
+  return id
 }
 
 export async function adminSaveProjectDraft(
@@ -84,9 +118,7 @@ export async function adminSaveProjectDraft(
   title: string,
 ): Promise<number> {
   await adminPage.goto(`${baseUrl}/admin/projects/new`)
-  await expect(adminPage.getByRole('heading', { name: 'Org Projects' })).toBeVisible({
-    timeout: 10_000,
-  })
+  await openNewProjectForm(adminPage)
 
   await adminPage.getByLabel('Project Title').fill(title)
 
@@ -96,7 +128,7 @@ export async function adminSaveProjectDraft(
   ])
   if (!response.ok()) throw new Error(`Draft save failed: ${await response.text()}`)
   const { id } = (await response.json()).json as { id: number }
-  await adminPage.waitForURL(`${baseUrl}/projects/${id}**`, { timeout: 15_000 })
+  await adminPage.waitForURL(`${baseUrl}/projects/${id}/edit`, { timeout: 15_000 })
   return id
 }
 
@@ -106,9 +138,7 @@ export async function volunteerSaveProjectDraft(
   title: string,
 ): Promise<number> {
   await page.goto(`${baseUrl}/suggest`)
-  await expect(page.getByRole('button', { name: 'Submit Project Proposal' })).toBeVisible({
-    timeout: 10_000,
-  })
+  await openNewProjectForm(page)
 
   await page.getByLabel('Project Title').fill(title)
 

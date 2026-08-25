@@ -6,6 +6,7 @@ import {
   addTaskFromEditPage,
   publishDraftFromEditPage,
   deleteDraftFromEditPage,
+  openNewProjectForm,
 } from '../actions/projects'
 
 test.describe('Admin project drafts', () => {
@@ -19,7 +20,7 @@ test.describe('Admin project drafts', () => {
     const projectId = await adminSaveProjectDraft(baseUrl, adminPage, title)
 
     // Also shows up in "My Drafts" back on the Org Projects page
-    await adminPage.goto(`${baseUrl}/admin/projects/new`)
+    await adminPage.goto(`${baseUrl}/admin/projects`)
     await expect(adminPage.getByRole('heading', { name: 'My Drafts' })).toBeVisible({
       timeout: 10_000,
     })
@@ -153,6 +154,7 @@ test.describe('Volunteer project drafts', () => {
     await volunteerSaveProjectDraft(baseUrl, volunteer.page, fake.projectTitle())
 
     await volunteer.page.goto(`${baseUrl}/suggest`)
+    await openNewProjectForm(volunteer.page)
     await volunteer.page.getByLabel('Project Title').fill(fake.projectTitle())
     await volunteer.page.getByRole('button', { name: 'Save draft' }).click()
 
@@ -168,7 +170,9 @@ test.describe('Volunteer project drafts', () => {
     await deleteDraftFromEditPage(baseUrl, volunteer.page, projectId)
     await expect(getAlert(volunteer.page)).toContainText('Draft deleted', { timeout: 10_000 })
 
-    await volunteer.page.waitForURL(`${baseUrl}/suggest`, { timeout: 10_000 })
+    // Redirects to /suggest, which — now that no drafts remain — immediately bounces to
+    // the new-project form.
+    await volunteer.page.waitForURL(`${baseUrl}/suggest/new`, { timeout: 10_000 })
     await expect(volunteer.page.getByText(title)).toHaveCount(0)
   })
 })

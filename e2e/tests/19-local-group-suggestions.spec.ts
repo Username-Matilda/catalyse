@@ -9,6 +9,7 @@ import {
   adminDeleteItem,
 } from '../actions/local-groups'
 import { selectFilterDropdown } from '../actions/ui'
+import { openNewProjectForm } from '../actions/projects'
 import { fake } from '../fake'
 
 test.describe('Local Group Suggestions', () => {
@@ -121,9 +122,7 @@ test.describe('Local Group Suggestions', () => {
     await expect(getAlert(adminPage)).toContainText('accepted', { timeout: 10_000 })
 
     await volunteer.page.goto(`${baseUrl}/suggest`)
-    await volunteer.page
-      .getByRole('button', { name: 'Submit Project Proposal' })
-      .waitFor({ timeout: 10_000 })
+    await openNewProjectForm(volunteer.page)
     await volunteer.page.waitForLoadState('networkidle', { timeout: 15_000 })
 
     await selectFilterDropdown(
@@ -330,9 +329,7 @@ test.describe('Admin Local Group Management', () => {
     await expect(getAlert(adminPage)).toContainText('added', { timeout: 10_000 })
 
     await volunteer.page.goto(`${baseUrl}/suggest`)
-    await volunteer.page
-      .getByRole('button', { name: 'Submit Project Proposal' })
-      .waitFor({ timeout: 10_000 })
+    await openNewProjectForm(volunteer.page)
     await volunteer.page.waitForLoadState('networkidle', { timeout: 15_000 })
 
     await selectFilterDropdown(

@@ -41,9 +41,12 @@ test.describe('Project Edit Regressions', () => {
 
     // The visible box is a decorative sibling of the sr-only input, so a plain click on
     // the input is reported as intercepted even though the label's native click still works.
-    await checkbox.click({ force: true })
-    await volunteer.page.getByRole('button', { name: 'Save Changes' }).click()
-    await volunteer.page.waitForURL(`${baseUrl}/projects/${projectId}`, { timeout: 15_000 })
+    // Fields autosave on change now, so there's no separate save step.
+    await Promise.all([
+      volunteer.page.waitForResponse((resp) => resp.url().includes('/api/rpc/projects/update')),
+      checkbox.click({ force: true }),
+    ])
+    await volunteer.page.goto(`${baseUrl}/projects/${projectId}`)
 
     const badge = volunteer.page.getByText('Seeking Help')
     if (wasChecked) {
@@ -84,9 +87,13 @@ test.describe('Project Edit Regressions', () => {
     await expect(volunteer.page.getByRole('heading', { name: 'Edit Project' })).toBeVisible({
       timeout: 10_000,
     })
-    await volunteer.page.getByLabel('Description').fill(newDescription)
-    await volunteer.page.getByRole('button', { name: 'Save Changes' }).click()
-    await volunteer.page.waitForURL(`${baseUrl}/projects/${projectId}`, { timeout: 15_000 })
+    const descriptionField = volunteer.page.getByLabel('Description')
+    await descriptionField.fill(newDescription)
+    await Promise.all([
+      volunteer.page.waitForResponse((resp) => resp.url().includes('/api/rpc/projects/update')),
+      descriptionField.blur(),
+    ])
+    await volunteer.page.goto(`${baseUrl}/projects/${projectId}`)
 
     // Task must still be there, both immediately and after a reload.
     await expect(volunteer.page.getByText(taskTitle)).toBeVisible({ timeout: 10_000 })

@@ -6,6 +6,7 @@ import {
   proposeProject,
   adminCreateProject,
   adminApproveProject,
+  adminSaveProjectDraft,
   setProjectStatus,
   adminRecordOutcome,
   transferProjectOwnership,
@@ -204,45 +205,29 @@ test.describe('Project Lifecycle', () => {
 })
 
 test.describe('Project Creation Requires At Least One Task', () => {
-  test('Suggesting a project without any task shows a validation error', async ({
-    volunteer,
-    baseUrl,
-  }) => {
-    await volunteer.page.goto(`${baseUrl}/suggest`)
-    await expect(
-      volunteer.page.getByRole('button', { name: 'Submit Project Proposal' }),
-    ).toBeVisible({ timeout: 10_000 })
-
-    await volunteer.page.getByLabel('Project Title').fill(fake.projectTitle())
-    await volunteer.page.getByLabel('Description').fill('Proposal with no tasks')
-    await volunteer.page.getByRole('button', { name: 'Submit Project Proposal' }).click()
-
-    await expect(getAlert(volunteer.page)).toContainText(
-      'At least one task with a title is required.',
-      { timeout: 10_000 },
-    )
-    // Still on the form — submission was blocked client-side, no navigation happened
-    await expect(
-      volunteer.page.getByRole('button', { name: 'Submit Project Proposal' }),
-    ).toBeVisible()
-  })
-
-  test('Creating an org project without any task shows a validation error', async ({
+  // The volunteer equivalent of this — saving a draft with no tasks, then trying to
+  // publish it — is covered by "Publishing a draft with no tasks is rejected" in
+  // 34-project-drafts.spec.ts.
+  test('Publishing an org draft without any task shows a validation error', async ({
     adminPage,
     baseUrl,
   }) => {
-    await adminPage.goto(`${baseUrl}/admin/projects/new`)
-    await expect(adminPage.getByRole('heading', { name: 'Org Projects' })).toBeVisible({
+    const projectId = await adminSaveProjectDraft(baseUrl, adminPage, fake.projectTitle())
+
+    await adminPage.goto(`${baseUrl}/projects/${projectId}/edit`)
+    await adminPage.getByRole('button', { name: 'Publish', exact: true }).click()
+    await expect(adminPage.getByRole('heading', { name: 'Publish this project?' })).toBeVisible({
       timeout: 10_000,
     })
+    await adminPage
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Publish', exact: true })
+      .click()
 
-    await adminPage.getByLabel('Project Title').fill(fake.projectTitle())
-    await adminPage.getByLabel('Description').fill('Org project with no tasks')
-    await adminPage.getByRole('button', { name: 'Publish' }).click()
-
-    await expect(getAlert(adminPage)).toContainText('At least one task with a title is required.', {
-      timeout: 10_000,
-    })
+    await expect(getAlert(adminPage)).toContainText(
+      'Add at least one task before submitting this draft for review',
+      { timeout: 10_000 },
+    )
   })
 
   test('The API rejects a project proposal with no tasks', async ({ baseUrl }) => {

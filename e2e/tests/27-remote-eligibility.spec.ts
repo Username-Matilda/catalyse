@@ -11,6 +11,7 @@ import {
 import { createApiClient } from '../client'
 import { fake } from '../fake'
 import { selectFilterDropdown } from '../actions/ui'
+import { openNewProjectForm } from '../actions/projects'
 import { IS_LOCAL } from '../config'
 
 const STUB_EMAIL_DIR = '/tmp/catalyse-emails'
@@ -139,9 +140,7 @@ test.describe('Project form & settings: remote eligibility', () => {
     const title = fake.projectTitle()
 
     await adminPage.goto(`${baseUrl}/admin/projects/new`)
-    await expect(adminPage.getByRole('heading', { name: 'Org Projects' })).toBeVisible({
-      timeout: 10_000,
-    })
+    await openNewProjectForm(adminPage)
 
     await adminPage.getByLabel('Project Title').fill(title)
     await adminPage.getByLabel('Description').fill('e2e test project description')
@@ -150,19 +149,26 @@ test.describe('Project form & settings: remote eligibility', () => {
       'Select remote eligibility',
       'Yes - remote OK, from any country',
     )
-    await adminPage.getByLabel('Task title').first().fill('Initial task')
+    await adminPage.locator('#new-task-title').fill('Initial task')
+
+    const [response] = await Promise.all([
+      adminPage.waitForResponse((resp) => resp.url().includes('/api/rpc/admin/projects/create')),
+      adminPage.getByRole('button', { name: 'Add Task' }).click(),
+    ])
+    if (!response.ok()) throw new Error(`Project creation failed: ${await response.text()}`)
+    const { id } = (await response.json()).json as { id: number }
+
+    await adminPage.waitForURL(`${baseUrl}/projects/${id}/edit`, { timeout: 15_000 })
     await adminPage.getByRole('button', { name: 'Publish', exact: true }).click()
     await adminPage
       .getByRole('dialog')
       .getByRole('button', { name: 'Publish', exact: true })
       .click()
 
-    await adminPage.waitForURL(/\/projects\/\d+/, { timeout: 15_000 })
+    await adminPage.waitForURL(`${baseUrl}/projects/${id}`, { timeout: 15_000 })
     await expect(adminPage.locator('#projectContent')).toBeVisible({ timeout: 10_000 })
-    const match = adminPage.url().match(/\/projects\/(\d+)/)
-    if (!match) throw new Error(`Could not extract project ID from URL: ${adminPage.url()}`)
 
-    await adminPage.goto(`${baseUrl}/projects/${match[1]}/edit`)
+    await adminPage.goto(`${baseUrl}/projects/${id}/edit`)
     await expect(adminPage.getByRole('heading', { name: 'Edit Project' })).toBeVisible({
       timeout: 10_000,
     })
