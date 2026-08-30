@@ -1,19 +1,29 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 
 function useSetParam() {
   const searchParams = useSearchParams()
   const router = useRouter()
+  // Read the latest params through a ref so the returned setter keeps a stable
+  // identity across URL changes. Without this, every router.replace() (including
+  // a pagination click writing ?page=N) hands consumers a new setter, which
+  // re-fires any effect that lists the setter in its deps — e.g. the
+  // "reset to page 1 on filter change" effects in the projects/volunteers
+  // directories, which would then clobber every page change back to page 1.
+  const paramsRef = useRef(searchParams)
+  useEffect(() => {
+    paramsRef.current = searchParams
+  }, [searchParams])
   return useCallback(
     (key: string, value: string) => {
-      const params = new URLSearchParams(searchParams.toString())
+      const params = new URLSearchParams(paramsRef.current.toString())
       if (value) params.set(key, value)
       else params.delete(key)
       router.replace(`?${params.toString()}`, { scroll: false })
     },
-    [searchParams, router],
+    [router],
   )
 }
 
