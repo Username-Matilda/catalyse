@@ -6,6 +6,7 @@ import { UpdateVolunteerSchema } from '@/lib/schemas'
 import { approvedProcedure, authedProcedure } from '../procedures'
 import {
   ApprovalStatus,
+  InterestStatus,
   ProjectStatus,
   QuickTaskStatus,
   WorkItemType,
@@ -25,7 +26,10 @@ export const volunteersRouter = {
     )
     .handler(async ({ input, context }) => {
       const currentVolunteer = context.volunteer
-      const isAdmin = currentVolunteer.isAdmin ?? false
+      // Any flavour of admin (full admin or technical admin, which includes super
+      // admins since those always carry isAdmin) may see profiles hidden from the
+      // public directory.
+      const isAdmin = Boolean(currentVolunteer.isAdmin || currentVolunteer.isTechnicalAdmin)
 
       const where: Record<string, unknown> = {
         deletedAt: null,
@@ -121,9 +125,10 @@ export const volunteersRouter = {
     .input(z.object({ id: z.number().int() }))
     .handler(async ({ input, context }) => {
       const currentVolunteer = context.volunteer
+      const isAdmin = Boolean(currentVolunteer.isAdmin || currentVolunteer.isTechnicalAdmin)
 
       const vol = await prisma.volunteer.findFirst({
-        where: { id: input.id, deletedAt: null, consentMakeProfileVisibleInDirectory: true },
+        where: { id: input.id, deletedAt: null },
         include: {
           skills: {
             include: { skill: { include: { category: true } } },
@@ -139,6 +144,36 @@ export const volunteersRouter = {
       })
 
       if (!vol) throw new ORPCError('NOT_FOUND', { message: 'Volunteer not found' })
+
+      // A profile hidden from the public directory is still visible to:
+      //  - the volunteer themselves
+      //  - any admin (full or technical; super admins always carry isAdmin)
+      //  - an owner of a project this volunteer is involved in, so they can assess
+      //    the volunteer's skills — including before accepting them. "Involved in" =
+      //    holds a task under that project, or has a live (non-declined,
+      //    non-withdrawn) interest in it.
+      if (!vol.consentMakeProfileVisibleInDirectory && !isAdmin && currentVolunteer.id !== vol.id) {
+        const ownedProjectLink = await prisma.workItem.count({
+          where: {
+            type: WorkItemType.PROJECT,
+            assigneeId: currentVolunteer.id,
+            OR: [
+              { children: { some: { type: WorkItemType.TASK, assigneeId: vol.id } } },
+              {
+                interests: {
+                  some: {
+                    volunteerId: vol.id,
+                    status: { notIn: [InterestStatus.declined, InterestStatus.withdrawn] },
+                  },
+                },
+              },
+            ],
+          },
+        })
+        if (ownedProjectLink === 0) {
+          throw new ORPCError('NOT_FOUND', { message: 'Volunteer not found' })
+        }
+      }
 
       let showContact = false
       if (currentVolunteer) {

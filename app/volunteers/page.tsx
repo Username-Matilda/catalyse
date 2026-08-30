@@ -4,6 +4,7 @@ import { Suspense, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useRequireAuth } from '@/lib/hooks/auth'
 import { useUrlParam, useUrlSearchInput } from '@/lib/hooks/url-filters'
+import { DIRECTORY_PAGE_SIZE as PAGE_SIZE } from '@/lib/pagination'
 import Link from 'next/link'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import Button from '@/components/Button'
@@ -20,8 +21,6 @@ type FlatSkill = SkillCategory['skills'][number] & { categoryName: string }
 
 type Volunteer = InferRouterOutputs<AppRouter>['volunteers']['list']['volunteers'][number]
 type AuthUser = NonNullable<ReturnType<typeof useRequireAuth>['user']>
-
-const PAGE_SIZE = 50
 
 function VolunteersPageContent({ user }: { user: AuthUser }) {
   const [searchInput, setSearchInput, urlSearch] = useUrlSearchInput('q')

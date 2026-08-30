@@ -1285,7 +1285,16 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                           >
                             <TaskAvatar name={interest.volunteerName} />
                             <div className="flex-1 min-w-0">
-                              <div className="truncate">{interest.volunteerName}</div>
+                              {isAdmin || interestedVolunteerIds.has(interest.volunteerId) ? (
+                                <Link
+                                  href={`/volunteers/${interest.volunteerId}`}
+                                  className="underline truncate block"
+                                >
+                                  {interest.volunteerName}
+                                </Link>
+                              ) : (
+                                <div className="truncate">{interest.volunteerName}</div>
+                              )}
                               <div className="text-text-light text-xs">
                                 {interest.status === InterestStatus.accepted
                                   ? interest.interestType === 'want_to_own'

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { useRequireApproved } from '@/lib/hooks/auth'
 import { useUrlParam, useUrlSearchInput } from '@/lib/hooks/url-filters'
+import { DIRECTORY_PAGE_SIZE as PAGE_SIZE } from '@/lib/pagination'
 import Link from 'next/link'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import Button from '@/components/Button'
@@ -70,7 +71,6 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
   const [completedOpen, setCompletedOpen] = useState(false)
 
   const isFlatView = Boolean(statusFilter || needsFilter)
-  const PAGE_SIZE = 50
 
   // Reset to page 1 whenever a filter changes, but not on the initial mount
   // (which would clobber a deep-linked ?page=N&status=... URL).

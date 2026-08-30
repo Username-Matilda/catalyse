@@ -1,30 +1,28 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { useSearchParams, useRouter, usePathname } from 'next/navigation'
+import { useCallback, useEffect, useState } from 'react'
+import { useSearchParams, usePathname } from 'next/navigation'
 
 function useSetParam() {
-  const searchParams = useSearchParams()
-  const router = useRouter()
-  // Read the latest params through a ref so the returned setter keeps a stable
-  // identity across URL changes. Without this, every router.replace() (including
-  // a pagination click writing ?page=N) hands consumers a new setter, which
-  // re-fires any effect that lists the setter in its deps — e.g. the
-  // "reset to page 1 on filter change" effects in the projects/volunteers
-  // directories, which would then clobber every page change back to page 1.
-  const paramsRef = useRef(searchParams)
-  useEffect(() => {
-    paramsRef.current = searchParams
-  }, [searchParams])
-  return useCallback(
-    (key: string, value: string) => {
-      const params = new URLSearchParams(paramsRef.current.toString())
-      if (value) params.set(key, value)
-      else params.delete(key)
-      router.replace(`?${params.toString()}`, { scroll: false })
-    },
-    [router],
-  )
+  // Deliberately depends on nothing: the setter must keep a stable identity for the
+  // life of the component. Directory pages list it (via setPageParam) in the deps of
+  // their "reset to page 1 when a filter changes" effect — a setter that churned on
+  // every URL change would re-fire that effect right after a pagination click and
+  // snap the list straight back to page 1.
+  //
+  // Reads the live URL at call time rather than closing over useSearchParams(), and
+  // writes with history.replaceState (which Next patches to sync
+  // usePathname/useSearchParams) instead of router.replace() — matching
+  // useUrlSearchInput below. router.replace() with a query-only relative URL did not
+  // reliably update useSearchParams() here, which is why paging never advanced.
+  return useCallback((key: string, value: string) => {
+    const params = new URLSearchParams(window.location.search)
+    if (value) params.set(key, value)
+    else params.delete(key)
+    const qs = params.toString()
+    const { pathname } = window.location
+    window.history.replaceState(null, '', qs ? `${pathname}?${qs}` : pathname)
+  }, [])
 }
 
 /**

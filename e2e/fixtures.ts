@@ -153,6 +153,43 @@ export async function createApprovedVolunteer(baseUrl: string): Promise<ApiVolun
   return pending
 }
 
+// Approved volunteer with a caller-chosen name and directory visibility. Used by tests
+// that need a deterministic name (pagination) or a profile hidden from the public
+// directory (hidden-volunteer access rules).
+export async function createApprovedVolunteerNamed(
+  baseUrl: string,
+  name: string,
+  opts: { hidden?: boolean } = {},
+): Promise<ApiVolunteer> {
+  const api = createApiClient(baseUrl)
+  const email = fake.uniqueEmail()
+  const result = await api.auth.signup({
+    body: {
+      name,
+      email,
+      password: 'testpassword1',
+      bio: 'e2e test bio, at least twenty characters long',
+      country: 'UK',
+      availabilityHoursPerWeek: 5,
+      applicationMessage: 'e2e test application message',
+      consentMakeProfileVisibleInDirectory: !opts.hidden,
+      consentContactableByProjectOwners: true,
+    },
+  })
+  if (result.status !== 200)
+    throw new Error(`Volunteer signup failed: ${JSON.stringify(result.body)}`)
+  const { id, token, emailVerificationToken } = result.body as {
+    id: number
+    token: string
+    emailVerificationToken?: string
+  }
+  if (emailVerificationToken) {
+    await confirmVolunteerEmail(baseUrl, emailVerificationToken)
+  }
+  await approveVolunteer(baseUrl, id)
+  return { id, token, name, email }
+}
+
 export async function rejectVolunteer(
   baseUrl: string,
   volunteerId: number,
