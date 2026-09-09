@@ -111,10 +111,26 @@ export default function AdminLandingPage() {
               </div>
               <div>
                 <div className="text-4xl font-bold text-success mb-1">
-                  {stats.volunteers.thisMonth}
+                  {stats.volunteers.last30Days}
                 </div>
-                <div className="text-text-light">Joined This Month</div>
+                <div className="text-text-light">Joined last 30 days</div>
               </div>
+            </div>
+            <div className="mt-4">
+              {[
+                { label: 'Approved', value: stats.volunteers.approved, color: 'text-success' },
+                { label: 'Pending', value: stats.volunteers.pending, color: undefined },
+                { label: 'Under Review', value: stats.volunteers.underReview, color: undefined },
+                { label: 'Needs Info', value: stats.volunteers.needsInfo, color: 'text-warning' },
+              ].map((row, i, arr) => (
+                <div
+                  key={row.label}
+                  className={`flex justify-between py-2${i < arr.length - 1 ? ' border-b border-brand-border' : ''}`}
+                >
+                  <span className={row.color}>{row.label}</span>
+                  <strong>{row.value}</strong>
+                </div>
+              ))}
             </div>
           </div>
 
