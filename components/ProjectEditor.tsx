@@ -14,6 +14,7 @@ import SkillPicker from '@/components/SkillPicker'
 import Modal from '@/components/ui/Modal'
 import { buildLocationOptions, type LocalGroupOption } from '@/lib/filter-options'
 import { useToast } from '@/lib/toast'
+import { toDateInputValue, fromDateInputValue } from '@/lib/format-date'
 import { useCookieConsent } from '@/lib/cookie-consent-context'
 import { orpc } from '@/lib/orpc'
 import type { AppRouter } from '@/server/router'
@@ -87,6 +88,8 @@ export default function ProjectEditor(props: ProjectEditorProps) {
   const [teamId, setTeamId] = useState('')
   const [remoteEligibility, setRemoteEligibility] = useState<'NONE' | 'COUNTRY' | 'GLOBAL'>('NONE')
   const [duration, setDuration] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [durationDays, setDurationDays] = useState('')
   const [collaborationLink, setCollaborationLink] = useState('')
   const [skills, setSkills] = useState<SelectedSkill[]>([])
   const [seekingHelp, setSeekingHelp] = useState(true)
@@ -125,6 +128,8 @@ export default function ProjectEditor(props: ProjectEditorProps) {
     setTeamId(data.teamId ? String(data.teamId) : '')
     setRemoteEligibility(data.remoteEligibility ?? 'NONE')
     setDuration(data.estimatedDuration ?? '')
+    setStartDate(toDateInputValue(data.startDate))
+    setDurationDays(data.durationDays !== null ? String(data.durationDays) : '')
     setSeekingHelp(data.isSeekingHelp ?? false)
     setWantToOwn(data.ownerId === user?.id)
     const isOwner = data.ownerId === user?.id || data.proposedById === user?.id
@@ -620,6 +625,48 @@ export default function ProjectEditor(props: ProjectEditorProps) {
           />
           <p className="text-sm text-text-light mt-1">
             Controls who gets project-match alerts outside the country above.
+          </p>
+        </div>
+
+        {/* Timeline fields, offered for every project type — unlike the free-text estimate
+            above, which is only asked for sprints and containers. */}
+        <div className="mb-5 flex flex-wrap gap-3">
+          <div>
+            <label htmlFor="project-start-date">Start date</label>
+            <input
+              id="project-start-date"
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              onBlur={() => {
+                if (toDateInputValue(projectData?.startDate) === startDate) return
+                commitField({ startDate: fromDateInputValue(startDate) })
+              }}
+              disabled={!canEdit}
+            />
+          </div>
+          <div>
+            <label htmlFor="project-duration-days">Duration (days)</label>
+            <input
+              id="project-duration-days"
+              type="number"
+              min="1"
+              step="1"
+              placeholder="from tasks"
+              value={durationDays}
+              onChange={(e) => setDurationDays(e.target.value)}
+              onBlur={() => {
+                const next = durationDays ? parseInt(durationDays, 10) : null
+                if (next === (projectData?.durationDays ?? null)) return
+                commitField({ durationDays: next })
+              }}
+              disabled={!canEdit}
+              className="w-30"
+            />
+          </div>
+          <p className="text-text-light basis-full text-sm">
+            Used by the timeline view. Leave the duration empty to have the project span its own
+            tasks.
           </p>
         </div>
 

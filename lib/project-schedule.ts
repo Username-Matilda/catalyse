@@ -1,0 +1,180 @@
+/**
+ * Server-side scheduling: turning stored work items and dependency rows into a placed timeline.
+ *
+ * `lib/schedule.ts` is the pure kernel and runs on both client and server. This module is
+ * server-only — it loads from Prisma — and adds the two things the kernel cannot know on its own:
+ *   - which dependency edges belong to a given scope, and
+ *   - where a project's timeline begins, which for a project with project-level predecessors
+ *     means running the portfolio pass first.
+ */
+
+import { prisma } from './prisma'
+import { WorkItemType } from '@/generated/prisma/enums'
+import {
+  computeSchedule,
+  diffInDays,
+  startOfUtcDay,
+  type Schedule,
+  type ScheduleEdge,
+  type ScheduleInput,
+} from './schedule'
+
+/** The stored columns the scheduler reads off any work item. */
+export type SchedulableWorkItem = {
+  id: number
+  startDate: Date | null
+  durationDays: number | null
+  deadline: Date | null
+  baselineStartDate: Date | null
+  baselineDurationDays: number | null
+  startedAt: Date | null
+  completedAt: Date | null
+}
+
+export function toScheduleInput(w: SchedulableWorkItem): ScheduleInput {
+  return {
+    id: w.id,
+    startDate: w.startDate,
+    durationDays: w.durationDays,
+    deadline: w.deadline,
+    baselineStartDate: w.baselineStartDate,
+    baselineDurationDays: w.baselineDurationDays,
+    startedAt: w.startedAt,
+    completedAt: w.completedAt,
+  }
+}
+
+const SCHEDULABLE_SELECT = {
+  id: true,
+  startDate: true,
+  durationDays: true,
+  deadline: true,
+  baselineStartDate: true,
+  baselineDurationDays: true,
+  startedAt: true,
+  completedAt: true,
+} as const
+
+/** Inclusive day-count a placed schedule occupies, minimum 1. */
+export function spanDays(schedule: Schedule): number {
+  if (schedule.scheduled.length === 0) return 1
+  return diffInDays(schedule.start, schedule.end) + 1
+}
+
+/**
+ * Dependency edges where both endpoints are tasks of `projectId`. Rows that point at a task
+ * outside this project can exist only through data corruption; they are filtered so a stray
+ * one cannot drag an unrelated item into the scope.
+ */
+export async function loadTaskEdges(projectId: number): Promise<ScheduleEdge[]> {
+  const rows = await prisma.workItemDependency.findMany({
+    where: {
+      predecessor: { parentId: projectId, type: WorkItemType.TASK },
+      successor: { parentId: projectId, type: WorkItemType.TASK },
+    },
+    select: { predecessorId: true, successorId: true, lagDays: true },
+  })
+  return rows
+}
+
+/** Every PROJECT→PROJECT dependency edge in the system. The portfolio graph is small. */
+export async function loadProjectEdges(): Promise<ScheduleEdge[]> {
+  const rows = await prisma.workItemDependency.findMany({
+    where: {
+      predecessor: { type: WorkItemType.PROJECT },
+      successor: { type: WorkItemType.PROJECT },
+    },
+    select: { predecessorId: true, successorId: true, lagDays: true },
+  })
+  return rows
+}
+
+/**
+ * The absolute calendar day a project's own timeline begins.
+ *   1. A pinned `startDate` always wins.
+ *   2. With no pin and no project-level predecessor, the timeline begins today.
+ *   3. With no pin but a project-level predecessor, run the portfolio pass — schedule every
+ *      linked project (each using its task span as its duration unless it sets one explicitly)
+ *      and take this project's computed start.
+ */
+export async function resolveProjectOrigin(
+  project: { id: number; startDate: Date | null },
+  today: Date = new Date(),
+): Promise<Date> {
+  if (project.startDate) return startOfUtcDay(project.startDate)
+
+  const projectEdges = await loadProjectEdges()
+  if (!projectEdges.some((e) => e.successorId === project.id)) {
+    return startOfUtcDay(today)
+  }
+
+  const portfolio = await scheduleAllProjects(projectEdges, today)
+  return portfolio.byId.get(project.id)?.start ?? startOfUtcDay(today)
+}
+
+/**
+ * Places a given set of projects on the calendar. A project's duration is its explicit
+ * `durationDays` when set, otherwise the span of its own tasks (scheduled from a zero origin —
+ * only the width matters here). Project-level edges pointing outside `ids` are ignored by the
+ * scheduler, so passing the full edge list is safe.
+ */
+export async function scheduleProjectsByIds(
+  ids: number[],
+  projectEdges: ScheduleEdge[],
+  today: Date = new Date(),
+): Promise<Schedule> {
+  const projects = await prisma.workItem.findMany({
+    where: { id: { in: ids }, type: WorkItemType.PROJECT },
+    select: SCHEDULABLE_SELECT,
+  })
+
+  const origin = startOfUtcDay(today)
+  const nodes: ScheduleInput[] = await Promise.all(
+    projects.map(async (p) => {
+      const base = toScheduleInput(p)
+      if (p.durationDays !== null) return base
+      const tasks = await prisma.workItem.findMany({
+        where: { parentId: p.id, type: WorkItemType.TASK },
+        select: SCHEDULABLE_SELECT,
+      })
+      if (tasks.length === 0) return base
+      const taskEdges = await loadTaskEdges(p.id)
+      const taskSchedule = computeSchedule(tasks.map(toScheduleInput), taskEdges, origin)
+      return { ...base, durationDays: spanDays(taskSchedule) }
+    }),
+  )
+
+  return computeSchedule(nodes, projectEdges, origin)
+}
+
+/**
+ * Portfolio pass over just the projects that participate in a project-level link — used to
+ * resolve one project's absolute start (see resolveProjectOrigin).
+ */
+export async function scheduleAllProjects(
+  projectEdges: ScheduleEdge[],
+  today: Date = new Date(),
+): Promise<Schedule> {
+  const linkedIds = new Set<number>()
+  for (const e of projectEdges) {
+    linkedIds.add(e.predecessorId)
+    linkedIds.add(e.successorId)
+  }
+  return scheduleProjectsByIds([...linkedIds], projectEdges, today)
+}
+
+/**
+ * Full task-level schedule for one project: its edges loaded, its origin resolved (portfolio
+ * pass included when needed), and its tasks placed.
+ */
+export async function loadProjectTaskSchedule(
+  project: { id: number; startDate: Date | null },
+  tasks: SchedulableWorkItem[],
+): Promise<{ schedule: Schedule; edges: ScheduleEdge[]; origin: Date }> {
+  const [edges, origin] = await Promise.all([
+    loadTaskEdges(project.id),
+    resolveProjectOrigin(project),
+  ])
+  const schedule = computeSchedule(tasks.map(toScheduleInput), edges, origin)
+  return { schedule, edges, origin }
+}

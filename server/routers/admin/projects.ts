@@ -1,7 +1,12 @@
 import { z } from 'zod'
 import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
-import { withProjectExtras, projectInclude, EnrichedProject } from '@/lib/work-item'
+import {
+  withProjectExtras,
+  projectInclude,
+  EnrichedProject,
+  applyScheduleWrite,
+} from '@/lib/work-item'
 import { notifyUser, notifyTeamOfProject, clearNotifications } from '@/lib/notify'
 import { html } from '@/lib/email'
 import { notifyMatchingVolunteers } from '@/lib/project-match-notify'
@@ -34,6 +39,14 @@ export const adminProjectsRouter = {
       })
     }
 
+    // A project created with dates is scheduled from birth, so it is baselined from birth too.
+    const scheduleOnCreate: Record<string, unknown> = {}
+    applyScheduleWrite(
+      scheduleOnCreate,
+      { startDate: null, durationDays: null, baselineSetAt: null },
+      { startDate: input.startDate ?? null, durationDays: input.durationDays ?? null },
+    )
+
     const project = await prisma.$transaction(async (tx) => {
       const newProject = await tx.workItem.create({
         data: {
@@ -61,6 +74,7 @@ export const adminProjectsRouter = {
           remoteEligibility: input.remoteEligibility ?? 'NONE',
           isSeekingHelp: input.isSeekingHelp !== false,
           teamId: input.teamId ?? null,
+          ...scheduleOnCreate,
         },
       })
 

@@ -15,9 +15,13 @@ import CommentThread from '@/components/CommentThread'
 import Modal from '@/components/ui/Modal'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import VolunteerSelect from '@/components/VolunteerSelect'
+import Tabs from '@/components/Tabs'
+import GanttChart from '@/components/gantt/GanttChart'
+import type { GanttRow as GanttRowData } from '@/components/gantt/types'
+import GanttItemPanel from '@/components/gantt/GanttItemPanel'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
-import { formatDate } from '@/lib/format-date'
+import { formatDate, fromDateInputValue } from '@/lib/format-date'
 import { projectLocationParts } from '@/lib/filter-options'
 import {
   ADMIN_ONLY_STATUSES,
@@ -220,6 +224,188 @@ function SortableTaskItem({
   )
 }
 
+type TimelineData = InferRouterOutputs<AppRouter>['projects']['listTasks']
+
+/**
+ * The Timeline tab. Splits the project's tasks into those placed on the calendar and those
+ * still unscheduled (no dates, no predecessor): the first render as a draggable Gantt chart,
+ * the rest as a tray. Clicking a bar opens a panel with the same edits, for keyboard users.
+ */
+function TaskTimeline({
+  timeline,
+  projectId,
+  loading,
+}: {
+  timeline: TimelineData | undefined
+  projectId: number
+  loading: boolean
+}) {
+  const queryClient = useQueryClient()
+  const showToast = useToast()
+  const [selectedId, setSelectedId] = useState<number | null>(null)
+
+  const invalidate = () =>
+    queryClient.invalidateQueries({ queryKey: orpc.projects.listTasks.key() })
+
+  const onErr = (verb: string) => (err: unknown) =>
+    showToast(err instanceof Error ? err.message : `Failed to ${verb}`, 'error')
+
+  const reschedule = useMutation({
+    ...orpc.schedule.rescheduleItems.mutationOptions(),
+    onSuccess: () => void invalidate(),
+    onError: onErr('reschedule'),
+  })
+  const addDep = useMutation({
+    ...orpc.dependencies.add.mutationOptions(),
+    onSuccess: () => {
+      showToast('Dependency added', 'success')
+      void invalidate()
+    },
+    onError: onErr('add dependency'),
+  })
+  const removeDep = useMutation({
+    ...orpc.dependencies.remove.mutationOptions(),
+    onSuccess: () => void invalidate(),
+    onError: onErr('remove dependency'),
+  })
+  const updateLag = useMutation({
+    ...orpc.dependencies.updateLag.mutationOptions(),
+    onSuccess: () => void invalidate(),
+    onError: onErr('update lag'),
+  })
+
+  if (loading || !timeline) {
+    return <p className="text-text-light">Loading timeline…</p>
+  }
+  if (timeline.tasks.length === 0) {
+    return <p className="text-text-light">No tasks yet.</p>
+  }
+
+  const canManage = timeline.canManageTasks
+  const placementById = new Map(timeline.scheduled.map((p) => [p.id, p]))
+  const hasPredecessor = new Set(timeline.dependencies.map((d) => d.successorId))
+  const titleById = new Map(timeline.tasks.map((t) => [t.id, t.title]))
+
+  const scheduledRows: GanttRowData[] = []
+  const unscheduled: { id: number; title: string }[] = []
+  for (const task of timeline.tasks) {
+    const isUnscheduled =
+      task.startDate === null && task.durationDays === null && !hasPredecessor.has(task.id)
+    const placement = placementById.get(task.id)
+    if (isUnscheduled || !placement) {
+      unscheduled.push({ id: task.id, title: task.title })
+    } else {
+      scheduledRows.push({
+        id: task.id,
+        label: task.title,
+        href: `/projects/${projectId}/tasks/${task.id}`,
+        status: task.status,
+        placement,
+      })
+    }
+  }
+
+  const selectedRow = scheduledRows.find((r) => r.id === selectedId) ?? null
+  const selectedTask = selectedRow
+    ? (timeline.tasks.find((t) => t.id === selectedRow.id) ?? null)
+    : null
+  const busy =
+    reschedule.isPending || addDep.isPending || removeDep.isPending || updateLag.isPending
+
+  return (
+    <div>
+      {scheduledRows.length === 0 ? (
+        <p className="text-text-light mb-4">
+          No tasks have dates yet. Give a task a start date, a duration, or a dependency to place it
+          on the timeline.
+        </p>
+      ) : (
+        <div className="flex flex-col gap-4 lg:flex-row">
+          <div className="min-w-0 flex-1">
+            <GanttChart
+              rows={scheduledRows}
+              edges={timeline.dependencies}
+              rangeStart={new Date(timeline.scopeStart)}
+              rangeEnd={new Date(timeline.scopeEnd)}
+              editable={canManage}
+              selectedId={selectedId}
+              onSelect={(id) => setSelectedId((cur) => (cur === id ? null : id))}
+              onReschedule={(patch) =>
+                reschedule.mutate({
+                  items: [
+                    {
+                      id: patch.id,
+                      startDate: patch.startDate,
+                      ...(patch.durationDays !== undefined
+                        ? { durationDays: patch.durationDays }
+                        : {}),
+                    },
+                  ],
+                })
+              }
+              onLink={(predecessorId, successorId) =>
+                addDep.mutate({ predecessorId, successorId, lagDays: 0 })
+              }
+            />
+          </div>
+
+          {selectedRow && selectedTask && (
+            <div className="lg:w-80 lg:shrink-0">
+              <GanttItemPanel
+                row={selectedRow}
+                startDate={selectedTask.startDate ? new Date(selectedTask.startDate) : null}
+                durationDays={selectedTask.durationDays}
+                canManage={canManage}
+                busy={busy}
+                siblings={timeline.tasks.map((t) => ({ id: t.id, title: t.title }))}
+                predecessors={timeline.dependencies
+                  .filter((d) => d.successorId === selectedRow.id)
+                  .map((d) => ({
+                    dependencyId: d.id,
+                    predecessorId: d.predecessorId,
+                    predecessorTitle: titleById.get(d.predecessorId) ?? `#${d.predecessorId}`,
+                    lagDays: d.lagDays,
+                  }))}
+                onClose={() => setSelectedId(null)}
+                onSaveDates={(p) =>
+                  reschedule.mutate({
+                    items: [
+                      { id: selectedRow.id, startDate: p.startDate, durationDays: p.durationDays },
+                    ],
+                  })
+                }
+                onAddDependency={(predecessorId, lagDays) =>
+                  addDep.mutate({ predecessorId, successorId: selectedRow.id, lagDays })
+                }
+                onRemoveDependency={(dependencyId) => removeDep.mutate({ dependencyId })}
+                onUpdateLag={(dependencyId, lagDays) => updateLag.mutate({ dependencyId, lagDays })}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {unscheduled.length > 0 && (
+        <div className="border-brand-border mt-4 rounded-lg border border-dashed p-3">
+          <h3 className="mb-2 text-sm font-medium">Unscheduled</h3>
+          <ul className="m-0 flex flex-wrap gap-2 p-0">
+            {unscheduled.map((t) => (
+              <li key={t.id}>
+                <Link
+                  href={`/projects/${projectId}/tasks/${t.id}`}
+                  className="border-brand-border bg-brand-bg inline-block rounded border px-2 py-1 text-sm hover:underline"
+                >
+                  {t.title}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -236,8 +422,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const [newTaskDescription, setNewTaskDescription] = useState('')
   const [newTaskEstimatedHours, setNewTaskEstimatedHours] = useState('')
   const [newTaskDeadline, setNewTaskDeadline] = useState('')
+  const [newTaskStartDate, setNewTaskStartDate] = useState('')
+  const [newTaskDurationDays, setNewTaskDurationDays] = useState('')
   const [newTaskFeatured, setNewTaskFeatured] = useState(false)
   const [orderedTasks, setOrderedTasks] = useState<ProjectTask[]>([])
+  const [taskView, setTaskView] = useState<'list' | 'timeline'>('list')
   const [taskAssignSelections, setTaskAssignSelections] = useState<Record<number, string>>({})
   const taskDragSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -296,6 +485,23 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   })
   const project = projectRaw
   const canClaimTasks = project?.canClaimTasks ?? false
+
+  // Only loaded once the Timeline tab is opened — it carries the computed schedule and the
+  // dependency edges the List view doesn't need.
+  const { data: timeline } = useQuery({
+    ...orpc.projects.listTasks.queryOptions({ input: { projectId: parseInt(idParam, 10) } }),
+    enabled: !!user && !!project && taskView === 'timeline',
+  })
+
+  const setBaselineMutation = useMutation({
+    ...orpc.projects.setBaseline.mutationOptions(),
+    onSuccess: () => {
+      showToast('Baseline updated', 'success')
+      void queryClient.invalidateQueries({ queryKey: orpc.projects.listTasks.key() })
+    },
+    onError: (err: unknown) =>
+      showToast(err instanceof Error ? err.message : 'Failed to update baseline', 'error'),
+  })
 
   // Sync orderedTasks when project data loads/changes
   useEffect(() => {
@@ -590,7 +796,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       title: newTaskTitle.trim(),
       description: newTaskDescription.trim() || undefined,
       estimatedHours: newTaskEstimatedHours ? parseFloat(newTaskEstimatedHours) : null,
-      deadline: newTaskDeadline ? new Date(newTaskDeadline) : null,
+      deadline: fromDateInputValue(newTaskDeadline),
+      startDate: fromDateInputValue(newTaskStartDate),
+      durationDays: newTaskDurationDays ? parseInt(newTaskDurationDays, 10) : null,
       featuredAsQuickTask: newTaskFeatured,
     })
   }
@@ -822,12 +1030,39 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             <div className={card}>
               <div className="flex justify-between items-center mb-3">
                 <h2 className="m-0">Tasks</h2>
-                {canManageTasks && (
-                  <Button variant="secondary" onClick={() => setShowTaskForm((v) => !v)}>
-                    Add Task
-                  </Button>
-                )}
+                <div className="flex items-center gap-2">
+                  {taskView === 'timeline' && canManageTasks && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      disabled={setBaselineMutation.isPending}
+                      onClick={() =>
+                        setBaselineMutation.mutate({
+                          projectId: parseInt(idParam, 10),
+                          includeTasks: true,
+                        })
+                      }
+                    >
+                      Re-baseline
+                    </Button>
+                  )}
+                  {canManageTasks && (
+                    <Button variant="secondary" onClick={() => setShowTaskForm((v) => !v)}>
+                      Add Task
+                    </Button>
+                  )}
+                </div>
               </div>
+
+              <Tabs
+                className="mb-4"
+                tabs={[
+                  { key: 'list', label: 'List' },
+                  { key: 'timeline', label: 'Timeline' },
+                ]}
+                activeTab={taskView}
+                onChange={(k) => setTaskView(k as 'list' | 'timeline')}
+              />
 
               {showTaskForm && canManageTasks && (
                 <div className="bg-brand-bg rounded-lg p-3 mb-4 border border-brand-border">
@@ -880,6 +1115,30 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                           onChange={(e) => setNewTaskDeadline(e.target.value)}
                         />
                       </div>
+                      <div>
+                        <label htmlFor="new-task-start">Start date</label>
+                        <input
+                          id="new-task-start"
+                          type="date"
+                          aria-label="Start date"
+                          value={newTaskStartDate}
+                          onChange={(e) => setNewTaskStartDate(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="new-task-duration">Duration (days)</label>
+                        <input
+                          id="new-task-duration"
+                          type="number"
+                          min="1"
+                          step="1"
+                          aria-label="Duration (days)"
+                          value={newTaskDurationDays}
+                          onChange={(e) => setNewTaskDurationDays(e.target.value)}
+                          placeholder="e.g. 5"
+                          className="w-30"
+                        />
+                      </div>
                     </div>
                     <div className="mb-3">
                       <Checkbox
@@ -902,194 +1161,203 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 </div>
               )}
 
-              {orderedTasks.length === 0 ? (
-                <p className="text-text-light">No tasks yet.</p>
-              ) : (
-                <DndContext
-                  sensors={taskDragSensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={canManageTasks ? handleTaskDragEnd : undefined}
-                >
-                  <SortableContext
-                    items={orderedTasks.map((t) => t.id)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    <ul className="list-none p-0 m-0">
-                      {orderedTasks.map((task) => {
-                        const isOverdue =
-                          task.deadline &&
-                          task.status !== TaskStatus.completed &&
-                          // eslint-disable-next-line react-hooks/purity -- wall-clock comparison for overdue display
-                          new Date(task.deadline).getTime() < Date.now()
-                        const canAssign =
-                          isOwnerOrAdmin &&
-                          task.status !== TaskStatus.completed &&
-                          volunteers.length > 0
-                        const canUnassign =
-                          isOwnerOrAdmin &&
-                          task.assignedToId !== null &&
-                          task.status === TaskStatus.in_progress
+              {taskView === 'timeline' && (
+                <TaskTimeline
+                  timeline={timeline}
+                  projectId={parseInt(idParam, 10)}
+                  loading={!timeline}
+                />
+              )}
 
-                        return (
-                          <SortableTaskItem
-                            key={task.id}
-                            task={task}
-                            draggable={canManageTasks}
-                            title={
-                              <Link
-                                href={`/projects/${idParam}/tasks/${task.id}`}
-                                className="hover:underline"
-                              >
-                                {task.title}
-                              </Link>
-                            }
-                            assigneeName={
-                              task.status !== TaskStatus.completed ? task.assignedToName : null
-                            }
-                            chips={
-                              <>
-                                {task.status === TaskStatus.completed && (
-                                  <span className="text-success text-sm font-semibold">done</span>
-                                )}
-                                {task.featuredAsQuickTask && (
-                                  <span
-                                    className="text-xs whitespace-nowrap"
-                                    title="Also shown on the Quick Tasks page"
-                                  >
-                                    ⚡ Quick Task
-                                  </span>
-                                )}
-                                {isOverdue && <Badge variant="danger">Overdue</Badge>}
-                                {task.estimatedHours !== null && (
-                                  <span className="text-text-light text-xs whitespace-nowrap">
-                                    ~{task.estimatedHours}h
-                                  </span>
-                                )}
-                                {task.deadline && (
-                                  <span className="text-text-light text-xs whitespace-nowrap">
-                                    Due {formatDate(task.deadline)}
-                                  </span>
-                                )}
-                                {task.commentCount > 0 && (
-                                  <Link
-                                    href={`/projects/${idParam}/tasks/${task.id}`}
-                                    className="flex items-center gap-1 text-text-light text-xs whitespace-nowrap hover:underline"
-                                    aria-label={`${task.commentCount} comment${task.commentCount !== 1 ? 's' : ''}`}
-                                  >
-                                    <svg
-                                      width="14"
-                                      height="14"
-                                      viewBox="0 0 24 24"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      strokeWidth="2"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      aria-hidden="true"
+              {taskView === 'list' &&
+                (orderedTasks.length === 0 ? (
+                  <p className="text-text-light">No tasks yet.</p>
+                ) : (
+                  <DndContext
+                    sensors={taskDragSensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={canManageTasks ? handleTaskDragEnd : undefined}
+                  >
+                    <SortableContext
+                      items={orderedTasks.map((t) => t.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <ul className="list-none p-0 m-0">
+                        {orderedTasks.map((task) => {
+                          const isOverdue =
+                            task.deadline &&
+                            task.status !== TaskStatus.completed &&
+                            // eslint-disable-next-line react-hooks/purity -- wall-clock comparison for overdue display
+                            new Date(task.deadline).getTime() < Date.now()
+                          const canAssign =
+                            isOwnerOrAdmin &&
+                            task.status !== TaskStatus.completed &&
+                            volunteers.length > 0
+                          const canUnassign =
+                            isOwnerOrAdmin &&
+                            task.assignedToId !== null &&
+                            task.status === TaskStatus.in_progress
+
+                          return (
+                            <SortableTaskItem
+                              key={task.id}
+                              task={task}
+                              draggable={canManageTasks}
+                              title={
+                                <Link
+                                  href={`/projects/${idParam}/tasks/${task.id}`}
+                                  className="hover:underline"
+                                >
+                                  {task.title}
+                                </Link>
+                              }
+                              assigneeName={
+                                task.status !== TaskStatus.completed ? task.assignedToName : null
+                              }
+                              chips={
+                                <>
+                                  {task.status === TaskStatus.completed && (
+                                    <span className="text-success text-sm font-semibold">done</span>
+                                  )}
+                                  {task.featuredAsQuickTask && (
+                                    <span
+                                      className="text-xs whitespace-nowrap"
+                                      title="Also shown on the Quick Tasks page"
                                     >
-                                      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-                                    </svg>
-                                    {task.commentCount}
-                                  </Link>
-                                )}
-                              </>
-                            }
-                            primaryAction={
-                              <>
-                                {task.status === TaskStatus.open && canClaimTasks && (
-                                  <Button
-                                    variant="secondary"
-                                    size="sm"
-                                    onClick={() => handleClaimTask(task.id)}
-                                  >
-                                    Claim
-                                  </Button>
-                                )}
-                                {task.status === TaskStatus.in_progress &&
-                                  task.assignedToId === user.id && (
+                                      ⚡ Quick Task
+                                    </span>
+                                  )}
+                                  {isOverdue && <Badge variant="danger">Overdue</Badge>}
+                                  {task.estimatedHours !== null && (
+                                    <span className="text-text-light text-xs whitespace-nowrap">
+                                      ~{task.estimatedHours}h
+                                    </span>
+                                  )}
+                                  {task.deadline && (
+                                    <span className="text-text-light text-xs whitespace-nowrap">
+                                      Due {formatDate(task.deadline)}
+                                    </span>
+                                  )}
+                                  {task.commentCount > 0 && (
+                                    <Link
+                                      href={`/projects/${idParam}/tasks/${task.id}`}
+                                      className="flex items-center gap-1 text-text-light text-xs whitespace-nowrap hover:underline"
+                                      aria-label={`${task.commentCount} comment${task.commentCount !== 1 ? 's' : ''}`}
+                                    >
+                                      <svg
+                                        width="14"
+                                        height="14"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        aria-hidden="true"
+                                      >
+                                        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                                      </svg>
+                                      {task.commentCount}
+                                    </Link>
+                                  )}
+                                </>
+                              }
+                              primaryAction={
+                                <>
+                                  {task.status === TaskStatus.open && canClaimTasks && (
                                     <Button
                                       variant="secondary"
                                       size="sm"
-                                      onClick={() => handleDoneTask(task.id)}
+                                      onClick={() => handleClaimTask(task.id)}
                                     >
-                                      Done
+                                      Claim
                                     </Button>
                                   )}
-                              </>
-                            }
-                            menu={
-                              (canAssign || canManageTasks) && (
-                                <ActionMenu ariaLabel={`Task actions for ${task.title}`}>
-                                  {(close) => (
-                                    <>
-                                      {canAssign && (
-                                        <div className="px-3 py-2 flex flex-col gap-2">
-                                          <FilterDropdown
-                                            id={`assign-task-${task.id}`}
-                                            label="Assign to"
-                                            ariaLabel={`Assign volunteer to ${task.title}`}
-                                            value={taskAssignSelections[task.id] ?? ''}
-                                            options={assignVolunteerOptions}
-                                            onChange={(v) =>
-                                              setTaskAssignSelections((s) => ({
-                                                ...s,
-                                                [task.id]: v,
-                                              }))
-                                            }
-                                            searchable
-                                          />
-                                          <Button
-                                            variant="secondary"
-                                            size="sm"
-                                            disabled={
-                                              !taskAssignSelections[task.id] ||
-                                              assignTaskMutation.isPending
-                                            }
+                                  {task.status === TaskStatus.in_progress &&
+                                    task.assignedToId === user.id && (
+                                      <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        onClick={() => handleDoneTask(task.id)}
+                                      >
+                                        Done
+                                      </Button>
+                                    )}
+                                </>
+                              }
+                              menu={
+                                (canAssign || canManageTasks) && (
+                                  <ActionMenu ariaLabel={`Task actions for ${task.title}`}>
+                                    {(close) => (
+                                      <>
+                                        {canAssign && (
+                                          <div className="px-3 py-2 flex flex-col gap-2">
+                                            <FilterDropdown
+                                              id={`assign-task-${task.id}`}
+                                              label="Assign to"
+                                              ariaLabel={`Assign volunteer to ${task.title}`}
+                                              value={taskAssignSelections[task.id] ?? ''}
+                                              options={assignVolunteerOptions}
+                                              onChange={(v) =>
+                                                setTaskAssignSelections((s) => ({
+                                                  ...s,
+                                                  [task.id]: v,
+                                                }))
+                                              }
+                                              searchable
+                                            />
+                                            <Button
+                                              variant="secondary"
+                                              size="sm"
+                                              disabled={
+                                                !taskAssignSelections[task.id] ||
+                                                assignTaskMutation.isPending
+                                              }
+                                              onClick={() => {
+                                                handleAssignTask(task.id)
+                                                close()
+                                              }}
+                                            >
+                                              Assign
+                                            </Button>
+                                          </div>
+                                        )}
+                                        {canUnassign && (
+                                          <button
+                                            role="menuitem"
+                                            className={`w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors cursor-pointer ${canAssign ? 'border-t border-brand-border mt-1' : ''}`}
                                             onClick={() => {
-                                              handleAssignTask(task.id)
+                                              handleUnassignTask(task.id)
                                               close()
                                             }}
                                           >
-                                            Assign
-                                          </Button>
-                                        </div>
-                                      )}
-                                      {canUnassign && (
-                                        <button
-                                          role="menuitem"
-                                          className={`w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors cursor-pointer ${canAssign ? 'border-t border-brand-border mt-1' : ''}`}
-                                          onClick={() => {
-                                            handleUnassignTask(task.id)
-                                            close()
-                                          }}
-                                        >
-                                          Unassign
-                                        </button>
-                                      )}
-                                      {canManageTasks && (
-                                        <button
-                                          role="menuitem"
-                                          className={`w-full text-left px-3 py-2 text-sm text-red-700 dark:text-red-400 hover:bg-accent transition-colors cursor-pointer ${canAssign || canUnassign ? 'border-t border-brand-border mt-1' : ''}`}
-                                          onClick={() => {
-                                            handleDeleteTask(task.id)
-                                            close()
-                                          }}
-                                        >
-                                          Delete task
-                                        </button>
-                                      )}
-                                    </>
-                                  )}
-                                </ActionMenu>
-                              )
-                            }
-                          />
-                        )
-                      })}
-                    </ul>
-                  </SortableContext>
-                </DndContext>
-              )}
+                                            Unassign
+                                          </button>
+                                        )}
+                                        {canManageTasks && (
+                                          <button
+                                            role="menuitem"
+                                            className={`w-full text-left px-3 py-2 text-sm text-red-700 dark:text-red-400 hover:bg-accent transition-colors cursor-pointer ${canAssign || canUnassign ? 'border-t border-brand-border mt-1' : ''}`}
+                                            onClick={() => {
+                                              handleDeleteTask(task.id)
+                                              close()
+                                            }}
+                                          >
+                                            Delete task
+                                          </button>
+                                        )}
+                                      </>
+                                    )}
+                                  </ActionMenu>
+                                )
+                              }
+                            />
+                          )
+                        })}
+                      </ul>
+                    </SortableContext>
+                  </DndContext>
+                ))}
             </div>
 
             {/* Project Updates */}

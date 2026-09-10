@@ -244,6 +244,8 @@ export const quickTasksRouter = {
           creatorId: admin.id,
           status: QuickTaskStatus.in_progress,
           updatedAt: new Date(),
+          // Actual start, recorded once — reassigning a task in flight does not restart it.
+          ...(task.startedAt === null ? { startedAt: new Date() } : {}),
         },
       })
 
@@ -274,6 +276,8 @@ export const quickTasksRouter = {
           assigneeId: volunteer.id,
           status: QuickTaskStatus.in_progress,
           updatedAt: new Date(),
+          // The guard above proves the task was open and unheld, so this is a fresh start.
+          startedAt: new Date(),
         },
       })
       if (claimed.count === 0) {
@@ -296,6 +300,8 @@ export const quickTasksRouter = {
         creatorId: null,
         status: QuickTaskStatus.open,
         updatedAt: new Date(),
+        // Back to unstarted: the actual start no longer describes anyone's work.
+        startedAt: null,
       },
     })
     return { message: 'Task unassigned' }
