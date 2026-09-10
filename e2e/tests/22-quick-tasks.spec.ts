@@ -25,9 +25,11 @@ test.describe('Quick Tasks: self-serve', () => {
 
     // Moves out of the browse pool into "My Quick Tasks" — same title, now with a status
     // badge and no Claim button, proving it's no longer the open/unclaimed browse card.
+    // Wait for the browse-pool card to drop first: until both list queries have
+    // refetched, `card` matches two articles and getByRole('status') is ambiguous.
+    await expect(volunteer.page.getByRole('article').filter({ hasText: taskTitle })).toHaveCount(1)
     await expect(card.getByRole('status')).toContainText('Assigned', { timeout: 10_000 })
     await expect(card.getByRole('button', { name: 'Claim' })).not.toBeVisible()
-    await expect(volunteer.page.getByRole('article').filter({ hasText: taskTitle })).toHaveCount(1)
   })
 
   test('Volunteer views an unclaimed Quick Task detail page and claims from there', async ({
