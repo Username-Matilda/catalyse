@@ -1,13 +1,26 @@
 import { prisma } from '@/lib/prisma'
 import { adminProcedure } from '../../procedures'
 import { ADVERTISABLE_STATUSES } from '@/lib/project-status'
-import { InterestStatus, ProjectStatus, WorkItemType } from '@/generated/prisma/enums'
+import {
+  ApprovalStatus,
+  InterestStatus,
+  ProjectStatus,
+  WorkItemType,
+} from '@/generated/prisma/enums'
 
 export const adminStatsRouter = {
   get: adminProcedure.handler(async () => {
+    // Excludes rejected applicants; those never became volunteers.
+    const NON_REJECTED_STATUSES = [
+      ApprovalStatus.approved,
+      ApprovalStatus.pending,
+      ApprovalStatus.under_review,
+      ApprovalStatus.needs_info,
+    ] as const
+
     const [
-      totalVolunteers,
-      [{ count: volunteersThisMonthRaw }],
+      volunteersByStatus,
+      volunteersLast30Days,
       totalProjects,
       pendingReviewProjects,
       seekingProjects,
@@ -16,11 +29,18 @@ export const adminStatsRouter = {
       totalInterests,
       pendingInterests,
     ] = await Promise.all([
-      prisma.volunteer.count({ where: { deletedAt: null } }),
-      prisma.$queryRaw<[{ count: bigint }]>`
-        SELECT COUNT(*) as count FROM volunteers
-        WHERE deleted_at IS NULL AND created_at >= date('now', '-30 days')
-      `,
+      prisma.volunteer.groupBy({
+        by: ['approvalStatus'],
+        where: { deletedAt: null, approvalStatus: { in: [...NON_REJECTED_STATUSES] } },
+        _count: true,
+      }),
+      prisma.volunteer.count({
+        where: {
+          deletedAt: null,
+          approvalStatus: { in: [...NON_REJECTED_STATUSES] },
+          createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+        },
+      }),
       prisma.workItem.count({ where: { type: WorkItemType.PROJECT } }),
       prisma.workItem.count({
         where: { type: WorkItemType.PROJECT, status: ProjectStatus.pending_review },
@@ -44,8 +64,23 @@ export const adminStatsRouter = {
       prisma.workItemInterest.count({ where: { status: InterestStatus.pending } }),
     ])
 
+    const countFor = (status: ApprovalStatus) =>
+      volunteersByStatus.find((row) => row.approvalStatus === status)?._count ?? 0
+
+    const approved = countFor(ApprovalStatus.approved)
+    const pending = countFor(ApprovalStatus.pending)
+    const underReview = countFor(ApprovalStatus.under_review)
+    const needsInfo = countFor(ApprovalStatus.needs_info)
+
     return {
-      volunteers: { total: totalVolunteers, thisMonth: Number(volunteersThisMonthRaw) },
+      volunteers: {
+        total: approved + pending + underReview + needsInfo,
+        approved,
+        pending,
+        underReview,
+        needsInfo,
+        last30Days: volunteersLast30Days,
+      },
       projects: {
         total: totalProjects,
         pendingReview: pendingReviewProjects,

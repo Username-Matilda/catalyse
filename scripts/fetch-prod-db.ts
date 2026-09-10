@@ -250,13 +250,34 @@ function anonymise(dbPath: string): void {
 
 function seedDevAccounts(dbPath: string): void {
   const db = new DatabaseSync(dbPath)
+  // DateTime columns are integer epoch-ms (Prisma's format). Set created_at/
+  // updated_at/location_confirmed_at explicitly so the CURRENT_TIMESTAMP default
+  // (which writes a text string) never fires — a mixed column breaks range/order
+  // queries, see migration 20260909215642_normalize_datetime_storage.
+  const now = Date.now()
   const insert = db.prepare(`
-    INSERT OR REPLACE INTO volunteers (name, email, password_hash, is_admin, location, country, local_group, location_confirmed_at, approval_status, email_confirmed, consent_make_profile_visible_in_directory)
-    VALUES (?, ?, ?, ?, 'London, UK', 'UK', 'London', datetime('now'), 'approved', 1, 0)
+    INSERT OR REPLACE INTO volunteers (name, email, password_hash, is_admin, location, country, local_group, location_confirmed_at, created_at, updated_at, approval_status, email_confirmed, consent_make_profile_visible_in_directory)
+    VALUES (?, ?, ?, ?, 'London, UK', 'UK', 'London', ?, ?, ?, 'approved', 1, 0)
   `)
-  insert.run('Dev Volunteer', 'volunteer@example.com', makePasswordHash('password1'), 0)
-  insert.run('Dev Admin', 'admin@example.com', makePasswordHash('password1'), 1)
-  insert.run('Dev Super Admin', 'superadmin@example.com', makePasswordHash('password1'), 1)
+  insert.run(
+    'Dev Volunteer',
+    'volunteer@example.com',
+    makePasswordHash('password1'),
+    0,
+    now,
+    now,
+    now,
+  )
+  insert.run('Dev Admin', 'admin@example.com', makePasswordHash('password1'), 1, now, now, now)
+  insert.run(
+    'Dev Super Admin',
+    'superadmin@example.com',
+    makePasswordHash('password1'),
+    1,
+    now,
+    now,
+    now,
+  )
   db.close()
 }
 

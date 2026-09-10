@@ -235,23 +235,14 @@ export async function checkAdminBootstrap(email: string, volunteerId: number): P
   return true
 }
 
-// Accept any pending admin invite for this email (case-insensitive).
-// expires_at may be an ISO string (FastAPI-created) or ms timestamp (Prisma-created);
-// compare against both formats to be safe during the migration.
+// Accept any pending, unexpired admin invite for this email (case-insensitive).
 export async function acceptPendingInvite(email: string, volunteerId: number): Promise<boolean> {
-  const nowIso = new Date().toISOString()
-  const nowMs = Date.now()
-  const result = await prisma.$queryRaw<Array<{ id: number }>>`
-    SELECT id FROM admin_invites
-    WHERE LOWER(email) = ${email.toLowerCase()}
-      AND status = 'pending'
-      AND (
-        (typeof(expires_at) = 'text' AND expires_at > ${nowIso})
-        OR (typeof(expires_at) = 'integer' AND expires_at > ${nowMs})
-      )
-    LIMIT 1
-  `
-  const invite = result[0]
+  const target = email.toLowerCase()
+  const pending = await prisma.adminInvite.findMany({
+    where: { status: InviteStatus.pending, expiresAt: { gt: new Date() } },
+    select: { id: true, email: true },
+  })
+  const invite = pending.find((i) => i.email.toLowerCase() === target)
   if (!invite) return false
   await prisma.volunteer.update({
     where: { id: volunteerId },

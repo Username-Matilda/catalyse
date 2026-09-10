@@ -49,21 +49,20 @@ export async function runApplicationsSummaryJob(): Promise<Record<string, unknow
 export async function runApplicationsAnonymisationJob(): Promise<Record<string, unknown>> {
   const cutoff = new Date(Date.now() - APPLICATION_ANONYMISATION_MS)
 
-  const toAnonymise = await prisma.$queryRaw<
-    Array<{
-      id: number
-      email: string | null
-      rejected_at: string | null
-      application_admin_notes: string | null
-      application_applicant_notes: string | null
-    }>
-  >`
-    SELECT id, email, rejected_at, application_admin_notes, application_applicant_notes
-    FROM volunteers
-    WHERE approval_status = 'rejected'
-      AND rejected_at <= ${cutoff.toISOString()}
-      AND deleted_at IS NULL
-  `
+  const toAnonymise = await prisma.volunteer.findMany({
+    where: {
+      approvalStatus: ApprovalStatus.rejected,
+      rejectedAt: { lte: cutoff },
+      deletedAt: null,
+    },
+    select: {
+      id: true,
+      email: true,
+      rejectedAt: true,
+      applicationAdminNotes: true,
+      applicationApplicantNotes: true,
+    },
+  })
 
   if (!toAnonymise.length) return { skipped: true, reason: 'no applications due for anonymisation' }
 
@@ -71,13 +70,12 @@ export async function runApplicationsAnonymisationJob(): Promise<Record<string, 
   for (const v of toAnonymise) {
     if (v.email) {
       const emailHash = createHash('sha256').update(v.email.toLowerCase().trim()).digest('hex')
-      const rejectedAt = new Date(v.rejected_at!)
       await prisma.rejectedApplication.create({
         data: {
           emailHash,
-          rejectedAt,
-          adminNotes: v.application_admin_notes,
-          applicantNotes: v.application_applicant_notes,
+          rejectedAt: v.rejectedAt ?? new Date(),
+          adminNotes: v.applicationAdminNotes,
+          applicantNotes: v.applicationApplicantNotes,
         },
       })
       await prisma.anonymisedEmail.upsert({

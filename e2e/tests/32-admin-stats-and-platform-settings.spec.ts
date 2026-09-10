@@ -13,7 +13,10 @@ test.describe('Admin Landing Page Stats', () => {
       timeout: 10_000,
     })
     await expect(adminPage.getByText('Total Registered')).toBeVisible()
-    await expect(adminPage.getByText('Joined This Month')).toBeVisible()
+    await expect(adminPage.getByText('Joined last 30 days')).toBeVisible()
+    await expect(adminPage.getByText('Approved')).toBeVisible()
+    await expect(adminPage.getByText('Under Review')).toBeVisible()
+    await expect(adminPage.getByText('Needs Info')).toBeVisible()
 
     await expect(adminPage.getByText('Seeking Help')).toBeVisible()
     await expect(adminPage.getByText('In Progress')).toBeVisible()
