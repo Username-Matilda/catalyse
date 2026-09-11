@@ -201,86 +201,35 @@ function VolunteerQuickTasksView() {
   return (
     <>
       <main className="container py-5 pb-15">
-        <h1>My Quick Tasks</h1>
-        <p className="text-text-light mb-6">
-          Small, self-contained tasks to help you get started and make an impact quickly.
-        </p>
+        {/* The two lists are separate landmarks, not one run of cards under two headings: a
+            task moves between them when it is claimed, and both refetch independently, so
+            anything addressing "the card for task X" needs to say which list it means. */}
+        <section aria-labelledby="my-quick-tasks">
+          <h1 id="my-quick-tasks">My Quick Tasks</h1>
+          <p className="text-text-light mb-6">
+            Small, self-contained tasks to help you get started and make an impact quickly.
+          </p>
 
-        {loadingTasks ? (
-          <div className="text-center py-10 text-text-light">Loading tasks…</div>
-        ) : tasks.length === 0 ? (
-          <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word text-center">
-            <h3>No tasks assigned yet</h3>
-            <p className="text-text-light">
-              Check back soon, or browse <Link href="/projects">projects</Link> to find other ways
-              to contribute.
-            </p>
-          </div>
-        ) : (
-          tasks.map((task) => (
-            <QuickTaskCard
-              key={task.id}
-              anchorId={`task-${task.id}`}
-              title={task.title}
-              titleHref={`/quick-tasks/${task.id}`}
-              status={task.status}
-              statusVariant={task.status === QuickTaskStatus.completed ? 'success' : 'warning'}
-              statusLabel={STATUS_LABELS[task.status] ?? task.status}
-              description={task.description}
-              meta={[
-                task.skillName && (
-                  <span key="skill" className={SKILL_CHIP_CLASSES}>
-                    {task.skillName}
-                  </span>
-                ),
-                task.estimatedHours && (
-                  <span key="hours" className="text-text-light text-sm">
-                    ~{task.estimatedHours}h
-                  </span>
-                ),
-                task.projectTitle && (
-                  <span key="project" className="text-text-light text-sm">
-                    Related: {task.projectTitle}
-                  </span>
-                ),
-              ]}
-            >
-              {task.status === QuickTaskStatus.in_progress && (
-                <Button
-                  onClick={() => submitMutation.mutate({ id: task.id })}
-                  disabled={submitMutation.isPending && submitMutation.variables?.id === task.id}
-                >
-                  {submitMutation.isPending && submitMutation.variables?.id === task.id
-                    ? 'Submitting…'
-                    : 'Mark as Complete'}
-                </Button>
-              )}
-            </QuickTaskCard>
-          ))
-        )}
-
-        <h2 className="mt-8">Browse Quick Tasks</h2>
-        <p className="text-text-light mb-6">
-          Open tasks to pick up right now, no need to browse projects first.
-        </p>
-
-        {loadingAvailable ? (
-          <div className="text-center py-10 text-text-light">Loading tasks…</div>
-        ) : availableTasks.length === 0 ? (
-          <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word text-center">
-            <h3>No open Quick Tasks right now</h3>
-            <p className="text-text-light">Check back soon.</p>
-          </div>
-        ) : (
-          availableTasks.map((task) =>
-            task.kind === 'quick' ? (
+          {loadingTasks ? (
+            <div className="text-center py-10 text-text-light">Loading tasks…</div>
+          ) : tasks.length === 0 ? (
+            <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word text-center">
+              <h3>No tasks assigned yet</h3>
+              <p className="text-text-light">
+                Check back soon, or browse <Link href="/projects">projects</Link> to find other ways
+                to contribute.
+              </p>
+            </div>
+          ) : (
+            tasks.map((task) => (
               <QuickTaskCard
-                key={`quick-${task.id}`}
+                key={task.id}
+                anchorId={`task-${task.id}`}
                 title={task.title}
                 titleHref={`/quick-tasks/${task.id}`}
-                status="open"
-                statusVariant="warning"
-                statusLabel="Open"
+                status={task.status}
+                statusVariant={task.status === QuickTaskStatus.completed ? 'success' : 'warning'}
+                statusLabel={STATUS_LABELS[task.status] ?? task.status}
                 description={task.description}
                 meta={[
                   task.skillName && (
@@ -288,68 +237,129 @@ function VolunteerQuickTasksView() {
                       {task.skillName}
                     </span>
                   ),
-                  task.estimatedHours !== null && (
+                  task.estimatedHours && (
                     <span key="hours" className="text-text-light text-sm">
                       ~{task.estimatedHours}h
                     </span>
                   ),
-                ]}
-              >
-                <Button
-                  onClick={() => claimQuickMutation.mutate({ id: task.id })}
-                  disabled={
-                    claimQuickMutation.isPending && claimQuickMutation.variables?.id === task.id
-                  }
-                >
-                  {claimQuickMutation.isPending && claimQuickMutation.variables?.id === task.id
-                    ? 'Claiming…'
-                    : 'Claim'}
-                </Button>
-              </QuickTaskCard>
-            ) : (
-              <QuickTaskCard
-                key={`project-task-${task.id}`}
-                title={task.title}
-                titleHref={`/projects/${task.projectId}/tasks/${task.id}`}
-                status="open"
-                statusVariant="warning"
-                statusLabel="Open"
-                description={task.description}
-                meta={[
                   task.projectTitle && (
                     <span key="project" className="text-text-light text-sm">
-                      Part of: <Link href={`/projects/${task.projectId}`}>{task.projectTitle}</Link>
-                    </span>
-                  ),
-                  task.estimatedHours !== null && (
-                    <span key="hours" className="text-text-light text-sm">
-                      ~{task.estimatedHours}h
+                      Related: {task.projectTitle}
                     </span>
                   ),
                 ]}
               >
-                <Button
-                  onClick={() =>
-                    claimProjectTaskMutation.mutate({
-                      projectId: task.projectId,
-                      taskId: task.id,
-                      data: { status: TaskStatus.in_progress, assigneeId: user.id },
-                    })
-                  }
-                  disabled={
-                    claimProjectTaskMutation.isPending &&
-                    claimProjectTaskMutation.variables?.taskId === task.id
-                  }
-                >
-                  {claimProjectTaskMutation.isPending &&
-                  claimProjectTaskMutation.variables?.taskId === task.id
-                    ? 'Claiming…'
-                    : 'Claim'}
-                </Button>
+                {task.status === QuickTaskStatus.in_progress && (
+                  <Button
+                    onClick={() => submitMutation.mutate({ id: task.id })}
+                    disabled={submitMutation.isPending && submitMutation.variables?.id === task.id}
+                  >
+                    {submitMutation.isPending && submitMutation.variables?.id === task.id
+                      ? 'Submitting…'
+                      : 'Mark as Complete'}
+                  </Button>
+                )}
               </QuickTaskCard>
-            ),
-          )
-        )}
+            ))
+          )}
+        </section>
+
+        <section aria-labelledby="browse-quick-tasks">
+          <h2 id="browse-quick-tasks" className="mt-8">
+            Browse Quick Tasks
+          </h2>
+          <p className="text-text-light mb-6">
+            Open tasks to pick up right now, no need to browse projects first.
+          </p>
+
+          {loadingAvailable ? (
+            <div className="text-center py-10 text-text-light">Loading tasks…</div>
+          ) : availableTasks.length === 0 ? (
+            <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word text-center">
+              <h3>No open Quick Tasks right now</h3>
+              <p className="text-text-light">Check back soon.</p>
+            </div>
+          ) : (
+            availableTasks.map((task) =>
+              task.kind === 'quick' ? (
+                <QuickTaskCard
+                  key={`quick-${task.id}`}
+                  title={task.title}
+                  titleHref={`/quick-tasks/${task.id}`}
+                  status="open"
+                  statusVariant="warning"
+                  statusLabel="Open"
+                  description={task.description}
+                  meta={[
+                    task.skillName && (
+                      <span key="skill" className={SKILL_CHIP_CLASSES}>
+                        {task.skillName}
+                      </span>
+                    ),
+                    task.estimatedHours !== null && (
+                      <span key="hours" className="text-text-light text-sm">
+                        ~{task.estimatedHours}h
+                      </span>
+                    ),
+                  ]}
+                >
+                  <Button
+                    onClick={() => claimQuickMutation.mutate({ id: task.id })}
+                    disabled={
+                      claimQuickMutation.isPending && claimQuickMutation.variables?.id === task.id
+                    }
+                  >
+                    {claimQuickMutation.isPending && claimQuickMutation.variables?.id === task.id
+                      ? 'Claiming…'
+                      : 'Claim'}
+                  </Button>
+                </QuickTaskCard>
+              ) : (
+                <QuickTaskCard
+                  key={`project-task-${task.id}`}
+                  title={task.title}
+                  titleHref={`/projects/${task.projectId}/tasks/${task.id}`}
+                  status="open"
+                  statusVariant="warning"
+                  statusLabel="Open"
+                  description={task.description}
+                  meta={[
+                    task.projectTitle && (
+                      <span key="project" className="text-text-light text-sm">
+                        Part of:{' '}
+                        <Link href={`/projects/${task.projectId}`}>{task.projectTitle}</Link>
+                      </span>
+                    ),
+                    task.estimatedHours !== null && (
+                      <span key="hours" className="text-text-light text-sm">
+                        ~{task.estimatedHours}h
+                      </span>
+                    ),
+                  ]}
+                >
+                  <Button
+                    onClick={() =>
+                      claimProjectTaskMutation.mutate({
+                        projectId: task.projectId,
+                        taskId: task.id,
+                        data: { status: TaskStatus.in_progress, assigneeId: user.id },
+                      })
+                    }
+                    disabled={
+                      claimProjectTaskMutation.isPending &&
+                      claimProjectTaskMutation.variables?.taskId === task.id
+                    }
+                  >
+                    {claimProjectTaskMutation.isPending &&
+                    claimProjectTaskMutation.variables?.taskId === task.id
+                      ? 'Claiming…'
+                      : 'Claim'}
+                  </Button>
+                </QuickTaskCard>
+              ),
+            )
+          )}
+        </section>
       </main>
     </>
   )
