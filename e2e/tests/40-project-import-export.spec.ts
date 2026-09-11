@@ -481,5 +481,15 @@ test.describe('Project import / export', () => {
     // APP_URL is set in the e2e environment, so both links are present and absolute.
     expect(meta.docs).toContain(`/projects/${projectId}/import`)
     expect(meta.schema).toContain('/api/project-import/schema')
+
+    // The top-level key is the one editors key off, and it must survive a round trip.
+    expect((file as { $schema?: string }).$schema).toContain('/api/project-import/schema')
+    const preview = await api.projects.previewImport({
+      body: { projectId, file: JSON.stringify(file) },
+    })
+    expect(preview.status, JSON.stringify(preview.body)).toBe(200)
+    const diff = preview.body as { tasks: { op: string }[]; project: { op: string } }
+    expect(diff.project.op).toBe('noop')
+    expect(diff.tasks.every((t) => t.op === 'noop')).toBe(true)
   })
 })

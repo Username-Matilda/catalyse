@@ -122,14 +122,19 @@ Task: \`id\`, \`ref\`, \`title\` (required), \`description\`, \`status\` (\`open
   finishes; negative overlaps them. Omit it for "starts the next day".
 - Links are finish-to-start only, and cycles are rejected with the loop named.
 
-## \`_meta\` and staleness
+## \`$schema\` and \`_meta\`
 
 \`_meta.baseHash\` records what the project looked like when it was exported. If the project
 has changed since, the import is refused and the human must export again. So:
 
-- Keep \`_meta\` exactly as you found it. Do not recompute or remove \`baseHash\`.
+- Keep \`_meta\` and \`$schema\` exactly as you found them. Do not recompute or remove
+  \`baseHash\`.
 - Do not write one of these files from scratch, and do not reuse an old export after the
   project has moved on. Always start from a fresh export.
+
+\`$schema\` is a link to this file's JSON Schema, which editors use to validate it as you
+type. The importer ignores it. Fetch it if you can — it is generated from the same definition
+the importer validates against, so it is always current.
 
 ## Example
 

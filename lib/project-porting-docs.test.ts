@@ -140,4 +140,27 @@ describe('guard rails the guide promises', () => {
   it('still validates the example against the exported schema object directly', () => {
     expect(ProjectImportFileSchema.safeParse(PROJECT_IMPORT_EXAMPLE).success).toBe(true)
   })
+
+  /**
+   * Exports carry a top-level `$schema` so editors validate them as they are typed. The
+   * importer must therefore accept a file that still has it, and ignore it — otherwise the
+   * editor hint would break the round trip it exists to protect.
+   */
+  it('accepts a file carrying the top-level $schema an export writes', () => {
+    const withSchema = {
+      $schema: 'https://example.test/api/project-import/schema',
+      ...PROJECT_IMPORT_EXAMPLE,
+    }
+    const parsed = parseImportFile(JSON.stringify(withSchema))
+    expect(parsed.ok, parsed.ok ? '' : parsed.error).toBe(true)
+  })
+
+  it('drops $schema rather than treating it as data', () => {
+    const result = ProjectImportFileSchema.safeParse({
+      $schema: 'https://example.test/api/project-import/schema',
+      ...PROJECT_IMPORT_EXAMPLE,
+    })
+    expect(result.success).toBe(true)
+    expect(result.success && '$schema' in result.data).toBe(false)
+  })
 })

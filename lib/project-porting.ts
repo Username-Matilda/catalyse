@@ -126,6 +126,12 @@ export type ImportTask = z.infer<typeof ImportTaskSchema>
 // ── Export payload ───────────────────────────────────────────────────────────
 
 export type ProjectExportPayload = {
+  /**
+   * Editors validate a JSON file against whatever URL this points at, so a bad hand-edit is
+   * flagged in the editor before anyone tries to upload it. The importer ignores the key —
+   * unknown top-level fields are stripped — so it is purely a hint to tooling.
+   */
+  $schema?: string
   _meta: {
     format: 'catalyse-project-export'
     version: 1
@@ -168,6 +174,7 @@ function sortedTasks(state: CurrentState): CurrentTask[] {
 export function serializeProjectExport(state: CurrentState, appUrl?: string): ProjectExportPayload {
   const base = appUrl?.replace(/\/$/, '')
   return {
+    ...(base ? { $schema: `${base}/api/project-import/schema` } : {}),
     _meta: {
       format: 'catalyse-project-export',
       version: 1,
