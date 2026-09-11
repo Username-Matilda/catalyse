@@ -25,6 +25,7 @@ import { formatDate, formatDateShort, fromDateInputValue } from '@/lib/format-da
 import BaselineDialog from '@/components/gantt/BaselineDialog'
 import ProjectPorting from '@/components/ProjectPorting'
 import { scheduleWithPatches } from '@/components/gantt/optimistic'
+import { startOfUtcDay } from '@/lib/schedule'
 import { projectLocationParts } from '@/lib/filter-options'
 import {
   ADMIN_ONLY_STATUSES,
@@ -374,6 +375,22 @@ function TaskTimeline({
   const selectedTask = selectedRow
     ? (timeline.tasks.find((t) => t.id === selectedRow.id) ?? null)
     : null
+  /**
+   * An unscheduled task has no bar, so there is nothing to drag — this is the way onto the
+   * chart. It lands as a one-day bar at the start of the plan rather than anywhere cleverer:
+   * a guessed duration looks like a decision someone made, and stacking them all on the same
+   * day makes it obvious they still need placing.
+   */
+  function addToTimeline(ids: number[]) {
+    if (ids.length === 0) return
+    const start = startOfUtcDay(new Date(timeline!.scopeOrigin))
+    reschedule.mutate({ items: ids.map((id) => ({ id, startDate: start, durationDays: 1 })) })
+  }
+
+  function addAllToTimeline() {
+    addToTimeline(unscheduled.map((t) => t.id))
+  }
+
   const busy =
     reschedule.isPending ||
     addDep.isPending ||
@@ -385,8 +402,8 @@ function TaskTimeline({
     <div>
       {scheduledRows.length === 0 ? (
         <p className="text-text-light mb-4">
-          No tasks have dates yet. Give a task a start date, a duration, or a dependency to place it
-          on the timeline.
+          No tasks have dates yet. Add them to the timeline below, then drag each bar to when it
+          happens — or set a start date on an individual task from its own page.
         </p>
       ) : (
         <div className="flex flex-col gap-4 lg:flex-row">
@@ -475,21 +492,50 @@ function TaskTimeline({
       )}
 
       {unscheduled.length > 0 && (
-        <div className="border-brand-border mt-4 rounded-lg border border-dashed p-3">
-          <h3 className="mb-2 text-sm font-medium">Unscheduled</h3>
+        <section
+          aria-labelledby="unscheduled-tasks"
+          className="border-brand-border mt-4 rounded-lg border border-dashed p-3"
+        >
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <h3 id="unscheduled-tasks" className="m-0 text-sm font-medium">
+              Unscheduled ({unscheduled.length})
+            </h3>
+            {canManage && (
+              <Button size="sm" variant="secondary" disabled={busy} onClick={addAllToTimeline}>
+                Add all to timeline
+              </Button>
+            )}
+          </div>
+          <p className="text-text-light mt-0 mb-2 text-xs">
+            {canManage
+              ? 'Adding a task puts a one-day bar at the start of the plan. Drag it to when it happens, drag its edge to set how long it takes, and drag the circle at its end onto whatever follows it.'
+              : 'These tasks have no dates yet, so they are not on the timeline.'}
+          </p>
           <ul className="m-0 flex flex-wrap gap-2 p-0">
             {unscheduled.map((t) => (
-              <li key={t.id}>
-                <Link
-                  href={`/projects/${projectId}/tasks/${t.id}`}
-                  className="border-brand-border bg-brand-bg inline-block rounded border px-2 py-1 text-sm hover:underline"
-                >
+              <li
+                key={t.id}
+                className="border-brand-border bg-brand-bg flex items-center gap-1 rounded border px-2 py-1 text-sm"
+              >
+                <Link href={`/projects/${projectId}/tasks/${t.id}`} className="hover:underline">
                   {t.title}
                 </Link>
+                {canManage && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => addToTimeline([t.id])}
+                    aria-label={`Add ${t.title} to the timeline`}
+                    title="Add to the timeline"
+                    className="text-primary-text ml-1 rounded px-1 leading-none hover:underline"
+                  >
+                    + Add
+                  </button>
+                )}
               </li>
             ))}
           </ul>
-        </div>
+        </section>
       )}
     </div>
   )

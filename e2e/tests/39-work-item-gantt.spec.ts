@@ -320,7 +320,7 @@ test.describe('Work item scheduling and dependencies', () => {
 
     // The name column lists the dated task; the tray holds the bare one.
     await expect(adminPage.getByRole('button', { name: /Dated task:/ })).toBeVisible()
-    const tray = adminPage.locator('text=Unscheduled').locator('..')
+    const tray = adminPage.getByRole('region', { name: /Unscheduled/ })
     await expect(tray.getByRole('link', { name: 'Floating task' })).toBeVisible()
   })
 
@@ -537,6 +537,40 @@ test.describe('Work item scheduling and dependencies', () => {
     await expect(panel.getByRole('checkbox')).toBeChecked()
 
     await expect(panel.getByRole('button', { name: /Assign/ }).first()).toBeVisible()
+  })
+
+  test('an unscheduled task can be put on the timeline without leaving the tab', async ({
+    baseUrl,
+    adminPage,
+  }) => {
+    const api = createApiClient(baseUrl, readAdminToken(baseUrl))
+    const projectId = await makeProject(api, { startDate: day('2027-08-02') })
+    await addTask(api, projectId, { title: 'Needs dates' })
+    await addTask(api, projectId, { title: 'Also needs dates' })
+
+    await adminPage.goto(`${baseUrl}/projects/${projectId}#timeline`)
+
+    // Both start in the tray, with no bar to drag.
+    const tray = adminPage.getByRole('region', { name: /Unscheduled/ })
+    await expect(
+      tray.getByRole('button', { name: 'Add Needs dates to the timeline' }),
+    ).toBeVisible()
+    await expect(adminPage.getByRole('button', { name: /Needs dates:/ })).toHaveCount(0)
+
+    await tray.getByRole('button', { name: 'Add Needs dates to the timeline' }).click()
+
+    // It now has a bar, and the panel opens on it so the dates can be set straight away.
+    await expect(adminPage.getByRole('button', { name: /^Needs dates:/ })).toBeVisible()
+
+    // The rest of the backlog can go on in one go.
+    await adminPage.getByRole('button', { name: 'Add all to timeline' }).click()
+    await expect(adminPage.getByRole('button', { name: /Also needs dates:/ })).toBeVisible()
+    await expect(adminPage.getByRole('region', { name: /Unscheduled/ })).toHaveCount(0)
+
+    // The dates really were written, not just drawn: both are now pinned on the server.
+    const s = await schedule(api, projectId)
+    expect(s.scheduled.length).toBeGreaterThanOrEqual(2)
+    expect(s.scheduled.every((p) => p.isPinned)).toBe(true)
   })
 
   test('hovering the anchor label explains what an anchor is', async ({ baseUrl, adminPage }) => {
