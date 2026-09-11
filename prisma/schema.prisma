@@ -312,6 +312,10 @@ model WorkItem {
   baselineStartDate    DateTime? @map("baseline_start_date")
   baselineDurationDays Int?      @map("baseline_duration_days")
   baselineSetAt        DateTime? @map("baseline_set_at")
+  // The fixed point the plan is built around — a protest date, a launch, a hearing. The
+  // critical path is measured towards anchors when any exist, rather than towards whatever
+  // simply finishes last, so follow-up work trailing an anchor is correctly slack.
+  isAnchor Boolean @default(false) @map("is_anchor")
   // Last change to startDate/durationDays or to this item's dependency edges.
   scheduleUpdatedAt DateTime? @map("schedule_updated_at")
   // Actual start. `completedAt` above is the actual finish.

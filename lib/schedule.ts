@@ -24,6 +24,8 @@ export type ScheduleInput = {
   baselineDurationDays: number | null
   startedAt: Date | null
   completedAt: Date | null
+  /** A fixed point the plan is built around. Seeds the critical path — see markCriticalPath. */
+  isAnchor?: boolean
 }
 
 export type ScheduleEdge = {
@@ -46,8 +48,16 @@ export type ScheduledItem = {
   breachesDeadline: boolean
   /** Pin is earlier than the dependencies allow. The pin wins; this flags the conflict. */
   pinnedBeforePredecessor: boolean
-  /** On the longest chain through the scope. */
+  /** On a chain that determines when an anchor (or, with no anchors, the scope) lands. */
   isCritical: boolean
+  /** This item is itself a fixed point the plan is built around. */
+  isAnchor: boolean
+  /**
+   * Zero duration — a moment rather than a stretch of work. It still occupies its start day for
+   * scheduling (a successor follows the day after), but the chart draws it as a diamond so it
+   * does not read as a day of work.
+   */
+  isMilestone: boolean
   baseline: DateSpan | null
   /** `end` null means work has started but not finished. */
   actual: { start: Date; end: Date | null } | null
@@ -78,7 +88,10 @@ export function diffInDays(from: Date, to: Date): number {
   return Math.round((startOfUtcDay(to).getTime() - startOfUtcDay(from).getTime()) / MS_PER_DAY)
 }
 
-/** A duration of `n` days starting on `start` ends on day `n - 1`, so a 1-day item is a point. */
+/**
+ * A duration of `n` days starting on `start` ends on day `n - 1`, so a 1-day item is a point.
+ * Zero is a milestone: it still lands on its start day, so a successor follows the day after.
+ */
 function endOfSpan(start: Date, durationDays: number | null): Date {
   return addDays(start, Math.max(1, durationDays ?? 1) - 1)
 }
@@ -240,6 +253,8 @@ export function computeSchedule(
       pinnedBeforePredecessor:
         pinned !== null && isDerived && pinned.getTime() < earliest.getTime(),
       isCritical: false,
+      isAnchor: item.isAnchor === true,
+      isMilestone: item.durationDays === 0,
       baseline,
       actual,
       startVarianceDays: baseline ? diffInDays(baseline.start, start) : null,
@@ -263,9 +278,17 @@ export function computeSchedule(
 }
 
 /**
- * Marks the chain that determines the scope's finish: walking back from the latest-finishing
- * items, an item is critical when a critical successor starts exactly when this one's
- * constraint allows. Slipping any of them slips the whole scope.
+ * Marks the chains that determine when the things that matter land.
+ *
+ * What "matters" is the anchors — the fixed points a plan is built around, like the date of the
+ * event itself. Criticality is seeded from them and propagates backwards: an item is critical
+ * when a critical successor starts exactly at the moment this one permits, so slipping it slips
+ * the anchor. Work that merely *follows* an anchor — the write-up, the press release — is on no
+ * such chain, and is correctly left slack however late it finishes.
+ *
+ * With no anchor set there is nothing to aim at, so the scope's own finish stands in for one and
+ * the latest-finishing items seed the walk instead. That is the classic reading of a critical
+ * path, and it is what every project gets until someone names an anchor.
  */
 function markCriticalPath(
   order: number[],
@@ -274,14 +297,20 @@ function markCriticalPath(
 ): void {
   if (results.size === 0) return
 
+  const anchors = [...results.values()].filter((item) => item.isAnchor)
+
   let latest = -Infinity
-  for (const item of results.values()) latest = Math.max(latest, item.end.getTime())
+  if (anchors.length === 0) {
+    for (const item of results.values()) latest = Math.max(latest, item.end.getTime())
+  }
+  const isSeed = (item: ScheduledItem) =>
+    anchors.length > 0 ? item.isAnchor : item.end.getTime() === latest
 
   for (let i = order.length - 1; i >= 0; i--) {
     const item = results.get(order[i])
     if (!item) continue
 
-    if (item.end.getTime() === latest) {
+    if (isSeed(item)) {
       item.isCritical = true
       continue
     }

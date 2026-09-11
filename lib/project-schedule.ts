@@ -29,6 +29,7 @@ export type SchedulableWorkItem = {
   baselineDurationDays: number | null
   startedAt: Date | null
   completedAt: Date | null
+  isAnchor?: boolean
 }
 
 export function toScheduleInput(w: SchedulableWorkItem): ScheduleInput {
@@ -41,6 +42,7 @@ export function toScheduleInput(w: SchedulableWorkItem): ScheduleInput {
     baselineDurationDays: w.baselineDurationDays,
     startedAt: w.startedAt,
     completedAt: w.completedAt,
+    isAnchor: w.isAnchor ?? false,
   }
 }
 
@@ -53,6 +55,7 @@ const SCHEDULABLE_SELECT = {
   baselineDurationDays: true,
   startedAt: true,
   completedAt: true,
+  isAnchor: true,
 } as const
 
 /** Inclusive day-count a placed schedule occupies, minimum 1. */

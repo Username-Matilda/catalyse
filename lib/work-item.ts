@@ -301,6 +301,7 @@ export type ScheduleFieldsLike = {
   baselineSetAt: Date | null
   scheduleUpdatedAt: Date | null
   startedAt: Date | null
+  isAnchor?: boolean
 }
 
 export function serializeScheduleFields(t: ScheduleFieldsLike) {
@@ -312,6 +313,7 @@ export function serializeScheduleFields(t: ScheduleFieldsLike) {
     baselineSetAt: t.baselineSetAt,
     scheduleUpdatedAt: t.scheduleUpdatedAt,
     startedAt: t.startedAt,
+    isAnchor: t.isAnchor ?? false,
   }
 }
 
@@ -352,15 +354,16 @@ export function serializeTask(t: TaskLike) {
  * Builds the Prisma `data` for a schedule change, and reports whether the write actually
  * touches the schedule.
  *
- * Two rules live here so every caller (task edit, project edit, drag-to-reschedule) applies them
- * identically:
- *   - `scheduleUpdatedAt` is stamped whenever startDate or durationDays moves;
- *   - the baseline is captured the first time an item is given dates, and never touched again —
- *     only an explicit re-baseline moves it, which is what makes it a reference point.
+ * `scheduleUpdatedAt` is stamped whenever startDate or durationDays moves, so every caller
+ * (task edit, project edit, drag-to-reschedule) records it identically.
+ *
+ * The baseline is deliberately NOT touched here. Typing a first date is planning, not
+ * committing to a plan: an owner needs to sketch dates and shuffle them before anything is
+ * worth measuring against. Only `projects.setBaseline` writes the baseline track, so a
+ * variance always refers to a commitment someone actually made.
  */
 export function applyScheduleWrite(
   data: Record<string, unknown>,
-  existing: Pick<ScheduleFieldsLike, 'startDate' | 'durationDays' | 'baselineSetAt'>,
   input: { startDate?: Date | null; durationDays?: number | null },
   now: Date = new Date(),
 ): boolean {
@@ -371,19 +374,6 @@ export function applyScheduleWrite(
   if (touchesStart) data.startDate = input.startDate
   if (touchesDuration) data.durationDays = input.durationDays
   data.scheduleUpdatedAt = now
-
-  const nextStart = touchesStart ? input.startDate : existing.startDate
-  const nextDuration = touchesDuration ? input.durationDays : existing.durationDays
-  const wasScheduled = existing.startDate !== null || existing.durationDays !== null
-  if (
-    existing.baselineSetAt === null &&
-    !wasScheduled &&
-    (nextStart !== null || nextDuration !== null)
-  ) {
-    data.baselineStartDate = nextStart
-    data.baselineDurationDays = nextDuration
-    data.baselineSetAt = now
-  }
 
   return true
 }

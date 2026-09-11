@@ -41,11 +41,10 @@ export const adminProjectsRouter = {
 
     // A project created with dates is scheduled from birth, so it is baselined from birth too.
     const scheduleOnCreate: Record<string, unknown> = {}
-    applyScheduleWrite(
-      scheduleOnCreate,
-      { startDate: null, durationDays: null, baselineSetAt: null },
-      { startDate: input.startDate ?? null, durationDays: input.durationDays ?? null },
-    )
+    applyScheduleWrite(scheduleOnCreate, {
+      startDate: input.startDate ?? null,
+      durationDays: input.durationDays ?? null,
+    })
 
     const project = await prisma.$transaction(async (tx) => {
       const newProject = await tx.workItem.create({

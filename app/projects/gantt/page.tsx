@@ -74,7 +74,7 @@ export default function RoadmapPage() {
   }
 
   return (
-    <main className="container py-5 pb-15">
+    <main className="container-wide py-5 pb-15">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="m-0">Roadmap</h1>
         <Link href="/projects" className="text-primary-text text-sm underline">

@@ -63,6 +63,8 @@ async function schedule(api: Api, projectId: number) {
       isDerived: boolean
       pinnedBeforePredecessor: boolean
       breachesDeadline: boolean
+      isCritical: boolean
+      isAnchor: boolean
     }[]
     scopeStart: string | Date
     scopeEnd: string | Date
@@ -91,6 +93,54 @@ test.describe('Work item scheduling and dependencies', () => {
     // No pin, no predecessors → the project's own start.
     expect(ymd(placed(s, bare).start)).toBe('2026-03-02')
     expect(ymd(placed(s, bare).end)).toBe('2026-03-04')
+  })
+
+  test('the scope starts at the earliest task, even when that is before the project origin', async ({
+    baseUrl,
+  }) => {
+    const api = createApiClient(baseUrl, readAdminToken(baseUrl))
+    // No project start date, so the origin is today — and the task is pinned well before it.
+    const projectId = await makeProject(api)
+    const past = await addTask(api, projectId, { startDate: day('2020-01-06'), durationDays: 4 })
+
+    const s = await schedule(api, projectId)
+    expect(ymd(placed(s, past).start)).toBe('2020-01-06')
+    // The axis has to cover it: a scope beginning at the origin would leave it off the chart.
+    expect(new Date(s.scopeStart).getTime()).toBeLessThanOrEqual(
+      new Date(placed(s, past).start).getTime(),
+    )
+  })
+
+  test('an anchor, not the last bar, decides the critical path', async ({ baseUrl }) => {
+    const api = createApiClient(baseUrl, readAdminToken(baseUrl))
+    const projectId = await makeProject(api, { startDate: day('2026-06-01') })
+    // prep → event(anchor) → followUp. followUp finishes last but only trails the event.
+    const prep = await addTask(api, projectId, { startDate: day('2026-06-01'), durationDays: 5 })
+    const event = await addTask(api, projectId, { durationDays: 1 })
+    const followUp = await addTask(api, projectId, { durationDays: 10 })
+    for (const [p, s] of [
+      [prep, event],
+      [event, followUp],
+    ]) {
+      const link = await api.dependencies.add({ body: { predecessorId: p, successorId: s } })
+      expect(link.status, JSON.stringify(link.body)).toBe(200)
+    }
+
+    // With no anchor, the tail work finishes last and so seeds the path — the old behaviour.
+    let s = await schedule(api, projectId)
+    expect(placed(s, followUp).isCritical).toBe(true)
+
+    const marked = await api.projects.updateTask({
+      body: { projectId, taskId: event, data: { isAnchor: true } },
+    })
+    expect(marked.status, JSON.stringify(marked.body)).toBe(200)
+
+    s = await schedule(api, projectId)
+    expect(placed(s, event).isAnchor).toBe(true)
+    // Everything feeding the anchor is critical; everything merely trailing it is not.
+    expect(placed(s, event).isCritical).toBe(true)
+    expect(placed(s, prep).isCritical).toBe(true)
+    expect(placed(s, followUp).isCritical).toBe(false)
   })
 
   test('a dependency shifts the successor, and moving the predecessor cascades', async ({
@@ -410,5 +460,99 @@ test.describe('Work item scheduling and dependencies', () => {
     const panel = adminPage.getByRole('complementary')
     await expect(panel.getByRole('heading', { name: 'Panel task' })).toBeVisible()
     await expect(panel.getByText('Depends on')).toBeVisible()
+  })
+
+  test('the Timeline is reachable by its own URL and its controls are all usable', async ({
+    baseUrl,
+    adminPage,
+  }) => {
+    const api = createApiClient(baseUrl, readAdminToken(baseUrl))
+    const projectId = await makeProject(api, { startDate: day('2027-05-03') })
+    await addTask(api, projectId, {
+      title: 'Visible task',
+      startDate: day('2027-05-04'),
+      durationDays: 4,
+    })
+
+    // The hash opens the tab directly, without a click.
+    await adminPage.goto(`${baseUrl}/projects/${projectId}#timeline`)
+    const bar = adminPage.getByRole('button', { name: /Visible task:/ })
+    await expect(bar).toBeVisible()
+
+    // Zoom and range controls are present and respond.
+    for (const label of ['Fit', 'Day', 'Week', 'Month']) {
+      await expect(adminPage.getByRole('button', { name: label, exact: true })).toBeVisible()
+    }
+    for (const label of ['All', 'This week', 'Fortnight', 'This month', '30 days']) {
+      await expect(adminPage.getByRole('button', { name: label, exact: true })).toBeVisible()
+    }
+    await adminPage.getByRole('button', { name: 'Week', exact: true }).click()
+    await expect(bar).toBeVisible()
+    await adminPage.getByRole('button', { name: 'This month', exact: true }).click()
+
+    // The plan summary and the legend both stay on the page with the chart.
+    await expect(adminPage.getByText('Starts', { exact: true })).toBeVisible()
+    await expect(adminPage.getByText('Critical path').first()).toBeVisible()
+
+    // Back to a scale that places the bar, then open it.
+    await adminPage.getByRole('button', { name: 'All', exact: true }).click()
+    await adminPage.getByRole('button', { name: /Visible task:/ }).click()
+
+    const panel = adminPage.getByRole('complementary')
+    await expect(panel.getByRole('heading', { name: 'Visible task' })).toBeVisible()
+    // Every editing affordance the panel owns is reachable for a manager.
+    await expect(panel.getByLabel('Start date')).toBeVisible()
+    await expect(panel.getByLabel('Duration')).toBeVisible()
+    await expect(panel.getByRole('checkbox')).toBeVisible()
+    await expect(panel.getByRole('button', { name: 'Save' })).toBeVisible()
+    await expect(panel.getByRole('link', { name: 'Open task' })).toBeVisible()
+
+    // Leaving the tab clears the hash, so Back returns to the list.
+    await adminPage.getByRole('tab', { name: 'List' }).click()
+    await expect(adminPage).toHaveURL(new RegExp(`/projects/${projectId}$`))
+    await adminPage.goBack()
+    await expect(adminPage.getByRole('button', { name: /Visible task:/ })).toBeVisible()
+  })
+
+  test('a manager can set an anchor and assign a task from the timeline panel', async ({
+    baseUrl,
+    adminPage,
+  }) => {
+    const api = createApiClient(baseUrl, readAdminToken(baseUrl))
+    const projectId = await makeProject(api, { startDate: day('2027-06-07') })
+    await addTask(api, projectId, {
+      title: 'Anchor me',
+      startDate: day('2027-06-08'),
+      durationDays: 2,
+    })
+
+    await adminPage.goto(`${baseUrl}/projects/${projectId}#timeline`)
+    await adminPage.getByRole('button', { name: /Anchor me:/ }).click()
+
+    const panel = adminPage.getByRole('complementary')
+    // `click`, not `check`: the box is driven by server state, so it only ticks once the write
+    // lands and the schedule comes back. The chip is the honest proof that it did.
+    await panel.getByRole('checkbox').click()
+    await expect(panel.getByText('★ Anchor')).toBeVisible()
+    await expect(panel.getByRole('checkbox')).toBeChecked()
+
+    await expect(panel.getByRole('button', { name: /Assign/ }).first()).toBeVisible()
+  })
+
+  test('hovering the anchor label explains what an anchor is', async ({ baseUrl, adminPage }) => {
+    const api = createApiClient(baseUrl, readAdminToken(baseUrl))
+    const projectId = await makeProject(api, { startDate: day('2027-07-05') })
+    await addTask(api, projectId, {
+      title: 'Hover me',
+      startDate: day('2027-07-06'),
+      durationDays: 2,
+    })
+
+    await adminPage.goto(`${baseUrl}/projects/${projectId}#timeline`)
+    await adminPage.getByRole('button', { name: /Hover me:/ }).click()
+
+    const panel = adminPage.getByRole('complementary')
+    await panel.getByText('A fixed point the plan is built around').hover()
+    await expect(adminPage.getByRole('tooltip')).toContainText('measured towards the anchors')
   })
 })

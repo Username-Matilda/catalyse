@@ -21,7 +21,9 @@ import type { GanttRow as GanttRowData } from '@/components/gantt/types'
 import GanttItemPanel from '@/components/gantt/GanttItemPanel'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
-import { formatDate, fromDateInputValue } from '@/lib/format-date'
+import { formatDate, formatDateShort, fromDateInputValue } from '@/lib/format-date'
+import BaselineDialog from '@/components/gantt/BaselineDialog'
+import { scheduleWithPatches } from '@/components/gantt/optimistic'
 import { projectLocationParts } from '@/lib/filter-options'
 import {
   ADMIN_ONLY_STATUSES,
@@ -235,10 +237,22 @@ function TaskTimeline({
   timeline,
   projectId,
   loading,
+  canAssignTasks,
+  canClaimTasks,
+  assignOptions,
+  onAssignTask,
+  onClaimTask,
+  onUnassignTask,
 }: {
   timeline: TimelineData | undefined
   projectId: number
   loading: boolean
+  canAssignTasks: boolean
+  canClaimTasks: boolean
+  assignOptions: { value: string; label: string; header?: boolean }[]
+  onAssignTask: (taskId: number, volunteerId: number) => void
+  onClaimTask: (taskId: number) => void
+  onUnassignTask: (taskId: number) => void
 }) {
   const queryClient = useQueryClient()
   const showToast = useToast()
@@ -250,10 +264,55 @@ function TaskTimeline({
   const onErr = (verb: string) => (err: unknown) =>
     showToast(err instanceof Error ? err.message : `Failed to ${verb}`, 'error')
 
+  // The exact key the timeline query writes to, so the optimistic patch lands on the same entry.
+  const timelineKey = orpc.projects.listTasks.queryOptions({ input: { projectId } }).queryKey
+
   const reschedule = useMutation({
     ...orpc.schedule.rescheduleItems.mutationOptions(),
-    onSuccess: () => void invalidate(),
-    onError: onErr('reschedule'),
+    // Place the drag immediately, using the same scheduler the server will run. Without this the
+    // bar snaps back the instant the pointer is released and only jumps forward on the refetch.
+    onMutate: async (vars: {
+      items: { id: number; startDate: Date | null; durationDays?: number | null }[]
+    }) => {
+      await queryClient.cancelQueries({ queryKey: timelineKey })
+      const previous = queryClient.getQueryData<TimelineData>(timelineKey)
+      if (!previous) return { previous }
+
+      const patched = previous.tasks.map((t) => {
+        const patch = vars.items.find((i) => i.id === t.id)
+        if (!patch) return t
+        return {
+          ...t,
+          startDate: patch.startDate,
+          ...(patch.durationDays !== undefined ? { durationDays: patch.durationDays } : {}),
+        }
+      })
+      const scheduled = scheduleWithPatches(
+        previous.tasks,
+        previous.dependencies,
+        previous.scopeOrigin,
+        vars.items,
+      )
+      const starts = scheduled.map((s) => s.start.getTime())
+      const ends = scheduled.map((s) => s.end.getTime())
+
+      queryClient.setQueryData<TimelineData>(timelineKey, {
+        ...previous,
+        tasks: patched,
+        scheduled,
+        // The axis has to grow with a bar dragged past either end of the old scope.
+        scopeStart: new Date(Math.min(...starts, new Date(previous.scopeOrigin).getTime())),
+        scopeEnd: new Date(Math.max(...ends)),
+      } as TimelineData)
+
+      return { previous }
+    },
+    onError: (err: unknown, _vars, context) => {
+      // The server refused the move, so the bar belongs back where it was.
+      if (context?.previous) queryClient.setQueryData(timelineKey, context.previous)
+      onErr('reschedule')(err)
+    },
+    onSettled: () => void invalidate(),
   })
   const addDep = useMutation({
     ...orpc.dependencies.add.mutationOptions(),
@@ -272,6 +331,11 @@ function TaskTimeline({
     ...orpc.dependencies.updateLag.mutationOptions(),
     onSuccess: () => void invalidate(),
     onError: onErr('update lag'),
+  })
+  const setAnchor = useMutation({
+    ...orpc.projects.updateTask.mutationOptions(),
+    onSuccess: () => void invalidate(),
+    onError: onErr('update the anchor'),
   })
 
   if (loading || !timeline) {
@@ -310,7 +374,11 @@ function TaskTimeline({
     ? (timeline.tasks.find((t) => t.id === selectedRow.id) ?? null)
     : null
   const busy =
-    reschedule.isPending || addDep.isPending || removeDep.isPending || updateLag.isPending
+    reschedule.isPending ||
+    addDep.isPending ||
+    removeDep.isPending ||
+    updateLag.isPending ||
+    setAnchor.isPending
 
   return (
     <div>
@@ -346,15 +414,23 @@ function TaskTimeline({
               onLink={(predecessorId, successorId) =>
                 addDep.mutate({ predecessorId, successorId, lagDays: 0 })
               }
+              onUnlink={(dependencyId) => removeDep.mutate({ dependencyId })}
+              busy={busy}
             />
           </div>
 
+          {/* Sticky so the panel stays beside the bars on a long chart rather than scrolling off
+              the top; it gets its own scrollbar if the contents outgrow the viewport. */}
           {selectedRow && selectedTask && (
-            <div className="lg:w-80 lg:shrink-0">
+            <div className="lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:w-96 lg:shrink-0 lg:self-start lg:overflow-y-auto">
               <GanttItemPanel
                 row={selectedRow}
                 startDate={selectedTask.startDate ? new Date(selectedTask.startDate) : null}
                 durationDays={selectedTask.durationDays}
+                description={selectedTask.description}
+                assigneeName={selectedTask.assignedToName}
+                deadline={selectedTask.deadline}
+                estimatedHours={selectedTask.estimatedHours}
                 canManage={canManage}
                 busy={busy}
                 siblings={timeline.tasks.map((t) => ({ id: t.id, title: t.title }))}
@@ -379,6 +455,18 @@ function TaskTimeline({
                 }
                 onRemoveDependency={(dependencyId) => removeDep.mutate({ dependencyId })}
                 onUpdateLag={(dependencyId, lagDays) => updateLag.mutate({ dependencyId, lagDays })}
+                onSetAnchor={(isAnchor) =>
+                  setAnchor.mutate({ projectId, taskId: selectedRow.id, data: { isAnchor } })
+                }
+                assignment={{
+                  canAssign: canAssignTasks,
+                  // Claiming is only offered while the task is genuinely free.
+                  canClaim: canClaimTasks && selectedTask.assignedToId === null,
+                  options: assignOptions,
+                  onAssign: (volunteerId) => onAssignTask(selectedRow.id, volunteerId),
+                  onClaim: () => onClaimTask(selectedRow.id),
+                  onUnassign: () => onUnassignTask(selectedRow.id),
+                }}
               />
             </div>
           )}
@@ -427,7 +515,36 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const [newTaskFeatured, setNewTaskFeatured] = useState(false)
   const [orderedTasks, setOrderedTasks] = useState<ProjectTask[]>([])
   const [taskView, setTaskView] = useState<'list' | 'timeline'>('list')
+
+  /**
+   * The open tab lives in the URL hash, so `#timeline` is a shareable link straight to the
+   * chart and the browser's Back button steps between the two views. The hash is read after
+   * mount rather than in the initial state, because the server render cannot see it.
+   */
+  useEffect(() => {
+    const readHash = () => {
+      setTaskView(window.location.hash === '#timeline' ? 'timeline' : 'list')
+    }
+    readHash()
+    window.addEventListener('popstate', readHash)
+    window.addEventListener('hashchange', readHash)
+    return () => {
+      window.removeEventListener('popstate', readHash)
+      window.removeEventListener('hashchange', readHash)
+    }
+  }, [])
+
+  function selectTaskView(next: 'list' | 'timeline') {
+    if (next === taskView) return
+    setTaskView(next)
+    // pushState rather than assigning location.hash: it adds the history entry without the
+    // browser trying to scroll to an element named "timeline".
+    const url =
+      next === 'timeline' ? '#timeline' : `${window.location.pathname}${window.location.search}`
+    window.history.pushState(null, '', url)
+  }
   const [taskAssignSelections, setTaskAssignSelections] = useState<Record<number, string>>({})
+  const [showBaselineDialog, setShowBaselineDialog] = useState(false)
   const taskDragSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   )
@@ -497,11 +614,22 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     ...orpc.projects.setBaseline.mutationOptions(),
     onSuccess: () => {
       showToast('Baseline updated', 'success')
+      setShowBaselineDialog(false)
       void queryClient.invalidateQueries({ queryKey: orpc.projects.listTasks.key() })
     },
     onError: (err: unknown) =>
       showToast(err instanceof Error ? err.message : 'Failed to update baseline', 'error'),
   })
+
+  // The most recent baseline capture across the project's tasks — null until one is set.
+  const baselineSetAt = (timeline?.tasks ?? []).reduce<Date | null>((latest, t) => {
+    if (!t.baselineSetAt) return latest
+    const at = new Date(t.baselineSetAt)
+    return latest === null || at.getTime() > latest.getTime() ? at : latest
+  }, null)
+  const datedTaskCount = (timeline?.tasks ?? []).filter(
+    (t) => t.startDate !== null || t.durationDays !== null,
+  ).length
 
   // Sync orderedTasks when project data loads/changes
   useEffect(() => {
@@ -550,6 +678,24 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   const invalidateProject = () =>
     queryClient.invalidateQueries({ queryKey: orpc.projects.getById.key() })
+
+  const exportPlanMutation = useMutation({
+    ...orpc.projects.exportPlan.mutationOptions(),
+    onSuccess: (data) => {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `catalyse-project-${parseInt(idParam, 10)}-${new Date().toISOString().split('T')[0]}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      showToast('Project exported', 'success')
+    },
+    onError: (err: unknown) =>
+      showToast(err instanceof Error ? err.message : 'Export failed', 'error'),
+  })
 
   const createTaskMutation = useMutation({
     ...orpc.projects.createTask.mutationOptions(),
@@ -946,15 +1092,24 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   return (
     <>
-      <main className="container py-5 pb-15">
+      {/* The timeline wants every pixel it can get, so the page drops its reading-width cap
+          while that tab is open. Prose tabs keep the narrower measure. */}
+      <main className={`${taskView === 'timeline' ? 'container-wide' : 'container'} py-5 pb-15`}>
         {/* [test hook] projectContent id used by action helpers to confirm page has loaded */}
         <h1 id="projectContent" role="heading" aria-level={1}>
           {project.title}
         </h1>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+        {/* The sidebar is a third of the page normally. On the Timeline the page goes full
+            width, where a third would be a huge column of unchanged detail — so it keeps roughly
+            the pixel width it has in the List view and gives the rest to the chart. */}
+        <div
+          className={`grid grid-cols-1 gap-4 items-start ${
+            taskView === 'timeline' ? 'lg:grid-cols-[minmax(0,1fr)_360px]' : 'lg:grid-cols-3'
+          }`}
+        >
           {/* Main column */}
-          <div className="lg:col-span-2 min-w-0">
+          <div className={`min-w-0 ${taskView === 'timeline' ? '' : 'lg:col-span-2'}`}>
             {/* Main project card */}
             <div className={card}>
               <p className="whitespace-pre-wrap">{project.description}</p>
@@ -1032,19 +1187,21 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 <h2 className="m-0">Tasks</h2>
                 <div className="flex items-center gap-2">
                   {taskView === 'timeline' && canManageTasks && (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      disabled={setBaselineMutation.isPending}
-                      onClick={() =>
-                        setBaselineMutation.mutate({
-                          projectId: parseInt(idParam, 10),
-                          includeTasks: true,
-                        })
-                      }
-                    >
-                      Re-baseline
-                    </Button>
+                    <>
+                      {baselineSetAt && (
+                        <span className="text-text-light text-xs">
+                          Baseline set {formatDateShort(baselineSetAt)}
+                        </span>
+                      )}
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={setBaselineMutation.isPending}
+                        onClick={() => setShowBaselineDialog(true)}
+                      >
+                        {baselineSetAt ? 'Re-baseline' : 'Set baseline'}
+                      </Button>
+                    </>
                   )}
                   {canManageTasks && (
                     <Button variant="secondary" onClick={() => setShowTaskForm((v) => !v)}>
@@ -1061,7 +1218,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   { key: 'timeline', label: 'Timeline' },
                 ]}
                 activeTab={taskView}
-                onChange={(k) => setTaskView(k as 'list' | 'timeline')}
+                onChange={(k) => selectTaskView(k as 'list' | 'timeline')}
               />
 
               {showTaskForm && canManageTasks && (
@@ -1166,6 +1323,18 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   timeline={timeline}
                   projectId={parseInt(idParam, 10)}
                   loading={!timeline}
+                  canAssignTasks={canManageTasks}
+                  canClaimTasks={canClaimTasks}
+                  assignOptions={assignVolunteerOptions}
+                  onAssignTask={(taskId, volunteerId) =>
+                    assignTaskMutation.mutate({
+                      projectId: parseInt(idParam, 10),
+                      taskId,
+                      assigneeId: volunteerId,
+                    })
+                  }
+                  onClaimTask={handleClaimTask}
+                  onUnassignTask={handleUnassignTask}
                 />
               )}
 
@@ -1378,9 +1547,24 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               <div className="flex items-center justify-between gap-2 mb-3">
                 <h2 className="m-0">Status</h2>
                 {canManageTasks && (
-                  <Button href={`/projects/${idParam}/edit`} variant="secondary" size="sm">
-                    Edit Project
-                  </Button>
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <Button href={`/projects/${idParam}/edit`} variant="secondary" size="sm">
+                      Edit Project
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      disabled={exportPlanMutation.isPending}
+                      onClick={() =>
+                        exportPlanMutation.mutate({ projectId: parseInt(idParam, 10) })
+                      }
+                    >
+                      Export
+                    </Button>
+                    <Button href={`/projects/${idParam}/import`} variant="secondary" size="sm">
+                      Import
+                    </Button>
+                  </div>
                 )}
               </div>
               {isOwnerOrAdmin ? (
@@ -1807,6 +1991,20 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           </div>
         </div>
       </main>
+
+      <BaselineDialog
+        isOpen={showBaselineDialog}
+        existingSetAt={baselineSetAt}
+        taskCount={datedTaskCount}
+        busy={setBaselineMutation.isPending}
+        onClose={() => setShowBaselineDialog(false)}
+        onConfirm={() =>
+          setBaselineMutation.mutate({
+            projectId: parseInt(idParam, 10),
+            includeTasks: true,
+          })
+        }
+      />
 
       {/* Contact Owner modal */}
       {showContactModal && (

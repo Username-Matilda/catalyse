@@ -1,7 +1,6 @@
 'use client'
 
 import { addDays } from '@/lib/schedule'
-import { PX_PER_DAY, type ZoomLevel } from './geometry'
 import type { GanttRow } from './types'
 
 /** What a given drag is doing, encoded on the draggable's `data`. */
@@ -19,9 +18,9 @@ export type ReschedulePatch = {
   durationDays?: number | null
 }
 
-/** Whole days a pixel delta represents at the current zoom. */
-export function deltaToDays(deltaX: number, zoom: ZoomLevel): number {
-  return Math.round(deltaX / PX_PER_DAY[zoom])
+/** Whole days a pixel delta represents at the current scale. */
+export function deltaToDays(deltaX: number, pxPerDay: number): number {
+  return Math.round(deltaX / pxPerDay)
 }
 
 /**
@@ -34,9 +33,9 @@ export function patchFromDrag(
   row: GanttRow,
   data: DragData,
   deltaX: number,
-  zoom: ZoomLevel,
+  pxPerDay: number,
 ): ReschedulePatch | null {
-  const days = deltaToDays(deltaX, zoom)
+  const days = deltaToDays(deltaX, pxPerDay)
   if (days === 0) return null
 
   if (data.kind === 'move') {

@@ -9,8 +9,8 @@ const RescheduleItem = z.object({
   id: z.number().int(),
   /** null unpins — the item goes back to following its predecessors. */
   startDate: z.coerce.date().nullable(),
-  /** Omit to leave the duration untouched. */
-  durationDays: z.number().int().min(1).max(3650).nullable().optional(),
+  /** Omit to leave the duration untouched. Zero is a milestone, as in an imported project. */
+  durationDays: z.number().int().min(0).max(3650).nullable().optional(),
 })
 
 /**
@@ -57,11 +57,9 @@ export const scheduleRouter = {
       const now = new Date()
       await prisma.$transaction(
         input.items.map((item) => {
-          const existing = byId.get(item.id)!
           const data: Record<string, unknown> = {}
           applyScheduleWrite(
             data,
-            existing,
             { startDate: item.startDate, durationDays: item.durationDays },
             now,
           )

@@ -445,13 +445,13 @@ export const projectsRouter = {
       }
     }
 
-    // A project created with dates is scheduled from birth, so it is baselined from birth too.
+    // Dates given at creation are a sketch, not a commitment — the baseline stays unset until
+    // someone explicitly sets it.
     const scheduleOnCreate: Record<string, unknown> = {}
-    applyScheduleWrite(
-      scheduleOnCreate,
-      { startDate: null, durationDays: null, baselineSetAt: null },
-      { startDate: input.startDate ?? null, durationDays: input.durationDays ?? null },
-    )
+    applyScheduleWrite(scheduleOnCreate, {
+      startDate: input.startDate ?? null,
+      durationDays: input.durationDays ?? null,
+    })
 
     const project = await prisma.$transaction(async (tx) => {
       const newProject = await tx.workItem.create({
@@ -868,7 +868,7 @@ export const projectsRouter = {
       }
       if (body.timeCommitmentHoursPerWeek !== undefined)
         data.timeCommitmentHoursPerWeek = body.timeCommitmentHoursPerWeek
-      applyScheduleWrite(data, project, body)
+      applyScheduleWrite(data, body)
 
       if (body.assigneeId !== undefined && body.assigneeId !== project.assigneeId) {
         if (!canReassign) {
@@ -1343,8 +1343,13 @@ export const projectsRouter = {
         dependencies: dependencyRows,
         // The Map in `schedule` doesn't cross the wire; the array is keyed by `id`.
         scheduled: schedule.scheduled,
-        scopeStart: origin,
+        // The origin is where *derived* tasks begin counting from — today, for a project with
+        // no pinned start. A task pinned earlier than that still has to fit on the axis, so the
+        // scope runs from whichever comes first.
+        scopeStart: schedule.start.getTime() < origin.getTime() ? schedule.start : origin,
         scopeEnd: schedule.end,
+        // Sent so the client can recompute this exact schedule while a drag is in flight.
+        scopeOrigin: origin,
         canManageTasks: canManageProject(project, volunteer),
       }
     }),
@@ -1435,13 +1440,12 @@ export const projectsRouter = {
 
       assertCanManageProject(project, volunteer, 'Only project owner or admin can create tasks')
 
-      // A task created with dates is scheduled from birth, so it is baselined from birth too.
+      // Dates given at creation are a sketch; the baseline is set deliberately, later.
       const scheduleOnCreate: Record<string, unknown> = {}
-      applyScheduleWrite(
-        scheduleOnCreate,
-        { startDate: null, durationDays: null, baselineSetAt: null },
-        { startDate: input.startDate ?? null, durationDays: input.durationDays ?? null },
-      )
+      applyScheduleWrite(scheduleOnCreate, {
+        startDate: input.startDate ?? null,
+        durationDays: input.durationDays ?? null,
+      })
 
       const task = await prisma.$transaction(async (tx) => {
         const max = await tx.workItem.aggregate({
@@ -1658,6 +1662,7 @@ export const projectsRouter = {
         input.data.estimatedHours === undefined &&
         input.data.deadline === undefined &&
         input.data.featuredAsQuickTask === undefined &&
+        input.data.isAnchor === undefined &&
         input.data.startDate === undefined &&
         input.data.durationDays === undefined
       const isSelfClaim =
@@ -1696,7 +1701,8 @@ export const projectsRouter = {
       if (input.data.deadline !== undefined) data.deadline = input.data.deadline
       if (input.data.featuredAsQuickTask !== undefined)
         data.featuredAsQuickTask = input.data.featuredAsQuickTask
-      applyScheduleWrite(data, task, input.data)
+      if (input.data.isAnchor !== undefined) data.isAnchor = input.data.isAnchor
+      applyScheduleWrite(data, input.data)
       if (input.data.status !== undefined) {
         data.status = input.data.status
         if (input.data.status === TaskStatus.completed) data.completedAt = new Date()
