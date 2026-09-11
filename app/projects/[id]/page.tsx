@@ -23,6 +23,7 @@ import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import { formatDate, formatDateShort, fromDateInputValue } from '@/lib/format-date'
 import BaselineDialog from '@/components/gantt/BaselineDialog'
+import ProjectPorting from '@/components/ProjectPorting'
 import { scheduleWithPatches } from '@/components/gantt/optimistic'
 import { projectLocationParts } from '@/lib/filter-options'
 import {
@@ -545,6 +546,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   }
   const [taskAssignSelections, setTaskAssignSelections] = useState<Record<number, string>>({})
   const [showBaselineDialog, setShowBaselineDialog] = useState(false)
+  const [showPorting, setShowPorting] = useState(false)
   const taskDragSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   )
@@ -678,24 +680,6 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   const invalidateProject = () =>
     queryClient.invalidateQueries({ queryKey: orpc.projects.getById.key() })
-
-  const exportPlanMutation = useMutation({
-    ...orpc.projects.exportPlan.mutationOptions(),
-    onSuccess: (data) => {
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `catalyse-project-${parseInt(idParam, 10)}-${new Date().toISOString().split('T')[0]}.json`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-      showToast('Project exported', 'success')
-    },
-    onError: (err: unknown) =>
-      showToast(err instanceof Error ? err.message : 'Export failed', 'error'),
-  })
 
   const createTaskMutation = useMutation({
     ...orpc.projects.createTask.mutationOptions(),
@@ -1105,7 +1089,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             the pixel width it has in the List view and gives the rest to the chart. */}
         <div
           className={`grid grid-cols-1 gap-4 items-start ${
-            taskView === 'timeline' ? 'lg:grid-cols-[minmax(0,1fr)_360px]' : 'lg:grid-cols-3'
+            taskView === 'timeline' ? 'lg:grid-cols-[minmax(0,1fr)_420px]' : 'lg:grid-cols-3'
           }`}
         >
           {/* Main column */}
@@ -1551,18 +1535,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     <Button href={`/projects/${idParam}/edit`} variant="secondary" size="sm">
                       Edit Project
                     </Button>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      disabled={exportPlanMutation.isPending}
-                      onClick={() =>
-                        exportPlanMutation.mutate({ projectId: parseInt(idParam, 10) })
-                      }
-                    >
-                      Export
-                    </Button>
-                    <Button href={`/projects/${idParam}/import`} variant="secondary" size="sm">
-                      Import
+                    <Button variant="secondary" size="sm" onClick={() => setShowPorting(true)}>
+                      Export / Import
                     </Button>
                   </div>
                 )}
@@ -1991,6 +1965,16 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           </div>
         </div>
       </main>
+
+      <Modal
+        id="project-porting"
+        title="Export and import"
+        size="wide"
+        isOpen={showPorting}
+        onClose={() => setShowPorting(false)}
+      >
+        <ProjectPorting projectId={parseInt(idParam, 10)} onDone={() => setShowPorting(false)} />
+      </Modal>
 
       <BaselineDialog
         isOpen={showBaselineDialog}

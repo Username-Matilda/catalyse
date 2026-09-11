@@ -10,9 +10,23 @@ interface ModalProps {
   children: React.ReactNode
   isOpen: boolean
   onClose: () => void
+  /** `wide` is for modals holding a working surface — a diff, a form — rather than a question. */
+  size?: 'default' | 'wide'
 }
 
-export default function Modal({ id, title, children, isOpen, onClose }: ModalProps) {
+const SIZES: Record<'default' | 'wide', string> = {
+  default: 'max-w-md',
+  wide: 'max-w-3xl',
+}
+
+export default function Modal({
+  id,
+  title,
+  children,
+  isOpen,
+  onClose,
+  size = 'default',
+}: ModalProps) {
   useEffect(() => {
     if (!isOpen) return
     const handler = (e: KeyboardEvent) => {
@@ -34,7 +48,7 @@ export default function Modal({ id, title, children, isOpen, onClose }: ModalPro
       <div
         ref={trapRef}
         id={id}
-        className="bg-surface max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg p-6 shadow-lg"
+        className={`bg-surface max-h-[90vh] w-full ${SIZES[size]} overflow-y-auto rounded-lg p-6 shadow-lg`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={`${id}-title`}

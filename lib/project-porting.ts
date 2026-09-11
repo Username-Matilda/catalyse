@@ -132,6 +132,10 @@ export type ProjectExportPayload = {
     projectId: number
     exportedAt: string
     baseHash: string
+    /** Where the rules for editing this file live, so a file pasted alone still explains itself. */
+    docs?: string
+    /** Machine-readable counterpart of `docs`, for editors and assistants that fetch schemas. */
+    schema?: string
   }
   project: { id: number; title: string; description: string | null; status: string }
   tasks: Array<{
@@ -161,7 +165,8 @@ function sortedTasks(state: CurrentState): CurrentTask[] {
   return [...state.tasks].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.id - b.id)
 }
 
-export function serializeProjectExport(state: CurrentState): ProjectExportPayload {
+export function serializeProjectExport(state: CurrentState, appUrl?: string): ProjectExportPayload {
+  const base = appUrl?.replace(/\/$/, '')
   return {
     _meta: {
       format: 'catalyse-project-export',
@@ -169,6 +174,14 @@ export function serializeProjectExport(state: CurrentState): ProjectExportPayloa
       projectId: state.project.id,
       exportedAt: new Date().toISOString(),
       baseHash: hashState(state),
+      // Only when the deployment knows its own URL — a relative path in a downloaded file
+      // would point nowhere.
+      ...(base
+        ? {
+            docs: `${base}/projects/${state.project.id}/import`,
+            schema: `${base}/api/project-import/schema`,
+          }
+        : {}),
     },
     project: {
       id: state.project.id,

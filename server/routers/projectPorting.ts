@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
+import { env } from '@/lib/env'
 import { applyScheduleWrite, canManageProject } from '@/lib/work-item'
 import { findDependencyCycle } from '@/lib/schedule'
 import { loadTaskEdges } from '@/lib/project-schedule'
@@ -95,7 +96,7 @@ export const projectPortingRouter = {
       const loaded = await loadState(input.projectId)
       if (!loaded) throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
       assertCanManage(loaded.project, context.volunteer)
-      return serializeProjectExport(loaded.state)
+      return serializeProjectExport(loaded.state, env.APP_URL)
     }),
 
   /** Side-effect-free: parse the file, diff it against live state, return the review model. */
