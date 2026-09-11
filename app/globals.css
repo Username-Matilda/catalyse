@@ -28,6 +28,27 @@
   --radius-lg: 12px;
   --shadow: 0 2px 8px rgba(26, 32, 44, 0.1);
   --shadow-lg: 0 4px 16px rgba(26, 32, 44, 0.15);
+
+  /* Gantt timeline. Kept separate from the brand palette so bar hues stay distinguishable
+     from each other rather than all landing on brand orange. */
+  --gantt-grid: #edf2f7;
+  --gantt-grid-strong: #cbd5e0;
+  --gantt-weekend: rgba(45, 55, 72, 0.05);
+  --gantt-row-alt: rgba(45, 55, 72, 0.02);
+  --gantt-row-hover: rgba(255, 148, 22, 0.08);
+  --gantt-bar-todo: #64748b;
+  --gantt-bar-progress: #ff9416;
+  --gantt-bar-done: #38a169;
+  --gantt-bar-hold: #a0aec0;
+  --gantt-bar-text: #ffffff;
+  --gantt-baseline: #a0aec0;
+  --gantt-actual: #3182ce;
+  --gantt-link: #a0aec0;
+  --gantt-link-active: #2d3748;
+  --gantt-critical: #7c3aed;
+  --gantt-anchor: #b7791f;
+  --gantt-today: #e53e3e;
+  --gantt-finish: #1a202c;
 }
 
 @theme inline {
@@ -67,12 +88,39 @@
   --error: #f87171;
   --shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.4);
+
+  --gantt-grid: #253046;
+  --gantt-grid-strong: #46536b;
+  --gantt-weekend: rgba(255, 255, 255, 0.04);
+  --gantt-row-alt: rgba(255, 255, 255, 0.02);
+  --gantt-row-hover: rgba(255, 166, 51, 0.1);
+  --gantt-bar-todo: #7b8aa3;
+  --gantt-bar-progress: #ffa633;
+  --gantt-bar-done: #4ade80;
+  --gantt-bar-hold: #4b5563;
+  --gantt-bar-text: #111827;
+  --gantt-baseline: #6b7280;
+  --gantt-actual: #60a5fa;
+  --gantt-link: #55637c;
+  --gantt-link-active: #cbd5e1;
+  --gantt-critical: #a78bfa;
+  --gantt-anchor: #fbbf24;
+  --gantt-today: #f87171;
+  --gantt-finish: #e2e8f0;
 }
 
 @utility container {
   margin-inline: auto;
   padding-inline: 1.5rem;
   max-width: 1280px;
+}
+
+/* For pages whose whole point is a wide canvas — the roadmap timeline — where the reading
+   measure that justifies `container` does not apply. */
+@utility container-wide {
+  margin-inline: auto;
+  padding-inline: 1.5rem;
+  max-width: 100%;
 }
 
 * {

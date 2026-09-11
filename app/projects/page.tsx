@@ -253,7 +253,12 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
   return (
     <>
       <main className="container py-5 pb-15">
-        <h1 role="heading">Projects</h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 role="heading">Projects</h1>
+          <Link href="/projects/gantt" className="text-primary-text text-sm underline">
+            Roadmap →
+          </Link>
+        </div>
 
         {user.isAdmin && pendingCount > 0 && (
           <div className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-900 dark:text-amber-200 dark:border-amber-600">

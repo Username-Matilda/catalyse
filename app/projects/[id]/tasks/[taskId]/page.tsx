@@ -10,7 +10,7 @@ import Checkbox from '@/components/Checkbox'
 import { Badge } from '@/components/Badge'
 import CommentThread from '@/components/CommentThread'
 import { useToast } from '@/lib/toast'
-import { formatDate } from '@/lib/format-date'
+import { formatDate, toDateInputValue, fromDateInputValue } from '@/lib/format-date'
 import { TaskStatus } from '@/generated/prisma/enums'
 
 const TASK_STATUS_LABELS: Record<string, string> = {
@@ -48,6 +48,8 @@ export default function TaskDetailPage({
   const [editDescription, setEditDescription] = useState('')
   const [editEstimatedHours, setEditEstimatedHours] = useState('')
   const [editDeadline, setEditDeadline] = useState('')
+  const [editStartDate, setEditStartDate] = useState('')
+  const [editDurationDays, setEditDurationDays] = useState('')
   const [editFeatured, setEditFeatured] = useState(false)
   const [initialized, setInitialized] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
@@ -59,7 +61,9 @@ export default function TaskDetailPage({
     setEditTitle(task.title)
     setEditDescription(task.description ?? '')
     setEditEstimatedHours(task.estimatedHours !== null ? String(task.estimatedHours) : '')
-    setEditDeadline(task.deadline ? new Date(task.deadline).toISOString().slice(0, 10) : '')
+    setEditDeadline(toDateInputValue(task.deadline))
+    setEditStartDate(toDateInputValue(task.startDate))
+    setEditDurationDays(task.durationDays !== null ? String(task.durationDays) : '')
     setEditFeatured(task.featuredAsQuickTask)
   }, [task, initialized])
 
@@ -74,6 +78,51 @@ export default function TaskDetailPage({
       showToast(err instanceof Error ? err.message : 'Failed to update task', 'error'),
   })
 
+  const invalidateTask = () =>
+    queryClient.invalidateQueries({ queryKey: orpc.projects.getTask.key() })
+
+  const addDependencyMutation = useMutation({
+    ...orpc.dependencies.add.mutationOptions(),
+    onSuccess: () => {
+      showToast('Dependency added', 'success')
+      setNewPredecessorId('')
+      setNewLagDays('')
+      void invalidateTask()
+    },
+    onError: (err: unknown) =>
+      showToast(err instanceof Error ? err.message : 'Failed to add dependency', 'error'),
+  })
+
+  const removeDependencyMutation = useMutation({
+    ...orpc.dependencies.remove.mutationOptions(),
+    onSuccess: () => {
+      showToast('Dependency removed', 'success')
+      void invalidateTask()
+    },
+    onError: (err: unknown) =>
+      showToast(err instanceof Error ? err.message : 'Failed to remove dependency', 'error'),
+  })
+
+  const updateLagMutation = useMutation({
+    ...orpc.dependencies.updateLag.mutationOptions(),
+    onSuccess: () => void invalidateTask(),
+    onError: (err: unknown) =>
+      showToast(err instanceof Error ? err.message : 'Failed to update lag', 'error'),
+  })
+
+  const [newPredecessorId, setNewPredecessorId] = useState('')
+  const [newLagDays, setNewLagDays] = useState('')
+
+  function handleAddDependency(e: React.FormEvent) {
+    e.preventDefault()
+    if (!newPredecessorId) return
+    addDependencyMutation.mutate({
+      predecessorId: parseInt(newPredecessorId, 10),
+      successorId: taskId,
+      lagDays: newLagDays ? parseInt(newLagDays, 10) : 0,
+    })
+  }
+
   function handleSaveEdit(e: React.FormEvent) {
     e.preventDefault()
     if (!editTitle.trim()) return
@@ -84,7 +133,9 @@ export default function TaskDetailPage({
         title: editTitle.trim(),
         description: editDescription.trim() || null,
         estimatedHours: editEstimatedHours ? parseFloat(editEstimatedHours) : null,
-        deadline: editDeadline ? new Date(editDeadline) : null,
+        deadline: fromDateInputValue(editDeadline),
+        startDate: fromDateInputValue(editStartDate),
+        durationDays: editDurationDays ? parseInt(editDurationDays, 10) : null,
         featuredAsQuickTask: editFeatured,
       },
     })
@@ -162,6 +213,19 @@ export default function TaskDetailPage({
               Due {formatDate(task.deadline)}
             </span>
           )}
+          {task.startDate && (
+            <span className="text-text-light text-sm self-center">
+              Planned {formatDate(task.startDate)}
+              {task.durationDays !== null &&
+                ` · ${task.durationDays} day${task.durationDays === 1 ? '' : 's'}`}
+            </span>
+          )}
+          {task.startedAt && (
+            <span className="text-text-light text-sm self-center">
+              Started {formatDate(task.startedAt)}
+              {task.completedAt && ` · finished ${formatDate(task.completedAt)}`}
+            </span>
+          )}
         </div>
 
         {task.description && <p className="whitespace-pre-wrap mb-0">{task.description}</p>}
@@ -229,7 +293,34 @@ export default function TaskDetailPage({
                   onChange={(e) => setEditDeadline(e.target.value)}
                 />
               </div>
+              <div>
+                <label htmlFor="edit-task-start">Start date</label>
+                <input
+                  id="edit-task-start"
+                  type="date"
+                  value={editStartDate}
+                  onChange={(e) => setEditStartDate(e.target.value)}
+                />
+              </div>
+              <div>
+                <label htmlFor="edit-task-duration">Duration (days)</label>
+                <input
+                  id="edit-task-duration"
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={editDurationDays}
+                  onChange={(e) => setEditDurationDays(e.target.value)}
+                  placeholder="e.g. 5"
+                  className="w-30"
+                />
+              </div>
             </div>
+
+            <p className="text-text-light -mt-2 mb-5 text-sm">
+              Leave the start date empty to have this task follow whatever it depends on. Set one to
+              pin it to that date instead.
+            </p>
 
             <div className="mb-5">
               <Checkbox checked={editFeatured} onChange={(e) => setEditFeatured(e.target.checked)}>
@@ -253,9 +344,9 @@ export default function TaskDetailPage({
                   setEditEstimatedHours(
                     task.estimatedHours !== null ? String(task.estimatedHours) : '',
                   )
-                  setEditDeadline(
-                    task.deadline ? new Date(task.deadline).toISOString().slice(0, 10) : '',
-                  )
+                  setEditDeadline(toDateInputValue(task.deadline))
+                  setEditStartDate(toDateInputValue(task.startDate))
+                  setEditDurationDays(task.durationDays !== null ? String(task.durationDays) : '')
                   setEditFeatured(task.featuredAsQuickTask)
                 }}
               >
@@ -264,6 +355,99 @@ export default function TaskDetailPage({
             </div>
           </form>
         )}
+      </div>
+
+      <div className="bg-surface mb-5 rounded-xl p-6 shadow">
+        <h2 className="mb-1 text-lg">Depends on</h2>
+        <p className="text-text-light mb-4 text-sm">
+          This task can only start once the tasks below have finished. A lag adds days between them;
+          a negative lag lets them overlap.
+        </p>
+
+        {task.predecessors.length === 0 ? (
+          <p className="text-text-light mb-4">Nothing yet — this task can start whenever.</p>
+        ) : (
+          <ul className="mb-4 list-none space-y-2 p-0">
+            {task.predecessors.map((dep) => (
+              <li key={dep.dependencyId} className="flex flex-wrap items-center gap-3">
+                <Link
+                  href={`/projects/${projectId}/tasks/${dep.predecessorId}`}
+                  className="text-primary-text underline"
+                >
+                  {dep.predecessorTitle}
+                </Link>
+                <label className="text-text-light flex items-center gap-1 text-sm">
+                  Lag
+                  <input
+                    type="number"
+                    step="1"
+                    defaultValue={dep.lagDays}
+                    disabled={!task.canManage || updateLagMutation.isPending}
+                    className="w-20"
+                    onBlur={(e) => {
+                      const next = e.target.value ? parseInt(e.target.value, 10) : 0
+                      if (next === dep.lagDays) return
+                      updateLagMutation.mutate({ dependencyId: dep.dependencyId, lagDays: next })
+                    }}
+                  />
+                  days
+                </label>
+                {task.canManage && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={removeDependencyMutation.isPending}
+                    onClick={() =>
+                      removeDependencyMutation.mutate({ dependencyId: dep.dependencyId })
+                    }
+                  >
+                    Remove
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {task.canManage &&
+          (task.siblingTasks.length === 0 ? (
+            <p className="text-text-light text-sm">No other tasks in this project to depend on.</p>
+          ) : (
+            <form onSubmit={handleAddDependency} className="flex flex-wrap items-end gap-3">
+              <div>
+                <label htmlFor="new-dependency">Add a dependency</label>
+                <select
+                  id="new-dependency"
+                  value={newPredecessorId}
+                  onChange={(e) => setNewPredecessorId(e.target.value)}
+                >
+                  <option value="">Select a task…</option>
+                  {task.siblingTasks
+                    .filter((s) => !task.predecessors.some((p) => p.predecessorId === s.id))
+                    .map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.title}
+                      </option>
+                    ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="new-dependency-lag">Lag (days)</label>
+                <input
+                  id="new-dependency-lag"
+                  type="number"
+                  step="1"
+                  value={newLagDays}
+                  onChange={(e) => setNewLagDays(e.target.value)}
+                  placeholder="0"
+                  className="w-20"
+                />
+              </div>
+              <Button type="submit" disabled={!newPredecessorId || addDependencyMutation.isPending}>
+                {addDependencyMutation.isPending ? 'Adding…' : 'Add'}
+              </Button>
+            </form>
+          ))}
       </div>
 
       <div className="bg-surface rounded-xl shadow p-6">

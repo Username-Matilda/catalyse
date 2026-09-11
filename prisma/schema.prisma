@@ -301,6 +301,26 @@ model WorkItem {
   sortOrder           Int?      @default(0) @map("sort_order")
   featuredAsQuickTask Boolean?  @default(false) @map("featured_as_quick_task") // TASK only — also list on the Quick Tasks page
 
+  // Scheduling — applies to PROJECT and TASK alike, so it is not in either type-specific
+  // block above. QUICK_TASK does not participate. See lib/schedule.ts.
+  // `startDate` null + predecessors => start is derived from them; set => pinned to that date.
+  // `durationDays` null is read as 1 day; a PROJECT with none rolls its span up from its tasks.
+  startDate    DateTime? @map("start_date")
+  durationDays Int?      @map("duration_days")
+  // The plan as committed. Captured the first time an item is scheduled, then moved only by an
+  // explicit re-baseline — never by an ordinary edit or a dependency cascade.
+  baselineStartDate    DateTime? @map("baseline_start_date")
+  baselineDurationDays Int?      @map("baseline_duration_days")
+  baselineSetAt        DateTime? @map("baseline_set_at")
+  // The fixed point the plan is built around — a protest date, a launch, a hearing. The
+  // critical path is measured towards anchors when any exist, rather than towards whatever
+  // simply finishes last, so follow-up work trailing an anchor is correctly slack.
+  isAnchor Boolean @default(false) @map("is_anchor")
+  // Last change to startDate/durationDays or to this item's dependency edges.
+  scheduleUpdatedAt DateTime? @map("schedule_updated_at")
+  // Actual start. `completedAt` above is the actual finish.
+  startedAt DateTime? @map("started_at")
+
   country           String?
   localGroup        String?           @map("local_group")
   remoteEligibility RemoteEligibility @default(NONE) @map("remote_eligibility")
@@ -321,6 +341,9 @@ model WorkItem {
   interests   WorkItemInterest[]
   adminNotes  AdminNote[]
   messages    Message[]
+
+  dependenciesAsPredecessor WorkItemDependency[] @relation("WorkItemDependencyPredecessor")
+  dependenciesAsSuccessor   WorkItemDependency[] @relation("WorkItemDependencySuccessor")
 
   @@index([type], map: "idx_work_items_type")
   @@index([status], map: "idx_work_items_status")
@@ -347,6 +370,27 @@ model WorkItemComment {
 
   @@index([workItemId, createdAt], map: "idx_work_item_comments_thread")
   @@map("work_item_comments")
+}
+
+/// Finish-to-start dependency between two WorkItems in the same scheduling scope — that is,
+/// sharing both `type` and `parentId`. That one rule yields exactly the two graphs we want:
+/// TASKs within a single project, and PROJECTs across the portfolio. QUICK_TASK is excluded.
+/// The successor starts at predecessor end + 1 day + `lagDays` (negative lag = overlap).
+model WorkItemDependency {
+  id            Int       @id @default(autoincrement())
+  predecessorId Int       @map("predecessor_id")
+  successorId   Int       @map("successor_id")
+  lagDays       Int       @default(0) @map("lag_days")
+  createdAt     DateTime? @default(now()) @map("created_at")
+  createdById   Int?      @map("created_by_id")
+
+  predecessor WorkItem   @relation("WorkItemDependencyPredecessor", fields: [predecessorId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  successor   WorkItem   @relation("WorkItemDependencySuccessor", fields: [successorId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  createdBy   Volunteer? @relation("WorkItemDependencyCreator", fields: [createdById], references: [id], onUpdate: NoAction)
+
+  @@unique([predecessorId, successorId], map: "uq_work_item_dependencies_pair")
+  @@index([successorId], map: "idx_work_item_dependencies_successor")
+  @@map("work_item_dependencies")
 }
 
 model WorkItemSkill {
@@ -680,6 +724,7 @@ model Volunteer {
   workItemsAssigned                       WorkItem[]               @relation("WorkItemAssignee")
   workItemsStakeholder                    WorkItem[]               @relation("WorkItemStakeholder")
   workItemsReviewed                       WorkItem[]               @relation("WorkItemReviewedBy")
+  workItemDependenciesCreated             WorkItemDependency[]     @relation("WorkItemDependencyCreator")
   skillEndorsementsGiven                  SkillEndorsement[]       @relation("SkillEndorsementEndorsedBy")
   skillEndorsementsReceived               SkillEndorsement[]       @relation("SkillEndorsementVolunteer")
   skills                                  VolunteerSkill[]

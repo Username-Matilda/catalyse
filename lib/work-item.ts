@@ -136,6 +136,20 @@ export function canPostComment(
   }
 }
 
+/**
+ * May `viewer` manage this project — its backlog, its schedule, its dependency links?
+ * The project owner, an admin, or the creator of a project still in `draft` (which has no
+ * owner yet, so its creator runs it until publish).
+ */
+export function canManageProject(
+  project: { creatorId: number | null; assigneeId: number | null; status: string },
+  viewer: { id: number; isAdmin: boolean | null },
+): boolean {
+  if (viewer.isAdmin) return true
+  if (project.assigneeId === viewer.id) return true
+  return project.creatorId === viewer.id && project.status === ProjectStatus.draft
+}
+
 export type WorkItemSkillWithRelations = {
   skillId: number
   isRequired: boolean | null
@@ -150,7 +164,7 @@ export type WorkItemSkillWithRelations = {
   }
 }
 
-export type EnrichedProject = {
+export type EnrichedProject = ScheduleFieldsLike & {
   id: number
   title: string
   description: string | null
@@ -246,6 +260,7 @@ export function withProjectExtras(
     owner: p.assignee,
     proposedBy: p.creator,
     pendingInterestCount: p._count.interests,
+    ...serializeScheduleFields(p),
     ...(match !== undefined ? { match } : {}),
   }
 }
@@ -277,7 +292,32 @@ export const projectInclude = {
 // denormalized display fields their own `include` fetched (assignedToName,
 // projectTitle, etc.) plus any route-specific extras.
 
-export type TaskLike = {
+/** The scheduling, baseline and actual-start columns shared by PROJECT and TASK. */
+export type ScheduleFieldsLike = {
+  startDate: Date | null
+  durationDays: number | null
+  baselineStartDate: Date | null
+  baselineDurationDays: number | null
+  baselineSetAt: Date | null
+  scheduleUpdatedAt: Date | null
+  startedAt: Date | null
+  isAnchor?: boolean
+}
+
+export function serializeScheduleFields(t: ScheduleFieldsLike) {
+  return {
+    startDate: t.startDate,
+    durationDays: t.durationDays,
+    baselineStartDate: t.baselineStartDate,
+    baselineDurationDays: t.baselineDurationDays,
+    baselineSetAt: t.baselineSetAt,
+    scheduleUpdatedAt: t.scheduleUpdatedAt,
+    startedAt: t.startedAt,
+    isAnchor: t.isAnchor ?? false,
+  }
+}
+
+export type TaskLike = ScheduleFieldsLike & {
   id: number
   parentId: number | null
   title: string
@@ -306,7 +346,36 @@ export function serializeTask(t: TaskLike) {
     completedAt: t.completedAt,
     createdAt: t.createdAt,
     updatedAt: t.updatedAt,
+    ...serializeScheduleFields(t),
   }
+}
+
+/**
+ * Builds the Prisma `data` for a schedule change, and reports whether the write actually
+ * touches the schedule.
+ *
+ * `scheduleUpdatedAt` is stamped whenever startDate or durationDays moves, so every caller
+ * (task edit, project edit, drag-to-reschedule) records it identically.
+ *
+ * The baseline is deliberately NOT touched here. Typing a first date is planning, not
+ * committing to a plan: an owner needs to sketch dates and shuffle them before anything is
+ * worth measuring against. Only `projects.setBaseline` writes the baseline track, so a
+ * variance always refers to a commitment someone actually made.
+ */
+export function applyScheduleWrite(
+  data: Record<string, unknown>,
+  input: { startDate?: Date | null; durationDays?: number | null },
+  now: Date = new Date(),
+): boolean {
+  const touchesStart = input.startDate !== undefined
+  const touchesDuration = input.durationDays !== undefined
+  if (!touchesStart && !touchesDuration) return false
+
+  if (touchesStart) data.startDate = input.startDate
+  if (touchesDuration) data.durationDays = input.durationDays
+  data.scheduleUpdatedAt = now
+
+  return true
 }
 
 export type StarterTaskLike = {

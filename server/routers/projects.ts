@@ -10,8 +10,15 @@ import {
   resolveTeamPrivy,
   CLAIM_BLOCKING_INTEREST_STATUSES,
   serializeTask,
+  applyScheduleWrite,
+  canManageProject,
 } from '@/lib/work-item'
 import { notifyUser, notifyAdmins, notifyTeamOfProject, clearNotifications } from '@/lib/notify'
+import {
+  loadProjectTaskSchedule,
+  loadProjectEdges,
+  scheduleProjectsByIds,
+} from '@/lib/project-schedule'
 import { notifyMatchingVolunteers } from '@/lib/project-match-notify'
 import { html } from '@/lib/email'
 import {
@@ -55,6 +62,20 @@ async function canReachProject(
   if (project.teamId === null || volunteer.isAdmin) return true
   if (project.creatorId === volunteer.id || project.assigneeId === volunteer.id) return true
   return resolveTeamPrivy(project.teamId, project.id, volunteer.id)
+}
+
+/**
+ * Throws FORBIDDEN unless `volunteer` may manage this project (owner, admin, or the creator
+ * of a still-draft project). See canManageProject in lib/work-item.ts for the rule.
+ */
+function assertCanManageProject(
+  project: { creatorId: number | null; assigneeId: number | null; status: string },
+  volunteer: { id: number; isAdmin: boolean | null },
+  message: string,
+): void {
+  if (!canManageProject(project, volunteer)) {
+    throw new ORPCError('FORBIDDEN', { message })
+  }
 }
 
 /** Has this volunteer been declined from, or withdrawn from, this project? */
@@ -424,6 +445,14 @@ export const projectsRouter = {
       }
     }
 
+    // Dates given at creation are a sketch, not a commitment — the baseline stays unset until
+    // someone explicitly sets it.
+    const scheduleOnCreate: Record<string, unknown> = {}
+    applyScheduleWrite(scheduleOnCreate, {
+      startDate: input.startDate ?? null,
+      durationDays: input.durationDays ?? null,
+    })
+
     const project = await prisma.$transaction(async (tx) => {
       const newProject = await tx.workItem.create({
         data: {
@@ -441,6 +470,7 @@ export const projectsRouter = {
           urgency: input.urgency ?? 'medium',
           collaborationLink: input.collaborationLink ?? null,
           country: input.country ?? null,
+          ...scheduleOnCreate,
           localGroup: input.localGroup ?? null,
           remoteEligibility: input.remoteEligibility ?? 'NONE',
           isSeekingHelp: input.isSeekingHelp !== false,
@@ -838,6 +868,7 @@ export const projectsRouter = {
       }
       if (body.timeCommitmentHoursPerWeek !== undefined)
         data.timeCommitmentHoursPerWeek = body.timeCommitmentHoursPerWeek
+      applyScheduleWrite(data, body)
 
       if (body.assigneeId !== undefined && body.assigneeId !== project.assigneeId) {
         if (!canReassign) {
@@ -1291,12 +1322,36 @@ export const projectsRouter = {
         return (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0)
       })
 
-      return tasks.map((t) => ({
-        ...serializeTask(t),
-        assignedToName: t.assignee?.name ?? null,
-        createdByName: t.creator?.name ?? null,
-        sortOrder: t.sortOrder,
-      }))
+      const { schedule, origin } = await loadProjectTaskSchedule(project, tasks)
+
+      // Loaded here with the row id so the timeline panel can edit/remove links directly.
+      const dependencyRows = await prisma.workItemDependency.findMany({
+        where: {
+          predecessor: { parentId: input.projectId, type: WorkItemType.TASK },
+          successor: { parentId: input.projectId, type: WorkItemType.TASK },
+        },
+        select: { id: true, predecessorId: true, successorId: true, lagDays: true },
+      })
+
+      return {
+        tasks: tasks.map((t) => ({
+          ...serializeTask(t),
+          assignedToName: t.assignee?.name ?? null,
+          createdByName: t.creator?.name ?? null,
+          sortOrder: t.sortOrder,
+        })),
+        dependencies: dependencyRows,
+        // The Map in `schedule` doesn't cross the wire; the array is keyed by `id`.
+        scheduled: schedule.scheduled,
+        // The origin is where *derived* tasks begin counting from — today, for a project with
+        // no pinned start. A task pinned earlier than that still has to fit on the axis, so the
+        // scope runs from whichever comes first.
+        scopeStart: schedule.start.getTime() < origin.getTime() ? schedule.start : origin,
+        scopeEnd: schedule.end,
+        // Sent so the client can recompute this exact schedule while a drag is in flight.
+        scopeOrigin: origin,
+        canManageTasks: canManageProject(project, volunteer),
+      }
     }),
 
   getTask: approvedProcedure
@@ -1339,14 +1394,38 @@ export const projectsRouter = {
         Boolean(volunteer.isAdmin) ||
         !(await isBlockedFromClaiming(input.projectId, volunteer.id))
 
+      const [predecessorRows, siblingTasks] = await Promise.all([
+        prisma.workItemDependency.findMany({
+          where: { successorId: input.taskId },
+          include: { predecessor: { select: { id: true, title: true } } },
+        }),
+        prisma.workItem.findMany({
+          where: {
+            parentId: input.projectId,
+            type: WorkItemType.TASK,
+            id: { not: input.taskId },
+          },
+          select: { id: true, title: true },
+          orderBy: { sortOrder: 'asc' },
+        }),
+      ])
+
       return {
         ...serializeTask(task),
         projectTitle: project.title,
         projectOwnerId: project.assigneeId,
         canClaim,
+        canManage: canManageProject(project, volunteer),
         assignedToName: task.assignee?.name ?? null,
         createdByName: task.creator?.name ?? null,
         featuredAsQuickTask: task.featuredAsQuickTask ?? false,
+        predecessors: predecessorRows.map((r) => ({
+          dependencyId: r.id,
+          predecessorId: r.predecessorId,
+          predecessorTitle: r.predecessor.title,
+          lagDays: r.lagDays,
+        })),
+        siblingTasks,
       }
     }),
 
@@ -1359,14 +1438,14 @@ export const projectsRouter = {
       })
       if (!project) throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
 
-      // A draft has no owner yet, so its creator manages its own tasks until publish.
-      const isDraftCreator =
-        project.creatorId === volunteer.id && project.status === ProjectStatus.draft
-      if (project.assigneeId !== volunteer.id && !volunteer.isAdmin && !isDraftCreator) {
-        throw new ORPCError('FORBIDDEN', {
-          message: 'Only project owner or admin can create tasks',
-        })
-      }
+      assertCanManageProject(project, volunteer, 'Only project owner or admin can create tasks')
+
+      // Dates given at creation are a sketch; the baseline is set deliberately, later.
+      const scheduleOnCreate: Record<string, unknown> = {}
+      applyScheduleWrite(scheduleOnCreate, {
+        startDate: input.startDate ?? null,
+        durationDays: input.durationDays ?? null,
+      })
 
       const task = await prisma.$transaction(async (tx) => {
         const max = await tx.workItem.aggregate({
@@ -1385,6 +1464,7 @@ export const projectsRouter = {
             featuredAsQuickTask: input.featuredAsQuickTask ?? false,
             creatorId: volunteer.id,
             sortOrder: (max._max.sortOrder ?? 0) + 1,
+            ...scheduleOnCreate,
           },
         })
         return newTask
@@ -1407,13 +1487,7 @@ export const projectsRouter = {
       })
       if (!project) throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
 
-      const isDraftCreator =
-        project.creatorId === volunteer.id && project.status === ProjectStatus.draft
-      if (project.assigneeId !== volunteer.id && !volunteer.isAdmin && !isDraftCreator) {
-        throw new ORPCError('FORBIDDEN', {
-          message: 'Only project owner or admin can reorder tasks',
-        })
-      }
+      assertCanManageProject(project, volunteer, 'Only project owner or admin can reorder tasks')
 
       await prisma.$transaction(
         input.items.map(({ id, sortOrder }) =>
@@ -1425,6 +1499,132 @@ export const projectsRouter = {
       )
 
       return { success: true }
+    }),
+
+  /**
+   * Re-baseline: copy the current schedule onto the baseline track. This is the only thing
+   * that moves a baseline after it is first captured, so the plan-vs-actual comparison stays
+   * anchored to a deliberate commitment. Skips items with no current schedule.
+   */
+  setBaseline: approvedProcedure
+    .input(
+      z.object({ projectId: z.number().int(), includeTasks: z.boolean().optional().default(true) }),
+    )
+    .handler(async ({ input, context }) => {
+      const volunteer = context.volunteer
+      const project = await prisma.workItem.findFirst({
+        where: { id: input.projectId, type: WorkItemType.PROJECT },
+      })
+      if (!project) throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
+      assertCanManageProject(project, volunteer, 'Only project owner or admin can re-baseline')
+
+      const targets = [
+        project,
+        ...(input.includeTasks
+          ? await prisma.workItem.findMany({
+              where: { parentId: input.projectId, type: WorkItemType.TASK },
+            })
+          : []),
+      ]
+      const now = new Date()
+      await prisma.$transaction(
+        targets
+          .filter((t) => t.startDate !== null || t.durationDays !== null)
+          .map((t) =>
+            prisma.workItem.update({
+              where: { id: t.id },
+              data: {
+                baselineStartDate: t.startDate,
+                baselineDurationDays: t.durationDays,
+                baselineSetAt: now,
+              },
+            }),
+          ),
+      )
+      return { message: 'Baseline updated' }
+    }),
+
+  /**
+   * Portfolio roadmap: one placed bar per visible project, plus the project-to-project edges
+   * between them. Defaults to active statuses; completed/archived are opt-in via `statuses`.
+   * Reuses the team-visibility rule from `list` — a team-tagged project stays hidden from
+   * non-members.
+   */
+  ganttOverview: approvedProcedure
+    .input(
+      z.object({
+        statuses: z.array(z.string()).optional(),
+        teamId: z.number().int().optional(),
+        country: z.string().optional(),
+        localGroup: z.string().optional(),
+      }),
+    )
+    .handler(async ({ input, context }) => {
+      const volunteer = context.volunteer
+      const statuses =
+        input.statuses && input.statuses.length > 0
+          ? input.statuses
+          : [ProjectStatus.ready, ProjectStatus.in_progress, ProjectStatus.on_hold]
+
+      const teamMemberships = await prisma.teamMembership.findMany({
+        where: { volunteerId: volunteer.id },
+        select: { teamId: true },
+      })
+      const myTeamIds = teamMemberships.map((m) => m.teamId)
+
+      const visible = await prisma.workItem.findMany({
+        where: {
+          type: WorkItemType.PROJECT,
+          status: { in: statuses },
+          ...(input.teamId ? { teamId: input.teamId } : {}),
+          ...(input.country ? { country: input.country } : {}),
+          ...(input.localGroup ? { localGroup: input.localGroup } : {}),
+          ...(volunteer.isAdmin
+            ? {}
+            : {
+                OR: [
+                  { teamId: null },
+                  { creatorId: volunteer.id },
+                  { assigneeId: volunteer.id },
+                  ...(myTeamIds.length > 0 ? [{ teamId: { in: myTeamIds } }] : []),
+                  {
+                    interests: {
+                      some: { volunteerId: volunteer.id, status: InterestStatus.accepted },
+                    },
+                  },
+                ],
+              }),
+        },
+        select: { id: true, title: true, status: true },
+      })
+
+      const visibleIds = visible.map((p) => p.id)
+      const allEdges = await loadProjectEdges()
+      const edges = allEdges.filter(
+        (e) => visibleIds.includes(e.predecessorId) && visibleIds.includes(e.successorId),
+      )
+      const schedule = await scheduleProjectsByIds(visibleIds, edges)
+
+      // Task counts in one grouped query.
+      const counts = await prisma.workItem.groupBy({
+        by: ['parentId'],
+        where: { type: WorkItemType.TASK, parentId: { in: visibleIds } },
+        _count: { _all: true },
+      })
+      const countByProject = new Map(counts.map((c) => [c.parentId, c._count._all]))
+
+      return {
+        projects: visible.map((p) => ({
+          id: p.id,
+          title: p.title,
+          status: p.status,
+          taskCount: countByProject.get(p.id) ?? 0,
+          placement: schedule.byId.get(p.id) ?? null,
+        })),
+        dependencies: edges,
+        scopeStart: schedule.start,
+        scopeEnd: schedule.end,
+      }
     }),
 
   updateTask: approvedProcedure
@@ -1453,12 +1653,18 @@ export const projectsRouter = {
 
       const newStatus = input.data.status
       const newAssigneeId = input.data.assigneeId
+      // Every editable field except status/assigneeId must be listed here. A field missing
+      // from this check would ride along on the self-claim path below, letting any volunteer
+      // who can claim the task edit it too.
       const onlyTouchesStatusAndAssignee =
         input.data.title === undefined &&
         input.data.description === undefined &&
         input.data.estimatedHours === undefined &&
         input.data.deadline === undefined &&
-        input.data.featuredAsQuickTask === undefined
+        input.data.featuredAsQuickTask === undefined &&
+        input.data.isAnchor === undefined &&
+        input.data.startDate === undefined &&
+        input.data.durationDays === undefined
       const isSelfClaim =
         onlyTouchesStatusAndAssignee &&
         newStatus === TaskStatus.in_progress &&
@@ -1495,12 +1701,20 @@ export const projectsRouter = {
       if (input.data.deadline !== undefined) data.deadline = input.data.deadline
       if (input.data.featuredAsQuickTask !== undefined)
         data.featuredAsQuickTask = input.data.featuredAsQuickTask
+      if (input.data.isAnchor !== undefined) data.isAnchor = input.data.isAnchor
+      applyScheduleWrite(data, input.data)
       if (input.data.status !== undefined) {
         data.status = input.data.status
         if (input.data.status === TaskStatus.completed) data.completedAt = new Date()
-        else if (input.data.status === TaskStatus.open) {
+        else if (input.data.status === TaskStatus.in_progress) {
+          // Actual start, recorded once. Re-entering in_progress after a pause keeps the
+          // original date — the work did start then.
+          if (task.startedAt === null) data.startedAt = new Date()
+        } else if (input.data.status === TaskStatus.open) {
           data.assigneeId = null
           data.completedAt = null
+          // Back to unstarted: the actuals describe work that is no longer claimed.
+          data.startedAt = null
         }
       }
       if (input.data.assigneeId !== undefined) data.assigneeId = input.data.assigneeId
@@ -1587,6 +1801,8 @@ export const projectsRouter = {
           updatedAt: new Date(),
           nudgeSentAt: null,
           finalWarningSentAt: null,
+          // Actual start, recorded once — reassigning a task in flight does not restart it.
+          ...(task.startedAt === null ? { startedAt: new Date() } : {}),
         },
       })
 
@@ -1616,11 +1832,7 @@ export const projectsRouter = {
       })
       if (!project) throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
 
-      const isDraftCreator =
-        project.creatorId === volunteer.id && project.status === ProjectStatus.draft
-      if (project.assigneeId !== volunteer.id && !volunteer.isAdmin && !isDraftCreator) {
-        throw new ORPCError('FORBIDDEN', { message: 'Not authorized' })
-      }
+      assertCanManageProject(project, volunteer, 'Not authorized')
 
       const deleted = await prisma.workItem.deleteMany({
         where: { id: input.taskId, parentId: input.projectId, type: WorkItemType.TASK },

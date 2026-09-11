@@ -17,17 +17,23 @@ test.describe('Quick Tasks: self-serve', () => {
       timeout: 10_000,
     })
 
-    const card = volunteer.page.getByRole('article').filter({ hasText: taskTitle })
-    await expect(card).toBeVisible({ timeout: 10_000 })
-    await card.getByRole('button', { name: 'Claim' }).click()
+    // The same title appears in both lists while the two queries settle, so each assertion
+    // says which list it means rather than racing them.
+    const browsePool = volunteer.page.getByRole('region', { name: 'Browse Quick Tasks' })
+    const myTasks = volunteer.page.getByRole('region', { name: 'My Quick Tasks' })
+
+    const browseCard = browsePool.getByRole('article').filter({ hasText: taskTitle })
+    await expect(browseCard).toBeVisible({ timeout: 10_000 })
+    await browseCard.getByRole('button', { name: 'Claim' }).click()
 
     await expect(getAlert(volunteer.page)).toContainText('Task claimed!', { timeout: 10_000 })
 
     // Moves out of the browse pool into "My Quick Tasks" — same title, now with a status
     // badge and no Claim button, proving it's no longer the open/unclaimed browse card.
-    await expect(card.getByRole('status')).toContainText('Assigned', { timeout: 10_000 })
-    await expect(card.getByRole('button', { name: 'Claim' })).not.toBeVisible()
-    await expect(volunteer.page.getByRole('article').filter({ hasText: taskTitle })).toHaveCount(1)
+    const claimedCard = myTasks.getByRole('article').filter({ hasText: taskTitle })
+    await expect(claimedCard.getByRole('status')).toContainText('Assigned', { timeout: 10_000 })
+    await expect(claimedCard.getByRole('button', { name: 'Claim' })).not.toBeVisible()
+    await expect(browseCard).toHaveCount(0, { timeout: 10_000 })
   })
 
   test('Volunteer views an unclaimed Quick Task detail page and claims from there', async ({

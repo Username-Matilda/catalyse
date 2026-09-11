@@ -114,6 +114,12 @@ const TaskInputSchema = z.object({
   description: z.string().optional(),
 })
 
+/** Timeline fields shared by PROJECT and TASK. See lib/schedule.ts. */
+const SCHEDULE_INPUT_FIELDS = {
+  startDate: true,
+  durationDays: true,
+} as const
+
 const PROJECT_INPUT_FIELDS = {
   title: true,
   description: true,
@@ -127,10 +133,11 @@ const PROJECT_INPUT_FIELDS = {
   remoteEligibility: true,
   isSeekingHelp: true,
   teamId: true,
+  ...SCHEDULE_INPUT_FIELDS,
 } as const
 
 export const CreateProjectSchema = WorkItemSchema.pick(PROJECT_INPUT_FIELDS)
-  .partial({ remoteEligibility: true, teamId: true })
+  .partial({ remoteEligibility: true, teamId: true, ...SCHEDULE_INPUT_FIELDS })
   .extend({
     tasks: z.array(TaskInputSchema).optional().default([]),
     wantToOwn: z.boolean().optional().default(false),
@@ -165,11 +172,13 @@ export const CreateProjectTaskSchema = WorkItemSchema.pick({
   estimatedHours: true,
   deadline: true,
   featuredAsQuickTask: true,
+  ...SCHEDULE_INPUT_FIELDS,
 }).partial({
   description: true,
   estimatedHours: true,
   deadline: true,
   featuredAsQuickTask: true,
+  ...SCHEDULE_INPUT_FIELDS,
 })
 
 export const UpdateProjectTaskSchema = WorkItemSchema.pick({
@@ -179,9 +188,18 @@ export const UpdateProjectTaskSchema = WorkItemSchema.pick({
   estimatedHours: true,
   deadline: true,
   featuredAsQuickTask: true,
+  isAnchor: true,
+  ...SCHEDULE_INPUT_FIELDS,
 })
   .partial()
   .extend({ status: TaskStatusSchema.optional() })
+
+/** A finish-to-start link. Lag is signed: positive leaves a gap, negative overlaps. */
+export const DependencyBodySchema = z.object({
+  predecessorId: z.number().int(),
+  successorId: z.number().int(),
+  lagDays: z.number().int().min(-365).max(365).optional().default(0),
+})
 
 export const CreateProjectUpdateSchema = WorkItemCommentSchema.pick({
   content: true,
@@ -190,7 +208,7 @@ export const CreateProjectUpdateSchema = WorkItemCommentSchema.pick({
 // ─── Admin: projects ──────────────────────────────────────────────────────────
 
 export const AdminCreateProjectSchema = WorkItemSchema.pick(PROJECT_INPUT_FIELDS)
-  .partial({ remoteEligibility: true, teamId: true })
+  .partial({ remoteEligibility: true, teamId: true, ...SCHEDULE_INPUT_FIELDS })
   .extend({
     tasks: z.array(TaskInputSchema).optional().default([]),
     wantToOwn: z.boolean().optional().default(false),

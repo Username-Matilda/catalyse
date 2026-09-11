@@ -11,6 +11,9 @@ import { localGroupSuggestionsRouter } from './routers/localGroupSuggestions'
 import { teamsRouter } from './routers/teams'
 import { teamSuggestionsRouter } from './routers/teamSuggestions'
 import { quickTasksRouter } from './routers/quickTasks'
+import { dependenciesRouter } from './routers/dependencies'
+import { scheduleRouter } from './routers/schedule'
+import { projectPortingRouter } from './routers/projectPorting'
 import { workItemCommentsRouter } from './routers/workItemComments'
 import { bugReportCommentsRouter } from './routers/bugReportComments'
 import { myRouter } from './routers/my'
@@ -40,7 +43,7 @@ import { versionRouter } from './routers/version'
 export const appRouter = {
   auth: authRouter,
   skills: skillsRouter,
-  projects: projectsRouter,
+  projects: { ...projectsRouter, ...projectPortingRouter },
   volunteers: volunteersRouter,
   dashboard: dashboardRouter,
   notifications: notificationsRouter,
@@ -52,6 +55,8 @@ export const appRouter = {
   teams: teamsRouter,
   teamSuggestions: teamSuggestionsRouter,
   quickTasks: quickTasksRouter,
+  dependencies: dependenciesRouter,
+  schedule: scheduleRouter,
   workItemComments: workItemCommentsRouter,
   my: myRouter,
   privacy: privacyRouter,
