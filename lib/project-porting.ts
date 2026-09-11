@@ -68,6 +68,15 @@ const PROJECT_STATUSES = [
 
 const TASK_STATUSES = ['open', 'in_progress', 'completed'] as const
 
+/**
+ * Bounds on how much one file may ask for. The byte cap on the upload alone would allow tens
+ * of thousands of tasks, each of which becomes a row written inside a single transaction — so
+ * the count is capped here, where it is refused before any of that work begins. The largest
+ * real project has 38 tasks.
+ */
+const MAX_TASKS_PER_IMPORT = 1000
+const MAX_DEPENDENCIES_PER_TASK = 100
+
 const ymd = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Dates must be written as YYYY-MM-DD')
@@ -75,7 +84,7 @@ const ymd = z
 
 const DependsOnSchema = z.object({
   /** A `ref` of another task in the file, or the numeric `id` of an existing task. */
-  on: z.union([z.string().min(1), z.number().int().positive()]),
+  on: z.union([z.string().min(1).max(64), z.number().int().positive()]),
   lagDays: z.number().int().min(-365).max(365).optional(),
 })
 
@@ -86,9 +95,9 @@ const DependsOnSchema = z.object({
  */
 const ImportTaskSchema = z.object({
   id: z.number().int().positive().optional(),
-  ref: z.string().min(1).optional(),
-  title: z.string().min(1),
-  description: z.string().nullable().optional(),
+  ref: z.string().min(1).max(64).optional(),
+  title: z.string().min(1).max(300),
+  description: z.string().max(20_000).nullable().optional(),
   status: z.enum(TASK_STATUSES).optional(),
   assigneeEmail: z.string().email().nullable().optional(),
   deadline: ymd.optional(),
@@ -96,13 +105,13 @@ const ImportTaskSchema = z.object({
   durationDays: z.number().int().min(0).max(3650).nullable().optional(),
   featuredAsQuickTask: z.boolean().optional(),
   isAnchor: z.boolean().optional(),
-  dependsOn: z.array(DependsOnSchema).optional(),
+  dependsOn: z.array(DependsOnSchema).max(MAX_DEPENDENCIES_PER_TASK).optional(),
 })
 
 const ImportProjectSchema = z.object({
   id: z.number().int().positive().optional(),
-  title: z.string().min(1),
-  description: z.string().nullable().optional(),
+  title: z.string().min(1).max(300),
+  description: z.string().max(20_000).nullable().optional(),
   status: z.enum(PROJECT_STATUSES).optional(),
 })
 
@@ -117,7 +126,7 @@ export const ProjectImportFileSchema = z.object({
     })
     .optional(),
   project: ImportProjectSchema,
-  tasks: z.array(ImportTaskSchema),
+  tasks: z.array(ImportTaskSchema).max(MAX_TASKS_PER_IMPORT),
 })
 
 export type ProjectImportFile = z.infer<typeof ProjectImportFileSchema>
@@ -412,11 +421,14 @@ function analyse(state: CurrentState, file: ProjectImportFile): Analysis {
       to: file.project.description ?? null,
     })
   }
+  // A project's status is a lifecycle transition — some of it admin-only, some of it gated on
+  // review — so it is not something a file may perform. An unchanged status round-trips
+  // silently; a changed one is refused loudly, because quietly ignoring it would leave someone
+  // believing they had published.
   if (file.project.status !== undefined && file.project.status !== state.project.status) {
-    projectFieldChanges.push({
-      field: 'status',
-      from: state.project.status,
-      to: file.project.status,
+    errors.push({
+      scope: 'project',
+      message: `Status cannot be changed by import. Change it on the project page instead (this file asks for "${file.project.status}", the project is "${state.project.status}").`,
     })
   }
 
@@ -778,7 +790,8 @@ export type LocalRef = { kind: 'existing'; id: number } | { kind: 'created'; ref
 
 export type ApplyPlan = {
   errors: DiffError[]
-  project: Partial<{ title: string; description: string | null; status: string }>
+  /** Never carries `status` — see the refusal in `analyse`. */
+  project: Partial<{ title: string; description: string | null }>
   taskUpdates: Array<{ id: number; fields: TaskWriteFields }>
   taskCreates: Array<{ ref?: string; fields: TaskWriteFields }>
   taskDeletes: number[]
@@ -850,7 +863,6 @@ export function buildApplyPlan(
   for (const change of a.projectFieldChanges) {
     if (change.field === 'title') project.title = change.to as string
     if (change.field === 'description') project.description = (change.to as string | null) ?? null
-    if (change.field === 'status') project.status = change.to as string
   }
 
   const taskUpdates: ApplyPlan['taskUpdates'] = []

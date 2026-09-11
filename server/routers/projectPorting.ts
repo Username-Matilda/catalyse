@@ -182,12 +182,11 @@ export const projectPortingRouter = {
         const byEmail = new Map(vols.map((v) => [(v.email ?? '').toLowerCase(), v]))
         for (const email of plan.assigneeEmails) {
           const v = byEmail.get(email.toLowerCase())
-          if (!v) {
-            throw new ORPCError('BAD_REQUEST', { message: `No volunteer has the email ${email}` })
-          }
-          if (v.approvalStatus !== ApprovalStatus.approved) {
+          // One message for both "no such volunteer" and "not approved": telling them apart
+          // would let a file be used to probe which addresses are registered.
+          if (!v || v.approvalStatus !== ApprovalStatus.approved) {
             throw new ORPCError('BAD_REQUEST', {
-              message: `Cannot assign a task to ${email} — that volunteer is not approved`,
+              message: `Tasks cannot be assigned to ${email} — no approved volunteer has that address`,
             })
           }
           emailToId.set(email.toLowerCase(), v.id)

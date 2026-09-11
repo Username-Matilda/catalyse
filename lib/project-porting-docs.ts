@@ -90,15 +90,21 @@ mean to delete something, keep its entry.
 
 ## Fields
 
-Project: \`id\`, \`title\` (required), \`description\`, \`status\` — one of \`draft\`,
+Project: \`id\`, \`title\` (required), \`description\`.
+
+\`status\` is **read-only here**. Leave it exactly as the export wrote it — one of \`draft\`,
 \`pending_review\`, \`needs_discussion\`, \`ready\`, \`in_progress\`, \`on_hold\`,
-\`completed\`, \`archived\`.
+\`completed\`, \`archived\`. Changing it is refused, because moving a project through its
+lifecycle is a decision with review rules attached, not a file edit. It is changed on the
+project page instead.
 
 Task: \`id\`, \`ref\`, \`title\` (required), \`description\`, \`status\` (\`open\`,
 \`in_progress\`, \`completed\`), \`assigneeEmail\`, \`deadline\`, \`startDate\`,
 \`durationDays\`, \`featuredAsQuickTask\`, \`isAnchor\`, \`dependsOn\`.
 
 - Dates are \`YYYY-MM-DD\` strings. Any other format is rejected.
+- A file may carry at most 1000 tasks, each with at most 100 \`dependsOn\` entries. Titles cap
+  at 300 characters and descriptions at 20,000.
 - \`durationDays\` is elapsed calendar days, 0 to 3650. **0 means a milestone** — a moment
   rather than a stretch of work. It is not the same as leaving it out.
 - \`startDate\` *pins* a task to that date. A task with no \`startDate\` starts when its

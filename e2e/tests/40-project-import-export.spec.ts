@@ -472,6 +472,58 @@ test.describe('Project import / export', () => {
     expect(tasks.map((t) => t.title)).toContain('Added from the modal')
   })
 
+  test('an import cannot change the project status, however it is edited', async ({ baseUrl }) => {
+    const api = createApiClient(baseUrl, readAdminToken(baseUrl))
+    const projectId = await makeProject(api, { startDate: day('2027-05-01') })
+
+    const file = await exportProject(api, projectId)
+    const before = (file.project as { status: string }).status
+    ;(file.project as { status: string }).status = 'archived'
+
+    const preview = await api.projects.previewImport({
+      body: { projectId, file: JSON.stringify(file) },
+    })
+    expect(preview.status).toBe(200)
+    const diff = preview.body as { errors: { scope: string; message: string }[] }
+    expect(diff.errors.some((e) => e.message.includes('Status cannot be changed by import'))).toBe(
+      true,
+    )
+
+    // Errors block the apply, and the status on the project is untouched.
+    const applied = await api.projects.applyImport({
+      body: { projectId, file: JSON.stringify(file), expectedHash: file._meta.baseHash },
+    })
+    expect(applied.status).toBe(400)
+
+    const after = await exportProject(api, projectId)
+    expect((after.project as { status: string }).status).toBe(before)
+  })
+
+  test('an import refuses a file with an unreasonable number of tasks', async ({ baseUrl }) => {
+    const api = createApiClient(baseUrl, readAdminToken(baseUrl))
+    const projectId = await makeProject(api, { startDate: day('2027-05-10') })
+
+    const file = await exportProject(api, projectId)
+    file.tasks = Array.from({ length: 1001 }, (_, i) => ({
+      title: `Bulk ${i}`,
+      description: null,
+      status: 'open',
+      assigneeEmail: null,
+      deadline: null,
+      startDate: null,
+      durationDays: 1,
+      featuredAsQuickTask: false,
+      dependsOn: [],
+    }))
+
+    const preview = await api.projects.previewImport({
+      body: { projectId, file: JSON.stringify(file) },
+    })
+    // Refused by the schema, so no diff is computed and nothing is written.
+    const body = preview.body as { errors?: { message: string }[] }
+    expect(body.errors?.length ?? 0).toBeGreaterThan(0)
+  })
+
   test('an export points back at its own documentation', async ({ baseUrl }) => {
     const api = createApiClient(baseUrl, readAdminToken(baseUrl))
     const projectId = await makeProject(api, { startDate: day('2027-03-01') })
