@@ -84,7 +84,9 @@ export default function TeamsPage() {
                     )}
                   </p>
                   {team.description && (
-                    <p className="text-sm text-text-light mt-1 mb-0">{team.description}</p>
+                    <p className="text-sm text-text-light mt-1 mb-0 whitespace-pre-wrap">
+                      {team.description}
+                    </p>
                   )}
                   <p className="text-xs text-text-light m-0 mt-1">
                     {team.memberCount} member{team.memberCount === 1 ? '' : 's'}
