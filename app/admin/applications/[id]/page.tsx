@@ -122,6 +122,41 @@ export default function ApplicationReviewPage() {
     app.approvalStatus === ApprovalStatus.needs_info
   const canReopen = app.approvalStatus === ApprovalStatus.rejected
 
+  const reviewedByOther = app.reviewer && app.reviewer.id !== user.id
+  const statusBanner = (() => {
+    switch (app.approvalStatus) {
+      case ApprovalStatus.approved:
+        return {
+          tone: 'green',
+          text: `Already approved${app.reviewer ? ` by ${app.reviewer.name}` : ''}.`,
+        }
+      case ApprovalStatus.rejected:
+        return {
+          tone: 'red',
+          text: `Already rejected${app.reviewer ? ` by ${app.reviewer.name}` : ''}.`,
+        }
+      case ApprovalStatus.needs_info:
+        return {
+          tone: 'amber',
+          text: `Waiting on the applicant — more info was requested${app.reviewer ? ` by ${app.reviewer.name}` : ''}.`,
+        }
+      case ApprovalStatus.under_review:
+        return reviewedByOther
+          ? { tone: 'amber', text: `Already under review by ${app.reviewer!.name}.` }
+          : null
+      default:
+        return null
+    }
+  })()
+
+  const bannerClasses: Record<string, string> = {
+    green:
+      'bg-green-100 text-green-800 border-green-300 dark:bg-green-900 dark:text-green-200 dark:border-green-600',
+    red: 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900 dark:text-red-200 dark:border-red-600',
+    amber:
+      'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900 dark:text-amber-200 dark:border-amber-600',
+  }
+
   return (
     <main className="w-full max-w-2xl mx-auto px-6 py-5 pb-15">
       <div className="mb-6">
@@ -132,6 +167,12 @@ export default function ApplicationReviewPage() {
 
       <h1 className="mb-1">{app.name}</h1>
       <p className="text-sm text-text-light mb-6">{meta.join(' · ')}</p>
+
+      {statusBanner && (
+        <div className={`p-4 rounded-lg mb-6 border ${bannerClasses[statusBanner.tone]}`}>
+          <strong>{statusBanner.text}</strong>
+        </div>
+      )}
 
       {app.approvalStatus === ApprovalStatus.rejected && anonymiseDate && (
         <p

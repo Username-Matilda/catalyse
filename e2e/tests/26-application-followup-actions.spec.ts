@@ -35,13 +35,11 @@ test.describe('Application follow-up actions', () => {
 
     await requestMoreInfo(baseUrl, volunteerId, 'Could you tell us more about your availability?')
 
-    // Card now shows under the Needs Info filter
+    // Card now shows in the Needs Info section
     await adminPage.goto(`${baseUrl}/admin/applications`)
     await expect(adminPage.getByRole('heading', { name: 'Applications' })).toBeVisible({
       timeout: 10_000,
     })
-    await adminPage.getByRole('button', { name: 'Filter applications' }).click()
-    await adminPage.getByRole('option', { name: 'Needs Info' }).click()
     await expect(adminPage.getByRole('article').filter({ hasText: person.name })).toBeVisible({
       timeout: 10_000,
     })
@@ -81,8 +79,6 @@ test.describe('Application follow-up actions', () => {
 
     // Status is back to under review, with the applicant's update applied
     await adminPage.goto(`${baseUrl}/admin/applications`)
-    await adminPage.getByRole('button', { name: 'Filter applications' }).click()
-    await adminPage.getByRole('option', { name: 'Pending & Under Review by Me' }).click()
     const card = adminPage.getByRole('article').filter({ hasText: person.name })
     await expect(card).toBeVisible({ timeout: 10_000 })
     await expect(card.getByText('Updated: I can commit 10 hours per week.')).toBeVisible()
@@ -126,13 +122,17 @@ test.describe('Application follow-up actions', () => {
       'We would love to hear more about your recent experience.',
     )
 
-    // No longer on the Rejected tab
+    // No longer in the Rejected section
     await adminPage.goto(`${baseUrl}/admin/applications`)
-    await adminPage.getByRole('button', { name: 'Filter applications' }).click()
-    await adminPage.getByRole('option', { name: 'Rejected', exact: true }).click()
-    await expect(adminPage.getByRole('article').filter({ hasText: person.name })).not.toBeVisible({
-      timeout: 5_000,
+    await expect(adminPage.getByRole('heading', { name: 'Applications' })).toBeVisible({
+      timeout: 10_000,
     })
+    await expect(
+      adminPage
+        .getByTestId('applications-section-rejected')
+        .getByRole('article')
+        .filter({ hasText: person.name }),
+    ).not.toBeVisible({ timeout: 5_000 })
 
     const context = await browser.newContext()
     const page = await context.newPage()
@@ -151,8 +151,6 @@ test.describe('Application follow-up actions', () => {
     }
 
     await adminPage.goto(`${baseUrl}/admin/applications`)
-    await adminPage.getByRole('button', { name: 'Filter applications' }).click()
-    await adminPage.getByRole('option', { name: 'Pending & Under Review by Me' }).click()
     await expect(adminPage.getByRole('article').filter({ hasText: person.name })).toBeVisible({
       timeout: 10_000,
     })
