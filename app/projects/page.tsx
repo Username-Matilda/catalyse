@@ -255,9 +255,12 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
       <main className="container py-5 pb-15">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 role="heading">Projects</h1>
-          <Link href="/projects/gantt" className="text-primary-text text-sm underline">
-            Roadmap →
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link href="/projects/gantt" className="text-primary-text text-sm underline">
+              Roadmap →
+            </Link>
+            <Button href="/suggest">Create Project</Button>
+          </div>
         </div>
 
         {user.isAdmin && pendingCount > 0 && (
