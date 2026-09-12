@@ -295,10 +295,11 @@ test.describe('Authentication: Signup & Login', () => {
     await expect(mineCard.getByText(/Reviewer:/)).toBeVisible()
 
     // Card also appears in "others" tab when viewed by a different reviewer (not tested here),
-    // and in the dedicated Under Review by Others filter — switch to confirm it's gone from others
-    await adminPage.getByRole('button', { name: 'Filter applications' }).click()
-    await adminPage.getByRole('option', { name: 'Under Review by Others' }).click()
-    const othersCard = adminPage.getByRole('article').filter({ hasText: person.name })
+    // confirm it's absent from the Under Review by Others section
+    const othersCard = adminPage
+      .getByTestId('applications-section-others')
+      .getByRole('article')
+      .filter({ hasText: person.name })
     await expect(othersCard).not.toBeVisible({ timeout: 5_000 })
   })
 
@@ -344,10 +345,11 @@ test.describe('Authentication: Signup & Login', () => {
     await expect(getAlert(adminPage)).toContainText('Application rejected', { timeout: 10_000 })
     await expect(adminPage).toHaveURL(/\/admin\/applications$/, { timeout: 10_000 })
 
-    // Notes visible on Rejected filter
-    await adminPage.getByRole('button', { name: 'Filter applications' }).click()
-    await adminPage.getByRole('option', { name: 'Rejected', exact: true }).click()
-    const rejectedCard = adminPage.getByRole('article').filter({ hasText: person.name })
+    // Notes visible on Rejected section
+    const rejectedCard = adminPage
+      .getByTestId('applications-section-rejected')
+      .getByRole('article')
+      .filter({ hasText: person.name })
     await expect(rejectedCard).toBeVisible({ timeout: 5_000 })
     await expect(rejectedCard.getByText('Spam account')).toBeVisible()
     await expect(
@@ -380,9 +382,10 @@ test.describe('Authentication: Signup & Login', () => {
     await expect(adminPage.getByRole('heading', { name: 'Applications' })).toBeVisible({
       timeout: 10_000,
     })
-    await adminPage.getByRole('button', { name: 'Filter applications' }).click()
-    await adminPage.getByRole('option', { name: 'Rejected', exact: true }).click()
-    const card = adminPage.getByRole('article').filter({ hasText: person.name })
+    const card = adminPage
+      .getByTestId('applications-section-rejected')
+      .getByRole('article')
+      .filter({ hasText: person.name })
     await expect(card).toBeVisible({ timeout: 20_000 })
     await expect(card.getByText(/will be anonymised on/i)).toBeVisible()
     await expect(card.getByText('Test rejection')).toBeVisible()

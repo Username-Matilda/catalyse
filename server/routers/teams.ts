@@ -195,14 +195,14 @@ export const teamsRouter = {
         const title = `${context.volunteer.name} applied to join ${team.name}`
         await Promise.all(
           recipientIds.map((id) =>
-            notifyUser(id, 'team_join_request', title, null, '/teams', {
+            notifyUser(id, 'team_join_request', title, null, `/admin/teams/${input.id}`, {
               subject: title,
               message: input.message
                 ? html`${context.volunteer.name} applied to join <strong>${team.name}</strong>:
                     "${input.message.trim()}"`
                 : html`${context.volunteer.name} applied to join <strong>${team.name}</strong>.`,
               ctaLabel: 'Review Application',
-              ctaUrl: '/teams',
+              ctaUrl: `/admin/teams/${input.id}`,
             }),
           ),
         )
@@ -283,7 +283,7 @@ export const teamsRouter = {
           ? `You're in! Approved to join ${team?.name ?? 'the team'}`
           : `Your request to join ${team?.name ?? 'the team'} was declined`,
         null,
-        '/teams',
+        `/teams/${request.teamId}`,
       )
 
       return { message: `Request ${input.action === 'accept' ? 'accepted' : 'declined'}` }

@@ -5,7 +5,6 @@ import { useRequireSuperAdmin } from '@/lib/hooks/auth'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import Button from '@/components/Button'
-import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import { formatDate } from '@/lib/format-date'
@@ -14,43 +13,67 @@ import { InferRouterOutputs } from '@orpc/server'
 import { AppRouter } from '@/server/router'
 import { ApprovalStatus } from '@/generated/prisma/enums'
 
+type Filter = 'mine' | 'others' | 'approved' | 'needs_info' | 'rejected'
+
+const SECTIONS: { key: Filter; label: string; color: string; collapsedByDefault?: boolean }[] = [
+  { key: 'mine', label: 'Pending & Under Review by Me', color: 'text-primary' },
+  { key: 'others', label: 'Under Review by Others', color: 'text-text-light' },
+  {
+    key: 'needs_info',
+    label: 'Needs Info',
+    color: 'text-amber-600 dark:text-amber-400',
+  },
+  { key: 'rejected', label: 'Rejected', color: 'text-red-600 dark:text-red-400' },
+  {
+    key: 'approved',
+    label: 'Approved',
+    color: 'text-green-600 dark:text-green-400',
+    collapsedByDefault: true,
+  },
+]
+
 export default function ApplicationsPage() {
   const router = useRouter()
   const { user, loading } = useRequireSuperAdmin()
   const showToast = useToast()
-  const {
-    value: filter,
-    onChange: setFilter,
-    options: filterOptions,
-  } = useFilterOptions(
-    [
-      { value: 'mine', label: 'Pending & Under Review by Me' },
-      { value: 'others', label: 'Under Review by Others' },
-      { value: 'approved', label: 'Approved' },
-      { value: 'needs_info', label: 'Needs Info' },
-      { value: 'rejected', label: 'Rejected' },
-      { value: 'rejected_anonymised', label: 'Rejected – Anonymised' },
-    ],
-    'mine',
-  )
   const [startingReview, setStartingReview] = useState<number | null>(null)
+  const [approvedOpen, setApprovedOpen] = useState(false)
+  const [anonymisedOpen, setAnonymisedOpen] = useState(false)
 
-  const isAnonymised = filter === 'rejected_anonymised'
-  const applicationFilter = filter === 'rejected_anonymised' ? 'mine' : filter
+  const enabled = !!user?.isAdmin
 
-  const { data: applications = [], isLoading: loadingApplications } = useQuery({
-    ...orpc.admin.applications.list.queryOptions({
-      input: { filter: applicationFilter },
-    }),
-    enabled: !!user?.isAdmin && !isAnonymised,
+  const mine = useQuery({
+    ...orpc.admin.applications.list.queryOptions({ input: { filter: 'mine' } }),
+    enabled,
   })
-
-  const { data: anonymisedApplications = [], isLoading: loadingAnonymised } = useQuery({
+  const others = useQuery({
+    ...orpc.admin.applications.list.queryOptions({ input: { filter: 'others' } }),
+    enabled,
+  })
+  const needsInfo = useQuery({
+    ...orpc.admin.applications.list.queryOptions({ input: { filter: 'needs_info' } }),
+    enabled,
+  })
+  const rejected = useQuery({
+    ...orpc.admin.applications.list.queryOptions({ input: { filter: 'rejected' } }),
+    enabled,
+  })
+  const approved = useQuery({
+    ...orpc.admin.applications.list.queryOptions({ input: { filter: 'approved' } }),
+    enabled,
+  })
+  const anonymised = useQuery({
     ...orpc.admin.rejectedApplications.list.queryOptions(),
-    enabled: !!user?.isAdmin && isAnonymised,
+    enabled,
   })
 
-  const loadingData = isAnonymised ? loadingAnonymised : loadingApplications
+  const queriesByKey: Record<Filter, typeof mine> = {
+    mine,
+    others,
+    needs_info: needsInfo,
+    rejected,
+    approved,
+  }
 
   const actionMutation = useMutation({
     ...orpc.admin.applications.action.mutationOptions(),
@@ -71,47 +94,123 @@ export default function ApplicationsPage() {
 
   if (loading || !user) return null
 
-  const emptyLabel = filterOptions.find((o) => o.value === filter)?.label.toLowerCase() ?? ''
-  const isEmpty = isAnonymised ? anonymisedApplications.length === 0 : applications.length === 0
+  const anyLoading = SECTIONS.some((s) => queriesByKey[s.key].isLoading) || anonymised.isLoading
+  const totalCount =
+    SECTIONS.reduce((sum, s) => sum + (queriesByKey[s.key].data?.length ?? 0), 0) +
+    (anonymised.data?.length ?? 0)
 
   return (
     <main className="container py-5 pb-15">
       <h1>Applications</h1>
       <p className="text-text-light mb-6">Review new volunteer applications.</p>
 
-      <div className="mb-6">
-        <FilterDropdown
-          id="applications-filter"
-          label="Show"
-          ariaLabel="Filter applications"
-          value={filter}
-          options={filterOptions}
-          onChange={setFilter}
-        />
-      </div>
-
-      {loadingData ? (
+      {anyLoading && totalCount === 0 ? (
         <p className="text-text-light mt-6">Loading…</p>
-      ) : isEmpty ? (
-        <p className="text-text-light mt-6">No applications in &ldquo;{emptyLabel}&rdquo;.</p>
-      ) : isAnonymised ? (
-        <div className="flex flex-col gap-4 mt-6">
-          {anonymisedApplications.map((a) => (
-            <AnonymisedCard key={a.id} app={a} />
-          ))}
-        </div>
+      ) : totalCount === 0 ? (
+        <p className="text-text-light mt-6">No applications to review.</p>
       ) : (
-        <div className="flex flex-col gap-4 mt-6">
-          {applications.map((app) => (
-            <ApplicationCard
-              key={app.id}
-              app={app}
-              startingReview={startingReview}
-              onStartReview={handleStartReview}
-              onNavigate={(id) => router.push(`/admin/applications/${id}`)}
-            />
-          ))}
-        </div>
+        <>
+          {SECTIONS.map((section) => {
+            const query = queriesByKey[section.key]
+            const applications = query.data ?? []
+            if (applications.length === 0) return null
+
+            const isCollapsible = Boolean(section.collapsedByDefault)
+            const isOpen = !isCollapsible || approvedOpen
+
+            return (
+              <div
+                key={section.key}
+                className="mb-8"
+                data-testid={`applications-section-${section.key}`}
+              >
+                {isCollapsible ? (
+                  <h2
+                    className="text-lg mb-3 flex items-center gap-2 cursor-pointer select-none"
+                    onClick={() => setApprovedOpen((o) => !o)}
+                    role="button"
+                    aria-expanded={approvedOpen}
+                    tabIndex={0}
+                    onKeyDown={(e) => e.key === 'Enter' && setApprovedOpen((o) => !o)}
+                  >
+                    {section.label}: {applications.length}
+                    <svg
+                      className={`text-text-light shrink-0 transition-transform ${approvedOpen ? 'rotate-180' : 'rotate-0'}`}
+                      width="32"
+                      height="32"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </h2>
+                ) : (
+                  <h2 className={`text-lg mb-3 ${section.color}`}>
+                    {section.label}: {applications.length}
+                  </h2>
+                )}
+                {isOpen && (
+                  <div
+                    key={String(approvedOpen)}
+                    className={`flex flex-col gap-4 ${isCollapsible ? 'animate-fade-slide-in' : ''}`}
+                  >
+                    {applications.map((app) => (
+                      <ApplicationCard
+                        key={app.id}
+                        app={app}
+                        startingReview={startingReview}
+                        onStartReview={handleStartReview}
+                        onNavigate={(id) => router.push(`/admin/applications/${id}`)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+
+          {(anonymised.data?.length ?? 0) > 0 && (
+            <div className="mb-8">
+              <h2
+                className="text-lg mb-3 flex items-center gap-2 cursor-pointer select-none text-text-light"
+                onClick={() => setAnonymisedOpen((o) => !o)}
+                role="button"
+                aria-expanded={anonymisedOpen}
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && setAnonymisedOpen((o) => !o)}
+              >
+                Rejected – Anonymised: {anonymised.data?.length ?? 0}
+                <svg
+                  className={`text-text-light shrink-0 transition-transform ${anonymisedOpen ? 'rotate-180' : 'rotate-0'}`}
+                  width="32"
+                  height="32"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </h2>
+              {anonymisedOpen && (
+                <div
+                  key={String(anonymisedOpen)}
+                  className="flex flex-col gap-4 animate-fade-slide-in"
+                >
+                  {(anonymised.data ?? []).map((a) => (
+                    <AnonymisedCard key={a.id} app={a} />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </>
       )}
     </main>
   )

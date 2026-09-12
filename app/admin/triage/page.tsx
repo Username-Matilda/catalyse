@@ -25,7 +25,7 @@ export default function TriagePage() {
   const showToast = useToast()
   const queryClient = useQueryClient()
   const [tab, setTab] = useState<
-    'pending_review' | 'needs_discussion' | 'stale_in_progress' | 'interests'
+    'pending_review' | 'needs_discussion' | 'stale_in_progress' | 'drafts' | 'interests'
   >('pending_review')
 
   const {
@@ -53,6 +53,11 @@ export default function TriagePage() {
     enabled: !!user?.isAdmin,
   })
 
+  const { data: draftProjects = [], isLoading: loadingDrafts } = useQuery({
+    ...orpc.admin.triage.drafts.queryOptions(),
+    enabled: !!user?.isAdmin,
+  })
+
   const { data: interests = [], isLoading: loadingInterests } = useQuery({
     ...orpc.admin.interests.list.queryOptions({
       input: interestStatusFilter ? { status: interestStatusFilter } : {},
@@ -70,6 +75,18 @@ export default function TriagePage() {
     },
   })
 
+  const submitDraftMutation = useMutation({
+    ...orpc.admin.triage.submitDraft.mutationOptions(),
+    onError: (err: unknown) => {
+      showToast(err instanceof Error ? err.message : 'Failed to submit draft', 'error')
+    },
+    onSuccess: () => {
+      showToast('Draft submitted for review', 'success')
+      void queryClient.invalidateQueries({ queryKey: orpc.admin.triage.drafts.key() })
+      void queryClient.invalidateQueries({ queryKey: orpc.admin.triage.list.key() })
+    },
+  })
+
   if (loading || !user) return null
 
   const pending = (projects as unknown as CardProject[]).filter(
@@ -80,8 +97,15 @@ export default function TriagePage() {
   )
   const pendingInterests = interests.filter((i) => i.status === InterestStatus.pending)
   const stale = staleProjects as unknown as CardProject[]
+  const drafts = draftProjects as unknown as CardProject[]
   const visible =
-    tab === 'pending_review' ? pending : tab === 'needs_discussion' ? discussion : stale
+    tab === 'pending_review'
+      ? pending
+      : tab === 'needs_discussion'
+        ? discussion
+        : tab === 'drafts'
+          ? drafts
+          : stale
 
   return (
     <>
@@ -124,6 +148,19 @@ export default function TriagePage() {
                   {stale.length > 0 && (
                     <span className="bg-primary text-secondary-dark text-xs px-2 py-0.5 rounded-full ml-2">
                       {stale.length}
+                    </span>
+                  )}
+                </>
+              ),
+            },
+            {
+              key: 'drafts',
+              label: (
+                <>
+                  {`Drafts`}
+                  {drafts.length > 0 && (
+                    <span className="bg-primary text-secondary-dark text-xs px-2 py-0.5 rounded-full ml-2">
+                      {drafts.length}
                     </span>
                   )}
                 </>
@@ -274,7 +311,13 @@ export default function TriagePage() {
           </>
         ) : (
           <>
-            {(tab === 'stale_in_progress' ? loadingStale : loadingProjects) ? (
+            {(
+              tab === 'stale_in_progress'
+                ? loadingStale
+                : tab === 'drafts'
+                  ? loadingDrafts
+                  : loadingProjects
+            ) ? (
               <div className="text-center py-10 text-text-light">Loading…</div>
             ) : visible.length === 0 ? (
               <p>
@@ -282,7 +325,9 @@ export default function TriagePage() {
                   ? 'No projects awaiting review.'
                   : tab === 'needs_discussion'
                     ? 'No projects awaiting discussion.'
-                    : 'No in-progress projects with all tasks completed.'}
+                    : tab === 'drafts'
+                      ? 'No volunteer drafts in progress.'
+                      : 'No in-progress projects with all tasks completed.'}
               </p>
             ) : (
               <div className={CARD_GRID_CLASSES}>
@@ -292,9 +337,24 @@ export default function TriagePage() {
                     project={p}
                     showProposer
                     action={
-                      <Button size="sm" href={`/projects/${p.id}`}>
-                        Review
-                      </Button>
+                      tab === 'drafts' ? (
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="ghost" href={`/projects/${p.id}`}>
+                            View
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => submitDraftMutation.mutate({ id: p.id })}
+                            disabled={submitDraftMutation.isPending}
+                          >
+                            Submit for Review
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button size="sm" href={`/projects/${p.id}`}>
+                          Review
+                        </Button>
+                      )
                     }
                   />
                 ))}
