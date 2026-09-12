@@ -47,6 +47,7 @@ async function loadWithParent(id: number) {
 function commentLink(item: LoadedWorkItem): string {
   if (item.type === WorkItemType.PROJECT) return `/projects/${item.id}`
   if (item.type === WorkItemType.TASK && item.parentId) return `/projects/${item.parentId}`
+  if (item.type === WorkItemType.QUICK_TASK) return `/quick-tasks/${item.id}`
   return '/dashboard'
 }
 
