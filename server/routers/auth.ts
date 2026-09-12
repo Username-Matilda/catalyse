@@ -335,12 +335,12 @@ export const authRouter = {
         'new_volunteer_signup',
         `New volunteer application: ${volunteer.name}`,
         `${volunteer.name} has applied to join Catalyse`,
-        '/admin/applications',
+        `/admin/applications/${volunteer.id}`,
         {
           message: html`<strong>${volunteer.name}</strong> (${email}) has applied to join Catalyse.
             Please review their application.`,
           ctaLabel: 'Review Application',
-          ctaUrl: '/admin/applications',
+          ctaUrl: `/admin/applications/${volunteer.id}`,
         },
         volunteer.id,
       ).catch((e) => console.error('[SIGNUP NOTIFY]', e))

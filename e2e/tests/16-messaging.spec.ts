@@ -143,7 +143,9 @@ test.describe('Messaging', () => {
     await expect(volunteer.page.getByText(/Message from /)).toBeVisible({ timeout: 10_000 })
     await expect(volunteer.page.getByText(subject)).toBeVisible({ timeout: 10_000 })
     const viewLink = volunteer.page.getByRole('link', { name: 'View' }).first()
-    await expect(viewLink).toHaveAttribute('href', '/dashboard#tab-notifications')
+    await expect(viewLink).toHaveAttribute('href', `/projects/${projectId}`)
+    await viewLink.click()
+    await expect(volunteer.page).toHaveURL(`${baseUrl}/projects/${projectId}`)
   })
 
   test.skip('Both parties see the message in their history', async () => {

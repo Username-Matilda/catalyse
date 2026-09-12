@@ -159,7 +159,6 @@ export default function Header() {
     { href: '/projects', label: 'Projects' },
     { href: '/teams', label: 'Teams' },
     { href: '/volunteers', label: 'Volunteers' },
-    { href: '/suggest', label: 'Suggest' },
     { href: '/quick-tasks', label: 'Quick Tasks' },
   ]
 
