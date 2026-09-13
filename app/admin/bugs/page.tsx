@@ -16,7 +16,56 @@ import {
   BUG_CATEGORY_OPTIONS,
   BUG_STATUS_VARIANT,
   bugReportPagePath,
+  bugStatusLabel,
 } from '@/lib/bug-report-labels'
+import type { InferRouterOutputs } from '@orpc/server'
+import type { AppRouter } from '@/server/router'
+
+type BugReports = InferRouterOutputs<AppRouter>['admin']['bugReports']['list']
+
+function exportReportsAsMarkdown(reports: BugReports): void {
+  const lines: string[] = [
+    `# Bug Reports`,
+    '',
+    `Exported: ${new Date().toISOString()}`,
+    `Total: ${reports.length}`,
+    '',
+    '---',
+  ]
+
+  for (const r of reports) {
+    lines.push('')
+    lines.push(`## #${r.id} — ${r.title}`)
+    lines.push('')
+    lines.push(`- **Status:** ${bugStatusLabel(r.status)}`)
+    if (r.category) lines.push(`- **Category:** ${r.category}`)
+    if (r.severity) lines.push(`- **Severity:** ${r.severity}`)
+    if (r.reporterName) lines.push(`- **Reporter:** ${r.reporterName}`)
+    if (r.assigneeName) lines.push(`- **Assignee:** ${r.assigneeName}`)
+    if (r.pageUrl) lines.push(`- **Page URL:** ${bugReportPagePath(r.pageUrl) ?? r.pageUrl}`)
+    if (r.createdAt) lines.push(`- **Created:** ${formatDate(r.createdAt)}`)
+    lines.push('')
+    lines.push('**Description:**')
+    lines.push('')
+    lines.push(r.description)
+    if (r.resolutionNotes) {
+      lines.push('')
+      lines.push('**Resolution notes:**')
+      lines.push('')
+      lines.push(r.resolutionNotes)
+    }
+    lines.push('')
+    lines.push('---')
+  }
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/markdown' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `bug-reports-${new Date().toISOString().slice(0, 10)}.md`
+  a.click()
+  URL.revokeObjectURL(url)
+}
 
 const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...BUG_STATUS_OPTIONS] as const
 const CATEGORY_OPTIONS = [{ value: 'all', label: 'All' }, ...BUG_CATEGORY_OPTIONS] as const
@@ -82,7 +131,7 @@ export default function AdminBugsPage() {
     <main className="container py-5 pb-15">
       <h1>Bug Reports &amp; Feedback</h1>
 
-      <div className="mb-6 flex gap-4 flex-wrap">
+      <div className="mb-6 flex gap-4 flex-wrap items-end">
         <FilterDropdown
           id="status-filter"
           label="Status"
@@ -99,6 +148,14 @@ export default function AdminBugsPage() {
           options={CATEGORY_OPTIONS}
           onChange={setCategoryFilter}
         />
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={reports.length === 0}
+          onClick={() => exportReportsAsMarkdown(reports)}
+        >
+          Export as Markdown
+        </Button>
       </div>
 
       {loadingData ? (
