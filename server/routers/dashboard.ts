@@ -3,6 +3,7 @@ import { withProjectExtras, projectInclude, EnrichedProject } from '@/lib/work-i
 import { authedProcedure } from '../procedures'
 import { ADVERTISABLE_STATUSES } from '@/lib/project-status'
 import { WorkItemType } from '@/generated/prisma/enums'
+import { ADMIN_NOTIFICATION_TYPES } from '@/lib/admin-notifications'
 
 export const dashboardRouter = {
   get: authedProcedure.handler(async ({ context }) => {
@@ -72,7 +73,11 @@ export const dashboardRouter = {
           : Promise.resolve([]),
 
         prisma.notification.count({
-          where: { volunteerId: volunteer.id, readAt: null },
+          where: {
+            volunteerId: volunteer.id,
+            readAt: null,
+            ...(volunteer.isAdmin ? { type: { notIn: ADMIN_NOTIFICATION_TYPES } } : {}),
+          },
         }),
       ])
 
