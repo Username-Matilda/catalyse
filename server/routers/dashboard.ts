@@ -11,9 +11,13 @@ export const dashboardRouter = {
 
     const volunteerWithSkills = await prisma.volunteer.findUnique({
       where: { id: volunteer.id },
-      select: { skills: { select: { skillId: true } } },
+      select: {
+        skills: { select: { skillId: true } },
+        teamMemberships: { select: { teamId: true } },
+      },
     })
     const volunteerSkillIds = new Set((volunteerWithSkills?.skills ?? []).map((s) => s.skillId))
+    const volunteerTeamIds = (volunteerWithSkills?.teamMemberships ?? []).map((m) => m.teamId)
 
     const alreadyInterestedProjects = await prisma.workItemInterest.findMany({
       where: { volunteerId: volunteer.id },
@@ -63,6 +67,11 @@ export const dashboardRouter = {
                   // ownerless projects — the ones most in need of someone — were never
                   // suggested to anyone. Same workaround as proposedProjects above.
                   { OR: [{ assigneeId: null }, { assigneeId: { not: volunteer.id } }] },
+                  // Team-scoped projects must only be suggested to members of that team —
+                  // matches the access check in getById/canReachProject.
+                  ...(volunteer.isAdmin
+                    ? []
+                    : [{ OR: [{ teamId: null }, { teamId: { in: volunteerTeamIds } }] }]),
                 ],
                 id: { notIn: interestedProjectIds.length > 0 ? interestedProjectIds : [-1] },
               },
