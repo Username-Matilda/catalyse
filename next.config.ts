@@ -1,21 +1,23 @@
 import type { NextConfig } from 'next'
 
 // Google Sign-In loads its client script and renders its button in an iframe from
-// accounts.google.com; everything else is same-origin. 'unsafe-inline' stays in
-// script-src because Next.js injects inline bootstrap/flight scripts without a nonce —
-// the CSP still stops any third-party script host.
+// accounts.google.com; Google Analytics loads gtag.js from googletagmanager.com and
+// sends hits to google-analytics.com (regional subdomains included); everything else
+// is same-origin. 'unsafe-inline' stays in script-src because Next.js injects inline
+// bootstrap/flight scripts without a nonce — the CSP still stops any third-party script host.
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' https://accounts.google.com",
+  "script-src 'self' 'unsafe-inline' https://accounts.google.com https://www.googletagmanager.com",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://*.googleusercontent.com",
   "font-src 'self' data:",
-  "connect-src 'self' https://accounts.google.com",
+  "connect-src 'self' https://accounts.google.com https://*.google-analytics.com https://*.analytics.google.com",
   "frame-src 'self' https://accounts.google.com",
   "form-action 'self'",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "object-src 'none'",
+  'report-uri /api/csp-report',
 ].join('; ')
 
 const securityHeaders = [
