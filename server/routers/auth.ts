@@ -287,6 +287,7 @@ export const authRouter = {
         consentContactableByProjectOwners: input.consentContactableByProjectOwners ?? true,
         consentShareContactInfoWithProjectOwner:
           input.consentShareContactInfoWithProjectOwner ?? false,
+        cookieConsentAnalytics: input.cookieConsentAnalytics ?? false,
         consentGivenAt: new Date(),
         emailDigest: input.emailDigest ?? 'none',
       },
@@ -834,6 +835,7 @@ export const authRouter = {
           consentContactableByProjectOwners: input.consentContactableByProjectOwners ?? true,
           consentShareContactInfoWithProjectOwner:
             input.consentShareContactInfoWithProjectOwner ?? false,
+          cookieConsentAnalytics: input.cookieConsentAnalytics ?? false,
           consentGivenAt: new Date(),
           emailDigest: input.emailDigest ?? 'none',
         },

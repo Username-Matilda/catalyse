@@ -35,6 +35,7 @@ export const SignupSchema = VolunteerSchema.pick({
   consentMakeProfileVisibleInDirectory: true,
   consentContactableByProjectOwners: true,
   consentShareContactInfoWithProjectOwner: true,
+  cookieConsentAnalytics: true,
   emailDigest: true,
   applicationMessage: true,
 })
@@ -50,6 +51,7 @@ export const SignupSchema = VolunteerSchema.pick({
     consentMakeProfileVisibleInDirectory: true,
     consentContactableByProjectOwners: true,
     consentShareContactInfoWithProjectOwner: true,
+    cookieConsentAnalytics: true,
     emailDigest: true,
     applicationMessage: true,
   })

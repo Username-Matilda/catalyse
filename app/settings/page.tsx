@@ -95,6 +95,7 @@ function SettingsPageContent() {
   const [consentContactableByProjectOwners, setConsentContactableByProjectOwners] = useState(true)
   const [consentShareContactInfoWithProjectOwner, setConsentShareContactInfoWithProjectOwner] =
     useState(false)
+  const [consentAnalytics, setConsentAnalytics] = useState(false)
   const [syncedUpdatedAt, setSyncedUpdatedAt] = useState<string | null>(null)
 
   // Account tab state
@@ -175,6 +176,7 @@ function SettingsPageContent() {
     setConsentMakeProfileVisibleInDirectory(!!me.consentMakeProfileVisibleInDirectory)
     setConsentContactableByProjectOwners(!!me.consentContactableByProjectOwners)
     setConsentShareContactInfoWithProjectOwner(!!me.consentShareContactInfoWithProjectOwner)
+    setConsentAnalytics(!!me.cookieConsentAnalytics)
     setSkills(
       ((me.skills ?? []) as { id: number; proficiencyLevel?: string | null }[]).map((s) => ({
         skillId: s.id,
@@ -296,6 +298,7 @@ function SettingsPageContent() {
       consentMakeProfileVisibleInDirectory,
       consentContactableByProjectOwners,
       consentShareContactInfoWithProjectOwner,
+      cookieConsentAnalytics: consentAnalytics,
     }
   }
 
@@ -747,6 +750,31 @@ function SettingsPageContent() {
                   </span>
                 </Checkbox>
               </div>
+            </div>
+
+            <h3 className="mt-6 mb-2">Analytics</h3>
+            <p className="text-sm text-text-light mb-3">
+              Current status:{' '}
+              <strong>
+                {me?.cookieConsentAnalytics === null
+                  ? 'not yet decided'
+                  : me?.cookieConsentAnalytics
+                    ? 'accepted'
+                    : 'declined'}
+              </strong>
+            </p>
+            <div className="mb-5">
+              <Checkbox
+                id="consent_analytics"
+                checked={consentAnalytics}
+                onChange={(e) => setConsentAnalytics(e.target.checked)}
+              >
+                Allow Google Analytics to help us improve the platform
+              </Checkbox>
+              <p className="text-sm text-text-light mt-1 ml-7">
+                Google, our analytics provider, processes this data on our behalf. We never sell it
+                or share it for any other purpose.
+              </p>
             </div>
             {saveButton}
           </form>
