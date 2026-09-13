@@ -38,6 +38,11 @@ enum WorkItemType {
   QUICK_TASK
 }
 
+enum TemplateSourceType {
+  PROJECT
+  QUICK_TASK
+}
+
 enum RemoteEligibility {
   NONE
   COUNTRY
@@ -126,25 +131,25 @@ model AdminNote {
 }
 
 model BugReport {
-  id              Int        @id @default(autoincrement())
-  reporterId      Int?       @map("reporter_id")
-  reporterEmail   String?    @map("reporter_email")
+  id              Int                @id @default(autoincrement())
+  reporterId      Int?               @map("reporter_id")
+  reporterEmail   String?            @map("reporter_email")
   /// @zod.string.min(1, { message: "Title is required" }).max(300, { message: "Title must be 300 characters or fewer" })
   title           String
   /// @zod.string.min(10, { message: "Description must be at least 10 characters" })
   description     String
-  pageUrl         String?    @map("page_url")
-  category        String?    @default("bug") // TODO: enum — bug, feature, ui (others unknown)
-  severity        String?    @default("medium") // TODO: enum — low, medium, high, critical
-  status          String     @default("open") // TODO: enum — open, in_progress, resolved, closed
-  resolutionNotes String?    @map("resolution_notes")
-  resolvedById    Int?       @map("resolved_by_id")
-  resolvedAt      DateTime?  @map("resolved_at")
-  assigneeId      Int?       @map("assignee_id")
-  createdAt       DateTime?  @default(now()) @map("created_at")
-  resolvedBy      Volunteer? @relation("BugReportResolvedBy", fields: [resolvedById], references: [id], onUpdate: NoAction)
-  reporter        Volunteer? @relation("BugReportReporter", fields: [reporterId], references: [id], onUpdate: NoAction)
-  assignee        Volunteer? @relation("BugReportAssignee", fields: [assigneeId], references: [id], onUpdate: NoAction)
+  pageUrl         String?            @map("page_url")
+  category        String?            @default("bug") // TODO: enum — bug, feature, ui (others unknown)
+  severity        String?            @default("medium") // TODO: enum — low, medium, high, critical
+  status          String             @default("open") // TODO: enum — open, in_progress, resolved, closed
+  resolutionNotes String?            @map("resolution_notes")
+  resolvedById    Int?               @map("resolved_by_id")
+  resolvedAt      DateTime?          @map("resolved_at")
+  assigneeId      Int?               @map("assignee_id")
+  createdAt       DateTime?          @default(now()) @map("created_at")
+  resolvedBy      Volunteer?         @relation("BugReportResolvedBy", fields: [resolvedById], references: [id], onUpdate: NoAction)
+  reporter        Volunteer?         @relation("BugReportReporter", fields: [reporterId], references: [id], onUpdate: NoAction)
+  assignee        Volunteer?         @relation("BugReportAssignee", fields: [assigneeId], references: [id], onUpdate: NoAction)
   comments        BugReportComment[]
 
   @@index([reporterId], map: "idx_bug_reports_reporter")
@@ -250,7 +255,7 @@ model EmailVerificationToken {
 }
 
 model WorkItem {
-  id          Int     @id @default(autoincrement())
+  id          Int       @id @default(autoincrement())
   type        String // PROJECT | TASK | QUICK_TASK
   status      String // type-specific, enforced at app layer
   /// @zod.string.min(1, { message: "Title is required" })
@@ -305,8 +310,8 @@ model WorkItem {
   // block above. QUICK_TASK does not participate. See lib/schedule.ts.
   // `startDate` null + predecessors => start is derived from them; set => pinned to that date.
   // `durationDays` null is read as 1 day; a PROJECT with none rolls its span up from its tasks.
-  startDate    DateTime? @map("start_date")
-  durationDays Int?      @map("duration_days")
+  startDate            DateTime? @map("start_date")
+  durationDays         Int?      @map("duration_days")
   // The plan as committed. Captured the first time an item is scheduled, then moved only by an
   // explicit re-baseline — never by an ordinary edit or a dependency cascade.
   baselineStartDate    DateTime? @map("baseline_start_date")
@@ -315,11 +320,11 @@ model WorkItem {
   // The fixed point the plan is built around — a protest date, a launch, a hearing. The
   // critical path is measured towards anchors when any exist, rather than towards whatever
   // simply finishes last, so follow-up work trailing an anchor is correctly slack.
-  isAnchor Boolean @default(false) @map("is_anchor")
+  isAnchor             Boolean   @default(false) @map("is_anchor")
   // Last change to startDate/durationDays or to this item's dependency edges.
-  scheduleUpdatedAt DateTime? @map("schedule_updated_at")
+  scheduleUpdatedAt    DateTime? @map("schedule_updated_at")
   // Actual start. `completedAt` above is the actual finish.
-  startedAt DateTime? @map("started_at")
+  startedAt            DateTime? @map("started_at")
 
   country           String?
   localGroup        String?           @map("local_group")
@@ -327,20 +332,26 @@ model WorkItem {
   // Optional standing team this PROJECT belongs to (Team is orthogonal to LocalGroup —
   // see Team model). Nullable, TASK/QUICK_TASK don't use it.
   teamId            Int?              @map("team_id")
+  // Set only on a PROJECT created by instantiating a Template. Distinct from isOrgProposed:
+  // gates the self-publish-without-triage path in publishDraft and the separate
+  // MAX_TEMPLATE_DRAFTS cap, rather than the general volunteer draft pool.
+  templateOriginId  Int?              @map("template_origin_id")
   createdAt         DateTime?         @default(now()) @map("created_at")
   updatedAt         DateTime?         @default(now()) @map("updated_at")
 
-  creator     Volunteer?         @relation("WorkItemCreator", fields: [creatorId], references: [id], onUpdate: NoAction)
-  assignee    Volunteer?         @relation("WorkItemAssignee", fields: [assigneeId], references: [id], onUpdate: NoAction)
-  stakeholder Volunteer?         @relation("WorkItemStakeholder", fields: [stakeholderId], references: [id], onUpdate: NoAction)
-  reviewedBy  Volunteer?         @relation("WorkItemReviewedBy", fields: [reviewedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  skill       Skill?             @relation(fields: [skillId], references: [id], onUpdate: NoAction)
-  team        Team?              @relation(fields: [teamId], references: [id], onDelete: SetNull, onUpdate: NoAction)
-  comments    WorkItemComment[]
-  skills      WorkItemSkill[]
-  interests   WorkItemInterest[]
-  adminNotes  AdminNote[]
-  messages    Message[]
+  creator              Volunteer?         @relation("WorkItemCreator", fields: [creatorId], references: [id], onUpdate: NoAction)
+  templateOrigin       Template?          @relation("WorkItemTemplateOrigin", fields: [templateOriginId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  assignee             Volunteer?         @relation("WorkItemAssignee", fields: [assigneeId], references: [id], onUpdate: NoAction)
+  stakeholder          Volunteer?         @relation("WorkItemStakeholder", fields: [stakeholderId], references: [id], onUpdate: NoAction)
+  reviewedBy           Volunteer?         @relation("WorkItemReviewedBy", fields: [reviewedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  skill                Skill?             @relation(fields: [skillId], references: [id], onUpdate: NoAction)
+  team                 Team?              @relation(fields: [teamId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  comments             WorkItemComment[]
+  skills               WorkItemSkill[]
+  interests            WorkItemInterest[]
+  adminNotes           AdminNote[]
+  messages             Message[]
+  templatesSourcedFrom Template[]         @relation("TemplateSourceProject")
 
   dependenciesAsPredecessor WorkItemDependency[] @relation("WorkItemDependencyPredecessor")
   dependenciesAsSuccessor   WorkItemDependency[] @relation("WorkItemDependencySuccessor")
@@ -355,6 +366,7 @@ model WorkItem {
   @@index([localGroup], map: "idx_work_items_local_group")
   @@index([country], map: "idx_work_items_country")
   @@index([teamId], map: "idx_work_items_team")
+  @@index([templateOriginId], map: "idx_work_items_template_origin")
   @@map("work_items")
 }
 
@@ -425,6 +437,43 @@ model WorkItemInterest {
   @@map("work_item_interests")
 }
 
+/// A reusable project shape an admin can spin up as a fresh draft project — for running the
+/// same program across countries/local groups. `structure` is a serialized, location- and
+/// people-free copy of a project's tasks/schedule/dependencies/skills (see
+/// lib/template-porting.ts); country/localGroup/team are deliberately never stored here beyond
+/// the display-only `source*` fields below, which exist purely so the instantiate wizard can
+/// show "previously: X" next to the blanked picker — they are never read by instantiate itself.
+model Template {
+  id                    Int                @id @default(autoincrement())
+  /// @zod.string.min(1, { message: "Title is required" })
+  title                 String
+  description           String?
+  sourceType            TemplateSourceType @default(PROJECT) @map("source_type")
+  // Bumped whenever the shape of `structure` changes incompatibly; instantiate() branches on
+  // this to run old-shape migrations rather than assuming the latest shape.
+  templateSchemaVersion Int                @default(1) @map("template_schema_version")
+  structure             String
+  createdById           Int?               @map("created_by_id")
+  // Attribution only — which project this was saved from. Never read at instantiate time.
+  sourceProjectId       Int?               @map("source_project_id")
+  // Display-only reference text for the instantiate wizard's blanked pickers. Never applied.
+  sourceCountry         String?            @map("source_country")
+  sourceLocalGroup      String?            @map("source_local_group")
+  sourceTeamId          Int?               @map("source_team_id")
+  isArchived            Boolean            @default(false) @map("is_archived")
+  createdAt             DateTime?          @default(now()) @map("created_at")
+  updatedAt             DateTime?          @default(now()) @map("updated_at")
+
+  createdBy     Volunteer? @relation("TemplateCreatedBy", fields: [createdById], references: [id], onUpdate: NoAction)
+  sourceProject WorkItem?  @relation("TemplateSourceProject", fields: [sourceProjectId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  sourceTeam    Team?      @relation("TemplateSourceTeam", fields: [sourceTeamId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  instances     WorkItem[] @relation("WorkItemTemplateOrigin")
+
+  @@index([sourceType], map: "idx_templates_source_type")
+  @@index([createdById], map: "idx_templates_created_by")
+  @@map("templates")
+}
+
 model LocalGroup {
   id          Int                    @id @default(autoincrement())
   /// @zod.string.min(1, { message: "Group name is required" })
@@ -481,29 +530,30 @@ enum TeamJoinRequestStatus {
 }
 
 model Team {
-  id           Int               @id @default(autoincrement())
+  id                   Int               @id @default(autoincrement())
   /// @zod.string.min(1, { message: "Team name is required" })
-  name         String
-  description  String?
-  lumaUrl      String?           @map("luma_url")
-  docUrl       String?           @map("doc_url")
-  createdAt    DateTime?         @default(now()) @map("created_at")
-  members      TeamMembership[]
-  joinRequests TeamJoinRequest[]
-  suggestions  TeamSuggestion[]  @relation("TeamSuggestionMergedInto")
-  workItems    WorkItem[]
+  name                 String
+  description          String?
+  lumaUrl              String?           @map("luma_url")
+  docUrl               String?           @map("doc_url")
+  createdAt            DateTime?         @default(now()) @map("created_at")
+  members              TeamMembership[]
+  joinRequests         TeamJoinRequest[]
+  suggestions          TeamSuggestion[]  @relation("TeamSuggestionMergedInto")
+  workItems            WorkItem[]
+  templatesSourcedFrom Template[]        @relation("TemplateSourceTeam")
 
   @@map("teams")
 }
 
 model TeamMembership {
-  id          Int                 @id @default(autoincrement())
-  teamId      Int                 @map("team_id")
-  volunteerId Int                 @map("volunteer_id")
-  role        TeamMembershipRole  @default(member)
-  joinedAt    DateTime?           @default(now()) @map("joined_at")
-  team        Team                @relation(fields: [teamId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  volunteer   Volunteer           @relation(fields: [volunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id          Int                @id @default(autoincrement())
+  teamId      Int                @map("team_id")
+  volunteerId Int                @map("volunteer_id")
+  role        TeamMembershipRole @default(member)
+  joinedAt    DateTime?          @default(now()) @map("joined_at")
+  team        Team               @relation(fields: [teamId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  volunteer   Volunteer          @relation(fields: [volunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([teamId, volunteerId], map: "uq_team_memberships_team_volunteer")
   @@index([volunteerId], map: "idx_team_memberships_volunteer")
@@ -514,14 +564,14 @@ model TeamMembership {
 // TeamMembership) or declines. Unlike LocalGroup/Team suggestions this isn't a
 // moderation queue for new entities — it's per-team membership approval.
 model TeamJoinRequest {
-  id           Int                    @id @default(autoincrement())
-  teamId       Int                    @map("team_id")
-  volunteerId  Int                    @map("volunteer_id")
+  id           Int                   @id @default(autoincrement())
+  teamId       Int                   @map("team_id")
+  volunteerId  Int                   @map("volunteer_id")
   message      String?
-  status       TeamJoinRequestStatus  @default(pending)
-  reviewedById Int?                   @map("reviewed_by_id")
-  reviewedAt   DateTime?              @map("reviewed_at")
-  createdAt    DateTime?              @default(now()) @map("created_at")
+  status       TeamJoinRequestStatus @default(pending)
+  reviewedById Int?                  @map("reviewed_by_id")
+  reviewedAt   DateTime?             @map("reviewed_at")
+  createdAt    DateTime?             @default(now()) @map("created_at")
 
   team       Team       @relation(fields: [teamId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   volunteer  Volunteer  @relation("TeamJoinRequestVolunteer", fields: [volunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -546,9 +596,9 @@ model TeamSuggestion {
   createdAt     DateTime?            @default(now()) @map("created_at")
   updatedAt     DateTime?            @default(now()) @map("updated_at")
 
-  suggestedBy Volunteer @relation("TeamSuggestionSuggestedBy", fields: [suggestedById], references: [id])
+  suggestedBy Volunteer  @relation("TeamSuggestionSuggestedBy", fields: [suggestedById], references: [id])
   reviewedBy  Volunteer? @relation("TeamSuggestionReviewedBy", fields: [reviewedById], references: [id])
-  mergedInto  Team?     @relation("TeamSuggestionMergedInto", fields: [mergedIntoId], references: [id])
+  mergedInto  Team?      @relation("TeamSuggestionMergedInto", fields: [mergedIntoId], references: [id])
 
   @@index([status], map: "idx_team_suggestions_status")
   @@index([suggestedById], map: "idx_team_suggestions_suggested_by")
@@ -735,6 +785,7 @@ model Volunteer {
   teamSuggestionsReviewed                 TeamSuggestion[]         @relation("TeamSuggestionReviewedBy")
   teamJoinRequests                        TeamJoinRequest[]        @relation("TeamJoinRequestVolunteer")
   teamJoinRequestsReviewed                TeamJoinRequest[]        @relation("TeamJoinRequestReviewedBy")
+  templatesCreated                        Template[]               @relation("TemplateCreatedBy")
   sessions                                Session[]
 
   @@index([localGroup], map: "idx_volunteers_local_group")
@@ -771,10 +822,10 @@ model RejectedApplication {
 }
 
 model AnonymisedEmail {
-  id                Int       @id @default(autoincrement())
-  emailHash         String    @unique @map("email_hash")
-  createdAt         DateTime  @default(now()) @map("created_at")
-  reapplyAllowedAt  DateTime? @map("reapply_allowed_at")
+  id               Int       @id @default(autoincrement())
+  emailHash        String    @unique @map("email_hash")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  reapplyAllowedAt DateTime? @map("reapply_allowed_at")
 
   @@map("anonymised_emails")
 }

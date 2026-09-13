@@ -97,7 +97,11 @@ export const ADVERTISABLE_STATUSES: string[] = Object.keys(PROJECT_STATUS_CONFIG
  */
 export const ORG_PROPOSER_NAME = 'PauseAI'
 
-/** A volunteer may have at most this many of their own proposals sitting in `draft` at once. */
+/**
+ * A non-admin volunteer may have at most this many of their own proposals sitting in `draft`
+ * at once. Admins are exempt (see the isAdmin check in server/routers/projects.ts:create) —
+ * this bounds unreviewed volunteer proposals, not admin work.
+ */
 export const MAX_VOLUNTEER_DRAFTS = 2
 
 export type ProposerDisplay = { name: string; volunteerId: number | null }

@@ -23,11 +23,15 @@ export const adminTriageRouter = {
   drafts: adminProcedure.handler(async () => {
     // Volunteer-authored drafts not yet submitted for review. Org drafts have their
     // own "My Drafts" list on the Org Projects admin page and are excluded here.
+    // Template-originated drafts are also excluded: their owner self-publishes without
+    // admin review (see publishDraft in server/routers/projects.ts), so they never need
+    // to sit in this queue.
     const projects = await prisma.workItem.findMany({
       where: {
         type: WorkItemType.PROJECT,
         status: ProjectStatus.draft,
         isOrgProposed: false,
+        templateOriginId: null,
       },
       include: projectInclude,
       orderBy: { createdAt: 'desc' },
@@ -44,7 +48,11 @@ export const adminTriageRouter = {
         include: { creator: { select: { name: true } } },
       })
       if (!project) throw new ORPCError('NOT_FOUND', { message: 'Draft not found' })
-      if (project.status !== ProjectStatus.draft || project.isOrgProposed) {
+      if (
+        project.status !== ProjectStatus.draft ||
+        project.isOrgProposed ||
+        project.templateOriginId !== null
+      ) {
         throw new ORPCError('BAD_REQUEST', { message: 'Not a volunteer draft' })
       }
 

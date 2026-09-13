@@ -107,8 +107,13 @@ export default function ProjectEditor(props: ProjectEditorProps) {
   })
 
   const isDraft = projectId === undefined ? true : projectData?.status === 'draft'
+  // Org-proposed AND template-originated drafts both skip review and publish straight live —
+  // see the self-publish gate in server/routers/projects.ts:publishDraft. A template-originated
+  // draft can't exist before a project id does, so `initialVariant` never needs to cover it.
   const isOrgDraft =
-    projectId === undefined ? initialVariant === 'admin' : projectData?.isOrgProposed === true
+    projectId === undefined
+      ? initialVariant === 'admin'
+      : projectData?.isOrgProposed === true || (projectData?.templateOriginId ?? null) !== null
 
   useEffect(() => {
     if (!projectData || initialized) return
@@ -427,6 +432,12 @@ export default function ProjectEditor(props: ProjectEditorProps) {
             aria-invalid={!!fe('title') || undefined}
           />
           {fe('title') && <p className="text-sm mt-1 text-error">{fe('title')}</p>}
+          {isDraft && (projectData?.templateOriginId ?? null) !== null && (
+            <p className="text-text-light mt-1 text-sm">
+              Copied from a template — adjust the title so it&apos;s clear which local group or
+              setting this copy is for.
+            </p>
+          )}
         </div>
 
         <div className="mb-5">

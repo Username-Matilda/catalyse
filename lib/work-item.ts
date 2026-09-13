@@ -173,6 +173,7 @@ export type EnrichedProject = ScheduleFieldsLike & {
   creatorId: number | null
   stakeholderId: number | null
   isOrgProposed: boolean | null
+  templateOriginId: number | null
   projectType: string | null
   estimatedDuration: string | null
   timeCommitmentHoursPerWeek: number | null
@@ -220,6 +221,7 @@ export function withProjectExtras(
     proposedById: p.creatorId,
     stakeholderId: p.stakeholderId,
     isOrgProposed: p.isOrgProposed,
+    templateOriginId: p.templateOriginId,
     projectType: p.projectType,
     estimatedDuration: p.estimatedDuration,
     timeCommitmentHoursPerWeek: p.timeCommitmentHoursPerWeek,

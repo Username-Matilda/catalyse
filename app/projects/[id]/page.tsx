@@ -24,6 +24,7 @@ import { useToast } from '@/lib/toast'
 import { formatDate, formatDateShort, fromDateInputValue } from '@/lib/format-date'
 import BaselineDialog from '@/components/gantt/BaselineDialog'
 import ProjectPorting from '@/components/ProjectPorting'
+import SaveAsTemplateButton from '@/components/SaveAsTemplateButton'
 import { scheduleWithPatches } from '@/components/gantt/optimistic'
 import { startOfUtcDay } from '@/lib/schedule'
 import { projectLocationParts } from '@/lib/filter-options'
@@ -1584,6 +1585,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     <Button variant="secondary" size="sm" onClick={() => setShowPorting(true)}>
                       Export / Import
                     </Button>
+                    {isAdmin && (
+                      <SaveAsTemplateButton projectId={project.id} defaultTitle={project.title} />
+                    )}
                   </div>
                 )}
               </div>
