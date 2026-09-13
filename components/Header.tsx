@@ -88,24 +88,24 @@ function DashboardNavButtons({ unreadCount }: { unreadCount: number }) {
       >
         My Projects
       </Button>
-      <Button
-        href="/dashboard#tab-notifications"
-        variant={activeTab === 'notifications' ? 'primary' : 'ghost'}
-        size="sm"
-        onClick={(e) => {
-          if (onDashboard) {
-            e.preventDefault()
-            goToTab('notifications')
-          }
-        }}
-      >
-        Notifications
-        {unreadCount > 0 && (
+      {unreadCount > 0 && (
+        <Button
+          href="/dashboard#tab-notifications"
+          variant={activeTab === 'notifications' ? 'primary' : 'ghost'}
+          size="sm"
+          onClick={(e) => {
+            if (onDashboard) {
+              e.preventDefault()
+              goToTab('notifications')
+            }
+          }}
+        >
+          Notifications
           <span className="bg-primary text-[#111827] text-xs px-2 py-0.5 rounded-full ml-1">
             {unreadCount}
           </span>
-        )}
-      </Button>
+        </Button>
+      )}
     </>
   )
 }
@@ -218,11 +218,6 @@ export default function Header() {
                     onClick={() => setUserMenuOpen((o) => !o)}
                   >
                     {user.name}
-                    {unreadCount > 0 && (
-                      <span className="bg-primary text-[#111827] text-xs px-2 py-0.5 rounded-full ml-1">
-                        {unreadCount}
-                      </span>
-                    )}
                   </Button>
                   {userMenuOpen && (
                     <div

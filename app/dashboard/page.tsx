@@ -52,15 +52,19 @@ export default function DashboardPage() {
   }
 
   useEffect(() => {
-    function onHashChange() {
+    function syncFromHash() {
       const hash = window.location.hash
       const tab: TabKey = hash.startsWith('#tab-')
         ? (hash.slice('#tab-'.length) as TabKey) || 'owned'
         : 'owned'
       setActiveTab(tab)
     }
-    window.addEventListener('hashchange', onHashChange)
-    return () => window.removeEventListener('hashchange', onHashChange)
+    // Re-read the hash on mount too: Next.js client-side navigation does not
+    // reliably reflect the new hash in window.location.hash by the time this
+    // page's useState initializer runs, so the initial value can be stale.
+    syncFromHash()
+    window.addEventListener('hashchange', syncFromHash)
+    return () => window.removeEventListener('hashchange', syncFromHash)
   }, [])
 
   useEffect(() => {
@@ -426,7 +430,13 @@ export default function DashboardPage() {
                     <p className="text-sm mt-1 mb-0">{n.body}</p>
                     <div className="flex items-center gap-3 mt-2">
                       {n.link && (
-                        <Link href={n.link} className="text-sm underline">
+                        <Link
+                          href={n.link}
+                          className="text-sm underline"
+                          onClick={() => {
+                            if (!n.readAt) markReadMutation.mutate({ id: n.id })
+                          }}
+                        >
                           View
                         </Link>
                       )}

@@ -329,8 +329,8 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
             />
             <FilterDropdown
               id="urgency-filter"
-              label="Urgency"
-              ariaLabel="Urgency filter"
+              label="Priority"
+              ariaLabel="Priority filter"
               value={urgencyFilter}
               options={URGENCY_OPTIONS}
               onChange={setUrgencyFilter}

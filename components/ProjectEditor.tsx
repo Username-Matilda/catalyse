@@ -521,7 +521,7 @@ export default function ProjectEditor(props: ProjectEditorProps) {
               <p className="text-sm mt-1 text-error">{fe('time_commitment_hours_per_week')}</p>
             ) : (
               <p className="text-sm text-text-light mt-1">
-                Estimated weekly time from each contributor
+                Minimum time commitment for project members
               </p>
             )}
           </div>
@@ -529,8 +529,8 @@ export default function ProjectEditor(props: ProjectEditorProps) {
           <div>
             <FilterDropdown
               id="urgency"
-              label="Urgency"
-              ariaLabel="Select urgency"
+              label="Priority"
+              ariaLabel="Select priority"
               value={urgency}
               options={URGENCY_OPTIONS}
               onChange={(v) => {
