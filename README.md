@@ -120,14 +120,15 @@ Do **not** use `prisma migrate dev` — it checks for schema drift against the l
 ### Running tests
 
 ```bash
-npm test               # Run all e2e tests headlessly
-npm run test:headed    # Run with a visible browser (single worker, slowed)
-npm run test:ui        # Open Playwright UI mode
+npm run test:unit       # Run unit tests only (vitest)
+npm run test:e2e        # Run e2e tests only (Playwright)
+npm run test:e2e:headed # Run with a visible browser (single worker, slowed)
+npm run test:e2e:ui     # Open Playwright UI mode
 ```
 
 Tests spin up an isolated Next.js server with a fresh database — your dev server doesn't need to be running.
 
-The `test:dev` variants skip the build and use a dev server instead. These are for interactive development only — do not use them to verify correctness, as they skip type checking and build validation.
+The `test:e2e:dev` variants skip the build and use a dev server instead. These are for interactive development only — do not use them to verify correctness, as they skip type checking and build validation.
 
 ## Scripts Reference
 
@@ -150,11 +151,13 @@ The `test:dev` variants skip the build and use a dev server instead. These are f
 | `migrate`          | Apply pending migration files to the local database                                                                                             |
 | `fetch-prod-db`    | Download latest prod backup and anonymise PII for local use                                                                                     |
 | `install:browsers` | Install Playwright's Chromium browser                                                                                                           |
-| `test`             | Run all e2e tests (builds first, then spins up isolated servers)                                                                                |
-| `test:dev`         | Run e2e tests against a dev server — skips build, for interactive development only                                                              |
-| `test:log`         | Run tests and save full output to `test-output.txt`                                                                                             |
-| `test:headed`      | Run tests with a visible browser, single worker                                                                                                 |
-| `test:ui`          | Open Playwright UI mode for interactive test debugging                                                                                          |
+| `test:unit`        | Run unit tests with vitest                                                                                                                      |
+| `test:unit:watch`  | Run vitest in watch mode                                                                                                                        |
+| `test:e2e`         | Run all e2e tests (builds first, then spins up isolated servers)                                                                                |
+| `test:e2e:dev`     | Run e2e tests against a dev server — skips build, for interactive development only                                                              |
+| `test:e2e:log`     | Run e2e tests and save full output to `test-output.txt`                                                                                         |
+| `test:e2e:headed`  | Run e2e tests with a visible browser, single worker                                                                                             |
+| `test:e2e:ui`      | Open Playwright UI mode for interactive test debugging                                                                                          |
 | `cron:backup`      | Run the database backup cron job                                                                                                                |
 | `demo`             | Run the demo data seeding script                                                                                                                |
 | `demo:snapshot`    | Take a snapshot of the current demo state                                                                                                       |
