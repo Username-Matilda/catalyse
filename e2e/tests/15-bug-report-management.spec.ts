@@ -135,6 +135,34 @@ test.describe('Bug Report Management', () => {
     await expect(adminPage.getByLabel('Resolution Notes')).toHaveValue(notes)
   })
 
+  test('Admin exports bug reports as markdown', async ({ adminPage, volunteer, baseUrl }) => {
+    const title = fake.bugTitle()
+    const description = 'A bug report used for export e2e testing'
+
+    await submitBugReportViaApi(baseUrl, volunteer.page, title, description)
+
+    await navigateToBugsPage(baseUrl, adminPage)
+    await selectFilterDropdown(adminPage, 'Filter by status', 'Open')
+    await expect(adminPage.locator('.card').filter({ hasText: title })).toBeVisible({
+      timeout: 10_000,
+    })
+
+    const [download] = await Promise.all([
+      adminPage.waitForEvent('download'),
+      adminPage.getByRole('button', { name: 'Export as Markdown' }).click(),
+    ])
+
+    expect(download.suggestedFilename()).toMatch(/^bug-reports-\d{4}-\d{2}-\d{2}\.md$/)
+    const stream = await download.createReadStream()
+    const chunks: Buffer[] = []
+    for await (const chunk of stream) chunks.push(chunk as Buffer)
+    const content = Buffer.concat(chunks).toString('utf-8')
+
+    expect(content).toContain('# Bug Reports')
+    expect(content).toContain(title)
+    expect(content).toContain(description)
+  })
+
   test('Admin marks a bug report as wont_fix', async ({ adminPage, volunteer, baseUrl }) => {
     const title = fake.bugTitle()
 

@@ -19,6 +19,7 @@
     "new-migration": "tsx scripts/new-migration.ts",
     "migrate": "NODE_OPTIONS=--experimental-sqlite tsx scripts/migrate.ts",
     "fetch-prod-db": "NODE_OPTIONS=--experimental-sqlite tsx scripts/fetch-prod-db.ts",
+    "export-bug-reports": "NODE_OPTIONS=--experimental-sqlite tsx scripts/export-bug-reports.ts",
     "install:browsers": "playwright install chromium --with-deps",
     "test:e2e": "playwright test",
     "test:unit": "vitest run",
