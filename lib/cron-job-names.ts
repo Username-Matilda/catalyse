@@ -4,6 +4,7 @@ export const CRON_JOB_NAMES = [
   'nudges',
   'applications-summary',
   'applications-anonymisation',
+  'csp-summary',
 ] as const
 
 export type CronJobName = (typeof CRON_JOB_NAMES)[number]
@@ -28,6 +29,10 @@ export const CRON_JOB_INFO: Record<CronJobName, { description: string; idempoten
   },
   'applications-anonymisation': {
     description: 'Anonymises rejected applications past the retention period.',
+    idempotent: true,
+  },
+  'csp-summary': {
+    description: 'Emails technical admins a weekly count of CSP violations, if any were reported.',
     idempotent: true,
   },
 }

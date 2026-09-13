@@ -3,6 +3,7 @@ import { runBackupJob } from '@/jobs/backup'
 import { runDigestJob } from '@/jobs/digest'
 import { runNudgesJob } from '@/jobs/nudges'
 import { runApplicationsSummaryJob, runApplicationsAnonymisationJob } from '@/jobs/applications'
+import { runCspSummaryJob } from '@/jobs/csp-summary'
 import { type CronJobName } from '@/lib/cron-job-names'
 
 export { CRON_JOB_NAMES, type CronJobName } from '@/lib/cron-job-names'
@@ -16,4 +17,5 @@ export const CRON_JOBS: Record<CronJobName, (triggeredBy?: CronTriggerSource) =>
       recordCronRun('applications-summary', runApplicationsSummaryJob, triggeredBy),
     'applications-anonymisation': (triggeredBy) =>
       recordCronRun('applications-anonymisation', runApplicationsAnonymisationJob, triggeredBy),
+    'csp-summary': (triggeredBy) => recordCronRun('csp-summary', runCspSummaryJob, triggeredBy),
   }
