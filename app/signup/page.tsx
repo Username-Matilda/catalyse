@@ -107,6 +107,7 @@ export default function SignupPage() {
   const [consentVisible, setConsentVisible] = useState(true)
   const [consentContact, setConsentContact] = useState(true)
   const [shareDirectly, setShareDirectly] = useState(false)
+  const [consentAnalytics, setConsentAnalytics] = useState(false)
   const {
     value: emailDigest,
     onChange: setEmailDigest,
@@ -281,6 +282,7 @@ export default function SignupPage() {
         consentMakeProfileVisibleInDirectory: consentVisible,
         consentContactableByProjectOwners: consentContact,
         consentShareContactInfoWithProjectOwner: shareDirectly,
+        cookieConsentAnalytics: consentAnalytics,
         emailDigest,
       })
       sessionStorage.removeItem('google_pending_auth')
@@ -381,6 +383,7 @@ export default function SignupPage() {
         consentMakeProfileVisibleInDirectory: consentVisible,
         consentContactableByProjectOwners: consentContact,
         consentShareContactInfoWithProjectOwner: shareDirectly,
+        cookieConsentAnalytics: consentAnalytics,
         emailDigest,
       })
       if (data.pending) {
@@ -683,6 +686,15 @@ export default function SignupPage() {
                       onChange={(e) => setShareDirectly(e.target.checked)}
                     />
                     Share my contact info directly with project owners
+                  </label>
+                  <label className="flex items-center gap-2 font-normal mt-2">
+                    <input
+                      type="checkbox"
+                      id="g_consent_analytics"
+                      checked={consentAnalytics}
+                      onChange={(e) => setConsentAnalytics(e.target.checked)}
+                    />
+                    Allow Google Analytics to help us improve the platform
                   </label>
                 </div>
                 <p className="text-sm text-text-light mt-3">
@@ -1152,6 +1164,15 @@ export default function SignupPage() {
                     onChange={(e) => setShareDirectly(e.target.checked)}
                   />
                   Share my contact info directly with project owners
+                </label>
+                <label className="flex items-center gap-2 font-normal mt-2">
+                  <input
+                    type="checkbox"
+                    id="consent_analytics"
+                    checked={consentAnalytics}
+                    onChange={(e) => setConsentAnalytics(e.target.checked)}
+                  />
+                  Allow Google Analytics to help us improve the platform
                 </label>
               </div>
               <p className="text-sm text-text-light mt-3">

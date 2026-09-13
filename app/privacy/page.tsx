@@ -154,12 +154,14 @@ export default function PrivacyPage() {
                 disaster recovery and are never accessed for any other purpose.
               </li>
               <li>
-                <strong>Google Analytics</strong> (usage analytics): used to understand how the
+                <strong>Google Analytics</strong> (usage analytics): used only to understand how the
                 platform is used so we can improve it. Collects anonymised page view and interaction
-                data via cookies. IP addresses are anonymised. Only loaded if you accept cookies via
-                the consent banner. You can withdraw consent at any time by clearing your browser
-                cookies or using browser privacy settings. Data may be processed in the United
-                States.
+                data via cookies. IP addresses are anonymised. Google Signals and ads
+                personalisation are disabled, so this data is never used for advertising. Google,
+                our analytics provider, processes this data on our behalf — we never sell it or
+                share it for any other purpose. Only loaded if you accept cookies via the consent
+                banner. You can withdraw consent at any time in Settings &gt; Privacy &amp; Data, or
+                by clearing your browser cookies. Data may be processed in the United States.
               </li>
               <li>
                 <strong>Google Sign-In</strong> (authentication): if you choose to sign in with
