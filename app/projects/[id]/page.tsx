@@ -1159,11 +1159,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                         }`}
                       >
                         {s.name}
-                        {s.isRequired ? ' *' : ''}
                       </span>
                     ))}
                   </div>
-                  <p className="text-xs text-text-light mt-1">* Required</p>
                 </div>
               )}
 

@@ -91,17 +91,13 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
   if (!isOpen) return null
 
   return (
-    <div
-      className="fixed inset-0 bg-[rgba(29,53,87,0.5)] flex items-center justify-center z-1000 p-5"
-      onClick={handleClose}
-    >
+    <div className="fixed inset-0 bg-[rgba(29,53,87,0.5)] flex items-center justify-center z-1000 p-5">
       <div
         ref={trapRef}
         role="dialog"
         aria-modal="true"
         aria-label="Report an Issue"
         className="bg-surface rounded-xl shadow-lg max-w-125 w-full max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
       >
         <div className="px-6 py-5 border-b border-brand-border flex justify-between items-center">
           <h2 className="mb-0">Report an Issue</h2>

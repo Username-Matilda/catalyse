@@ -23,7 +23,7 @@ export const bugReportCommentsRouter = {
       const comments = await prisma.bugReportComment.findMany({
         where: { bugReportId: input.bugReportId },
         include: { author: { select: { name: true } } },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: 'asc' },
       })
 
       return {

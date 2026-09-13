@@ -7,6 +7,7 @@
  *   npm run export-bug-reports -- --db db/anonymised_prod.db --out bugs.md
  *   npm run export-bug-reports -- --status open         # single status
  *   npm run export-bug-reports -- --all                 # every status
+ *   npm run export-bug-reports -- --base-url https://staging.example.com   # override live-link host
  */
 
 import { existsSync, writeFileSync } from 'node:fs'
@@ -25,6 +26,7 @@ function argValue(flag: string): string | undefined {
 
 const dbPath = resolve(ROOT, argValue('--db') ?? 'db/prod.db')
 const outPath = resolve(ROOT, argValue('--out') ?? 'bug-reports.md')
+const baseUrl = (argValue('--base-url') ?? 'https://catalyse.up.railway.app').replace(/\/$/, '')
 const showAll = process.argv.includes('--all')
 const statusFilter = argValue('--status')
 const statuses = statusFilter ? [statusFilter] : showAll ? null : ['open', 'in_progress']
@@ -118,7 +120,7 @@ function main(): void {
 
   for (const r of reports) {
     lines.push('')
-    lines.push(`## #${r.id} — ${r.title}`)
+    lines.push(`## [#${r.id} — ${r.title}](${baseUrl}/bugs/${r.id})`)
     lines.push('')
     lines.push(`- **Status:** ${r.status}`)
     lines.push(`- **Category:** ${r.category ?? '—'}`)
