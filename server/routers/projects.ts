@@ -429,7 +429,9 @@ export const projectsRouter = {
       })
     }
 
-    if (saveAsDraft) {
+    // Admins are trusted staff, not volunteers proposing speculative projects — the cap exists
+    // to bound unreviewed volunteer proposals, not to limit admin work.
+    if (saveAsDraft && !volunteer.isAdmin) {
       const draftCount = await prisma.workItem.count({
         where: {
           type: WorkItemType.PROJECT,
@@ -561,9 +563,11 @@ export const projectsRouter = {
         })
       }
 
-      if (project.isOrgProposed) {
-        // Org projects skip review entirely — publishing a draft goes straight live,
-        // same as a non-draft org project created directly.
+      if (project.isOrgProposed || project.templateOriginId !== null) {
+        // Org projects, and projects instantiated from a template, skip review entirely —
+        // publishing a draft goes straight live. Template-originated projects already came
+        // from a vetted structure, so re-review would be redundant (see
+        // lib/template-porting.ts).
         const newStatus =
           project.assigneeId === null ? ProjectStatus.ready : ProjectStatus.in_progress
         await prisma.workItem.update({

@@ -14,6 +14,7 @@ import { quickTasksRouter } from './routers/quickTasks'
 import { dependenciesRouter } from './routers/dependencies'
 import { scheduleRouter } from './routers/schedule'
 import { projectPortingRouter } from './routers/projectPorting'
+import { templatesRouter } from './routers/templates'
 import { workItemCommentsRouter } from './routers/workItemComments'
 import { bugReportCommentsRouter } from './routers/bugReportComments'
 import { myRouter } from './routers/my'
@@ -44,6 +45,7 @@ export const appRouter = {
   auth: authRouter,
   skills: skillsRouter,
   projects: { ...projectsRouter, ...projectPortingRouter },
+  templates: templatesRouter,
   volunteers: volunteersRouter,
   dashboard: dashboardRouter,
   notifications: notificationsRouter,

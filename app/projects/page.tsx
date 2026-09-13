@@ -263,6 +263,18 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
           </div>
         </div>
 
+        <div className="border-brand-border bg-surface mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4">
+          <div>
+            <h2 className="m-0 text-base">Project templates</h2>
+            <p className="text-text-light m-0 text-sm">
+              Templates for projects to help you replicate success in your area.
+            </p>
+          </div>
+          <Button href="/templates" variant="secondary" size="sm">
+            Browse templates
+          </Button>
+        </div>
+
         {user.isAdmin && pendingCount > 0 && (
           <div className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-900 dark:text-amber-200 dark:border-amber-600">
             <strong>

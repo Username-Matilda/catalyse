@@ -160,6 +160,7 @@ export default function Header() {
     { href: '/teams', label: 'Teams' },
     { href: '/volunteers', label: 'Volunteers' },
     { href: '/quick-tasks', label: 'Quick Tasks' },
+    { href: '/templates', label: 'Templates' },
   ]
 
   // Signed-in volunteers expect the wordmark to take them into the app; signed-out
