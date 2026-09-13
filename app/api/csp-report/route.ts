@@ -6,7 +6,7 @@ const SINGLETON_ID = 1
 // Browsers POST here unauthenticated whenever the page's CSP (see next.config.ts) blocks
 // something, per the `report-uri` directive. Full details go to Railway logs for
 // debugging; only a running count is persisted, and jobs/csp-summary.ts digests it into
-// a weekly email so a burst of reports can't spam admins.
+// a daily email so a burst of reports can't spam admins.
 export async function POST(request: Request) {
   const { allowed, retryAfterMs } = checkRateLimit(request, 'csp-report', {
     limit: 30,

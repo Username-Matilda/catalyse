@@ -32,7 +32,7 @@ export const CRON_JOB_INFO: Record<CronJobName, { description: string; idempoten
     idempotent: true,
   },
   'csp-summary': {
-    description: 'Emails technical admins a weekly count of CSP violations, if any were reported.',
+    description: 'Emails technical admins a daily count of CSP violations, if any were reported.',
     idempotent: true,
   },
 }
