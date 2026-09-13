@@ -11,12 +11,26 @@ const BUG_STATUS_LABELS: Record<string, string> = {
   wont_fix: "Won't Fix",
 }
 
+// resolved/wont_fix sections are collapsed by default alongside open/in_progress.
+const COLLAPSED_SECTIONS = new Set(['resolved', 'wont_fix'])
+
 async function navigateToBugsPage(baseUrl: string, adminPage: Page): Promise<void> {
   await adminPage.goto(`${baseUrl}/admin/bugs`)
   await expect(
     adminPage.getByRole('heading', { name: 'Bug Reports & Feedback', level: 1 }),
   ).toBeVisible({ timeout: 10_000 })
   await expect(adminPage.getByText('Loading...')).not.toBeVisible({ timeout: 10_000 })
+}
+
+async function bugReportSection(adminPage: Page, status: string) {
+  const section = adminPage.getByTestId(`bug-reports-section-${status}`)
+  if (COLLAPSED_SECTIONS.has(status)) {
+    const toggle = section.getByRole('button')
+    if ((await toggle.getAttribute('aria-expanded')) === 'false') {
+      await toggle.click()
+    }
+  }
+  return section
 }
 
 async function updateReportStatus(
@@ -64,24 +78,54 @@ test.describe('Bug Report Management', () => {
     await expect(card).toContainText(title)
   })
 
-  test('Admin filters bug reports by status', async ({ adminPage, volunteer, baseUrl }) => {
+  test('Bug reports are grouped into sections by status', async ({
+    adminPage,
+    volunteer,
+    baseUrl,
+  }) => {
     const title = fake.bugTitle()
 
     await submitBugReportViaApi(
       baseUrl,
       volunteer.page,
       title,
-      'A bug report used for filter testing in e2e',
+      'A bug report used for section testing in e2e',
     )
 
     await navigateToBugsPage(baseUrl, adminPage)
-    await selectFilterDropdown(adminPage, 'Filter by status', 'In Progress')
-    await expect(adminPage.locator('.card').filter({ hasText: title })).not.toBeVisible({
+    const openSection = await bugReportSection(adminPage, 'open')
+    await expect(openSection.locator('.card').filter({ hasText: title })).toBeVisible({
       timeout: 10_000,
     })
+    const inProgressSection = await bugReportSection(adminPage, 'in_progress')
+    await expect(inProgressSection.locator('.card').filter({ hasText: title })).not.toBeVisible({
+      timeout: 10_000,
+    })
+  })
 
-    await selectFilterDropdown(adminPage, 'Filter by status', 'Open')
-    await expect(adminPage.locator('.card').filter({ hasText: title })).toBeVisible({
+  test('Resolved and wont-fix sections are collapsed by default', async ({
+    adminPage,
+    volunteer,
+    baseUrl,
+  }) => {
+    const title = fake.bugTitle()
+
+    await submitBugReportViaApi(
+      baseUrl,
+      volunteer.page,
+      title,
+      'A bug report that will be resolved, to check section collapse',
+    )
+
+    await navigateToBugsPage(baseUrl, adminPage)
+    await updateReportStatus(adminPage, title, 'resolved')
+
+    const resolvedSection = adminPage.getByTestId('bug-reports-section-resolved')
+    await expect(resolvedSection.getByRole('button')).toHaveAttribute('aria-expanded', 'false')
+    await expect(resolvedSection.locator('.card').filter({ hasText: title })).not.toBeVisible()
+
+    await resolvedSection.getByRole('button').click()
+    await expect(resolvedSection.locator('.card').filter({ hasText: title })).toBeVisible({
       timeout: 10_000,
     })
   })
@@ -99,8 +143,8 @@ test.describe('Bug Report Management', () => {
     await navigateToBugsPage(baseUrl, adminPage)
     await updateReportStatus(adminPage, title, 'in_progress')
 
-    await selectFilterDropdown(adminPage, 'Filter by status', 'In Progress')
-    const card = adminPage.locator('.card').filter({ hasText: title })
+    const section = await bugReportSection(adminPage, 'in_progress')
+    const card = section.locator('.card').filter({ hasText: title })
     await expect(card).toBeVisible({ timeout: 10_000 })
     await expect(card).toContainText('In Progress')
   })
@@ -123,10 +167,10 @@ test.describe('Bug Report Management', () => {
     await navigateToBugsPage(baseUrl, adminPage)
     await updateReportStatus(adminPage, title, 'resolved', notes)
 
-    await selectFilterDropdown(adminPage, 'Filter by status', 'Resolved')
-    const card = adminPage.locator('.card').filter({ hasText: title })
+    const section = await bugReportSection(adminPage, 'resolved')
+    const card = section.locator('.card').filter({ hasText: title })
     await expect(card).toBeVisible({ timeout: 10_000 })
-    await expect(card).toContainText('resolved')
+    await expect(card).toContainText('Resolved')
 
     await card.click()
     await expect(adminPage.getByRole('heading', { name: title, level: 1 })).toBeVisible({
@@ -142,8 +186,8 @@ test.describe('Bug Report Management', () => {
     await submitBugReportViaApi(baseUrl, volunteer.page, title, description)
 
     await navigateToBugsPage(baseUrl, adminPage)
-    await selectFilterDropdown(adminPage, 'Filter by status', 'Open')
-    await expect(adminPage.locator('.card').filter({ hasText: title })).toBeVisible({
+    const openSection = await bugReportSection(adminPage, 'open')
+    await expect(openSection.locator('.card').filter({ hasText: title })).toBeVisible({
       timeout: 10_000,
     })
 
@@ -176,8 +220,8 @@ test.describe('Bug Report Management', () => {
     await navigateToBugsPage(baseUrl, adminPage)
     await updateReportStatus(adminPage, title, 'wont_fix')
 
-    await selectFilterDropdown(adminPage, 'Filter by status', "Won't Fix")
-    const card = adminPage.locator('.card').filter({ hasText: title })
+    const section = await bugReportSection(adminPage, 'wont_fix')
+    const card = section.locator('.card').filter({ hasText: title })
     await expect(card).toBeVisible({ timeout: 10_000 })
     await expect(card).toContainText("Won't Fix")
   })
