@@ -24,6 +24,7 @@ import type { AppRouter } from '@/server/router'
 type BugReports = InferRouterOutputs<AppRouter>['admin']['bugReports']['list']
 
 function exportReportsAsMarkdown(reports: BugReports): void {
+  const baseUrl = window.location.origin
   const lines: string[] = [
     `# Bug Reports`,
     '',
@@ -35,7 +36,7 @@ function exportReportsAsMarkdown(reports: BugReports): void {
 
   for (const r of reports) {
     lines.push('')
-    lines.push(`## #${r.id} — ${r.title}`)
+    lines.push(`## [#${r.id} — ${r.title}](${baseUrl}/bugs/${r.id})`)
     lines.push('')
     lines.push(`- **Status:** ${bugStatusLabel(r.status)}`)
     if (r.category) lines.push(`- **Category:** ${r.category}`)
