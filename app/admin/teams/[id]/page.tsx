@@ -111,7 +111,6 @@ export default function AdminTeamDetailPage({ params }: { params: Promise<{ id: 
   }
 
   async function addMember() {
-    if (!assignVolunteerId) return
     try {
       await assignMemberMutation.mutateAsync({
         teamId,

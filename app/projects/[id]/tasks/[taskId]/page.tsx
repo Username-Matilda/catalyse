@@ -141,12 +141,11 @@ export default function TaskDetailPage({
     })
   }
 
-  function handleClaimTask() {
-    if (!user) return
+  function handleClaimTask(assigneeId: number) {
     updateMutation.mutate({
       projectId,
       taskId,
-      data: { status: TaskStatus.in_progress, assigneeId: user.id },
+      data: { status: TaskStatus.in_progress, assigneeId },
     })
   }
 
@@ -236,7 +235,7 @@ export default function TaskDetailPage({
               variant="secondary"
               size="sm"
               disabled={updateMutation.isPending}
-              onClick={handleClaimTask}
+              onClick={() => handleClaimTask(user.id)}
             >
               Claim
             </Button>

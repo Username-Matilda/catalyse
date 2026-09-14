@@ -1,0 +1,61 @@
+import { describe, it, expect } from 'vitest'
+import {
+  buildLocationOptions,
+  buildLocalGroupOptionsForCountry,
+  countryLabel,
+  projectLocationParts,
+  COUNTRY_OPTIONS,
+  NO_LOCAL_GROUP,
+} from './filter-options'
+
+const groups = [
+  { name: 'London', country: 'UK' },
+  { name: 'Berlin', country: 'Germany' },
+]
+
+describe('buildLocationOptions', () => {
+  it('nests local groups under their country as indented options', () => {
+    const opts = buildLocationOptions(groups)
+    const uk = opts.findIndex((o) => o.value === 'UK')
+    expect(opts[uk + 1]).toEqual({
+      value: 'UK:London',
+      label: 'United Kingdom - London',
+      indent: true,
+    })
+    expect(opts.find((o) => o.value === 'Germany:Berlin')).toBeDefined()
+    expect(opts[0]).toEqual({ value: '', label: 'Any country' })
+  })
+})
+
+describe('buildLocalGroupOptionsForCountry', () => {
+  it('lists the groups for that country between a placeholder and a none option', () => {
+    expect(buildLocalGroupOptionsForCountry('UK', groups)).toEqual([
+      { value: '', label: 'Select…' },
+      { value: 'London', label: 'London' },
+      { value: NO_LOCAL_GROUP, label: "None of these, I'll enter my city" },
+    ])
+  })
+})
+
+describe('countryLabel', () => {
+  it('resolves codes to labels and falls back to the raw value', () => {
+    expect(countryLabel('UK')).toBe('United Kingdom')
+    expect(countryLabel('Narnia')).toBe('Narnia')
+    expect(countryLabel(null)).toBe('')
+    expect(COUNTRY_OPTIONS[0].value).toBe('')
+    expect(COUNTRY_OPTIONS.some((o) => o.value === '')).toBe(true)
+  })
+})
+
+describe('projectLocationParts', () => {
+  it('builds the location line parts', () => {
+    expect(projectLocationParts('UK', 'London', 'GLOBAL')).toEqual([
+      'Remote',
+      'Global',
+      'United Kingdom',
+      'London',
+    ])
+    expect(projectLocationParts('UK', null, 'COUNTRY')).toEqual(['Remote', 'United Kingdom'])
+    expect(projectLocationParts(null, null, 'NONE')).toEqual([])
+  })
+})

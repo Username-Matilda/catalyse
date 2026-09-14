@@ -1,0 +1,57 @@
+import { describe, it, expect } from 'vitest'
+import { screen, waitFor, cleanup } from '@testing-library/react'
+import { createVolunteer, createAdmin } from '@/test/factories'
+import { renderApp } from '@/test/render'
+import { navigation } from '@/test/next-navigation'
+import { useRequireAuth, useRequireApproved, useRequireAdmin, useRequireSuperAdmin } from './auth'
+
+const hooks = { useRequireAuth, useRequireApproved, useRequireAdmin, useRequireSuperAdmin }
+type HookName = keyof typeof hooks
+
+function Probe({ hook }: { hook: HookName }) {
+  const { user, loading } = hooks[hook]()
+  return <span>{loading ? 'loading' : user ? `user:${user.name}` : 'anon'}</span>
+}
+
+async function settle(hook: HookName, as: NonNullable<Parameters<typeof renderApp>[1]>['as']) {
+  cleanup()
+  await renderApp(<Probe hook={hook} />, { as })
+  await waitFor(() => expect(screen.getByText(/user:|anon/)).toBeInTheDocument())
+}
+
+describe('auth gate hooks', () => {
+  it('all redirect anonymous visitors to /login', async () => {
+    for (const hook of Object.keys(hooks) as HookName[]) {
+      navigation.reset()
+      await settle(hook, null)
+      expect(navigation.replace).toHaveBeenCalledWith('/login')
+    }
+  })
+
+  it('useRequireAuth lets any signed-in user through', async () => {
+    await settle('useRequireAuth', await createVolunteer({ approvalStatus: 'pending' }))
+    expect(navigation.replace).not.toHaveBeenCalled()
+  })
+
+  it('useRequireApproved sends unapproved non-admins to the dashboard', async () => {
+    await settle('useRequireApproved', await createVolunteer({ approvalStatus: 'pending' }))
+    expect(navigation.replace).toHaveBeenCalledWith('/dashboard')
+    navigation.reset()
+    await settle('useRequireApproved', await createAdmin({ approvalStatus: 'pending' }))
+    expect(navigation.replace).not.toHaveBeenCalled()
+  })
+
+  it('useRequireAdmin / useRequireSuperAdmin send the wrong role to /projects', async () => {
+    await settle('useRequireAdmin', await createVolunteer())
+    expect(navigation.replace).toHaveBeenCalledWith('/projects')
+    navigation.reset()
+    await settle('useRequireAdmin', await createAdmin())
+    expect(navigation.replace).not.toHaveBeenCalled()
+    navigation.reset()
+    await settle('useRequireSuperAdmin', await createAdmin())
+    expect(navigation.replace).toHaveBeenCalledWith('/projects')
+    navigation.reset()
+    await settle('useRequireSuperAdmin', await createAdmin({ email: 'admin@example.com' }))
+    expect(navigation.replace).not.toHaveBeenCalled()
+  })
+})

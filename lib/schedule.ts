@@ -307,8 +307,7 @@ function markCriticalPath(
     anchors.length > 0 ? item.isAnchor : item.end.getTime() === latest
 
   for (let i = order.length - 1; i >= 0; i--) {
-    const item = results.get(order[i])
-    if (!item) continue
+    const item = results.get(order[i])!
 
     if (isSeed(item)) {
       item.isCritical = true

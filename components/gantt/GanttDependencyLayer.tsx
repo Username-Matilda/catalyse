@@ -29,9 +29,6 @@ function elbowPath(
 
   if (forward) {
     const turn = endX - STEP
-    if (Math.abs(y2 - y1) < R * 2) {
-      return { d: `M ${x1} ${y1} H ${endX}`, mid: { x: (x1 + endX) / 2, y: y1 } }
-    }
     return {
       d: [
         `M ${x1} ${y1}`,

@@ -256,13 +256,12 @@ export default function AdminLocalGroupsPage() {
     }
   }
 
-  async function submitEdit(e: React.FormEvent) {
+  async function submitEdit(e: React.FormEvent, group: LocalGroup) {
     e.preventDefault()
-    if (!editGroup) return
     setEditSubmitting(true)
     try {
       await updateGroupMutation.mutateAsync({
-        id: editGroup.id,
+        id: group.id,
         name: editName.trim(),
         country: editCountry,
       })
@@ -276,9 +275,8 @@ export default function AdminLocalGroupsPage() {
     }
   }
 
-  async function submitReview(e: React.FormEvent) {
+  async function submitReview(e: React.FormEvent, suggestion: Suggestion) {
     e.preventDefault()
-    if (!reviewSuggestion) return
     setReviewSubmitting(true)
     try {
       const body: Record<string, unknown> = { action: reviewAction }
@@ -291,7 +289,7 @@ export default function AdminLocalGroupsPage() {
       if (adminNotes.trim()) body.adminNotes = adminNotes.trim()
 
       await reviewSuggestionMutation.mutateAsync({
-        id: reviewSuggestion.id,
+        id: suggestion.id,
         ...body,
       } as Parameters<typeof reviewSuggestionMutation.mutateAsync>[0])
 
@@ -312,9 +310,7 @@ export default function AdminLocalGroupsPage() {
     }
   }
 
-  async function deleteItem() {
-    if (!deleteTarget) return
-    const item = deleteTarget
+  async function deleteItem(item: DisplayItem) {
     try {
       if (item.kind === 'group') {
         await deleteGroupMutation.mutateAsync({ id: item.id })
@@ -502,7 +498,7 @@ export default function AdminLocalGroupsPage() {
               </Button>
             </div>
             <div className="p-6">
-              <form onSubmit={submitEdit}>
+              <form onSubmit={(e) => submitEdit(e, editGroup)}>
                 <div className="mb-5">
                   <FilterDropdown
                     id="edit-country"
@@ -570,7 +566,7 @@ export default function AdminLocalGroupsPage() {
                 {countryLabel(reviewSuggestion.country)}, {reviewSuggestion.name}
               </p>
 
-              <form onSubmit={submitReview}>
+              <form onSubmit={(e) => submitReview(e, reviewSuggestion)}>
                 <div className="mb-5">
                   <label>Action</label>
                   <div className="flex flex-col gap-3 mt-2">
@@ -742,7 +738,7 @@ export default function AdminLocalGroupsPage() {
                 <Button variant="secondary" onClick={() => setDeleteTarget(null)}>
                   Cancel
                 </Button>
-                <Button variant="danger" onClick={deleteItem}>
+                <Button variant="danger" onClick={() => deleteItem(deleteTarget)}>
                   Delete
                 </Button>
               </div>

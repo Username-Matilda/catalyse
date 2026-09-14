@@ -30,6 +30,25 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test:unit
+      # Coverage must stay at 100% lines/statements (vitest.config.mts enforces it). The HTML
+      # report is uploaded even on failure so the missed lines can be read from the run page.
+      - name: Coverage summary
+        if: always()
+        run: |
+          echo '## Unit test coverage' >> "$GITHUB_STEP_SUMMARY"
+          node -e '
+            const s = require("./coverage/coverage-summary.json").total
+            const row = (k) => `| ${k} | ${s[k].pct}% | ${s[k].covered}/${s[k].total} |`
+            console.log("| Metric | Coverage | Covered |\n|---|---|---|")
+            for (const k of ["lines", "statements", "branches", "functions"]) console.log(row(k))
+          ' >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 30
 
   e2e-test:
     runs-on: ubuntu-latest

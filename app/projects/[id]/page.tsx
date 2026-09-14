@@ -383,7 +383,6 @@ function TaskTimeline({
    * day makes it obvious they still need placing.
    */
   function addToTimeline(ids: number[]) {
-    if (ids.length === 0) return
     const start = startOfUtcDay(new Date(timeline!.scopeOrigin))
     reschedule.mutate({ items: ids.map((id) => ({ id, startDate: start, durationDays: 1 })) })
   }
@@ -716,17 +715,22 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   })
   const volunteers = volunteersData?.volunteers ?? []
 
-  const ownerId = project?.ownerId ?? 0
+  const ownerId = project?.ownerId ?? null
   const { data: ownerContactData } = useQuery({
-    ...orpc.volunteers.getById.queryOptions({ input: { id: ownerId } }),
-    enabled: !!project?.ownerId && showContactModal,
+    ...orpc.volunteers.getById.queryOptions({ input: { id: ownerId ?? 0 } }),
+    enabled: ownerId !== null && showContactModal,
   })
   const ownerContact = ownerContactData
 
   // ── Mutations ────────────────────────────────────────────────────────────
 
+  // Task writes change both the list view (getById) and the timeline (listTasks); the panel
+  // on the Timeline tab reads assignment from the latter, so both are refreshed together.
   const invalidateProject = () =>
-    queryClient.invalidateQueries({ queryKey: orpc.projects.getById.key() })
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: orpc.projects.getById.key() }),
+      queryClient.invalidateQueries({ queryKey: orpc.projects.listTasks.key() }),
+    ])
 
   const createTaskMutation = useMutation({
     ...orpc.projects.createTask.mutationOptions(),
@@ -893,14 +897,13 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
-  function handleContactOwner(e: React.FormEvent) {
+  function handleContactOwner(e: React.FormEvent, ownerId: number) {
     e.preventDefault()
-    if (!project?.ownerId) return
     sendMessageMutation.mutate({
-      recipientId: project.ownerId,
+      recipientId: ownerId,
       subject: contactSubject.trim(),
       message: contactBody.trim(),
-      relatedProjectId: project.id,
+      relatedProjectId: parseInt(idParam, 10),
     })
   }
 
@@ -984,12 +987,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   }
 
   function handleAssignTask(taskId: number) {
-    const selected = taskAssignSelections[taskId]
-    if (!selected) return
     assignTaskMutation.mutate({
       projectId: parseInt(idParam, 10),
       taskId,
-      assigneeId: parseInt(selected, 10),
+      assigneeId: parseInt(taskAssignSelections[taskId], 10),
     })
   }
 
@@ -1042,10 +1043,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     setPendingStatus(status)
   }
 
-  function handleConfirmStatus() {
-    if (!pendingStatus) return
-    updateProjectMutation.mutate({ id: parseInt(idParam, 10), status: pendingStatus })
-    setNewStatus(pendingStatus)
+  function handleConfirmStatus(status: NonNullable<typeof pendingStatus>) {
+    updateProjectMutation.mutate({ id: parseInt(idParam, 10), status })
+    setNewStatus(status)
     setPendingStatus(null)
   }
 
@@ -1079,12 +1079,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     setDeclineMessage('')
   }
 
-  function confirmDeclineInterest(e: React.FormEvent) {
+  function confirmDeclineInterest(e: React.FormEvent, interestId: number) {
     e.preventDefault()
-    if (declineInterestId === null) return
     respondToInterestMutation.mutate({
       projectId: parseInt(idParam, 10),
-      interestId: declineInterestId,
+      interestId,
       status: 'declined',
       responseMessage: declineMessage.trim() || null,
     })
@@ -1633,25 +1632,30 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               {project.team && (
                 <p className="text-sm text-text-light mt-1 mb-0">🧑‍🤝‍🧑 {project.team.name}</p>
               )}
-              <Modal
-                id="confirm-status-change"
-                title="Change project status?"
-                isOpen={pendingStatus !== null}
-                onClose={() => setPendingStatus(null)}
-              >
-                <p>
-                  Change status from <strong>{projectStatusLabel(newStatus)}</strong> to{' '}
-                  <strong>{pendingStatus ? projectStatusLabel(pendingStatus) : ''}</strong>?
-                </p>
-                <div className="mt-4 flex justify-end gap-2">
-                  <Button variant="secondary" onClick={() => setPendingStatus(null)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleConfirmStatus} disabled={updateProjectMutation.isPending}>
-                    {updateProjectMutation.isPending ? 'Updating…' : 'Confirm'}
-                  </Button>
-                </div>
-              </Modal>
+              {pendingStatus !== null && (
+                <Modal
+                  id="confirm-status-change"
+                  title="Change project status?"
+                  isOpen
+                  onClose={() => setPendingStatus(null)}
+                >
+                  <p>
+                    Change status from <strong>{projectStatusLabel(newStatus)}</strong> to{' '}
+                    <strong>{projectStatusLabel(pendingStatus)}</strong>?
+                  </p>
+                  <div className="mt-4 flex justify-end gap-2">
+                    <Button variant="secondary" onClick={() => setPendingStatus(null)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={() => handleConfirmStatus(pendingStatus)}
+                      disabled={updateProjectMutation.isPending}
+                    >
+                      {updateProjectMutation.isPending ? 'Updating…' : 'Confirm'}
+                    </Button>
+                  </div>
+                </Modal>
+              )}
 
               {/* Ownership — same panel as Status/Team above */}
               <div className="mt-4 pt-4 border-t border-brand-border">
@@ -1701,7 +1705,6 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                               size="sm"
                               disabled={!transferTo || updateProjectMutation.isPending}
                               onClick={() => {
-                                if (!transferTo) return
                                 if (!window.confirm('Transfer ownership to this volunteer?')) return
                                 updateProjectMutation.mutate({
                                   id: parseInt(idParam, 10),
@@ -2068,7 +2071,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       />
 
       {/* Contact Owner modal */}
-      {showContactModal && (
+      {showContactModal && ownerId !== null && (
         <div
           className="fixed inset-0 bg-[rgba(29,53,87,0.5)] flex items-center justify-center z-1000 p-5"
           onClick={(e) => {
@@ -2124,7 +2127,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 </div>
               )}
 
-              <form onSubmit={handleContactOwner}>
+              <form onSubmit={(e) => handleContactOwner(e, ownerId)}>
                 <div className="mb-5">
                   <label htmlFor="contact-subject">Subject</label>
                   <input
@@ -2160,33 +2163,35 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       )}
 
       {/* Decline interest modal */}
-      <Modal
-        id="decline-interest"
-        title="Decline Volunteer"
-        isOpen={declineInterestId !== null}
-        onClose={() => setDeclineInterestId(null)}
-      >
-        <form onSubmit={confirmDeclineInterest}>
-          <div className="mb-5">
-            <label htmlFor="decline-message">Optional message for the volunteer</label>
-            <textarea
-              id="decline-message"
-              rows={4}
-              value={declineMessage}
-              onChange={(e) => setDeclineMessage(e.target.value)}
-              autoFocus
-            />
-          </div>
-          <div className="flex gap-2 justify-end">
-            <Button type="button" variant="secondary" onClick={() => setDeclineInterestId(null)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={respondToInterestMutation.isPending}>
-              {respondToInterestMutation.isPending ? 'Declining…' : 'Decline'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
+      {declineInterestId !== null && (
+        <Modal
+          id="decline-interest"
+          title="Decline Volunteer"
+          isOpen
+          onClose={() => setDeclineInterestId(null)}
+        >
+          <form onSubmit={(e) => confirmDeclineInterest(e, declineInterestId)}>
+            <div className="mb-5">
+              <label htmlFor="decline-message">Optional message for the volunteer</label>
+              <textarea
+                id="decline-message"
+                rows={4}
+                value={declineMessage}
+                onChange={(e) => setDeclineMessage(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button type="button" variant="secondary" onClick={() => setDeclineInterestId(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={respondToInterestMutation.isPending}>
+                {respondToInterestMutation.isPending ? 'Declining…' : 'Decline'}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </>
   )
 }

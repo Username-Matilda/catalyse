@@ -277,9 +277,11 @@ export default function AdminSkillsPage() {
     )
   }
 
-  async function handleSaveCategory(e: React.FormEvent) {
+  async function handleSaveCategory(
+    e: React.FormEvent,
+    modal: Extract<ModalType, { type: 'add-category' | 'edit-category' }>,
+  ) {
     e.preventDefault()
-    if (!modal) return
     setSubmitting(true)
     try {
       const body = { name: inputName.trim(), description: inputDescription.trim() || null }
@@ -299,9 +301,11 @@ export default function AdminSkillsPage() {
     }
   }
 
-  async function handleSaveSkill(e: React.FormEvent) {
+  async function handleSaveSkill(
+    e: React.FormEvent,
+    modal: Extract<ModalType, { type: 'add-skill' | 'edit-skill' }>,
+  ) {
     e.preventDefault()
-    if (!modal) return
     setSubmitting(true)
     try {
       if (modal.type === 'add-skill') {
@@ -311,7 +315,7 @@ export default function AdminSkillsPage() {
           categoryId: modal.categoryId,
         })
         showToast('Skill created!', 'success')
-      } else if (modal.type === 'edit-skill') {
+      } else {
         await updateSkillMutation.mutateAsync({
           id: modal.skill.id,
           name: inputName.trim(),
@@ -328,14 +332,15 @@ export default function AdminSkillsPage() {
     }
   }
 
-  async function handleDelete() {
-    if (!modal) return
+  async function handleDelete(
+    modal: Extract<ModalType, { type: 'delete-category' | 'delete-skill' }>,
+  ) {
     setSubmitting(true)
     try {
       if (modal.type === 'delete-category') {
         await deleteCategoryMutation.mutateAsync({ id: modal.id })
         showToast('Category deleted!', 'success')
-      } else if (modal.type === 'delete-skill') {
+      } else {
         await deleteSkillMutation.mutateAsync({ id: modal.id })
         showToast('Skill deleted!', 'success')
       }
@@ -419,7 +424,7 @@ export default function AdminSkillsPage() {
               </h2>
             </div>
             <div className="p-6">
-              <form onSubmit={handleSaveCategory}>
+              <form onSubmit={(e) => handleSaveCategory(e, modal)}>
                 <div className="mb-5">
                   <label htmlFor="cat-name">Category Name</label>
                   <input
@@ -472,7 +477,7 @@ export default function AdminSkillsPage() {
               {modal.type === 'add-skill' && (
                 <p className="text-text-light mb-4">Category: {modal.categoryName}</p>
               )}
-              <form onSubmit={handleSaveSkill}>
+              <form onSubmit={(e) => handleSaveSkill(e, modal)}>
                 <div className="mb-5">
                   <label htmlFor="skill-name">Skill Name</label>
                   <input
@@ -531,7 +536,12 @@ export default function AdminSkillsPage() {
                 <Button type="button" variant="secondary" onClick={closeModal}>
                   Cancel
                 </Button>
-                <Button type="button" variant="danger" onClick={handleDelete} disabled={submitting}>
+                <Button
+                  type="button"
+                  variant="danger"
+                  onClick={() => handleDelete(modal)}
+                  disabled={submitting}
+                >
                   Delete
                 </Button>
               </div>
