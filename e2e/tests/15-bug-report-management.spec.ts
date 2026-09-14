@@ -19,6 +19,13 @@ async function navigateToBugsPage(baseUrl: string, adminPage: Page): Promise<voi
   await expect(adminPage.getByText('Loading...')).not.toBeVisible({ timeout: 10_000 })
 }
 
+// The Resolved / Won't Fix sections are collapsed by default; expand before asserting on cards inside them.
+async function expandBugSection(adminPage: Page, sectionLabel: string): Promise<void> {
+  const header = adminPage.getByRole('button', { name: new RegExp(`^${sectionLabel}: \\d+`) })
+  await expect(header).toBeVisible({ timeout: 10_000 })
+  await header.click()
+}
+
 async function updateReportStatus(
   adminPage: Page,
   reportTitle: string,
@@ -64,26 +71,33 @@ test.describe('Bug Report Management', () => {
     await expect(card).toContainText(title)
   })
 
-  test('Admin filters bug reports by status', async ({ adminPage, volunteer, baseUrl }) => {
+  test('Admin sees bug reports grouped into sections by status', async ({
+    adminPage,
+    volunteer,
+    baseUrl,
+  }) => {
     const title = fake.bugTitle()
 
     await submitBugReportViaApi(
       baseUrl,
       volunteer.page,
       title,
-      'A bug report used for filter testing in e2e',
+      'A bug report used for section grouping testing in e2e',
     )
 
     await navigateToBugsPage(baseUrl, adminPage)
-    await selectFilterDropdown(adminPage, 'Filter by status', 'In Progress')
-    await expect(adminPage.locator('.card').filter({ hasText: title })).not.toBeVisible({
-      timeout: 10_000,
-    })
+    const openSection = adminPage
+      .getByTestId('bugs-section-open')
+      .locator('.card')
+      .filter({ hasText: title })
+    await expect(openSection).toBeVisible({ timeout: 10_000 })
 
-    await selectFilterDropdown(adminPage, 'Filter by status', 'Open')
-    await expect(adminPage.locator('.card').filter({ hasText: title })).toBeVisible({
-      timeout: 10_000,
-    })
+    const inProgressSection = adminPage.getByTestId('bugs-section-in_progress')
+    if (await inProgressSection.count()) {
+      await expect(inProgressSection.locator('.card').filter({ hasText: title })).not.toBeVisible({
+        timeout: 10_000,
+      })
+    }
   })
 
   test('Admin moves a bug report to in_progress', async ({ adminPage, volunteer, baseUrl }) => {
@@ -99,7 +113,6 @@ test.describe('Bug Report Management', () => {
     await navigateToBugsPage(baseUrl, adminPage)
     await updateReportStatus(adminPage, title, 'in_progress')
 
-    await selectFilterDropdown(adminPage, 'Filter by status', 'In Progress')
     const card = adminPage.locator('.card').filter({ hasText: title })
     await expect(card).toBeVisible({ timeout: 10_000 })
     await expect(card).toContainText('In Progress')
@@ -123,7 +136,7 @@ test.describe('Bug Report Management', () => {
     await navigateToBugsPage(baseUrl, adminPage)
     await updateReportStatus(adminPage, title, 'resolved', notes)
 
-    await selectFilterDropdown(adminPage, 'Filter by status', 'Resolved')
+    await expandBugSection(adminPage, 'Resolved')
     const card = adminPage.locator('.card').filter({ hasText: title })
     await expect(card).toBeVisible({ timeout: 10_000 })
     await expect(card).toContainText('resolved')
@@ -142,7 +155,6 @@ test.describe('Bug Report Management', () => {
     await submitBugReportViaApi(baseUrl, volunteer.page, title, description)
 
     await navigateToBugsPage(baseUrl, adminPage)
-    await selectFilterDropdown(adminPage, 'Filter by status', 'Open')
     await expect(adminPage.locator('.card').filter({ hasText: title })).toBeVisible({
       timeout: 10_000,
     })
@@ -176,7 +188,7 @@ test.describe('Bug Report Management', () => {
     await navigateToBugsPage(baseUrl, adminPage)
     await updateReportStatus(adminPage, title, 'wont_fix')
 
-    await selectFilterDropdown(adminPage, 'Filter by status', "Won't Fix")
+    await expandBugSection(adminPage, "Won't Fix")
     const card = adminPage.locator('.card').filter({ hasText: title })
     await expect(card).toBeVisible({ timeout: 10_000 })
     await expect(card).toContainText("Won't Fix")
