@@ -925,6 +925,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   // A draft has no owner yet, so its creator manages its own tasks until they publish it.
   const canManageTasks =
     isOwnerOrAdmin || (project.status === 'draft' && project.proposedById === user.id)
+  // Members (accepted helpers / team members) may add tasks even though they can't manage
+  // the project's schedule/baseline — server-computed in getById, see canCreateProjectTask.
+  const canCreateTasks = canManageTasks || project.canCreateTasks
 
   const canSeeInterest =
     !isOwnerOrAdmin &&
@@ -1232,7 +1235,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                       </Button>
                     </>
                   )}
-                  {canManageTasks && (
+                  {canCreateTasks && (
                     <Button variant="secondary" onClick={() => setShowTaskForm((v) => !v)}>
                       Add Task
                     </Button>
@@ -1250,7 +1253,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 onChange={(k) => selectTaskView(k as 'list' | 'timeline')}
               />
 
-              {showTaskForm && canManageTasks && (
+              {showTaskForm && canCreateTasks && (
                 <div className="bg-brand-bg rounded-lg p-3 mb-4 border border-brand-border">
                   <form onSubmit={handleAddTask}>
                     <div className="mb-3">
@@ -1484,7 +1487,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                 </>
                               }
                               menu={
-                                (canAssign || canManageTasks) && (
+                                (canAssign || canManageTasks || task.createdById === user.id) && (
                                   <ActionMenu ariaLabel={`Task actions for ${task.title}`}>
                                     {(close) => (
                                       <>
@@ -1532,7 +1535,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                             Unassign
                                           </button>
                                         )}
-                                        {canManageTasks && (
+                                        {(canManageTasks || task.createdById === user.id) && (
                                           <button
                                             role="menuitem"
                                             className={`w-full text-left px-3 py-2 text-sm text-red-700 dark:text-red-400 hover:bg-accent transition-colors cursor-pointer ${canAssign || canUnassign ? 'border-t border-brand-border mt-1' : ''}`}
@@ -1741,6 +1744,32 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   >
                     Contact Owner
                   </Button>
+                )}
+
+                {!isOwnerOrAdmin && canCreateTasks && Array.isArray(project.helpers) && (
+                  <div className="mt-4 pt-4 border-t border-brand-border">
+                    <h3 className="text-sm mb-2">Volunteers</h3>
+                    {project.helpers.length === 0 ? (
+                      <p className="text-text-light text-sm">No helpers yet.</p>
+                    ) : (
+                      <ul className="list-none p-0 m-0">
+                        {project.helpers.map((helper) => (
+                          <li
+                            key={helper.id}
+                            className="interest-card flex items-center gap-2 py-2 border-b border-brand-border last:border-0 flex-wrap"
+                          >
+                            <TaskAvatar name={helper.volunteerName} />
+                            <div className="flex-1 min-w-0">
+                              <div className="truncate">{helper.volunteerName}</div>
+                              <div className="text-text-light text-xs">
+                                {helper.interestType === 'want_to_own' ? 'Owner' : 'Helper'}
+                              </div>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 )}
 
                 {isOwnerOrAdmin && Array.isArray(project.interests) && (
