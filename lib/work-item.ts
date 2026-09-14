@@ -106,6 +106,32 @@ export async function resolveTeamPrivy(
 }
 
 /**
+ * Is `volunteerId` a member of this project — an accepted `WorkItemInterest`, or membership
+ * of its team (if it has one)? Unlike `resolveTeamPrivy`, this checks the accepted interest
+ * even when the project has no team — it answers "is this a member" for permission checks
+ * like task creation/deletion, not "does team membership grant extra visibility".
+ */
+export async function resolveProjectMembership(
+  teamId: number | null | undefined,
+  projectId: number,
+  volunteerId: number,
+): Promise<boolean> {
+  const [membership, interest] = await Promise.all([
+    teamId === null || teamId === undefined
+      ? null
+      : prisma.teamMembership.findUnique({
+          where: { teamId_volunteerId: { teamId, volunteerId } },
+          select: { id: true },
+        }),
+    prisma.workItemInterest.findFirst({
+      where: { workItemId: projectId, volunteerId, status: InterestStatus.accepted },
+      select: { id: true },
+    }),
+  ])
+  return Boolean(membership || interest)
+}
+
+/**
  * Can `viewer` post a comment? Participants only.
  * `isAcceptedHelper` = viewer has an accepted WorkItemInterest on the project
  * (for TASK, on the parent project). The caller resolves it.
@@ -148,6 +174,34 @@ export function canManageProject(
   if (viewer.isAdmin) return true
   if (project.assigneeId === viewer.id) return true
   return project.creatorId === viewer.id && project.status === ProjectStatus.draft
+}
+
+/**
+ * May `viewer` add a task to this project? Anyone who can manage the project, plus any
+ * member — team membership or an accepted `WorkItemInterest` (the same signal as
+ * `resolveTeamPrivy`). Members were previously blocked from adding tasks at all; this was
+ * loosened per a bug report that they need to. If member-created tasks turn out to cause
+ * problems, this may need reverting to owner/admin-only (i.e. back to `canManageProject`).
+ */
+export function canCreateProjectTask(
+  project: { creatorId: number | null; assigneeId: number | null; status: string },
+  viewer: { id: number; isAdmin: boolean | null },
+  isMember: boolean,
+): boolean {
+  return canManageProject(project, viewer) || isMember
+}
+
+/**
+ * May `viewer` delete this task? Anyone who can manage the project, plus the volunteer who
+ * created the task themselves — a member can clean up their own addition, but not anyone
+ * else's. Like `canCreateProjectTask`, this may need reverting to owner/admin-only.
+ */
+export function canDeleteProjectTask(
+  project: { creatorId: number | null; assigneeId: number | null; status: string },
+  task: { creatorId: number | null },
+  viewer: { id: number; isAdmin: boolean | null },
+): boolean {
+  return canManageProject(project, viewer) || task.creatorId === viewer.id
 }
 
 export type WorkItemSkillWithRelations = {

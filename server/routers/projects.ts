@@ -12,6 +12,9 @@ import {
   serializeTask,
   applyScheduleWrite,
   canManageProject,
+  canCreateProjectTask,
+  canDeleteProjectTask,
+  resolveProjectMembership,
 } from '@/lib/work-item'
 import { notifyUser, notifyAdmins, notifyTeamOfProject, clearNotifications } from '@/lib/notify'
 import {
@@ -781,12 +784,36 @@ export const projectsRouter = {
         Boolean(volunteer.isAdmin) ||
         !(await isBlockedFromClaiming(input.id, volunteer.id))
 
+      const isMember =
+        (project.teamId !== null && viewerTeamIds.has(project.teamId)) ||
+        myInterest?.status === InterestStatus.accepted
+      const canCreateTasks = canCreateProjectTask(project, volunteer, isMember)
+
+      // A lightweight, non-sensitive roster (name + role only, no application message/bio)
+      // any member can see — unlike `interests`, which carries pending applicants' private
+      // messages and is restricted to the owner/admin for review.
+      const helperRows = await prisma.workItemInterest.findMany({
+        where: { workItemId: input.id, status: InterestStatus.accepted },
+        include: { volunteer: { select: { name: true } } },
+        orderBy: { respondedAt: 'asc' },
+      })
+      const helpers = helperRows
+        .filter((h) => h.volunteerId !== project.assigneeId)
+        .map((h) => ({
+          id: h.id,
+          volunteerId: h.volunteerId,
+          volunteerName: h.volunteer.name,
+          interestType: h.interestType,
+        }))
+
       return {
         ...base,
         tasks: mappedTasks,
         interests,
+        helpers,
         myInterest,
         canClaimTasks,
+        canCreateTasks,
       }
     }),
 
@@ -1355,6 +1382,11 @@ export const projectsRouter = {
         // Sent so the client can recompute this exact schedule while a drag is in flight.
         scopeOrigin: origin,
         canManageTasks: canManageProject(project, volunteer),
+        canCreateTasks: canCreateProjectTask(
+          project,
+          volunteer,
+          await resolveProjectMembership(project.teamId, project.id, volunteer.id),
+        ),
       }
     }),
 
@@ -1442,7 +1474,12 @@ export const projectsRouter = {
       })
       if (!project) throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
 
-      assertCanManageProject(project, volunteer, 'Only project owner or admin can create tasks')
+      const isMember = await resolveProjectMembership(project.teamId, project.id, volunteer.id)
+      if (!canCreateProjectTask(project, volunteer, isMember)) {
+        throw new ORPCError('FORBIDDEN', {
+          message: 'Only project owner, admin, or a project member can create tasks',
+        })
+      }
 
       // Dates given at creation are a sketch; the baseline is set deliberately, later.
       const scheduleOnCreate: Record<string, unknown> = {}
@@ -1836,7 +1873,17 @@ export const projectsRouter = {
       })
       if (!project) throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
 
-      assertCanManageProject(project, volunteer, 'Not authorized')
+      const task = await prisma.workItem.findFirst({
+        where: { id: input.taskId, parentId: input.projectId, type: WorkItemType.TASK },
+        select: { creatorId: true },
+      })
+      if (!task) throw new ORPCError('NOT_FOUND', { message: 'Task not found' })
+
+      if (!canDeleteProjectTask(project, task, volunteer)) {
+        throw new ORPCError('FORBIDDEN', {
+          message: 'Only project owner, admin, or the task creator can delete this task',
+        })
+      }
 
       const deleted = await prisma.workItem.deleteMany({
         where: { id: input.taskId, parentId: input.projectId, type: WorkItemType.TASK },
