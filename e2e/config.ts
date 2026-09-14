@@ -1,5 +1,6 @@
 import path from 'path'
 import os from 'os'
+import { resolveDbUrl } from '../lib/db-url'
 
 const _remoteBaseUrl = process.env.BASE_URL
 export const IS_LOCAL = !_remoteBaseUrl || _remoteBaseUrl.startsWith('http://localhost')
@@ -25,8 +26,18 @@ export function workerAuthFile(parallelIndex: number): string {
   return path.join(__dirname, '.auth', `admin_${parallelIndex}.json`)
 }
 
-export function workerDbDir(parallelIndex: number): string {
-  return path.join(os.tmpdir(), `catalyse_e2e_${parallelIndex}`)
+// Each worker's app server gets its own Postgres schema, addressed through Prisma's
+// `?schema=` URL parameter.
+export function workerDbSchema(parallelIndex: number): string {
+  return `e2e_${parallelIndex}`
+}
+
+export function workerDbUrl(parallelIndex: number): string {
+  const url = new URL(resolveDbUrl())
+  url.searchParams.set('schema', workerDbSchema(parallelIndex))
+  // Each worker's app server gets its own pool; keep the sum well under max_connections.
+  url.searchParams.set('connection_limit', '10')
+  return url.toString()
 }
 
 export const SERVER_PIDS_FILE = path.join(os.tmpdir(), 'catalyse_e2e_pids.json')

@@ -1,0 +1,21 @@
+# Local Postgres for development and tests. `docker compose up -d`, then point DATABASE_URL
+# at it (see .env.example). Pin the major version to what Railway runs in production.
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: catalyse
+    ports:
+      - '5432:5432'
+    volumes:
+      # 18+ images want the mount one level up; they create a versioned data dir inside it.
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:

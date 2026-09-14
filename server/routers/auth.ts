@@ -63,7 +63,7 @@ async function sendAccountDeletionNotifications(deletedId: number, deletedName: 
       AND qt.status NOT IN ('completed')
       AND p.assignee_id != ${deletedId}
       AND v.deleted_at IS NULL
-    GROUP BY p.id
+    GROUP BY p.id, v.id
   `
   const ownedProjects = await prisma.workItem.findMany({
     where: {

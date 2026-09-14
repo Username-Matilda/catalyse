@@ -30,7 +30,7 @@ Catalyse connects volunteers with projects, matching skills to needs and enablin
 
 - **Frontend**: Next.js (App Router), React, TypeScript, Tailwind CSS
 - **Backend**: Next.js API routes
-- **Database**: SQLite via Prisma ORM
+- **Database**: PostgreSQL via Prisma ORM
 - **Email**: Resend SDK
 - **Auth**: Custom token-based + Google OAuth
 - **Hosting**: Railway
@@ -41,6 +41,9 @@ Catalyse connects volunteers with projects, matching skills to needs and enablin
 
 - Node.js 22+
 - npm
+- A PostgreSQL 18 server. `docker compose up -d` starts one matching CI and production; a
+  native install (Homebrew, apt, Postgres.app) works too — set `DATABASE_URL` accordingly.
+  `pg_dump`/`pg_restore` are needed for `fetch-prod-db` and the backup job.
 
 ### Installation
 
@@ -48,7 +51,7 @@ Catalyse connects volunteers with projects, matching skills to needs and enablin
 npm run local-setup
 ```
 
-This installs dependencies, Playwright browsers, downloads the anonymised prod database, and runs migrations.
+This installs dependencies and Playwright browsers, restores an anonymised copy of production into your database, and runs migrations. Postgres must be running first.
 
 ### Environment
 
@@ -60,7 +63,7 @@ cp .env.local.example .env.local
 
 Key variables:
 
-- `DATABASE_URL` — path to SQLite file (e.g. `file:../catalyse.db`)
+- `DATABASE_URL` — Postgres connection URL (e.g. `postgresql://postgres:postgres@localhost:5432/catalyse`)
 - `RESEND_API_KEY` — for email sending
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — for Google OAuth
 - `STUB_EMAIL=true` — suppress real emails in development
@@ -87,13 +90,15 @@ On next login, the app will automatically grant admin access. Multiple emails ca
 
 ### Local dev database
 
-The local dev database (`db/anonymised_prod.db`) is a fresh copy of prod with PII anonymised. Refresh it with:
+The local dev database is a copy of prod with PII anonymised, restored into whatever `DATABASE_URL` points at. Refresh it with:
 
 ```bash
 npm run fetch-prod-db && npm run migrate
 ```
 
-`fetch-prod-db` downloads the latest prod backup and anonymises it. `migrate` runs `prisma migrate deploy`, which applies any unapplied migration files in order without drift-checking.
+`fetch-prod-db` downloads the latest prod `pg_dump` from B2, **drops and recreates the `public` schema** of the target database, restores into it, anonymises, and seeds the dev accounts. It refuses to run when `RAILWAY_ENVIRONMENT_NAME=production`. `migrate` runs `prisma migrate deploy`, which applies any unapplied migration files in order without drift-checking.
+
+Unit tests create a throwaway schema per test file (`vitest_*`) in the same database, and e2e workers use `e2e_<n>`; neither touches `public`.
 
 ### Adding a migration
 
@@ -149,7 +154,7 @@ The `test:e2e:dev` variants skip the build and use a dev server instead. These a
 | `build:railway`    | Production build entrypoint used by Railway CI                                                                                                  |
 | `new-migration`    | Create a new migration SQL file from schema diff                                                                                                |
 | `migrate`          | Apply pending migration files to the local database                                                                                             |
-| `fetch-prod-db`    | Download latest prod backup and anonymise PII for local use                                                                                     |
+| `fetch-prod-db`    | Restore latest prod backup into DATABASE_URL and anonymise PII for local use                                                                    |
 | `install:browsers` | Install Playwright's Chromium browser                                                                                                           |
 | `test:unit`        | Run unit tests with vitest                                                                                                                      |
 | `test:unit:watch`  | Run vitest in watch mode                                                                                                                        |
