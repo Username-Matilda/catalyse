@@ -95,12 +95,13 @@ export function ProjectCard({
   userSkillIds?: Set<number>
   action?: React.ReactNode
   /**
-   * Name the proposer in place of the empty owner state. Admin-only by convention:
-   * volunteers browsing need to know a project has no owner yet, not who filed it.
+   * Show who proposed the project alongside whether it already has an owner. Admin-only
+   * by convention: volunteers browsing need to know a project has no owner yet, not who
+   * filed it.
    */
   showProposer?: boolean
 }) {
-  const proposer = p.owner || !showProposer ? null : proposerDisplay(p)
+  const proposer = showProposer ? proposerDisplay(p) : null
   return (
     <div
       className={`card bg-surface rounded-xl shadow px-5 pt-5 pb-4 overflow-hidden wrap-break-word grid grid-rows-subgrid row-span-6 gap-y-2 relative min-w-0 ${p.isMyTeam ? 'border-l-4 border-primary' : ''}`}
@@ -125,9 +126,15 @@ export function ProjectCard({
         {p.needsTasks && <Badge variant="warning">Needs Tasks</Badge>}
       </div>
       <div className="row-start-3 flex items-center gap-3 flex-wrap text-xs text-text-light self-start">
-        <span>
-          👤 {p.owner ? p.owner.name : proposer ? `Proposer: ${proposer.name}` : 'No owner yet'}
-        </span>
+        {showProposer ? (
+          <span>
+            🧑‍💼 Proposed by: {proposer?.name ?? 'Unknown'}
+            {' · '}
+            {p.owner ? 'Will be owner' : 'Would need to find owner'}
+          </span>
+        ) : (
+          <span>👤 {p.owner ? p.owner.name : 'No owner yet'}</span>
+        )}
         {(() => {
           const parts = projectLocationParts(p.country, p.localGroup, p.remoteEligibility)
           return parts.length > 0 && <span>📍 {parts.join(' · ')}</span>
