@@ -1,0 +1,125 @@
+import { describe, it, expect } from 'vitest'
+import { prisma } from '@/lib/prisma'
+import {
+  createVolunteer,
+  createAdmin,
+  createProject,
+  createTask,
+  createQuickTask,
+  createTeam,
+} from '@/test/factories'
+import { clientAs } from '@/test/rpc'
+
+describe('dependencies.add', () => {
+  it('validates the pair before anything else', async () => {
+    const owner = await createVolunteer()
+    const c = clientAs(owner)
+    const p = await createProject({ assigneeId: owner.id })
+    const p2 = await createProject({ assigneeId: owner.id })
+    const t1 = await createTask(p.id)
+    const t2 = await createTask(p2.id)
+    const qt = await createQuickTask()
+    const add = (predecessorId: number, successorId: number) =>
+      c.dependencies.add({ predecessorId, successorId })
+    await expect(add(t1.id, t1.id)).rejects.toMatchObject({
+      message: 'A task cannot depend on itself',
+    })
+    await expect(add(t1.id, 999_999)).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    await expect(add(qt.id, t1.id)).rejects.toMatchObject({
+      message: 'Quick tasks cannot have dependencies',
+    })
+    await expect(add(p.id, t1.id)).rejects.toMatchObject({
+      message: expect.stringContaining('not one of each'),
+    })
+    await expect(add(t1.id, t2.id)).rejects.toMatchObject({
+      message: 'Tasks can only depend on other tasks in the same project',
+    })
+    const t3 = await createTask(p.id)
+    const orphan = await prisma.workItem.create({
+      data: { type: 'TASK', status: 'open', title: 'orphan', parentId: null },
+    })
+    const orphan2 = await prisma.workItem.create({
+      data: { type: 'TASK', status: 'open', title: 'orphan2', parentId: null },
+    })
+    await expect(add(orphan.id, orphan2.id)).rejects.toMatchObject({ message: 'Project not found' })
+    const other = await createVolunteer()
+    await expect(
+      clientAs(other).dependencies.add({ predecessorId: t1.id, successorId: t3.id }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+  })
+
+  it('links tasks, updates lag via re-add, refuses loops, and bumps the successor schedule stamp', async () => {
+    const owner = await createVolunteer()
+    const c = clientAs(owner)
+    const p = await createProject({ assigneeId: owner.id })
+    const a = await createTask(p.id)
+    const b = await createTask(p.id)
+    const cc = await createTask(p.id)
+    const link = await c.dependencies.add({ predecessorId: a.id, successorId: b.id, lagDays: 2 })
+    expect(link).toMatchObject({
+      predecessorId: a.id,
+      successorId: b.id,
+      lagDays: 2,
+      predecessorTitle: a.title,
+      successorTitle: b.title,
+    })
+    expect(
+      (await prisma.workItem.findUniqueOrThrow({ where: { id: b.id } })).scheduleUpdatedAt,
+    ).not.toBeNull()
+    const again = await c.dependencies.add({ predecessorId: a.id, successorId: b.id, lagDays: 5 })
+    expect(again.id).toBe(link.id)
+    expect(again.lagDays).toBe(5)
+    await c.dependencies.add({ predecessorId: b.id, successorId: cc.id })
+    await expect(
+      c.dependencies.add({ predecessorId: cc.id, successorId: a.id }),
+    ).rejects.toMatchObject({
+      message: `That link would create a loop: ${a.title} → ${b.title} → ${cc.title} → ${a.title}`,
+    })
+  })
+
+  it('links projects across the portfolio with view rights on the predecessor', async () => {
+    const owner = await createVolunteer()
+    const c = clientAs(owner)
+    const mine = await createProject({ assigneeId: owner.id })
+    const other = await createProject()
+    const team = await createTeam()
+    const restricted = await createProject({ teamId: team.id })
+    await expect(
+      c.dependencies.add({ predecessorId: mine.id, successorId: other.id }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    await expect(
+      c.dependencies.add({ predecessorId: restricted.id, successorId: mine.id }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    const link = await c.dependencies.add({ predecessorId: other.id, successorId: mine.id })
+    expect(link.predecessorTitle).toBe(other.title)
+    // Sub-projects (parentId set) must share the same parent scope.
+    const child = await createProject({ parentId: other.id, assigneeId: owner.id })
+    await expect(
+      c.dependencies.add({ predecessorId: mine.id, successorId: child.id }),
+    ).rejects.toMatchObject({ message: 'These projects are not in the same scope' })
+  })
+})
+
+describe('dependencies.updateLag / remove', () => {
+  it('re-proves rights, updates the lag, and removes the link', async () => {
+    const owner = await createVolunteer()
+    const other = await createVolunteer()
+    const p = await createProject({ assigneeId: owner.id })
+    const a = await createTask(p.id)
+    const b = await createTask(p.id)
+    const link = await clientAs(owner).dependencies.add({ predecessorId: a.id, successorId: b.id })
+    await expect(
+      clientAs(other).dependencies.updateLag({ dependencyId: link.id, lagDays: 1 }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    await expect(
+      clientAs(owner).dependencies.updateLag({ dependencyId: 999_999, lagDays: 1 }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    expect(
+      await clientAs(owner).dependencies.updateLag({ dependencyId: link.id, lagDays: 3 }),
+    ).toEqual({ id: link.id, lagDays: 3 })
+    expect(
+      await clientAs(await createAdmin()).dependencies.remove({ dependencyId: link.id }),
+    ).toEqual({ id: link.id })
+    expect(await prisma.workItemDependency.count({ where: { id: link.id } })).toBe(0)
+  })
+})

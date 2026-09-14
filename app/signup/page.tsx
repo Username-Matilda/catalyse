@@ -240,9 +240,11 @@ export default function SignupPage() {
     setLocalGroupValue('')
   }
 
-  async function handleGoogleApplicationSubmit(e: FormEvent<HTMLFormElement>) {
+  async function handleGoogleApplicationSubmit(
+    e: FormEvent<HTMLFormElement>,
+    googleAuth: PendingGoogleAuth,
+  ) {
     e.preventDefault()
-    if (!pendingGoogleAuth) return
     const formData = new FormData(e.currentTarget)
 
     const bioValue = textField(formData, 'bio')
@@ -263,8 +265,8 @@ export default function SignupPage() {
     setGoogleApplicationSubmitting(true)
     try {
       const data = await completeGoogleSignupMutation.mutateAsync({
-        credential: pendingGoogleAuth.credential,
-        stub: pendingGoogleAuth.stub,
+        credential: googleAuth.credential,
+        stub: googleAuth.stub,
         applicationMessage: formData.get('applicationMessage') as string,
         bio: bioValue,
         discordHandle: textField(formData, 'discordHandle'),
@@ -400,7 +402,7 @@ export default function SignupPage() {
 
   if (loading) return null
 
-  if (googleApplicationStep) {
+  if (googleApplicationStep && pendingGoogleAuth) {
     return (
       <>
         {googleClientId && (
@@ -426,7 +428,7 @@ export default function SignupPage() {
             )}
             <form
               className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
-              onSubmit={handleGoogleApplicationSubmit}
+              onSubmit={(e) => handleGoogleApplicationSubmit(e, pendingGoogleAuth)}
             >
               <div className="mb-5">
                 <label htmlFor="g_name">Your Name</label>

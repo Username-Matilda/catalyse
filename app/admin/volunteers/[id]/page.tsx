@@ -82,9 +82,8 @@ const RATING_OPTIONS = [
 
 const BASED_ON_OPTIONS = [
   { value: 'direct_observation', label: 'Direct Observation' },
-  { value: 'project_work', label: 'Project Work' },
-  { value: 'interview', label: 'Interview' },
-  { value: 'reference', label: 'Reference' },
+  { value: 'project_outcome', label: 'Project Outcome' },
+  { value: 'quick_task', label: 'Quick Task' },
 ] as const
 
 type Tab = 'admin_notes' | 'quick_tasks' | 'project_history' | 'endorse_skill'

@@ -69,16 +69,13 @@ export default function ApplicationReviewPage() {
 
   const submitting = saveNotesMutation.isPending || actionMutation.isPending
 
-  function handleSaveNotes() {
-    if (!app) return
-    saveNotesMutation.mutate({ id: app.id, action: 'update_notes', adminNotes, applicantNotes })
+  function handleSaveNotes(id: number) {
+    saveNotesMutation.mutate({ id, action: 'update_notes', adminNotes, applicantNotes })
   }
 
-  function handleConfirm() {
-    if (!app || !confirmAction) return
-    const action = confirmAction
+  function handleConfirm(id: number, action: NonNullable<typeof confirmAction>) {
     setConfirmAction(null)
-    actionMutation.mutate({ id: app.id, action, adminNotes, applicantNotes })
+    actionMutation.mutate({ id, action, adminNotes, applicantNotes })
   }
 
   if (loading || !user) return null
@@ -321,7 +318,7 @@ export default function ApplicationReviewPage() {
         />
 
         <div className="flex gap-2 justify-end">
-          <Button variant="ghost" onClick={handleSaveNotes} disabled={submitting}>
+          <Button variant="ghost" onClick={() => handleSaveNotes(app.id)} disabled={submitting}>
             Save Notes
           </Button>
           {canAction && (
@@ -391,7 +388,7 @@ export default function ApplicationReviewPage() {
               <Button
                 variant={confirmAction === 'reject' ? 'danger' : 'primary'}
                 disabled={submitting}
-                onClick={handleConfirm}
+                onClick={() => handleConfirm(app.id, confirmAction)}
               >
                 {
                   {

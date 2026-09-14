@@ -249,9 +249,8 @@ export default function AdminTeamsPage() {
     }
   }
 
-  async function submitReview(e: React.FormEvent) {
+  async function submitReview(e: React.FormEvent, suggestion: Suggestion) {
     e.preventDefault()
-    if (!reviewSuggestion) return
     setReviewSubmitting(true)
     try {
       const body: Record<string, unknown> = { action: reviewAction }
@@ -265,7 +264,7 @@ export default function AdminTeamsPage() {
       if (adminNotes.trim()) body.adminNotes = adminNotes.trim()
 
       await reviewSuggestionMutation.mutateAsync({
-        id: reviewSuggestion.id,
+        id: suggestion.id,
         ...body,
       } as Parameters<typeof reviewSuggestionMutation.mutateAsync>[0])
 
@@ -286,9 +285,7 @@ export default function AdminTeamsPage() {
     }
   }
 
-  async function deleteItem() {
-    if (!deleteTarget) return
-    const item = deleteTarget
+  async function deleteItem(item: DisplayItem) {
     try {
       if (item.kind === 'team') {
         await deleteTeamMutation.mutateAsync({ id: item.id })
@@ -503,7 +500,7 @@ export default function AdminTeamsPage() {
               </p>
               <p className="font-semibold mb-5">{reviewSuggestion.name}</p>
 
-              <form onSubmit={submitReview}>
+              <form onSubmit={(e) => submitReview(e, reviewSuggestion)}>
                 <div className="mb-5">
                   <label>Action</label>
                   <div className="flex flex-col gap-3 mt-2">
@@ -666,7 +663,7 @@ export default function AdminTeamsPage() {
                 <Button variant="secondary" onClick={() => setDeleteTarget(null)}>
                   Cancel
                 </Button>
-                <Button variant="danger" onClick={deleteItem}>
+                <Button variant="danger" onClick={() => deleteItem(deleteTarget)}>
                   Delete
                 </Button>
               </div>

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  fitPxPerDay,
   dateToX,
   fitAxisDays,
   headerBands,
@@ -154,5 +155,12 @@ describe('header ticks and bands', () => {
 
   it('drops weekend shading once a day is too narrow to see', () => {
     expect(weekendBands(origin, day('2026-03-15'), 4)).toEqual([])
+  })
+})
+
+describe('fitPxPerDay', () => {
+  it('falls back to the day scale when there is nothing to fit', () => {
+    expect(fitPxPerDay(0, 900)).toBe(fitPxPerDay(10, 0))
+    expect(fitPxPerDay(10, 900)).toBe(90)
   })
 })

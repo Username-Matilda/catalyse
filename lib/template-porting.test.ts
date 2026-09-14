@@ -108,15 +108,17 @@ describe('buildInstantiatePlan', () => {
     ])
   })
 
-  it('flags a self-dependency and an unknown ref', () => {
+  it('flags a self-dependency, an unknown ref and a duplicate ref', () => {
     const structure = serializeProjectAsTemplate(project, tasks, [], [])
     structure.tasks[0].dependsOn = [{ on: 'task-1', lagDays: 0 }]
     structure.tasks[1].dependsOn = [{ on: 'ghost', lagDays: 0 }]
+    structure.tasks.push({ ...structure.tasks[0], dependsOn: [] })
     const plan = buildInstantiatePlan(structure, { newTitle: 'X', newStartDate: null })
     expect(plan.errors).toEqual(
       expect.arrayContaining([
         expect.stringContaining('cannot depend on itself'),
         expect.stringContaining('unknown ref "ghost"'),
+        expect.stringContaining('Duplicate task ref "task-1"'),
       ]),
     )
   })

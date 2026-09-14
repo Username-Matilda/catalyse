@@ -57,7 +57,7 @@ const ASSUMED_VIEWPORT = 900
 const MAX_BODY_HEIGHT = '65vh'
 
 /** Move and resize run along the timeline only — never up or down between rows. */
-const lockYForBarDrags: Modifier = ({ transform, active }) => {
+export const lockYForBarDrags: Modifier = ({ transform, active }) => {
   const kind = (active?.data.current as DragData | undefined)?.kind
   if (kind === 'move' || kind === 'resize-end') return { ...transform, y: 0 }
   return transform

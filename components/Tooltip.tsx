@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { createPortal } from 'react-dom'
 
 export default function Tooltip({
@@ -10,17 +10,15 @@ export default function Tooltip({
   content: string
   children: React.ReactNode
 }) {
-  const ref = useRef<HTMLSpanElement>(null)
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
 
-  function show() {
-    const rect = ref.current?.getBoundingClientRect()
-    if (!rect) return
+  function show(e: React.MouseEvent<HTMLSpanElement>) {
+    const rect = e.currentTarget.getBoundingClientRect()
     setPos({ top: rect.top, left: rect.left + rect.width / 2 })
   }
 
   return (
-    <span ref={ref} onMouseEnter={show} onMouseLeave={() => setPos(null)}>
+    <span onMouseEnter={show} onMouseLeave={() => setPos(null)}>
       {children}
       {pos &&
         createPortal(

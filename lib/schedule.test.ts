@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { computeSchedule, type ScheduleEdge, type ScheduleInput } from './schedule'
+import {
+  computeSchedule,
+  findDependencyCycle,
+  type ScheduleEdge,
+  type ScheduleInput,
+} from './schedule'
 import { applyScheduleWrite } from './work-item'
 
 const day = (iso: string) => new Date(`${iso}T00:00:00.000Z`)
@@ -111,6 +116,33 @@ describe('computeSchedule', () => {
       origin,
     )
     expect(scheduled).toHaveLength(2)
+  })
+})
+
+describe('findDependencyCycle', () => {
+  it('returns null for an acyclic graph, including a diamond', () => {
+    expect(findDependencyCycle([])).toBeNull()
+    expect(findDependencyCycle([link(1, 2), link(1, 3), link(2, 4), link(3, 4)])).toBeNull()
+  })
+
+  it('returns the ids that close the loop', () => {
+    expect(findDependencyCycle([link(1, 2), link(2, 3), link(3, 2)])).toEqual([2, 3, 2])
+    expect(findDependencyCycle([link(5, 5)])).toEqual([5, 5])
+  })
+
+  it('finds a cycle reached only from a later root', () => {
+    expect(findDependencyCycle([link(1, 2), link(3, 4), link(4, 3)])).toEqual([3, 4, 3])
+  })
+})
+
+describe('computeSchedule with converging and diverging edges', () => {
+  it('starts an item after the later of two predecessors', () => {
+    const s = computeSchedule(
+      [item(1, { durationDays: 1 }), item(2, { durationDays: 3 }), item(3)],
+      [link(1, 3), link(2, 3), link(1, 2)],
+      origin,
+    )
+    expect(ymd(s.byId.get(3)!.start)).toBe('2026-03-06')
   })
 })
 
