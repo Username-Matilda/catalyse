@@ -207,6 +207,7 @@ export function computeSchedule(
 
   const spans = new Map<number, DateSpan>()
   const results = new Map<number, ScheduledItem>()
+  const scheduledInOrder: ScheduledItem[] = []
 
   for (const id of order) {
     const item = itemById.get(id)!
@@ -242,7 +243,7 @@ export function computeSchedule(
             end: item.completedAt ? startOfUtcDay(item.completedAt) : null,
           }
 
-    results.set(id, {
+    const scheduledItem: ScheduledItem = {
       id,
       start,
       end,
@@ -259,10 +260,12 @@ export function computeSchedule(
       actual,
       startVarianceDays: baseline ? diffInDays(baseline.start, start) : null,
       finishVarianceDays: baseline ? diffInDays(baseline.end, end) : null,
-    })
+    }
+    results.set(id, scheduledItem)
+    scheduledInOrder.push(scheduledItem)
   }
 
-  markCriticalPath(order, results, successorsOf)
+  markCriticalPath(scheduledInOrder, results, successorsOf)
 
   const scheduled = items.map((item) => results.get(item.id)!)
   const scopeStart = scheduled.reduce(
@@ -291,7 +294,7 @@ export function computeSchedule(
  * path, and it is what every project gets until someone names an anchor.
  */
 function markCriticalPath(
-  order: number[],
+  order: ScheduledItem[],
   results: Map<number, ScheduledItem>,
   successorsOf: Map<number, ScheduleEdge[]>,
 ): void {
@@ -307,7 +310,7 @@ function markCriticalPath(
     anchors.length > 0 ? item.isAnchor : item.end.getTime() === latest
 
   for (let i = order.length - 1; i >= 0; i--) {
-    const item = results.get(order[i])!
+    const item = order[i]
 
     if (isSeed(item)) {
       item.isCritical = true

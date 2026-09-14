@@ -12,21 +12,8 @@ import { barTone, barFill } from './palette'
 import { deltaToDays, patchFromDrag } from './useGanttDrag'
 import type { GanttRow } from './types'
 
-// A drag in jsdom has no geometry to resolve, so the chart's DndContext is wrapped to expose
-// its onDragEnd — the gesture is simulated at the boundary dnd-kit itself reports through.
-const captured = vi.hoisted(() => ({
-  onDragEnd: undefined as ((e: DragEndEvent) => void) | undefined,
-}))
-vi.mock('@dnd-kit/core', async (importOriginal) => {
-  const original = await importOriginal<typeof import('@dnd-kit/core')>()
-  return {
-    ...original,
-    DndContext: (props: React.ComponentProps<typeof original.DndContext>) => {
-      captured.onDragEnd = props.onDragEnd
-      return <original.DndContext {...props} />
-    },
-  }
-})
+const drags = await vi.hoisted(() => import('@/test/dnd').then((m) => m.captureDrags()))
+vi.mock('@dnd-kit/core', (importOriginal) => drags.mockDndKit(importOriginal))
 
 const day = (iso: string) => new Date(`${iso}T00:00:00.000Z`)
 
@@ -265,7 +252,7 @@ describe('GanttChart', () => {
         onUnlink={onUnlink}
       />,
     )
-    const end = (e: Partial<DragEndEvent>) => act(() => captured.onDragEnd?.(e as DragEndEvent))
+    const end = (e: Partial<DragEndEvent>) => act(() => drags.latest()(e as DragEndEvent))
     end({ active: { data: { current: undefined } } as never, delta: { x: 0, y: 0 } })
     end({
       active: { data: { current: { kind: 'move', rowId: 999 } } } as never,

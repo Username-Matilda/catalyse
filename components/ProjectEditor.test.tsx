@@ -29,7 +29,6 @@ const mount = (
 const row = (id: number) => prisma.workItem.findUniqueOrThrow({ where: { id } })
 const blur = (el: HTMLElement) => fireEvent.blur(el)
 
-vi.setConfig({ testTimeout: 30_000 })
 afterEach(() => vi.restoreAllMocks())
 
 describe('ProjectEditor — new volunteer proposal', () => {

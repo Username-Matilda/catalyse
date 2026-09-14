@@ -14,7 +14,6 @@ import { renderApp } from '@/test/render'
 import { navigation } from '@/test/next-navigation'
 import QuickTasksPage from './page'
 
-vi.setConfig({ testTimeout: 30_000 })
 const row = (id: number) => prisma.workItem.findUniqueOrThrow({ where: { id } })
 
 describe('quick tasks — volunteer view', () => {

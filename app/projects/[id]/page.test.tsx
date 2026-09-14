@@ -17,24 +17,12 @@ import ProjectDetailPage from './page'
 import { queryClient } from '@/lib/query-client'
 import { orpc } from '@/lib/orpc'
 
-// Drags have no geometry in jsdom; capture each DndContext's onDragEnd and drive it directly.
-const captured = vi.hoisted(() => ({
-  list: undefined as ((e: DragEndEvent) => void) | undefined,
-  gantt: undefined as ((e: DragEndEvent) => void) | undefined,
-}))
-vi.mock('@dnd-kit/core', async (importOriginal) => {
-  const original = await importOriginal<typeof import('@dnd-kit/core')>()
-  return {
-    ...original,
-    DndContext: (props: React.ComponentProps<typeof original.DndContext>) => {
-      if (props.collisionDetection) captured.list = props.onDragEnd
-      else captured.gantt = props.onDragEnd
-      return <original.DndContext {...props} />
-    },
-  }
-})
+const drags = await vi.hoisted(() => import('@/test/dnd').then((m) => m.captureDrags()))
+vi.mock('@dnd-kit/core', (importOriginal) => drags.mockDndKit(importOriginal))
+// The task list sets its own collision detection; the Gantt chart leaves it to dnd-kit.
+const listDrag = () => drags.find((p) => p.collisionDetection !== undefined)
+const ganttDrag = () => drags.find((p) => p.collisionDetection === undefined)
 
-vi.setConfig({ testTimeout: 40_000 })
 const row = (id: number) => prisma.workItem.findUniqueOrThrow({ where: { id } })
 const mount = (id: number, as: Awaited<ReturnType<typeof createVolunteer>>, hash = '') =>
   renderApp(<ProjectDetailPage params={Promise.resolve({ id: String(id) })} />, {
@@ -258,10 +246,10 @@ describe('project page — owner', () => {
     fireEvent.mouseDown(document.body)
     expect(screen.queryByRole('menu')).toBeNull()
 
-    act(() => captured.list?.({ active: { id: t2.id }, over: { id: t1.id } } as DragEndEvent))
+    act(() => listDrag()({ active: { id: t2.id }, over: { id: t1.id } } as DragEndEvent))
     await waitFor(async () => expect((await row(t2.id)).sortOrder).toBe(1))
-    act(() => captured.list?.({ active: { id: t2.id }, over: null } as never))
-    act(() => captured.list?.({ active: { id: t2.id }, over: { id: t2.id } } as DragEndEvent))
+    act(() => listDrag()({ active: { id: t2.id }, over: null } as never))
+    act(() => listDrag()({ active: { id: t2.id }, over: { id: t2.id } } as DragEndEvent))
 
     vi.spyOn(window, 'confirm').mockReturnValueOnce(false)
     await userEvent.click(screen.getByLabelText('Task actions for Second task'))
@@ -340,7 +328,7 @@ describe('project page — owner', () => {
     await userEvent.click(screen.getByRole('option', { name: 'Completed' }))
     await userEvent.click(screen.getByRole('button', { name: 'Confirm' }))
     await waitFor(() => expect(screen.getAllByText('Project not found').length).toBeGreaterThan(2))
-    act(() => captured.list?.({ active: { id: t1.id }, over: { id: t1.id + 1 } } as DragEndEvent))
+    act(() => listDrag()({ active: { id: t1.id }, over: { id: t1.id + 1 } } as DragEndEvent))
   })
 })
 
@@ -483,14 +471,14 @@ describe('project page — timeline tab', () => {
 
     // Drag a bar (via the captured DndContext), then link two bars.
     act(() =>
-      captured.gantt?.({
+      ganttDrag()({
         active: { data: { current: { kind: 'move', rowId: b.id } } },
         delta: { x: 800, y: 0 },
       } as never),
     )
     await waitFor(async () => expect((await row(b.id)).startDate).not.toBeNull())
     act(() =>
-      captured.gantt?.({
+      ganttDrag()({
         active: { data: { current: { kind: 'link', rowId: b.id } } },
         over: { data: { current: { rowId: c.id } } },
         delta: { x: 0, y: 0 },
@@ -571,7 +559,7 @@ describe('project page — timeline tab', () => {
     // optimistically. Last, because removing a live query detaches the chart from its refetches.
     queryClient.removeQueries({ queryKey: orpc.projects.listTasks.key() })
     act(() =>
-      captured.gantt?.({
+      ganttDrag()({
         active: { data: { current: { kind: 'move', rowId: b.id } } },
         delta: { x: 800, y: 0 },
       } as never),

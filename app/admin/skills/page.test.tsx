@@ -7,28 +7,8 @@ import { createAdmin, createSkill } from '@/test/factories'
 import { renderApp } from '@/test/render'
 import AdminSkillsPage from './page'
 
-// Drags have no geometry in jsdom; capture each DndContext's latest onDragEnd, in mount order
-// (the outer one for categories first, then one per category), and drive them directly.
-const captured = vi.hoisted(() => ({
-  order: [] as string[],
-  latest: {} as Record<string, (e: DragEndEvent) => void>,
-  handler(index: number) {
-    return this.latest[this.order[index]]
-  },
-}))
-vi.mock('@dnd-kit/core', async (importOriginal) => {
-  const original = await importOriginal<typeof import('@dnd-kit/core')>()
-  const { useId } = await import('react')
-  return {
-    ...original,
-    DndContext: (props: React.ComponentProps<typeof original.DndContext>) => {
-      const id = useId()
-      if (!captured.order.includes(id)) captured.order.push(id)
-      if (props.onDragEnd) captured.latest[id] = props.onDragEnd
-      return <original.DndContext {...props} />
-    },
-  }
-})
+const drags = await vi.hoisted(() => import('@/test/dnd').then((m) => m.captureDrags()))
+vi.mock('@dnd-kit/core', (importOriginal) => drags.mockDndKit(importOriginal))
 
 const drag = (handler: (e: DragEndEvent) => void, activeId: number | null, overId: number | null) =>
   act(() =>
@@ -90,7 +70,7 @@ describe('admin skills', () => {
       await userEvent.click(screen.getByRole('button', { name: 'Save Category' }))
       await screen.findByText('Category updated!')
       await screen.findByRole('heading', { name: 'Zulu Cat Renamed' })
-      drag(captured.handler(0), catB.id, catA.id)
+      drag(drags.at(0), catB.id, catA.id)
       await waitFor(async () =>
         expect(
           Number(
@@ -102,8 +82,8 @@ describe('admin skills', () => {
           ),
         ),
       )
-      drag(captured.handler(0), catB.id, catB.id)
-      drag(captured.handler(0), catB.id, null)
+      drag(drags.at(0), catB.id, catB.id)
+      drag(drags.at(0), catB.id, null)
       await userEvent.click(within(catCard('Zany Cat')).getByRole('button', { name: 'Delete' }))
       await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
       await userEvent.click(within(catCard('Zany Cat')).getByRole('button', { name: 'Delete' }))
@@ -141,9 +121,9 @@ describe('admin skills', () => {
       expect(
         (await prisma.skill.findUniqueOrThrow({ where: { id: s1.id } })).description,
       ).toBeNull()
-      drag(captured.handler(zetaContext), s2.id, s2.id)
-      drag(captured.handler(zetaContext), s2.id, null)
-      drag(captured.handler(zetaContext), s2.id, s1.id)
+      drag(drags.at(zetaContext), s2.id, s2.id)
+      drag(drags.at(zetaContext), s2.id, null)
+      drag(drags.at(zetaContext), s2.id, s1.id)
       await waitFor(async () =>
         expect(
           Number((await prisma.skill.findUniqueOrThrow({ where: { id: s2.id } })).sortOrder),

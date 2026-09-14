@@ -11,8 +11,6 @@ vi.mock('next/script', () => ({ default: () => null }))
 vi.mock('@/lib/google-auth', () => ({ verifyGoogleToken: vi.fn(async () => null) }))
 import { verifyGoogleToken } from '@/lib/google-auth'
 
-vi.setConfig({ testTimeout: 30_000 })
-
 const type = (label: string, text: string) => userEvent.type(screen.getByLabelText(label), text)
 const submit = () =>
   fireEvent.submit(screen.getByLabelText('Your Name', { exact: false }).closest('form')!)

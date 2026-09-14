@@ -8,7 +8,6 @@ import { navigation } from '@/test/next-navigation'
 import { anon } from '@/test/rpc'
 import SettingsPage from './page'
 
-vi.setConfig({ testTimeout: 30_000 })
 const me = (id: number) => prisma.volunteer.findUniqueOrThrow({ where: { id } })
 
 describe('settings — profile tab', () => {

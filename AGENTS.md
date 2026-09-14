@@ -25,12 +25,12 @@ If `format:check` fails, run `npm run format` to fix all files at once — do no
 
 ## Comments
 
-Comments say why, not what; if the code needs a comment to say what it does, change the code.
+Comments describe the code as it stands — never the edit, never a measurement, never twice. The reader holds none of your context: not what the code looked like before, not what you rejected, not what a run reported last week. Check every comment against these four failures before committing:
 
-- Never add a comment to justify removing a guard or a check — keep the guard, or make the state impossible through types.
-- Attach comments to what they describe: a function's comment sits directly above it, never between a doc block and the function.
-- Don't restate the line below it, and don't narrate test steps that the assertions already make obvious.
-- A comment that names a caller, a component or an invariant elsewhere must stay true when that code changes — prefer a type or a test over a promise in prose.
+- **Describing the edit.** "now", "no longer", "as before"; "rather than X" where X is what the code used to do; "without a tiebreak of its own"; "the one test covers both". If the previous version of the file is needed for the comment to make sense, the comment fails.
+- **A number that will rot.** "a fifth of the platform's mutants", "1790 of 1880 tests", "roughly thirty survivors". True once, wrong soon. Write the durable version — "the map is large and stands apart" — and put the measurement in the commit message, which carries its own date.
+- **Saying it seven times.** One explanation copied to every call site is seven things that must stay true. Say it once where you define the thing; at the other sites one line naming it is enough.
+- **Excessive length.** Don't spread over three lines what one says. Every line costs the reader time, and they skip a long comment whole, including the part that mattered. Cut until only what they could not have worked out remains.
 
 ## Testing and coverage
 
