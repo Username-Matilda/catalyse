@@ -203,7 +203,8 @@ test.describe('Project ownership states', () => {
     await adminPage.goto(`${baseUrl}/projects`)
     const adminCard = adminPage.locator('.card').filter({ hasText: title })
     await expect(adminCard).toBeVisible({ timeout: 10_000 })
-    await expect(adminCard).toContainText('Proposer: PauseAI')
+    await expect(adminCard).toContainText('Proposed by: PauseAI')
+    await expect(adminCard).toContainText('Would need to find owner')
 
     const volunteer = await createApprovedVolunteer(baseUrl)
     const ctx = await browser.newContext()
