@@ -11,7 +11,7 @@ const mount = (id: number | string, as: Awaited<ReturnType<typeof createVoluntee
   renderApp(<AdminTeamDetailPage params={Promise.resolve({ id: String(id) })} />, { as })
 
 describe('admin team detail', () => {
-  it('edits details, reviews join requests, and manages members', { timeout: 15_000 }, async () => {
+  it('edits details, reviews join requests, and manages members', async () => {
     const admin = await createAdmin()
     const member = await createVolunteer({ name: 'Molly Member' })
     const leader = await createVolunteer({ name: 'Lars Leader' })

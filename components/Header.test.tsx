@@ -48,7 +48,7 @@ describe('Header', () => {
     await prisma.notification.create({ data: { volunteerId: admin.id, type: 'x', title: 't' } })
     await mount(admin, '/projects')
     const nameButton = await screen.findByRole('button', { name: new RegExp(admin.name) })
-    await waitFor(() => expect(nameButton).toHaveTextContent('1'))
+    expect(await screen.findByRole('link', { name: /Notifications/ })).toHaveTextContent('1')
     expect(screen.getByRole('link', { name: 'Projects' })).toHaveClass('bg-primary')
     expect(screen.getByRole('link', { name: 'Teams' })).not.toHaveClass('bg-primary')
     expect(screen.queryByText('Confirm your location')).toBeNull()
@@ -96,10 +96,12 @@ describe('Header', () => {
 
   it('switches dashboard tabs via the hash without a navigation', async () => {
     const vol = await createVolunteer({ locationConfirmedAt: new Date() })
+    await prisma.notification.create({ data: { volunteerId: vol.id, type: 'x', title: 't' } })
     await mount(vol, '/dashboard')
     const myProjects = await screen.findByRole('link', { name: 'My Projects' })
     expect(myProjects).toHaveClass('bg-primary')
-    await userEvent.click(screen.getByRole('link', { name: /Notifications/ }))
+    // The Notifications button only exists while something is unread.
+    await userEvent.click(await screen.findByRole('link', { name: /Notifications/ }))
     act(() => window.dispatchEvent(new HashChangeEvent('hashchange')))
     expect(window.location.hash).toBe('#tab-notifications')
     await waitFor(() =>

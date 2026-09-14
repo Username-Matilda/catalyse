@@ -97,9 +97,11 @@ describe('ProjectCard', () => {
         showProposer
       />,
     )
-    expect(screen.getByText('👤 Proposer: Pat')).toBeInTheDocument()
-    rerender(<ProjectCard project={{ ...base, owner: null, isOrgProposed: true }} showProposer />)
-    expect(screen.getByText('👤 Proposer: PauseAI')).toBeInTheDocument()
+    expect(screen.getByText('🧑‍💼 Proposed by: Pat · Would need to find owner')).toBeInTheDocument()
+    rerender(<ProjectCard project={{ ...base, isOrgProposed: true }} showProposer />)
+    expect(screen.getByText('🧑‍💼 Proposed by: PauseAI · Will be owner')).toBeInTheDocument()
+    rerender(<ProjectCard project={{ ...base, proposedBy: null }} showProposer />)
+    expect(screen.getByText('🧑‍💼 Proposed by: Unknown · Will be owner')).toBeInTheDocument()
     // Skills the viewer lacks are hidden when they have any skills at all.
     rerender(<ProjectCard project={base} userSkillIds={new Set([99])} />)
     expect(screen.queryByText('A')).toBeNull()
@@ -153,7 +155,7 @@ describe('BugReportDialog', () => {
     expect(onClose).toHaveBeenCalled()
   })
 
-  it('shows an error when the API refuses, and closes via cancel / backdrop / ×', async () => {
+  it('shows an error when the API refuses, and closes via cancel / ×', async () => {
     const onClose = vi.fn()
     await renderApp(<BugReportDialog isOpen onClose={onClose} />)
     await userEvent.type(screen.getByLabelText('Title'), 'T')
@@ -162,8 +164,8 @@ describe('BugReportDialog', () => {
     expect(await screen.findByText('Unauthorized')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     await userEvent.click(screen.getByLabelText('Close'))
+    // The backdrop is inert: a stray click outside must not discard a half-written report.
     fireEvent.click(screen.getByRole('dialog').parentElement!)
-    await userEvent.click(screen.getByRole('dialog'))
-    expect(onClose).toHaveBeenCalledTimes(3)
+    expect(onClose).toHaveBeenCalledTimes(2)
   })
 })

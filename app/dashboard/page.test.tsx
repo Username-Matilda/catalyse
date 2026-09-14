@@ -156,6 +156,15 @@ describe('dashboard', () => {
     // Note 0 (the one with a link) is the oldest: on the second page of "all".
     await userEvent.click(await screen.findByRole('button', { name: 'Next' }))
     expect(await screen.findByRole('link', { name: 'View' })).toHaveAttribute('href', '/projects/1')
+    // Following the link marks the notification read, unless it already was.
+    const linked = () => prisma.notification.findFirstOrThrow({ where: { title: 'Note 0' } })
+    const readAt = (await linked()).readAt
+    await userEvent.click(screen.getByRole('link', { name: 'View' }))
+    expect((await linked()).readAt).toEqual(readAt)
+    await userEvent.click(screen.getByRole('button', { name: 'Mark as unread' }))
+    await waitFor(async () => expect((await linked()).readAt).toBeNull())
+    await userEvent.click(screen.getByRole('link', { name: 'View' }))
+    await waitFor(async () => expect((await linked()).readAt).not.toBeNull())
   })
 
   it('surfaces a failed quick-task submission', async () => {

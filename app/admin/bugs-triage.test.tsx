@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { screen, waitFor, cleanup, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { prisma } from '@/lib/prisma'
@@ -40,23 +40,56 @@ describe('admin bugs', () => {
     ).closest<HTMLElement>('[role="link"]')!
     expect(card).toHaveTextContent('bug· high· Rita Reporter')
     expect(card).toHaveTextContent('/projects/1')
+    expect(screen.getByRole('heading', { name: 'Open: 1' })).toBeInTheDocument()
+    // Resolved reports sit in a section that starts collapsed.
     expect(screen.queryByText('Nice to have')).toBeNull()
-
-    await userEvent.click(screen.getByRole('button', { name: 'Filter by status' }))
-    await userEvent.click(screen.getByRole('option', { name: 'Resolved' }))
-    const resolved = (
-      await screen.findByRole('heading', { name: 'Nice to have' })
-    ).closest<HTMLElement>('[role="link"]')!
+    const resolvedToggle = screen.getByRole('button', { name: 'Resolved: 1' })
+    expect(resolvedToggle).toHaveAttribute('aria-expanded', 'false')
+    await userEvent.click(resolvedToggle)
+    const resolved = screen
+      .getByRole('heading', { name: 'Nice to have' })
+      .closest<HTMLElement>('[role="link"]')!
     expect(resolved).toHaveTextContent('Resolution: Shipped')
     expect(resolved).toHaveTextContent('· javascript:alert(1)')
     expect(resolved).toHaveTextContent('Assigned to: Fiona Fixer')
     expect(within(resolved).queryByRole('button', { name: 'Mark In Progress' })).toBeNull()
+    resolvedToggle.focus()
+    await userEvent.keyboard('{Enter}')
+    expect(screen.queryByText('Nice to have')).toBeNull()
+
+    // Export builds a markdown file from every listed report and hands it to the browser.
+    // jsdom has no object URLs; capture the blob and swallow the anchor click that would download it.
+    let exported = ''
+    const revokeObjectURL = vi.fn()
+    Object.assign(URL, {
+      createObjectURL: (blob: Blob) => {
+        void blob.text().then((t) => (exported = t))
+        return 'blob:fake'
+      },
+      revokeObjectURL,
+    })
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    await userEvent.click(screen.getByRole('button', { name: 'Export as Markdown' }))
+    await waitFor(() => expect(exported).toContain('# Bug Reports'))
+    expect(exported).toContain('## [#')
+    expect(exported).toContain('- **Status:** Open')
+    expect(exported).toMatch(/- \*\*Page URL:\*\* (http:\/\/localhost:3000)?\/projects\/1\n/)
+    expect(exported).toContain('- **Page URL:** javascript:alert(1)')
+    expect(exported).toContain('- **Assignee:** Fiona Fixer')
+    expect(exported).toContain('**Resolution notes:**\n\nShipped')
+    expect(click).toHaveBeenCalledOnce()
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:fake')
+    click.mockRestore()
+
     await userEvent.click(screen.getByRole('button', { name: 'Filter by type' }))
-    await userEvent.click(screen.getByRole('option', { name: 'Bug' }))
+    await userEvent.click(screen.getByRole('option', { name: 'Feature' }))
+    await waitFor(() => expect(screen.queryByText('Broken button')).toBeNull())
+    await screen.findByRole('button', { name: 'Resolved: 1' })
+    await userEvent.click(screen.getByRole('button', { name: 'Filter by type' }))
+    await userEvent.click(screen.getByRole('option', { name: 'UX Issue' }))
     await screen.findByText('No bug reports found.')
+    expect(screen.getByRole('button', { name: 'Export as Markdown' })).toBeDisabled()
     await userEvent.click(screen.getByRole('button', { name: 'Filter by type' }))
-    await userEvent.click(screen.getByRole('option', { name: 'All' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Filter by status' }))
     await userEvent.click(screen.getByRole('option', { name: 'All' }))
     await screen.findByRole('heading', { name: 'Broken button' })
 
@@ -74,6 +107,8 @@ describe('admin bugs', () => {
         'in_progress',
       ),
     )
+    // The card re-mounts under its new section once the list refetches; click the settled one.
+    await screen.findByRole('heading', { name: 'In Progress: 1' })
 
     await userEvent.click(openCard())
     expect(navigation.push).toHaveBeenCalledWith(`/bugs/${open.id}`)
@@ -93,18 +128,22 @@ describe('admin bugs', () => {
       data: { title: 'Fragile', description: 'Will fail to update' },
     })
     await renderApp(<AdminBugsPage />, { as: admin })
-    await screen.findByRole('heading', { name: 'Fragile' })
+    const fragile = (await screen.findByRole('heading', { name: 'Fragile' })).closest<HTMLElement>(
+      '[role="link"]',
+    )!
     await userEvent.click(screen.getByRole('button', { name: 'Assign volunteer to Fragile' }))
     await userEvent.click(await screen.findByRole('option', { name: 'Ada Assignee' }))
     localStorage.setItem('authToken', 'stale')
-    await userEvent.click(screen.getByRole('button', { name: 'Assign' }))
+    await userEvent.click(within(fragile).getByRole('button', { name: 'Assign' }))
     await screen.findByText('Unauthorized')
     cleanup()
     localStorage.clear()
     await renderApp(<AdminBugsPage />, { as: admin })
-    await screen.findByRole('heading', { name: 'Fragile' })
+    const again = (await screen.findByRole('heading', { name: 'Fragile' })).closest<HTMLElement>(
+      '[role="link"]',
+    )!
     localStorage.setItem('authToken', 'stale')
-    await userEvent.click(screen.getByRole('button', { name: 'Mark In Progress' }))
+    await userEvent.click(within(again).getByRole('button', { name: 'Mark In Progress' }))
     await screen.findByText('Unauthorized')
   })
 })

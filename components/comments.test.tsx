@@ -237,9 +237,8 @@ describe('AiEditingHelp', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Copy instructions' }))
     expect(writeText).toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument()
-    await waitFor(
-      () => expect(screen.getByRole('button', { name: 'Copy instructions' })).toBeInTheDocument(),
-      { timeout: 3000 },
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Copy instructions' })).toBeInTheDocument(),
     )
     await userEvent.click(screen.getByRole('button', { name: 'Read' }))
     expect(screen.getByRole('button', { name: 'Hide' })).toBeInTheDocument()

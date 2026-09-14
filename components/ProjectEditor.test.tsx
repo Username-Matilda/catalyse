@@ -187,7 +187,7 @@ describe('ProjectEditor — editing an existing project', () => {
     blur(hours)
     await waitFor(async () => expect((await row(project.id)).timeCommitmentHoursPerWeek).toBeNull())
 
-    await userEvent.click(screen.getByRole('button', { name: 'Select urgency' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Select priority' }))
     await userEvent.click(screen.getByRole('option', { name: /High/ }))
     await waitFor(async () => expect((await row(project.id)).urgency).toBe('high'))
 
@@ -281,7 +281,7 @@ describe('ProjectEditor — editing an existing project', () => {
       `/projects/${project.id}`,
     )
     // Dropdowns are not disabled, so a change reaches the server and is refused there.
-    await userEvent.click(screen.getByRole('button', { name: 'Select urgency' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Select priority' }))
     await userEvent.click(screen.getByRole('option', { name: /Low/ }))
     expect(await screen.findByText('Not authorized to edit this project')).toBeInTheDocument()
     await userEvent.click(

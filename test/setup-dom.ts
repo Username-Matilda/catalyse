@@ -13,8 +13,8 @@ if (typeof window !== 'undefined') {
   const { navigation } = await import('./next-navigation')
   installRpcFetch()
   // `findBy*` waits for a real RPC round trip; Testing Library's default of one second is
-  // tight on a busy CI runner.
-  configure({ asyncUtilTimeout: 5_000 })
+  // far too tight on a busy CI runner, where a page's first load can take several seconds.
+  configure({ asyncUtilTimeout: 15_000 })
   // The app's client retries failed queries with backoff; a test asserting on an error state
   // would otherwise wait several seconds for the retries to run out.
   queryClient.setDefaultOptions({ queries: { retry: false } })

@@ -150,9 +150,7 @@ describe('accept invite', () => {
     })
     await renderApp(<AcceptInvitePage />, { url: '/accept-invite?token=good-token', as: invitee })
     expect(await screen.findByText('Welcome to the Team!')).toBeInTheDocument()
-    await waitFor(() => expect(navigation.push).toHaveBeenCalledWith('/dashboard'), {
-      timeout: 3000,
-    })
+    await waitFor(() => expect(navigation.push).toHaveBeenCalledWith('/dashboard'))
     expect((await prisma.volunteer.findUniqueOrThrow({ where: { id: invitee.id } })).isAdmin).toBe(
       true,
     )

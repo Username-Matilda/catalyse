@@ -85,6 +85,9 @@ describe('signup with email and password', () => {
       screen.getByRole('button', { name: 'Keep me in the loop about new projects' }),
     )
     await userEvent.click(screen.getByRole('option', { name: 'Send me a fortnightly digest' }))
+    await userEvent.click(
+      screen.getByLabelText('Allow Google Analytics to help us improve the platform'),
+    )
     submit()
     await screen.findByText('Check your email')
     const row = await prisma.volunteer.findFirstOrThrow({
@@ -104,6 +107,7 @@ describe('signup with email and password', () => {
       availabilityHoursPerWeek: 5,
       consentMakeProfileVisibleInDirectory: false,
       consentShareContactInfoWithProjectOwner: true,
+      cookieConsentAnalytics: true,
       emailDigest: 'fortnightly',
       approvalStatus: 'pending',
     })
@@ -295,11 +299,15 @@ describe('signup with Google', () => {
       screen.getByRole('button', { name: 'Keep me in the loop about new projects' }),
     )
     await userEvent.click(screen.getByRole('option', { name: "Don't email me" }))
+    await userEvent.click(
+      screen.getByLabelText('Allow Google Analytics to help us improve the platform'),
+    )
     fireEvent.submit(form())
     await screen.findByText('Application submitted')
     const row = await prisma.volunteer.findFirstOrThrow({ where: { email: 'stub@example.com' } })
     expect(row).toMatchObject({
       name: 'Stub User',
+      cookieConsentAnalytics: true,
       localGroup: 'Google Town',
       contactPreference: 'email',
       contactNotes: 'n',

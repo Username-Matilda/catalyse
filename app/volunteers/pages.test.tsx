@@ -54,7 +54,7 @@ describe('volunteer directory', () => {
     await userEvent.click(await screen.findByRole('option', { name: 'United Kingdom - Dir Town' }))
     await screen.findByRole('link', { name: 'Ann Directory' })
     fireEvent.change(screen.getByLabelText('Search'), { target: { value: 'nobody-matches' } })
-    await screen.findByText('No volunteers found', {}, { timeout: 3000 })
+    await screen.findByText('No volunteers found')
     await userEvent.click(screen.getByRole('button', { name: 'Clear filters' }))
     expect(navigation.replace).toHaveBeenCalledWith('?', { scroll: false })
     expect(screen.queryByText('Hidden Person')).toBeNull()

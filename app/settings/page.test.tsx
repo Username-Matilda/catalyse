@@ -162,7 +162,7 @@ describe('settings — account tab', () => {
     await userEvent.type(screen.getByLabelText('Confirm your password'), 'another-long-one')
     fireEvent.submit(screen.getByLabelText('Enter your password').closest('form')!)
     await screen.findByText(/account has been deleted/)
-    await waitFor(() => expect(navigation.push).toHaveBeenCalledWith('/login'), { timeout: 3000 })
+    await waitFor(() => expect(navigation.push).toHaveBeenCalledWith('/login'))
     expect((await me(vol.id)).deletedAt).not.toBeNull()
   })
 
@@ -216,12 +216,14 @@ describe('settings — notifications and privacy tabs', () => {
     await userEvent.click(screen.getByLabelText(/visible in the volunteer directory/i))
     await userEvent.click(screen.getByLabelText(/Share my contact/i))
     await userEvent.click(screen.getByLabelText(/contact me about/i))
+    await userEvent.click(screen.getByLabelText(/Allow Google Analytics/))
     await userEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
     await waitFor(() => expect(screen.getAllByText('Profile updated!')).toHaveLength(2))
     expect(await me(vol.id)).toMatchObject({
       consentMakeProfileVisibleInDirectory: false,
       consentContactableByProjectOwners: false,
       consentShareContactInfoWithProjectOwner: true,
+      cookieConsentAnalytics: true,
     })
     await userEvent.click(screen.getByRole('button', { name: 'Download My Data' }))
     await screen.findByText('Data exported successfully!')

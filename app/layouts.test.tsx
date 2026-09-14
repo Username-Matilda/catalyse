@@ -2,11 +2,14 @@ import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { createProject } from '@/test/factories'
 
-// Every route segment with a static title, as `[path, module]`.
-const staticLayouts = import.meta.glob<{
+type LayoutModule = {
   default: React.ComponentType<{ children: React.ReactNode }>
   metadata?: { title?: unknown }
-}>(
+}
+
+// Every route segment with a static title, as `[path, module]`. Next's own `import.meta.glob`
+// typing shadows Vite's generic one, hence the cast.
+const staticLayouts = import.meta.glob(
   [
     './*/layout.tsx',
     './*/*/layout.tsx',
@@ -15,7 +18,7 @@ const staticLayouts = import.meta.glob<{
     '!./projects/[id]/edit/layout.tsx',
   ],
   { eager: true },
-)
+) as Record<string, LayoutModule>
 
 describe('route layouts', () => {
   it('each declares a title and renders its children unchanged', () => {

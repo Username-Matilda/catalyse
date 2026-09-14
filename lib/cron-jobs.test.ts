@@ -8,6 +8,7 @@ vi.mock('@/jobs/applications', () => ({
   runApplicationsSummaryJob: vi.fn(async () => 'summary-ran'),
   runApplicationsAnonymisationJob: vi.fn(async () => 'anon-ran'),
 }))
+vi.mock('@/jobs/csp-summary', () => ({ runCspSummaryJob: vi.fn(async () => 'csp-ran') }))
 
 import { CRON_JOBS, CRON_JOB_NAMES } from './cron-jobs'
 
@@ -19,6 +20,7 @@ describe('CRON_JOBS', () => {
       nudges: 'nudges-ran',
       'applications-summary': 'summary-ran',
       'applications-anonymisation': 'anon-ran',
+      'csp-summary': 'csp-ran',
     }
     for (const name of CRON_JOB_NAMES) {
       expect(await CRON_JOBS[name]('admin')).toBe(expected[name])

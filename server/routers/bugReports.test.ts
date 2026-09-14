@@ -175,8 +175,8 @@ describe('bugReportComments', () => {
 
     const { comments } = await clientAs(reporter).bugReportComments.list({ bugReportId: id })
     expect(comments.map((c) => [c.authorName, c.content])).toEqual([
-      [admin.name, 'from admin'],
       [reporter.name, 'from reporter'],
+      [admin.name, 'from admin'],
     ])
   })
 })

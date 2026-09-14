@@ -87,7 +87,7 @@ describe('projects directory', () => {
     expect(window.location.search).toContain('page=2')
 
     // Changing any filter resets to page 1.
-    await userEvent.click(screen.getByRole('button', { name: 'Urgency filter' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Priority filter' }))
     await userEvent.click(screen.getByRole('option', { name: 'High' }))
     await waitFor(() => expect(window.location.search).not.toContain('page='))
     await waitFor(() => expect(screen.getByText('No projects found')).toBeInTheDocument())

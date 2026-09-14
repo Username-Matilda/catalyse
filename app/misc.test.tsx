@@ -55,9 +55,7 @@ describe('editor host pages', () => {
       </CookieConsentProvider>,
       { as: me },
     )
-    await waitFor(() => expect(document.body.textContent).toContain('Edit Project'), {
-      timeout: 4000,
-    })
+    await waitFor(() => expect(document.body.textContent).toContain('Edit Project'))
     expect(await screen.findByDisplayValue('Hosted')).toBeInTheDocument()
 
     await renderApp(

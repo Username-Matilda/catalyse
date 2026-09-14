@@ -76,7 +76,7 @@ describe('quick tasks — volunteer view', () => {
     const me = await createVolunteer()
     await renderApp(<QuickTasksPage />, { as: me })
     await screen.findByText('No tasks assigned yet')
-    await screen.findByText('No open Quick Tasks right now', {}, { timeout: 3000 })
+    await screen.findByText('No open Quick Tasks right now')
     cleanup()
     const mine = await createQuickTask({
       title: 'Fragile',

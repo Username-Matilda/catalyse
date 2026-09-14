@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { prisma } from '@/lib/prisma'
-import { createVolunteer, createProject, createSkill } from '@/test/factories'
+import { createVolunteer, createProject, createSkill, createTeam } from '@/test/factories'
 import { clientAs } from '@/test/rpc'
 
 describe('dashboard.get', () => {
@@ -27,6 +27,19 @@ describe('dashboard.get', () => {
     })
     const suggested = await createProject({
       status: 'ready',
+      skills: { create: [{ skillId: skill.id, isRequired: true }] },
+    })
+    // Team-scoped projects are only suggested to that team's members.
+    const myTeam = await createTeam()
+    await prisma.teamMembership.create({ data: { teamId: myTeam.id, volunteerId: me.id } })
+    const teamSuggested = await createProject({
+      status: 'ready',
+      teamId: myTeam.id,
+      skills: { create: [{ skillId: skill.id, isRequired: true }] },
+    })
+    await createProject({
+      status: 'ready',
+      teamId: (await createTeam()).id,
       skills: { create: [{ skillId: skill.id, isRequired: true }] },
     })
     await createProject({
@@ -59,7 +72,9 @@ describe('dashboard.get', () => {
         match: expect.objectContaining({ matchedRequiredCount: 1 }),
       }),
     ])
-    expect(d.suggestedProjects.map((p) => p.id)).toEqual([suggested.id])
+    expect(d.suggestedProjects.map((p) => p.id).sort()).toEqual(
+      [suggested.id, teamSuggested.id].sort(),
+    )
     expect(d.unreadNotificationCount).toBe(1)
   })
 

@@ -166,6 +166,11 @@ describe('projects.createTask / reorderTasks / deleteTask', () => {
     await expect(
       c.projects.deleteTask({ projectId: project.id, taskId: 999_999 }),
     ).rejects.toMatchObject({ message: 'Task not found' })
+    // The task can vanish between the permission check and the delete.
+    vi.spyOn(prisma.workItem, 'deleteMany').mockResolvedValueOnce({ count: 0 })
+    await expect(
+      c.projects.deleteTask({ projectId: project.id, taskId: t1.id }),
+    ).rejects.toMatchObject({ message: 'Task not found' })
     expect(await c.projects.deleteTask({ projectId: project.id, taskId: t1.id })).toEqual({
       message: 'Task deleted',
     })
