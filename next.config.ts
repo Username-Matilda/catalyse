@@ -33,6 +33,10 @@ const securityHeaders = [
 ]
 
 const nextConfig: NextConfig = {
+  // Pulled in by the nightly anonymiser (jobs/anonymise.ts) via the cron routes; its locale
+  // data is large and pure Node, so leave it to require() rather than bundling it.
+  serverExternalPackages: ['@faker-js/faker'],
+
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }]
   },
