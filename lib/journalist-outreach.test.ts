@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
   CLAIM_MS,
-  INTRO_PROMPT,
   PRESS_EMAIL,
   canSwitchTemplate,
   composeLinks,
@@ -42,8 +41,9 @@ describe('renderEmail', () => {
       expect(`${subject}${body}`).not.toContain('{{')
       expect(body).not.toMatch(/['"]/)
       expect(body).toMatch(/\nPauseAI Global press email: press@pauseai\.info$/)
-      // A blank intro leaves the prompt in place so the gap is obvious.
-      expect(body).toContain(`Dear Jane,\n\n${INTRO_PROMPT}\n\n`)
+      // A blank intro drops its paragraph, and no bracketed prompt is ever sent.
+      expect(body).toMatch(/^Dear Jane,\n\nJacob Coxon’s resignation \(https:/)
+      expect(body).not.toContain('[')
     }
     expect(renderEmail({ ...j, leaning: 'DEMOCRAT' }, { ...sam, name: '' }).body).toContain(
       'Sincerely,\n[Your name]\n',
@@ -56,8 +56,12 @@ describe('renderEmail', () => {
       { ...j, leaning: 'DEMOCRAT' },
       { name: 'Sam', phone: ' 555 0100 ', intro: ' I loved your piece on AI safety. ' },
     )
-    expect(email.body).toContain('Dear Jane,\n\nI loved your piece on AI safety.\n\n')
-    expect(email.body).not.toContain(INTRO_PROMPT)
+    expect(email.body).toContain(
+      'Dear Jane,\n\nI loved your piece on AI safety.\n\nJacob Coxon’s resignation',
+    )
+    expect(renderEmail({ ...j, leaning: 'DEMOCRAT' }, { ...sam, intro: '   ' }).body).toMatch(
+      /^Dear Jane,\n\nJacob Coxon’s resignation/,
+    )
     expect(email.body).toContain('Sincerely,\nSam\n555 0100\nPauseAI Global volunteer\n')
   })
 

@@ -277,8 +277,14 @@ function TaskCard({
           rows={3}
           value={intro}
           onChange={(e) => setIntro(e.target.value)}
-          placeholder={`Search whether ${name} has covered AI extinction risk before, and mention their piece if so.`}
+          placeholder={`Perhaps pick up on other AI articles ${task.organisation} has covered, or whether ${name} has written about AI extinction risk.`}
         />
+        {!intro.trim() && (
+          <p className="text-sm text-warning mt-1 mb-0">
+            No personal opening yet. The email starts straight after “Dear {task.firstName},” until
+            you add one.
+          </p>
+        )}
         <p className="text-sm text-text-light mt-1">
           Only used to fill in this email. It isn&apos;t saved or sent to our server.
         </p>

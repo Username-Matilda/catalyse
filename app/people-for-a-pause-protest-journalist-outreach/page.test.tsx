@@ -172,20 +172,28 @@ describe('journalist outreach task flow', () => {
       'href',
       expect.stringContaining('mail.google.com'),
     )
-    expect(screen.getByText(/Dear Reporter,/)).toHaveTextContent('Sincerely, Sam')
+    expect(screen.getByText(/Dear Reporter,/, { selector: 'pre' })).toHaveTextContent(
+      'Sincerely, Sam',
+    )
 
     // Phone and personal intro fill the email; neither leaves the browser.
     expect(screen.getByText(/never sent to or stored on our server/)).toBeInTheDocument()
     expect(screen.getByText(/isn.t saved or sent to our server/)).toBeInTheDocument()
     await userEvent.type(screen.getByLabelText(/Your phone number/), '555 0100')
     expect(localStorage.getItem('outreachPhone')).toBe('555 0100')
+    expect(screen.getByText(/No personal opening yet/)).toBeInTheDocument()
+    expect(screen.getByText(/Dear Reporter,/, { selector: 'pre' })).toHaveTextContent(
+      /^Dear Reporter, Jacob Coxon/,
+    )
+    expect(screen.getByText(/Dear Reporter,/, { selector: 'pre' })).not.toHaveTextContent('[')
     await userEvent.type(
       screen.getByLabelText('Your personal opening sentence'),
       'Loved your AI piece.',
     )
-    expect(screen.getByText(/Dear Reporter,/)).toHaveTextContent(
+    expect(screen.getByText(/Dear Reporter,/, { selector: 'pre' })).toHaveTextContent(
       /Dear Reporter, Loved your AI piece\. .*Sincerely, Sam 555 0100 PauseAI Global volunteer PauseAI Global press email/,
     )
+    expect(screen.queryByText(/No personal opening yet/)).not.toBeInTheDocument()
     const resignation = screen.getByRole('link', { name: 'Jacob Coxon’s resignation' })
     expect(resignation).toHaveAttribute('href', expect.stringContaining('x.com/hilbertspaess'))
     // Compose links carry plain text only, so the address follows the link text.

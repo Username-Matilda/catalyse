@@ -42,9 +42,7 @@ const TEMPLATES: Record<JournalistLeaning, { subject: string; body: string }> = 
     subject: 'PAUSE NOT PACE - PAUSE AI',
     body: `Dear {{firstName}},
 
-{{intro}}
-
-[Jacob Coxon’s resignation](${COXON_RESIGNATION_URL}) from the AI company Anthropic over human extinction concerns has gone viral, with over 170 million views. More than 1,380 employees of OpenAI, Anthropic, Google DeepMind, and Meta, including CEOs, have also signed a statement asking the U.S. government to deliberately slow the frontier.
+{{introParagraph}}[Jacob Coxon’s resignation](${COXON_RESIGNATION_URL}) from the AI company Anthropic over human extinction concerns has gone viral, with over 170 million views. More than 1,380 employees of OpenAI, Anthropic, Google DeepMind, and Meta, including CEOs, have also signed a statement asking the U.S. government to deliberately slow the frontier.
 
 But the real story here is that ordinary people are ahead of the debate. Half of all Americans say they are concerned that AI “will cause the end of the human race on Earth,” and two thirds think it is advancing too quickly (YouGov, September 14). The American people want a pause, not just Big Tech.
 
@@ -67,9 +65,7 @@ PauseAI Global press email: press@pauseai.info`,
     subject: 'PAUSE NOT PACE - PAUSE AI',
     body: `Dear {{firstName}},
 
-{{intro}}
-
-[Jacob Coxon’s resignation](${COXON_RESIGNATION_URL}) from the AI company Anthropic over concerns regarding human extinction has gone viral. When over 1,380 employees of OpenAI, Anthropic, Google DeepMind, and Meta - including CEOs - sign a statement urging the government to slow AI development, that’s no longer “hysteria” but whistleblower testimony from inside the industry.
+{{introParagraph}}[Jacob Coxon’s resignation](${COXON_RESIGNATION_URL}) from the AI company Anthropic over concerns regarding human extinction has gone viral. When over 1,380 employees of OpenAI, Anthropic, Google DeepMind, and Meta - including CEOs - sign a statement urging the government to slow AI development, that’s no longer “hysteria” but whistleblower testimony from inside the industry.
 
 But the mainstream media keeps missing something crucial: the public is ahead of the debate. Half of Americans fear AI “will cause the end of the human race on Earth,” and two-thirds say it’s advancing too fast (YouGov, September 14). The American people want a pause, not just tech elites.
 
@@ -89,9 +85,6 @@ PauseAI Global press email: press@pauseai.info`,
 }
 
 export type EmailPart = string | { text: string; url: string }
-
-export const INTRO_PROMPT =
-  '[Add a personal opening sentence: perhaps pick up on other AI articles covered by the outlet if possible]'
 
 const LINK_RE = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g
 
@@ -113,13 +106,14 @@ export function renderEmail(
   sender: { name: string; phone: string; intro: string },
 ): { subject: string; body: string; html: string; parts: EmailPart[] } {
   const phone = sender.phone.trim()
+  const intro = sender.intro.trim()
   const values: Record<string, string> = {
     firstName: journalist.firstName,
     lastName: journalist.lastName,
     organisation: journalist.organisation,
     volunteerName: sender.name.trim() || '[Your name]',
-    intro: sender.intro.trim() || INTRO_PROMPT,
-    // The phone number is optional, so its line disappears when left blank.
+    // Optional parts vanish when blank, so no placeholder text can reach a journalist.
+    introParagraph: intro ? `${intro}\n\n` : '',
     phoneLine: phone ? `\n${phone}` : '',
   }
   const fill = (s: string) => s.replace(/\{\{(\w+)\}\}/g, (_, key: string) => values[key])
