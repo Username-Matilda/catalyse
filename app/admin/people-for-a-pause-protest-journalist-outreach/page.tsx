@@ -25,11 +25,12 @@ const STATUS_VARIANT: Record<JournalistStatus, BadgeVariant> = {
   available: 'neutral',
   claimed: 'warning',
   contacted: 'success',
+  bounced: 'danger',
 }
 const COLUMNS = Object.values(CSV_COLUMNS)
 const REQUIRED_HEADERS = COLUMNS.filter((c) => c.required).map((c) => c.header)
 const OPTIONAL_HEADERS = COLUMNS.filter((c) => !c.required).map((c) => c.header)
-const FILTERS = ['all', 'available', 'claimed', 'contacted'] as const
+const FILTERS = ['all', 'available', 'claimed', 'contacted', 'bounced'] as const
 
 export default function AdminJournalistOutreachPage() {
   const { user, loading } = useRequireAdmin()
@@ -102,12 +103,13 @@ export default function AdminJournalistOutreachPage() {
       </p>
 
       {data && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           {(
             [
               ['Available', data.totals.available],
               ['Claimed now', data.totals.claimed],
               ['Contacted', data.totals.contacted],
+              ['Bounced', data.totals.bounced],
               ['Volunteers who sent', data.totals.volunteers],
             ] as const
           ).map(([label, value]) => (

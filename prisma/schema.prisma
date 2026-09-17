@@ -928,6 +928,8 @@ model ExperimentalJournalist {
   contactedAt       DateTime?                        @map("contacted_at")
   /// The template the volunteer actually sent; differs from leaning when they switched it.
   sentLeaning       ExperimentalJournalistLeaning?   @map("sent_leaning")
+  /// Set when the volunteer who sent it reports the address bounced or was wrong.
+  bouncedAt         DateTime?                        @map("bounced_at")
   skipCount         Int                              @default(0) @map("skip_count")
   createdAt         DateTime?                        @default(now()) @map("created_at")
   claimedBy         ExperimentalOutreachParticipant? @relation("ExperimentalJournalistClaimedBy", fields: [claimedById], references: [id], onDelete: SetNull)

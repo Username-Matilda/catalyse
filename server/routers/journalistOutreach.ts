@@ -231,6 +231,25 @@ export const journalistOutreachRouter = {
       return { contactedCount }
     }),
 
+  reportBounce: participantProcedure
+    .input(z.object({ journalistId: z.number().int() }))
+    .handler(async ({ input, context }) => {
+      const updated = await prisma.experimentalJournalist.updateMany({
+        where: {
+          id: input.journalistId,
+          contactedById: context.participant.id,
+          bouncedAt: null,
+        },
+        data: { bouncedAt: new Date() },
+      })
+      if (updated.count === 0) {
+        throw new ORPCError('CONFLICT', {
+          message: 'Could not find that journalist in your sent list.',
+        })
+      }
+      return { success: true }
+    }),
+
   release: participantProcedure
     .input(z.object({ journalistId: z.number().int() }))
     .handler(async ({ input, context }) => {

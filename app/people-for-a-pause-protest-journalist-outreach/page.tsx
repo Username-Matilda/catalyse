@@ -365,6 +365,7 @@ function Outreach({ onSignOut }: { onSignOut: () => void }) {
     typeof window !== 'undefined' ? (localStorage.getItem(PHONE_STORAGE_KEY) ?? '') : '',
   )
   const [justSent, setJustSent] = useState<number | null>(null)
+  const [lastSent, setLastSent] = useState<{ id: number; name: string } | null>(null)
   const [expiredTask, setExpiredTask] = useState<Task | null>(null)
   const closeExpired = () => setExpiredTask(null)
   const [exhausted, setExhausted] = useState(false)
@@ -390,6 +391,7 @@ function Outreach({ onSignOut }: { onSignOut: () => void }) {
     mutationFn: () => client.journalistOutreach.claimNext(),
     onSuccess: (task) => {
       setJustSent(null)
+      setLastSent(null)
       setExpiredTask(null)
       setExhausted(task === null)
       return current.refetch()
@@ -399,10 +401,19 @@ function Outreach({ onSignOut }: { onSignOut: () => void }) {
   const markSent = useMutation({
     mutationFn: (t: Task) =>
       client.journalistOutreach.markSent({ journalistId: t.id, sentLeaning: templateLeaning(t) }),
-    onSuccess: (res) => {
+    onSuccess: (res, t) => {
       setExpiredTask(null)
       setJustSent(res.contactedCount)
+      setLastSent({ id: t.id, name: fullName(t) })
       return current.refetch()
+    },
+    onError,
+  })
+  const reportBounce = useMutation({
+    mutationFn: (journalistId: number) => client.journalistOutreach.reportBounce({ journalistId }),
+    onSuccess: () => {
+      setLastSent(null)
+      showToast('Thanks, flagged for review', 'success')
     },
     onError,
   })
@@ -496,6 +507,16 @@ function Outreach({ onSignOut }: { onSignOut: () => void }) {
               <p className="my-2">
                 That&apos;s {justSent} journalist{justSent === 1 ? '' : 's'} you&apos;ve contacted.
               </p>
+              {lastSent && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={reportBounce.isPending}
+                  onClick={() => reportBounce.mutate(lastSent.id)}
+                >
+                  It bounced / wrong email for {lastSent.name}
+                </Button>
+              )}
             </>
           )}
           {exhausted ? (

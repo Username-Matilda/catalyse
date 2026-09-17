@@ -93,13 +93,31 @@ describe('admin.journalistOutreach', () => {
         sentLeaning: 'DEMOCRAT',
       },
     })
+    const bounced = await prisma.experimentalJournalist.create({
+      data: {
+        ...base,
+        firstName: 'D',
+        email: 'd@x.com',
+        contactedById: p.id,
+        contactedAt: now,
+        sentLeaning: 'DEMOCRAT',
+        bouncedAt: now,
+      },
+    })
 
     const list = await api.list()
-    expect(list.totals).toEqual({ available: 1, claimed: 1, contacted: 1, volunteers: 1 })
+    expect(list.totals).toEqual({
+      available: 1,
+      claimed: 1,
+      contacted: 1,
+      bounced: 1,
+      volunteers: 1,
+    })
     expect(list.journalists.map((j) => [j.id, j.status, j.claimedBy, j.contactedBy])).toEqual([
       [available.id, 'available', null, null],
       [claimed.id, 'claimed', 'vol@example.com', null],
       [contacted.id, 'contacted', null, 'vol@example.com'],
+      [bounced.id, 'bounced', null, 'vol@example.com'],
     ])
     expect(list.journalists[0]).toMatchObject({
       firstName: 'A',
@@ -115,18 +133,24 @@ describe('admin.journalistOutreach', () => {
       'A,Doe,a@x.com,P,REPUBLICAN,LOW,AI press,1,Web,https://a.com,"AI, policy",n,,,',
       'B,Doe,b@x.com,P,REPUBLICAN,,,,,,,,,,',
       `C,Doe,c@x.com,P,REPUBLICAN,,,,,,,,vol@example.com,${now.toISOString()},DEMOCRAT`,
+      `D,Doe,d@x.com,P,REPUBLICAN,,,,,,,,vol@example.com,${now.toISOString()},DEMOCRAT`,
     ])
-    expect(parseJournalistCsv(exported).valid).toHaveLength(3)
+    expect(parseJournalistCsv(exported).valid).toHaveLength(4)
 
     await api.reset({ id: contacted.id })
     expect(
       await prisma.experimentalJournalist.findUniqueOrThrow({ where: { id: contacted.id } }),
     ).toMatchObject({ contactedAt: null, sentLeaning: null })
+    await api.reset({ id: bounced.id })
+    expect(
+      await prisma.experimentalJournalist.findUniqueOrThrow({ where: { id: bounced.id } }),
+    ).toMatchObject({ contactedAt: null, sentLeaning: null, bouncedAt: null })
     await api.delete({ id: claimed.id })
     expect((await api.list()).totals).toEqual({
-      available: 2,
+      available: 3,
       claimed: 0,
       contacted: 0,
+      bounced: 0,
       volunteers: 0,
     })
   })

@@ -73,6 +73,7 @@ export const adminJournalistOutreachRouter = {
       claimedAt: j.claimedAt,
       contactedBy: j.contactedBy?.email ?? null,
       contactedAt: j.contactedAt,
+      bouncedAt: j.bouncedAt,
     }))
     const count = (s: string) => rows.filter((r) => r.status === s).length
     return {
@@ -81,6 +82,7 @@ export const adminJournalistOutreachRouter = {
         available: count('available'),
         claimed: count('claimed'),
         contacted: count('contacted'),
+        bounced: count('bounced'),
         volunteers: new Set(rows.map((r) => r.contactedBy).filter(Boolean)).size,
       },
     }
@@ -95,6 +97,7 @@ export const adminJournalistOutreachRouter = {
         contactedById: null,
         contactedAt: null,
         sentLeaning: null,
+        bouncedAt: null,
       },
     })
     return { success: true }

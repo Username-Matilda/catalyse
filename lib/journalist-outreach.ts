@@ -24,12 +24,13 @@ export const OUTREACH_SESSION_EXPIRED = 'OUTREACH_SESSION_EXPIRED'
 /** A claim made before this moment has lapsed and the journalist is free again. */
 export const claimCutoff = (now = new Date()) => new Date(now.getTime() - CLAIM_MS)
 
-export type JournalistStatus = 'available' | 'claimed' | 'contacted'
+export type JournalistStatus = 'available' | 'claimed' | 'contacted' | 'bounced'
 
 export function journalistStatus(
-  j: { contactedAt: Date | null; claimedAt: Date | null },
+  j: { contactedAt: Date | null; claimedAt: Date | null; bouncedAt: Date | null },
   now = new Date(),
 ): JournalistStatus {
+  if (j.bouncedAt) return 'bounced'
   if (j.contactedAt) return 'contacted'
   if (j.claimedAt && j.claimedAt > claimCutoff(now)) return 'claimed'
   return 'available'
