@@ -189,9 +189,14 @@ function TaskCard({
 
   return (
     <div className={card}>
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-        <div>
+      <div className="mb-4">
+        <div className="flex items-baseline justify-between gap-3">
           <h2 className="m-0">{name}</h2>
+          <span className="text-sm text-text-light whitespace-nowrap" aria-label="Time left">
+            {mm}:{ss} left
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2 mt-1">
           <p className="text-text-light m-0">
             {task.organisation}
             {task.medium && ` · ${task.medium}`}
@@ -204,15 +209,14 @@ function TaskCard({
               </>
             )}
           </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge variant={task.leaning === 'REPUBLICAN' ? 'danger' : 'info'}>
-            {LEANING_LABEL[task.leaning]}-leaning
-            {task.leaningConfidence && ` · ${task.leaningConfidence.toLowerCase()} confidence`}
-          </Badge>
-          <span className="text-sm text-text-light" aria-label="Time left">
-            {mm}:{ss} left
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={task.leaning === 'REPUBLICAN' ? 'danger' : 'info'}>
+              {LEANING_LABEL[task.leaning]}-leaning
+            </Badge>
+            {task.leaningConfidence && (
+              <Badge variant="neutral">{task.leaningConfidence.toLowerCase()} confidence</Badge>
+            )}
+          </div>
         </div>
       </div>
       {task.interests && <p className="text-sm mb-2">Covers: {task.interests}</p>}

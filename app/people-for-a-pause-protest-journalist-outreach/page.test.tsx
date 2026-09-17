@@ -157,7 +157,8 @@ describe('journalist outreach task flow', () => {
     expect(localStorage.getItem('outreachName')).toBe('Sam')
     await userEvent.click(button('Get a journalist'))
     expect(await screen.findByRole('heading', { name: first.name })).toBeInTheDocument()
-    expect(screen.getByText('Republican-leaning · high confidence')).toBeInTheDocument()
+    expect(screen.getByText('Republican-leaning')).toBeInTheDocument()
+    expect(screen.getByText('high confidence')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /template/ })).not.toBeInTheDocument()
     expect(screen.getByText('Note: Covers tech policy')).toBeInTheDocument()
     expect(screen.getByText('Covers: AI policy')).toBeInTheDocument()
@@ -185,7 +186,8 @@ describe('journalist outreach task flow', () => {
     await userEvent.click(button('Get a journalist'))
     // The skipped journalist drops behind the one nobody has passed on.
     expect(await screen.findByRole('heading', { name: second.name })).toBeInTheDocument()
-    expect(screen.getByText('Democrat-leaning · medium confidence')).toBeInTheDocument()
+    expect(screen.getByText('Democrat-leaning')).toBeInTheDocument()
+    expect(screen.getByText('medium confidence')).toBeInTheDocument()
 
     // Not sure of the leaning: the volunteer can try the other template and back again.
     expect(screen.getByText(/We're not sure Reporter \d+ leans Democrat/)).toBeInTheDocument()
