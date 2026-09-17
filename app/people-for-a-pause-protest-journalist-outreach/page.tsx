@@ -5,6 +5,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { ORPCError } from '@orpc/client'
 import { client } from '@/lib/client'
 import { useToast } from '@/lib/toast'
+import { useAuth } from '@/lib/auth-context'
 import {
   CLAIM_MINUTES,
   OUTREACH_SESSION_EXPIRED,
@@ -27,10 +28,15 @@ type Leaning = Task['leaning']
 
 const card = 'bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word'
 
-function RequestLinkForm() {
+function RequestLinkForm({ onSignIn }: { onSignIn: (token: string) => void }) {
+  const { user } = useAuth()
   const [email, setEmail] = useState('')
   const mutation = useMutation({
     mutationFn: (email: string) => client.journalistOutreach.requestLink({ email }),
+  })
+  const catalyseSignIn = useMutation({
+    mutationFn: () => client.journalistOutreach.catalyseSignIn(),
+    onSuccess: (res) => onSignIn(res.token),
   })
 
   if (mutation.isSuccess) {
@@ -58,9 +64,23 @@ function RequestLinkForm() {
         Help get People for a Pause in the news. We&apos;ll give you one journalist at a time and a
         ready-made email to send them from your own address.
       </p>
-      {mutation.error && (
+      {user && (
+        <div className="bg-brand-bg rounded-lg p-3 mb-4 text-sm">
+          <p className="mb-2">You&apos;re logged in to Catalyse, so you can skip the link.</p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={catalyseSignIn.isPending}
+            onClick={() => catalyseSignIn.mutate()}
+          >
+            Continue as {user.email}
+          </Button>
+        </div>
+      )}
+      {(mutation.error ?? catalyseSignIn.error) && (
         <p role="alert" className="text-error mb-4">
-          {mutation.error.message}
+          {(mutation.error ?? catalyseSignIn.error)?.message}
         </p>
       )}
       <div className="mb-5">
@@ -453,12 +473,16 @@ export default function JournalistOutreachPage() {
     localStorage.removeItem(OUTREACH_TOKEN_STORAGE_KEY)
     setToken(null)
   }, [])
+  const signIn = (t: string) => {
+    localStorage.setItem(OUTREACH_TOKEN_STORAGE_KEY, t)
+    setToken(t)
+  }
 
   return (
     <main className="container py-5 pb-15">
       <div className="max-w-[720px] my-10 mx-auto">
         <h1 className="text-center">People for a Pause: journalist outreach</h1>
-        {token ? <Outreach onSignOut={signOut} /> : <RequestLinkForm />}
+        {token ? <Outreach onSignOut={signOut} /> : <RequestLinkForm onSignIn={signIn} />}
       </div>
     </main>
   )

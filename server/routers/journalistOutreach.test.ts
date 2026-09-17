@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { generateAuthToken, hashToken } from '@/lib/auth'
 import { CLAIM_MS, OUTREACH_TOKEN_HEADER } from '@/lib/journalist-outreach'
 import { anon, clientAs } from '@/test/rpc'
-import { nextSeq } from '@/test/factories'
+import { createVolunteer, nextSeq } from '@/test/factories'
 
 const { checkRateLimitMock } = vi.hoisted(() => ({ checkRateLimitMock: vi.fn() }))
 vi.mock('@/lib/rate-limit', async (importOriginal) => {
@@ -118,6 +118,34 @@ describe('journalistOutreach sign-in', () => {
       },
     })
     await expect(as(token).journalistOutreach.current()).rejects.toMatchObject(expired)
+  })
+
+  it('signs logged-in Catalyse users straight in as the same participant as their email link', async () => {
+    const { participant } = await signIn('mixed@example.com')
+    const volunteer = await createVolunteer({ email: 'Mixed@example.com' })
+    const res = await clientAs(volunteer).journalistOutreach.catalyseSignIn()
+    expect(res.email).toBe('mixed@example.com')
+    await expect(as(res.token).journalistOutreach.current()).resolves.toMatchObject({
+      email: 'mixed@example.com',
+    })
+    const session = await prisma.experimentalOutreachSession.findFirstOrThrow({
+      where: { tokenHash: hashToken(res.token) },
+    })
+    expect(session.participantId).toBe(participant.id)
+
+    const fresh = await createVolunteer()
+    await clientAs(fresh).journalistOutreach.catalyseSignIn()
+    expect(
+      await prisma.experimentalOutreachParticipant.count({ where: { email: fresh.email! } }),
+    ).toBe(1)
+
+    await expect(anon().journalistOutreach.catalyseSignIn()).rejects.toMatchObject({
+      code: 'UNAUTHORIZED',
+    })
+    const noEmail = await createVolunteer({ email: null })
+    await expect(clientAs(noEmail).journalistOutreach.catalyseSignIn()).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    })
   })
 
   it('rate limits link requests and verification', async () => {

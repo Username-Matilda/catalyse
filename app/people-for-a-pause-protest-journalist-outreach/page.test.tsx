@@ -10,7 +10,7 @@ import {
   fullName,
 } from '@/lib/journalist-outreach'
 import type { Prisma } from '@/generated/prisma/client'
-import { nextSeq } from '@/test/factories'
+import { createVolunteer, nextSeq } from '@/test/factories'
 import { renderApp } from '@/test/render'
 import { navigation } from '@/test/next-navigation'
 import JournalistOutreachPage from './page'
@@ -73,6 +73,19 @@ describe('journalist outreach sign-in', () => {
     await userEvent.type(screen.getByLabelText('Your email'), 'not-an-email')
     fireEvent.submit(screen.getByLabelText('Your email').closest('form')!)
     expect(await screen.findByRole('alert')).toBeInTheDocument()
+  })
+
+  it('lets someone logged in to Catalyse continue without a link', async () => {
+    const volunteer = await createVolunteer()
+    await renderApp(<JournalistOutreachPage />, { as: volunteer })
+    await userEvent.click(
+      await screen.findByRole('button', { name: `Continue as ${volunteer.email}` }),
+    )
+    expect(await screen.findByText(`Signed in as ${volunteer.email}`, { exact: false }))
+    expect(localStorage.getItem(OUTREACH_TOKEN_STORAGE_KEY)).toBeTruthy()
+    expect(sendOutreachLoginEmail).not.toHaveBeenCalledWith(
+      expect.objectContaining({ to: volunteer.email }),
+    )
   })
 
   it('redeems a link and stores the session, or explains a bad link', async () => {

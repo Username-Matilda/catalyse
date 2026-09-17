@@ -12,7 +12,7 @@ import {
 } from '@/lib/journalist-outreach'
 import type { ExperimentalJournalist as Journalist } from '@/generated/prisma/client'
 import { ExperimentalJournalistLeaning } from '@/generated/prisma/enums'
-import { publicProcedure } from '../procedures'
+import { authedProcedure, publicProcedure } from '../procedures'
 
 const LOGIN_TOKEN_TTL_MS = 60 * 60 * 1000
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000
@@ -48,6 +48,18 @@ async function activeClaim(participantId: number, now: Date) {
   return prisma.experimentalJournalist.findFirst({
     where: { claimedById: participantId, contactedAt: null, claimedAt: { gt: claimCutoff(now) } },
   })
+}
+
+async function createOutreachSession(participantId: number): Promise<string> {
+  const token = generateAuthToken()
+  await prisma.experimentalOutreachSession.create({
+    data: {
+      participantId,
+      tokenHash: hashToken(token),
+      expiresAt: new Date(Date.now() + SESSION_TTL_MS),
+    },
+  })
+  return token
 }
 
 function toTask(j: Journalist, claimedAt: Date) {
@@ -109,19 +121,25 @@ export const journalistOutreachRouter = {
           message: 'This link has expired or already been used. Request a new one.',
         })
       }
-      const sessionToken = generateAuthToken()
-      await prisma.experimentalOutreachSession.create({
-        data: {
-          participantId: login.participantId,
-          tokenHash: hashToken(sessionToken),
-          expiresAt: new Date(now.getTime() + SESSION_TTL_MS),
-        },
-      })
       const participant = await prisma.experimentalOutreachParticipant.findUniqueOrThrow({
         where: { id: login.participantId },
       })
-      return { token: sessionToken, email: participant.email }
+      return { token: await createOutreachSession(participant.id), email: participant.email }
     }),
+
+  /** Anyone logged in to Catalyse skips the email link and joins as their account email. */
+  catalyseSignIn: authedProcedure.handler(async ({ context }) => {
+    const email = context.volunteer.email?.toLowerCase()
+    if (!email) {
+      throw new ORPCError('BAD_REQUEST', { message: 'Your account has no email address.' })
+    }
+    const participant = await prisma.experimentalOutreachParticipant.upsert({
+      where: { email },
+      create: { email },
+      update: {},
+    })
+    return { token: await createOutreachSession(participant.id), email }
+  }),
 
   current: participantProcedure.handler(async ({ context }) => {
     const now = new Date()
