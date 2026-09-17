@@ -44,6 +44,22 @@ describe('renderEmail', () => {
     )
     expect(fullName(j)).toBe('Jane Doe')
   })
+
+  it('renders links as parts, plain "text (url)" and escaped HTML', () => {
+    const url = 'https://x.com/hilbertspaess/status/2097476196791709843'
+    const email = renderEmail({ ...j, firstName: '<Jo & "Al">', leaning: 'REPUBLICAN' }, 'Sam')
+    expect(email.parts[1]).toEqual({ text: 'Jacob Coxon’s resignation', url })
+    expect(email.parts).toHaveLength(3)
+    expect(email.body).toContain(`Jacob Coxon’s resignation (${url}) from the AI company`)
+    expect(email.body).not.toContain('](')
+    expect(email.html).toMatch(/^Dear &lt;Jo &amp; &quot;Al&quot;&gt;,<br><br>/)
+    expect(email.html).toContain(`<a href="${url}">Jacob Coxon’s resignation</a> from the AI`)
+    expect(renderEmail({ ...j, leaning: 'DEMOCRAT' }, 'Sam').parts[1]).toEqual(email.parts[1])
+    // Link-like text in a filled-in value stays plain text.
+    const sneaky = renderEmail({ ...j, leaning: 'DEMOCRAT' }, '[click](https://evil.test)')
+    expect(sneaky.parts).toHaveLength(3)
+    expect(sneaky.html).not.toContain('evil.test">')
+  })
 })
 
 describe('composeLinks', () => {

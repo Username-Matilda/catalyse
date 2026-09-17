@@ -109,15 +109,27 @@ function RequestLinkForm({ onSignIn }: { onSignIn: (token: string) => void }) {
 function CopyField({
   label,
   value,
-  multiline,
+  html,
+  children,
 }: {
   label: string
   value: string
-  multiline?: boolean
+  /** When given, copied alongside the plain text so pasting into a mail client keeps links. */
+  html?: string
+  /** Rendered in place of the plain value, in a multi-line box. */
+  children?: React.ReactNode
 }) {
   const showToast = useToast()
   const copy = () =>
-    navigator.clipboard.writeText(value).then(
+    (html && typeof ClipboardItem !== 'undefined'
+      ? navigator.clipboard.write([
+          new ClipboardItem({
+            'text/html': new Blob([html], { type: 'text/html' }),
+            'text/plain': new Blob([value], { type: 'text/plain' }),
+          }),
+        ])
+      : navigator.clipboard.writeText(value)
+    ).then(
       () => showToast(`${label} copied`, 'success'),
       () => showToast(`Couldn't copy — select the text instead`, 'error'),
     )
@@ -129,9 +141,9 @@ function CopyField({
           Copy
         </Button>
       </div>
-      {multiline ? (
+      {children ? (
         <pre className="whitespace-pre-wrap font-sans bg-brand-bg rounded-lg p-3 text-sm">
-          {value}
+          {children}
         </pre>
       ) : (
         <div className="bg-brand-bg rounded-lg px-3 py-2 text-sm">{value}</div>
@@ -176,7 +188,10 @@ function TaskCard({
   const secondsLeft = useSecondsLeft(task.claimExpiresAt)
   const expired = secondsLeft === 0
   const switched = templateLeaning !== task.leaning
-  const { subject, body } = renderEmail({ ...task, leaning: templateLeaning }, volunteerName)
+  const { subject, body, html, parts } = renderEmail(
+    { ...task, leaning: templateLeaning },
+    volunteerName,
+  )
   const links = composeLinks(task.email, subject, body)
 
   useEffect(() => {
@@ -269,7 +284,21 @@ function TaskCard({
       <CopyField label="To" value={task.email} />
       <CopyField label="CC" value={PRESS_EMAIL} />
       <CopyField label="Subject" value={subject} />
-      <CopyField label="Body" value={body} multiline />
+      <CopyField label="Body" value={body} html={html}>
+        {parts.map((p, i) =>
+          typeof p === 'string' ? (
+            p
+          ) : (
+            <a key={i} href={p.url} target="_blank" rel="noreferrer">
+              {p.text}
+            </a>
+          ),
+        )}
+      </CopyField>
+      <p className="text-sm text-text-light -mt-2 mb-3">
+        Tip: use Copy and paste into your email to keep the links. The open-in-mail buttons can only
+        carry plain text, so links appear as web addresses there.
+      </p>
 
       <div className="flex flex-wrap justify-between gap-2 mt-5">
         <Button variant="ghost" onClick={onSkip}>

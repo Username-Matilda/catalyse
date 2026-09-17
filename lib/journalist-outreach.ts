@@ -36,6 +36,8 @@ export function journalistStatus(
 }
 
 // Bracketed lines are prompts for the volunteer to replace before sending.
+// [text](https://…) marks a link; see renderEmail.
+const COXON_RESIGNATION_URL = 'https://x.com/hilbertspaess/status/2097476196791709843'
 const TEMPLATES: Record<JournalistLeaning, { subject: string; body: string }> = {
   REPUBLICAN: {
     subject: 'PAUSE NOT PACE - PAUSE AI',
@@ -43,7 +45,7 @@ const TEMPLATES: Record<JournalistLeaning, { subject: string; body: string }> = 
 
 [Add a personal opening sentence: perhaps pick up on other AI articles covered by the outlet if possible]
 
-Jacob Coxon’s resignation from the AI company Anthropic over human extinction concerns has gone viral, with over 170 million views. More than 1,380 employees of OpenAI, Anthropic, Google DeepMind, and Meta, including CEOs, have also signed a statement asking the U.S. government to deliberately slow the frontier.
+[Jacob Coxon’s resignation](${COXON_RESIGNATION_URL}) from the AI company Anthropic over human extinction concerns has gone viral, with over 170 million views. More than 1,380 employees of OpenAI, Anthropic, Google DeepMind, and Meta, including CEOs, have also signed a statement asking the U.S. government to deliberately slow the frontier.
 
 But the real story here is that ordinary people are ahead of the debate. Half of all Americans say they are concerned that AI “will cause the end of the human race on Earth,” and two thirds think it is advancing too quickly (YouGov, September 14). The American people want a pause, not just Big Tech.
 
@@ -60,6 +62,7 @@ Available for interview: Maxime Fournes, CEO of Pause AI Global, Irina Tavera, O
 Sincerely,
 {{volunteerName}}
 [personal phone number, if you are happy to provide it]
+
 PauseAI press email: press@pauseai.info`,
   },
   DEMOCRAT: {
@@ -68,7 +71,7 @@ PauseAI press email: press@pauseai.info`,
 
 [Add a personal opening sentence: perhaps pick up on other AI articles covered by the outlet if possible]
 
-Jacob Coxon’s resignation from the AI company Anthropic over concerns regarding human extinction has gone viral. When over 1,380 employees of OpenAI, Anthropic, Google DeepMind, and Meta - including CEOs - sign a statement urging the government to slow AI development, that’s no longer “hysteria” but whistleblower testimony from inside the industry.
+[Jacob Coxon’s resignation](${COXON_RESIGNATION_URL}) from the AI company Anthropic over concerns regarding human extinction has gone viral. When over 1,380 employees of OpenAI, Anthropic, Google DeepMind, and Meta - including CEOs - sign a statement urging the government to slow AI development, that’s no longer “hysteria” but whistleblower testimony from inside the industry.
 
 But the mainstream media keeps missing something crucial: the public is ahead of the debate. Half of Americans fear AI “will cause the end of the human race on Earth,” and two-thirds say it’s advancing too fast (YouGov, September 14). The American people want a pause, not just tech elites.
 
@@ -83,10 +86,23 @@ Available for interview: Maxime Fournes, CEO of Pause AI Global, Irina Tavera, O
 Sincerely,
 {{volunteerName}}
 [personal phone number, if you are happy to provide it]
+
 PauseAI press email: press@pauseai.info`,
   },
 }
 
+export type EmailPart = string | { text: string; url: string }
+
+const LINK_RE = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g
+
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
+/**
+ * Fills a template three ways: `parts` for display, `body` as plain text for mail-app links
+ * (which cannot carry hyperlinks, so each link becomes "text (url)"), and `html` for pasting
+ * into a mail client with the links intact.
+ */
 export function renderEmail(
   journalist: {
     firstName: string
@@ -95,7 +111,7 @@ export function renderEmail(
     leaning: JournalistLeaning
   },
   volunteerName: string,
-): { subject: string; body: string } {
+): { subject: string; body: string; html: string; parts: EmailPart[] } {
   const values: Record<string, string> = {
     firstName: journalist.firstName,
     lastName: journalist.lastName,
@@ -104,7 +120,25 @@ export function renderEmail(
   }
   const fill = (s: string) => s.replace(/\{\{(\w+)\}\}/g, (_, key: string) => values[key])
   const template = TEMPLATES[journalist.leaning]
-  return { subject: fill(template.subject), body: fill(template.body) }
+
+  // Links are split out before filling, so names can never be read as link markup.
+  const parts: EmailPart[] = []
+  let last = 0
+  for (const m of template.body.matchAll(LINK_RE)) {
+    parts.push(fill(template.body.slice(last, m.index)), { text: m[1], url: m[2] })
+    last = m.index + m[0].length
+  }
+  parts.push(fill(template.body.slice(last)))
+
+  const body = parts.map((p) => (typeof p === 'string' ? p : `${p.text} (${p.url})`)).join('')
+  const html = parts
+    .map((p) =>
+      typeof p === 'string'
+        ? escapeHtml(p).replace(/\n/g, '<br>')
+        : `<a href="${escapeHtml(p.url)}">${escapeHtml(p.text)}</a>`,
+    )
+    .join('')
+  return { subject: fill(template.subject), body, html, parts }
 }
 
 export function composeLinks(to: string, subject: string, body: string) {

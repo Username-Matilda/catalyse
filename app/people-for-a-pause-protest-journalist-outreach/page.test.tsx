@@ -173,13 +173,38 @@ describe('journalist outreach task flow', () => {
       expect.stringContaining('mail.google.com'),
     )
     expect(screen.getByText(/Dear Reporter,/)).toHaveTextContent('Sincerely, Sam')
+    const resignation = screen.getByRole('link', { name: 'Jacob Coxon’s resignation' })
+    expect(resignation).toHaveAttribute('href', expect.stringContaining('x.com/hilbertspaess'))
+    // Compose links carry plain text only, so the address follows the link text.
+    expect(
+      new URL(
+        screen.getByRole('link', { name: 'Open in Gmail' }).getAttribute('href')!,
+      ).searchParams.get('body'),
+    ).toContain(`Jacob Coxon’s resignation (${resignation.getAttribute('href')})`)
 
     await userEvent.click(button('Copy To'))
     expect(writeText).toHaveBeenCalledWith(first.email)
     expect(await screen.findByText('To copied')).toBeInTheDocument()
+    // Without rich clipboard support the body falls back to plain text.
     writeText.mockRejectedValueOnce(new Error('denied'))
     await userEvent.click(button('Copy Body'))
     expect(await screen.findByText(/Couldn't copy/)).toBeInTheDocument()
+
+    // With it, the body is copied as HTML so the link survives pasting into a mail client.
+    const write = vi.fn(async (_items: unknown[]) => {})
+    class FakeClipboardItem {
+      constructor(readonly data: Record<string, Blob>) {}
+    }
+    vi.stubGlobal('ClipboardItem', FakeClipboardItem)
+    Object.assign(navigator, { clipboard: { writeText, write } })
+    await userEvent.click(button('Copy Body'))
+    expect(await screen.findByText('Body copied')).toBeInTheDocument()
+    const [item] = write.mock.calls[0][0] as FakeClipboardItem[]
+    expect(await item.data['text/html'].text()).toContain(
+      `<a href="${resignation.getAttribute('href')}">Jacob Coxon’s resignation</a>`,
+    )
+    expect(await item.data['text/plain'].text()).toContain('Jacob Coxon’s resignation (https://')
+    vi.unstubAllGlobals()
 
     await userEvent.click(button('Skip this journalist'))
     await screen.findByRole('button', { name: 'Get a journalist' })
