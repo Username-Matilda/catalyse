@@ -33,9 +33,17 @@ describe('resolveDbUrl', () => {
   it('falls back to the default when DATABASE_URL is unset', async () => {
     vi.stubEnv('RAILWAY_VOLUME_MOUNT_PATH', '')
     delete process.env.DATABASE_URL
-    const { resolveDbUrl } = await import('./db-url')
-    expect(resolveDbUrl()).toBe(`file:${path.resolve(process.cwd(), 'db/catalyse.db')}`)
-    expect(resolveDbUrl('file:/other.db')).toBe('file:/other.db')
+    const origCwd = process.cwd()
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dburl-'))
+    process.chdir(dir)
+    try {
+      const { resolveDbUrl } = await import('./db-url')
+      expect(resolveDbUrl()).toBe(`file:${path.resolve(process.cwd(), 'db/catalyse.db')}`)
+      expect(resolveDbUrl('file:/other.db')).toBe('file:/other.db')
+    } finally {
+      process.chdir(origCwd)
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
   })
 })
 

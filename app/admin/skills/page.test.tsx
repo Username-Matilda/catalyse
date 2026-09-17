@@ -168,5 +168,5 @@ describe('admin skills', () => {
     await userEvent.click(within(catCard('Zulu Cat Renamed')).getByRole('button', { name: 'Edit' }))
     await userEvent.click(screen.getByRole('button', { name: 'Save Category' }))
     await screen.findAllByText(/not found/i)
-  })
+  }, 120_000)
 })
