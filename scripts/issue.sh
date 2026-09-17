@@ -307,7 +307,7 @@ case "\$1" in
     ;;
   run)
     case "\$2" in
-      fetch-prod-db|cron:backup|build:railway|local-setup|issue|demo|demo:snapshot|demo:compare|test:e2e:ui|test:e2e:headed|test:e2e:dev|test:e2e:dev:log|test:e2e:dev:headed|test:e2e:dev:ui)
+      fetch-anonymised-db|cron:backup|build:railway|local-setup|issue|demo|demo:snapshot|demo:compare|test:e2e:ui|test:e2e:headed|test:e2e:dev|test:e2e:dev:log|test:e2e:dev:headed|test:e2e:dev:ui)
         echo "npm run \$2: not permitted in issue sessions" >&2
         exit 1
         ;;

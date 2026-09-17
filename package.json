@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "issue": "bash scripts/issue.sh",
-    "local-setup": "cp -n .env.local.example .env.local; npm install && npm run install:browsers && npm run fetch-prod-db && npm run migrate && npm run generate",
+    "local-setup": "cp -n .env.local.example .env.local; npm install && npm run install:browsers && npm run fetch-anonymised-db && npm run migrate && npm run generate",
     "seed-preview": "tsx scripts/seed-preview.ts",
     "check-all": "npm run typecheck && npm run lint && npm run format:check && npm run test:unit && npm run test:e2e",
     "dev": "next dev --turbo",
@@ -19,7 +19,7 @@
     "build:railway": "tsx scripts/build-railway.ts",
     "new-migration": "tsx scripts/new-migration.ts",
     "migrate": "tsx scripts/migrate.ts",
-    "fetch-prod-db": "tsx scripts/fetch-prod-db.ts",
+    "fetch-anonymised-db": "tsx scripts/fetch-anonymised-db.ts",
     "export-bug-reports": "tsx scripts/export-bug-reports.ts",
     "install:browsers": "playwright install chromium --with-deps",
     "test:e2e": "playwright test",
