@@ -1,6 +1,6 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider      = "prisma-client"
+  output        = "../generated/prisma"
   // "native" is whatever generated the client last; the Linux target keeps the client usable
   // inside the devcontainer when the macOS host regenerates it (and vice versa).
   binaryTargets = ["native", "linux-arm64-openssl-3.0.x"]
@@ -840,4 +840,99 @@ model PlatformSettings {
   cspSummaryLastSentAt       DateTime? @map("csp_summary_last_sent_at")
 
   @@map("platform_settings")
+}
+
+// ============================================================================
+// EXPERIMENTAL: People for a Pause journalist outreach trial.
+// Self-contained: nothing outside this block references these models, and they
+// reference nothing outside it. To remove the feature, delete this block and
+// follow the checklist in lib/journalist-outreach.ts.
+// ============================================================================
+
+enum ExperimentalJournalistLeaning {
+  REPUBLICAN
+  DEMOCRAT
+}
+
+enum ExperimentalLeaningConfidence {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+/// EXPERIMENTAL. A person working through the journalist outreach list, identified by
+/// email alone and deliberately separate from Volunteer.
+model ExperimentalOutreachParticipant {
+  id                   Int                              @id @default(autoincrement())
+  email                String                           @unique
+  createdAt            DateTime?                        @default(now()) @map("created_at")
+  lastSeenAt           DateTime?                        @map("last_seen_at")
+  loginTokens          ExperimentalOutreachLoginToken[]
+  sessions             ExperimentalOutreachSession[]
+  claimedJournalists   ExperimentalJournalist[]         @relation("ExperimentalJournalistClaimedBy")
+  contactedJournalists ExperimentalJournalist[]         @relation("ExperimentalJournalistContactedBy")
+
+  @@map("experimental_outreach_participants")
+}
+
+/// EXPERIMENTAL. One-use magic sign-in link for the outreach page.
+model ExperimentalOutreachLoginToken {
+  id            Int                             @id @default(autoincrement())
+  participantId Int                             @map("participant_id")
+  /// @zod.custom.omit([model])
+  tokenHash     String                          @unique @map("token_hash")
+  expiresAt     DateTime                        @map("expires_at")
+  usedAt        DateTime?                       @map("used_at")
+  createdAt     DateTime?                       @default(now()) @map("created_at")
+  participant   ExperimentalOutreachParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@index([participantId], map: "idx_experimental_outreach_login_tokens_participant")
+  @@map("experimental_outreach_login_tokens")
+}
+
+/// EXPERIMENTAL. Outreach page session, independent of the main login Session.
+model ExperimentalOutreachSession {
+  id            Int                             @id @default(autoincrement())
+  participantId Int                             @map("participant_id")
+  /// @zod.custom.omit([model])
+  tokenHash     String                          @unique @map("token_hash")
+  expiresAt     DateTime                        @map("expires_at")
+  createdAt     DateTime?                       @default(now()) @map("created_at")
+  participant   ExperimentalOutreachParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@index([participantId], map: "idx_experimental_outreach_sessions_participant")
+  @@map("experimental_outreach_sessions")
+}
+
+/// EXPERIMENTAL. A journalist on the shared outreach list. Available when neither contacted
+/// nor claimed within the claim window (see lib/journalist-outreach.ts).
+model ExperimentalJournalist {
+  id                Int                              @id @default(autoincrement())
+  firstName         String                           @map("first_name")
+  lastName          String                           @map("last_name")
+  email             String                           @unique
+  organisation      String
+  leaning           ExperimentalJournalistLeaning
+  /// Unless HIGH, volunteers may send the other leaning's template instead.
+  leaningConfidence ExperimentalLeaningConfidence?   @map("leaning_confidence")
+  category          String?
+  /// Lower is handed out first; journalists without a tier go last.
+  priorityTier      Int?                             @map("priority_tier")
+  medium            String?
+  website           String?
+  interests         String?
+  notes             String?
+  claimedById       Int?                             @map("claimed_by_id")
+  claimedAt         DateTime?                        @map("claimed_at")
+  contactedById     Int?                             @map("contacted_by_id")
+  contactedAt       DateTime?                        @map("contacted_at")
+  /// The template the volunteer actually sent; differs from leaning when they switched it.
+  sentLeaning       ExperimentalJournalistLeaning?   @map("sent_leaning")
+  skipCount         Int                              @default(0) @map("skip_count")
+  createdAt         DateTime?                        @default(now()) @map("created_at")
+  claimedBy         ExperimentalOutreachParticipant? @relation("ExperimentalJournalistClaimedBy", fields: [claimedById], references: [id], onDelete: SetNull)
+  contactedBy       ExperimentalOutreachParticipant? @relation("ExperimentalJournalistContactedBy", fields: [contactedById], references: [id], onDelete: SetNull)
+
+  @@index([contactedAt, claimedAt], map: "idx_experimental_journalists_status")
+  @@map("experimental_journalists")
 }

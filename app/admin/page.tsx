@@ -85,6 +85,10 @@ export default function AdminLandingPage() {
         { href: '/admin/local-groups', label: 'Manage Local Groups' },
         { href: '/admin/teams', label: 'Manage Teams' },
         { href: '/admin/bugs', label: 'Bug Reports', count: counts?.openBugReports },
+        {
+          href: '/admin/people-for-a-pause-protest-journalist-outreach',
+          label: 'Journalist Outreach',
+        },
       ],
     },
     {
