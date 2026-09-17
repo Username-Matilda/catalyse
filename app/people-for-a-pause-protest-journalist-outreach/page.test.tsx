@@ -172,7 +172,7 @@ describe('journalist outreach task flow', () => {
       'href',
       expect.stringContaining('mail.google.com'),
     )
-    expect(screen.getByText(/Dear Reporter,/)).toHaveTextContent(/Sam$/)
+    expect(screen.getByText(/Dear Reporter,/)).toHaveTextContent('Sincerely, Sam')
 
     await userEvent.click(button('Copy To'))
     expect(writeText).toHaveBeenCalledWith(first.email)

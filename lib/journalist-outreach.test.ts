@@ -29,11 +29,18 @@ describe('renderEmail', () => {
   it('fills the template for the leaning and signs with the volunteer name', () => {
     const rep = renderEmail({ ...j, leaning: 'REPUBLICAN' }, ' Sam ')
     const dem = renderEmail({ ...j, leaning: 'DEMOCRAT' }, 'Sam')
-    expect(rep.subject).toContain('Daily Planet')
+    expect(rep.subject).toBe('PAUSE NOT PACE - PAUSE AI')
     expect(rep.body).toMatch(/^Dear Jane,/)
-    expect(rep.body).toMatch(/Sam$/)
-    expect(dem.body).not.toBe(rep.body)
-    expect(renderEmail({ ...j, leaning: 'DEMOCRAT' }, '').body).toMatch(/\[Your name\]$/)
+    expect(rep.body).toContain('Sincerely,\nSam\n')
+    expect(rep.body).toContain('not Democrat lobbyists or coastal elites')
+    expect(dem.body).toContain('humanity against the machines')
+    for (const { subject, body } of [rep, dem]) {
+      expect(`${subject}${body}`).not.toContain('{{')
+      expect(body).toMatch(/PauseAI press email: press@pauseai\.info$/)
+    }
+    expect(renderEmail({ ...j, leaning: 'DEMOCRAT' }, '').body).toContain(
+      'Sincerely,\n[Your name]\n',
+    )
     expect(fullName(j)).toBe('Jane Doe')
   })
 })
