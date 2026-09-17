@@ -9,8 +9,12 @@ const MAX_DETAIL_ROWS = 100
 
 const EndorsementInputSchema = z.object({
   skillId: z.number().int({ message: 'skillId is required' }),
-  rating: z.string().optional().default('verified'),
-  source: z.string().optional().default('direct_observation'),
+  // Mirrors the CHECK constraints on skill_endorsements; anything else fails at the database.
+  rating: z.enum(['verified', 'strong', 'developing']).optional().default('verified'),
+  source: z
+    .enum(['project_outcome', 'quick_task', 'direct_observation'])
+    .optional()
+    .default('direct_observation'),
   sourceId: z.number().int().optional().nullable(),
   notes: z.string().optional().nullable(),
 })

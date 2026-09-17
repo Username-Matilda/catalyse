@@ -1,0 +1,168 @@
+import { describe, it, expect, vi } from 'vitest'
+import { screen, waitFor, fireEvent, act, cleanup } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { prisma } from '@/lib/prisma'
+import { createVolunteer, createSuperAdmin, TEST_PASSWORD } from '@/test/factories'
+import { renderApp } from '@/test/render'
+import { navigation } from '@/test/next-navigation'
+import { anon } from '@/test/rpc'
+import LoginPage from './login/page'
+import ForgotPasswordPage from './forgot-password/page'
+import ResetPasswordPage from './reset-password/page'
+import VerifyEmailPage from './verify-email/page'
+import AcceptInvitePage from './accept-invite/page'
+
+vi.mock('next/script', () => ({ default: () => null }))
+
+describe('login', () => {
+  it('logs in with email and password, then goes to the dashboard', async () => {
+    const vol = await createVolunteer({ email: 'login@example.com' })
+    await renderApp(<LoginPage />, { url: '/login?email=login@example.com' })
+    const email = await screen.findByLabelText('Email')
+    expect(email).toHaveValue('login@example.com')
+    await userEvent.clear(email)
+    await userEvent.type(email, ' login@example.com ')
+    await userEvent.type(screen.getByLabelText('Password'), 'wrong')
+    await userEvent.click(screen.getByRole('button', { name: 'Login' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Invalid email or password')
+    await userEvent.clear(screen.getByLabelText('Password'))
+    await userEvent.type(screen.getByLabelText('Password'), TEST_PASSWORD)
+    await userEvent.click(screen.getByRole('button', { name: 'Login' }))
+    await waitFor(() => expect(navigation.push).toHaveBeenCalledWith('/dashboard'))
+    expect(await prisma.session.count({ where: { volunteerId: vol.id } })).toBe(1)
+  })
+
+  it('bounces an already signed-in visitor to the dashboard', async () => {
+    const vol = await createVolunteer()
+    await renderApp(<LoginPage />, { as: vol })
+    await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith('/dashboard'))
+  })
+})
+
+describe('forgot / reset password', () => {
+  it('requests a reset link (showing the dev link) and resets with it', async () => {
+    const vol = await createVolunteer()
+    await renderApp(<ForgotPasswordPage />)
+    await userEvent.type(screen.getByLabelText('Email'), vol.email!)
+    await userEvent.click(screen.getByRole('button', { name: 'Send Reset Link' }))
+    const link = await screen.findByText(/reset-password\?token=/)
+    const token = link.textContent!.split('token=')[1]
+
+    await renderApp(<ResetPasswordPage />, { url: `/reset-password?token=${token}` })
+    const pw = screen.getByLabelText('New Password')
+    const confirm = screen.getByLabelText('Confirm Password')
+    await userEvent.type(pw, 'new-password-1')
+    await userEvent.type(confirm, 'different')
+    fireEvent.submit(pw.closest('form')!)
+    expect(await screen.findByRole('alert')).toHaveTextContent('Passwords do not match')
+    await userEvent.clear(pw)
+    await userEvent.clear(confirm)
+    await userEvent.type(pw, 'short')
+    await userEvent.type(confirm, 'short')
+    fireEvent.submit(pw.closest('form')!)
+    expect(await screen.findByRole('alert')).toHaveTextContent('at least 8 characters')
+    await userEvent.clear(pw)
+    await userEvent.clear(confirm)
+    await userEvent.type(pw, 'new-password-1')
+    await userEvent.type(confirm, 'new-password-1')
+    fireEvent.submit(pw.closest('form')!)
+    await waitFor(() => expect(navigation.push).toHaveBeenCalledWith('/login'))
+    expect(
+      (await anon().auth.login({ email: vol.email!, password: 'new-password-1' })).token,
+    ).toBeTruthy()
+
+    // The same token is now spent.
+    cleanup()
+    await renderApp(<ResetPasswordPage />, { url: `/reset-password?token=${token}` })
+    const pw2 = screen.getByLabelText('New Password')
+    await userEvent.type(pw2, 'another-long-one')
+    await userEvent.type(screen.getByLabelText('Confirm Password'), 'another-long-one')
+    fireEvent.submit(pw2.closest('form')!)
+    expect(await screen.findByText('Invalid or expired reset token')).toBeInTheDocument()
+  })
+
+  it('shows an error when the request is refused, and a message without a token', async () => {
+    await renderApp(<ForgotPasswordPage />)
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'someone@example.com' } })
+    // The server accepts any address, so make the lookup itself fail.
+    vi.spyOn(prisma.volunteer, 'findFirst').mockRejectedValueOnce(new Error('db down') as never)
+    fireEvent.submit(screen.getByLabelText('Email').closest('form')!)
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    cleanup()
+    await renderApp(<ResetPasswordPage />, { url: '/reset-password' })
+    expect(screen.getByText(/invalid or has expired/)).toBeInTheDocument()
+  })
+})
+
+describe('verify email', () => {
+  it('confirms a valid token, explains a used one, and can resend a link', async () => {
+    const vol = await createVolunteer({ emailConfirmed: false })
+    const token = (
+      await prisma.emailVerificationToken.create({
+        data: { volunteerId: vol.id, token: 'verify-me', expiresAt: new Date(Date.now() + 60_000) },
+      })
+    ).token
+    await renderApp(<VerifyEmailPage />, { url: `/verify-email?token=${token}` })
+    await screen.findByText('Email confirmed!')
+
+    cleanup()
+    await renderApp(<VerifyEmailPage />, { url: `/verify-email?token=${token}` })
+    await screen.findByText('Confirmation failed')
+    await screen.findByRole('link', { name: 'Go to login' })
+
+    cleanup()
+    await renderApp(<VerifyEmailPage />, { url: '/verify-email?token=nonsense' })
+    await screen.findByText('Invalid or expired confirmation link')
+
+    cleanup()
+    await renderApp(<VerifyEmailPage />, { url: '/verify-email' })
+    expect(screen.getByText('Confirm your email')).toBeInTheDocument()
+    const input = screen.getByPlaceholderText('Your email address')
+    await userEvent.type(input, vol.email!)
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    await vi.waitFor(() => expect(screen.getByText(/request another in 60s/)).toBeInTheDocument())
+    for (let i = 0; i < 60; i++) act(() => vi.advanceTimersByTime(1000))
+    vi.useRealTimers()
+    expect(screen.getByText('Email sent! Check your inbox.')).toBeInTheDocument()
+  })
+})
+
+describe('accept invite', () => {
+  it('walks through login prompt, acceptance and error states', async () => {
+    await renderApp(<AcceptInvitePage />, { url: '/accept-invite?token=abc' })
+    expect(await screen.findByText('Admin Invite')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Log In' })).toHaveAttribute(
+      'href',
+      expect.stringContaining('redirect='),
+    )
+
+    cleanup()
+    const inviter = await createSuperAdmin()
+    const invitee = await createVolunteer({ email: 'invitee@example.com' })
+    await prisma.adminInvite.create({
+      data: {
+        email: 'invitee@example.com',
+        inviteToken: 'good-token',
+        invitedById: inviter.id,
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+    })
+    await renderApp(<AcceptInvitePage />, { url: '/accept-invite?token=good-token', as: invitee })
+    expect(await screen.findByText('Welcome to the Team!')).toBeInTheDocument()
+    await waitFor(() => expect(navigation.push).toHaveBeenCalledWith('/dashboard'))
+    expect((await prisma.volunteer.findUniqueOrThrow({ where: { id: invitee.id } })).isAdmin).toBe(
+      true,
+    )
+
+    cleanup()
+    await renderApp(<AcceptInvitePage />, { url: '/accept-invite?token=bad', as: invitee })
+    await screen.findByText('Invite Error')
+    await screen.findByText('Invalid or expired invite')
+
+    cleanup()
+    await renderApp(<AcceptInvitePage />, { url: '/accept-invite', as: invitee })
+    await screen.findByText('Invite Error')
+    await screen.findByText('Failed to accept invite')
+  })
+})

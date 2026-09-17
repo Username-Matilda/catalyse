@@ -77,7 +77,6 @@ export default function ProjectEditor(props: ProjectEditorProps) {
   const [taskDrafts, setTaskDrafts] = useState<
     Record<number, { title: string; description: string }>
   >({})
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -254,19 +253,6 @@ export default function ProjectEditor(props: ProjectEditorProps) {
     wasSavingRef.current = isSaving
   }, [isSaving])
 
-  function clearFieldError(field: string) {
-    setFieldErrors((prev) => {
-      if (!prev[field]) return prev
-      const next = { ...prev }
-      delete next[field]
-      return next
-    })
-  }
-
-  function fe(field: string) {
-    return fieldErrors[field]
-  }
-
   function buildCreatePayload(): CreateProjectInput {
     const [country, localGroup] = locationValue.split(':')
     return {
@@ -344,7 +330,6 @@ export default function ProjectEditor(props: ProjectEditorProps) {
 
   async function handleAddTask(e: React.FormEvent) {
     e.preventDefault()
-    if (!newTaskTitle.trim()) return
     const wasNew = projectId === undefined
     const id = await ensureProjectExists()
     if (id === null) return
@@ -356,15 +341,18 @@ export default function ProjectEditor(props: ProjectEditorProps) {
       })
       setNewTaskTitle('')
       setNewTaskDescription('')
-      queryClient.invalidateQueries({ queryKey: orpc.projects.getById.key() })
+      // When the draft was just created, its first getById fetch can still be in flight here,
+      // possibly having read the project before the task landed. Invalidating alone would not
+      // refetch an in-flight initial load, so cancel it first.
+      await queryClient.cancelQueries({ queryKey: orpc.projects.getById.key() })
+      void queryClient.invalidateQueries({ queryKey: orpc.projects.getById.key() })
       if (wasNew) router.replace(`/projects/${id}/edit`)
     } catch {
       // createTaskMutation's onError already toasted.
     }
   }
 
-  function handleDeleteTask(taskId: number) {
-    if (projectId === undefined) return
+  function handleDeleteTask(projectId: number, taskId: number) {
     if (!window.confirm('Delete this task?')) return
     deleteTaskMutation.mutate({ projectId, taskId })
   }
@@ -372,8 +360,10 @@ export default function ProjectEditor(props: ProjectEditorProps) {
   // Saves a task's title/description on blur, only if it actually changed from what's
   // currently persisted — otherwise every click into and out of a field would fire a
   // mutation.
-  function handleTaskFieldBlur(task: { id: number; title: string; description: string | null }) {
-    if (projectId === undefined) return
+  function handleTaskFieldBlur(
+    projectId: number,
+    task: { id: number; title: string; description: string | null },
+  ) {
     const draft = taskDrafts[task.id]
     if (!draft || !draft.title.trim()) return
     const newTitle = draft.title.trim()
@@ -419,7 +409,6 @@ export default function ProjectEditor(props: ProjectEditorProps) {
             value={title}
             onChange={(e) => {
               setTitle(e.target.value)
-              clearFieldError('title')
             }}
             onBlur={() => {
               const next = title.trim()
@@ -429,9 +418,7 @@ export default function ProjectEditor(props: ProjectEditorProps) {
             disabled={!canEdit}
             required
             placeholder="A clear, descriptive name for the project"
-            aria-invalid={!!fe('title') || undefined}
           />
-          {fe('title') && <p className="text-sm mt-1 text-error">{fe('title')}</p>}
           {isDraft && (projectData?.templateOriginId ?? null) !== null && (
             <p className="text-text-light mt-1 text-sm">
               Copied from a template — adjust the title so it&apos;s clear which local group or
@@ -451,7 +438,6 @@ export default function ProjectEditor(props: ProjectEditorProps) {
             value={description}
             onChange={(e) => {
               setDescription(e.target.value)
-              clearFieldError('description')
             }}
             onBlur={() => {
               const next = description.trim()
@@ -461,16 +447,11 @@ export default function ProjectEditor(props: ProjectEditorProps) {
             disabled={!canEdit}
             required
             placeholder="Describe the project: goals, approach, what success looks like, and what kind of help is needed."
-            aria-invalid={!!fe('description') || undefined}
           />
-          {fe('description') ? (
-            <p className="text-sm mt-1 text-error">{fe('description')}</p>
-          ) : (
-            <p className="text-sm text-text-light mt-1">
-              The more detail you provide, the easier it is to find the right contributors and get
-              started.
-            </p>
-          )}
+          <p className="text-sm text-text-light mt-1">
+            The more detail you provide, the easier it is to find the right contributors and get
+            started.
+          </p>
         </div>
 
         <div className="mb-5">
@@ -482,17 +463,12 @@ export default function ProjectEditor(props: ProjectEditorProps) {
             options={PROJECT_TYPES}
             onChange={(v) => {
               setProjectType(v)
-              clearFieldError('project_type')
               commitField({ projectType: v || null })
             }}
           />
-          {fe('project_type') ? (
-            <p className="text-sm mt-1 text-error">{fe('project_type')}</p>
-          ) : (
-            <p className="text-sm text-text-light mt-1">
-              This helps contributors understand the commitment involved
-            </p>
-          )}
+          <p className="text-sm text-text-light mt-1">
+            This helps contributors understand the commitment involved
+          </p>
         </div>
 
         <div className="grid grid-cols-2 gap-5 mb-5 max-[600px]:grid-cols-1">
@@ -507,7 +483,6 @@ export default function ProjectEditor(props: ProjectEditorProps) {
               value={hoursPerWeek}
               onChange={(e) => {
                 setHoursPerWeek(e.target.value)
-                clearFieldError('time_commitment_hours_per_week')
               }}
               onBlur={() => {
                 const next = hoursPerWeek ? Number(hoursPerWeek) : null
@@ -515,15 +490,10 @@ export default function ProjectEditor(props: ProjectEditorProps) {
                 commitField({ timeCommitmentHoursPerWeek: next })
               }}
               disabled={!canEdit}
-              aria-invalid={!!fe('time_commitment_hours_per_week') || undefined}
             />
-            {fe('time_commitment_hours_per_week') ? (
-              <p className="text-sm mt-1 text-error">{fe('time_commitment_hours_per_week')}</p>
-            ) : (
-              <p className="text-sm text-text-light mt-1">
-                Minimum time commitment for project members
-              </p>
-            )}
+            <p className="text-sm text-text-light mt-1">
+              Minimum time commitment for project members
+            </p>
           </div>
 
           <div>
@@ -535,11 +505,9 @@ export default function ProjectEditor(props: ProjectEditorProps) {
               options={URGENCY_OPTIONS}
               onChange={(v) => {
                 setUrgency(v)
-                clearFieldError('urgency')
                 commitField({ urgency: v })
               }}
             />
-            {fe('urgency') && <p className="text-sm mt-1 text-error">{fe('urgency')}</p>}
           </div>
         </div>
 
@@ -553,7 +521,6 @@ export default function ProjectEditor(props: ProjectEditorProps) {
               value={duration}
               onChange={(e) => {
                 setDuration(e.target.value)
-                clearFieldError('estimated_duration')
               }}
               onBlur={() => {
                 const next = duration.trim()
@@ -561,15 +528,10 @@ export default function ProjectEditor(props: ProjectEditorProps) {
                 commitField({ estimatedDuration: next })
               }}
               disabled={!canEdit}
-              aria-invalid={!!fe('estimated_duration') || undefined}
             />
-            {fe('estimated_duration') ? (
-              <p className="text-sm mt-1 text-error">{fe('estimated_duration')}</p>
-            ) : (
-              <p className="text-sm text-text-light mt-1">
-                Roughly how long do you expect this to take?
-              </p>
-            )}
+            <p className="text-sm text-text-light mt-1">
+              Roughly how long do you expect this to take?
+            </p>
           </div>
         )}
 
@@ -582,23 +544,17 @@ export default function ProjectEditor(props: ProjectEditorProps) {
             options={buildLocationOptions(allLocalGroups)}
             onChange={(v) => {
               setLocationValue(v)
-              clearFieldError('country')
-              clearFieldError('local_group')
               const [country, localGroup] = v.split(':')
               commitField({ country: country || null, localGroup: localGroup || null })
             }}
             searchable
           />
-          {fe('country') || fe('local_group') ? (
-            <p className="text-sm mt-1 text-error">{fe('country') ?? fe('local_group')}</p>
-          ) : (
-            <p className="text-sm text-text-light mt-1">
-              Where is this project based? Local groups appear indented under their country.{' '}
-              <a href="/suggest-local-group" className="underline">
-                Don&apos;t see your group? Suggest one.
-              </a>
-            </p>
-          )}
+          <p className="text-sm text-text-light mt-1">
+            Where is this project based? Local groups appear indented under their country.{' '}
+            <a href="/suggest-local-group" className="underline">
+              Don&apos;t see your group? Suggest one.
+            </a>
+          </p>
         </div>
 
         <div className="mb-5">
@@ -690,7 +646,6 @@ export default function ProjectEditor(props: ProjectEditorProps) {
             value={collaborationLink}
             onChange={(e) => {
               setCollaborationLink(e.target.value)
-              clearFieldError('collaboration_link')
             }}
             onBlur={() => {
               const next = collaborationLink.trim()
@@ -698,15 +653,10 @@ export default function ProjectEditor(props: ProjectEditorProps) {
               commitField({ collaborationLink: next || null })
             }}
             disabled={!canEdit}
-            aria-invalid={!!fe('collaboration_link') || undefined}
           />
-          {fe('collaboration_link') ? (
-            <p className="text-sm mt-1 text-error">{fe('collaboration_link')}</p>
-          ) : (
-            <p className="text-sm text-text-light mt-1">
-              A URL to a planning doc or workspace, or just describe your plans for collaboration
-            </p>
-          )}
+          <p className="text-sm text-text-light mt-1">
+            A URL to a planning doc or workspace, or just describe your plans for collaboration
+          </p>
         </div>
 
         <div className="mb-5">
@@ -788,66 +738,67 @@ export default function ProjectEditor(props: ProjectEditorProps) {
               Break the project into concrete tasks. This helps contributors understand the scope
               and gives them something to pick up.
             </p>
-            {(projectData?.tasks ?? []).map((task) => {
-              const draft = taskDrafts[task.id] ?? {
-                title: task.title,
-                description: task.description ?? '',
-              }
-              return (
-                <div
-                  key={task.id}
-                  className="bg-brand-bg rounded-lg p-4 mb-3 border border-brand-border"
-                >
-                  <div className="mb-3">
-                    <label htmlFor={`task-title-${task.id}`} className="text-sm required">
-                      Task title
-                    </label>
-                    <input
-                      id={`task-title-${task.id}`}
-                      type="text"
-                      value={draft.title}
-                      onChange={(e) =>
-                        setTaskDrafts((prev) => ({
-                          ...prev,
-                          [task.id]: { ...draft, title: e.target.value },
-                        }))
-                      }
-                      onBlur={() => handleTaskFieldBlur(task)}
-                      placeholder="e.g. Draft copy for homepage"
-                    />
+            {projectId !== undefined &&
+              projectData?.tasks.map((task) => {
+                const draft = taskDrafts[task.id] ?? {
+                  title: task.title,
+                  description: task.description ?? '',
+                }
+                return (
+                  <div
+                    key={task.id}
+                    className="bg-brand-bg rounded-lg p-4 mb-3 border border-brand-border"
+                  >
+                    <div className="mb-3">
+                      <label htmlFor={`task-title-${task.id}`} className="text-sm required">
+                        Task title
+                      </label>
+                      <input
+                        id={`task-title-${task.id}`}
+                        type="text"
+                        value={draft.title}
+                        onChange={(e) =>
+                          setTaskDrafts((prev) => ({
+                            ...prev,
+                            [task.id]: { ...draft, title: e.target.value },
+                          }))
+                        }
+                        onBlur={() => handleTaskFieldBlur(projectId, task)}
+                        placeholder="e.g. Draft copy for homepage"
+                      />
+                    </div>
+                    <div className="mb-2">
+                      <label htmlFor={`task-desc-${task.id}`} className="text-sm">
+                        Details (optional)
+                      </label>
+                      <textarea
+                        id={`task-desc-${task.id}`}
+                        value={draft.description}
+                        onChange={(e) =>
+                          setTaskDrafts((prev) => ({
+                            ...prev,
+                            [task.id]: { ...draft, description: e.target.value },
+                          }))
+                        }
+                        onBlur={() => handleTaskFieldBlur(projectId, task)}
+                        placeholder="More detail about what needs doing…"
+                        className="min-h-14"
+                      />
+                    </div>
+                    <div className="flex justify-end mt-2">
+                      <Button
+                        type="button"
+                        variant="danger"
+                        size="sm"
+                        onClick={() => handleDeleteTask(projectId, task.id)}
+                        disabled={deleteTaskMutation.isPending}
+                      >
+                        Delete task
+                      </Button>
+                    </div>
                   </div>
-                  <div className="mb-2">
-                    <label htmlFor={`task-desc-${task.id}`} className="text-sm">
-                      Details (optional)
-                    </label>
-                    <textarea
-                      id={`task-desc-${task.id}`}
-                      value={draft.description}
-                      onChange={(e) =>
-                        setTaskDrafts((prev) => ({
-                          ...prev,
-                          [task.id]: { ...draft, description: e.target.value },
-                        }))
-                      }
-                      onBlur={() => handleTaskFieldBlur(task)}
-                      placeholder="More detail about what needs doing…"
-                      className="min-h-14"
-                    />
-                  </div>
-                  <div className="flex justify-end mt-2">
-                    <Button
-                      type="button"
-                      variant="danger"
-                      size="sm"
-                      onClick={() => handleDeleteTask(task.id)}
-                      disabled={deleteTaskMutation.isPending}
-                    >
-                      Delete task
-                    </Button>
-                  </div>
-                </div>
-              )
-            })}
+                )
+              })}
             <div className="bg-brand-bg rounded-lg p-3 border border-brand-border">
               <div className="mb-2">
                 <label htmlFor="new-task-title" className="text-sm required">

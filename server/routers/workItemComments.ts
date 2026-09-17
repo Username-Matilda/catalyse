@@ -52,13 +52,12 @@ function commentLink(item: LoadedWorkItem): string {
 }
 
 // Whether `viewer` may post on this item. Resolves the accepted-helper lookup
-// for PROJECT/TASK. Returns false for anonymous viewers.
+// for PROJECT/TASK.
 async function resolveCanPost(
   item: LoadedWorkItem,
   parent: LoadedWorkItem | null,
-  viewer: { id: number; isAdmin: boolean } | null,
+  viewer: { id: number; isAdmin: boolean },
 ): Promise<boolean> {
-  if (!viewer) return false
   let isAcceptedHelper = false
   if (!viewer.isAdmin) {
     const projectId = item.type === WorkItemType.TASK ? item.parentId : item.id
@@ -80,21 +79,17 @@ export const workItemCommentsRouter = {
       const loaded = await loadWithParent(input.workItemId)
       if (!loaded) throw new ORPCError('NOT_FOUND', { message: 'Work item not found' })
 
-      const viewer = context.volunteer
-        ? {
-            id: context.volunteer.id,
-            isAdmin: Boolean(context.volunteer.isAdmin),
-            isApproved: context.volunteer.approvalStatus === ApprovalStatus.approved,
-          }
-        : null
+      const viewer = {
+        id: context.volunteer.id,
+        isAdmin: Boolean(context.volunteer.isAdmin),
+        isApproved: context.volunteer.approvalStatus === ApprovalStatus.approved,
+      }
       const teamProject = loaded.item.type === WorkItemType.TASK ? loaded.parent : loaded.item
-      const isTeamPrivy = viewer
-        ? await resolveTeamPrivy(
-            teamProject?.teamId,
-            teamProject?.id ?? input.workItemId,
-            viewer.id,
-          )
-        : false
+      const isTeamPrivy = await resolveTeamPrivy(
+        teamProject?.teamId,
+        teamProject?.id ?? input.workItemId,
+        viewer.id,
+      )
       if (!canViewWorkItem(loaded.item, viewer, loaded.parent, isTeamPrivy)) {
         throw new ORPCError('NOT_FOUND', { message: 'Work item not found' })
       }

@@ -95,10 +95,9 @@ export default function FilterDropdown<T extends string>({
 
   useEffect(() => {
     if (!open) return
-    const trigger = triggerRef.current
-    if (!trigger) return
+    const trigger = triggerRef.current!
     function reposition() {
-      const r = trigger!.getBoundingClientRect()
+      const r = trigger.getBoundingClientRect()
       setDropdownPos({
         top: r.bottom + window.scrollY,
         left: r.left + window.scrollX,

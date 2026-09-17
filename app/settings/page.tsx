@@ -149,8 +149,12 @@ function SettingsPageContent() {
   })
 
   async function handleResubmitApplication() {
-    await updateApplicationMutation.mutateAsync({ applicationMessage })
-    resubmitMutation.mutate({})
+    // onError has already reported a failed save; the rejection just stops the resubmit.
+    const saved = await updateApplicationMutation.mutateAsync({ applicationMessage }).then(
+      () => true,
+      () => false,
+    )
+    if (saved) resubmitMutation.mutate({})
   }
 
   useEffect(() => {

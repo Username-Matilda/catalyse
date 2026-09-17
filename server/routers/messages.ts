@@ -104,7 +104,10 @@ export const messagesRouter = {
         where: { id: input.relatedProjectId, type: WorkItemType.PROJECT },
         select: { title: true },
       })
-      if (project) projectTitle = project.title
+      // The id is written as a foreign key below, so an unknown one must be refused here
+      // rather than surfacing as a constraint violation.
+      if (!project) throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
+      projectTitle = project.title
     }
 
     await prisma.$transaction(async (tx) => {

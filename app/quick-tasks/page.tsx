@@ -137,23 +137,22 @@ export default function QuickTasksPage() {
 
   if (loading || !user) return null
 
-  return user.isAdmin ? <AdminQuickTasksView /> : <VolunteerQuickTasksView />
+  return user.isAdmin ? <AdminQuickTasksView /> : <VolunteerQuickTasksView user={user} />
 }
 
-function VolunteerQuickTasksView() {
-  const { user } = useRequireApproved()
+type ApprovedUser = NonNullable<ReturnType<typeof useRequireApproved>['user']>
+
+function VolunteerQuickTasksView({ user }: { user: ApprovedUser }) {
   const showToast = useToast()
   const queryClient = useQueryClient()
   const router = useRouter()
 
   const { data: tasks = [], isLoading: loadingTasks } = useQuery({
     ...orpc.my.quickTasks.queryOptions(),
-    enabled: !!user,
   })
 
   const { data: availableTasks = [], isLoading: loadingAvailable } = useQuery({
     ...orpc.quickTasks.available.queryOptions(),
-    enabled: !!user,
   })
 
   const submitMutation = useMutation({
@@ -195,8 +194,6 @@ function VolunteerQuickTasksView() {
     onError: (err: unknown) =>
       showToast(err instanceof Error ? err.message : 'Failed to claim task', 'error'),
   })
-
-  if (!user) return null
 
   return (
     <>
@@ -366,7 +363,6 @@ function VolunteerQuickTasksView() {
 }
 
 function AdminQuickTasksView() {
-  const { user } = useRequireApproved()
   const queryClient = useQueryClient()
   const {
     value: statusFilter,
@@ -421,19 +417,16 @@ function AdminQuickTasksView() {
     ...orpc.quickTasks.list.queryOptions({
       input: statusFilter ? { status: statusFilter as QuickTaskStatus } : {},
     }),
-    enabled: !!user?.isAdmin,
   })
   const tasks = tasksRaw as unknown as AdminQuickTask[]
 
   const { data: featuredProjectTasksRaw = [] } = useQuery({
     ...orpc.quickTasks.featuredProjectTasks.queryOptions(),
-    enabled: !!user?.isAdmin,
   })
   const featuredProjectTasks = featuredProjectTasksRaw as unknown as FeaturedProjectTask[]
 
   const { data: skillCats = [] } = useQuery({
     ...orpc.skills.list.queryOptions(),
-    enabled: !!user?.isAdmin,
   })
   const skills: Skill[] = skillCats.flatMap((cat) =>
     cat.skills.map((s) => ({ ...s, categoryName: cat.name })),
@@ -577,11 +570,10 @@ function AdminQuickTasksView() {
     })
   }
 
-  function editTask(e: React.FormEvent) {
+  function editTask(e: React.FormEvent, task: AdminQuickTask) {
     e.preventDefault()
-    if (!editModal) return
     editTaskMutation.mutate({
-      id: editModal.id,
+      id: task.id,
       title: editTitle.trim(),
       description: editDesc.trim(),
       skillId: editSkillId ? parseInt(editSkillId) : null,
@@ -590,9 +582,10 @@ function AdminQuickTasksView() {
   }
 
   function handleAssignTask(taskId: number) {
-    const selected = taskAssignSelections[taskId]
-    if (!selected) return
-    assignTaskMutation.mutate({ id: taskId, volunteerId: parseInt(selected, 10) })
+    assignTaskMutation.mutate({
+      id: taskId,
+      volunteerId: parseInt(taskAssignSelections[taskId], 10),
+    })
   }
 
   function handleUnassignTask(taskId: number) {
@@ -600,12 +593,10 @@ function AdminQuickTasksView() {
   }
 
   function handleAssignProjectTask(task: FeaturedProjectTask) {
-    const selected = projectTaskAssignSelections[task.id]
-    if (!selected) return
     assignProjectTaskMutation.mutate({
       projectId: task.projectId,
       taskId: task.id,
-      assigneeId: parseInt(selected, 10),
+      assigneeId: parseInt(projectTaskAssignSelections[task.id], 10),
     })
   }
 
@@ -632,18 +623,15 @@ function AdminQuickTasksView() {
     }
   }
 
-  function reviewTask(e: React.FormEvent) {
+  function reviewTask(e: React.FormEvent, task: AdminQuickTask) {
     e.preventDefault()
-    if (!reviewModal) return
     reviewTaskMutation.mutate({
-      id: reviewModal.id,
+      id: task.id,
       reviewRating,
       comment: reviewFeedback || null,
       reviewNotes: reviewNotes || null,
     })
   }
-
-  if (!user) return null
 
   return (
     <>
@@ -731,7 +719,7 @@ function AdminQuickTasksView() {
                       value={taskAssignSelections[task.id] ?? ''}
                       onChange={(v) => setTaskAssignSelections((s) => ({ ...s, [task.id]: v }))}
                       placeholder="Select volunteer…"
-                      enabled={!!user?.isAdmin}
+                      enabled
                     />
                   </div>
                   <Button
@@ -839,7 +827,7 @@ function AdminQuickTasksView() {
                           setProjectTaskAssignSelections((s) => ({ ...s, [task.id]: v }))
                         }
                         placeholder="Select volunteer…"
-                        enabled={!!user?.isAdmin}
+                        enabled
                       />
                     </div>
                     <Button
@@ -989,7 +977,7 @@ function AdminQuickTasksView() {
               <h2 id="edit-dialog-title">Edit Quick Task</h2>
             </div>
             <div className="p-6">
-              <form onSubmit={editTask}>
+              <form onSubmit={(e) => editTask(e, editModal)}>
                 <div className="mb-5">
                   <label htmlFor="et-title">Title</label>
                   <input
@@ -1077,7 +1065,7 @@ function AdminQuickTasksView() {
               {reviewModal.assignedToName && (
                 <p className="text-text-light mb-4">Submitted by: {reviewModal.assignedToName}</p>
               )}
-              <form onSubmit={reviewTask}>
+              <form onSubmit={(e) => reviewTask(e, reviewModal)}>
                 <div className="mb-5">
                   <label>Rating</label>
                   <div className="flex flex-col gap-2 mt-2">

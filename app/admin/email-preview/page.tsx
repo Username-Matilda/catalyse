@@ -9,8 +9,8 @@ type Param = string | number | boolean
 
 const EMAIL_TYPES: { value: string; label: string; params: Record<string, Param> }[] = [
   {
-    value: 'email-confirmation',
-    label: 'Email Confirmation',
+    value: 'welcome-and-confirm',
+    label: 'Welcome and Confirm Email',
     params: { name: 'Alex', confirm_token: 'sample-token-abc123' },
   },
   {
@@ -44,8 +44,8 @@ const EMAIL_TYPES: { value: string; label: string; params: Record<string, Param>
     params: { invited_by: 'Jamie Smith', invite_token: 'sample-token-abc123' },
   },
   {
-    value: 'welcome',
-    label: 'Welcome',
+    value: 'welcome-google',
+    label: 'Welcome (Google Sign-up)',
     params: { name: 'Alex' },
   },
   {
