@@ -172,20 +172,69 @@ describe('journalist outreach task flow', () => {
       'href',
       expect.stringContaining('mail.google.com'),
     )
-    expect(screen.getByText(/Dear Reporter,/)).toHaveTextContent(/Sam$/)
+    expect(screen.getByText(/Dear Reporter,/, { selector: 'pre' })).toHaveTextContent(
+      'Sincerely, Sam',
+    )
+
+    // Phone and personal intro fill the email; neither leaves the browser.
+    expect(screen.getByText(/never sent to or stored on our server/)).toBeInTheDocument()
+    expect(screen.getByText(/isn.t saved or sent to our server/)).toBeInTheDocument()
+    await userEvent.type(screen.getByLabelText(/Your phone number/), '555 0100')
+    expect(localStorage.getItem('outreachPhone')).toBe('555 0100')
+    expect(screen.getByText(/No personal opening yet/)).toBeInTheDocument()
+    expect(screen.getByText(/Dear Reporter,/, { selector: 'pre' })).toHaveTextContent(
+      /^Dear Reporter, Jacob Coxon/,
+    )
+    expect(screen.getByText(/Dear Reporter,/, { selector: 'pre' })).not.toHaveTextContent('[')
+    await userEvent.type(
+      screen.getByLabelText('Your personal opening sentence'),
+      'Loved your AI piece.',
+    )
+    expect(screen.getByText(/Dear Reporter,/, { selector: 'pre' })).toHaveTextContent(
+      /Dear Reporter, Loved your AI piece\. .*Sincerely, Sam 555 0100 PauseAI Global volunteer PauseAI Global press email/,
+    )
+    expect(screen.queryByText(/No personal opening yet/)).not.toBeInTheDocument()
+    const resignation = screen.getByRole('link', { name: 'Jacob Coxon’s resignation' })
+    expect(resignation).toHaveAttribute('href', expect.stringContaining('x.com/hilbertspaess'))
+    // Compose links carry plain text only, so the address follows the link text.
+    expect(
+      new URL(
+        screen.getByRole('link', { name: 'Open in Gmail' }).getAttribute('href')!,
+      ).searchParams.get('body'),
+    ).toContain(`Jacob Coxon’s resignation (${resignation.getAttribute('href')})`)
 
     await userEvent.click(button('Copy To'))
     expect(writeText).toHaveBeenCalledWith(first.email)
     expect(await screen.findByText('To copied')).toBeInTheDocument()
+    // Without rich clipboard support the body falls back to plain text.
     writeText.mockRejectedValueOnce(new Error('denied'))
     await userEvent.click(button('Copy Body'))
     expect(await screen.findByText(/Couldn't copy/)).toBeInTheDocument()
+
+    // With it, the body is copied as HTML so the link survives pasting into a mail client.
+    const write = vi.fn(async (_items: unknown[]) => {})
+    class FakeClipboardItem {
+      constructor(readonly data: Record<string, Blob>) {}
+    }
+    vi.stubGlobal('ClipboardItem', FakeClipboardItem)
+    Object.assign(navigator, { clipboard: { writeText, write } })
+    await userEvent.click(button('Copy Body'))
+    expect(await screen.findByText('Body copied')).toBeInTheDocument()
+    const [item] = write.mock.calls[0][0] as FakeClipboardItem[]
+    expect(await item.data['text/html'].text()).toContain(
+      `<a href="${resignation.getAttribute('href')}">Jacob Coxon’s resignation</a>`,
+    )
+    expect(await item.data['text/plain'].text()).toContain('Jacob Coxon’s resignation (https://')
+    vi.unstubAllGlobals()
 
     await userEvent.click(button('Skip this journalist'))
     await screen.findByRole('button', { name: 'Get a journalist' })
     await userEvent.click(button('Get a journalist'))
     // The skipped journalist drops behind the one nobody has passed on.
     expect(await screen.findByRole('heading', { name: second.name })).toBeInTheDocument()
+    // The intro was for the previous journalist; the phone number carries over.
+    expect(screen.getByLabelText('Your personal opening sentence')).toHaveValue('')
+    expect(screen.getByLabelText(/Your phone number/)).toHaveValue('555 0100')
     expect(screen.getByText('Democrat-leaning')).toBeInTheDocument()
     expect(screen.getByText('medium confidence')).toBeInTheDocument()
 

@@ -21,7 +21,9 @@ import Button from '@/components/Button'
 import Modal from '@/components/ui/Modal'
 import { Badge } from '@/components/Badge'
 
+// Kept only in this browser, so volunteers don't retype them; never sent to the server.
 const NAME_STORAGE_KEY = 'outreachName'
+const PHONE_STORAGE_KEY = 'outreachPhone'
 
 type Task = NonNullable<Awaited<ReturnType<typeof client.journalistOutreach.claimNext>>>
 type Leaning = Task['leaning']
@@ -109,15 +111,27 @@ function RequestLinkForm({ onSignIn }: { onSignIn: (token: string) => void }) {
 function CopyField({
   label,
   value,
-  multiline,
+  html,
+  children,
 }: {
   label: string
   value: string
-  multiline?: boolean
+  /** When given, copied alongside the plain text so pasting into a mail client keeps links. */
+  html?: string
+  /** Rendered in place of the plain value, in a multi-line box. */
+  children?: React.ReactNode
 }) {
   const showToast = useToast()
   const copy = () =>
-    navigator.clipboard.writeText(value).then(
+    (html && typeof ClipboardItem !== 'undefined'
+      ? navigator.clipboard.write([
+          new ClipboardItem({
+            'text/html': new Blob([html], { type: 'text/html' }),
+            'text/plain': new Blob([value], { type: 'text/plain' }),
+          }),
+        ])
+      : navigator.clipboard.writeText(value)
+    ).then(
       () => showToast(`${label} copied`, 'success'),
       () => showToast(`Couldn't copy — select the text instead`, 'error'),
     )
@@ -129,9 +143,9 @@ function CopyField({
           Copy
         </Button>
       </div>
-      {multiline ? (
+      {children ? (
         <pre className="whitespace-pre-wrap font-sans bg-brand-bg rounded-lg p-3 text-sm">
-          {value}
+          {children}
         </pre>
       ) : (
         <div className="bg-brand-bg rounded-lg px-3 py-2 text-sm">{value}</div>
@@ -157,7 +171,7 @@ const LEANING_LABEL: Record<Leaning, string> = {
 function TaskCard({
   task,
   templateLeaning,
-  volunteerName,
+  sender,
   onSwitchTemplate,
   onSent,
   onSkip,
@@ -165,18 +179,23 @@ function TaskCard({
 }: {
   task: Task
   templateLeaning: Leaning
-  volunteerName: string
+  sender: { name: string; phone: string }
   onSwitchTemplate: () => void
   onSent: () => void
   onSkip: () => void
   onExpired: (task: Task) => void
 }) {
   const [confirming, setConfirming] = useState(false)
+  // Written for this journalist only; the card is remounted for the next one.
+  const [intro, setIntro] = useState('')
   const cancelConfirm = () => setConfirming(false)
   const secondsLeft = useSecondsLeft(task.claimExpiresAt)
   const expired = secondsLeft === 0
   const switched = templateLeaning !== task.leaning
-  const { subject, body } = renderEmail({ ...task, leaning: templateLeaning }, volunteerName)
+  const { subject, body, html, parts } = renderEmail(
+    { ...task, leaning: templateLeaning },
+    { ...sender, intro },
+  )
   const links = composeLinks(task.email, subject, body)
 
   useEffect(() => {
@@ -245,14 +264,31 @@ function TaskCard({
         <li>
           CC <strong>{PRESS_EMAIL}</strong>.
         </li>
-        <li>
-          Make it yours: add a line about why you care or where you live. Search whether {name} has
-          covered AI extinction risk before, and mention their piece if so.
-        </li>
+        <li>Make it yours with a personal opening sentence below.</li>
         <li>
           If {name} replies and drops {PRESS_EMAIL} from the thread, add it back in.
         </li>
       </ol>
+
+      <div className="mb-4">
+        <label htmlFor="outreach-intro">Your personal opening sentence</label>
+        <textarea
+          id="outreach-intro"
+          rows={3}
+          value={intro}
+          onChange={(e) => setIntro(e.target.value)}
+          placeholder={`Perhaps pick up on other AI articles ${task.organisation} has covered, or whether ${name} has written about AI extinction risk.`}
+        />
+        {!intro.trim() && (
+          <p className="text-sm text-warning mt-1 mb-0">
+            No personal opening yet. The email starts straight after “Dear {task.firstName},” until
+            you add one.
+          </p>
+        )}
+        <p className="text-sm text-text-light mt-1">
+          Only used to fill in this email. It isn&apos;t saved or sent to our server.
+        </p>
+      </div>
 
       <div className="flex flex-wrap gap-2 mb-4">
         <Button size="sm" variant="outline" href={links.mailto}>
@@ -269,7 +305,21 @@ function TaskCard({
       <CopyField label="To" value={task.email} />
       <CopyField label="CC" value={PRESS_EMAIL} />
       <CopyField label="Subject" value={subject} />
-      <CopyField label="Body" value={body} multiline />
+      <CopyField label="Body" value={body} html={html}>
+        {parts.map((p, i) =>
+          typeof p === 'string' ? (
+            p
+          ) : (
+            <a key={i} href={p.url} target="_blank" rel="noreferrer">
+              {p.text}
+            </a>
+          ),
+        )}
+      </CopyField>
+      <p className="text-sm text-text-light -mt-2 mb-3">
+        Tip: use Copy and paste into your email to keep the links. The open-in-mail buttons can only
+        carry plain text, so links appear as web addresses there.
+      </p>
 
       <div className="flex flex-wrap justify-between gap-2 mt-5">
         <Button variant="ghost" onClick={onSkip}>
@@ -310,6 +360,9 @@ function Outreach({ onSignOut }: { onSignOut: () => void }) {
   const showToast = useToast()
   const [name, setName] = useState(() =>
     typeof window !== 'undefined' ? (localStorage.getItem(NAME_STORAGE_KEY) ?? '') : '',
+  )
+  const [phone, setPhone] = useState(() =>
+    typeof window !== 'undefined' ? (localStorage.getItem(PHONE_STORAGE_KEY) ?? '') : '',
   )
   const [justSent, setJustSent] = useState<number | null>(null)
   const [expiredTask, setExpiredTask] = useState<Task | null>(null)
@@ -373,6 +426,10 @@ function Outreach({ onSignOut }: { onSignOut: () => void }) {
     setName(value)
     localStorage.setItem(NAME_STORAGE_KEY, value)
   }
+  const savePhone = (value: string) => {
+    setPhone(value)
+    localStorage.setItem(PHONE_STORAGE_KEY, value)
+  }
 
   if (current.isPending) return <p className="text-center py-10 text-text-light">Loading…</p>
   if (!current.data) return null
@@ -390,23 +447,40 @@ function Outreach({ onSignOut }: { onSignOut: () => void }) {
       </div>
 
       <div className={card}>
-        <label htmlFor="outreach-name" className="required">
-          Your name (signs the email)
-        </label>
+        <div className="mb-4">
+          <label htmlFor="outreach-name" className="required">
+            Your name (signs the email)
+          </label>
+          <input
+            id="outreach-name"
+            value={name}
+            onChange={(e) => saveName(e.target.value)}
+            placeholder="Jane Smith"
+            maxLength={100}
+          />
+        </div>
+        <label htmlFor="outreach-phone">Your phone number (optional)</label>
         <input
-          id="outreach-name"
-          value={name}
-          onChange={(e) => saveName(e.target.value)}
-          placeholder="Jane Smith"
-          maxLength={100}
+          id="outreach-phone"
+          type="tel"
+          value={phone}
+          onChange={(e) => savePhone(e.target.value)}
+          placeholder="Only if you're happy for journalists to call you"
+          maxLength={40}
         />
+        <p className="text-sm text-text-light mt-2 mb-0">
+          Your name and phone number are only used to fill in the email on this page. They&apos;re
+          remembered in this browser so you don&apos;t have to retype them, and are never sent to or
+          stored on our server.
+        </p>
       </div>
 
       {task ? (
         <TaskCard
+          key={task.id}
           task={task}
           templateLeaning={templateLeaning(task)}
-          volunteerName={name}
+          sender={{ name, phone }}
           onSwitchTemplate={() =>
             setSwitchedTemplateFor(switchedTemplateFor === task.id ? null : task.id)
           }
