@@ -640,7 +640,7 @@ describe('project page — remaining edges', () => {
     await userEvent.click(screen.getByRole('button', { name: 'project status' }))
     await userEvent.click(screen.getByRole('option', { name: 'Archived' }))
     await userEvent.keyboard('{Escape}')
-    await userEvent.click(screen.getByLabelText('Ownership actions'))
+    await userEvent.click(await screen.findByLabelText('Ownership actions'))
     vi.spyOn(window, 'confirm').mockReturnValue(false)
     await userEvent.click(await screen.findByRole('menuitem', { name: /Remove/ }))
     expect((await row(project.id)).assigneeId).toBe(owner.id)
