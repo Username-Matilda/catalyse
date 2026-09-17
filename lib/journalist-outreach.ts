@@ -56,8 +56,7 @@ The US can continue to lead the world on AI and automation without jeopardizing 
 
 Available for interview: Maxime Fournes, CEO of Pause AI Global, Irina Tavera, Organizing Director for PauseAI Global, and local volunteers by video or in person: Crissie McMullan, Ben Aybar, and others.
 
-Sincerely,
-{{volunteerName}}{{phoneLine}}
+Sincerely,{{nameLine}}{{phoneLine}}
 PauseAI Global volunteer
 PauseAI Global press email: press@pauseai.info`,
   },
@@ -77,8 +76,7 @@ We can connect you to the ordinary people calling for an international moratoriu
 
 Available for interview: Maxime Fournes, CEO of Pause AI Global, Irina Tavera, Organizing Director for PauseAI Global, and local volunteers by video or in person: Crissie McMullan, Ben Aybar, and others.
 
-Sincerely,
-{{volunteerName}}{{phoneLine}}
+Sincerely,{{nameLine}}{{phoneLine}}
 PauseAI Global volunteer
 PauseAI Global press email: press@pauseai.info`,
   },
@@ -105,15 +103,16 @@ export function renderEmail(
   },
   sender: { name: string; phone: string; intro: string },
 ): { subject: string; body: string; html: string; parts: EmailPart[] } {
+  const name = sender.name.trim()
   const phone = sender.phone.trim()
   const intro = sender.intro.trim()
   const values: Record<string, string> = {
     firstName: journalist.firstName,
     lastName: journalist.lastName,
     organisation: journalist.organisation,
-    volunteerName: sender.name.trim() || '[Your name]',
-    // Optional parts vanish when blank, so no placeholder text can reach a journalist.
+    // Sender parts vanish when blank, so no placeholder text can reach a journalist.
     introParagraph: intro ? `${intro}\n\n` : '',
+    nameLine: name ? `\n${name}` : '',
     phoneLine: phone ? `\n${phone}` : '',
   }
   const fill = (s: string) => s.replace(/\{\{(\w+)\}\}/g, (_, key: string) => values[key])

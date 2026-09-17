@@ -45,9 +45,10 @@ describe('renderEmail', () => {
       expect(body).toMatch(/^Dear Jane,\n\nJacob Coxon’s resignation \(https:/)
       expect(body).not.toContain('[')
     }
-    expect(renderEmail({ ...j, leaning: 'DEMOCRAT' }, { ...sam, name: '' }).body).toContain(
-      'Sincerely,\n[Your name]\n',
-    )
+    // A blank name drops its line rather than sending a placeholder.
+    const unsigned = renderEmail({ ...j, leaning: 'DEMOCRAT' }, { name: ' ', phone: '', intro: '' })
+    expect(unsigned.body).toMatch(/\nSincerely,\nPauseAI Global volunteer\nPauseAI Global press/)
+    expect(unsigned.body).not.toContain('[')
     expect(fullName(j)).toBe('Jane Doe')
   })
 
