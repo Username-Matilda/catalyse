@@ -173,6 +173,19 @@ describe('journalist outreach task flow', () => {
       expect.stringContaining('mail.google.com'),
     )
     expect(screen.getByText(/Dear Reporter,/)).toHaveTextContent('Sincerely, Sam')
+
+    // Phone and personal intro fill the email; neither leaves the browser.
+    expect(screen.getByText(/never sent to or stored on our server/)).toBeInTheDocument()
+    expect(screen.getByText(/isn.t saved or sent to our server/)).toBeInTheDocument()
+    await userEvent.type(screen.getByLabelText(/Your phone number/), '555 0100')
+    expect(localStorage.getItem('outreachPhone')).toBe('555 0100')
+    await userEvent.type(
+      screen.getByLabelText('Your personal opening sentence'),
+      'Loved your AI piece.',
+    )
+    expect(screen.getByText(/Dear Reporter,/)).toHaveTextContent(
+      /Dear Reporter, Loved your AI piece\. .*Sincerely, Sam 555 0100 PauseAI press email/,
+    )
     const resignation = screen.getByRole('link', { name: 'Jacob Coxon’s resignation' })
     expect(resignation).toHaveAttribute('href', expect.stringContaining('x.com/hilbertspaess'))
     // Compose links carry plain text only, so the address follows the link text.
@@ -211,6 +224,9 @@ describe('journalist outreach task flow', () => {
     await userEvent.click(button('Get a journalist'))
     // The skipped journalist drops behind the one nobody has passed on.
     expect(await screen.findByRole('heading', { name: second.name })).toBeInTheDocument()
+    // The intro was for the previous journalist; the phone number carries over.
+    expect(screen.getByLabelText('Your personal opening sentence')).toHaveValue('')
+    expect(screen.getByLabelText(/Your phone number/)).toHaveValue('555 0100')
     expect(screen.getByText('Democrat-leaning')).toBeInTheDocument()
     expect(screen.getByText('medium confidence')).toBeInTheDocument()
 

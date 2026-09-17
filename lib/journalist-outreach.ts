@@ -35,15 +35,14 @@ export function journalistStatus(
   return 'available'
 }
 
-// Bracketed lines are prompts for the volunteer to replace before sending.
-// [text](https://…) marks a link; see renderEmail.
+// {{…}} values are filled by renderEmail; [text](https://…) marks a link.
 const COXON_RESIGNATION_URL = 'https://x.com/hilbertspaess/status/2097476196791709843'
 const TEMPLATES: Record<JournalistLeaning, { subject: string; body: string }> = {
   REPUBLICAN: {
     subject: 'PAUSE NOT PACE - PAUSE AI',
     body: `Dear {{firstName}},
 
-[Add a personal opening sentence: perhaps pick up on other AI articles covered by the outlet if possible]
+{{intro}}
 
 [Jacob Coxon’s resignation](${COXON_RESIGNATION_URL}) from the AI company Anthropic over human extinction concerns has gone viral, with over 170 million views. More than 1,380 employees of OpenAI, Anthropic, Google DeepMind, and Meta, including CEOs, have also signed a statement asking the U.S. government to deliberately slow the frontier.
 
@@ -60,8 +59,7 @@ The US can continue to lead the world on AI and automation without jeopardizing 
 Available for interview: Maxime Fournes, CEO of Pause AI Global, Irina Tavera, Organizing Director for PauseAI Global, and local volunteers by video or in person: Crissie McMullan, Ben Aybar, and others.
 
 Sincerely,
-{{volunteerName}}
-[personal phone number, if you are happy to provide it]
+{{volunteerName}}{{phoneLine}}
 
 PauseAI press email: press@pauseai.info`,
   },
@@ -69,7 +67,7 @@ PauseAI press email: press@pauseai.info`,
     subject: 'PAUSE NOT PACE - PAUSE AI',
     body: `Dear {{firstName}},
 
-[Add a personal opening sentence: perhaps pick up on other AI articles covered by the outlet if possible]
+{{intro}}
 
 [Jacob Coxon’s resignation](${COXON_RESIGNATION_URL}) from the AI company Anthropic over concerns regarding human extinction has gone viral. When over 1,380 employees of OpenAI, Anthropic, Google DeepMind, and Meta - including CEOs - sign a statement urging the government to slow AI development, that’s no longer “hysteria” but whistleblower testimony from inside the industry.
 
@@ -84,14 +82,16 @@ We can connect you to the ordinary people calling for an international moratoriu
 Available for interview: Maxime Fournes, CEO of Pause AI Global, Irina Tavera, Organizing Director for PauseAI Global, and local volunteers by video or in person: Crissie McMullan, Ben Aybar, and others.
 
 Sincerely,
-{{volunteerName}}
-[personal phone number, if you are happy to provide it]
+{{volunteerName}}{{phoneLine}}
 
 PauseAI press email: press@pauseai.info`,
   },
 }
 
 export type EmailPart = string | { text: string; url: string }
+
+export const INTRO_PROMPT =
+  '[Add a personal opening sentence: perhaps pick up on other AI articles covered by the outlet if possible]'
 
 const LINK_RE = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g
 
@@ -110,13 +110,17 @@ export function renderEmail(
     organisation: string
     leaning: JournalistLeaning
   },
-  volunteerName: string,
+  sender: { name: string; phone: string; intro: string },
 ): { subject: string; body: string; html: string; parts: EmailPart[] } {
+  const phone = sender.phone.trim()
   const values: Record<string, string> = {
     firstName: journalist.firstName,
     lastName: journalist.lastName,
     organisation: journalist.organisation,
-    volunteerName: volunteerName.trim() || '[Your name]',
+    volunteerName: sender.name.trim() || '[Your name]',
+    intro: sender.intro.trim() || INTRO_PROMPT,
+    // The phone number is optional, so its line disappears when left blank.
+    phoneLine: phone ? `\n${phone}` : '',
   }
   const fill = (s: string) => s.replace(/\{\{(\w+)\}\}/g, (_, key: string) => values[key])
   const template = TEMPLATES[journalist.leaning]

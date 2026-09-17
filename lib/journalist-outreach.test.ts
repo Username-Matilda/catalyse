@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   CLAIM_MS,
+  INTRO_PROMPT,
   PRESS_EMAIL,
   canSwitchTemplate,
   composeLinks,
@@ -26,37 +27,53 @@ describe('journalistStatus', () => {
 
 describe('renderEmail', () => {
   const j = { firstName: 'Jane', lastName: 'Doe', organisation: 'Daily Planet' }
+  const sam = { name: 'Sam', phone: '', intro: '' }
   it('fills the template for the leaning and signs with the volunteer name', () => {
-    const rep = renderEmail({ ...j, leaning: 'REPUBLICAN' }, ' Sam ')
-    const dem = renderEmail({ ...j, leaning: 'DEMOCRAT' }, 'Sam')
+    const rep = renderEmail({ ...j, leaning: 'REPUBLICAN' }, { ...sam, name: ' Sam ' })
+    const dem = renderEmail({ ...j, leaning: 'DEMOCRAT' }, sam)
     expect(rep.subject).toBe('PAUSE NOT PACE - PAUSE AI')
     expect(rep.body).toMatch(/^Dear Jane,/)
-    expect(rep.body).toContain('Sincerely,\nSam\n')
+    expect(rep.body).toContain('Sincerely,\nSam\n\nPauseAI press email')
     expect(rep.body).toContain('not Democrat lobbyists or coastal elites')
     expect(dem.body).toContain('humanity against the machines')
     for (const { subject, body } of [rep, dem]) {
       expect(`${subject}${body}`).not.toContain('{{')
       expect(body).not.toMatch(/['"]/)
       expect(body).toMatch(/PauseAI press email: press@pauseai\.info$/)
+      // A blank intro leaves the prompt in place so the gap is obvious.
+      expect(body).toContain(`Dear Jane,\n\n${INTRO_PROMPT}\n\n`)
     }
-    expect(renderEmail({ ...j, leaning: 'DEMOCRAT' }, '').body).toContain(
+    expect(renderEmail({ ...j, leaning: 'DEMOCRAT' }, { ...sam, name: '' }).body).toContain(
       'Sincerely,\n[Your name]\n',
     )
     expect(fullName(j)).toBe('Jane Doe')
   })
 
+  it('fills in the personal opening sentence and optional phone number', () => {
+    const email = renderEmail(
+      { ...j, leaning: 'DEMOCRAT' },
+      { name: 'Sam', phone: ' 555 0100 ', intro: ' I loved your piece on AI safety. ' },
+    )
+    expect(email.body).toContain('Dear Jane,\n\nI loved your piece on AI safety.\n\n')
+    expect(email.body).not.toContain(INTRO_PROMPT)
+    expect(email.body).toContain('Sincerely,\nSam\n555 0100\n\nPauseAI press email')
+  })
+
   it('renders links as parts, plain "text (url)" and escaped HTML', () => {
     const url = 'https://x.com/hilbertspaess/status/2097476196791709843'
-    const email = renderEmail({ ...j, firstName: '<Jo & "Al">', leaning: 'REPUBLICAN' }, 'Sam')
+    const email = renderEmail({ ...j, firstName: '<Jo & "Al">', leaning: 'REPUBLICAN' }, sam)
     expect(email.parts[1]).toEqual({ text: 'Jacob Coxon’s resignation', url })
     expect(email.parts).toHaveLength(3)
     expect(email.body).toContain(`Jacob Coxon’s resignation (${url}) from the AI company`)
     expect(email.body).not.toContain('](')
     expect(email.html).toMatch(/^Dear &lt;Jo &amp; &quot;Al&quot;&gt;,<br><br>/)
     expect(email.html).toContain(`<a href="${url}">Jacob Coxon’s resignation</a> from the AI`)
-    expect(renderEmail({ ...j, leaning: 'DEMOCRAT' }, 'Sam').parts[1]).toEqual(email.parts[1])
+    expect(renderEmail({ ...j, leaning: 'DEMOCRAT' }, sam).parts[1]).toEqual(email.parts[1])
     // Link-like text in a filled-in value stays plain text.
-    const sneaky = renderEmail({ ...j, leaning: 'DEMOCRAT' }, '[click](https://evil.test)')
+    const sneaky = renderEmail(
+      { ...j, leaning: 'DEMOCRAT' },
+      { ...sam, intro: '[click](https://evil.test)' },
+    )
     expect(sneaky.parts).toHaveLength(3)
     expect(sneaky.html).not.toContain('evil.test">')
   })
