@@ -261,6 +261,14 @@ describe('journalist outreach task flow', () => {
       await prisma.experimentalJournalist.findUniqueOrThrow({ where: { id: second.id } }),
     ).toMatchObject({ contactedById: participant.id, sentLeaning: 'REPUBLICAN' })
 
+    // The volunteer can flag the address they just sent to as bounced.
+    const bounceButton = button(`It bounced / wrong email for ${second.name}`)
+    await userEvent.click(bounceButton)
+    await waitFor(() => expect(bounceButton).not.toBeInTheDocument())
+    expect(
+      await prisma.experimentalJournalist.findUniqueOrThrow({ where: { id: second.id } }),
+    ).toMatchObject({ bouncedAt: expect.any(Date) })
+
     await prisma.experimentalJournalist.update({
       where: { id: first.id },
       data: { contactedAt: new Date(), contactedById: participant.id },
