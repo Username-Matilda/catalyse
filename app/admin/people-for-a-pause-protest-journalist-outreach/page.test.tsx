@@ -57,18 +57,20 @@ describe('admin journalist outreach', () => {
     await userEvent.click(button('Preview'))
     expect(await screen.findByText('1 new')).toBeInTheDocument()
     expect(screen.getByText('Jane Doe <jane@x.com> · Planet · REPUBLICAN')).toBeInTheDocument()
-    expect(screen.getByText('2 skipped as duplicates')).toBeInTheDocument()
-    expect(screen.getByText('Line 3: old@x.com (Already on the list)')).toBeInTheDocument()
+    expect(screen.getByText('1 to update')).toBeInTheDocument()
+    expect(screen.getByText(/old@x\.com:.*firstName "Existing" → "Old"/)).toBeInTheDocument()
+    expect(screen.getByText('1 skipped')).toBeInTheDocument()
+    expect(screen.getByText('Line 4: jane@x.com (Repeated in this import)')).toBeInTheDocument()
 
-    await userEvent.click(button('Import 1'))
-    expect(await screen.findByText('Imported 1 journalist')).toBeInTheDocument()
+    await userEvent.click(button('Import 1, update 1'))
+    expect(await screen.findByText('Imported 1 new, updated 1')).toBeInTheDocument()
     expect(csv).toHaveValue('')
     await waitFor(() => expect(statCard('Available')).toHaveTextContent('2'))
 
     await userEvent.type(csv, `${HEADER}Sam,Lee,sam@x.com,P,D{enter}Kim,Park,kim@x.com,P,R`)
     await userEvent.click(button('Preview'))
     await userEvent.click(await screen.findByRole('button', { name: 'Import 2' }))
-    expect(await screen.findByText('Imported 2 journalists')).toBeInTheDocument()
+    expect(await screen.findByText('Imported 2 new')).toBeInTheDocument()
   })
 
   it('filters, resets, deletes and exports journalists', async () => {

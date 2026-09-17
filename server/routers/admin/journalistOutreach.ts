@@ -11,22 +11,46 @@ import { adminProcedure } from '../../procedures'
 
 const CsvInput = z.object({ csv: z.string().max(2_000_000) })
 
+// Claim/contact state (claimedById, contactedAt, sentLeaning, ...) is never touched by an
+// import — only the fields a CSV can actually describe.
+const UPDATABLE_FIELDS = (Object.keys(CSV_COLUMNS) as (keyof typeof CSV_COLUMNS)[]).filter(
+  (f) => f !== 'email',
+)
+
+type FieldChange = { field: string; from: unknown; to: unknown }
+
 async function planImport(csv: string) {
   const { missingColumns, valid, invalid } = parseJournalistCsv(csv)
-  const existing = new Set(
+  const existing = new Map(
     (
       await prisma.experimentalJournalist.findMany({
         where: { email: { in: valid.map((r) => r.email) } },
-        select: { email: true },
       })
-    ).map((j) => j.email),
+    ).map((j) => [j.email, j]),
   )
   const seen = new Set<string>()
   const toCreate: (JournalistRow & { line: number })[] = []
+  const toUpdate: { line: number; email: string; id: number; changes: FieldChange[] }[] = []
   const duplicates: { line: number; email: string; reason: string }[] = []
   for (const row of valid) {
-    if (existing.has(row.email)) {
-      duplicates.push({ line: row.line, email: row.email, reason: 'Already on the list' })
+    const match = existing.get(row.email)
+    if (match) {
+      if (seen.has(row.email)) {
+        duplicates.push({ line: row.line, email: row.email, reason: 'Repeated in this import' })
+        continue
+      }
+      seen.add(row.email)
+      const changes = UPDATABLE_FIELDS.flatMap((field) =>
+        row[field] === match[field] ? [] : [{ field, from: match[field], to: row[field] }],
+      )
+      if (changes.length > 0)
+        toUpdate.push({ line: row.line, email: row.email, id: match.id, changes })
+      else
+        duplicates.push({
+          line: row.line,
+          email: row.email,
+          reason: 'Already on the list, no changes',
+        })
     } else if (seen.has(row.email)) {
       duplicates.push({ line: row.line, email: row.email, reason: 'Repeated in this import' })
     } else {
@@ -34,18 +58,24 @@ async function planImport(csv: string) {
       toCreate.push(row)
     }
   }
-  return { missingColumns, toCreate, duplicates, invalid }
+  return { missingColumns, toCreate, toUpdate, duplicates, invalid }
 }
 
 export const adminJournalistOutreachRouter = {
   previewImport: adminProcedure.input(CsvInput).handler(({ input }) => planImport(input.csv)),
 
   commitImport: adminProcedure.input(CsvInput).handler(async ({ input }) => {
-    const { toCreate } = await planImport(input.csv)
+    const { toCreate, toUpdate } = await planImport(input.csv)
     const { count } = await prisma.experimentalJournalist.createMany({
       data: toCreate.map(({ line: _line, ...row }) => row),
     })
-    return { created: count }
+    for (const { id, changes } of toUpdate) {
+      await prisma.experimentalJournalist.update({
+        where: { id },
+        data: Object.fromEntries(changes.map(({ field, to }) => [field, to])),
+      })
+    }
+    return { created: count, updated: toUpdate.length }
   }),
 
   list: adminProcedure.handler(async () => {

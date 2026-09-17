@@ -55,7 +55,9 @@ export default function AdminJournalistOutreachPage() {
   const commitMutation = useMutation({
     ...orpc.admin.journalistOutreach.commitImport.mutationOptions(),
     onSuccess: (res) => {
-      showToast(`Imported ${res.created} journalist${res.created === 1 ? '' : 's'}`, 'success')
+      const parts = [`Imported ${res.created} new`]
+      if (res.updated > 0) parts.push(`updated ${res.updated}`)
+      showToast(parts.join(', '), 'success')
       setCsv('')
       setPreview(null)
       return refresh()
@@ -127,7 +129,9 @@ export default function AdminJournalistOutreachPage() {
           Paste or upload CSV with a header row. Required columns:{' '}
           <code>{REQUIRED_HEADERS.join(', ')}</code>. Optional:{' '}
           <code>{OPTIONAL_HEADERS.join(', ')}</code>. Other columns are ignored. Leaning is
-          Republican or Democrat (R/D also work); journalists already on the list are skipped.
+          Republican or Democrat (R/D also work); a row matching an email already on the list
+          updates that journalist&apos;s fields instead of creating a duplicate — claim/contact
+          status is never touched.
         </p>
         <label htmlFor="journalist-csv">CSV</label>
         <textarea
@@ -181,9 +185,28 @@ export default function AdminJournalistOutreachPage() {
                 ))}
               </ul>
             )}
+            {preview.toUpdate.length > 0 && (
+              <>
+                <h3>{preview.toUpdate.length} to update</h3>
+                <p className="text-sm text-text-light mb-2">
+                  Matched by email. Only the fields below change — claim/contact status is never
+                  touched by an import.
+                </p>
+                <ul className="text-sm mb-3">
+                  {preview.toUpdate.map((u) => (
+                    <li key={u.line}>
+                      {u.email}:{' '}
+                      {u.changes
+                        .map((c) => `${c.field} "${c.from ?? ''}" → "${c.to ?? ''}"`)
+                        .join(', ')}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
             {preview.duplicates.length > 0 && (
               <>
-                <h3>{preview.duplicates.length} skipped as duplicates</h3>
+                <h3>{preview.duplicates.length} skipped</h3>
                 <ul className="text-sm mb-3">
                   {preview.duplicates.map((d) => (
                     <li key={d.line}>
@@ -206,10 +229,14 @@ export default function AdminJournalistOutreachPage() {
               </>
             )}
             <Button
-              disabled={preview.toCreate.length === 0 || commitMutation.isPending}
+              disabled={
+                (preview.toCreate.length === 0 && preview.toUpdate.length === 0) ||
+                commitMutation.isPending
+              }
               onClick={() => commitMutation.mutate({ csv })}
             >
               Import {preview.toCreate.length}
+              {preview.toUpdate.length > 0 && `, update ${preview.toUpdate.length}`}
             </Button>
           </div>
         )}
