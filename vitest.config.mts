@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url'
  */
 const alias = { '@': fileURLToPath(new URL('.', import.meta.url)) }
 // Playwright owns `e2e/**/*.spec.ts`; vitest only ever collects `*.test.ts(x)`.
-const exclude = ['node_modules/**', 'e2e/**', '.next/**', 'generated/**', 'tmp/**']
+const exclude = ['node_modules/**', 'e2e/**', '.next/**', 'generated/**', 'tmp/**', '.claude/**']
 
 export default defineConfig({
   resolve: { alias },
