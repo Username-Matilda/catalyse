@@ -32,6 +32,8 @@ const eslintConfig = defineConfig([
     'next-env.d.ts',
     // Generated files — do not lint
     'generated/**',
+    // Local scratch space
+    'tmp/**',
   ]),
 ])
 
