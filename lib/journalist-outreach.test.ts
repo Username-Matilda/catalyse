@@ -36,6 +36,7 @@ describe('renderEmail', () => {
     expect(dem.body).toContain('humanity against the machines')
     for (const { subject, body } of [rep, dem]) {
       expect(`${subject}${body}`).not.toContain('{{')
+      expect(body).not.toMatch(/['"]/)
       expect(body).toMatch(/PauseAI press email: press@pauseai\.info$/)
     }
     expect(renderEmail({ ...j, leaning: 'DEMOCRAT' }, '').body).toContain(

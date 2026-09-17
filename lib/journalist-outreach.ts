@@ -43,17 +43,17 @@ const TEMPLATES: Record<JournalistLeaning, { subject: string; body: string }> = 
 
 [Add a personal opening sentence: perhaps pick up on other AI articles covered by the outlet if possible]
 
-Jacob Coxon's resignation from the AI company Anthropic over human extinction concerns has gone viral, with over 170 million views. More than 1,380 employees of OpenAI, Anthropic, Google DeepMind, and Meta, including CEOs, have also signed a statement asking the U.S. government to deliberately slow the frontier.
+Jacob Coxon’s resignation from the AI company Anthropic over human extinction concerns has gone viral, with over 170 million views. More than 1,380 employees of OpenAI, Anthropic, Google DeepMind, and Meta, including CEOs, have also signed a statement asking the U.S. government to deliberately slow the frontier.
 
-But the real story here is that ordinary people are ahead of the debate. Half of all Americans say they are concerned that AI “will cause the end of the human race on Earth”, and two thirds think it is advancing too quickly (YouGov, September 14). The American people want a pause, not just Big Tech.
+But the real story here is that ordinary people are ahead of the debate. Half of all Americans say they are concerned that AI “will cause the end of the human race on Earth,” and two thirds think it is advancing too quickly (YouGov, September 14). The American people want a pause, not just Big Tech.
 
-I'm a volunteer at PauseAI Global. We’re a grassroots coalition of hardworking everyday people from all walks of life, not Democrat lobbyists or coastal elites. We want a PAUSE, NOT A PACE. Senator Hawley's already asking the tough questions; we can connect you to the people outside the Beltway asking them too.
+I’m a volunteer at PauseAI Global. We’re a grassroots coalition of hardworking everyday people from all walks of life, not Democrat lobbyists or coastal elites. We want a PAUSE, NOT A PACE. Senator Hawley’s already asking the tough questions; we can connect you to the people outside the Beltway asking them too.
 
 A local partner organization — People for a Pause — is running a protest in Washington DC on Saturday September 19th 2-4pm, calling for President Trump and Xi Jinping to make an AI pause deal.
 
-Racing China to build uncontrollable frontier LLMs means building technology that destroys the value of work and hands government and big tech the tools for Orwellian surveillance. We don't need to trust China to beat them. Innovative verification technologies would let the US strike a strong deal from strength, without ever taking their word for it.
+Racing China recklessly means building technology that destroys the value of work and hands government and big tech the tools for Orwellian surveillance. We don’t need to trust China to beat them. Innovative verification technologies would let the US negotiate from strength, without ever taking their word for it.
 
-The US can continue to lead the world on AI and automation without jeopardising our national security by creating dangerous frontier models.
+The US can continue to lead the world on AI and automation without jeopardizing our national security by creating dangerous frontier models.
 
 Available for interview: Maxime Fournes, CEO of Pause AI Global, Irina Tavera, Organizing Director for PauseAI Global, and local volunteers by video or in person: Crissie McMullan, Ben Aybar, and others.
 
@@ -68,13 +68,13 @@ PauseAI press email: press@pauseai.info`,
 
 [Add a personal opening sentence: perhaps pick up on other AI articles covered by the outlet if possible]
 
-Jacob Coxon's resignation from the AI company Anthropic over concerns regarding human extinction has gone viral. When over 1,380 employees of OpenAI, Anthropic, Google DeepMind, and Meta - including CEOs - sign a statement urging the government to slow AI development, that's no longer “hysteria” but whistleblower testimony from inside the industry.
+Jacob Coxon’s resignation from the AI company Anthropic over concerns regarding human extinction has gone viral. When over 1,380 employees of OpenAI, Anthropic, Google DeepMind, and Meta - including CEOs - sign a statement urging the government to slow AI development, that’s no longer “hysteria” but whistleblower testimony from inside the industry.
 
-But the mainstream media keeps missing something crucial: the public is ahead of the debate. Half of Americans fear AI "will cause the end of the human race on Earth," and two-thirds say it's advancing too fast (YouGov, September 14). The American people want a pause, not just tech elites.
+But the mainstream media keeps missing something crucial: the public is ahead of the debate. Half of Americans fear AI “will cause the end of the human race on Earth,” and two-thirds say it’s advancing too fast (YouGov, September 14). The American people want a pause, not just tech elites.
 
-I'm a volunteer with PauseAI, a grassroots coalition of everyday Americans. We're not lobbyists or industry insiders, we’re not political hacks, and we’re not techno-utopians or EA accelerationists. We're teachers, engineers, students, parents — people watching powerful tech companies race ahead with minimal oversight, and smart enough to know what the consequences could be.
+I’m a volunteer with PauseAI, a grassroots coalition of everyday Americans. We’re not lobbyists or industry insiders, we’re not political hacks, and we’re not techno-utopians or EA accelerationists. We’re teachers, engineers, students, parents — people watching powerful tech companies race ahead with minimal oversight, and smart enough to know what the consequences could be.
 
-A similar organization — People for a Pause — is running a protest in Washington DC on Saturday September 19th 2-4pm, calling for President Trump and Xi Jinping to make an AI pause deal. This isn't just the US against China — it's humanity against the machines, and no country wins that one alone.
+A similar organization — People for a Pause — is running a protest in Washington DC on Saturday September 19th 2-4pm, calling for President Trump and Xi Jinping to make an AI pause deal. This isn’t just the US against China — it’s humanity against the machines, and no country wins that one alone.
 
 We can connect you to the ordinary people calling for an international moratorium right now, and help to reclaim the narrative and address Americans’ calls for a pause.
 
