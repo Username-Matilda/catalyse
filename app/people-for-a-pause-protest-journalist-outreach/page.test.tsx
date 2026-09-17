@@ -184,7 +184,7 @@ describe('journalist outreach task flow', () => {
       'Loved your AI piece.',
     )
     expect(screen.getByText(/Dear Reporter,/)).toHaveTextContent(
-      /Dear Reporter, Loved your AI piece\. .*Sincerely, Sam 555 0100 PauseAI press email/,
+      /Dear Reporter, Loved your AI piece\. .*Sincerely, Sam 555 0100 PauseAI Global volunteer PauseAI Global press email/,
     )
     const resignation = screen.getByRole('link', { name: 'Jacob Coxon’s resignation' })
     expect(resignation).toHaveAttribute('href', expect.stringContaining('x.com/hilbertspaess'))

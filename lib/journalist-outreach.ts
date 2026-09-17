@@ -60,8 +60,8 @@ Available for interview: Maxime Fournes, CEO of Pause AI Global, Irina Tavera, O
 
 Sincerely,
 {{volunteerName}}{{phoneLine}}
-
-PauseAI press email: press@pauseai.info`,
+PauseAI Global volunteer
+PauseAI Global press email: press@pauseai.info`,
   },
   DEMOCRAT: {
     subject: 'PAUSE NOT PACE - PAUSE AI',
@@ -83,8 +83,8 @@ Available for interview: Maxime Fournes, CEO of Pause AI Global, Irina Tavera, O
 
 Sincerely,
 {{volunteerName}}{{phoneLine}}
-
-PauseAI press email: press@pauseai.info`,
+PauseAI Global volunteer
+PauseAI Global press email: press@pauseai.info`,
   },
 }
 

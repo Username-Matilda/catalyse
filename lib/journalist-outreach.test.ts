@@ -33,13 +33,15 @@ describe('renderEmail', () => {
     const dem = renderEmail({ ...j, leaning: 'DEMOCRAT' }, sam)
     expect(rep.subject).toBe('PAUSE NOT PACE - PAUSE AI')
     expect(rep.body).toMatch(/^Dear Jane,/)
-    expect(rep.body).toContain('Sincerely,\nSam\n\nPauseAI press email')
+    expect(rep.body).toContain(
+      'Sincerely,\nSam\nPauseAI Global volunteer\nPauseAI Global press email: press@pauseai.info',
+    )
     expect(rep.body).toContain('not Democrat lobbyists or coastal elites')
     expect(dem.body).toContain('humanity against the machines')
     for (const { subject, body } of [rep, dem]) {
       expect(`${subject}${body}`).not.toContain('{{')
       expect(body).not.toMatch(/['"]/)
-      expect(body).toMatch(/PauseAI press email: press@pauseai\.info$/)
+      expect(body).toMatch(/\nPauseAI Global press email: press@pauseai\.info$/)
       // A blank intro leaves the prompt in place so the gap is obvious.
       expect(body).toContain(`Dear Jane,\n\n${INTRO_PROMPT}\n\n`)
     }
@@ -56,7 +58,7 @@ describe('renderEmail', () => {
     )
     expect(email.body).toContain('Dear Jane,\n\nI loved your piece on AI safety.\n\n')
     expect(email.body).not.toContain(INTRO_PROMPT)
-    expect(email.body).toContain('Sincerely,\nSam\n555 0100\n\nPauseAI press email')
+    expect(email.body).toContain('Sincerely,\nSam\n555 0100\nPauseAI Global volunteer\n')
   })
 
   it('renders links as parts, plain "text (url)" and escaped HTML', () => {
