@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { prisma } from '@/lib/prisma'
@@ -59,6 +59,19 @@ const createJournalist = async (
 }
 
 const button = (name: string | RegExp) => screen.getByRole('button', { name })
+
+/**
+ * Moves the clock past the claim window. Only `Date` is faked: the countdown's real interval
+ * still ticks and reads the new time, and Testing Library's polling keeps working.
+ */
+function runOutTheClaim() {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(Date.now() + CLAIM_MS + 1000)
+}
+
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 describe('journalist outreach sign-in', () => {
   it('sends a sign-in link and shows errors from the server', async () => {
@@ -208,21 +221,18 @@ describe('journalist outreach task flow', () => {
   it('releases a journalist when the claim runs out and lets the volunteer carry on', async () => {
     const { participant } = await signedIn()
     localStorage.setItem('outreachName', 'Sam')
-    const almostExpired = () => new Date(Date.now() - CLAIM_MS + 1500)
-    const held = await createJournalist({ claimedById: participant.id, claimedAt: almostExpired() })
+    const held = await createJournalist({ claimedById: participant.id, claimedAt: new Date() })
     const next = await createJournalist()
 
     await renderApp(<JournalistOutreachPage />)
     await screen.findByRole('heading', { name: held.name })
+    runOutTheClaim()
+    expect(await screen.findByText(/released .* back to other volunteers/)).toBeInTheDocument()
+    // "Get another" is enabled once the release has reached the server.
+    await waitFor(() => expect(button('Get another')).toBeEnabled())
     expect(
-      await screen.findByText(/released .* back to other volunteers/, {}, { timeout: 5000 }),
-    ).toBeInTheDocument()
-    await waitFor(async () =>
-      expect(
-        (await prisma.experimentalJournalist.findUniqueOrThrow({ where: { id: held.id } }))
-          .claimedAt,
-      ).toBeNull(),
-    )
+      (await prisma.experimentalJournalist.findUniqueOrThrow({ where: { id: held.id } })).claimedAt,
+    ).toBeNull()
 
     await userEvent.click(button('I already sent it'))
     expect(await screen.findByText('Thank you!')).toBeInTheDocument()
@@ -234,25 +244,26 @@ describe('journalist outreach task flow', () => {
   it('offers another journalist or a break after a claim expires', async () => {
     const { participant } = await signedIn()
     localStorage.setItem('outreachName', 'Sam')
-    const held = await createJournalist({
-      claimedById: participant.id,
-      claimedAt: new Date(Date.now() - CLAIM_MS + 1500),
-    })
+    const held = await createJournalist({ claimedById: participant.id, claimedAt: new Date() })
     const spare = await createJournalist()
 
     const { unmount } = await renderApp(<JournalistOutreachPage />)
     await screen.findByRole('heading', { name: held.name })
-    await screen.findByRole('dialog', { name: 'Journalist released' }, { timeout: 5000 })
+    runOutTheClaim()
+    await screen.findByRole('dialog', { name: 'Journalist released' })
+    await waitFor(() => expect(button('Get another')).toBeEnabled())
     await userEvent.click(button('Done for now'))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     unmount()
 
     await prisma.experimentalJournalist.update({
       where: { id: held.id },
-      data: { claimedById: participant.id, claimedAt: new Date(Date.now() - CLAIM_MS + 1500) },
+      data: { claimedById: participant.id, claimedAt: new Date() },
     })
     await renderApp(<JournalistOutreachPage />)
-    await screen.findByRole('dialog', { name: 'Journalist released' }, { timeout: 5000 })
+    await screen.findByRole('heading', { name: held.name })
+    runOutTheClaim()
+    await screen.findByRole('dialog', { name: 'Journalist released' })
     await waitFor(() => expect(button('Get another')).toBeEnabled())
     await userEvent.click(button('Get another'))
     expect(await screen.findByRole('heading', { name: spare.name })).toBeInTheDocument()

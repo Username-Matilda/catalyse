@@ -943,6 +943,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const statusOptions = pickableStatuses.some((o) => o.value === project.status)
     ? pickableStatuses
     : [{ value: project.status, label: projectStatusLabel(project.status) }, ...pickableStatuses]
+  // newStatus is synced from the project in an effect, so it is empty for the first render.
+  const shownStatus = newStatus || project.status
 
   // Excludes the current owner — they're already shown in the Owner box above.
   const volunteerInterests = (project.interests ?? []).filter(
@@ -1596,10 +1598,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   id="change-status"
                   label="Status"
                   ariaLabel="project status"
-                  value={newStatus}
+                  value={shownStatus}
                   options={statusOptions}
                   onChange={handleSelectStatus}
-                  triggerClassName={statusTriggerClasses(newStatus)}
+                  triggerClassName={statusTriggerClasses(shownStatus)}
                   renderOption={(opt) => (
                     <span className={badgeClasses(projectStatusVariant(opt.value))}>
                       {opt.label}
