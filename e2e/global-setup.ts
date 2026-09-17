@@ -22,7 +22,9 @@ const PRISMA_BINARY = path.join(PROJECT_ROOT, 'node_modules', '.bin', 'prisma')
 
 function killServerOnPort(port: number): void {
   try {
-    execSync(`lsof -ti :${port} | xargs kill -TERM 2>/dev/null || true`, { shell: '/bin/sh' })
+    execSync(`lsof -tiTCP:${port} -sTCP:LISTEN | xargs kill -TERM 2>/dev/null || true`, {
+      shell: '/bin/sh',
+    })
   } catch {
     // nothing listening
   }
@@ -67,6 +69,7 @@ function startWorkerNextJs(parallelIndex: number): number {
   const nextArgs = IS_DEV_MODE
     ? ['dev', '--turbo', '-p', String(nextPort)]
     : ['start', '-p', String(nextPort)]
+  const logFd = fs.openSync(path.join(dbDir, 'server.log'), 'w')
   const server = spawn(NEXT_BINARY, nextArgs, {
     env: {
       ...process.env,
@@ -83,8 +86,10 @@ function startWorkerNextJs(parallelIndex: number): number {
     },
     cwd: PROJECT_ROOT,
     detached: false,
-    stdio: 'ignore',
+    // Server output goes next to the worker's database, for diagnosing a failed run.
+    stdio: ['ignore', logFd, logFd],
   })
+  fs.closeSync(logFd)
 
   return server.pid!
 }

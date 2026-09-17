@@ -206,6 +206,8 @@ describe('admin teams', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     await userEvent.click(screen.getByRole('button', { name: 'Delete' }))
     await userEvent.click(screen.getAllByRole('button', { name: 'Delete' }).at(-1)!)
-    await screen.findAllByText('Not found')
+    // The review's toast is still showing, so wait for the delete's own.
+    await waitFor(() => expect(screen.getAllByText('Not found')).toHaveLength(2))
+    expect(screen.queryByRole('heading', { name: 'Confirm Delete' })).toBeNull()
   })
 })

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useCallback, useContext, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import Button from '@/components/Button'
 
 type ToastType = 'success' | 'error' | 'info'
@@ -78,23 +78,40 @@ const ICONS: Record<ToastType, React.ReactNode> = {
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
-
-  const dismiss = useCallback((id: number) => {
-    setToasts((prev) => prev.map((t) => (t.id === id ? { ...t, hiding: true } : t)))
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 220)
+  // Every animation and auto-dismiss timer, so none outlives the provider.
+  const timers = useRef(new Set<ReturnType<typeof setTimeout>>())
+  useEffect(() => {
+    const pending = timers.current
+    return () => pending.forEach(clearTimeout)
   }, [])
+
+  const schedule = useCallback((fn: () => void, ms: number) => {
+    const timer = setTimeout(() => {
+      timers.current.delete(timer)
+      fn()
+    }, ms)
+    timers.current.add(timer)
+  }, [])
+
+  const dismiss = useCallback(
+    (id: number) => {
+      setToasts((prev) => prev.map((t) => (t.id === id ? { ...t, hiding: true } : t)))
+      schedule(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 220)
+    },
+    [schedule],
+  )
 
   const show = useCallback<ShowToast>(
     (message, type = 'info') => {
       const id = Date.now()
       setToasts((prev) => [...prev, { id, message, type, visible: false, hiding: false }])
-      setTimeout(
+      schedule(
         () => setToasts((prev) => prev.map((t) => (t.id === id ? { ...t, visible: true } : t))),
         10,
       )
-      setTimeout(() => dismiss(id), 4000)
+      schedule(() => dismiss(id), 4000)
     },
-    [dismiss],
+    [dismiss, schedule],
   )
 
   return (

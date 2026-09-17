@@ -214,6 +214,9 @@ describe('CommentThread / BugReportCommentThread', () => {
     await userEvent.type(box, 'Thanks')
     await userEvent.click(screen.getByRole('button', { name: 'Post Comment' }))
     await waitFor(() => expect(screen.getByText('Thanks')).toBeInTheDocument())
+    // The submit resolves after the list refetch, clearing the box; let it finish first.
+    await waitFor(() => expect(box).toHaveValue(''))
+    await screen.findByRole('button', { name: 'Post Comment' })
     await userEvent.type(box, 'Again')
     localStorage.setItem('authToken', 'stale')
     await userEvent.click(screen.getByRole('button', { name: 'Post Comment' }))

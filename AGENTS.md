@@ -32,6 +32,15 @@ Comments describe the code as it stands — never the edit, never a measurement,
 - **Saying it seven times.** One explanation copied to every call site is seven things that must stay true. Say it once where you define the thing; at the other sites one line naming it is enough.
 - **Excessive length.** Don't spread over three lines what one says. Every line costs the reader time, and they skip a long comment whole, including the part that mattered. Cut until only what they could not have worked out remains.
 
+## Flaky tests
+
+If a test fails once and passes on rerun, treat that as a bug to fix now, not noise: rerun that
+test file 8 times, find the race, fix it, and rerun 8 times again until every run passes. The
+usual cause is asserting on the database or a fetched value while the UI still shows stale data,
+or waiting for one network response when several were fired. Wait for the UI state the next step
+depends on (a button appearing, a row re-rendering), not for a side effect of it. Fold the fix
+into whatever you are already working on.
+
 ## Testing and coverage
 
 `npm run test:unit` runs vitest with coverage; CI fails below 100% line and statement coverage for `app/**`, `components/**`, `lib/**` and `server/**` (branch coverage will follow). Coverage is a floor on what is exercised, not a licence to reshape code:
