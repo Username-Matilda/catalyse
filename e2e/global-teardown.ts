@@ -5,7 +5,9 @@ import { IS_LOCAL, BASE_PORT, SERVER_PIDS_FILE } from './config'
 
 function killServerOnPort(port: number): void {
   try {
-    execSync(`lsof -ti :${port} | xargs kill -TERM 2>/dev/null || true`, { shell: '/bin/sh' })
+    execSync(`lsof -tiTCP:${port} -sTCP:LISTEN | xargs kill -TERM 2>/dev/null || true`, {
+      shell: '/bin/sh',
+    })
   } catch {
     // nothing listening
   }

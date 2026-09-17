@@ -148,21 +148,23 @@ describe('dashboard', () => {
     )
     await userEvent.click(screen.getByRole('button', { name: 'Unread' }))
     await userEvent.click(screen.getByRole('button', { name: 'Mark all as read' }))
-    await waitFor(async () =>
-      expect(await prisma.notification.count({ where: { volunteerId: me.id, readAt: null } })).toBe(
-        0,
-      ),
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Mark all as read' })).toBeNull(),
     )
+    expect(await prisma.notification.count({ where: { volunteerId: me.id, readAt: null } })).toBe(0)
     // Note 0 (the one with a link) is the oldest: on the second page of "all".
     await userEvent.click(await screen.findByRole('button', { name: 'Next' }))
     expect(await screen.findByRole('link', { name: 'View' })).toHaveAttribute('href', '/projects/1')
+    // The page was cached from the first visit, when Note 0 was unread; wait for the refetch.
+    await screen.findByRole('button', { name: 'Mark as unread' })
     // Following the link marks the notification read, unless it already was.
     const linked = () => prisma.notification.findFirstOrThrow({ where: { title: 'Note 0' } })
     const readAt = (await linked()).readAt
     await userEvent.click(screen.getByRole('link', { name: 'View' }))
     expect((await linked()).readAt).toEqual(readAt)
     await userEvent.click(screen.getByRole('button', { name: 'Mark as unread' }))
-    await waitFor(async () => expect((await linked()).readAt).toBeNull())
+    await screen.findByRole('button', { name: 'Mark as read' })
+    expect((await linked()).readAt).toBeNull()
     await userEvent.click(screen.getByRole('link', { name: 'View' }))
     await waitFor(async () => expect((await linked()).readAt).not.toBeNull())
   })
