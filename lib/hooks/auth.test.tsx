@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { screen, waitFor, cleanup } from '@testing-library/react'
+import { screen, waitFor, cleanup, act } from '@testing-library/react'
 import { createVolunteer, createAdmin } from '@/test/factories'
 import { renderApp } from '@/test/render'
 import { navigation } from '@/test/next-navigation'
@@ -17,6 +17,8 @@ async function settle(hook: HookName, as: NonNullable<Parameters<typeof renderAp
   cleanup()
   await renderApp(<Probe hook={hook} />, { as })
   await waitFor(() => expect(screen.getByText(/user:|anon/)).toBeInTheDocument())
+  // The redirect runs in a passive effect, which can still be pending when the text lands.
+  await act(async () => {})
 }
 
 describe('auth gate hooks', () => {

@@ -202,8 +202,11 @@ export async function addTaskFromEditPage(
   // Existing tasks are also labeled "Task title" — target the add-task form's stable id.
   await page.locator('#new-task-title').fill(taskTitle)
   await page.getByRole('button', { name: 'Add Task' }).click()
-  // Existing tasks render as editable inputs, so the title is a value, not a text node.
-  await expect(page.locator(`input[value="${taskTitle}"]`)).toBeVisible({ timeout: 10_000 })
+  // Existing tasks render as editable inputs, so the title is a value, not a text node. The
+  // add-task form still holds the title until the create succeeds, so exclude it.
+  await expect(page.locator(`input[id^="task-title-"][value="${taskTitle}"]`)).toBeVisible({
+    timeout: 10_000,
+  })
 }
 
 // For a volunteer's own draft: submits it into the review queue.

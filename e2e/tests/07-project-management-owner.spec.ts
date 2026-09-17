@@ -33,15 +33,20 @@ test.describe('Project Management (Owner)', () => {
       timeout: 10_000,
     })
 
-    // Fields autosave on blur now, so tab through each rather than clicking a save button.
-    await volunteer.page.getByLabel('Project Title').fill(newTitle)
-    await volunteer.page.getByLabel('Description').fill(newDescription)
-    const collabField = volunteer.page.getByLabel('Collaboration Doc / Link')
-    await collabField.fill(collaborationLink)
-    await Promise.all([
-      volunteer.page.waitForResponse((resp) => resp.url().includes('/api/rpc/projects/update')),
-      collabField.blur(),
-    ])
+    // Fields autosave on blur, one request per field, so wait for each save before
+    // leaving the page rather than only the last.
+    for (const [label, value] of [
+      ['Project Title', newTitle],
+      ['Description', newDescription],
+      ['Collaboration Doc / Link', collaborationLink],
+    ] as const) {
+      const field = volunteer.page.getByLabel(label)
+      await field.fill(value)
+      await Promise.all([
+        volunteer.page.waitForResponse((resp) => resp.url().includes('/api/rpc/projects/update')),
+        field.blur(),
+      ])
+    }
 
     await volunteer.page.goto(`${baseUrl}/projects/${projectId}`)
     await expect(volunteer.page.getByRole('heading', { level: 1 })).toContainText(newTitle, {
