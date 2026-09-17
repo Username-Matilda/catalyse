@@ -63,6 +63,7 @@ describe('admin.triage', () => {
   })
 
   it('submits a volunteer draft for review with notifications', async () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
     const admin = await createAdmin()
     const creator = await createVolunteer()
     const c = clientAs(admin)
@@ -112,6 +113,18 @@ describe('admin.triage', () => {
     await createTask(orphan.id)
     expect(await c.admin.triage.submitDraft({ id: orphan.id })).toEqual({
       message: 'Project submitted for review',
+    })
+    // Emails go out after the response; wait for every stub send so none logs after the test
+    // file has torn down.
+    const admins = await prisma.volunteer.count({
+      where: { isAdmin: true, deletedAt: null, email: { not: null } },
+    })
+    const sent = (subject: string) =>
+      log.mock.calls.filter(([line]) => String(line).includes(`Subject: ${subject}`))
+    await vi.waitFor(() => {
+      expect(sent(`New project proposal: ${draft.title}`)).toHaveLength(admins)
+      expect(sent(`Your draft was submitted for review: ${draft.title}`)).toHaveLength(1)
+      expect(sent(`New project proposal: ${orphan.title}`)).toHaveLength(admins)
     })
   })
 })

@@ -365,6 +365,30 @@ export async function sendPasswordResetEmail({
   return sendEmail(to, 'Reset your Catalyse password', buildPasswordResetHtml(resetUrl, name))
 }
 
+export function buildOutreachLoginHtml(loginUrl: string): string {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
+<body><div class="container">
+  <h2>Your journalist outreach link</h2>
+  <p>Hi there,</p>
+  <p>Thanks for helping with People for a Pause journalist outreach. Click the button below to start:</p>
+  <p style="text-align: center; margin: 32px 0;"><a href="${loginUrl}" class="button">Start outreach</a></p>
+  <p>This link will expire in <strong>1 hour</strong> and can be used once.</p>
+  <p>If you didn't request this, you can safely ignore this email.</p>
+  ${footer([['Start outreach', loginUrl]])}
+</div></body></html>`
+}
+
+export async function sendOutreachLoginEmail({
+  to,
+  loginToken,
+}: {
+  to: string
+  loginToken: string
+}): Promise<boolean> {
+  const loginUrl = `${env.APP_URL}/people-for-a-pause-protest-journalist-outreach/verify?token=${loginToken}`
+  return sendEmail(to, 'Your People for a Pause outreach link', buildOutreachLoginHtml(loginUrl))
+}
+
 export function buildAdminInviteHtml(inviteUrl: string, invitedBy: string): string {
   const by = escapeHtml(invitedBy)
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>

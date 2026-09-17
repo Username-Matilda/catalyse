@@ -39,6 +39,8 @@ import { adminRejectedApplicationsRouter } from './routers/admin/rejectedApplica
 import { adminCronRunsRouter } from './routers/admin/cronRuns'
 import { adminOverviewRouter } from './routers/admin/overview'
 import { adminNotificationsRouter } from './routers/admin/notifications'
+import { adminJournalistOutreachRouter } from './routers/admin/journalistOutreach'
+import { journalistOutreachRouter } from './routers/journalistOutreach'
 import { versionRouter } from './routers/version'
 
 export const appRouter = {
@@ -64,7 +66,9 @@ export const appRouter = {
   privacy: privacyRouter,
   contact: contactRouter,
   version: versionRouter,
+  journalistOutreach: journalistOutreachRouter,
   admin: {
+    journalistOutreach: adminJournalistOutreachRouter,
     applications: adminApplicationsRouter,
     volunteers: adminVolunteersRouter,
     notes: adminNotesRouter,
