@@ -9,12 +9,7 @@ import AdminCronRunsPage from './cron-runs/page'
 import EmailPreviewPage from './email-preview/page'
 import AdminProjectsPage from './projects/page'
 
-vi.mock('@/jobs/backup', () => ({ runBackupJob: vi.fn(async () => 'backup-ran') }))
-vi.mock('@/jobs/digest', () => ({
-  runDigestJob: vi.fn(async () => {
-    throw new Error('digest exploded')
-  }),
-}))
+import { cronJobs } from '@/test/fakes/cron-jobs'
 
 describe('platform settings', () => {
   it('toggles application approval and reports a failed save', async () => {
@@ -101,6 +96,7 @@ describe('cron runs', () => {
     expect(await screen.findByRole('dialog')).toHaveTextContent('nudged 3')
     await userEvent.keyboard('{Escape}')
 
+    cronJobs.fails('digest', 'digest exploded')
     await userEvent.click(screen.getAllByRole('button', { name: 'Run now' })[0])
     await screen.findByText('backup finished')
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(5))

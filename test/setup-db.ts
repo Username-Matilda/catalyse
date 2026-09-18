@@ -6,6 +6,7 @@ import { setRateLimiter } from '@/lib/rate-limit'
 import { emails } from './fakes/email'
 import { google } from './fakes/google'
 import { rateLimit } from './fakes/rate-limit'
+import { cronJobs } from './fakes/cron-jobs'
 
 /**
  * Gives the current test file its own private database schema. vitest isolates module
@@ -33,13 +34,19 @@ process.env.ADMIN_EMAILS = Array.from({ length: 20 }, (_, i) => `admin${i || ''}
 process.env.APP_URL = 'http://localhost:3000'
 process.env.CRON_SECRET = 'cron-secret'
 // The network edge is faked: outgoing email lands in the in-memory outbox `emails`, Google
-// credentials verify only when a test has registered them with `google.accept`, and
-// requests are rate-limited only when a test asks with `rateLimit.denyNext`.
+// credentials verify only when a test has registered them with `google.accept`, requests
+// are rate-limited only when a test asks with `rateLimit.denyNext`, and the scheduled jobs
+// record that they ran instead of backing up or mailing anything.
 setEmailTransport(emails)
 setGoogleVerifier(google)
 setRateLimiter(rateLimit)
+// The jobs module reaches `lib/prisma`, whose client is built from DATABASE_URL on import,
+// so it is loaded only after that is set above.
+const { setCronJobRunners } = await import('@/lib/cron-jobs')
+setCronJobRunners(cronJobs.runners)
 beforeEach(() => {
   emails.reset()
   google.reset()
   rateLimit.reset()
+  cronJobs.reset()
 })

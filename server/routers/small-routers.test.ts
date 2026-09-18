@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { prisma } from '@/lib/prisma'
 import {
   createVolunteer,
@@ -11,13 +11,7 @@ import {
 } from '@/test/factories'
 import { clientAs, anon } from '@/test/rpc'
 
-vi.mock('@/jobs/backup', () => ({ runBackupJob: vi.fn(async () => ({ ok: true })) }))
-vi.mock('@/jobs/digest', () => ({ runDigestJob: vi.fn() }))
-vi.mock('@/jobs/nudges', () => ({ runNudgesJob: vi.fn() }))
-vi.mock('@/jobs/applications', () => ({
-  runApplicationsSummaryJob: vi.fn(),
-  runApplicationsAnonymisationJob: vi.fn(),
-}))
+import { cronJobs } from '@/test/fakes/cron-jobs'
 
 describe('contact', () => {
   it('is an empty pass-through router', async () => {
@@ -71,6 +65,7 @@ describe('admin.cronRuns', () => {
     expect(await c.admin.cronRuns.list({})).toHaveLength(2)
     expect(await c.admin.cronRuns.list({ jobName: 'digest' })).toHaveLength(1)
     expect(await c.admin.cronRuns.list({ status: 'error' })).toHaveLength(1)
+    cronJobs.returns('backup', { ok: true })
     expect(await c.admin.cronRuns.run({ jobName: 'backup' })).toEqual({ result: { ok: true } })
     expect(await c.admin.cronRuns.list({ jobName: 'backup', status: 'success' })).toHaveLength(1)
   })
