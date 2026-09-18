@@ -20,9 +20,8 @@ vi.mock('@/lib/rate-limit', async (importOriginal) => {
 })
 const denyNext = () => checkRateLimitMock.mockReturnValueOnce({ allowed: false, retryAfterMs: 1 })
 
-vi.mock('@/lib/google-auth', () => ({ verifyGoogleToken: vi.fn(async () => null) }))
-import { verifyGoogleToken } from '@/lib/google-auth'
 import { emails, linkParam } from '@/test/fakes/email'
+import { google } from '@/test/fakes/google'
 
 const subjects = {
   confirm: 'Welcome to Catalyse: please confirm your email',
@@ -585,7 +584,7 @@ describe('google sign-in (stubbed)', () => {
     await expect(anon().auth.google({ credential: 'bad' })).rejects.toMatchObject({
       message: 'Invalid Google token',
     })
-    vi.mocked(verifyGoogleToken).mockResolvedValueOnce({ email: 'real@example.com', name: 'Real' })
+    google.accept('good', { email: 'real@example.com', name: 'Real' })
     expect((await anon().auth.google({ credential: 'good' })).isNewUser).toBe(true)
     denyNext()
     await expect(anon().auth.google({ stub: true })).rejects.toMatchObject({
@@ -620,10 +619,7 @@ describe('google sign-in (stubbed)', () => {
     await expect(
       anon().auth.completeGoogleSignup({ ...form, credential: 'bad' }),
     ).rejects.toMatchObject({ code: 'UNAUTHORIZED' })
-    vi.mocked(verifyGoogleToken).mockResolvedValueOnce({
-      email: 'admin8@example.com',
-      name: 'Boot',
-    })
+    google.accept('good', { email: 'admin8@example.com', name: 'Boot' })
     const boot = await anon().auth.completeGoogleSignup({ ...form, credential: 'good' })
     expect(boot).toMatchObject({ pending: false, wasPromoted: true })
     expect(emails.last).toMatchObject({ to: 'admin8@example.com', subject: subjects.welcome })
@@ -638,14 +634,14 @@ describe('google sign-in (stubbed)', () => {
     const { email: _e, password: _p, name: _n, ...form } = signupInput('unused@example.com')
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     // A listed admin email whose bootstrap and invite lookups both fail lands as pending.
-    vi.mocked(verifyGoogleToken).mockResolvedValueOnce({ email: 'admin9@example.com', name: 'F' })
+    google.accept('good', { email: 'admin9@example.com', name: 'F' })
     emails.failNext()
     vi.spyOn(prisma.volunteer, 'updateMany').mockRejectedValueOnce(new Error('boot') as never)
     vi.spyOn(prisma.adminInvite, 'findMany').mockRejectedValueOnce(new Error('invite') as never)
     expect((await anon().auth.completeGoogleSignup({ ...form, credential: 'good' })).pending).toBe(
       true,
     )
-    vi.mocked(verifyGoogleToken).mockResolvedValueOnce({ email: 'admin10@example.com', name: 'F' })
+    google.accept('good', { email: 'admin10@example.com', name: 'F' })
     emails.failNext()
     await anon().auth.completeGoogleSignup({ ...form, credential: 'good' })
     await vi.waitFor(() =>

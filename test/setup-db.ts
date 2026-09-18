@@ -1,7 +1,9 @@
 import { afterAll, beforeEach } from 'vitest'
 import { createSchema, dropSchema, urlWithSchema, SCHEMA_PREFIX } from './pg'
 import { setEmailTransport } from '@/lib/email-transport'
+import { setGoogleVerifier } from '@/lib/google-auth'
 import { emails } from './fakes/email'
+import { google } from './fakes/google'
 
 /**
  * Gives the current test file its own private database schema. vitest isolates module
@@ -29,6 +31,11 @@ process.env.ADMIN_EMAILS = Array.from({ length: 20 }, (_, i) => `admin${i || ''}
 )
 process.env.APP_URL = 'http://localhost:3000'
 process.env.CRON_SECRET = 'cron-secret'
-// Outgoing email lands in the in-memory outbox `emails` rather than the dev preview files.
+// Outgoing email lands in the in-memory outbox `emails` rather than the dev preview files,
+// and Google credentials verify only when a test has registered them with `google.accept`.
 setEmailTransport(emails)
-beforeEach(() => emails.reset())
+setGoogleVerifier(google)
+beforeEach(() => {
+  emails.reset()
+  google.reset()
+})
