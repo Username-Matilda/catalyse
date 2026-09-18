@@ -137,6 +137,18 @@ test.describe('Volunteer project drafts', () => {
     await expect(taskDescInput).toHaveValue('Updated task details')
   })
 
+  test('Saving a draft with no title is refused', async ({ volunteer, baseUrl, snap }) => {
+    await volunteer.page.goto(`${baseUrl}/suggest`)
+    await openNewProjectForm(volunteer.page)
+    await volunteer.page.getByLabel('Description').fill('A description with no title above it.')
+    await volunteer.page.getByRole('button', { name: 'Save draft' }).click()
+    await expect(getAlert(volunteer.page)).toContainText('A title is required, even for a draft.', {
+      timeout: 10_000,
+    })
+    await snap(volunteer.page, 'untitled draft refused')
+    await expect(volunteer.page).toHaveURL(/\/suggest/)
+  })
+
   test('Publishing a draft with no tasks is rejected', async ({ volunteer, baseUrl }) => {
     const title = fake.projectTitle()
     const projectId = await volunteerSaveProjectDraft(baseUrl, volunteer.page, title)

@@ -41,6 +41,16 @@ async function importJournalists(
   })
 }
 
+/** The address in the drafted email's "To" field: the journalist the page handed out. */
+async function claimedTo(page: import('@playwright/test').Page): Promise<string> {
+  const email = await page
+    .getByText('To', { exact: true })
+    .locator('xpath=../following-sibling::div[1]')
+    .textContent({ timeout: 10_000 })
+  expect(email ?? '').toContain('@')
+  return (email ?? '').trim()
+}
+
 test.describe('Journalist outreach', () => {
   test('Admin previews a CSV, sees an invalid row called out, and imports the rest', async ({
     adminPage,
@@ -108,10 +118,11 @@ test.describe('Journalist outreach', () => {
     await expect(claim).toBeEnabled()
     await claim.click()
 
-    await expect(
-      volunteer.page.getByRole('heading', { name: `${target.firstName} ${target.lastName}` }),
-    ).toBeVisible({ timeout: 10_000 })
-    await expect(volunteer.page.getByText(target.email)).toBeVisible()
+    // The server hands out whichever journalist is first in line, which may be one an
+    // earlier test imported, so the card names the one this test then follows.
+    const card = volunteer.page.locator('h2').first()
+    await expect(card).toBeVisible({ timeout: 10_000 })
+    const claimedEmail = await claimedTo(volunteer.page)
     await volunteer.page
       .getByLabel('Your personal opening sentence')
       .fill('I read your piece on the AI summit last week.')
@@ -127,7 +138,7 @@ test.describe('Journalist outreach', () => {
 
     // The admin's list now shows who sent it and the running totals.
     await adminPage.reload()
-    const row = adminPage.locator('tbody tr').filter({ hasText: target.email })
+    const row = adminPage.locator('tbody tr').filter({ hasText: claimedEmail })
     await expect(row).toContainText('contacted', { timeout: 10_000 })
   })
 
@@ -143,16 +154,21 @@ test.describe('Journalist outreach', () => {
     await volunteer.page.getByRole('button', { name: `Continue as ${volunteer.email}` }).click()
     await volunteer.page.getByLabel('Your name (signs the email)').fill(volunteer.name)
     await volunteer.page.getByRole('button', { name: 'Get a journalist' }).click()
-    await expect(
-      volunteer.page.getByRole('heading', { name: `${target.firstName} ${target.lastName}` }),
-    ).toBeVisible({ timeout: 10_000 })
-    await volunteer.page.getByRole('button', { name: 'Skip this journalist' }).click()
-    await expect(
-      volunteer.page.getByRole('heading', { name: `${target.firstName} ${target.lastName}` }),
-    ).toBeHidden({ timeout: 10_000 })
+    const card = volunteer.page.locator('h2').first()
+    await expect(card).toBeVisible({ timeout: 10_000 })
+    const claimedName = (await card.textContent()) ?? ''
+    const claimedEmail = await claimedTo(volunteer.page)
 
     await adminPage.reload()
-    const row = adminPage.locator('tbody tr').filter({ hasText: target.email })
+    const row = adminPage.locator('tbody tr').filter({ hasText: claimedEmail })
+    await expect(row).toContainText('claimed', { timeout: 10_000 })
+
+    await volunteer.page.getByRole('button', { name: 'Skip this journalist' }).click()
+    await expect(volunteer.page.getByRole('heading', { name: claimedName })).toBeHidden({
+      timeout: 10_000,
+    })
+
+    await adminPage.reload()
     await expect(row).toContainText('available', { timeout: 10_000 })
   })
 

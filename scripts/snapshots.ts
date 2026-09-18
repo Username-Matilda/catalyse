@@ -233,17 +233,21 @@ async function render(exportDir?: string, baselineUrl?: string): Promise<number>
   for (const row of rows) {
     if (row.failureSrc !== undefined) files.add(row.failureSrc)
     if (row.file === undefined) continue
+    // A published gallery is a baseline for others to diff against and a
+    // record of one build, so it carries only current pictures; the previous
+    // ones are reachable where they were published, or not at all.
     if (remote !== undefined && row.hasPrevious && row.previousRun.ref !== undefined) {
       row.previousSrc = `${remote}/current/${row.file}`
-    } else if (row.previousSrc !== undefined) {
-      files.add(row.previousSrc)
+    } else {
+      row.hasPrevious = false
+      row.previousSrc = undefined
     }
     if (remote !== undefined && row.hasPrevious && !row.changed && row.diffPixels === 0) {
       row.currentSrc = row.previousSrc
     } else if (row.currentSrc !== undefined) {
       files.add(row.currentSrc)
     }
-    if (row.hasDiff) files.add(`diffs/${row.file}`)
+    if (row.hasDiff && row.hasPrevious) files.add(`diffs/${row.file}`)
   }
   await rm(exportDir, { recursive: true, force: true })
   await mkdir(exportDir, { recursive: true })

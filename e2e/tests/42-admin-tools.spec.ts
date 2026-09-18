@@ -101,15 +101,15 @@ test.describe('Roadmap', () => {
     await snap(adminPage, 'project placed')
 
     // Nothing selected means the defaults, so narrow to one status the project isn't in.
+    // Other tests may have left completed projects behind, so what is asserted is that
+    // this project leaves the chart, not that the chart empties.
     await adminPage.getByRole('button', { name: 'Completed', exact: true }).click()
     for (const label of ['Ready', 'In progress', 'On hold']) {
       await adminPage.getByRole('button', { name: label, exact: true }).click()
     }
     await expect(
-      adminPage.getByText('No projects with a schedule match these filters'),
-    ).toBeVisible({
-      timeout: 10_000,
-    })
+      adminPage.getByRole('button', { name: new RegExp(`^${escapeRegExp(title)}`) }),
+    ).toBeHidden({ timeout: 10_000 })
   })
 })
 
