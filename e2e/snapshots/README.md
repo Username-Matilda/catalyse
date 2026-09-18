@@ -139,18 +139,18 @@ npm run snapshots -- --baseline-from=https://example.github.io/catalyse/main
 
 ## In CI
 
-`.github/workflows/snapshots.yml` captures each lane in a job of its own,
-pins main's published gallery as the baseline for a pull request, then merges
-the lanes into one gallery with `--export`. That page goes up as the
-`snapshots-gallery` artifact, and onto the `gh-pages` branch under `main/` or
-`pr/<number>/`, from where GitHub Pages serves it once the repository's Pages
-source is set to that branch. A comment on the pull request links to it. A
-closed pull request's gallery is removed from the branch.
+`.github/workflows/snapshots.yml` captures each lane in a job of its own, then
+merges the lanes into one gallery with `--export` and uploads it as the
+`snapshots-gallery` artifact on the run. Download it and open `index.html`.
 
-The branch is rewritten as a single commit on every publish, so it holds every
-gallery still wanted and no history of pictures. A pull request's export links
-the pictures main already published rather than copying them, so it carries
-only the page, the rows that changed and their diffs.
+The repository's workflows run with a read-only token and no secrets, so a
+fork's pull request runs them the same way (`test/ci-workflow.test.ts` holds
+that rule). Publishing the gallery as a page would need write access to a
+branch, so the workflow stops at the artifact. The pieces for a page are in
+place should that change: `--baseline-from <url>` pins a published gallery as
+the baseline, and `--export` given that URL links the pictures already
+published there rather than copying them, so a pull request's page would
+carry only the rows that changed and their diffs.
 
 ```sh
 npm run snapshots -- --render                       # rebuild index.html from the runs on disk

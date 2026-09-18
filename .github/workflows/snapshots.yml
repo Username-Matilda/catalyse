@@ -1,29 +1,26 @@
-# Visual snapshots: every e2e test photographed in every lane, diffed against
-# what main last published, and put up as a page to read in the browser.
+# Visual snapshots: every e2e test photographed in every lane, merged into one
+# gallery and uploaded as an artifact to read in the browser.
 #
-# Each lane captures in a job of its own; a final job merges them into one
-# gallery, uploads it as an artifact, and (once the repository has GitHub
-# Pages serving the gh-pages branch) publishes it there and links it from the
-# pull request. Until Pages is enabled the artifact is the way to read it.
+# Each lane captures in a job of its own; a final job merges them. The
+# workflows here run with a read-only token and no secrets so a fork's pull
+# request runs them the same way, which is why this one publishes nowhere:
+# the gallery is the `snapshots-gallery` artifact on the run.
 name: Snapshots
 
 on:
   push:
     branches: [main]
   pull_request:
-    types: [opened, synchronize, reopened, closed]
+
+permissions:
+  contents: read
 
 concurrency:
   group: snapshots-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-env:
-  # Where the published galleries live: main's at /main, each PR's at /pr/<n>.
-  PAGES_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
-
 jobs:
   capture:
-    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -55,12 +52,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      # A pull request diffs against main's published pictures. Nothing
-      # published yet (or Pages not enabled) leaves every row without a
-      # previous picture, which the gallery says outright.
-      - name: Pin main's gallery as the baseline
-        if: github.event_name == 'pull_request'
-        run: npm run snapshots -- --baseline-from="$PAGES_URL/main" || echo "No published baseline to diff against."
       - name: Capture
         run: npm run snapshots -- --project=${{ matrix.lane }}
       - name: Upload the lane's captures
@@ -74,20 +65,10 @@ jobs:
             !snapshots/history.json
           retention-days: 14
 
-  publish:
+  gallery:
     needs: capture
-    if: always() && github.event.action != 'closed' && needs.capture.result != 'cancelled'
+    if: always() && needs.capture.result != 'cancelled'
     runs-on: ubuntu-latest
-    # The branch is rebuilt whole from what is on it, so two publishes at once
-    # would each drop the other's gallery. Captures run in parallel; this
-    # step alone queues.
-    concurrency:
-      group: snapshots-publish
-      cancel-in-progress: false
-    permissions:
-      contents: write
-      pages: write
-      pull-requests: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -104,100 +85,20 @@ jobs:
           path: snapshots
           merge-multiple: true
       - name: Build the gallery
-        run: |
-          if [ "${{ github.event_name }}" = pull_request ]; then
-            npm run snapshots -- --export=gallery --baseline-from="$PAGES_URL/main"
-          else
-            npm run snapshots -- --export=gallery
-          fi
+        run: npm run snapshots -- --export=gallery
       - name: Upload the gallery
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: snapshots-gallery
           path: gallery/
           retention-days: 30
-      # The gh-pages branch is rebuilt as a single commit every time, so the
-      # site keeps every gallery still wanted while the branch never grows a
-      # history of pictures.
-      - name: Publish to GitHub Pages
-        id: pages
-        continue-on-error: true
+      - name: Say where it is
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TARGET: ${{ github.event_name == 'pull_request' && format('pr/{0}', github.event.pull_request.number) || 'main' }}
+          LANES: ${{ needs.capture.result }}
         run: |
-          set -eu
-          remote="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          rm -rf site
-          if git clone --depth 1 --branch gh-pages "$remote" site 2>/dev/null; then
-            rm -rf site/.git
-          else
-            mkdir site
-          fi
-          rm -rf "site/$TARGET"
-          mkdir -p "site/$(dirname "$TARGET")"
-          cp -r gallery "site/$TARGET"
-          cd site
-          git init -q -b gh-pages
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -q -m "Snapshots for $TARGET (${GITHUB_SHA::7})"
-          git push --force "$remote" gh-pages
-          # A push made with the workflow token does not start a Pages build on its own.
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/pages/builds" >/dev/null || true
-          echo "url=$PAGES_URL/$TARGET/" >> "$GITHUB_OUTPUT"
-      - name: Link the gallery from the pull request
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        env:
-          GALLERY_URL: ${{ steps.pages.outputs.url }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          CAPTURE_RESULT: ${{ needs.capture.result }}
-        with:
-          script: |
-            const marker = '<!-- snapshots-gallery -->'
-            const { GALLERY_URL, RUN_URL, CAPTURE_RESULT } = process.env
-            const where = GALLERY_URL
-              ? `[Open the gallery](${GALLERY_URL})`
-              : `The gallery is the \`snapshots-gallery\` artifact on [this run](${RUN_URL}); it will be a page here once GitHub Pages serves the gh-pages branch.`
-            const state = CAPTURE_RESULT === 'success' ? '' : `\n\nSome lanes did not finish (${CAPTURE_RESULT}); see [the run](${RUN_URL}).`
-            const body = `${marker}\n**Visual snapshots** for ${context.sha.slice(0, 7)}: ${where}${state}`
-            const { owner, repo } = context.repo
-            const issue_number = context.payload.pull_request.number
-            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number })
-            const mine = comments.find((comment) => comment.body?.startsWith(marker))
-            if (mine) {
-              await github.rest.issues.updateComment({ owner, repo, comment_id: mine.id, body })
-            } else {
-              await github.rest.issues.createComment({ owner, repo, issue_number, body })
-            }
-
-  # A closed pull request's gallery comes down from the site.
-  unpublish:
-    if: github.event.action == 'closed'
-    runs-on: ubuntu-latest
-    concurrency:
-      group: snapshots-publish
-      cancel-in-progress: false
-    permissions:
-      contents: write
-    steps:
-      - name: Remove the pull request's gallery
-        continue-on-error: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TARGET: pr/${{ github.event.pull_request.number }}
-        run: |
-          set -eu
-          remote="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git clone --depth 1 --branch gh-pages "$remote" site || exit 0
-          cd site
-          [ -d "$TARGET" ] || exit 0
-          rm -rf .git "$TARGET"
-          git init -q -b gh-pages
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -q -m "Remove snapshots for $TARGET"
-          git push --force "$remote" gh-pages
+          {
+            echo '## Visual snapshots'
+            echo
+            echo 'The gallery is the `snapshots-gallery` artifact on this run: download it and open `index.html`.'
+            echo "Lanes: $LANES."
+          } >> "$GITHUB_STEP_SUMMARY"
