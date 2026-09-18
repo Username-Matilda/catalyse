@@ -199,6 +199,11 @@ export async function normaliseDates(page: Page): Promise<void> {
 async function settle(page: Page): Promise<boolean> {
   await page.evaluate(() => document.fonts.ready)
   await page.waitForLoadState('networkidle', { timeout: 3_000 }).catch(() => undefined)
+  // A full-page shot resizes the viewport to the document, and on a page
+  // scrolled part-way down the sticky header lands somewhere different in
+  // each frame while the scroll position is restored. From the top there is
+  // nothing to restore, and the picture is the page as a reader first meets it.
+  await page.evaluate(() => scrollTo(0, 0))
   const settled = await waitForPageStable(page)
   await normaliseDates(page)
   await page.waitForTimeout(RASTER_SETTLE_MS)

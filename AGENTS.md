@@ -87,3 +87,14 @@ commit goes in with it, including edits you never made and edits about something
 else entirely. It is the human's working notes as much as yours, so leaving a
 change of theirs behind strands it there until whatever you commit next. Never
 split it into a commit of its own, and never leave it out for being unrelated.
+
+## Visual snapshots
+
+`npm run snapshots` runs the e2e suite with every test photographed, in four lanes (desktop and mobile, light and dark), and writes `snapshots/index.html`: each picture beside the one the previous run took, with changed pixels in red. Full guide: `e2e/snapshots/README.md`.
+
+- **Run it when a change can move pixels**: a component, a stylesheet, a layout, a page's data. `npm run check-all` does not include it. Narrow it while iterating (`npm run snapshots -- e2e/tests/11-dashboard.spec.ts`, `-- --grep "dialog"`, `-- --project=mobile-dark`), and read the gallery, not only the terminal: a run that exits zero can still have changed a picture you did not mean to change.
+- **Check uncommitted work against a ref in two runs**: `npm run snapshots -- --against=main` captures main and pins it as the baseline; a plain `npm run snapshots` then diffs your tree against it. `--clear-baseline` drops the pin.
+- **A new user-facing flow gets a picture.** Every test's final frame is captured on its own. For the state in the middle (a dialog open, validation errors showing), call the `snap` fixture: `await snap(page, 'edit dialog open')`. Label the state, not the step. `snap` is a no-op in a plain `npm run test:e2e`.
+- **Keep the picture deterministic.** Fake data is seeded per test, dates are rewritten before the shot, and the page must hold still. A capture reported as **unsettled** holds something that never stops moving; fix that rather than re-running. Don't put a wall-clock value, a random choice or a live counter in a screen without a way to hold it.
+- **Compare with the sidecar, never by hashing the PNG**: `diffPixels` and `diff` in each capture's `.json` are the comparison the gallery uses.
+- Commit nothing under `snapshots/`. CI captures every lane on each pull request and links the gallery from it.

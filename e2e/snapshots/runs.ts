@@ -43,6 +43,8 @@ export interface RunCapture {
   sha?: string
   durationMs?: number
   diffPixels?: number
+  /** Whether the diff crossed the noise floor; absent when there was nothing to diff against. */
+  changed?: boolean
 }
 
 export type RunStatus = 'running' | 'complete'

@@ -42,6 +42,7 @@ import {
   decodePng,
   encodePng,
   ingestToPool,
+  isRealChange,
   pngSha,
   readBaseline,
   renderDiffImage,
@@ -157,7 +158,7 @@ export default class SnapshotReporter implements Reporter {
     await this.showProgress(true)
     const { failed } = runProgress(this.manifest)
     const changed = Object.values(this.manifest.captures).filter(
-      (capture) => (capture.diffPixels ?? 0) > 0,
+      (capture) => capture.changed === true,
     ).length
     console.log(
       `\n[snapshots] ${String(this.captured.captures)} captures, ${String(changed)} changed, ${String(failed)} tests failed. Gallery: ${GALLERY}`,
@@ -229,12 +230,14 @@ export default class SnapshotReporter implements Reporter {
     const previousPath = baselinePathFor(file)
     const hasPrevious = existsSync(previousPath)
     let diffPixels = 0
+    let changed: boolean | undefined
     if (hasPrevious) {
       const prevImage = decodePng(await readFile(previousPath))
       const currImage = decodePng(buffer)
       const diff = analyzeImages(prevImage, currImage)
       meta.diff = diff
       diffPixels = diff.count
+      changed = isRealChange(diff)
       const diffPath = path.join(DIFFS, file)
       if (diff.count > 0) {
         await writeFile(diffPath, encodePng(renderDiffImage(prevImage, currImage)))
@@ -257,6 +260,7 @@ export default class SnapshotReporter implements Reporter {
       sha,
       durationMs: meta.durationMs,
       diffPixels,
+      changed,
     }
     this.manifest.tests[key]?.captures.push(file)
     this.captured.captures += 1

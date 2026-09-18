@@ -24,7 +24,12 @@ export interface GalleryRow {
   viewport: string
   theme: string
   spec: string
+  /** The full test name, describe blocks included. */
   test: string
+  /** The describe blocks alone, joined; empty for a test outside any. */
+  describe: string
+  /** The test's own title. */
+  title: string
   testKey: string
   testLine: number
   seq: number
@@ -97,13 +102,6 @@ function rowBadge(row: GalleryRow): string {
     return `<span class="mark bad" title="${escapeHtml(row.testError ?? '')}">test failed</span>`
   }
   if (row.unsettled) return `<span class="mark bad">unsettled</span>`
-  return ''
-}
-
-function navMark(row: GalleryRow): string {
-  if (row.testStatus === undefined) return ` · <span class="mark carried">carried</span>`
-  if (row.testStatus === 'failed') return ` · <span class="mark bad">failed</span>`
-  if (row.unsettled) return ` · <span class="mark bad">unsettled</span>`
   return ''
 }
 
@@ -193,7 +191,7 @@ function rowSection(row: GalleryRow): string {
   const columns = 2 + [diffFigure, failureFigure].filter((part) => part !== '').length
   return `<section id="${row.id}" data-lane="${escapeHtml(row.lane)}" data-viewport="${escapeHtml(row.viewport)}" data-theme="${escapeHtml(row.theme)}" data-spec="${escapeHtml(row.spec)}" data-changed="${String(row.changed)}" data-run="${row.testStatus === undefined ? 'other' : 'this'}" data-text="${escapeHtml(`${row.spec} ${row.test} ${row.label}`.toLowerCase())}">
     <header>
-      <div><p>${escapeHtml(row.laneLabel)} · ${escapeHtml(row.spec)} · <code>${escapeHtml(row.path)}</code></p><h2>${escapeHtml(row.test)} <em>› ${escapeHtml(row.label)}</em></h2></div>
+      <div><p>${escapeHtml(row.laneLabel)} · ${escapeHtml(row.spec)}${row.describe === '' ? '' : ` · ${escapeHtml(row.describe)}`} · <code>${escapeHtml(row.path)}</code></p><h2>${escapeHtml(row.title)} <em>› ${escapeHtml(row.label)}</em></h2></div>
       <div class="badges">${rowBadge(row)}${timing}<span>${status}</span></div>
     </header>
     ${failureNote}
@@ -206,6 +204,24 @@ function rowSection(row: GalleryRow): string {
   </section>`
 }
 
+function navChip(row: GalleryRow): string {
+  const state =
+    row.testStatus === 'failed'
+      ? 'failed'
+      : row.unsettled
+        ? 'unsettled'
+        : row.changed
+          ? 'changed'
+          : 'same'
+  const carried = row.testStatus === undefined ? ' carried' : ''
+  return `<a href="#${row.id}" data-target="${row.id}" class="cap ${state}${carried}" data-lane="${escapeHtml(row.lane)}" data-viewport="${escapeHtml(row.viewport)}" data-theme="${escapeHtml(row.theme)}" data-spec="${escapeHtml(row.spec)}" data-changed="${String(row.changed)}" data-run="${row.testStatus === undefined ? 'other' : 'this'}" data-text="${escapeHtml(`${row.spec} ${row.test} ${row.label}`.toLowerCase())}" title="${escapeHtml(`${row.label}: ${state}${carried === '' ? '' : ', from an earlier run'}`)}">${escapeHtml(row.label)}</a>`
+}
+
+/**
+ * Lane, then spec, then one block per test carrying its captures as chips.
+ * The describe block is a subheading only where a spec has more than one, so
+ * a title is never prefixed with words the heading above it already said.
+ */
 function navRail(rows: GalleryRow[]): string {
   const lanes = [...new Set(rows.map((row) => row.lane))]
   return lanes
@@ -214,16 +230,25 @@ function navRail(rows: GalleryRow[]): string {
       const specs = [...new Set(laneRows.map((row) => row.spec))]
       const laneLabel = laneRows[0]?.laneLabel ?? laneId
       return `<h2 data-lane="${escapeHtml(laneId)}">${escapeHtml(laneLabel)}</h2>${specs
-        .map(
-          (spec) =>
-            `<h3 data-lane="${escapeHtml(laneId)}" data-spec="${escapeHtml(spec)}">${escapeHtml(spec)}</h3>${laneRows
-              .filter((row) => row.spec === spec)
-              .map((row) => {
-                const status = `<span class="status${row.changed ? ' changed' : ''}">${row.changed ? 'changed' : 'same'}</span>`
-                return `<a href="#${row.id}" data-target="${row.id}" data-lane="${escapeHtml(row.lane)}" data-viewport="${escapeHtml(row.viewport)}" data-theme="${escapeHtml(row.theme)}" data-spec="${escapeHtml(row.spec)}" data-run="${row.testStatus === undefined ? 'other' : 'this'}" data-text="${escapeHtml(`${row.spec} ${row.test} ${row.label}`.toLowerCase())}"><span>${escapeHtml(row.test)} <em>› ${escapeHtml(row.label)}</em></span><b>${status}${navMark(row)}</b></a>`
-              })
-              .join('')}`,
-        )
+        .map((spec) => {
+          const specRows = laneRows.filter((row) => row.spec === spec)
+          const describes = [...new Set(specRows.map((row) => row.describe))]
+          const tests = [...new Set(specRows.map((row) => row.testKey))]
+          let lastDescribe: string | undefined
+          const blocks = tests
+            .map((key) => {
+              const captures = specRows.filter((row) => row.testKey === key)
+              const first = captures[0]
+              const heading =
+                describes.length > 1 && first.describe !== lastDescribe
+                  ? `<h4>${escapeHtml(first.describe === '' ? 'Outside a describe' : first.describe)}</h4>`
+                  : ''
+              lastDescribe = first.describe
+              return `${heading}<div class="test"><a class="title" href="#${first.id}" data-target="${first.id}" title="${escapeHtml(first.test)}">${escapeHtml(first.title)}</a><div class="caps">${captures.map(navChip).join('')}</div></div>`
+            })
+            .join('')
+          return `<h3 data-lane="${escapeHtml(laneId)}" data-spec="${escapeHtml(spec)}">${escapeHtml(spec)}</h3>${blocks}`
+        })
         .join('')}`
     })
     .join('')
@@ -291,10 +316,20 @@ export function renderGallery(
     aside p.total em { color: #94a3b8; font-size: .72rem; font-style: normal; line-height: 1.3; }
     aside h2 { margin: 1rem 0 .35rem; color: #334155; font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; }
     aside h3 { margin: .6rem 0 .2rem; color: #94a3b8; font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; }
-    aside a { display: flex; justify-content: space-between; gap: .5rem; margin: .15rem 0; padding: .45rem .55rem; border-radius: .45rem; color: #334155; text-decoration: none; font-size: .85rem; }
-    aside a span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    aside a em, section h2 em { color: #64748b; font-style: normal; font-weight: 500; }
-    aside a[hidden], aside h2[hidden], aside h3[hidden], section[hidden] { display: none; }
+    aside h4 { margin: .5rem 0 .1rem; color: #64748b; font-size: .72rem; font-weight: 600; }
+    aside .test { margin: .1rem 0 .35rem; padding: .3rem .45rem; border-radius: .45rem; }
+    aside .test.active { background: #eff6ff; }
+    aside a.title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: #334155; text-decoration: none; font-size: .85rem; line-height: 1.3; }
+    aside a.title:hover { color: #1a73e8; }
+    aside .caps { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .25rem; }
+    aside a.cap { padding: .1rem .45rem; border-radius: 999px; background: #eef2f7; color: #475569; text-decoration: none; font-size: .68rem; font-weight: 600; white-space: nowrap; }
+    aside a.cap.changed { background: #fee2e2; color: #b91c1c; }
+    aside a.cap.failed { background: #fee2e2; color: #b91c1c; text-decoration: line-through; }
+    aside a.cap.unsettled { background: #fef3c7; color: #92400e; }
+    aside a.cap.carried { opacity: .55; }
+    aside a.cap.active { outline: 2px solid #1a73e8; }
+    section h2 em { color: #64748b; font-style: normal; font-weight: 500; }
+    aside a[hidden], aside .test[hidden], aside h2[hidden], aside h3[hidden], aside h4[hidden], section[hidden] { display: none; }
     .filters { display: flex; flex-direction: column; gap: .35rem; margin: 0 0 .5rem; }
     .filter-row { display: flex; flex-wrap: wrap; gap: .3rem; }
     .filter-row button { display: inline-flex; align-items: center; gap: .35rem; padding: .3rem .6rem; border: 1px solid #d9e0ea; border-radius: 999px; background: #fff; color: #334155; font: inherit; font-size: .8rem; cursor: pointer; }
@@ -303,12 +338,6 @@ export function renderGallery(
     .filter-row button b { padding: 0 .3rem; border-radius: 999px; background: #fee2e2; color: #b91c1c; font-size: .7rem; }
     .filter-row button.on b { background: #dbeafe; color: #1d4ed8; }
     #search { width: 100%; box-sizing: border-box; padding: .4rem .6rem; border: 1px solid #d9e0ea; border-radius: .45rem; font: inherit; font-size: .85rem; }
-    aside a b { align-self: center; flex: none; text-align: right; color: #64748b; font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
-    aside a b .status.changed { color: #dc2626; }
-    aside a.active { background: #1a73e8; color: white; }
-    aside a.active em { color: #dbeafe; }
-    aside a.active b { color: #dbeafe; }
-    aside a.active b .status.changed { color: #fecaca; }
     main { max-width: 1720px; margin-left: 24rem; padding: 1.25rem; }
     section { scroll-margin-top: 1rem; margin: 0 0 1.25rem; border: 1px solid #d9e0ea; border-radius: .5rem; background: #fff; box-shadow: 0 1px 3px rgb(15 23 42 / .08); }
     section > header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .8rem 1rem; border-bottom: 1px solid #e5eaf1; }
@@ -383,9 +412,22 @@ ${LANES.map(
       (chosen.run === "all" || element.dataset.run !== "other") &&
       (chosen.changed === "all" || element.dataset.changed === "true") &&
       (search.value === "" || element.dataset.text === undefined || element.dataset.text.includes(search.value.toLowerCase()));
+    // A heading stays while any test block under it, down to the next
+    // heading of its own rank or higher, is still showing.
+    const hideEmptyHeadings = (tag, stopAt) => {
+      for (const heading of document.querySelectorAll("aside " + tag)) {
+        let sibling = heading.nextElementSibling;
+        let any = false;
+        while (sibling && !stopAt.includes(sibling.tagName)) {
+          if (!sibling.hidden && sibling.tagName === "DIV") any = true;
+          sibling = sibling.nextElementSibling;
+        }
+        heading.hidden = !any;
+      }
+    };
     const applyFilters = () => {
       let shown = 0;
-      for (const element of document.querySelectorAll("section, aside a")) {
+      for (const element of document.querySelectorAll("section, aside a.cap")) {
         element.hidden = !matches(element);
         if (element.tagName === "SECTION" && !element.hidden) shown += 1;
       }
@@ -393,24 +435,15 @@ ${LANES.map(
       for (const banner of document.querySelectorAll("[data-when]")) {
         banner.hidden = banner.dataset.when !== chosen.run;
       }
-      for (const heading of document.querySelectorAll("aside h3")) {
-        let sibling = heading.nextElementSibling;
-        let any = false;
-        while (sibling && sibling.tagName === "A") {
-          if (!sibling.hidden) any = true;
-          sibling = sibling.nextElementSibling;
-        }
-        heading.hidden = !any;
+      for (const block of document.querySelectorAll("aside .test")) {
+        const chips = [...block.querySelectorAll("a.cap")];
+        block.hidden = chips.every((chip) => chip.hidden);
+        const first = chips.find((chip) => !chip.hidden);
+        if (first) block.querySelector("a.title").href = first.getAttribute("href");
       }
-      for (const heading of document.querySelectorAll("aside h2")) {
-        let sibling = heading.nextElementSibling;
-        let any = false;
-        while (sibling && sibling.tagName !== "H2") {
-          if (!sibling.hidden) any = true;
-          sibling = sibling.nextElementSibling;
-        }
-        heading.hidden = !any;
-      }
+      hideEmptyHeadings("h4", ["H2", "H3", "H4"]);
+      hideEmptyHeadings("h3", ["H2", "H3"]);
+      hideEmptyHeadings("h2", ["H2"]);
       for (const row of document.querySelectorAll(".filter-row")) {
         for (const button of row.querySelectorAll("button")) {
           button.classList.toggle("on", button.dataset.value === chosen[row.dataset.filter]);
@@ -432,9 +465,12 @@ ${LANES.map(
     });
     applyFilters();
 
-    const links = [...document.querySelectorAll("aside a")];
+    const links = [...document.querySelectorAll("aside a.cap")];
     const activate = (id) => {
       for (const link of links) link.classList.toggle("active", link.dataset.target === id);
+      for (const block of document.querySelectorAll("aside .test")) {
+        block.classList.toggle("active", [...block.querySelectorAll("a.cap")].some((chip) => chip.dataset.target === id));
+      }
     };
     const observer = new IntersectionObserver((entries) => {
       const visible = entries.filter((entry) => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];

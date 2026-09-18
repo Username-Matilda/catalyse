@@ -28,7 +28,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        lane: [desktop-light]
+        lane: [desktop-light, desktop-dark, mobile-light, mobile-dark]
     services:
       postgres:
         image: postgres:18

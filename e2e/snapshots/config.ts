@@ -50,6 +50,7 @@ export interface Lane {
 }
 
 const DESKTOP = { width: 1440, height: 1000, deviceScaleFactor: 1, isMobile: false } as const
+const MOBILE = { width: 390, height: 844, deviceScaleFactor: 2, isMobile: true } as const
 
 /** Every lane a full run captures, in the order the gallery lists them. */
 export const LANES: Lane[] = [
@@ -60,6 +61,30 @@ export const LANES: Lane[] = [
     viewportLabel: 'Desktop',
     theme: 'light',
     ...DESKTOP,
+  },
+  {
+    id: 'desktop-dark',
+    label: 'Desktop · Dark',
+    viewport: 'desktop',
+    viewportLabel: 'Desktop',
+    theme: 'dark',
+    ...DESKTOP,
+  },
+  {
+    id: 'mobile-light',
+    label: 'Mobile · Light',
+    viewport: 'mobile',
+    viewportLabel: 'Mobile',
+    theme: 'light',
+    ...MOBILE,
+  },
+  {
+    id: 'mobile-dark',
+    label: 'Mobile · Dark',
+    viewport: 'mobile',
+    viewportLabel: 'Mobile',
+    theme: 'dark',
+    ...MOBILE,
   },
 ]
 
