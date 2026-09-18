@@ -167,6 +167,7 @@ describe('admin skills', () => {
     await prisma.skillCategory.delete({ where: { id: catB.id } })
     await userEvent.click(within(catCard('Zulu Cat Renamed')).getByRole('button', { name: 'Edit' }))
     await userEvent.click(screen.getByRole('button', { name: 'Save Category' }))
-    await screen.findAllByText(/not found/i)
+    // The earlier "Skill not found" toasts are still up, so wait for this one by name.
+    await screen.findByText('Category not found')
   }, 120_000)
 })
