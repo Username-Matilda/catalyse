@@ -59,4 +59,4 @@ into whatever you are already working on.
 - **A new user-facing flow gets a picture.** Every test's final frame is captured on its own. For the state in the middle (a dialog open, validation errors showing), call the `snap` fixture: `await snap(page, 'edit dialog open')`. Label the state, not the step. `snap` is a no-op in a plain `npm run test:e2e`.
 - **Keep the picture deterministic.** Fake data is seeded per test, dates are rewritten before the shot, and the page must hold still. A capture reported as **unsettled** holds something that never stops moving; fix that rather than re-running. Don't put a wall-clock value, a random choice or a live counter in a screen without a way to hold it.
 - **Compare with the sidecar, never by hashing the PNG**: `diffPixels` and `diff` in each capture's `.json` are the comparison the gallery uses.
-- Commit nothing under `snapshots/`. CI captures every lane on each pull request and links the gallery from it.
+- Commit nothing under `snapshots/`. CI captures every lane on each pull request and uploads the gallery as the `snapshots-gallery` artifact on the run.
