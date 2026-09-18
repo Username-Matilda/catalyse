@@ -37,15 +37,19 @@ test.describe('Project Edit Regressions', () => {
     })
 
     const checkbox = volunteer.page.getByLabel('Help / contributors')
+    // The form renders disabled until the project's fields are seeded into it.
+    await expect(checkbox).toBeEnabled({ timeout: 10_000 })
     const wasChecked = await checkbox.isChecked()
 
-    // The visible box is a decorative sibling of the sr-only input, so a plain click on
-    // the input is reported as intercepted even though the label's native click still works.
-    // Fields autosave on change now, so there's no separate save step.
+    // The input is sr-only behind a decorative box, so click the label text instead: a
+    // forced click on the input lands on whatever the still-loading form has shifted under
+    // that point, while a plain click waits for the layout to settle. Fields autosave on
+    // change, so there's no separate save step.
     await Promise.all([
       volunteer.page.waitForResponse((resp) => resp.url().includes('/api/rpc/projects/update')),
-      checkbox.click({ force: true }),
+      volunteer.page.getByText('Help / contributors').click(),
     ])
+    await expect(checkbox).toBeChecked({ checked: !wasChecked })
     await volunteer.page.goto(`${baseUrl}/projects/${projectId}`)
 
     const badge = volunteer.page.getByText('Seeking Help')
