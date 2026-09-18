@@ -15,6 +15,7 @@ import {
 import { formatDateTime } from '@/lib/format-date'
 import Button from '@/components/Button'
 import Modal from '@/components/ui/Modal'
+import Toggle from '@/components/Toggle'
 import { Badge, type BadgeVariant } from '@/components/Badge'
 
 type Preview = Awaited<ReturnType<typeof client.admin.journalistOutreach.previewImport>>
@@ -46,6 +47,17 @@ export default function AdminJournalistOutreachPage() {
   const { data } = useQuery({ ...listQuery, enabled: !!user?.isAdmin })
   const refresh = () => queryClient.invalidateQueries({ queryKey: listQuery.queryKey })
   const onError = (err: Error) => showToast(err.message, 'error')
+
+  const pausedQuery = orpc.admin.journalistOutreach.getPaused.queryOptions()
+  const { data: pausedData } = useQuery({ ...pausedQuery, enabled: !!user?.isAdmin })
+  const setPausedMutation = useMutation({
+    ...orpc.admin.journalistOutreach.setPaused.mutationOptions(),
+    onSuccess: (res) => {
+      queryClient.setQueryData(pausedQuery.queryKey, res)
+      showToast(res.paused ? 'Outreach paused' : 'Outreach resumed', 'success')
+    },
+    onError,
+  })
 
   const previewMutation = useMutation({
     ...orpc.admin.journalistOutreach.previewImport.mutationOptions(),
@@ -103,6 +115,17 @@ export default function AdminJournalistOutreachPage() {
       <p className="text-text-light mb-6">
         Volunteers work through this list at <a href={OUTREACH_PATH}>{OUTREACH_PATH}</a>.
       </p>
+
+      <section className={card}>
+        <Toggle
+          checked={pausedData?.paused ?? false}
+          disabled={!pausedData || setPausedMutation.isPending}
+          onChange={(e) => setPausedMutation.mutate({ paused: e.target.checked })}
+        >
+          Pause outreach — volunteers see a &ldquo;come back soon&rdquo; message and can&apos;t get
+          a journalist to contact.
+        </Toggle>
+      </section>
 
       {data && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">

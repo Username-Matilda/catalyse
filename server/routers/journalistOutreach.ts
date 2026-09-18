@@ -38,6 +38,11 @@ const participantProcedure = publicProcedure.use(async ({ context, next }) => {
   return next({ context: { participant: session.participant } })
 })
 
+async function isPaused() {
+  const settings = await prisma.experimentalOutreachSettings.findUnique({ where: { id: 1 } })
+  return settings?.paused ?? false
+}
+
 /** Journalists that nobody has contacted and nobody holds a live claim on. */
 const availableWhere = (now: Date) => ({
   contactedAt: null,
@@ -80,6 +85,8 @@ function toTask(j: Journalist, claimedAt: Date) {
 }
 
 export const journalistOutreachRouter = {
+  status: publicProcedure.handler(async () => ({ paused: await isPaused() })),
+
   requestLink: publicProcedure
     .input(z.object({ email: z.string().trim().toLowerCase().email().max(254) }))
     .handler(async ({ input, context }) => {
@@ -166,6 +173,11 @@ export const journalistOutreachRouter = {
     const now = new Date()
     const existing = await activeClaim(participant.id, now)
     if (existing) return toTask(existing, existing.claimedAt ?? now)
+    if (await isPaused()) {
+      throw new ORPCError('FORBIDDEN', {
+        message: "We're adjusting our approach to contacting journalists. Come back soon.",
+      })
+    }
 
     // Another volunteer can claim the same candidate between the read and the write; the
     // conditional update then matches nothing and the next candidate is tried. Each lost

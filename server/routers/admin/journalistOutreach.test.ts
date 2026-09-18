@@ -220,6 +220,15 @@ describe('admin.journalistOutreach', () => {
     })
   })
 
+  it('gets and sets the paused flag', async () => {
+    const api = clientAs(await createAdmin()).admin.journalistOutreach
+    await expect(api.getPaused()).resolves.toEqual({ paused: false })
+    expect(await api.setPaused({ paused: true })).toEqual({ paused: true })
+    await expect(api.getPaused()).resolves.toEqual({ paused: true })
+    expect(await api.setPaused({ paused: false })).toEqual({ paused: false })
+    await expect(api.getPaused()).resolves.toEqual({ paused: false })
+  })
+
   it('is admin only', async () => {
     await expect(anon().admin.journalistOutreach.list()).rejects.toMatchObject({
       code: 'UNAUTHORIZED',
