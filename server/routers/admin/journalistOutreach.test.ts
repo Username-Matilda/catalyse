@@ -18,24 +18,35 @@ const CSV = [
 const base = { lastName: 'Doe', organisation: 'P', leaning: 'REPUBLICAN' as const }
 
 describe('admin.journalistOutreach', () => {
-  it('previews and imports new journalists, skipping duplicates and invalid rows', async () => {
+  it('previews and imports new journalists, updating and skipping duplicates and invalid rows', async () => {
     const api = clientAs(await createAdmin()).admin.journalistOutreach
-    await prisma.experimentalJournalist.create({
+    const old = await prisma.experimentalJournalist.create({
       data: { ...base, firstName: 'Old', email: 'old@x.com' },
     })
 
     const preview = await api.previewImport({ csv: CSV })
     expect(preview.missingColumns).toEqual([])
     expect(preview.toCreate.map((r) => r.email)).toEqual(['jane@x.com', 'sam@x.com'])
+    expect(preview.toUpdate).toEqual([
+      {
+        line: 3,
+        email: 'old@x.com',
+        id: old.id,
+        changes: [
+          { field: 'lastName', from: 'Doe', to: 'Timer' },
+          { field: 'organisation', from: 'P', to: 'Gazette' },
+          { field: 'leaning', from: 'REPUBLICAN', to: 'DEMOCRAT' },
+        ],
+      },
+    ])
     expect(preview.duplicates).toEqual([
-      { line: 3, email: 'old@x.com', reason: 'Already on the list' },
       { line: 4, email: 'jane@x.com', reason: 'Repeated in this import' },
     ])
     expect(preview.invalid).toHaveLength(1)
     expect(await prisma.experimentalJournalist.count()).toBe(1)
 
-    expect(await api.commitImport({ csv: CSV })).toEqual({ created: 2 })
-    expect(await api.commitImport({ csv: CSV })).toEqual({ created: 0 })
+    expect(await api.commitImport({ csv: CSV })).toEqual({ created: 2, updated: 1 })
+    expect(await api.commitImport({ csv: CSV })).toEqual({ created: 0, updated: 0 })
     expect(
       await prisma.experimentalJournalist.findUnique({ where: { email: 'sam@x.com' } }),
     ).toMatchObject({
@@ -49,6 +60,60 @@ describe('admin.journalistOutreach', () => {
     })
   })
 
+  it('updates an existing journalist by email without touching claim/contact state', async () => {
+    const api = clientAs(await createAdmin()).admin.journalistOutreach
+    const p = await prisma.experimentalOutreachParticipant.create({
+      data: { email: 'update-test-vol@example.com' },
+    })
+    const now = new Date()
+    const existing = await prisma.experimentalJournalist.create({
+      data: {
+        ...base,
+        firstName: 'Old',
+        email: 'sam@x.com',
+        organisation: 'Old Org',
+        priorityTier: 2,
+        claimedById: p.id,
+        claimedAt: now,
+      },
+    })
+
+    const csv = [
+      'First name,Last name,Email,Organisation,Leaning,Priority/Tier',
+      'Sam,Lee,sam@x.com,Tribune,D,1',
+    ].join('\n')
+
+    const preview = await api.previewImport({ csv })
+    expect(preview.toCreate).toEqual([])
+    expect(preview.duplicates).toEqual([])
+    expect(preview.toUpdate).toEqual([
+      {
+        line: 2,
+        email: 'sam@x.com',
+        id: existing.id,
+        changes: expect.arrayContaining([
+          { field: 'firstName', from: 'Old', to: 'Sam' },
+          { field: 'organisation', from: 'Old Org', to: 'Tribune' },
+          { field: 'leaning', from: 'REPUBLICAN', to: 'DEMOCRAT' },
+          { field: 'priorityTier', from: 2, to: 1 },
+        ]),
+      },
+    ])
+
+    expect(await api.commitImport({ csv })).toEqual({ created: 0, updated: 1 })
+    expect(
+      await prisma.experimentalJournalist.findUniqueOrThrow({ where: { id: existing.id } }),
+    ).toMatchObject({
+      firstName: 'Sam',
+      lastName: 'Lee',
+      organisation: 'Tribune',
+      leaning: 'DEMOCRAT',
+      priorityTier: 1,
+      claimedById: p.id,
+      claimedAt: now,
+    })
+  })
+
   it('reports missing columns without importing', async () => {
     const api = clientAs(await createAdmin()).admin.journalistOutreach
     const csv = 'Name,Email\nJane Doe,jane@x.com'
@@ -56,7 +121,7 @@ describe('admin.journalistOutreach', () => {
       missingColumns: ['First name', 'Last name', 'Organisation', 'Leaning'],
       toCreate: [],
     })
-    expect(await api.commitImport({ csv })).toEqual({ created: 0 })
+    expect(await api.commitImport({ csv })).toEqual({ created: 0, updated: 0 })
   })
 
   it('lists status and totals, resets, deletes and exports a re-importable CSV', async () => {
@@ -93,13 +158,31 @@ describe('admin.journalistOutreach', () => {
         sentLeaning: 'DEMOCRAT',
       },
     })
+    const bounced = await prisma.experimentalJournalist.create({
+      data: {
+        ...base,
+        firstName: 'D',
+        email: 'd@x.com',
+        contactedById: p.id,
+        contactedAt: now,
+        sentLeaning: 'DEMOCRAT',
+        bouncedAt: now,
+      },
+    })
 
     const list = await api.list()
-    expect(list.totals).toEqual({ available: 1, claimed: 1, contacted: 1, volunteers: 1 })
+    expect(list.totals).toEqual({
+      available: 1,
+      claimed: 1,
+      contacted: 1,
+      bounced: 1,
+      volunteers: 1,
+    })
     expect(list.journalists.map((j) => [j.id, j.status, j.claimedBy, j.contactedBy])).toEqual([
       [available.id, 'available', null, null],
       [claimed.id, 'claimed', 'vol@example.com', null],
       [contacted.id, 'contacted', null, 'vol@example.com'],
+      [bounced.id, 'bounced', null, 'vol@example.com'],
     ])
     expect(list.journalists[0]).toMatchObject({
       firstName: 'A',
@@ -115,18 +198,24 @@ describe('admin.journalistOutreach', () => {
       'A,Doe,a@x.com,P,REPUBLICAN,LOW,AI press,1,Web,https://a.com,"AI, policy",n,,,',
       'B,Doe,b@x.com,P,REPUBLICAN,,,,,,,,,,',
       `C,Doe,c@x.com,P,REPUBLICAN,,,,,,,,vol@example.com,${now.toISOString()},DEMOCRAT`,
+      `D,Doe,d@x.com,P,REPUBLICAN,,,,,,,,vol@example.com,${now.toISOString()},DEMOCRAT`,
     ])
-    expect(parseJournalistCsv(exported).valid).toHaveLength(3)
+    expect(parseJournalistCsv(exported).valid).toHaveLength(4)
 
     await api.reset({ id: contacted.id })
     expect(
       await prisma.experimentalJournalist.findUniqueOrThrow({ where: { id: contacted.id } }),
     ).toMatchObject({ contactedAt: null, sentLeaning: null })
+    await api.reset({ id: bounced.id })
+    expect(
+      await prisma.experimentalJournalist.findUniqueOrThrow({ where: { id: bounced.id } }),
+    ).toMatchObject({ contactedAt: null, sentLeaning: null, bouncedAt: null })
     await api.delete({ id: claimed.id })
     expect((await api.list()).totals).toEqual({
-      available: 2,
+      available: 3,
       claimed: 0,
       contacted: 0,
+      bounced: 0,
       volunteers: 0,
     })
   })

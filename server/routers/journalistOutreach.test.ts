@@ -279,6 +279,26 @@ describe('journalistOutreach claiming', () => {
     })
   })
 
+  it('flags a sent journalist as bounced, only for whoever sent it', async () => {
+    const j = await createJournalist()
+    const a = await signIn()
+    const b = await signIn()
+    await a.api.claimNext()
+    await a.api.markSent({ journalistId: j.id, sentLeaning: 'DEMOCRAT' })
+
+    await expect(a.api.reportBounce({ journalistId: j.id })).resolves.toEqual({ success: true })
+    expect(
+      await prisma.experimentalJournalist.findUniqueOrThrow({ where: { id: j.id } }),
+    ).toMatchObject({ bouncedAt: expect.any(Date) })
+
+    await expect(b.api.reportBounce({ journalistId: j.id })).rejects.toMatchObject({
+      code: 'CONFLICT',
+    })
+    await expect(a.api.reportBounce({ journalistId: j.id })).rejects.toMatchObject({
+      code: 'CONFLICT',
+    })
+  })
+
   it('releases only the caller’s own claim, counting skips', async () => {
     const j = await createJournalist()
     const a = await signIn()

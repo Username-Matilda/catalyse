@@ -16,11 +16,25 @@ import {
 describe('journalistStatus', () => {
   const now = new Date('2026-09-17T12:00:00Z')
   it('is contacted, claimed within the window, or available', () => {
-    expect(journalistStatus({ contactedAt: now, claimedAt: null }, now)).toBe('contacted')
-    expect(journalistStatus({ contactedAt: null, claimedAt: now }, now)).toBe('claimed')
+    expect(journalistStatus({ contactedAt: now, claimedAt: null, bouncedAt: null }, now)).toBe(
+      'contacted',
+    )
+    expect(journalistStatus({ contactedAt: null, claimedAt: now, bouncedAt: null }, now)).toBe(
+      'claimed',
+    )
     const lapsed = new Date(now.getTime() - CLAIM_MS)
-    expect(journalistStatus({ contactedAt: null, claimedAt: lapsed }, now)).toBe('available')
-    expect(journalistStatus({ contactedAt: null, claimedAt: null })).toBe('available')
+    expect(journalistStatus({ contactedAt: null, claimedAt: lapsed, bouncedAt: null }, now)).toBe(
+      'available',
+    )
+    expect(journalistStatus({ contactedAt: null, claimedAt: null, bouncedAt: null })).toBe(
+      'available',
+    )
+  })
+
+  it('is bounced when flagged, even if contacted', () => {
+    expect(journalistStatus({ contactedAt: now, claimedAt: null, bouncedAt: now }, now)).toBe(
+      'bounced',
+    )
   })
 })
 
