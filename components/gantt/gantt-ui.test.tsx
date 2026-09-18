@@ -312,7 +312,7 @@ describe('GanttChart', () => {
       disconnect() {}
       unobserve() {}
     }
-    window.ResizeObserver = RO as never
+    vi.stubGlobal('ResizeObserver', RO)
     render(
       <GanttChart
         rows={rows}
@@ -328,8 +328,21 @@ describe('GanttChart', () => {
       callback!([{ contentRect: { width: 100 } } as ResizeObserverEntry], {} as ResizeObserver),
     )
     expect(screen.getByRole('button', { name: /^Book venue/ })).toBeInTheDocument()
-    // @ts-expect-error — jsdom has no ResizeObserver by default; restore that state.
-    delete window.ResizeObserver
+    vi.unstubAllGlobals()
+  })
+
+  it('keeps the assumed viewport in a browser without ResizeObserver', () => {
+    vi.stubGlobal('ResizeObserver', undefined)
+    render(
+      <GanttChart
+        rows={rows}
+        edges={[]}
+        rangeStart={day('2026-06-01')}
+        rangeEnd={day('2026-06-08')}
+      />,
+    )
+    expect(screen.getByRole('button', { name: /^Book venue/ })).toBeInTheDocument()
+    vi.unstubAllGlobals()
   })
 })
 

@@ -47,5 +47,5 @@ into whatever you are already working on.
 
 - **Never** use `/* v8 ignore */`, `/* istanbul ignore */` or any coverage-exclusion comment.
 - Don't remove a defensive guard, or replace it with a `!` non-null assertion, to make an unreachable line disappear. Reach it with a test (a form submits on Enter even when the button is disabled; a database row can hold what the API refuses; an evicted cache entry is a real state), or narrow the type at the call site so the guard is unnecessary. If a line genuinely cannot execute, say so in the PR so a reviewer can decide.
-- Router tests run against a real per-file SQLite database (`test/setup-db.ts`); component tests render in jsdom with `fetch` routed into the real oRPC handler (`test/setup-dom.ts`). Prefer these over mocking modules; mock only the network edge (email, Google, rate limiting).
+- Router tests run against a real per-file SQLite database (`test/setup-db.ts`); component tests render in happy-dom with `fetch` routed into the real oRPC handler (`test/setup-dom.ts`). Prefer these over mocking modules; mock only the network edge (email, Google, rate limiting).
 - Modules that read `process.env` at import time are configured in `test/setup-db.ts`; a test needing a different value must `vi.resetModules()` and re-import, so prefer reading env at call time in new code.

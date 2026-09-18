@@ -7,7 +7,7 @@ type DragEnd = (event: DragEndEvent) => void
 type Captured = { id: string; props: DndContextProps; renderedAt: number }
 
 /**
- * Drags have no geometry in jsdom, so no sequence of pointer events produces one. Instead every
+ * Drags have no geometry in happy-dom, so no sequence of pointer events produces one. Instead every
  * `DndContext` the page mounts is recorded and a test fires its `onDragEnd` directly — the
  * boundary through which dnd-kit itself reports a finished gesture.
  *

@@ -2,8 +2,8 @@ import { useSyncExternalStore, useMemo } from 'react'
 import { vi } from 'vitest'
 
 /**
- * A stand-in for `next/navigation` for jsdom tests. The App Router's hooks need Next's
- * runtime mounted; here they read from and write to jsdom's real `window.location`, so a
+ * A stand-in for `next/navigation` for happy-dom tests. The App Router's hooks need Next's
+ * runtime mounted; here they read from and write to happy-dom's real `window.location`, so a
  * page that pushes a URL, then reads `useSearchParams()`, sees its own change — the same
  * contract the real hooks give it. Every navigation is also recorded on `navigation` so a
  * test can assert where a page tried to go.
@@ -12,7 +12,7 @@ const listeners = new Set<() => void>()
 const notify = () => listeners.forEach((l) => l())
 
 // `test/render.tsx` imports this module for `navigation.params`, and is itself imported by the
-// node-environment SSR tests, so the jsdom wiring must be skipped when there is no window.
+// node-environment SSR tests, so the happy-dom wiring must be skipped when there is no window.
 if (typeof window !== 'undefined') {
   for (const method of ['pushState', 'replaceState'] as const) {
     const original = window.history[method].bind(window.history)

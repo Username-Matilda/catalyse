@@ -4,12 +4,12 @@ import { fileURLToPath } from 'node:url'
 /**
  * The unit tier, run with `npm run test:unit`. It covers everything the app is built from —
  * pure logic, oRPC routers against a throwaway SQLite database, and React components/pages
- * rendered in jsdom — and CI fails unless every line and statement of the covered tree is
+ * rendered in happy-dom — and CI fails unless every line and statement of the covered tree is
  * executed. Anything that needs a real browser (layout, navigation between pages, a full
  * production build) still belongs in the Playwright suite under `e2e/`.
  *
  * Two projects share one config: `.test.ts` files run in plain node, `.test.tsx` files get a
- * jsdom window. The shared harness lives in `test/`; each file there explains its part.
+ * happy-dom window. The shared harness lives in `test/`; each file there explains its part.
  */
 const alias = { '@': fileURLToPath(new URL('.', import.meta.url)) }
 // Playwright owns `e2e/**/*.spec.ts`; vitest only ever collects `*.test.ts(x)`.
@@ -39,7 +39,16 @@ export default defineConfig({
           name: 'dom',
           include: ['**/*.test.tsx'],
           exclude,
-          environment: 'jsdom',
+          environment: 'happy-dom',
+          // A click on a link would otherwise load the href as a new page, or at least move
+          // `location` there, and a page reading its tab from the URL would lose its place.
+          environmentOptions: {
+            happyDOM: {
+              settings: {
+                navigation: { disableMainFrameNavigation: true, disableFallbackToSetURL: true },
+              },
+            },
+          },
           setupFiles: ['./test/setup-db.ts', './test/setup-dom.ts'],
           // Page tests walk whole flows through real RPC calls; on a busy CI runner that
           // takes a few times longer than locally.

@@ -58,7 +58,7 @@ describe('admin bugs', () => {
     expect(screen.queryByText('Nice to have')).toBeNull()
 
     // Export builds a markdown file from every listed report and hands it to the browser.
-    // jsdom has no object URLs; capture the blob and swallow the anchor click that would download it.
+    // The test DOM has no object URLs; capture the blob and swallow the anchor click that would download it.
     let exported = ''
     const revokeObjectURL = vi.fn()
     Object.assign(URL, {

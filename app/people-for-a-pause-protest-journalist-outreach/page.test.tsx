@@ -162,6 +162,8 @@ describe('journalist outreach task flow', () => {
     const second = await createJournalist({ leaningConfidence: 'MEDIUM' })
     const writeText = vi.fn(async () => {})
     Object.assign(navigator, { clipboard: { writeText } })
+    // A browser without rich clipboard support has no ClipboardItem.
+    vi.stubGlobal('ClipboardItem', undefined)
 
     await renderApp(<JournalistOutreachPage />)
     expect(await screen.findByText(`Signed in as ${participant.email}`, { exact: false }))
