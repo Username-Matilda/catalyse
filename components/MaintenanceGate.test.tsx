@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { screen, act } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { prisma } from '@/lib/prisma'
 import { client } from '@/lib/client'
 import { createVolunteer, createSuperAdmin } from '@/test/factories'
@@ -45,11 +46,18 @@ describe('MaintenanceGate', () => {
     expect(screen.queryByRole('heading', { name: 'Down for Maintenance' })).not.toBeInTheDocument()
   })
 
-  it('shows signed-in volunteers the down page, without the login link', async () => {
+  it('shows signed-in volunteers the down page, with a way to sign out', async () => {
     await setMaintenance(true)
-    await mount(await createVolunteer())
+    const volunteer = await createVolunteer()
+    await mount(volunteer)
     expect(await screen.findByRole('heading', { name: 'Down for Maintenance' })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Admin login' })).not.toBeInTheDocument()
+
+    // Signing out lands on the login page, which the gate leaves reachable.
+    await userEvent.click(screen.getByRole('button', { name: 'Sign out' }))
+    expect(await screen.findByText('the app')).toBeInTheDocument()
+    expect(localStorage.getItem('authToken')).toBeNull()
+    expect(await prisma.session.count({ where: { volunteerId: volunteer.id } })).toBe(0)
   })
 
   it('lets super admins use the app, with a banner saying it is on', async () => {

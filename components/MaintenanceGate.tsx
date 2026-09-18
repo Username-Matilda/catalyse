@@ -18,7 +18,7 @@ import { MAINTENANCE_MESSAGE } from '@/lib/maintenance-message'
  * nothing and everyone else sees at most a flash of the page before this takes over.
  */
 export default function MaintenanceGate({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth()
+  const { user, loading, logout } = useAuth()
   const pathname = usePathname()
   const { data } = useQuery({ ...orpc.maintenance.status.queryOptions(), staleTime: Infinity })
   const [switchedOn, setSwitchedOn] = useState(false)
@@ -53,7 +53,11 @@ export default function MaintenanceGate({ children }: { children: React.ReactNod
       <div className="max-w-[400px] my-15 mx-auto text-center">
         <h1>Down for Maintenance</h1>
         <p className="text-text-light mb-8">{MAINTENANCE_MESSAGE}</p>
-        {!user && (
+        {user ? (
+          <button type="button" onClick={logout} className="text-sm underline cursor-pointer">
+            Sign out
+          </button>
+        ) : (
           <Link href="/login" className="text-sm">
             Admin login
           </Link>
