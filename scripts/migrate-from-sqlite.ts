@@ -9,6 +9,9 @@
  * the latest SQLite backup in B2 (a branch deploy has neither database, so this rehearses
  * the whole path; the data is not anonymised). Production with no live file is an error.
  *
+ * Outside production it then upserts volunteer@, admin@ and superadmin@example.com (all
+ * password1; never in production), so a branch deploy can be logged into.
+ *
  * In production the snapshot of the live file is stored in B2 under `pre-postgres-migration/`
  * first, aborting if that fails. The live file is only ever opened read-only.
  *
@@ -32,6 +35,7 @@ import {
   libpqUrl,
 } from '../jobs/backup'
 import { resolveDbUrl } from '../lib/db-url'
+import { seedDevAccounts } from './seed-dev-accounts'
 import { copySqliteToPostgres } from './sqlite-to-pg'
 
 const LOG = '[SQLITE-MIGRATION]'
@@ -116,6 +120,23 @@ async function locateSource(isProduction: boolean, workDir: string): Promise<str
   return (await downloadLatestBackup(downloaded)) ? downloaded : null
 }
 
+async function migrateData(pg: Client, isProduction: boolean, workDir: string): Promise<void> {
+  const source = await locateSource(isProduction, workDir)
+  if (!source) return
+
+  const copy = join(workDir, 'snapshot.db')
+  snapshot(source, copy)
+  if (isProduction && !argValue('--from')) await uploadSafetyCopy(copy)
+
+  const sqlite = new DatabaseSync(copy, { readOnly: true })
+  try {
+    console.log(`${LOG} Loading ${source} into Postgres...`)
+    await copySqliteToPostgres(sqlite, pg)
+  } finally {
+    sqlite.close()
+  }
+}
+
 async function main(): Promise<void> {
   if (process.env.SKIP_SQLITE_MIGRATION === '1') {
     console.log(`${LOG} Skipped (SKIP_SQLITE_MIGRATION=1)`)
@@ -128,26 +149,14 @@ async function main(): Promise<void> {
   const workDir = mkdtempSync(join(tmpdir(), 'sqlite-migration-'))
   try {
     await pg.query('SELECT pg_advisory_lock($1)', [ADVISORY_LOCK_KEY])
-    if (await hasData(pg)) {
-      console.log(`${LOG} Skipped: Postgres already has data`)
-      return
+    if (await hasData(pg)) console.log(`${LOG} Skipped: Postgres already has data`)
+    else await migrateData(pg, isProduction, workDir)
+
+    // Only once there is real data: a lone seeded row would make later starts skip the load.
+    if (!isProduction && (await hasData(pg))) {
+      await seedDevAccounts(pg)
+      console.log(`${LOG} Seeded dev accounts`)
     }
-
-    const source = await locateSource(isProduction, workDir)
-    if (!source) return
-
-    const copy = join(workDir, 'snapshot.db')
-    snapshot(source, copy)
-    if (isProduction && !argValue('--from')) await uploadSafetyCopy(copy)
-
-    const sqlite = new DatabaseSync(copy, { readOnly: true })
-    try {
-      console.log(`${LOG} Loading ${source} into Postgres...`)
-      await copySqliteToPostgres(sqlite, pg)
-    } finally {
-      sqlite.close()
-    }
-
     console.log(`${LOG} Done.`)
   } finally {
     await pg.end()

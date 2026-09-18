@@ -8,11 +8,12 @@
  */
 
 import { fileURLToPath } from 'node:url'
-import { pbkdf2Sync, randomBytes } from 'node:crypto'
+import { randomBytes } from 'node:crypto'
 import { Client } from 'pg'
 import { faker } from '@faker-js/faker'
 import { libpqUrl } from '../jobs/backup'
 import { resolveDbUrl } from '../lib/db-url'
+import { makePasswordHash, seedDevAccounts } from './seed-dev-accounts'
 
 // ── Anonymisation ─────────────────────────────────────────────────────────────
 
@@ -49,12 +50,6 @@ function fakeVolunteerData(id: number): {
 function randomToken(length = 64): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
   return Array.from(randomBytes(length), (b) => chars[b % chars.length]).join('')
-}
-
-function makePasswordHash(password: string): string {
-  const salt = randomBytes(32)
-  const key = pbkdf2Sync(password, salt, 100000, 32, 'sha256')
-  return Buffer.concat([salt, key]).toString('base64')
 }
 
 export async function anonymise(db: Client): Promise<void> {
@@ -124,27 +119,6 @@ export async function anonymise(db: Client): Promise<void> {
   await db.query('UPDATE notifications SET body = NULL')
   await db.query("UPDATE work_item_comments SET content = '[redacted]'")
   await db.query('DELETE FROM sessions')
-}
-
-export async function seedDevAccounts(db: Client): Promise<void> {
-  const insert = `
-    INSERT INTO volunteers (name, email, password_hash, is_admin, location, country, local_group, location_confirmed_at, created_at, updated_at, approval_status, email_confirmed, consent_make_profile_visible_in_directory)
-    VALUES ($1, $2, $3, $4, 'London, UK', 'UK', 'London', now(), now(), now(), 'approved', true, false)
-    ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash, is_admin = EXCLUDED.is_admin, deleted_at = NULL
-  `
-  await db.query(insert, [
-    'Dev Volunteer',
-    'volunteer@example.com',
-    makePasswordHash('password1'),
-    false,
-  ])
-  await db.query(insert, ['Dev Admin', 'admin@example.com', makePasswordHash('password1'), true])
-  await db.query(insert, [
-    'Dev Super Admin',
-    'superadmin@example.com',
-    makePasswordHash('password1'),
-    true,
-  ])
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
