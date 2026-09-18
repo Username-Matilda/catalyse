@@ -51,7 +51,7 @@ Catalyse connects volunteers with projects, matching skills to needs and enablin
 npm run local-setup
 ```
 
-This installs dependencies and Playwright browsers, restores an anonymised copy of production into your database, and runs migrations. Postgres must be running first.
+This installs dependencies and Playwright browsers, restores a copy of production into your database, and runs migrations. Postgres must be running first.
 
 ### Environment
 
@@ -90,13 +90,13 @@ On next login, the app will automatically grant admin access. Multiple emails ca
 
 ### Local dev database
 
-The local dev database is a copy of prod with PII anonymised, restored into whatever `DATABASE_URL` points at. Refresh it with:
+The local dev database is a copy of prod, restored into whatever `DATABASE_URL` points at. Refresh it with:
 
 ```bash
 npm run fetch-prod-db && npm run migrate
 ```
 
-`fetch-prod-db` downloads the latest prod `pg_dump` from B2, **drops and recreates the `public` schema** of the target database, restores into it, anonymises, and seeds the dev accounts. It refuses to run when `RAILWAY_ENVIRONMENT_NAME=production`. `migrate` runs `prisma migrate deploy`, which applies any unapplied migration files in order without drift-checking.
+`fetch-prod-db` downloads the latest prod `pg_dump` from B2, **drops and recreates the `public` schema** of the target database, and restores into it. The restored data is raw prod data (PII included). `anonymise-db` is a separate, currently unused script that scrubs PII and seeds the dev accounts. Both scripts refuse to run when `RAILWAY_ENVIRONMENT_NAME=production`. `migrate` runs `prisma migrate deploy`, which applies any unapplied migration files in order without drift-checking.
 
 Unit tests create a throwaway schema per test file (`vitest_*`) in the same database, and e2e workers use `e2e_<n>`; neither touches `public`.
 
@@ -154,7 +154,8 @@ The `test:e2e:dev` variants skip the build and use a dev server instead. These a
 | `build:railway`    | Production build entrypoint used by Railway CI                                                                                                  |
 | `new-migration`    | Create a new migration SQL file from schema diff                                                                                                |
 | `migrate`          | Apply pending migration files to the local database                                                                                             |
-| `fetch-prod-db`    | Restore latest prod backup into DATABASE_URL and anonymise PII for local use                                                                    |
+| `fetch-prod-db`    | Restore latest prod backup into DATABASE_URL (raw, not anonymised)                                                                              |
+| `anonymise-db`     | Anonymise PII in DATABASE_URL and seed dev accounts                                                                                             |
 | `install:browsers` | Install Playwright's Chromium browser                                                                                                           |
 | `test:unit`        | Run unit tests with vitest                                                                                                                      |
 | `test:unit:watch`  | Run vitest in watch mode                                                                                                                        |
