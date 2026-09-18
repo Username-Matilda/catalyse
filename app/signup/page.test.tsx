@@ -66,7 +66,7 @@ describe('signup with email and password', () => {
     await renderApp(<SignupPage />)
     await screen.findByLabelText('Your Name')
     await fillRequired()
-    await userEvent.click(screen.getByRole('button', { name: 'Select local group' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Select local group' }))
     await userEvent.click(await screen.findByRole('option', { name: 'Signup Town' }))
     await type('Discord Handle', 'ann#1')
     await userEvent.click(screen.getAllByLabelText('Preferred contact method')[0])
@@ -156,7 +156,7 @@ describe('signup with email and password', () => {
     expect(screen.getByLabelText('City / Area')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Select country' }))
     await userEvent.click(await screen.findByRole('option', { name: 'United Kingdom' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Select local group' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Select local group' }))
     await userEvent.click(
       await screen.findByRole('option', { name: "None of these, I'll enter my city" }),
     )
@@ -264,7 +264,7 @@ describe('signup with Google', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Availability is required')
     await type('Hours per Week', '3')
     await type('Your Application', 'I want to help with campaigns and policy work.')
-    await userEvent.click(screen.getByRole('button', { name: 'Select local group' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Select local group' }))
     await userEvent.click(await screen.findByRole('option', { name: 'Google Town' }))
     await type('Discord Handle', 'g#1')
     await userEvent.click(screen.getAllByLabelText('Preferred contact method')[0])
@@ -329,7 +329,7 @@ describe('signup with Google', () => {
     await type('About You', 'A biography that comfortably passes twenty characters.')
     await userEvent.click(screen.getByRole('button', { name: 'Select country' }))
     await userEvent.click(await screen.findByRole('option', { name: 'United Kingdom' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Select local group' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Select local group' }))
     await userEvent.click(
       await screen.findByRole('option', { name: "None of these, I'll enter my city" }),
     )
