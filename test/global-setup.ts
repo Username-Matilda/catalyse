@@ -1,22 +1,15 @@
-import { execSync } from 'node:child_process'
-import fs from 'node:fs'
-import path from 'node:path'
-import { TEMPLATE_DB, TEST_DB_DIR } from './db-paths'
+import { createSchema, dropSchema, dropStaleSchemas } from './pg'
 
 /**
- * Runs once per `vitest` invocation. Builds a single freshly migrated SQLite database that
- * `setup-db.ts` then copies for every test file — copying a file is milliseconds, whereas
- * `prisma migrate deploy` is a second or two, which would dominate a run of many files.
+ * Runs once per `vitest` invocation. Clears schemas left by an interrupted run, then builds
+ * and drops one schema so a broken migration or an unreachable database fails here with one
+ * clear error instead of once per test file.
  */
-export default function globalSetup() {
-  fs.rmSync(TEST_DB_DIR, { recursive: true, force: true })
-  fs.mkdirSync(TEST_DB_DIR, { recursive: true })
-  execSync('npx prisma migrate deploy', {
-    cwd: path.resolve(__dirname, '..'),
-    env: { ...process.env, DATABASE_URL: `file:${TEMPLATE_DB}` },
-    stdio: 'pipe',
-  })
-  return () => {
-    fs.rmSync(TEST_DB_DIR, { recursive: true, force: true })
+export default async function globalSetup() {
+  await dropStaleSchemas()
+  await createSchema('vitest_probe')
+  await dropSchema('vitest_probe')
+  return async () => {
+    await dropStaleSchemas()
   }
 }

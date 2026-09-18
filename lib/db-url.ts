@@ -21,21 +21,13 @@ function loadEnvFile(filePath: string): void {
 loadEnvFile(path.join(process.cwd(), '.env'))
 loadEnvFile(path.join(process.cwd(), '.env.local'))
 
-export function resolveDbPath(): string | null {
-  const url = resolveDbUrl()
-  if (!url.startsWith('file:')) return null
-  return url.slice(5)
-}
-
-export function resolveDbUrl(fallback = 'file:./db/catalyse.db'): string {
-  const mountPath = process.env.RAILWAY_VOLUME_MOUNT_PATH
-  const isProduction = process.env.RAILWAY_ENVIRONMENT_NAME === 'production'
-  if (mountPath && isProduction)
-    return `file:${path.join(/*turbopackIgnore: true*/ mountPath, 'catalyse.db')}`
-
-  const rawUrl = process.env.DATABASE_URL ?? fallback
-  if (rawUrl.startsWith('file:') && !path.isAbsolute(rawUrl.slice(5))) {
-    return `file:${path.resolve(/*turbopackIgnore: true*/ process.cwd(), rawUrl.slice(5))}`
-  }
-  return rawUrl
+/**
+ * The Postgres connection URL. Railway injects DATABASE_URL from the linked Postgres
+ * service; locally it comes from .env.local. There is deliberately no default: a missing
+ * value should fail loudly rather than silently point at the wrong database.
+ */
+export function resolveDbUrl(): string {
+  const url = process.env.DATABASE_URL
+  if (!url) throw new Error('DATABASE_URL is not set')
+  return url
 }
