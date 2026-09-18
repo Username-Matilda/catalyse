@@ -21,6 +21,7 @@ import { sendOutreachLoginEmail } from '@/lib/email'
 beforeEach(async () => {
   vi.clearAllMocks()
   await prisma.experimentalJournalist.deleteMany()
+  await prisma.experimentalOutreachSettings.deleteMany()
 })
 
 const as = (token: string) =>
@@ -158,6 +159,33 @@ describe('journalistOutreach sign-in', () => {
     await expect(anon().journalistOutreach.verify({ token: 'x' })).rejects.toMatchObject({
       code: 'TOO_MANY_REQUESTS',
     })
+  })
+})
+
+describe('journalistOutreach status', () => {
+  it('reports paused only once an admin has paused the effort', async () => {
+    await expect(anon().journalistOutreach.status()).resolves.toEqual({ paused: false })
+    await prisma.experimentalOutreachSettings.upsert({
+      where: { id: 1 },
+      create: { id: 1, paused: true },
+      update: { paused: true },
+    })
+    await expect(anon().journalistOutreach.status()).resolves.toEqual({ paused: true })
+  })
+
+  it('lets an existing claim be picked back up but refuses a new one while paused', async () => {
+    const held = await createJournalist()
+    const fresh = await createJournalist()
+    const { api } = await signIn()
+    await api.claimNext()
+    await prisma.experimentalOutreachSettings.create({ data: { id: 1, paused: true } })
+
+    expect((await api.claimNext())!.id).toBe(held.id)
+    await api.markSent({ journalistId: held.id, sentLeaning: 'DEMOCRAT' })
+    await expect(api.claimNext()).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    expect(
+      await prisma.experimentalJournalist.count({ where: { id: fresh.id, claimedAt: null } }),
+    ).toBe(1)
   })
 })
 

@@ -577,11 +577,26 @@ export default function JournalistOutreachPage() {
     setToken(t)
   }
 
+  const status = useQuery({
+    queryKey: ['journalistOutreach', 'status'],
+    queryFn: () => client.journalistOutreach.status(),
+  })
+
   return (
     <main className="container py-5 pb-15">
       <div className="max-w-[720px] my-10 mx-auto">
         <h1 className="text-center">People for a Pause: journalist outreach</h1>
-        {token ? <Outreach onSignOut={signOut} /> : <RequestLinkForm onSignIn={signIn} />}
+        {status.data?.paused ? (
+          <div className={`${card} text-center`}>
+            <p className="my-2">
+              We&apos;re adjusting our approach to contacting journalists. Come back soon.
+            </p>
+          </div>
+        ) : token ? (
+          <Outreach onSignOut={signOut} />
+        ) : (
+          <RequestLinkForm onSignIn={signIn} />
+        )}
       </div>
     </main>
   )

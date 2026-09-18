@@ -10,6 +10,25 @@ const button = (name: string | RegExp) => screen.getByRole('button', { name })
 const statCard = (label: string) => screen.getByText(label, { selector: 'div' }).parentElement!
 
 describe('admin journalist outreach', () => {
+  it('toggles the pause switch', async () => {
+    const admin = await createAdmin()
+    await renderApp(<AdminJournalistOutreachPage />, { as: admin })
+    const toggle = await screen.findByRole('checkbox', { name: /Pause outreach/ })
+    expect(toggle).not.toBeChecked()
+    await waitFor(() => expect(toggle).toBeEnabled())
+
+    await userEvent.click(toggle)
+    await waitFor(() => expect(toggle).toBeChecked())
+    expect(await screen.findByText('Outreach paused')).toBeInTheDocument()
+    expect(
+      await prisma.experimentalOutreachSettings.findUniqueOrThrow({ where: { id: 1 } }),
+    ).toMatchObject({ paused: true })
+
+    await userEvent.click(toggle)
+    await waitFor(() => expect(toggle).not.toBeChecked())
+    expect(await screen.findByText('Outreach resumed')).toBeInTheDocument()
+  })
+
   it('previews and imports pasted or uploaded CSV', async () => {
     const admin = await createAdmin()
     await prisma.experimentalJournalist.create({

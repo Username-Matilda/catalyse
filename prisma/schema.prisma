@@ -849,6 +849,14 @@ model PlatformSettings {
 // follow the checklist in lib/journalist-outreach.ts.
 // ============================================================================
 
+/// EXPERIMENTAL. Singleton switch for pausing the outreach effort; id is always 1.
+model ExperimentalOutreachSettings {
+  id     Int     @id @default(1)
+  paused Boolean @default(false)
+
+  @@map("experimental_outreach_settings")
+}
+
 enum ExperimentalJournalistLeaning {
   REPUBLICAN
   DEMOCRAT

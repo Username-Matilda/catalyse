@@ -22,7 +22,10 @@ vi.mock('@/lib/email', async (importOriginal) => ({
 }))
 import { sendOutreachLoginEmail } from '@/lib/email'
 
-beforeEach(() => prisma.experimentalJournalist.deleteMany())
+beforeEach(async () => {
+  await prisma.experimentalJournalist.deleteMany()
+  await prisma.experimentalOutreachSettings.deleteMany()
+})
 
 async function signedIn() {
   const participant = await prisma.experimentalOutreachParticipant.create({
@@ -71,6 +74,19 @@ function runOutTheClaim() {
 
 afterEach(() => {
   vi.useRealTimers()
+})
+
+describe('journalist outreach pause', () => {
+  it('shows a come-back-soon message instead of the sign-in form or task', async () => {
+    await prisma.experimentalOutreachSettings.create({ data: { id: 1, paused: true } })
+    await signedIn()
+    await renderApp(<JournalistOutreachPage />)
+    expect(
+      await screen.findByText(/adjusting our approach to contacting journalists/),
+    ).toBeInTheDocument()
+    expect(screen.queryByLabelText('Your email')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Signed in as/)).not.toBeInTheDocument()
+  })
 })
 
 describe('journalist outreach sign-in', () => {

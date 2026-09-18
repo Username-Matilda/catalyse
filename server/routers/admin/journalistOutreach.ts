@@ -62,6 +62,20 @@ async function planImport(csv: string) {
 }
 
 export const adminJournalistOutreachRouter = {
+  getPaused: adminProcedure.handler(async () => {
+    const settings = await prisma.experimentalOutreachSettings.findUnique({ where: { id: 1 } })
+    return { paused: settings?.paused ?? false }
+  }),
+
+  setPaused: adminProcedure.input(z.object({ paused: z.boolean() })).handler(async ({ input }) => {
+    const settings = await prisma.experimentalOutreachSettings.upsert({
+      where: { id: 1 },
+      create: { id: 1, paused: input.paused },
+      update: { paused: input.paused },
+    })
+    return { paused: settings.paused }
+  }),
+
   previewImport: adminProcedure.input(CsvInput).handler(({ input }) => planImport(input.csv)),
 
   commitImport: adminProcedure.input(CsvInput).handler(async ({ input }) => {
