@@ -1,7 +1,6 @@
 import { env } from './env'
 
 const store = new Map<string, number[]>()
-const DISABLED = env.DISABLE_RATE_LIMIT
 
 // The store is in-process, so it only limits the instance that took the request and it
 // resets on deploy. Good enough for slowing down guessing and spam; it is not a shared
@@ -48,7 +47,7 @@ export function checkRateLimit(
 ): { allowed: boolean; retryAfterMs: number } {
   const key = `${route}:${getClientIp(request)}`
   const { limit, windowMs } = config
-  if (DISABLED) return { allowed: true, retryAfterMs: 0 }
+  if (env.DISABLE_RATE_LIMIT) return { allowed: true, retryAfterMs: 0 }
 
   const now = Date.now()
   const cutoff = now - windowMs

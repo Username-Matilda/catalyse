@@ -37,9 +37,8 @@ import { publicProcedure, authedProcedure } from '../procedures'
 import { env } from '@/lib/env'
 import { ApprovalStatus, ProjectStatus, WorkItemType } from '@/generated/prisma/enums'
 
-const STUB_EMAIL = env.STUB_EMAIL
-const GOOGLE_CLIENT_ID = env.GOOGLE_CLIENT_ID
-const STUB_GOOGLE = env.STUB_GOOGLE || (!GOOGLE_CLIENT_ID && env.NODE_ENV !== 'production')
+// Google sign-in is stubbed when asked, or when no client id is set outside production.
+const stubGoogle = () => env.STUB_GOOGLE || (!env.GOOGLE_CLIENT_ID && env.NODE_ENV !== 'production')
 
 async function sendAccountDeletionNotifications(deletedId: number, deletedName: string) {
   const taskRows = await prisma.$queryRaw<
@@ -352,7 +351,7 @@ export const authRouter = {
       id: volunteer.id,
       token,
       pending: !isApproved,
-      ...(STUB_EMAIL && emailVerificationToken ? { emailVerificationToken } : {}),
+      ...(env.STUB_EMAIL && emailVerificationToken ? { emailVerificationToken } : {}),
     }
   }),
 
@@ -478,7 +477,7 @@ export const authRouter = {
 
     return {
       message: 'Email changed. Check your new address for a confirmation link.',
-      ...(STUB_EMAIL ? { emailVerificationToken: vt.token } : {}),
+      ...(env.STUB_EMAIL ? { emailVerificationToken: vt.token } : {}),
     }
   }),
 
@@ -518,7 +517,7 @@ export const authRouter = {
 
       return {
         message: successMsg,
-        ...(STUB_EMAIL
+        ...(env.STUB_EMAIL
           ? { _devResetToken: resetToken, _devResetUrl: `/reset-password?token=${resetToken}` }
           : {}),
       }
@@ -661,7 +660,7 @@ export const authRouter = {
         name: volunteer.name,
       }).catch((e) => console.error('[RESEND_VERIFICATION]', e))
 
-      return { message: okMsg, ...(STUB_EMAIL ? { emailVerificationToken: vt.token } : {}) }
+      return { message: okMsg, ...(env.STUB_EMAIL ? { emailVerificationToken: vt.token } : {}) }
     }),
 
   deleteAccount: authedProcedure
@@ -726,14 +725,14 @@ export const authRouter = {
         throw new ORPCError('TOO_MANY_REQUESTS', {
           message: `Rate limited. Retry after ${retryAfterMs}ms`,
         })
-      if (!GOOGLE_CLIENT_ID && !STUB_GOOGLE)
+      if (!env.GOOGLE_CLIENT_ID && !stubGoogle())
         throw new ORPCError('INTERNAL_SERVER_ERROR', {
           message: 'Google Sign-In is not configured',
         })
 
       let email: string
       let name: string
-      if (STUB_GOOGLE && input.stub) {
+      if (stubGoogle() && input.stub) {
         email = input.email ?? 'stub@example.com'
         name = input.name ?? 'Stub User'
       } else {
@@ -782,14 +781,14 @@ export const authRouter = {
         throw new ORPCError('TOO_MANY_REQUESTS', {
           message: `Rate limited. Retry after ${retryAfterMs}ms`,
         })
-      if (!GOOGLE_CLIENT_ID && !STUB_GOOGLE)
+      if (!env.GOOGLE_CLIENT_ID && !stubGoogle())
         throw new ORPCError('INTERNAL_SERVER_ERROR', {
           message: 'Google Sign-In is not configured',
         })
 
       let email: string
       let name: string
-      if (STUB_GOOGLE && input.stub) {
+      if (stubGoogle() && input.stub) {
         email = 'stub@example.com'
         name = 'Stub User'
       } else {
@@ -870,7 +869,7 @@ export const authRouter = {
     }),
 
   googleClientId: publicProcedure.handler(() => ({
-    clientId: GOOGLE_CLIENT_ID ?? '',
-    stub: STUB_GOOGLE,
+    clientId: env.GOOGLE_CLIENT_ID ?? '',
+    stub: stubGoogle(),
   })),
 }

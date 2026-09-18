@@ -1,26 +1,56 @@
 type EnvError = { var: string; reason: string }
 
-const stubEmailDefault = process.env.NODE_ENV === 'production' ? '' : 'true'
+const flag = (value: string | undefined): boolean =>
+  ['1', 'true', 'yes'].includes((value ?? '').toLowerCase())
 
+/**
+ * Typed view of the process environment. Each property reads `process.env` when accessed,
+ * so a value changed after start-up (in tests, or by a script setting up its own) is seen
+ * by the next call rather than frozen at import.
+ */
 export const env = {
-  NODE_ENV: process.env.NODE_ENV ?? 'development',
-  APP_URL: process.env.APP_URL ?? '',
-  RESEND_API_KEY: process.env.RESEND_API_KEY,
-  FROM_EMAIL: process.env.FROM_EMAIL ?? 'Catalyse <noreply@pauseai.uk>',
-  REPLY_TO_EMAIL: process.env.REPLY_TO_EMAIL,
-  STUB_EMAIL: ['1', 'true', 'yes'].includes(
-    (process.env.STUB_EMAIL || stubEmailDefault).toLowerCase(),
-  ),
-  CRON_SECRET: process.env.CRON_SECRET,
-  ADMIN_EMAILS: process.env.ADMIN_EMAILS ?? '',
-  DISABLE_RATE_LIMIT: ['1', 'true', 'yes'].includes(
-    (process.env.DISABLE_RATE_LIMIT ?? '').toLowerCase(),
-  ),
-  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
-  STUB_GOOGLE: ['1', 'true', 'yes'].includes((process.env.STUB_GOOGLE ?? '').toLowerCase()),
-  RAILWAY_GIT_COMMIT_SHA: process.env.RAILWAY_GIT_COMMIT_SHA,
-  RAILWAY_ENVIRONMENT_NAME: process.env.RAILWAY_ENVIRONMENT_NAME,
-} as const
+  get NODE_ENV(): string {
+    return process.env.NODE_ENV ?? 'development'
+  },
+  get APP_URL(): string {
+    return process.env.APP_URL ?? ''
+  },
+  get RESEND_API_KEY(): string | undefined {
+    return process.env.RESEND_API_KEY
+  },
+  get FROM_EMAIL(): string {
+    return process.env.FROM_EMAIL ?? 'Catalyse <noreply@pauseai.uk>'
+  },
+  get REPLY_TO_EMAIL(): string | undefined {
+    return process.env.REPLY_TO_EMAIL
+  },
+  /** Defaults on outside production, so a fresh dev checkout never tries to send email. */
+  get STUB_EMAIL(): boolean {
+    const fallback = process.env.NODE_ENV === 'production' ? '' : 'true'
+    return flag(process.env.STUB_EMAIL || fallback)
+  },
+  get CRON_SECRET(): string | undefined {
+    return process.env.CRON_SECRET
+  },
+  get ADMIN_EMAILS(): string {
+    return process.env.ADMIN_EMAILS ?? ''
+  },
+  get DISABLE_RATE_LIMIT(): boolean {
+    return flag(process.env.DISABLE_RATE_LIMIT)
+  },
+  get GOOGLE_CLIENT_ID(): string | undefined {
+    return process.env.GOOGLE_CLIENT_ID
+  },
+  get STUB_GOOGLE(): boolean {
+    return flag(process.env.STUB_GOOGLE)
+  },
+  get RAILWAY_GIT_COMMIT_SHA(): string | undefined {
+    return process.env.RAILWAY_GIT_COMMIT_SHA
+  },
+  get RAILWAY_ENVIRONMENT_NAME(): string | undefined {
+    return process.env.RAILWAY_ENVIRONMENT_NAME
+  },
+}
 
 export function validateEnv(): void {
   if (process.env.NODE_ENV !== 'production') return

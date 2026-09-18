@@ -2,7 +2,6 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 
 afterEach(() => {
   vi.unstubAllEnvs()
-  vi.resetModules()
   vi.useRealTimers()
 })
 

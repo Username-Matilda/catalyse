@@ -8,9 +8,6 @@ import { adminProcedure, authedProcedure, superAdminProcedure } from '../../proc
 import { env } from '@/lib/env'
 import { InviteStatus } from '@/generated/prisma/enums'
 
-const APP_URL = env.APP_URL
-const STUB_EMAIL = env.STUB_EMAIL
-
 export const adminAdminsRouter = {
   list: adminProcedure.handler(async () => {
     const admins = await prisma.volunteer.findMany({
@@ -121,9 +118,9 @@ export const adminAdminsRouter = {
       expiresAt: expiresAt.toISOString(),
     }
 
-    if (STUB_EMAIL) {
+    if (env.STUB_EMAIL) {
       result._dev_invite_token = inviteToken
-      result._dev_invite_url = `${APP_URL}/accept-invite?token=${inviteToken}`
+      result._dev_invite_url = `${env.APP_URL}/accept-invite?token=${inviteToken}`
       result._dev_note = 'Email stubbed. Share link manually.'
     }
 
