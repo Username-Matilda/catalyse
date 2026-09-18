@@ -5,9 +5,11 @@ import type { NextConfig } from 'next'
 // sends hits to google-analytics.com (regional subdomains included); everything else
 // is same-origin. 'unsafe-inline' stays in script-src because Next.js injects inline
 // bootstrap/flight scripts without a nonce — the CSP still stops any third-party script host.
+// React's development build evals to rebuild server call stacks; production never does.
+const devScript = process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' https://accounts.google.com https://www.googletagmanager.com",
+  `script-src 'self' 'unsafe-inline'${devScript} https://accounts.google.com https://www.googletagmanager.com`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://*.googleusercontent.com",
   "font-src 'self' data:",
