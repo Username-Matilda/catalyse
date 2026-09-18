@@ -85,12 +85,9 @@ describe('validateEnv', () => {
       B2_KEY_ID: 'id',
       B2_APP_KEY: '',
       B2_BUCKET_NAME: '',
-      B2_ANON_KEY_ID: '',
-      B2_ANON_APP_KEY: '',
-      B2_ANON_BUCKET_NAME: 'bucket',
     })
     expect(() => validateEnv()).toThrow(
-      /APP_URL[\s\S]*CRON_SECRET[\s\S]*RESEND_API_KEY[\s\S]*STUB_GOOGLE[\s\S]*STUB_EMAIL[\s\S]*DISABLE_RATE_LIMIT[\s\S]*B2_APP_KEY[\s\S]*B2_BUCKET_NAME[\s\S]*B2_ANON_KEY_ID[\s\S]*B2_ANON_APP_KEY/,
+      /APP_URL[\s\S]*CRON_SECRET[\s\S]*RESEND_API_KEY[\s\S]*STUB_GOOGLE[\s\S]*STUB_EMAIL[\s\S]*DISABLE_RATE_LIMIT[\s\S]*B2_APP_KEY[\s\S]*B2_BUCKET_NAME/,
     )
   })
 })

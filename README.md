@@ -96,9 +96,7 @@ The local dev database is a copy of prod with PII anonymised, restored into what
 npm run fetch-prod-db && npm run migrate
 ```
 
-`fetch-prod-db` downloads the anonymised copy of production from B2 and **drops and recreates the `public` schema** of the target database before restoring into it. It refuses to run when `RAILWAY_ENVIRONMENT_NAME=production`. `migrate` runs `prisma migrate deploy`, which applies any unapplied migration files in order without drift-checking.
-
-The copy is already anonymised (fake names and contact details, redacted free text, dev accounts `volunteer@example.com` / `admin@example.com` / `superadmin@example.com` with password `password1`), so it needs only the read-only `B2_ANON_*` credentials — put them in `.env.b2` (gitignored). Ask a maintainer for them.
+`fetch-prod-db` downloads the latest prod `pg_dump` from B2, **drops and recreates the `public` schema** of the target database, restores into it, anonymises, and seeds the dev accounts. It refuses to run when `RAILWAY_ENVIRONMENT_NAME=production`. `migrate` runs `prisma migrate deploy`, which applies any unapplied migration files in order without drift-checking.
 
 Unit tests create a throwaway schema per test file (`vitest_*`) in the same database, and e2e workers use `e2e_<n>`; neither touches `public`.
 
@@ -121,19 +119,6 @@ Do **not** use `prisma migrate dev` — it checks for schema drift against the l
    ```bash
    npx prisma generate
    ```
-
-### Backups and the anonymised copy
-
-Two Backblaze B2 buckets, two kinds of key:
-
-| Bucket                | Contents                                                          | Who holds a key                                                                                            |
-| --------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `B2_BUCKET_NAME`      | Raw nightly `pg_dump`s under `backups/`, pruned after 30 days     | Production only (`B2_KEY_ID` / `B2_APP_KEY`, read+write+delete)                                            |
-| `B2_ANON_BUCKET_NAME` | One file, `latest.dump`: yesterday's production with PII stripped | Production writes it (`B2_ANON_*` write key); PR environments, staging and developers hold a read-only key |
-
-The nightly backup job (`jobs/backup.ts`) dumps production, uploads the raw dump, then restores it into the scratch database `catalyse_anon` on the same Postgres server, runs the anonymiser (`jobs/anonymise.ts`), dumps that and overwrites `latest.dump`. Raw personal data therefore never leaves the production environment; nothing else ever needs the raw-bucket key. Set the anonymised bucket's lifecycle rule to keep only the latest version of each file.
-
-On Railway, `B2_*` must be environment-specific variables on the production environment, never shared, and `B2_ANON_*` on PR environments must be the read-only key. Preview containers seed themselves from `latest.dump` on first start when their database is empty (`scripts/seed-preview.ts`); set `SEED_PREVIEW_FORCE=1` to reseed.
 
 ## Testing
 
@@ -169,7 +154,7 @@ The `test:e2e:dev` variants skip the build and use a dev server instead. These a
 | `build:railway`    | Production build entrypoint used by Railway CI                                                                                                  |
 | `new-migration`    | Create a new migration SQL file from schema diff                                                                                                |
 | `migrate`          | Apply pending migration files to the local database                                                                                             |
-| `fetch-prod-db`    | Restore the anonymised copy of production into DATABASE_URL                                                                                     |
+| `fetch-prod-db`    | Restore latest prod backup into DATABASE_URL and anonymise PII for local use                                                                    |
 | `install:browsers` | Install Playwright's Chromium browser                                                                                                           |
 | `test:unit`        | Run unit tests with vitest                                                                                                                      |
 | `test:unit:watch`  | Run vitest in watch mode                                                                                                                        |

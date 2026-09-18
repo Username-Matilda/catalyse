@@ -27,7 +27,7 @@ async function main() {
 
   if (process.env.RAILWAY_ENVIRONMENT_NAME === 'production') {
     console.log('[MIGRATE] Running pre-deploy backup...')
-    await runBackupJob({ anonymise: false }).catch((err: unknown) =>
+    await runBackupJob().catch((err: unknown) =>
       console.error('[MIGRATE] Backup failed (continuing):', err),
     )
   }

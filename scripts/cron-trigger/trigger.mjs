@@ -12,8 +12,7 @@ try {
   const res = await fetch(url, {
     method: 'POST',
     headers: { Authorization: `Bearer ${secret}` },
-    // The daily run waits for every job, including the backup's restore-anonymise-dump cycle.
-    signal: AbortSignal.timeout(120_000),
+    signal: AbortSignal.timeout(20_000),
   })
   const body = await res.text()
   console.log(`[cron-trigger] HTTP ${res.status}`)

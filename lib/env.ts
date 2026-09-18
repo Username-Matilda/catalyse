@@ -60,14 +60,12 @@ export function validateEnv(): void {
     }
   }
 
-  // Each B2 bucket is configured by a triple; a partial triple is a typo, not a choice.
-  for (const prefix of ['B2', 'B2_ANON']) {
-    const vars = [`${prefix}_KEY_ID`, `${prefix}_APP_KEY`, `${prefix}_BUCKET_NAME`]
-    const set = vars.filter((v) => process.env[v])
-    if (set.length > 0 && set.length < vars.length) {
-      for (const v of vars.filter((v) => !process.env[v])) {
-        errors.push({ var: v, reason: `required when any ${prefix}_* var is set` })
-      }
+  const b2Vars = ['B2_KEY_ID', 'B2_APP_KEY', 'B2_BUCKET_NAME'] as const
+  const b2Set = b2Vars.filter((v) => process.env[v])
+  if (b2Set.length > 0 && b2Set.length < b2Vars.length) {
+    const missing = b2Vars.filter((v) => !process.env[v])
+    for (const v of missing) {
+      errors.push({ var: v, reason: 'required when any B2 backup var is set' })
     }
   }
 
