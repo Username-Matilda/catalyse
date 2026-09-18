@@ -139,6 +139,15 @@ Tests spin up an isolated Next.js server with a fresh database — your dev serv
 
 The `test:e2e:dev` variants skip the build and use a dev server instead. These are for interactive development only — do not use them to verify correctness, as they skip type checking and build validation.
 
+### CI workflow checks
+
+The repo is public, so pull requests from forks run `.github/workflows/ci.yml` with untrusted code. GitHub gives such runs a read-only token and no repository secrets; the workflow is written so it never needs either, and two checks keep it that way:
+
+- **[zizmor](https://docs.zizmor.sh/)** runs in the `static-checks` job and fails on dangerous triggers, template injection, unpinned actions, broad permissions and leaked credentials. Run it locally with `uvx zizmor .github/workflows/` (needs [uv](https://docs.astral.sh/uv/)).
+- **`test/ci-workflow.test.ts`** (part of `npm run test:unit`) checks the project-specific rules zizmor can't know: only `push`/`pull_request` triggers, no `secrets.*` anywhere, read-only permissions, GitHub-hosted runners, every `*_URL` pointing at `localhost`, and every credential-shaped variable holding a literal dummy.
+
+Actions are pinned to commit SHAs with the version in a trailing comment; bump both together.
+
 ## Scripts Reference
 
 | Script             | Description                                                                                                                                     |
