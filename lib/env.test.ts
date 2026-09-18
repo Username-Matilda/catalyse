@@ -33,6 +33,7 @@ describe('env', () => {
       DISABLE_RATE_LIMIT: 'YES',
       STUB_GOOGLE: '1',
       FROM_EMAIL: undefined,
+      REPLY_TO_EMAIL: 'reply@x',
       ADMIN_EMAILS: undefined,
       APP_URL: undefined,
     })
@@ -40,6 +41,7 @@ describe('env', () => {
     expect(env.DISABLE_RATE_LIMIT).toBe(true)
     expect(env.STUB_GOOGLE).toBe(true)
     expect(env.FROM_EMAIL).toContain('noreply')
+    expect(env.REPLY_TO_EMAIL).toBe('reply@x')
     expect(env.ADMIN_EMAILS).toBe('')
     expect(env.APP_URL).toBe('')
     expect(env.NODE_ENV).toBe('development')

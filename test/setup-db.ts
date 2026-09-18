@@ -1,5 +1,7 @@
-import { afterAll } from 'vitest'
+import { afterAll, beforeEach } from 'vitest'
 import { createSchema, dropSchema, urlWithSchema, SCHEMA_PREFIX } from './pg'
+import { setEmailTransport } from '@/lib/email-transport'
+import { emails } from './fakes/email'
 
 /**
  * Gives the current test file its own private database schema. vitest isolates module
@@ -12,6 +14,7 @@ process.env.DATABASE_URL = urlWithSchema(schema)
 afterAll(async () => {
   await dropSchema(schema)
 })
+// Routers return verification and invite tokens in their responses when email is stubbed.
 process.env.STUB_EMAIL = 'true'
 process.env.STUB_GOOGLE = 'true'
 // A configured client id makes the pages render their Google button; the stub flag above
@@ -26,3 +29,6 @@ process.env.ADMIN_EMAILS = Array.from({ length: 20 }, (_, i) => `admin${i || ''}
 )
 process.env.APP_URL = 'http://localhost:3000'
 process.env.CRON_SECRET = 'cron-secret'
+// Outgoing email lands in the in-memory outbox `emails` rather than the dev preview files.
+setEmailTransport(emails)
+beforeEach(() => emails.reset())

@@ -10,15 +10,7 @@ vi.mock('@/lib/rate-limit', async (importOriginal) => {
   return { ...original, checkRateLimit: checkRateLimitMock }
 })
 
-vi.mock('@/lib/email', async (importOriginal) => {
-  const original = await importOriginal<typeof import('@/lib/email')>()
-  return {
-    ...original,
-    sendRelayMessage: vi.fn(async () => true),
-    isEmailConfigured: vi.fn(() => true),
-  }
-})
-import { sendRelayMessage, isEmailConfigured } from '@/lib/email'
+import { emails } from '@/test/fakes/email'
 
 describe('messages', () => {
   it('sends a message, stores a notification, and relays by email', async () => {
@@ -33,13 +25,8 @@ describe('messages', () => {
       relatedProjectId: project.id,
     })
     expect(res.message).toContain('Message sent')
-    expect(sendRelayMessage).toHaveBeenCalledWith(
-      expect.objectContaining({
-        to: recipient.email,
-        projectTitle: project.title,
-        fromEmail: sender.email,
-      }),
-    )
+    expect(emails.last).toMatchObject({ to: recipient.email, replyTo: sender.email })
+    expect(emails.last.html).toContain(project.title)
     const note = await prisma.notification.findFirstOrThrow({
       where: { volunteerId: recipient.id },
     })
@@ -60,7 +47,7 @@ describe('messages', () => {
       message: 'x',
       relatedProjectId: null,
     })
-    expect(vi.mocked(sendRelayMessage).mock.calls[1][0].projectTitle).toBeUndefined()
+    expect(emails.last.html).not.toContain('about the project')
     await c.messages.send({ recipientId: recipient.id, subject: 'Three', message: 'x' })
     expect(
       (await prisma.notification.findMany({ where: { volunteerId: recipient.id } })).map(
@@ -105,12 +92,12 @@ describe('messages', () => {
   it('skips the email when none is configured, and logs a failed relay', async () => {
     const sender = await createVolunteer()
     const recipient = await createVolunteer()
-    vi.mocked(isEmailConfigured).mockReturnValueOnce(false)
-    vi.mocked(sendRelayMessage).mockClear()
+    emails.setConfigured(false)
     await clientAs(sender).messages.send({ recipientId: recipient.id, subject: 's', message: 'm' })
-    expect(sendRelayMessage).not.toHaveBeenCalled()
+    expect(emails.sent).toEqual([])
+    emails.setConfigured(true)
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
-    vi.mocked(sendRelayMessage).mockRejectedValueOnce(new Error('smtp'))
+    emails.failNext()
     await clientAs(sender).messages.send({ recipientId: recipient.id, subject: 's', message: 'm' })
     await vi.waitFor(() => expect(error).toHaveBeenCalledWith('[EMAIL ERROR]', expect.any(Error)))
   })
