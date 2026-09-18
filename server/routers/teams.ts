@@ -303,11 +303,21 @@ export const teamsRouter = {
       const volunteer = await prisma.volunteer.findUnique({ where: { id: input.volunteerId } })
       if (!volunteer) throw new ORPCError('NOT_FOUND', { message: 'Volunteer not found' })
 
-      await prisma.teamMembership.upsert({
-        where: { teamId_volunteerId: { teamId: input.teamId, volunteerId: input.volunteerId } },
-        create: { teamId: input.teamId, volunteerId: input.volunteerId, role: input.role },
-        update: { role: input.role },
-      })
+      // Prisma only issues a single, race-safe `INSERT … ON CONFLICT` when `update` has
+      // something to set; an empty update falls back to select-then-insert, which two
+      // concurrent requests can both pass.
+      if (input.role) {
+        await prisma.teamMembership.upsert({
+          where: { teamId_volunteerId: { teamId: input.teamId, volunteerId: input.volunteerId } },
+          create: { teamId: input.teamId, volunteerId: input.volunteerId, role: input.role },
+          update: { role: input.role },
+        })
+      } else {
+        await prisma.teamMembership.createMany({
+          data: { teamId: input.teamId, volunteerId: input.volunteerId },
+          skipDuplicates: true,
+        })
+      }
       return { message: 'Volunteer added to team' }
     }),
 

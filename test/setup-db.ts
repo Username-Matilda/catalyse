@@ -1,15 +1,17 @@
-import fs from 'node:fs'
-import path from 'node:path'
-import { TEMPLATE_DB, TEST_DB_DIR } from './db-paths'
+import { afterAll } from 'vitest'
+import { createSchema, dropSchema, urlWithSchema, SCHEMA_PREFIX } from './pg'
 
 /**
- * Gives the current test file its own private database. vitest isolates module state per
- * file, so `lib/prisma` is instantiated afresh in each and reads DATABASE_URL at that moment
- * — this runs before any test module is imported.
+ * Gives the current test file its own private database schema. vitest isolates module
+ * state per file, so `lib/prisma` is instantiated afresh in each and reads DATABASE_URL at
+ * that moment — this runs before any test module is imported.
  */
-const fileDb = path.join(TEST_DB_DIR, `${process.pid}-${Math.random().toString(36).slice(2)}.db`)
-fs.copyFileSync(TEMPLATE_DB, fileDb)
-process.env.DATABASE_URL = `file:${fileDb}`
+const schema = `${SCHEMA_PREFIX}${process.pid}_${Math.random().toString(36).slice(2)}`
+await createSchema(schema)
+process.env.DATABASE_URL = urlWithSchema(schema)
+afterAll(async () => {
+  await dropSchema(schema)
+})
 process.env.STUB_EMAIL = 'true'
 process.env.STUB_GOOGLE = 'true'
 // A configured client id makes the pages render their Google button; the stub flag above

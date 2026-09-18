@@ -246,9 +246,10 @@ describe('sessions: logout, logoutOtherSessions, me', () => {
 
   it('me returns the redacted profile with skills and endorsements', async () => {
     const skill = await createSkill()
+    const endorser = await createVolunteer()
     const vol = await createVolunteer({ skills: { create: [{ skillId: skill.id }] } })
     await prisma.skillEndorsement.create({
-      data: { volunteerId: vol.id, skillId: skill.id, endorsedById: vol.id },
+      data: { volunteerId: vol.id, skillId: skill.id, endorsedById: endorser.id },
     })
     const me = await clientAs(vol).auth.me()
     expect(me.email).toBe(vol.email)

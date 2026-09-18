@@ -9,6 +9,10 @@ on:
 jobs:
   static-checks:
     runs-on: ubuntu-latest
+    env:
+      # Never connected to: `prisma.config.ts` refuses to load without a URL, and the
+      # generated client is needed for typecheck.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/catalyse
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -16,12 +20,27 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - run: npm run generate
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run format:check
 
   unit-test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: catalyse
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/catalyse
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -52,9 +71,22 @@ jobs:
 
   e2e-test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: catalyse
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     env:
       APP_URL: http://localhost:3000
       CRON_SECRET: ci-dummy-secret
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/catalyse
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

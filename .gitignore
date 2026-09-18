@@ -6,7 +6,8 @@
 # Database
 *.db
 *.db-*
-db/
+*.dump
+*.dump.list
 backups/
 
 # Dependencies
@@ -62,3 +63,6 @@ CLAUDE.local.md
 
 # Generated bug report exports (contain real reporter data)
 bug-reports*.md
+
+# Scratch
+tmp/

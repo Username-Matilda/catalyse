@@ -187,7 +187,7 @@ export const projectsRouter = {
 
       if (input.search) {
         const like = `%${input.search}%`
-        conditions.push(Prisma.sql`(title LIKE ${like} OR description LIKE ${like})`)
+        conditions.push(Prisma.sql`(title ILIKE ${like} OR description ILIKE ${like})`)
       }
 
       if (input.urgency) conditions.push(Prisma.sql`urgency = ${input.urgency}`)
@@ -196,10 +196,10 @@ export const projectsRouter = {
       if (input.teamId) conditions.push(Prisma.sql`team_id = ${input.teamId}`)
 
       if (input.isOrgProposed !== undefined) {
-        conditions.push(Prisma.sql`is_org_proposed = ${input.isOrgProposed ? 1 : 0}`)
+        conditions.push(Prisma.sql`is_org_proposed = ${input.isOrgProposed}`)
       }
       if (input.isSeekingHelp !== undefined) {
-        conditions.push(Prisma.sql`is_seeking_help = ${input.isSeekingHelp ? 1 : 0}`)
+        conditions.push(Prisma.sql`is_seeking_help = ${input.isSeekingHelp}`)
       }
       if (input.isSeekingOwner !== undefined) {
         conditions.push(
@@ -207,10 +207,10 @@ export const projectsRouter = {
         )
       }
       if (input.isSeekingAny) {
-        conditions.push(Prisma.raw(`(is_seeking_help = 1 OR ${SEEKING_OWNER_SQL})`))
+        conditions.push(Prisma.raw(`(is_seeking_help OR ${SEEKING_OWNER_SQL})`))
       }
       if (input.notSeeking) {
-        conditions.push(Prisma.raw(`is_seeking_help = 0 AND NOT ${SEEKING_OWNER_SQL}`))
+        conditions.push(Prisma.raw(`NOT is_seeking_help AND NOT ${SEEKING_OWNER_SQL}`))
       }
 
       // A project tagged to a team is only browsable by that team's members, its
@@ -223,16 +223,16 @@ export const projectsRouter = {
           OR team_id IN (SELECT team_id FROM team_memberships WHERE volunteer_id = ${volunteer.id})
           OR id IN (
             SELECT work_item_id FROM work_item_interests
-            WHERE volunteer_id = ${volunteer.id} AND status = ${InterestStatus.accepted}
+            WHERE volunteer_id = ${volunteer.id} AND status = ${InterestStatus.accepted}::"InterestStatus"
           )
         )`)
       }
 
       const whereClause = Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`
       const orderClause = Prisma.raw(`ORDER BY
-        CASE WHEN is_seeking_help = 1 OR ${SEEKING_OWNER_SQL} THEN 0 ELSE 1 END,
+        CASE WHEN is_seeking_help OR ${SEEKING_OWNER_SQL} THEN 0 ELSE 1 END,
         CASE urgency WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
-        created_at DESC`)
+        created_at DESC, id DESC`)
 
       const [countResult, idRows] = await Promise.all([
         prisma.$queryRaw<
@@ -329,14 +329,14 @@ export const projectsRouter = {
       }
       if (input.search) {
         const like = `%${input.search}%`
-        sharedConditions.push(Prisma.sql`(title LIKE ${like} OR description LIKE ${like})`)
+        sharedConditions.push(Prisma.sql`(title ILIKE ${like} OR description ILIKE ${like})`)
       }
       if (input.urgency) sharedConditions.push(Prisma.sql`urgency = ${input.urgency}`)
       if (input.country) sharedConditions.push(Prisma.sql`country = ${input.country}`)
       if (input.localGroup) sharedConditions.push(Prisma.sql`local_group = ${input.localGroup}`)
       if (input.teamId) sharedConditions.push(Prisma.sql`team_id = ${input.teamId}`)
       if (input.isOrgProposed !== undefined) {
-        sharedConditions.push(Prisma.sql`is_org_proposed = ${input.isOrgProposed ? 1 : 0}`)
+        sharedConditions.push(Prisma.sql`is_org_proposed = ${input.isOrgProposed}`)
       }
       if (!volunteer.isAdmin) {
         sharedConditions.push(Prisma.sql`(
@@ -346,16 +346,16 @@ export const projectsRouter = {
           OR team_id IN (SELECT team_id FROM team_memberships WHERE volunteer_id = ${volunteer.id})
           OR id IN (
             SELECT work_item_id FROM work_item_interests
-            WHERE volunteer_id = ${volunteer.id} AND status = ${InterestStatus.accepted}
+            WHERE volunteer_id = ${volunteer.id} AND status = ${InterestStatus.accepted}::"InterestStatus"
           )
         )`)
       }
 
-      const seekingSqlStr = `(is_seeking_help = 1 OR ${SEEKING_OWNER_SQL})`
+      const seekingSqlStr = `(is_seeking_help OR ${SEEKING_OWNER_SQL})`
       const orderClause = Prisma.raw(`ORDER BY
-        CASE WHEN is_seeking_help = 1 OR ${SEEKING_OWNER_SQL} THEN 0 ELSE 1 END,
+        CASE WHEN is_seeking_help OR ${SEEKING_OWNER_SQL} THEN 0 ELSE 1 END,
         CASE urgency WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
-        created_at DESC`)
+        created_at DESC, id DESC`)
 
       const bucketDefs: { key: string; extra: Prisma.Sql }[] = [
         { key: 'seeking', extra: Prisma.raw(seekingSqlStr) },

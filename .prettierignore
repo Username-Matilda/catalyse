@@ -4,3 +4,4 @@ node_modules/
 generated/
 db/
 prisma/migrations/
+tmp/

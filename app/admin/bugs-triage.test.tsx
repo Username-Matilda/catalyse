@@ -187,10 +187,10 @@ describe('triage', () => {
 
     await userEvent.click(screen.getByRole('tab', { name: 'Needs Discussion1' }))
     await screen.findByRole('link', { name: 'Talk about it' })
-    await userEvent.click(screen.getByRole('tab', { name: 'No Open Tasks1' }))
+    await userEvent.click(await screen.findByRole('tab', { name: 'No Open Tasks1' }))
     await screen.findByRole('link', { name: 'All done really' })
 
-    await userEvent.click(screen.getByRole('tab', { name: 'Drafts2' }))
+    await userEvent.click(await screen.findByRole('tab', { name: 'Drafts2' }))
     await screen.findByRole('link', { name: 'Half a draft' })
     expect(screen.getAllByRole('link', { name: 'View' })[0]).toHaveAttribute(
       'href',
@@ -210,7 +210,7 @@ describe('triage', () => {
     await userEvent.click(await screen.findByRole('tab', { name: 'Pending Review2' }))
     await screen.findByRole('link', { name: 'Half a draft' })
 
-    await userEvent.click(screen.getByRole('tab', { name: 'Volunteer Interests1' }))
+    await userEvent.click(await screen.findByRole('tab', { name: 'Volunteer Interests1' }))
     const interest = (await screen.findByText('Pick me', { exact: false })).closest<HTMLElement>(
       '.card',
     )!
@@ -247,7 +247,7 @@ describe('triage', () => {
     await screen.findByText('No in-progress projects with all tasks completed.')
     await userEvent.click(screen.getByRole('tab', { name: 'Drafts' }))
     await screen.findByText('No volunteer drafts in progress.')
-    await userEvent.click(screen.getByRole('tab', { name: 'Volunteer Interests1' }))
+    await userEvent.click(await screen.findByRole('tab', { name: 'Volunteer Interests1' }))
     await userEvent.click(await screen.findByRole('button', { name: 'Accept' }))
     await waitFor(async () =>
       expect(
