@@ -149,6 +149,13 @@ async function main(): Promise<void> {
     process.exit(1)
   }
 
+  // Any Railway environment must opt in, so a fork of production cannot wipe its database
+  // by accident. Only preview environments set this.
+  if (process.env.RAILWAY_ENVIRONMENT_NAME && process.env.ALLOW_DB_RESTORE !== '1') {
+    console.error('Refusing to restore: set ALLOW_DB_RESTORE=1 to allow it in this environment')
+    process.exit(1)
+  }
+
   const keyId = process.env.B2_KEY_ID
   const appKey = process.env.B2_APP_KEY
   const bucketName = process.env.B2_BUCKET_NAME
