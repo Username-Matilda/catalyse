@@ -150,7 +150,7 @@ function LoginPageContent() {
               </div>
             )}
 
-            <form onSubmit={handleSubmit}>
+            <form method="post" onSubmit={handleSubmit}>
               <div className="mb-5">
                 <label htmlFor="email" className="required">
                   Email

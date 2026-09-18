@@ -61,6 +61,7 @@ function ResetPasswordForm() {
 
   return (
     <form
+      method="post"
       className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word"
       onSubmit={handleSubmit}
     >

@@ -592,7 +592,7 @@ function SettingsPageContent() {
             <p className="text-sm text-text-light mb-4">
               Current email: <strong>{user.email}</strong>
             </p>
-            <form onSubmit={handleChangeEmail}>
+            <form method="post" onSubmit={handleChangeEmail}>
               <div className="mb-5">
                 <label htmlFor="newEmail">New Email Address</label>
                 <input
@@ -621,7 +621,7 @@ function SettingsPageContent() {
 
           <div className="bg-surface rounded-xl shadow p-6 mb-6 overflow-hidden wrap-break-word">
             <h2>Change Password</h2>
-            <form onSubmit={handleChangePassword}>
+            <form method="post" onSubmit={handleChangePassword}>
               <div className="mb-5">
                 <label htmlFor="currentPassword">Current Password</label>
                 <input
@@ -829,7 +829,7 @@ function SettingsPageContent() {
                   confirm.
                 </p>
               )}
-              <form onSubmit={handleDeleteAccount}>
+              <form method="post" onSubmit={handleDeleteAccount}>
                 {user.hasPassword ? (
                   <>
                     <div className="mb-5">
