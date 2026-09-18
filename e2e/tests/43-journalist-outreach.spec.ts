@@ -136,7 +136,7 @@ test.describe('Journalist outreach', () => {
     })
     await expect(volunteer.page.getByText("you've contacted 1")).toBeVisible()
 
-    // The admin's list now shows who sent it and the running totals.
+    // The admin's list records the send.
     await adminPage.reload()
     const row = adminPage.locator('tbody tr').filter({ hasText: claimedEmail })
     await expect(row).toContainText('contacted', { timeout: 10_000 })
