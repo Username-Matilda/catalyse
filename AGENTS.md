@@ -47,5 +47,26 @@ into whatever you are already working on.
 
 - **Never** use `/* v8 ignore */`, `/* istanbul ignore */` or any coverage-exclusion comment.
 - Don't remove a defensive guard, or replace it with a `!` non-null assertion, to make an unreachable line disappear. Reach it with a test (a form submits on Enter even when the button is disabled; a database row can hold what the API refuses; an evicted cache entry is a real state), or narrow the type at the call site so the guard is unnecessary. If a line genuinely cannot execute, say so in the PR so a reviewer can decide.
-- Router tests run against a real per-file SQLite database (`test/setup-db.ts`); component tests render in jsdom with `fetch` routed into the real oRPC handler (`test/setup-dom.ts`). Prefer these over mocking modules; mock only the network edge (email, Google, rate limiting).
-- Modules that read `process.env` at import time are configured in `test/setup-db.ts`; a test needing a different value must `vi.resetModules()` and re-import, so prefer reading env at call time in new code.
+- Router tests run against a real per-file Postgres schema (`test/setup-db.ts`); component tests render in jsdom with `fetch` routed into the real oRPC handler (`test/setup-dom.ts`). Prefer these over mocking modules: the database and routers are always real.
+- `env` (`lib/env.ts`) reads `process.env` on every access, so a test sets a variable with `vi.stubEnv` and calls the code under test directly. Don't copy an `env` value into a module-level constant; read it where it is used.
+
+### Faking the outside world
+
+Only the network edge is faked — email, Google token verification, rate limiting, third-party APIs — and the fake is an explicit seam in the production code, not a `vi.mock` of one of our own modules:
+
+- **Make the code take the dependency, then hand it a fake.** A class or function that talks to the outside world is given its client or transport (a constructor parameter with a production default, or a `setX()` on a process-wide instance), and the test passes a fake. `lib/email-transport.ts` is the pattern: `EmailTransport` is abstract, the real implementations are chosen from the environment in one factory, and `setEmailTransport` swaps in `MemoryEmailTransport` from `test/fakes/email.ts`.
+- **Fakes live in `test/fakes/` with named helpers.** A test reads `emails.failNext()` or `emails.lastTo(addr)`, so its intent is visible without inferring it from a mock block. The harness installs the shared fakes and resets them before each test; a test that needs a different one swaps it in and restores it in `afterEach`.
+- **`vi.mock` is a last resort**, for a third-party module with no seam of its own or for `next/*` framework edges. If you find yourself mocking a module under `lib/` or `server/`, add a seam to it instead.
+- **Assert on what would have reached the outside world**, not on which internal function was called: the recipient and rendered body of an email, the request a client was given.
+
+### Email in tests
+
+Every unit test file gets `emails`, a `MemoryEmailTransport` from `test/fakes/email.ts`, emptied before each test. The real templates run; only delivery is captured.
+
+- **Assert on the sent email**: `emails.last` (the most recent), `emails.lastTo(address)` (most recent to one recipient — use this when other mail, such as admin alerts, may land in the same action), `emails.to(address)`, or `emails.sent` for the whole outbox. Check `to`, `subject` and that `html` contains what the user would read; name subjects once in a `subjects` map at the top of the file.
+- **Tokens in links**: `linkParam(email, 'token')` reads a query parameter out of the body, so a test signs in or verifies with the link the user would actually have received rather than a value smuggled through a mock.
+- **Failures**: `emails.failNext()` makes the next send throw (`failNext(n)` for several, `failAll()` for the rest of the test); `emails.setConfigured(false)` makes `isEmailConfigured()` false so the code takes its no-email path.
+- **Fire-and-forget sends** happen after the response, so wrap those assertions in `vi.waitFor`.
+- **Transport code itself** (`lib/email-transport.ts`) is tested by constructing each transport directly; `ResendTransport` takes a fake client as its second argument.
+
+The same shape serves the other seams: `google.accept(credential, account)` (`test/fakes/google.ts`) makes a Google credential verify; `rateLimit.denyNext(retryAfterMs)` (`test/fakes/rate-limit.ts`) refuses the next rate-limited request; `cronJobs.returns(name, value)` / `cronJobs.fails(name, message)` (`test/fakes/cron-jobs.ts`) decide what a scheduled job does when a route or admin action runs it.
