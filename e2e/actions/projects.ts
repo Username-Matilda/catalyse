@@ -1,5 +1,5 @@
 import { Page, expect } from '@playwright/test'
-import { getAlert, readAdminToken } from '../fixtures'
+import { getAlert, readAdminToken, type Snap } from '../fixtures'
 import { createApiClient } from '../client'
 import { selectFilterDropdown } from './ui'
 
@@ -46,6 +46,7 @@ export async function proposeProject(
   title: string,
   description: string,
   skillName?: string,
+  snap?: Snap,
 ): Promise<number> {
   await page.goto(`${baseUrl}/suggest`)
   await openNewProjectForm(page)
@@ -70,10 +71,12 @@ export async function proposeProject(
   const { id } = (await response.json()).json as { id: number }
 
   await page.waitForURL(`${baseUrl}/projects/${id}/edit`, { timeout: 15_000 })
+  await snap?.(page, 'draft with a task')
   await page.getByRole('button', { name: 'Submit', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Submit draft for review?' })).toBeVisible({
     timeout: 10_000,
   })
+  await snap?.(page, 'submit for review dialog')
   await page.getByRole('button', { name: 'Submit for Review' }).click()
   await page.waitForURL(`${baseUrl}/dashboard**`, { timeout: 15_000 })
   return id

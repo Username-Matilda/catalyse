@@ -17,6 +17,7 @@ test.describe('Project Lifecycle', () => {
     adminPage,
     volunteer,
     baseUrl,
+    snap,
   }) => {
     const title = fake.projectTitle()
     const projectId = await proposeProject(
@@ -24,6 +25,8 @@ test.describe('Project Lifecycle', () => {
       volunteer.page,
       title,
       'Test proposal description',
+      undefined,
+      snap,
     )
     await adminApproveProject(baseUrl, adminPage, title)
 
