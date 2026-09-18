@@ -6,7 +6,6 @@
  * Usage:
  *   npx tsx scripts/fetch-prod-db.ts              # reads B2 creds from .env.b2
  *   npx tsx scripts/fetch-prod-db.ts --env /path/to/.env
- *   npx tsx scripts/fetch-prod-db.ts --skip-if-none   # exit 0 instead of 1 when B2 has no dump
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -173,10 +172,6 @@ async function main(): Promise<void> {
     f.fileName.endsWith('.dump'),
   )
   if (!files.length) {
-    if (args.includes('--skip-if-none')) {
-      console.log('No Postgres backups found in B2; skipping.')
-      return
-    }
     console.error('No Postgres backups found in B2.')
     process.exit(1)
   }

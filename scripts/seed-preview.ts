@@ -35,8 +35,7 @@ async function main(): Promise<void> {
     console.log('[SEED-PREVIEW] Skipped (database already has tables; set SEED_PREVIEW_FORCE=1)')
     return
   }
-  // --skip-if-none leaves the database empty for scripts/migrate-from-sqlite.ts to fill.
-  execSync('npm run fetch-prod-db -- --skip-if-none', { stdio: 'inherit' })
+  execSync('npm run fetch-prod-db', { stdio: 'inherit' })
 }
 
 main().catch((err) => {

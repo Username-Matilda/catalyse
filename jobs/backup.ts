@@ -14,14 +14,13 @@ function timestamp(): string {
 
 // ── B2 API ────────────────────────────────────────────────────────────────────
 
-export interface B2Auth {
+interface B2Auth {
   authorizationToken: string
   apiUrl: string
-  downloadUrl: string
   accountId: string
 }
 
-export async function b2Authorize(): Promise<B2Auth> {
+async function b2Authorize(): Promise<B2Auth> {
   const keyId = process.env.B2_KEY_ID!
   const appKey = process.env.B2_APP_KEY!
   const credentials = Buffer.from(`${keyId}:${appKey}`).toString('base64')
@@ -32,7 +31,7 @@ export async function b2Authorize(): Promise<B2Auth> {
   return res.json()
 }
 
-export async function b2GetBucketId(auth: B2Auth, bucketName: string): Promise<string> {
+async function b2GetBucketId(auth: B2Auth, bucketName: string): Promise<string> {
   const res = await fetch(`${auth.apiUrl}/b2api/v2/b2_list_buckets`, {
     method: 'POST',
     headers: { Authorization: auth.authorizationToken, 'Content-Type': 'application/json' },
@@ -44,7 +43,7 @@ export async function b2GetBucketId(auth: B2Auth, bucketName: string): Promise<s
   return buckets[0].bucketId
 }
 
-export async function b2GetUploadUrl(auth: B2Auth, bucketId: string) {
+async function b2GetUploadUrl(auth: B2Auth, bucketId: string) {
   const res = await fetch(`${auth.apiUrl}/b2api/v2/b2_get_upload_url`, {
     method: 'POST',
     headers: { Authorization: auth.authorizationToken, 'Content-Type': 'application/json' },
@@ -55,7 +54,7 @@ export async function b2GetUploadUrl(auth: B2Auth, bucketId: string) {
   return { uploadUrl: data.uploadUrl as string, uploadToken: data.authorizationToken as string }
 }
 
-export async function b2UploadFile(
+async function b2UploadFile(
   uploadUrl: string,
   uploadToken: string,
   fileName: string,
@@ -77,7 +76,7 @@ export async function b2UploadFile(
   return res.json()
 }
 
-export async function b2ListFiles(auth: B2Auth, bucketId: string, prefix: string) {
+async function b2ListFiles(auth: B2Auth, bucketId: string, prefix: string) {
   const res = await fetch(`${auth.apiUrl}/b2api/v2/b2_list_file_names`, {
     method: 'POST',
     headers: { Authorization: auth.authorizationToken, 'Content-Type': 'application/json' },
@@ -86,18 +85,6 @@ export async function b2ListFiles(auth: B2Auth, bucketId: string, prefix: string
   if (!res.ok) throw new Error(`b2_list_file_names failed: ${res.status} ${await res.text()}`)
   const data = await res.json()
   return data.files as Array<{ fileId: string; fileName: string; uploadTimestamp: number }>
-}
-
-export async function b2DownloadFile(
-  auth: B2Auth,
-  bucketName: string,
-  fileName: string,
-): Promise<Buffer> {
-  const res = await fetch(`${auth.downloadUrl}/file/${bucketName}/${fileName}`, {
-    headers: { Authorization: auth.authorizationToken },
-  })
-  if (!res.ok) throw new Error(`Download failed: ${res.status} ${await res.text()}`)
-  return Buffer.from(await res.arrayBuffer())
 }
 
 async function b2DeleteFile(auth: B2Auth, fileId: string, fileName: string) {
@@ -111,7 +98,7 @@ async function b2DeleteFile(auth: B2Auth, fileId: string, fileName: string) {
 
 // ── Backup logic ──────────────────────────────────────────────────────────────
 
-export function isB2Configured() {
+function isB2Configured() {
   return Boolean(process.env.B2_KEY_ID && process.env.B2_APP_KEY && process.env.B2_BUCKET_NAME)
 }
 
