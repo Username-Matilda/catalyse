@@ -18,6 +18,7 @@ import { Client } from 'pg'
 import { buildNext } from '../scripts/next-build'
 import { createApiClient } from './client'
 import { resolveTestDbUrl } from '../test/pg'
+import { LANES, SNAPSHOTS_ENABLED } from './snapshots/config'
 
 const PROJECT_ROOT = path.resolve(__dirname, '..')
 const NEXT_BINARY = path.join(PROJECT_ROOT, 'node_modules', '.bin', 'next')
@@ -170,7 +171,8 @@ async function setupAdminAuth(parallelIndex: number): Promise<void> {
 }
 
 async function globalSetup(config: FullConfig): Promise<void> {
-  const workerCount = config.workers
+  // A snapshot run gives every lane a server of its own (see the baseUrl fixture).
+  const workerCount = SNAPSHOTS_ENABLED ? LANES.length : config.workers
 
   if (IS_LOCAL) {
     generatePrismaClient()

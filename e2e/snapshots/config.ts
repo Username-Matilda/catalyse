@@ -1,0 +1,135 @@
+/**
+ * What a snapshot run is made of: the lanes it captures in, where its files
+ * live, and how a capture is named. Shared by the fixtures (in the worker),
+ * the reporter (in the runner) and the CLI, so all three agree on a file name
+ * without talking to each other.
+ */
+import { createHash } from 'node:crypto'
+import path from 'node:path'
+
+/** Whether this Playwright run is capturing snapshots at all. */
+export const SNAPSHOTS_ENABLED = process.env.SNAPSHOTS === '1'
+
+export const SNAPSHOT_ROOT = path.resolve(__dirname, '..', '..', 'snapshots')
+export const CURRENT = path.join(SNAPSHOT_ROOT, 'current')
+export const PREVIOUS = path.join(SNAPSHOT_ROOT, 'previous')
+/**
+ * Where a run captures to. Nothing moves into `current/` until the run reaches
+ * its end, so a run that is killed part-way leaves the last complete run's
+ * images standing rather than half-replacing them.
+ */
+export const STAGING = path.join(SNAPSHOT_ROOT, 'staging')
+export const DIFFS = path.join(SNAPSHOT_ROOT, 'diffs')
+/**
+ * Where a test that failed leaves the page as it stood. Kept out of the
+ * staging to current rotation: a picture of a half-driven page is a
+ * diagnosis, never a baseline.
+ */
+export const FAILURES = path.join(SNAPSHOT_ROOT, 'failures')
+export const POOL = path.join(SNAPSHOT_ROOT, 'pool')
+export const RUNS = path.join(SNAPSHOT_ROOT, 'runs')
+export const HISTORY = path.join(SNAPSHOT_ROOT, 'history.json')
+export const BASELINE = path.join(SNAPSHOT_ROOT, 'baseline.json')
+export const GALLERY = path.join(SNAPSHOT_ROOT, 'index.html')
+
+export type Theme = 'light' | 'dark'
+
+export interface Lane {
+  /** Doubles as the Playwright project name. */
+  id: string
+  label: string
+  viewport: 'desktop' | 'mobile'
+  viewportLabel: string
+  theme: Theme
+  width: number
+  height: number
+  deviceScaleFactor: number
+  isMobile: boolean
+}
+
+const DESKTOP = { width: 1440, height: 1000, deviceScaleFactor: 1, isMobile: false } as const
+
+/** Every lane a full run captures, in the order the gallery lists them. */
+export const LANES: Lane[] = [
+  {
+    id: 'desktop-light',
+    label: 'Desktop · Light',
+    viewport: 'desktop',
+    viewportLabel: 'Desktop',
+    theme: 'light',
+    ...DESKTOP,
+  },
+]
+
+export function laneById(id: string): Lane {
+  const lane = LANES.find((candidate) => candidate.id === id)
+  if (!lane) throw new Error(`Unknown snapshot lane: ${id}`)
+  return lane
+}
+
+export function laneIndex(id: string): number {
+  return LANES.findIndex((candidate) => candidate.id === id)
+}
+
+/** `e2e/tests/11-dashboard.spec.ts` becomes `11-dashboard`. */
+export function specId(file: string): string {
+  return path.basename(file).replace(/\.spec\.ts$/, '')
+}
+
+export function slug(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+/**
+ * The part of a file name that identifies one test in one lane. The slug is
+ * cut to a readable length, and the hash keeps two tests whose titles share
+ * that prefix apart.
+ */
+export function testKey(laneId: string, file: string, titlePath: string[]): string {
+  const title = titlePath.join(' › ')
+  const hash = createHash('sha1').update(title).digest('hex').slice(0, 6)
+  return `${laneId}--${specId(file)}--${slug(title).slice(0, 60).replace(/-+$/, '')}-${hash}`
+}
+
+/** One capture's file name, with its sequence number so the gallery keeps capture order. */
+export function captureFile(key: string, seq: number, label: string): string {
+  return `${key}--${String(seq).padStart(2, '0')}-${slug(label)}.png`
+}
+
+export function sidecarFile(pngFile: string): string {
+  return pngFile.replace(/\.png$/, '.json')
+}
+
+/** What the worker knows about a capture when it takes it; the reporter adds the rest. */
+export interface CaptureMeta {
+  lane: string
+  spec: string
+  specFile: string
+  test: string
+  titlePath: string[]
+  testLine: number
+  key: string
+  seq: number
+  label: string
+  /** The page's path when the picture was taken. */
+  path: string
+  capturedAt: string
+  durationMs: number
+  /** Whether the page held still before the shot; a false here is reported as unsettled. */
+  settled: boolean
+  viewport: { id: string; width: number; height: number; deviceScaleFactor: number }
+  theme: Theme
+  /** Filled in by the reporter once the capture is diffed. */
+  sha?: string
+  hasPrevious?: boolean
+  diffPixels?: number
+  diff?: import('./png').DiffAnalysis
+  runId?: string
+  commit?: string
+  dirty?: boolean
+  /** The ref an `--against` capture came from. */
+  ref?: string
+}

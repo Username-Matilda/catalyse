@@ -1,8 +1,15 @@
-import { test as base, Browser, Page, WorkerInfo } from '@playwright/test'
+import { test as base, Browser, BrowserContext, Page, TestInfo, WorkerInfo } from '@playwright/test'
 import { workerAuthFile, workerBaseUrl, parallelIndexFromBaseUrl } from './config'
-import { fake } from './fake'
+import { fake, seedFake } from './fake'
 import fs from 'fs'
 import { createApiClient } from './client'
+import { SNAPSHOTS_ENABLED, laneIndex } from './snapshots/config'
+import {
+  captureFailure,
+  captureSnapshot,
+  laneFor,
+  prepareSnapshotContext,
+} from './snapshots/capture'
 
 interface Volunteer {
   page: Page
@@ -11,9 +18,31 @@ interface Volunteer {
   password: string
 }
 
+/**
+ * Take a picture of the page as it stands, under a label that names the
+ * moment: `snap(page, 'dialog open')`. Only does anything in a snapshot run
+ * (`npm run snapshots`); a plain test run returns at once.
+ */
+export type Snap = (page: Page, label: string) => Promise<void>
+
 interface Fixtures {
   adminPage: Page
   volunteer: Volunteer
+  snap: Snap
+  /** Seeds fake data per test; every other fixture that fakes data depends on it. */
+  seededFake: void
+  snapshots: Snapshots
+}
+
+/**
+ * How a context takes part in a snapshot run: `prepare` makes every page it
+ * opens capture the way the lane asks, and `finish`, called before the
+ * context closes, shoots the last page it was looking at as the test's final
+ * frame, or files it under failures when the test did not pass.
+ */
+interface Snapshots {
+  prepare: (context: BrowserContext, role: string) => Promise<void>
+  finish: (context: BrowserContext, role: string) => Promise<void>
 }
 
 interface WorkerFixtures {
@@ -23,22 +52,70 @@ interface WorkerFixtures {
 export const test = base.extend<Fixtures, WorkerFixtures>({
   baseUrl: [
     async ({}, runFixture, workerInfo: WorkerInfo) => {
-      await runFixture(workerBaseUrl(workerInfo.parallelIndex))
+      // A snapshot lane is one Playwright project run on one worker, so the
+      // lane picks the server and the data behind every one of its pictures
+      // is exactly the data its own tests made, in the order they ran.
+      const index = SNAPSHOTS_ENABLED
+        ? laneIndex(workerInfo.project.name)
+        : workerInfo.parallelIndex
+      await runFixture(workerBaseUrl(index))
     },
     { scope: 'worker' },
   ],
 
-  adminPage: async ({ browser, baseUrl }, runFixture) => {
+  seededFake: [
+    async ({}, runFixture, testInfo) => {
+      seedFake(testInfo.titlePath.join(' › '))
+      await runFixture()
+    },
+    { auto: true },
+  ],
+
+  snap: async ({}, runFixture, testInfo) => {
+    let seq = 0
+    await runFixture(async (page, label) => {
+      if (!SNAPSHOTS_ENABLED) return
+      seq += 1
+      await captureSnapshot(page, testInfo, seq, label)
+    })
+  },
+
+  snapshots: async ({ snap }, runFixture, testInfo) => {
+    await runFixture({
+      prepare: async (context) => {
+        if (!SNAPSHOTS_ENABLED) return
+        await prepareSnapshotContext(context, laneFor(testInfo))
+      },
+      finish: async (context, role) => {
+        if (!SNAPSHOTS_ENABLED) return
+        await finalFrame(context, role, testInfo, snap)
+      },
+    })
+  },
+
+  adminPage: async ({ browser, baseUrl, snapshots, seededFake: _seeded }, runFixture) => {
     const authFile = workerAuthFile(parallelIndexFromBaseUrl(baseUrl))
     const context = await browser.newContext({ storageState: authFile })
     await context.addInitScript(dismissCookieConsentScript)
+    await snapshots.prepare(context, 'admin')
     const page = await context.newPage()
     await runFixture(page)
+    await snapshots.finish(context, 'admin')
     await context.close()
   },
 
   volunteer: async (
-    { browser, baseUrl }: { browser: Browser; baseUrl: string },
+    {
+      browser,
+      baseUrl,
+      snapshots,
+      seededFake: _seeded,
+    }: {
+      browser: Browser
+      baseUrl: string
+      snapshots: Snapshots
+      seededFake: void
+    },
     runFixture: (v: Volunteer) => Promise<void>,
   ) => {
     const person = fake.person()
@@ -75,13 +152,38 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
       localStorage.setItem('authToken', token)
     }, auth_token)
     await context.addInitScript(dismissCookieConsentScript)
+    await snapshots.prepare(context, 'volunteer')
     const page = await context.newPage()
     await runFixture({ page, ...credentials })
+    await snapshots.finish(context, 'volunteer')
     await context.close()
   },
 })
 
 export { expect } from '@playwright/test'
+
+/** The page a role was last looking at: the newest one still open on the app. */
+function lastOpenPage(context: BrowserContext): Page | undefined {
+  return context
+    .pages()
+    .filter((page) => !page.isClosed() && page.url().startsWith('http'))
+    .at(-1)
+}
+
+async function finalFrame(
+  context: BrowserContext,
+  role: string,
+  testInfo: TestInfo,
+  snap: Snap,
+): Promise<void> {
+  const page = lastOpenPage(context)
+  if (!page) return
+  if (testInfo.status !== testInfo.expectedStatus) {
+    if (await captureFailure(page, testInfo)) testInfo.annotations.push({ type: 'failure-shot' })
+    return
+  }
+  await snap(page, `end (${role})`)
+}
 
 // Analytics loads for anyone who has not declined it. Declining up front keeps Google
 // Analytics from loading in a test browser.
