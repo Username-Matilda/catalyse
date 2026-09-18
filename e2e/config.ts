@@ -9,7 +9,12 @@ export const ADMIN_EMAIL = 'admin@e2e-test.com'
 export const ADMIN_PASSWORD = 'adminpassword1'
 
 export const BASE_PORT = 4000
-export const WORKER_COUNT = process.env.WORKER_COUNT ? parseInt(process.env.WORKER_COUNT, 10) : 4
+// Each worker is a Next server plus a browser, so half the cores is about the useful
+// ceiling; never fewer than the four a CI runner gives, and at most eight so the workers'
+// connection pools (see workerDbUrl) stay under Postgres's default max_connections.
+export const WORKER_COUNT = process.env.WORKER_COUNT
+  ? parseInt(process.env.WORKER_COUNT, 10)
+  : Math.min(8, Math.max(4, Math.floor(os.availableParallelism() / 2)))
 
 export function workerBaseUrl(parallelIndex: number): string {
   if (IS_LOCAL) return `http://localhost:${BASE_PORT + parallelIndex}`
