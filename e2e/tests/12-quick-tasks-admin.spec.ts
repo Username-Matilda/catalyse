@@ -410,7 +410,7 @@ test.describe('Quick Tasks (admin)', () => {
     const deepLinkCard = adminPage.locator(`#task-${taskId}`)
     await expect(deepLinkCard).toBeVisible({ timeout: 10_000 })
     // Card is expanded — action buttons are visible without clicking the header
-    await expect(deepLinkCard.getByRole('button', { name: 'Edit' })).toBeVisible({
+    await expect(deepLinkCard.getByRole('button', { name: 'Edit', exact: true })).toBeVisible({
       timeout: 10_000,
     })
   })

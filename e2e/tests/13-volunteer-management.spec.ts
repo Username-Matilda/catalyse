@@ -152,7 +152,7 @@ test.describe('Volunteer Management', () => {
     const notesList = adminPage.locator('#notesList')
     await expect(notesList).toContainText(originalContent, { timeout: 10_000 })
 
-    await notesList.getByRole('button', { name: 'Edit' }).click()
+    await notesList.getByRole('button', { name: 'Edit', exact: true }).click()
     await adminPage.getByLabel('Edit note').fill(updatedContent)
     await notesList.getByRole('button', { name: 'Save' }).click()
 
