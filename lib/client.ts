@@ -23,12 +23,11 @@ const link = new RPCLink({
       try {
         return await next()
       } catch (error) {
-        if (
-          error instanceof ORPCError &&
-          error.code === 'UNAUTHORIZED' &&
-          typeof window !== 'undefined'
-        ) {
-          window.dispatchEvent(new Event('auth:expired'))
+        if (error instanceof ORPCError && typeof window !== 'undefined') {
+          if (error.code === 'UNAUTHORIZED') window.dispatchEvent(new Event('auth:expired'))
+          // Maintenance mode switched on under an open session: MaintenanceGate takes over.
+          if (error.code === 'SERVICE_UNAVAILABLE')
+            window.dispatchEvent(new Event('maintenance:on'))
         }
         throw error
       }

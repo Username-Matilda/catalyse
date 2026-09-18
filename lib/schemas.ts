@@ -344,9 +344,10 @@ export const InviteAdminSchema = AdminInviteSchema.pick({
 // ─── Admin: platform settings ─────────────────────────────────────────────────
 
 export const PlatformSettingsSchema = z.object({
-  requireApplicationApproval: z.boolean({
-    message: 'requireApplicationApproval must be a boolean',
-  }),
+  requireApplicationApproval: z
+    .boolean({ message: 'requireApplicationApproval must be a boolean' })
+    .optional(),
+  maintenanceMode: z.boolean({ message: 'maintenanceMode must be a boolean' }).optional(),
 })
 
 // ─── Quick tasks ──────────────────────────────────────────────────────────────

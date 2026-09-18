@@ -31,8 +31,12 @@ describe('admin.platformSettings', () => {
     const c = clientAs(await createSuperAdmin())
     expect(await c.admin.platformSettings.update({ requireApplicationApproval: false })).toEqual({
       requireApplicationApproval: false,
+      maintenanceMode: false,
     })
-    expect(await c.admin.platformSettings.get()).toEqual({ requireApplicationApproval: false })
+    expect(await c.admin.platformSettings.get()).toEqual({
+      requireApplicationApproval: false,
+      maintenanceMode: false,
+    })
   })
 })
 

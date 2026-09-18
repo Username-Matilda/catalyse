@@ -21,6 +21,7 @@ export default function PlatformSettingsPage() {
     onSuccess: () => {
       showToast('Settings saved', 'success')
       void queryClient.invalidateQueries({ queryKey: orpc.admin.platformSettings.get.key() })
+      void queryClient.invalidateQueries({ queryKey: orpc.maintenance.status.key() })
     },
     onError: () => showToast('Failed to save settings', 'error'),
   })
@@ -35,6 +36,7 @@ export default function PlatformSettingsPage() {
         <div className="flex items-center justify-between gap-6 mb-3">
           <h2 className="text-lg font-semibold m-0!">Application Approval</h2>
           <Toggle
+            aria-label="Require application approval"
             checked={settings?.requireApplicationApproval ?? true}
             disabled={updateMutation.isPending}
             onChange={(e) =>
@@ -45,6 +47,23 @@ export default function PlatformSettingsPage() {
         <p className="text-text-light text-sm">
           When enabled, new volunteers must be reviewed and approved by an admin before gaining
           access. When disabled, volunteers are automatically approved after verifying their email.
+        </p>
+      </div>
+
+      <div className="border border-brand-border rounded-lg p-6 mt-6">
+        <div className="flex items-center justify-between gap-6 mb-3">
+          <h2 className="text-lg font-semibold m-0!">Maintenance Mode</h2>
+          <Toggle
+            aria-label="Maintenance mode"
+            checked={settings?.maintenanceMode ?? false}
+            disabled={updateMutation.isPending}
+            onChange={(e) => updateMutation.mutate({ maintenanceMode: e.target.checked })}
+          />
+        </div>
+        <p className="text-text-light text-sm">
+          When enabled, everyone except super admins is shown a &ldquo;down for maintenance&rdquo;
+          page and locked out until it is turned off again. Super admins can still log in and use
+          the site as normal.
         </p>
       </div>
     </div>

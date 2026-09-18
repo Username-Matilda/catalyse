@@ -848,6 +848,7 @@ model AnonymisedEmail {
 model PlatformSettings {
   id                         Int       @id @default(1)
   requireApplicationApproval Boolean   @default(true) @map("require_application_approval")
+  maintenanceMode            Boolean   @default(false) @map("maintenance_mode")
   cspViolationCount          Int       @default(0) @map("csp_violation_count")
   cspSummaryLastSentAt       DateTime? @map("csp_summary_last_sent_at")
 
