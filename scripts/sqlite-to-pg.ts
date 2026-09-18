@@ -8,7 +8,8 @@
 import type { DatabaseSync } from 'node:sqlite'
 import type { Client } from 'pg'
 
-type Column = { name: string; dataType: string }
+// `optional`: the column is nullable or has a default, so a source without it can be loaded.
+type Column = { name: string; dataType: string; optional: boolean }
 type Table = { name: string; columns: Column[] }
 export type TableCount = { table: string; sqlite: number; postgres: number }
 
@@ -16,8 +17,14 @@ const SKIP_TABLES = new Set(['_prisma_migrations'])
 const BATCH_ROWS = 500
 
 async function readTables(pg: Client): Promise<Table[]> {
-  const { rows } = await pg.query<{ table_name: string; column_name: string; data_type: string }>(`
-    SELECT c.table_name, c.column_name, c.data_type
+  const { rows } = await pg.query<{
+    table_name: string
+    column_name: string
+    data_type: string
+    optional: boolean
+  }>(`
+    SELECT c.table_name, c.column_name, c.data_type,
+      (c.is_nullable = 'YES' OR c.column_default IS NOT NULL) AS optional
     FROM information_schema.columns c
     JOIN information_schema.tables t
       ON t.table_schema = c.table_schema AND t.table_name = c.table_name
@@ -28,7 +35,9 @@ async function readTables(pg: Client): Promise<Table[]> {
   for (const r of rows) {
     if (SKIP_TABLES.has(r.table_name)) continue
     if (!tables.has(r.table_name)) tables.set(r.table_name, { name: r.table_name, columns: [] })
-    tables.get(r.table_name)!.columns.push({ name: r.column_name, dataType: r.data_type })
+    tables
+      .get(r.table_name)!
+      .columns.push({ name: r.column_name, dataType: r.data_type, optional: r.optional })
   }
   return [...tables.values()]
 }
@@ -61,11 +70,13 @@ async function copyTable(sqlite: DatabaseSync, pg: Client, table: Table): Promis
       (c) => c.name,
     ),
   )
-  const missing = table.columns.filter((c) => !sqliteCols.has(c.name)).map((c) => c.name)
-  if (missing.length)
-    throw new Error(`${table.name}: columns missing from SQLite: ${missing.join(', ')}`)
+  const missing = table.columns.filter((c) => !sqliteCols.has(c.name))
+  const required = missing.filter((c) => !c.optional).map((c) => c.name)
+  if (required.length)
+    throw new Error(`${table.name}: columns missing from SQLite: ${required.join(', ')}`)
 
-  const cols = table.columns
+  // A column added after the source was written takes its Postgres default (or NULL).
+  const cols = table.columns.filter((c) => sqliteCols.has(c.name))
   const colList = cols.map((c) => `"${c.name}"`).join(', ')
   const rows = sqlite.prepare(`SELECT ${colList} FROM "${table.name}"`).all() as Record<
     string,
