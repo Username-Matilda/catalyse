@@ -96,7 +96,7 @@ The local dev database is a copy of prod, restored into whatever `DATABASE_URL` 
 npm run fetch-prod-db && npm run migrate
 ```
 
-`fetch-prod-db` downloads the latest prod `pg_dump` from B2, **drops and recreates the `public` schema** of the target database, and restores into it. The restored data is raw prod data (PII included). `anonymise-db` is a separate, currently unused script that scrubs PII and seeds the dev accounts. Both scripts refuse to run when `RAILWAY_ENVIRONMENT_NAME=production`. `migrate` runs `prisma migrate deploy`, which applies any unapplied migration files in order without drift-checking.
+`fetch-prod-db` downloads the latest prod `pg_dump` from B2, **drops and recreates the `public` schema** of the target database, and restores into it. The restored data is raw prod data (PII included). `anonymise-db` is a separate, currently unused script that scrubs PII and seeds the dev accounts. Both scripts refuse to run when `RAILWAY_ENVIRONMENT_NAME=production`, and `fetch-prod-db` refuses in any Railway environment unless `ALLOW_DB_RESTORE=1` is set (set it only on the preview base environment). `migrate` runs `prisma migrate deploy`, which applies any unapplied migration files in order without drift-checking.
 
 Unit tests create a throwaway schema per test file (`vitest_*`) in the same database, and e2e workers use `e2e_<n>`; neither touches `public`.
 

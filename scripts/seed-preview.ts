@@ -8,7 +8,8 @@ import { resolveDbUrl } from '../lib/db-url'
  * a copy of production so reviewers see realistic data. Only an empty database
  * is seeded: the container also restarts on failure and on every push to the PR, and
  * reviewers' changes should survive those. SEED_PREVIEW_FORCE=1 reseeds regardless.
- * Production and environments without B2 credentials are left alone.
+ * Production, environments without B2 credentials, and environments without ALLOW_DB_RESTORE=1
+ * are left alone.
  */
 const isProduction = process.env.RAILWAY_ENVIRONMENT_NAME === 'production'
 const hasB2 = Boolean(process.env.B2_KEY_ID)
@@ -27,8 +28,10 @@ async function databaseIsEmpty(): Promise<boolean> {
 }
 
 async function main(): Promise<void> {
-  if (isProduction || !hasB2) {
-    console.log('[SEED-PREVIEW] Skipped (production or B2 not configured)')
+  if (isProduction || !hasB2 || process.env.ALLOW_DB_RESTORE !== '1') {
+    console.log(
+      '[SEED-PREVIEW] Skipped (production, B2 not configured, or ALLOW_DB_RESTORE not set)',
+    )
     return
   }
   if (process.env.SEED_PREVIEW_FORCE !== '1' && !(await databaseIsEmpty())) {
