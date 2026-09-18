@@ -10,15 +10,10 @@ import {
   TEST_PASSWORD,
 } from '@/test/factories'
 import { clientAs, anon } from '@/test/rpc'
+import { rateLimit } from '@/test/fakes/rate-limit'
 import { hashToken } from '@/lib/auth'
 
-const { checkRateLimitMock } = vi.hoisted(() => ({ checkRateLimitMock: vi.fn() }))
-vi.mock('@/lib/rate-limit', async (importOriginal) => {
-  const original = await importOriginal<typeof import('@/lib/rate-limit')>()
-  checkRateLimitMock.mockImplementation(original.checkRateLimit)
-  return { ...original, checkRateLimit: checkRateLimitMock }
-})
-const denyNext = () => checkRateLimitMock.mockReturnValueOnce({ allowed: false, retryAfterMs: 1 })
+const denyNext = () => rateLimit.denyNext()
 
 import { emails, linkParam } from '@/test/fakes/email'
 import { google } from '@/test/fakes/google'

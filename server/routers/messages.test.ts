@@ -2,13 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { prisma } from '@/lib/prisma'
 import { createVolunteer, createProject } from '@/test/factories'
 import { clientAs } from '@/test/rpc'
-
-const { checkRateLimitMock } = vi.hoisted(() => ({ checkRateLimitMock: vi.fn() }))
-vi.mock('@/lib/rate-limit', async (importOriginal) => {
-  const original = await importOriginal<typeof import('@/lib/rate-limit')>()
-  checkRateLimitMock.mockImplementation(original.checkRateLimit)
-  return { ...original, checkRateLimit: checkRateLimitMock }
-})
+import { rateLimit } from '@/test/fakes/rate-limit'
 
 import { emails } from '@/test/fakes/email'
 
@@ -83,7 +77,7 @@ describe('messages', () => {
     await expect(
       c.messages.send({ recipientId: noEmail.id, subject: 's', message: 'm' }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
-    checkRateLimitMock.mockReturnValueOnce({ allowed: false, retryAfterMs: 5 })
+    rateLimit.denyNext(5)
     await expect(
       c.messages.send({ recipientId: noEmail.id, subject: 's', message: 'm' }),
     ).rejects.toMatchObject({ code: 'TOO_MANY_REQUESTS' })

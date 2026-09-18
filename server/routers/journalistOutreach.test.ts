@@ -3,14 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { generateAuthToken, hashToken } from '@/lib/auth'
 import { CLAIM_MS, OUTREACH_TOKEN_HEADER } from '@/lib/journalist-outreach'
 import { anon, clientAs } from '@/test/rpc'
+import { rateLimit } from '@/test/fakes/rate-limit'
 import { createVolunteer, nextSeq } from '@/test/factories'
-
-const { checkRateLimitMock } = vi.hoisted(() => ({ checkRateLimitMock: vi.fn() }))
-vi.mock('@/lib/rate-limit', async (importOriginal) => {
-  const original = await importOriginal<typeof import('@/lib/rate-limit')>()
-  checkRateLimitMock.mockImplementation(original.checkRateLimit)
-  return { ...original, checkRateLimit: checkRateLimitMock }
-})
 
 import { emails, linkParam } from '@/test/fakes/email'
 
@@ -146,12 +140,11 @@ describe('journalistOutreach sign-in', () => {
   })
 
   it('rate limits link requests and verification', async () => {
-    const denied = { allowed: false, retryAfterMs: 1 }
-    checkRateLimitMock.mockReturnValueOnce(denied)
+    rateLimit.denyNext()
     await expect(
       anon().journalistOutreach.requestLink({ email: 'a@example.com' }),
     ).rejects.toMatchObject({ code: 'TOO_MANY_REQUESTS' })
-    checkRateLimitMock.mockReturnValueOnce(denied)
+    rateLimit.denyNext()
     await expect(anon().journalistOutreach.verify({ token: 'x' })).rejects.toMatchObject({
       code: 'TOO_MANY_REQUESTS',
     })
