@@ -8,6 +8,7 @@ import { LocationModalProvider } from '@/lib/location-modal-context'
 import Providers from '@/components/Providers'
 import FloatingActions from '@/components/FloatingActions'
 import Header from '@/components/Header'
+import MaintenanceGate from '@/components/MaintenanceGate'
 import Footer from '@/components/Footer'
 import CookieConsentBanner from '@/components/CookieConsentBanner'
 import ConfirmLocationModal from '@/components/ConfirmLocationModal'
@@ -70,12 +71,14 @@ export default function RootLayout({
               <ToastProvider>
                 <CookieConsentProvider>
                   <LocationModalProvider>
-                    <Header />
-                    <main id="main-content">{children}</main>
-                    <Footer />
-                    <FloatingActions />
-                    <CookieConsentBanner />
-                    <ConfirmLocationModal />
+                    <MaintenanceGate>
+                      <Header />
+                      <main id="main-content">{children}</main>
+                      <Footer />
+                      <FloatingActions />
+                      <CookieConsentBanner />
+                      <ConfirmLocationModal />
+                    </MaintenanceGate>
                   </LocationModalProvider>
                 </CookieConsentProvider>
               </ToastProvider>

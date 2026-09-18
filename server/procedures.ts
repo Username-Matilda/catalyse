@@ -1,9 +1,32 @@
 import { os, ORPCError } from '@orpc/server'
 import { ApprovalStatus } from '@/generated/prisma/enums'
 import { isSuperAdmin } from '@/lib/auth'
+import { canBypassMaintenance, isMaintenanceMode } from '@/lib/maintenance'
+import { MAINTENANCE_MESSAGE } from '@/lib/maintenance-message'
 import type { Context } from './context'
 
-const base = os.$context<Context>()
+// The procedures that keep working while maintenance mode is on: enough for the client to
+// learn the site is down, and for a super admin to sign in and be recognised as one.
+const MAINTENANCE_OPEN = new Set([
+  'maintenance.status',
+  'version.get',
+  'auth.googleClientId',
+  'auth.login',
+  'auth.google',
+  'auth.me',
+  'auth.logout',
+])
+
+const base = os.$context<Context>().use(async ({ context, next, path }) => {
+  if (
+    !MAINTENANCE_OPEN.has(path.join('.')) &&
+    !canBypassMaintenance(context.volunteer) &&
+    (await isMaintenanceMode())
+  ) {
+    throw new ORPCError('SERVICE_UNAVAILABLE', { message: MAINTENANCE_MESSAGE })
+  }
+  return next()
+})
 
 export const publicProcedure = base
 

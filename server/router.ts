@@ -42,6 +42,7 @@ import { adminNotificationsRouter } from './routers/admin/notifications'
 import { adminJournalistOutreachRouter } from './routers/admin/journalistOutreach'
 import { journalistOutreachRouter } from './routers/journalistOutreach'
 import { versionRouter } from './routers/version'
+import { maintenanceRouter } from './routers/maintenance'
 
 export const appRouter = {
   auth: authRouter,
@@ -66,6 +67,7 @@ export const appRouter = {
   privacy: privacyRouter,
   contact: contactRouter,
   version: versionRouter,
+  maintenance: maintenanceRouter,
   journalistOutreach: journalistOutreachRouter,
   admin: {
     journalistOutreach: adminJournalistOutreachRouter,

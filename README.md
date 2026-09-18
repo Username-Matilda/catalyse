@@ -115,6 +115,10 @@ Do **not** use `prisma migrate dev` — it checks for schema drift against the l
    npx prisma generate
    ```
 
+## Maintenance mode
+
+Super admins can take the site down from **Admin → Platform Settings → Maintenance mode**. Everyone else then sees a "down for maintenance" page and every API call except signing in is refused with a 503. Super admins (emails in `ADMIN_EMAILS`) can still log in at `/login` and use the whole site as normal, with a banner at the top of every page reminding them it is on; switch the toggle off there to bring the site back.
+
 ## Testing
 
 ### Running tests

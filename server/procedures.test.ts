@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { prisma } from '@/lib/prisma'
 import { createVolunteer, createAdmin, createSuperAdmin } from '@/test/factories'
 import { clientAs, anon } from '@/test/rpc'
 
@@ -49,6 +50,63 @@ describe('procedure gates', () => {
     const sa = await createSuperAdmin()
     expect(await clientAs(sa).admin.platformSettings.get()).toEqual({
       requireApplicationApproval: true,
+      maintenanceMode: false,
     })
   })
+})
+
+describe('maintenance mode', () => {
+  const setMaintenance = (maintenanceMode: boolean) =>
+    prisma.platformSettings.update({ where: { id: 1 }, data: { maintenanceMode } })
+  const withMaintenance = async (fn: () => Promise<void>) => {
+    await setMaintenance(true)
+    try {
+      await fn()
+    } finally {
+      await setMaintenance(false)
+    }
+  }
+
+  it('is off by default', async () => {
+    expect(await anon().maintenance.status()).toEqual({ active: false })
+    expect(await anon().skills.list()).toEqual(expect.any(Array))
+  })
+
+  it('refuses every procedure but the sign-in set for non-super-admins', () =>
+    withMaintenance(async () => {
+      const down = { code: 'SERVICE_UNAVAILABLE', message: expect.stringContaining('maintenance') }
+      expect(await anon().maintenance.status()).toEqual({ active: true })
+      await expect(anon().skills.list()).rejects.toMatchObject(down)
+      const admin = await createAdmin()
+      await expect(clientAs(admin).skills.list()).rejects.toMatchObject(down)
+      await expect(
+        anon().auth.signup({
+          name: 'New',
+          email: 'new@example.com',
+          password: 'password123',
+          applicationMessage: 'Keen',
+          bio: 'Bio',
+          country: 'GB',
+          availabilityHoursPerWeek: 2,
+        }),
+      ).rejects.toMatchObject(down)
+      await expect(clientAs(admin).admin.overview.counts()).rejects.toMatchObject(down)
+      // The sign-in set still answers, so the client can learn who is asking.
+      expect(await clientAs(admin).auth.me()).toMatchObject({ id: admin.id })
+      expect(await anon().version.get()).toMatchObject({ sha: expect.any(String) })
+      expect(await anon().auth.googleClientId()).toEqual(expect.any(Object))
+      // Being open to maintenance does not waive a procedure's own gate.
+      await expect(anon().auth.me()).rejects.toMatchObject({ code: 'UNAUTHORIZED' })
+    }))
+
+  it('lets super admins through everywhere, including to switch it off', () =>
+    withMaintenance(async () => {
+      const sa = await createSuperAdmin()
+      expect(await clientAs(sa).skills.list()).toEqual(expect.any(Array))
+      expect(await clientAs(sa).admin.overview.counts()).toMatchObject({ pendingTriage: 0 })
+      expect(
+        await clientAs(sa).admin.platformSettings.update({ maintenanceMode: false }),
+      ).toMatchObject({ maintenanceMode: false })
+      expect(await anon().maintenance.status()).toEqual({ active: false })
+    }))
 })

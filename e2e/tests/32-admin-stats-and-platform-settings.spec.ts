@@ -47,7 +47,7 @@ test.describe('Admin Platform Settings', () => {
       timeout: 10_000,
     })
 
-    const toggle = adminPage.getByRole('checkbox')
+    const toggle = adminPage.getByRole('checkbox', { name: 'Require application approval' })
     await expect(toggle).toBeVisible({ timeout: 10_000 })
     const wasChecked = await toggle.isChecked()
 
@@ -58,13 +58,10 @@ test.describe('Admin Platform Settings', () => {
     await expect(toggle).toBeChecked({ checked: !wasChecked })
 
     await adminPage.reload()
-    await expect(adminPage.getByRole('checkbox')).toBeChecked({
-      checked: !wasChecked,
-      timeout: 10_000,
-    })
+    await expect(toggle).toBeChecked({ checked: !wasChecked, timeout: 10_000 })
 
     // Restore original state so this test doesn't leak into others that assume approval is on.
-    await adminPage.getByRole('checkbox').click({ force: true })
+    await toggle.click({ force: true })
     await expect(adminPage.getByText('Settings saved')).toBeVisible({ timeout: 10_000 })
   })
 
