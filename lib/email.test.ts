@@ -11,6 +11,8 @@ import {
   UnconfiguredTransport,
 } from './email-transport'
 import { emails } from '@/test/fakes/email'
+import http from 'node:http'
+import { Resend } from 'resend'
 
 const sendMock = vi.fn()
 const resendClient = { emails: { send: sendMock } } as unknown as ResendClient
@@ -98,6 +100,56 @@ describe('email transports', () => {
     sendMock.mockRejectedValueOnce(new Error('network'))
     expect(await resend.send(message)).toBe(false)
     expect(sendMock.mock.calls[0][0]).not.toHaveProperty('replyTo')
+  })
+
+  it('puts the expected request on the wire through the real Resend SDK', async () => {
+    // A stand-in for api.resend.com, so the SDK's serialisation and error handling run for
+    // real instead of being replaced by the fake client above.
+    const requests: { auth: string | undefined; body: Record<string, unknown> }[] = []
+    let status = 200
+    const server = http.createServer((req, res) => {
+      let body = ''
+      req.on('data', (chunk) => (body += chunk))
+      req.on('end', () => {
+        requests.push({ auth: req.headers.authorization, body: JSON.parse(body) })
+        res.writeHead(status, { 'content-type': 'application/json' })
+        res.end(
+          JSON.stringify(
+            status === 200
+              ? { id: 'email_1' }
+              : { statusCode: status, name: 'validation_error', message: 'bad from' },
+          ),
+        )
+      })
+    })
+    await new Promise<void>((resolve) => server.listen(0, resolve))
+    const address = server.address()
+    if (!address || typeof address === 'string') throw new Error('server has no port')
+    const client = new Resend('re_key', { baseUrl: `http://127.0.0.1:${address.port}` })
+    const resend = new ResendTransport(
+      { ...baseEnv, RESEND_API_KEY: 're_key', REPLY_TO_EMAIL: 'reply@x' },
+      client,
+    )
+    try {
+      expect(await resend.send(message)).toBe(true)
+      expect(requests[0]).toEqual({
+        auth: 'Bearer re_key',
+        body: {
+          from: 'from@x',
+          to: ['a@b.c'],
+          subject: 'Hello',
+          html: '<p>hi</p>',
+          reply_to: 'reply@x',
+        },
+      })
+      status = 422
+      expect(await resend.send(message)).toBe(false)
+      expect(console.error).toHaveBeenCalledWith('[EMAIL ERROR] bad from')
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()))
+    }
+    // With the server gone the SDK reports the failed connection as an error, not a throw.
+    expect(await resend.send(message)).toBe(false)
   })
 
   it('relays a message with the sender as reply-to', async () => {
