@@ -160,14 +160,83 @@ function figure(caption: string, src: string, alt: string, provenance: string, t
   return `<figure><figcaption>${caption} ${provenance}${time}</figcaption><a href="${src}"><img loading="lazy" src="${src}" alt="${escapeHtml(alt)}" /></a></figure>`
 }
 
-function rowSection(row: GalleryRow): string {
+/** The rows that are one capture across lanes: same spec, test and label. */
+interface RowGroup {
+  id: string
+  spec: string
+  describe: string
+  title: string
+  testKey: string
+  testLine: number
+  seq: number
+  label: string
+  rows: GalleryRow[]
+}
+
+/** A key that names a capture without its lane, so lanes of one capture group. */
+function groupKey(row: GalleryRow): string {
+  return `${row.spec}|${row.testKey.replace(/^[^-]+-[^-]+--/, '')}|${String(row.seq)}|${row.label}`
+}
+
+function groupRows(rows: GalleryRow[]): RowGroup[] {
+  const groups = new Map<string, RowGroup>()
+  for (const row of rows) {
+    const key = groupKey(row)
+    let group = groups.get(key)
+    if (!group) {
+      group = {
+        id: slugId(key),
+        spec: row.spec,
+        describe: row.describe,
+        title: row.title,
+        testKey: row.testKey.replace(/^[^-]+-[^-]+--/, ''),
+        testLine: row.testLine,
+        seq: row.seq,
+        label: row.label,
+        rows: [],
+      }
+      groups.set(key, group)
+    }
+    group.rows.push(row)
+  }
+  return [...groups.values()]
+}
+
+function slugId(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+/** What a row is, over all its lanes: the worst state any lane is in. */
+function groupState(group: RowGroup): 'failed' | 'unsettled' | 'changed' | 'same' {
+  if (group.rows.some((row) => row.testStatus === 'failed')) return 'failed'
+  if (group.rows.some((row) => row.unsettled)) return 'unsettled'
+  if (group.rows.some((row) => row.changed)) return 'changed'
+  return 'same'
+}
+
+function lanePane(row: GalleryRow): string {
   const previous =
     row.hasPrevious && row.previousSrc !== undefined
-      ? figure('Previous', row.previousSrc, `${row.label} previous`, runLabel(row.previousRun), row.previousTimestamp)
+      ? figure(
+          'Previous',
+          row.previousSrc,
+          `${row.label} previous`,
+          runLabel(row.previousRun),
+          row.previousTimestamp,
+        )
       : `<figure class="missing"><figcaption>Previous</figcaption><div>No previous run</div></figure>`
   const current =
     row.hasCurrent && row.currentSrc !== undefined
-      ? figure('Current', row.currentSrc, `${row.label} current`, runLabel(row.currentRun), row.currentTimestamp)
+      ? figure(
+          'Current',
+          row.currentSrc,
+          `${row.label} current`,
+          runLabel(row.currentRun),
+          row.currentTimestamp,
+        )
       : `<figure class="missing"><figcaption>Current</figcaption><div>Never captured</div></figure>`
   const status = row.changed
     ? `Changed${row.hasPrevious ? ` · ${String(row.diffPixels)}px` : ''}`
@@ -189,70 +258,80 @@ function rowSection(row: GalleryRow): string {
   const failureNote =
     row.testError === undefined ? '' : `<p class="failure">${escapeHtml(row.testError)}</p>`
   const columns = 2 + [diffFigure, failureFigure].filter((part) => part !== '').length
-  return `<section id="${row.id}" data-lane="${escapeHtml(row.lane)}" data-viewport="${escapeHtml(row.viewport)}" data-theme="${escapeHtml(row.theme)}" data-spec="${escapeHtml(row.spec)}" data-changed="${String(row.changed)}" data-run="${row.testStatus === undefined ? 'other' : 'this'}" data-text="${escapeHtml(`${row.spec} ${row.test} ${row.label}`.toLowerCase())}">
+  return `<div class="pane" data-lane="${escapeHtml(row.lane)}" data-viewport="${escapeHtml(row.viewport)}" data-theme="${escapeHtml(row.theme)}" data-changed="${String(row.changed)}" data-run="${row.testStatus === undefined ? 'other' : 'this'}">
+      <div class="pane-head"><p><code>${escapeHtml(row.path)}</code></p><div class="badges">${rowBadge(row)}${timing}<span>${status}</span></div></div>
+      ${failureNote}
+      <div class="shots" style="grid-template-columns: repeat(${String(columns)}, minmax(0, 1fr))">
+        ${previous}
+        ${current}
+        ${diffFigure}
+        ${failureFigure}
+      </div>
+    </div>`
+}
+
+function rowSection(group: RowGroup): string {
+  const lanes = group.rows.map((row) => row.lane)
+  const changedLanes = group.rows.filter((row) => row.changed).map((row) => row.lane)
+  const anyThisRun = group.rows.some((row) => row.testStatus !== undefined)
+  return `<section id="${group.id}" data-spec="${escapeHtml(group.spec)}" data-state="${groupState(group)}" data-lanes="${escapeHtml(lanes.join(' '))}" data-changed-lanes="${escapeHtml(changedLanes.join(' '))}" data-run="${anyThisRun ? 'this' : 'other'}" data-text="${escapeHtml(`${group.spec} ${group.describe} ${group.title} ${group.label}`.toLowerCase())}">
     <header>
-      <div><p>${escapeHtml(row.laneLabel)} · ${escapeHtml(row.spec)}${row.describe === '' ? '' : ` · ${escapeHtml(row.describe)}`} · <code>${escapeHtml(row.path)}</code></p><h2>${escapeHtml(row.title)} <em>› ${escapeHtml(row.label)}</em></h2></div>
-      <div class="badges">${rowBadge(row)}${timing}<span>${status}</span></div>
+      <div><p>${escapeHtml(group.spec)}${group.describe === '' ? '' : ` · ${escapeHtml(group.describe)}`}</p><h2>${escapeHtml(group.title)} <em>› ${escapeHtml(group.label)}</em></h2></div>
+      <p class="elsewhere" hidden>Not captured in this lane. Changed in: <span></span></p>
     </header>
-    ${failureNote}
-    <div class="shots" style="grid-template-columns: repeat(${String(columns)}, minmax(0, 1fr))">
-      ${previous}
-      ${current}
-      ${diffFigure}
-      ${failureFigure}
-    </div>
+    ${group.rows.map(lanePane).join('')}
   </section>`
 }
 
-function navChip(row: GalleryRow): string {
-  const state =
-    row.testStatus === 'failed'
-      ? 'failed'
-      : row.unsettled
-        ? 'unsettled'
-        : row.changed
-          ? 'changed'
-          : 'same'
-  const carried = row.testStatus === undefined ? ' carried' : ''
-  return `<a href="#${row.id}" data-target="${row.id}" class="cap ${state}${carried}" data-lane="${escapeHtml(row.lane)}" data-viewport="${escapeHtml(row.viewport)}" data-theme="${escapeHtml(row.theme)}" data-spec="${escapeHtml(row.spec)}" data-changed="${String(row.changed)}" data-run="${row.testStatus === undefined ? 'other' : 'this'}" data-text="${escapeHtml(`${row.spec} ${row.test} ${row.label}`.toLowerCase())}" title="${escapeHtml(`${row.label}: ${state}${carried === '' ? '' : ', from an earlier run'}`)}">${escapeHtml(row.label)}</a>`
+function navMark(state: ReturnType<typeof groupState>): string {
+  if (state === 'same') return ''
+  return `<i class="mark ${state}" title="${state}"></i>`
 }
 
 /**
- * Lane, then spec, then one block per test carrying its captures as chips.
- * The describe block is a subheading only where a spec has more than one, so
- * a title is never prefixed with words the heading above it already said.
+ * Lane-independent: one line per test under its spec, the spec folded until
+ * it holds something worth opening or the reader opens it. A test shows a
+ * mark only when one of its captures changed, failed or never settled, since
+ * a list of what stayed the same is nothing anyone came to read.
  */
-function navRail(rows: GalleryRow[]): string {
-  const lanes = [...new Set(rows.map((row) => row.lane))]
-  return lanes
-    .map((laneId) => {
-      const laneRows = rows.filter((row) => row.lane === laneId)
-      const specs = [...new Set(laneRows.map((row) => row.spec))]
-      const laneLabel = laneRows[0]?.laneLabel ?? laneId
-      return `<h2 data-lane="${escapeHtml(laneId)}">${escapeHtml(laneLabel)}</h2>${specs
-        .map((spec) => {
-          const specRows = laneRows.filter((row) => row.spec === spec)
-          const describes = [...new Set(specRows.map((row) => row.describe))]
-          const tests = [...new Set(specRows.map((row) => row.testKey))]
-          let lastDescribe: string | undefined
-          const blocks = tests
-            .map((key) => {
-              const captures = specRows.filter((row) => row.testKey === key)
-              const first = captures[0]
-              const heading =
-                describes.length > 1 && first.describe !== lastDescribe
-                  ? `<h4>${escapeHtml(first.describe === '' ? 'Outside a describe' : first.describe)}</h4>`
-                  : ''
-              lastDescribe = first.describe
-              return `${heading}<div class="test"><a class="title" href="#${first.id}" data-target="${first.id}" title="${escapeHtml(first.test)}">${escapeHtml(first.title)}</a><div class="caps">${captures.map(navChip).join('')}</div></div>`
-            })
+function navRail(groups: RowGroup[]): string {
+  const specs = [...new Set(groups.map((group) => group.spec))]
+  return specs
+    .map((spec) => {
+      const specGroups = groups.filter((group) => group.spec === spec)
+      const describes = [...new Set(specGroups.map((group) => group.describe))]
+      const tests = [...new Set(specGroups.map((group) => group.testKey))]
+      let lastDescribe: string | undefined
+      const items = tests
+        .map((key) => {
+          const captures = specGroups.filter((group) => group.testKey === key)
+          const first = captures[0]
+          const heading =
+            describes.length > 1 && first.describe !== lastDescribe
+              ? `<h4>${escapeHtml(first.describe === '' ? 'Outside a describe' : first.describe)}</h4>`
+              : ''
+          lastDescribe = first.describe
+          const worst = captures
+            .map(groupState)
+            .sort((a, b) => RANK[a] - RANK[b])[0]
+          const marks = captures
+            .filter((group) => groupState(group) !== 'same')
+            .map(
+              (group) =>
+                `<a class="cap" href="#${group.id}" data-target="${group.id}" title="${escapeHtml(`${group.label}: ${groupState(group)}`)}">${navMark(groupState(group))}${escapeHtml(group.label)}</a>`,
+            )
             .join('')
-          return `<h3 data-lane="${escapeHtml(laneId)}" data-spec="${escapeHtml(spec)}">${escapeHtml(spec)}</h3>${blocks}`
+          return `${heading}<div class="test" data-state="${worst}" data-targets="${captures.map((group) => group.id).join(' ')}" data-text="${escapeHtml(`${spec} ${first.describe} ${first.title} ${captures.map((group) => group.label).join(' ')}`.toLowerCase())}"><a class="title" href="#${first.id}" data-target="${first.id}" title="${escapeHtml(`${first.describe === '' ? '' : `${first.describe} › `}${first.title}`)}">${escapeHtml(first.title)}</a>${marks === '' ? '' : `<span class="caps">${marks}</span>`}</div>`
         })
-        .join('')}`
+        .join('')
+      const specState = specGroups.map(groupState).sort((a, b) => RANK[a] - RANK[b])[0]
+      const open = specState !== 'same'
+      return `<details data-spec="${escapeHtml(spec)}" data-state="${specState}"${open ? ' open' : ''}><summary>${escapeHtml(spec)}${navMark(specState)}<b></b></summary>${items}</details>`
     })
     .join('')
 }
+
+const RANK = { failed: 0, unsettled: 1, changed: 2, same: 3 } as const
 
 export function renderGallery(
   rows: GalleryRow[],
@@ -264,38 +343,39 @@ export function renderGallery(
   const baselineBanner = baseline
     ? `<div class="baseline-banner">Baseline pinned at <code>${escapeHtml(baseline.ref)}</code> (${escapeHtml(baseline.sha.slice(0, 7))}). Plain runs diff against it. Clear with <code>npm run snapshots -- --clear-baseline</code>.</div>`
     : ''
-  const body = rows.map(rowSection).join('')
+  const groups = groupRows(rows)
+  const body = groups.map(rowSection).join('')
   const changedCount = (predicate: (row: GalleryRow) => boolean): string => {
     const changed = rows.filter((row) => predicate(row) && row.changed).length
     return changed === 0 ? '' : `<b>${String(changed)}</b>`
   }
   const viewports = [...new Set(rows.map((row) => row.viewport))]
   const themes = [...new Set(rows.map((row) => row.theme))]
+  const switchFor = (name: string, values: string[]): string =>
+    values.length < 2
+      ? ''
+      : `<div class="switch" data-switch="${name}">${values
+          .map(
+            (value) =>
+              `<button type="button" data-value="${escapeHtml(value)}">${escapeHtml(value)}${changedCount((row) => (name === 'viewport' ? row.viewport : row.theme) === value)}</button>`,
+          )
+          .join('')}</div>`
   const total = `<p class="total">
     <span class="figure"><b>${escapeHtml(formatDuration(cost.wallMs))}</b> <em>waited</em></span>
     <span class="figure"><b>${String(cost.captures)}</b> <em>captures this run</em></span>
   </p>`
-  const chip = (value: string, label: string, count: string): string =>
-    `<button type="button" data-value="${escapeHtml(value)}">${escapeHtml(label)}${count}</button>`
   const filters = `<div class="filters">
     <div class="filter-row" data-filter="run">
       <button type="button" data-value="this" class="on">This run${changedCount((row) => row.testStatus !== undefined)}</button>
       <button type="button" data-value="all">All rows${changedCount(() => true)}</button>
-    </div>
-    <div class="filter-row" data-filter="viewport">
-      <button type="button" data-value="all" class="on">All viewports</button>
-      ${viewports.map((viewport) => chip(viewport, viewport, changedCount((row) => row.viewport === viewport))).join('')}
-    </div>
-    <div class="filter-row" data-filter="theme">
-      <button type="button" data-value="all" class="on">All themes</button>
-      ${themes.map((theme) => chip(theme, theme, changedCount((row) => row.theme === theme))).join('')}
     </div>
     <div class="filter-row" data-filter="changed">
       <button type="button" data-value="all" class="on">Everything</button>
       <button type="button" data-value="changed">Changed only${changedCount(() => true)}</button>
     </div>
     <input type="search" id="search" placeholder="Filter by spec, test or label" />
-  </div>`
+  </div>
+  <div class="switches">${switchFor('viewport', viewports)}${switchFor('theme', themes)}</div>`
   const { done, planned } = runProgress(manifest)
   return `<!doctype html>
 <html lang="en">
@@ -316,20 +396,43 @@ export function renderGallery(
     aside p.total em { color: #94a3b8; font-size: .72rem; font-style: normal; line-height: 1.3; }
     aside h2 { margin: 1rem 0 .35rem; color: #334155; font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; }
     aside h3 { margin: .6rem 0 .2rem; color: #94a3b8; font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; }
-    aside h4 { margin: .5rem 0 .1rem; color: #64748b; font-size: .72rem; font-weight: 600; }
-    aside .test { margin: .1rem 0 .35rem; padding: .3rem .45rem; border-radius: .45rem; }
+    aside details { margin: .2rem 0; }
+    aside summary { display: flex; align-items: center; gap: .35rem; padding: .35rem .3rem; border-radius: .4rem; color: #334155; font-size: .78rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; cursor: pointer; list-style: none; }
+    aside summary::-webkit-details-marker { display: none; }
+    aside summary::before { content: "›"; display: inline-block; width: .8rem; color: #94a3b8; font-size: 1rem; line-height: 1; transition: transform .12s; }
+    aside details[open] > summary::before { transform: rotate(90deg); }
+    aside summary:hover { background: #f1f5f9; }
+    aside summary b { margin-left: auto; color: #94a3b8; font-size: .68rem; font-weight: 600; letter-spacing: 0; text-transform: none; }
+    aside h4 { margin: .4rem 0 .1rem 1.1rem; color: #64748b; font-size: .72rem; font-weight: 600; }
+    aside .test { display: flex; flex-wrap: wrap; align-items: baseline; gap: .15rem .4rem; margin: 0 0 .05rem 1.1rem; padding: .25rem .4rem; border-radius: .4rem; }
     aside .test.active { background: #eff6ff; }
-    aside a.title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: #334155; text-decoration: none; font-size: .85rem; line-height: 1.3; }
+    aside a.title { color: #334155; text-decoration: none; font-size: .85rem; line-height: 1.3; }
     aside a.title:hover { color: #1a73e8; }
-    aside .caps { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .25rem; }
-    aside a.cap { padding: .1rem .45rem; border-radius: 999px; background: #eef2f7; color: #475569; text-decoration: none; font-size: .68rem; font-weight: 600; white-space: nowrap; }
-    aside a.cap.changed { background: #fee2e2; color: #b91c1c; }
-    aside a.cap.failed { background: #fee2e2; color: #b91c1c; text-decoration: line-through; }
-    aside a.cap.unsettled { background: #fef3c7; color: #92400e; }
-    aside a.cap.carried { opacity: .55; }
+    aside .caps { display: inline-flex; flex-wrap: wrap; gap: .25rem; }
+    aside a.cap { display: inline-flex; align-items: center; gap: .25rem; padding: 0 .4rem; border-radius: 999px; background: #eef2f7; color: #475569; text-decoration: none; font-size: .68rem; font-weight: 600; white-space: nowrap; }
     aside a.cap.active { outline: 2px solid #1a73e8; }
+    i.mark { display: inline-block; width: .5rem; height: .5rem; border-radius: 999px; background: #dc2626; vertical-align: middle; }
+    i.mark.unsettled { background: #d97706; }
+    i.mark.failed { background: #dc2626; box-shadow: 0 0 0 2px #fecaca; }
     section h2 em { color: #64748b; font-style: normal; font-weight: 500; }
-    aside a[hidden], aside .test[hidden], aside h2[hidden], aside h3[hidden], aside h4[hidden], section[hidden] { display: none; }
+    aside .test[hidden], aside details[hidden], aside h4[hidden], section[hidden], .pane[hidden] { display: none; }
+    .switches { display: flex; flex-direction: column; gap: .4rem; margin: .5rem 0 .75rem; }
+    .switch { display: flex; align-items: center; gap: .5rem; font-size: .78rem; color: #64748b; }
+    .switch::before { content: attr(data-switch); width: 4.2rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; font-size: .68rem; }
+    .switch button { flex: 1; padding: .3rem .5rem; border: 1px solid #cbd5e1; margin-left: -1px; background: #fff; color: #64748b; font: inherit; font-size: .8rem; font-weight: 600; cursor: pointer; text-transform: capitalize; }
+    .switch button:first-of-type { border-radius: .4rem 0 0 .4rem; margin-left: 0; }
+    .switch button:last-of-type { border-radius: 0 .4rem .4rem 0; }
+    .switch button.on { background: #1e293b; border-color: #1e293b; color: #fff; }
+    .switch button b { margin-left: .3rem; padding: 0 .3rem; border-radius: 999px; background: #fee2e2; color: #b91c1c; font-size: .7rem; }
+    .pane-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .5rem 1rem 0; }
+    .pane-head p { margin: 0; }
+    .pane-head .badges { display: flex; align-items: center; gap: .5rem; flex: none; }
+    .pane-head span { border-radius: 999px; padding: .2rem .55rem; background: #e2e8f0; color: #334155; font-size: .78rem; font-weight: 700; white-space: nowrap; }
+    .pane-head .timing { background: #eef2f7; color: #64748b; font-variant-numeric: tabular-nums; }
+    .pane[data-changed="true"] .pane-head span { background: #fff7ed; color: #c2410c; }
+    .pane[data-changed="true"] .pane-head .timing { background: #eef2f7; color: #64748b; }
+    p.elsewhere { margin: 0; color: #64748b; font-size: .8rem; font-weight: 400; text-transform: none; letter-spacing: 0; }
+    p.elsewhere span { font-weight: 600; color: #c2410c; }
     .filters { display: flex; flex-direction: column; gap: .35rem; margin: 0 0 .5rem; }
     .filter-row { display: flex; flex-wrap: wrap; gap: .3rem; }
     .filter-row button { display: inline-flex; align-items: center; gap: .35rem; padding: .3rem .6rem; border: 1px solid #d9e0ea; border-radius: 999px; background: #fff; color: #334155; font: inherit; font-size: .8rem; cursor: pointer; }
@@ -345,11 +448,6 @@ export function renderGallery(
     section h2 { font-size: 1.05rem; }
     section p { color: #64748b; font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
     section p code { text-transform: none; letter-spacing: 0; font-weight: 500; }
-    section header .badges { display: flex; align-items: center; gap: .5rem; flex: none; }
-    section header span { border-radius: 999px; padding: .2rem .55rem; background: #e2e8f0; color: #334155; font-size: .78rem; font-weight: 700; white-space: nowrap; }
-    section header .timing { background: #eef2f7; color: #64748b; font-variant-numeric: tabular-nums; }
-    section[data-changed="true"] header span { background: #fff7ed; color: #c2410c; }
-    section[data-changed="true"] header .timing { background: #eef2f7; color: #64748b; }
     .shots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; padding: 1rem; }
     figure { margin: 0; min-width: 0; }
     figure.diff figcaption, figure.failed figcaption { color: #b91c1c; }
@@ -360,8 +458,7 @@ export function renderGallery(
     img, .missing div { width: 100%; border: 1px solid #d9e0ea; border-radius: .35rem; background: #f8fafc; }
     img { display: block; height: auto; }
 ${LANES.map(
-  (lane) =>
-    `    section[data-lane="${lane.id}"] img { max-width: ${String(lane.width)}px; }`,
+  (lane) => `    .pane[data-lane="${lane.id}"] img { max-width: ${String(lane.width)}px; }`,
 ).join('\n')}
     .missing div { display: grid; min-height: 12rem; place-items: center; color: #64748b; }
     .baseline-banner { margin: 0 0 1.25rem; padding: .6rem 1rem; border: 1px solid #fcd34d; border-radius: .5rem; background: #fffbeb; color: #92400e; font-size: .82rem; }
@@ -395,67 +492,91 @@ ${LANES.map(
     <p>Generated by <code>npm run snapshots</code>. Nothing here is tracked by git; this page compares the latest run with the one before it.</p>
     ${total}
     ${filters}
-    ${navRail(rows)}
+    ${navRail(groups)}
   </aside>
   <main>${runBanner(manifest, baseline, cost)}${baselineBanner}${mixedBaselineBanner(rows)}${mixedCurrentBanner(rows)}${body}<p class="empty" id="empty" hidden>Nothing matches these filters.</p></main>
   <script>
-    const chosen = { run: "this", viewport: "all", theme: "all", changed: "all" };
+    const chosen = { run: "this", changed: "all", viewport: "", theme: "" };
     for (const key of Object.keys(chosen)) {
       const saved = localStorage.getItem("catalyse-snapshots-" + key);
       if (saved) chosen[key] = saved;
     }
+    // A switch's first position is the default, and a remembered position
+    // that this page has no lane for falls back to it.
+    for (const sw of document.querySelectorAll(".switch")) {
+      const values = [...sw.querySelectorAll("button")].map((button) => button.dataset.value);
+      if (!values.includes(chosen[sw.dataset.switch])) chosen[sw.dataset.switch] = values[0];
+    }
     const search = document.getElementById("search");
     search.value = localStorage.getItem("catalyse-snapshots-search") || "";
-    const matches = (element) =>
-      (chosen.viewport === "all" || element.dataset.viewport === undefined || element.dataset.viewport === chosen.viewport) &&
-      (chosen.theme === "all" || element.dataset.theme === undefined || element.dataset.theme === chosen.theme) &&
-      (chosen.run === "all" || element.dataset.run !== "other") &&
-      (chosen.changed === "all" || element.dataset.changed === "true") &&
-      (search.value === "" || element.dataset.text === undefined || element.dataset.text.includes(search.value.toLowerCase()));
-    // A heading stays while any test block under it, down to the next
-    // heading of its own rank or higher, is still showing.
-    const hideEmptyHeadings = (tag, stopAt) => {
-      for (const heading of document.querySelectorAll("aside " + tag)) {
-        let sibling = heading.nextElementSibling;
-        let any = false;
-        while (sibling && !stopAt.includes(sibling.tagName)) {
-          if (!sibling.hidden && sibling.tagName === "DIV") any = true;
-          sibling = sibling.nextElementSibling;
-        }
-        heading.hidden = !any;
-      }
-    };
+    const laneShown = (pane) =>
+      (chosen.viewport === "" || pane.dataset.viewport === chosen.viewport) &&
+      (chosen.theme === "" || pane.dataset.theme === chosen.theme);
+    const sectionShown = (section) =>
+      (chosen.run === "all" || section.dataset.run !== "other") &&
+      (chosen.changed === "all" || section.dataset.state !== "same") &&
+      (search.value === "" || section.dataset.text.includes(search.value.toLowerCase()));
+    const laneName = (pane) => pane.dataset.viewport + " · " + pane.dataset.theme;
     const applyFilters = () => {
       let shown = 0;
-      for (const element of document.querySelectorAll("section, aside a.cap")) {
-        element.hidden = !matches(element);
-        if (element.tagName === "SECTION" && !element.hidden) shown += 1;
+      const visible = new Set();
+      for (const section of document.querySelectorAll("main section")) {
+        section.hidden = !sectionShown(section);
+        if (section.hidden) continue;
+        shown += 1;
+        visible.add(section.id);
+        // The chosen lane's pane shows; when this row has none, say where it does exist.
+        let any = false;
+        const changedElsewhere = [];
+        for (const pane of section.querySelectorAll(".pane")) {
+          pane.hidden = !laneShown(pane);
+          if (!pane.hidden) any = true;
+          else if (pane.dataset.changed === "true") changedElsewhere.push(laneName(pane));
+        }
+        const note = section.querySelector(".elsewhere");
+        note.hidden = any;
+        note.querySelector("span").textContent = changedElsewhere.length ? changedElsewhere.join(", ") : "no other lane";
       }
       document.getElementById("empty").hidden = shown > 0;
       for (const banner of document.querySelectorAll("[data-when]")) {
         banner.hidden = banner.dataset.when !== chosen.run;
       }
       for (const block of document.querySelectorAll("aside .test")) {
-        const chips = [...block.querySelectorAll("a.cap")];
-        block.hidden = chips.every((chip) => chip.hidden);
-        const first = chips.find((chip) => !chip.hidden);
-        if (first) block.querySelector("a.title").href = first.getAttribute("href");
+        block.hidden = !block.dataset.targets.split(" ").some((id) => visible.has(id));
       }
-      hideEmptyHeadings("h4", ["H2", "H3", "H4"]);
-      hideEmptyHeadings("h3", ["H2", "H3"]);
-      hideEmptyHeadings("h2", ["H2"]);
+      for (const details of document.querySelectorAll("aside details")) {
+        const tests = [...details.querySelectorAll(".test")];
+        const showing = tests.filter((block) => !block.hidden);
+        details.hidden = showing.length === 0;
+        details.querySelector("summary b").textContent = showing.length + " / " + tests.length;
+        for (const heading of details.querySelectorAll("h4")) {
+          let sibling = heading.nextElementSibling;
+          let any = false;
+          while (sibling && sibling.tagName !== "H4") {
+            if (!sibling.hidden) any = true;
+            sibling = sibling.nextElementSibling;
+          }
+          heading.hidden = !any;
+        }
+      }
       for (const row of document.querySelectorAll(".filter-row")) {
         for (const button of row.querySelectorAll("button")) {
           button.classList.toggle("on", button.dataset.value === chosen[row.dataset.filter]);
         }
       }
+      for (const sw of document.querySelectorAll(".switch")) {
+        for (const button of sw.querySelectorAll("button")) {
+          button.classList.toggle("on", button.dataset.value === chosen[sw.dataset.switch]);
+        }
+      }
     };
-    for (const row of document.querySelectorAll(".filter-row")) {
+    for (const row of document.querySelectorAll(".filter-row, .switch")) {
+      const key = row.dataset.filter || row.dataset.switch;
       row.addEventListener("click", (event) => {
         const button = event.target.closest("button");
         if (!button) return;
-        chosen[row.dataset.filter] = button.dataset.value;
-        localStorage.setItem("catalyse-snapshots-" + row.dataset.filter, button.dataset.value);
+        chosen[key] = button.dataset.value;
+        localStorage.setItem("catalyse-snapshots-" + key, button.dataset.value);
         applyFilters();
       });
     }
@@ -465,19 +586,33 @@ ${LANES.map(
     });
     applyFilters();
 
-    const links = [...document.querySelectorAll("aside a.cap")];
+    // A spec stays folded unless it holds something to look at or the reader
+    // opened it; both are remembered per spec.
+    for (const details of document.querySelectorAll("aside details")) {
+      const saved = localStorage.getItem("catalyse-snapshots-open-" + details.dataset.spec);
+      if (saved !== null) details.open = saved === "1";
+      details.addEventListener("toggle", () => {
+        localStorage.setItem("catalyse-snapshots-open-" + details.dataset.spec, details.open ? "1" : "0");
+      });
+    }
+
+    const blocks = [...document.querySelectorAll("aside .test")];
     const activate = (id) => {
-      for (const link of links) link.classList.toggle("active", link.dataset.target === id);
-      for (const block of document.querySelectorAll("aside .test")) {
-        block.classList.toggle("active", [...block.querySelectorAll("a.cap")].some((chip) => chip.dataset.target === id));
+      for (const block of blocks) {
+        const on = block.dataset.targets.split(" ").includes(id);
+        block.classList.toggle("active", on);
+        if (on) {
+          const details = block.closest("details");
+          if (details && !details.open) details.open = true;
+        }
       }
+      for (const cap of document.querySelectorAll("aside a.cap")) cap.classList.toggle("active", cap.dataset.target === id);
     };
     const observer = new IntersectionObserver((entries) => {
       const visible = entries.filter((entry) => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
       if (visible && !visible.target.hidden) activate(visible.target.id);
     }, { rootMargin: "-10% 0px -70% 0px", threshold: [0, .25, .5, .75] });
-    for (const section of document.querySelectorAll("section")) observer.observe(section);
-    activate(links[0]?.dataset.target);
+    for (const section of document.querySelectorAll("main section")) observer.observe(section);
 ${
   running
     ? `    addEventListener("beforeunload", () => sessionStorage.setItem("catalyse-snapshots-scroll", String(scrollY)));

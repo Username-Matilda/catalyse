@@ -84,9 +84,14 @@ run holds still everything it can:
 ## Reading the gallery
 
 It opens on **This run**, the rows you just waited for; **All rows** adds the
-rest of the suite from earlier runs. Chips filter by viewport and theme, and
-by changed rows only; the search box filters by spec, test or label. The rail
-remembers your choice between runs.
+rest of the suite from earlier runs. A row is one capture, and the
+**viewport** and **theme** switches pick which lane's pictures it shows; a row
+with no picture in that lane says so, and names the lanes where it changed.
+**Changed only** hides rows that stayed the same in every lane, and the search
+box filters by spec, test or label. The rail lists each spec folded, with a
+mark and a count where something inside changed, and marks a test only when
+one of its captures changed, failed or never settled. Every choice, and which
+specs you unfolded, is remembered between runs.
 
 Each row is marked changed or same from a pixel-by-pixel comparison of the two
 images. It ignores a per-channel difference of a few levels, which is font
