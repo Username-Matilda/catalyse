@@ -78,6 +78,12 @@ jobs:
     needs: capture
     if: always() && github.event.action != 'closed' && needs.capture.result != 'cancelled'
     runs-on: ubuntu-latest
+    # The branch is rebuilt whole from what is on it, so two publishes at once
+    # would each drop the other's gallery. Captures run in parallel; this
+    # step alone queues.
+    concurrency:
+      group: snapshots-publish
+      cancel-in-progress: false
     permissions:
       contents: write
       pages: write
@@ -171,6 +177,9 @@ jobs:
   unpublish:
     if: github.event.action == 'closed'
     runs-on: ubuntu-latest
+    concurrency:
+      group: snapshots-publish
+      cancel-in-progress: false
     permissions:
       contents: write
     steps:
