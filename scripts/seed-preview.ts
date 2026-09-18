@@ -35,7 +35,7 @@ async function main(): Promise<void> {
     console.log('[SEED-PREVIEW] Skipped (database already has tables; set SEED_PREVIEW_FORCE=1)')
     return
   }
-  execSync('npm run fetch-anonymised-db', { stdio: 'inherit' })
+  execSync('npm run fetch-prod-db', { stdio: 'inherit' })
 }
 
 main().catch((err) => {

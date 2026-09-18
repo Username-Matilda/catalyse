@@ -43,7 +43,7 @@ Catalyse connects volunteers with projects, matching skills to needs and enablin
 - npm
 - A PostgreSQL 18 server. `docker compose up -d` starts one matching CI and production; a
   native install (Homebrew, apt, Postgres.app) works too — set `DATABASE_URL` accordingly.
-  `pg_dump`/`pg_restore` are needed for `fetch-anonymised-db` and the backup job.
+  `pg_dump`/`pg_restore` are needed for `fetch-prod-db` and the backup job.
 
 ### Installation
 
@@ -93,10 +93,10 @@ On next login, the app will automatically grant admin access. Multiple emails ca
 The local dev database is a copy of prod with PII anonymised, restored into whatever `DATABASE_URL` points at. Refresh it with:
 
 ```bash
-npm run fetch-anonymised-db && npm run migrate
+npm run fetch-prod-db && npm run migrate
 ```
 
-`fetch-anonymised-db` downloads the anonymised copy of production from B2 and **drops and recreates the `public` schema** of the target database before restoring into it. It refuses to run when `RAILWAY_ENVIRONMENT_NAME=production`. `migrate` runs `prisma migrate deploy`, which applies any unapplied migration files in order without drift-checking.
+`fetch-prod-db` downloads the anonymised copy of production from B2 and **drops and recreates the `public` schema** of the target database before restoring into it. It refuses to run when `RAILWAY_ENVIRONMENT_NAME=production`. `migrate` runs `prisma migrate deploy`, which applies any unapplied migration files in order without drift-checking.
 
 The copy is already anonymised (fake names and contact details, redacted free text, dev accounts `volunteer@example.com` / `admin@example.com` / `superadmin@example.com` with password `password1`), so it needs only the read-only `B2_ANON_*` credentials — put them in `.env.b2` (gitignored). Ask a maintainer for them.
 
@@ -152,36 +152,36 @@ The `test:e2e:dev` variants skip the build and use a dev server instead. These a
 
 ## Scripts Reference
 
-| Script                | Description                                                                                                                                     |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `local-setup`         | One-time local setup: install deps, browsers, fetch anonymised DB, run migrations                                                               |
-| `issue <number>`      | Launch a sandboxed Claude session to work on a GitHub issue (creates branch, fetches issue, restricts CLI access). Usage: `npm run issue -- 84` |
-| `check-all`           | Run typecheck, lint, format check, and tests — use before committing                                                                            |
-| `dev`                 | Start local dev server with Turbopack                                                                                                           |
-| `build`               | Generate Prisma client and run Next.js production build                                                                                         |
-| `start`               | Start production server (requires prior `build`)                                                                                                |
-| `typecheck`           | Run TypeScript type checking without emitting files                                                                                             |
-| `lint`                | Run ESLint                                                                                                                                      |
-| `lint:fix`            | Run ESLint with auto-fix                                                                                                                        |
-| `format`              | Format all files with Prettier                                                                                                                  |
-| `format:check`        | Check formatting without writing                                                                                                                |
-| `generate`            | Regenerate Prisma client and run post-generation script                                                                                         |
-| `build:railway`       | Production build entrypoint used by Railway CI                                                                                                  |
-| `new-migration`       | Create a new migration SQL file from schema diff                                                                                                |
-| `migrate`             | Apply pending migration files to the local database                                                                                             |
-| `fetch-anonymised-db` | Restore the anonymised copy of production into DATABASE_URL                                                                                     |
-| `install:browsers`    | Install Playwright's Chromium browser                                                                                                           |
-| `test:unit`           | Run unit tests with vitest                                                                                                                      |
-| `test:unit:watch`     | Run vitest in watch mode                                                                                                                        |
-| `test:e2e`            | Run all e2e tests (builds first, then spins up isolated servers)                                                                                |
-| `test:e2e:dev`        | Run e2e tests against a dev server — skips build, for interactive development only                                                              |
-| `test:e2e:log`        | Run e2e tests and save full output to `test-output.txt`                                                                                         |
-| `test:e2e:headed`     | Run e2e tests with a visible browser, single worker                                                                                             |
-| `test:e2e:ui`         | Open Playwright UI mode for interactive test debugging                                                                                          |
-| `cron:backup`         | Run the database backup cron job                                                                                                                |
-| `demo`                | Run the demo data seeding script                                                                                                                |
-| `demo:snapshot`       | Take a snapshot of the current demo state                                                                                                       |
-| `demo:compare`        | Compare current demo state against snapshot                                                                                                     |
+| Script             | Description                                                                                                                                     |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `local-setup`      | One-time local setup: install deps, browsers, fetch prod DB, run migrations                                                                     |
+| `issue <number>`   | Launch a sandboxed Claude session to work on a GitHub issue (creates branch, fetches issue, restricts CLI access). Usage: `npm run issue -- 84` |
+| `check-all`        | Run typecheck, lint, format check, and tests — use before committing                                                                            |
+| `dev`              | Start local dev server with Turbopack                                                                                                           |
+| `build`            | Generate Prisma client and run Next.js production build                                                                                         |
+| `start`            | Start production server (requires prior `build`)                                                                                                |
+| `typecheck`        | Run TypeScript type checking without emitting files                                                                                             |
+| `lint`             | Run ESLint                                                                                                                                      |
+| `lint:fix`         | Run ESLint with auto-fix                                                                                                                        |
+| `format`           | Format all files with Prettier                                                                                                                  |
+| `format:check`     | Check formatting without writing                                                                                                                |
+| `generate`         | Regenerate Prisma client and run post-generation script                                                                                         |
+| `build:railway`    | Production build entrypoint used by Railway CI                                                                                                  |
+| `new-migration`    | Create a new migration SQL file from schema diff                                                                                                |
+| `migrate`          | Apply pending migration files to the local database                                                                                             |
+| `fetch-prod-db`    | Restore the anonymised copy of production into DATABASE_URL                                                                                     |
+| `install:browsers` | Install Playwright's Chromium browser                                                                                                           |
+| `test:unit`        | Run unit tests with vitest                                                                                                                      |
+| `test:unit:watch`  | Run vitest in watch mode                                                                                                                        |
+| `test:e2e`         | Run all e2e tests (builds first, then spins up isolated servers)                                                                                |
+| `test:e2e:dev`     | Run e2e tests against a dev server — skips build, for interactive development only                                                              |
+| `test:e2e:log`     | Run e2e tests and save full output to `test-output.txt`                                                                                         |
+| `test:e2e:headed`  | Run e2e tests with a visible browser, single worker                                                                                             |
+| `test:e2e:ui`      | Open Playwright UI mode for interactive test debugging                                                                                          |
+| `cron:backup`      | Run the database backup cron job                                                                                                                |
+| `demo`             | Run the demo data seeding script                                                                                                                |
+| `demo:snapshot`    | Take a snapshot of the current demo state                                                                                                       |
+| `demo:compare`     | Compare current demo state against snapshot                                                                                                     |
 
 ## Project Structure
 

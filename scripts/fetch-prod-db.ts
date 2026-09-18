@@ -5,8 +5,8 @@
  * never downloaded. Refuses to touch the production environment.
  *
  * Usage:
- *   npx tsx scripts/fetch-anonymised-db.ts              # reads B2 creds from .env.b2
- *   npx tsx scripts/fetch-anonymised-db.ts --env /path/to/.env
+ *   npx tsx scripts/fetch-prod-db.ts              # reads B2 creds from .env.b2
+ *   npx tsx scripts/fetch-prod-db.ts --env /path/to/.env
  */
 
 import { existsSync, mkdirSync, readFileSync } from 'node:fs'
