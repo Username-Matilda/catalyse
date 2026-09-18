@@ -279,8 +279,10 @@ test.describe('Quick Tasks (admin)', () => {
     const taskCard = adminPage.getByRole('article').filter({ hasText: taskTitle })
     await expect(taskCard).toBeVisible({ timeout: 10_000 })
     await taskCard.getByText(taskTitle, { exact: true }).click()
-    await expect(taskCard.getByRole('button', { name: 'Review' })).toBeVisible({ timeout: 10_000 })
-    await taskCard.getByRole('button', { name: 'Review' }).click()
+    await expect(taskCard.getByRole('button', { name: 'Review', exact: true })).toBeVisible({
+      timeout: 10_000,
+    })
+    await taskCard.getByRole('button', { name: 'Review', exact: true }).click()
 
     const reviewDialog = adminPage.getByRole('dialog', { name: 'Review Task' })
     await expect(reviewDialog).toBeVisible({ timeout: 10_000 })
@@ -326,8 +328,10 @@ test.describe('Quick Tasks (admin)', () => {
     const taskCard = adminPage.getByRole('article').filter({ hasText: taskTitle })
     await expect(taskCard).toBeVisible({ timeout: 10_000 })
     await taskCard.getByText(taskTitle, { exact: true }).click()
-    await expect(taskCard.getByRole('button', { name: 'Review' })).toBeVisible({ timeout: 10_000 })
-    await taskCard.getByRole('button', { name: 'Review' }).click()
+    await expect(taskCard.getByRole('button', { name: 'Review', exact: true })).toBeVisible({
+      timeout: 10_000,
+    })
+    await taskCard.getByRole('button', { name: 'Review', exact: true }).click()
 
     const reviewDialog = adminPage.getByRole('dialog', { name: 'Review Task' })
     await expect(reviewDialog).toBeVisible({ timeout: 10_000 })
@@ -373,10 +377,12 @@ test.describe('Quick Tasks (admin)', () => {
     const taskCard = adminPage.getByRole('article').filter({ hasText: taskTitle })
     await expect(taskCard).toBeVisible({ timeout: 10_000 })
     await taskCard.getByText(taskTitle, { exact: true }).click()
-    await expect(taskCard.getByRole('button', { name: 'Delete' })).toBeVisible({ timeout: 10_000 })
+    await expect(taskCard.getByRole('button', { name: 'Delete', exact: true })).toBeVisible({
+      timeout: 10_000,
+    })
 
     adminPage.once('dialog', (dialog) => dialog.accept())
-    await taskCard.getByRole('button', { name: 'Delete' }).click()
+    await taskCard.getByRole('button', { name: 'Delete', exact: true }).click()
 
     await expect(getAlert(adminPage)).toContainText('Task deleted', { timeout: 10_000 })
     await expect(taskCard).not.toBeVisible({ timeout: 10_000 })
