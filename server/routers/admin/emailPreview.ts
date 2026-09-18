@@ -21,8 +21,6 @@ import {
 import { adminProcedure } from '../../procedures'
 import { env } from '@/lib/env'
 
-const APP_URL = env.APP_URL
-
 const SAMPLE_PROJECTS = [
   {
     id: 1,
@@ -52,12 +50,12 @@ const SAMPLE_PROJECTS = [
 const EMAIL_PREVIEW_REGISTRY: Record<string, { subject: string; build: () => string }> = {
   'welcome-google': {
     subject: 'Welcome to Catalyse!',
-    build: () => buildWelcomeHtml('Alex', APP_URL),
+    build: () => buildWelcomeHtml('Alex', env.APP_URL),
   },
   'welcome-and-confirm': {
     subject: 'Welcome to Catalyse: please confirm your email',
     build: () =>
-      buildWelcomeAndConfirmHtml('Alex', `${APP_URL}/verify-email?token=sample-token-abc123`),
+      buildWelcomeAndConfirmHtml('Alex', `${env.APP_URL}/verify-email?token=sample-token-abc123`),
   },
   'application-received': {
     subject: 'Your Catalyse application has been received',
@@ -65,7 +63,7 @@ const EMAIL_PREVIEW_REGISTRY: Record<string, { subject: string; build: () => str
   },
   'application-approved': {
     subject: 'Your Catalyse application has been approved',
-    build: () => buildApplicationApprovedHtml('Alex', APP_URL),
+    build: () => buildApplicationApprovedHtml('Alex', env.APP_URL),
   },
   'application-rejected': {
     subject: 'Update on your Catalyse application',
@@ -77,17 +75,17 @@ const EMAIL_PREVIEW_REGISTRY: Record<string, { subject: string; build: () => str
   },
   'pending-applications-summary': {
     subject: '3 pending applications on Catalyse',
-    build: () => buildPendingApplicationsSummaryHtml(3, APP_URL),
+    build: () => buildPendingApplicationsSummaryHtml(3, env.APP_URL),
   },
   'password-reset': {
     subject: 'Reset your Catalyse password',
     build: () =>
-      buildPasswordResetHtml(`${APP_URL}/reset-password?token=sample-token-abc123`, 'Alex'),
+      buildPasswordResetHtml(`${env.APP_URL}/reset-password?token=sample-token-abc123`, 'Alex'),
   },
   'admin-invite': {
     subject: 'Jamie Smith invited you to be a Catalyse admin',
     build: () =>
-      buildAdminInviteHtml(`${APP_URL}/accept-invite?token=sample-token-abc123`, 'Jamie Smith'),
+      buildAdminInviteHtml(`${env.APP_URL}/accept-invite?token=sample-token-abc123`, 'Jamie Smith'),
   },
   'project-notification': {
     subject: 'Your project has been approved',
@@ -97,7 +95,7 @@ const EMAIL_PREVIEW_REGISTRY: Record<string, { subject: string; build: () => str
         'Your project has been approved',
         'Great news: your project AI Safety Explainer Series has been reviewed and approved.',
         1,
-        APP_URL,
+        env.APP_URL,
       ),
   },
   'local-group-suggestion-accepted': {
@@ -142,11 +140,11 @@ const EMAIL_PREVIEW_REGISTRY: Record<string, { subject: string; build: () => str
   },
   'digest-match': {
     subject: 'New projects matching your skills',
-    build: () => buildDigestHtml('Alex', APP_URL, SAMPLE_PROJECTS, true),
+    build: () => buildDigestHtml('Alex', env.APP_URL, SAMPLE_PROJECTS, true),
   },
   'digest-general': {
     subject: "What's new on Catalyse",
-    build: () => buildDigestHtml('Alex', APP_URL, SAMPLE_PROJECTS, false),
+    build: () => buildDigestHtml('Alex', env.APP_URL, SAMPLE_PROJECTS, false),
   },
   'task-nudge': {
     subject: "How's it going with Write fundraising copy?",

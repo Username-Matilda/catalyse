@@ -3,20 +3,10 @@ import { prisma } from '@/lib/prisma'
 import { generateAuthToken, hashToken } from '@/lib/auth'
 import { CLAIM_MS, OUTREACH_TOKEN_HEADER } from '@/lib/journalist-outreach'
 import { anon, clientAs } from '@/test/rpc'
+import { rateLimit } from '@/test/fakes/rate-limit'
 import { createVolunteer, nextSeq } from '@/test/factories'
 
-const { checkRateLimitMock } = vi.hoisted(() => ({ checkRateLimitMock: vi.fn() }))
-vi.mock('@/lib/rate-limit', async (importOriginal) => {
-  const original = await importOriginal<typeof import('@/lib/rate-limit')>()
-  checkRateLimitMock.mockImplementation(original.checkRateLimit)
-  return { ...original, checkRateLimit: checkRateLimitMock }
-})
-
-vi.mock('@/lib/email', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/lib/email')>()),
-  sendOutreachLoginEmail: vi.fn(async () => true),
-}))
-import { sendOutreachLoginEmail } from '@/lib/email'
+import { emails, linkParam } from '@/test/fakes/email'
 
 beforeEach(async () => {
   vi.clearAllMocks()
@@ -34,7 +24,7 @@ const as = (token: string) =>
 /** Signs a new participant in through the magic link flow and returns their client. */
 async function signIn(email = `p${nextSeq()}@example.com`) {
   await anon().journalistOutreach.requestLink({ email })
-  const { loginToken } = vi.mocked(sendOutreachLoginEmail).mock.lastCall![0]
+  const loginToken = linkParam(emails.last, 'token')
   const { token } = await anon().journalistOutreach.verify({ token: loginToken })
   const participant = await prisma.experimentalOutreachParticipant.findUniqueOrThrow({
     where: { email },
@@ -65,8 +55,8 @@ const minutesAgo = (m: number) => new Date(Date.now() - m * 60 * 1000)
 describe('journalistOutreach sign-in', () => {
   it('emails a one-use link that signs the normalised email in', async () => {
     await anon().journalistOutreach.requestLink({ email: '  Sam@Example.com ' })
-    const { to, loginToken } = vi.mocked(sendOutreachLoginEmail).mock.lastCall![0]
-    expect(to).toBe('sam@example.com')
+    const loginToken = linkParam(emails.last, 'token')
+    expect(emails.last.to).toBe('sam@example.com')
 
     const res = await anon().journalistOutreach.verify({ token: loginToken })
     expect(res.email).toBe('sam@example.com')
@@ -150,12 +140,11 @@ describe('journalistOutreach sign-in', () => {
   })
 
   it('rate limits link requests and verification', async () => {
-    const denied = { allowed: false, retryAfterMs: 1 }
-    checkRateLimitMock.mockReturnValueOnce(denied)
+    rateLimit.denyNext()
     await expect(
       anon().journalistOutreach.requestLink({ email: 'a@example.com' }),
     ).rejects.toMatchObject({ code: 'TOO_MANY_REQUESTS' })
-    checkRateLimitMock.mockReturnValueOnce(denied)
+    rateLimit.denyNext()
     await expect(anon().journalistOutreach.verify({ token: 'x' })).rejects.toMatchObject({
       code: 'TOO_MANY_REQUESTS',
     })

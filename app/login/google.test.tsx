@@ -5,10 +5,7 @@ import { renderApp } from '@/test/render'
 import { navigation } from '@/test/next-navigation'
 import LoginPage from './page'
 
-vi.mock('next/script', () => ({ default: () => null }))
-// Google's token verification is a network round trip to their JWKS endpoint.
-vi.mock('@/lib/google-auth', () => ({ verifyGoogleToken: vi.fn(async () => null) }))
-import { verifyGoogleToken } from '@/lib/google-auth'
+import { google as googleAuth } from '@/test/fakes/google'
 
 type GoogleCallback = (r: { credential: string }) => void
 
@@ -40,7 +37,7 @@ describe('login with Google', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Invalid Google token')
 
     // New account → handed to the signup form with the pending auth stashed.
-    vi.mocked(verifyGoogleToken).mockResolvedValueOnce({ email: 'new@example.com', name: 'New' })
+    googleAuth.accept('fresh', { email: 'new@example.com', name: 'New' })
     await signIn('fresh')
     await waitFor(() => expect(navigation.push).toHaveBeenCalledWith('/signup'))
     expect(JSON.parse(sessionStorage.getItem('google_pending_auth')!)).toMatchObject({
@@ -51,7 +48,7 @@ describe('login with Google', () => {
 
     // Existing account → signed in.
     const vol = await createVolunteer({ email: 'existing@example.com' })
-    vi.mocked(verifyGoogleToken).mockResolvedValueOnce({ email: vol.email!, name: vol.name })
+    googleAuth.accept('known', { email: vol.email!, name: vol.name })
     await signIn('known')
     await waitFor(() => expect(navigation.push).toHaveBeenCalledWith('/dashboard'))
     expect(localStorage.getItem('authToken')).toBeTruthy()
