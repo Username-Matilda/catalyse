@@ -7,7 +7,6 @@ import { renderApp } from '@/test/render'
 import { navigation } from '@/test/next-navigation'
 import SignupPage from './page'
 
-vi.mock('next/script', () => ({ default: () => null }))
 vi.mock('@/lib/google-auth', () => ({ verifyGoogleToken: vi.fn(async () => null) }))
 import { verifyGoogleToken } from '@/lib/google-auth'
 

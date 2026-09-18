@@ -5,7 +5,6 @@ import { renderApp } from '@/test/render'
 import { navigation } from '@/test/next-navigation'
 import LoginPage from './page'
 
-vi.mock('next/script', () => ({ default: () => null }))
 // Google's token verification is a network round trip to their JWKS endpoint.
 vi.mock('@/lib/google-auth', () => ({ verifyGoogleToken: vi.fn(async () => null) }))
 import { verifyGoogleToken } from '@/lib/google-auth'

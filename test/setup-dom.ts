@@ -1,9 +1,12 @@
 import '@testing-library/jest-dom/vitest'
 import { afterEach, vi } from 'vitest'
 
-// vi.mock is hoisted and inert in the node environment — `next/navigation` is only ever
-// imported by components, which only run under jsdom.
+// Everything a component test fakes from the framework is listed here. vi.mock is hoisted
+// and inert in the node environment — these modules are only ever imported by components,
+// which only run under jsdom.
 vi.mock('next/navigation', () => import('./next-navigation'))
+vi.mock('next/script', async () => (await import('./next-stubs')).script)
+vi.mock('next/font/google', async () => (await import('./next-stubs')).fontGoogle)
 
 // Only `.test.tsx` files get jsdom (see vitest.config.mts); everything below needs a window.
 if (typeof window !== 'undefined') {
