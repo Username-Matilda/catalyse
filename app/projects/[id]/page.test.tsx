@@ -373,7 +373,7 @@ describe('project page — admin', () => {
     // Outcome on a completed project (admin-only status pick first).
     await userEvent.click(screen.getByRole('button', { name: 'project status' }))
     await userEvent.click(screen.getByRole('option', { name: 'Completed' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Confirm' }))
     await screen.findByText('Status updated!')
     await userEvent.click(await screen.findByRole('button', { name: 'Outcome' }))
     fireEvent.submit(screen.getByLabelText('Outcome Notes').closest('form')!)

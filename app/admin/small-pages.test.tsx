@@ -20,7 +20,7 @@ describe('platform settings', () => {
   it('toggles application approval and reports a failed save', async () => {
     const sa = await createSuperAdmin()
     await renderApp(<PlatformSettingsPage />, { as: sa })
-    const toggle = await screen.findByRole('checkbox')
+    const toggle = await screen.findByRole('checkbox', { name: 'Require application approval' })
     expect(toggle).toBeChecked()
     await userEvent.click(toggle)
     await screen.findByText('Settings saved')
@@ -30,8 +30,22 @@ describe('platform settings', () => {
       ),
     )
     localStorage.setItem('authToken', 'stale')
-    await userEvent.click(screen.getByRole('checkbox'))
+    await userEvent.click(toggle)
     await screen.findByText('Failed to save settings')
+  })
+
+  it('toggles maintenance mode', async () => {
+    const sa = await createSuperAdmin()
+    await renderApp(<PlatformSettingsPage />, { as: sa })
+    const toggle = await screen.findByRole('checkbox', { name: 'Maintenance mode' })
+    expect(toggle).not.toBeChecked()
+    await userEvent.click(toggle)
+    await waitFor(() => expect(toggle).toBeChecked())
+    expect((await prisma.platformSettings.findFirstOrThrow()).maintenanceMode).toBe(true)
+    // Leave the shared database open for the rest of the file.
+    await userEvent.click(toggle)
+    await waitFor(() => expect(toggle).not.toBeChecked())
+    expect((await prisma.platformSettings.findFirstOrThrow()).maintenanceMode).toBe(false)
   })
 })
 

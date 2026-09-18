@@ -1,19 +1,20 @@
 #!/usr/bin/env node
 /**
- * Downloads the latest prod backup from B2 and writes an anonymised copy.
+ * Restores the latest prod backup from B2 into the database at DATABASE_URL. The data is raw
+ * prod data (PII included; scripts/anonymise-db.ts can scrub it). Refuses to touch the production environment.
  *
  * Usage:
- *   npx tsx scripts/fetch-prod-db.ts              # reads creds from ../../.env.b2
+ *   npx tsx scripts/fetch-prod-db.ts              # reads B2 creds from .env.b2
  *   npx tsx scripts/fetch-prod-db.ts --env /path/to/.env
  */
 
-import { copyFileSync, existsSync, readFileSync, statSync, unlinkSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { pbkdf2Sync, randomBytes } from 'node:crypto'
-import { execSync } from 'node:child_process'
-import { DatabaseSync } from 'node:sqlite'
-import { faker } from '@faker-js/faker'
+import { execFileSync } from 'node:child_process'
+import { Client } from 'pg'
+import { libpqUrl } from '../jobs/backup'
+import { resolveDbUrl } from '../lib/db-url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, '..')
@@ -104,187 +105,49 @@ async function b2DownloadFile(
     headers: { Authorization: auth.authToken },
   })
   if (!res.ok) throw new Error(`Download failed: ${res.status} ${await res.text()}`)
-  const { writeFileSync } = await import('node:fs')
   writeFileSync(destPath, Buffer.from(await res.arrayBuffer()))
 }
 
-// ── Anonymisation ─────────────────────────────────────────────────────────────
+// ── Restore ───────────────────────────────────────────────────────────────────
 
-// Seed faker with the volunteer ID so all fake fields are deterministic per volunteer.
-function fakeVolunteerData(id: number): {
-  name: string
-  email: string
-  bio: string
-  discordHandle: string
-  signalNumber: string
-  whatsappNumber: string
-  contactNotes: string
-  otherSkills: string
-  location: string
-  localGroup: string
-} {
-  faker.seed(id)
-  const firstName = faker.person.firstName()
-  const lastName = faker.person.lastName()
-  return {
-    name: `${firstName} ${lastName}`,
-    email: faker.internet.email({ firstName, lastName }).toLowerCase(),
-    bio: faker.lorem.sentence(),
-    discordHandle: faker.internet.username(),
-    signalNumber: faker.phone.number({ style: 'international' }),
-    whatsappNumber: faker.phone.number({ style: 'international' }),
-    contactNotes: faker.lorem.sentence(),
-    otherSkills: faker.lorem.words({ min: 2, max: 5 }),
-    location: `${faker.location.city()}, ${faker.location.country()}`,
-    localGroup: faker.location.city(),
+/**
+ * Empties the public schema and restores the dump into it. The dump's own
+ * `CREATE SCHEMA public` entry is filtered out of the restore list, since the schema
+ * is recreated here first; `pg_restore -l`/`-L` is the documented way to skip entries.
+ */
+export async function restoreDump(dumpPath: string, dbUrl: string): Promise<void> {
+  const client = new Client({ connectionString: dbUrl })
+  await client.connect()
+  try {
+    await client.query('DROP SCHEMA IF EXISTS public CASCADE')
+    await client.query('CREATE SCHEMA public')
+  } finally {
+    await client.end()
   }
-}
-
-function randomToken(length = 64): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-  return Array.from(randomBytes(length), (b) => chars[b % chars.length]).join('')
-}
-
-function makePasswordHash(password: string): string {
-  const salt = randomBytes(32)
-  const key = pbkdf2Sync(password, salt, 100000, 32, 'sha256')
-  return Buffer.concat([salt, key]).toString('base64')
-}
-
-function anonymise(dbPath: string): void {
-  const db = new DatabaseSync(dbPath)
-
-  const anonPasswordHash = makePasswordHash('volunteerpass1')
-
-  const volunteerRows = db
-    .prepare(
-      'SELECT id, bio, discord_handle, signal_number, whatsapp_number, contact_notes, other_skills, location, local_group FROM volunteers',
-    )
-    .all() as {
-    id: number
-    bio: string | null
-    discord_handle: string | null
-    signal_number: string | null
-    whatsapp_number: string | null
-    contact_notes: string | null
-    other_skills: string | null
-    location: string | null
-    local_group: string | null
-  }[]
-  const updateVolunteer = db.prepare(`
-    UPDATE volunteers SET
-      name                  = ?,
-      email                 = ?,
-      bio                   = ?,
-      discord_handle        = ?,
-      signal_number         = ?,
-      whatsapp_number       = ?,
-      contact_notes         = ?,
-      other_skills          = ?,
-      location              = ?,
-      local_group           = ?,
-      auth_token            = NULL,
-      auth_token_expires_at = NULL,
-      password_hash         = ?
-    WHERE id = ?
-  `)
-  for (const row of volunteerRows) {
-    const {
-      name,
-      email,
-      bio,
-      discordHandle,
-      signalNumber,
-      whatsappNumber,
-      contactNotes,
-      otherSkills,
-      location,
-      localGroup,
-    } = fakeVolunteerData(row.id)
-    updateVolunteer.run(
-      name,
-      email,
-      row.bio !== null ? bio : null,
-      row.discord_handle !== null ? discordHandle : null,
-      row.signal_number !== null ? signalNumber : null,
-      row.whatsapp_number !== null ? whatsappNumber : null,
-      row.contact_notes !== null ? contactNotes : null,
-      row.other_skills !== null ? otherSkills : null,
-      row.location !== null ? location : null,
-      row.local_group !== null ? localGroup : null,
-      anonPasswordHash,
-      row.id,
-    )
-  }
-
-  const adminInvites = db.prepare('SELECT id, invited_by_id FROM admin_invites').all() as {
-    id: number
-    invited_by_id: number
-  }[]
-  const updateInvite = db.prepare(
-    'UPDATE admin_invites SET email = ?, invite_token = ? WHERE id = ?',
+  const listing = execFileSync('pg_restore', ['-l', dumpPath], { encoding: 'utf8' })
+  const filtered = listing
+    .split('\n')
+    .filter((line) => !/ SCHEMA - public /.test(line))
+    .join('\n')
+  const listPath = `${dumpPath}.list`
+  writeFileSync(listPath, filtered)
+  execFileSync(
+    'pg_restore',
+    ['--no-owner', '--no-privileges', '--use-list', listPath, '--dbname', dbUrl, dumpPath],
+    { stdio: 'inherit' },
   )
-  for (const row of adminInvites) {
-    updateInvite.run(fakeVolunteerData(row.invited_by_id).email, randomToken(), row.id)
-  }
-
-  db.exec("UPDATE admin_notes SET content = '[redacted]'")
-  db.exec("UPDATE contact_messages SET subject = '[redacted]', message = '[redacted]'")
-  db.exec("UPDATE bug_reports SET reporter_email = NULL, description = '[redacted]'")
-  db.exec('UPDATE deletion_requests SET volunteer_email = NULL')
-
-  const resetTokenIds = (
-    db.prepare('SELECT id FROM password_reset_tokens').all() as { id: number }[]
-  ).map((r) => r.id)
-  const updateToken = db.prepare('UPDATE password_reset_tokens SET token = ? WHERE id = ?')
-  for (const id of resetTokenIds) {
-    updateToken.run(randomToken(), id)
-  }
-
-  db.exec('UPDATE notifications SET body = NULL')
-  db.exec("UPDATE work_item_comments SET content = '[redacted]'")
-
-  db.exec('PRAGMA journal_mode=DELETE')
-  db.close()
-}
-
-function seedDevAccounts(dbPath: string): void {
-  const db = new DatabaseSync(dbPath)
-  // DateTime columns are integer epoch-ms (Prisma's format). Set created_at/
-  // updated_at/location_confirmed_at explicitly so the CURRENT_TIMESTAMP default
-  // (which writes a text string) never fires — a mixed column breaks range/order
-  // queries, see migration 20260909215642_normalize_datetime_storage.
-  const now = Date.now()
-  const insert = db.prepare(`
-    INSERT OR REPLACE INTO volunteers (name, email, password_hash, is_admin, location, country, local_group, location_confirmed_at, created_at, updated_at, approval_status, email_confirmed, consent_make_profile_visible_in_directory)
-    VALUES (?, ?, ?, ?, 'London, UK', 'UK', 'London', ?, ?, ?, 'approved', 1, 0)
-  `)
-  insert.run(
-    'Dev Volunteer',
-    'volunteer@example.com',
-    makePasswordHash('password1'),
-    0,
-    now,
-    now,
-    now,
-  )
-  insert.run('Dev Admin', 'admin@example.com', makePasswordHash('password1'), 1, now, now, now)
-  insert.run(
-    'Dev Super Admin',
-    'superadmin@example.com',
-    makePasswordHash('password1'),
-    1,
-    now,
-    now,
-    now,
-  )
-  db.close()
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
   loadEnvFile(envFile)
+
+  // The restore empties the target database first; nothing may ever point this at prod.
+  if (process.env.RAILWAY_ENVIRONMENT_NAME === 'production') {
+    console.error('Refusing to run in the production environment')
+    process.exit(1)
+  }
 
   const keyId = process.env.B2_KEY_ID
   const appKey = process.env.B2_APP_KEY
@@ -296,17 +159,20 @@ async function main(): Promise<void> {
     process.exit(1)
   }
 
-  const prodPath = resolve(ROOT, 'db/prod.db')
-  const destPath = resolve(ROOT, 'db/anonymised_prod.db')
+  const dbUrl = libpqUrl(resolveDbUrl())
+  mkdirSync(resolve(ROOT, 'db'), { recursive: true })
+  const dumpPath = resolve(ROOT, 'db/prod.dump')
 
   console.log('Authorising with B2...')
   const auth = await b2Authorize(keyId, appKey)
   const bucketId = await b2GetBucketId(auth, bucketName)
 
   console.log('Listing backups...')
-  const files = await b2ListFiles(auth, bucketId, 'backups/')
+  const files = (await b2ListFiles(auth, bucketId, 'backups/')).filter((f) =>
+    f.fileName.endsWith('.dump'),
+  )
   if (!files.length) {
-    console.error('No backups found in B2.')
+    console.error('No Postgres backups found in B2.')
     process.exit(1)
   }
 
@@ -314,46 +180,17 @@ async function main(): Promise<void> {
   console.log(`Latest backup: ${latest.fileName} (${(latest.contentLength / 1024).toFixed(0)} KB)`)
 
   console.log('Downloading...')
-  await b2DownloadFile(auth, bucketName, latest.fileName, prodPath)
+  await b2DownloadFile(auth, bucketName, latest.fileName, dumpPath)
 
-  if (existsSync(destPath)) {
-    console.log(`Removing existing ${destPath}`)
-    unlinkSync(destPath)
-  }
+  console.log(`Restoring into ${new URL(dbUrl).pathname.slice(1)}...`)
+  await restoreDump(dumpPath, dbUrl)
 
-  console.log(`Copying prod.db → anonymised_prod.db`)
-  copyFileSync(prodPath, destPath)
-
-  console.log('Anonymising...')
-  anonymise(destPath)
-
-  console.log('Seeding dev accounts...')
-  seedDevAccounts(destPath)
-
-  const db = new DatabaseSync(destPath)
-  const hasMigrationTable =
-    db
-      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='_prisma_migrations'")
-      .all().length > 0
-  db.close()
-
-  if (!hasMigrationTable) {
-    console.log('Bootstrapping Prisma migration history...')
-    const url = `file:${destPath}`
-    const env = { ...process.env, DATABASE_URL: url }
-    const run = (cmd: string) => execSync(cmd, { stdio: 'inherit', env })
-    run('npx prisma migrate resolve --applied 20260503000000_baseline')
-    run('npx prisma migrate resolve --applied 20260504000000_seed_skills')
-  }
-
-  const sizeKb = statSync(destPath).size / 1024
-  console.log(`Done. anonymised_prod.db written (${sizeKb.toFixed(0)} KB)`)
-  console.log('  volunteer@example.com  / password1')
-  console.log('  admin@example.com      / password1')
-  console.log('  superadmin@example.com / password1')
+  console.log('Done. The restored data is not anonymised.')
 }
 
-main().catch((err) => {
-  console.error(err instanceof Error ? err.message : err)
-  process.exit(1)
-})
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main().catch((err) => {
+    console.error(err instanceof Error ? err.message : err)
+    process.exit(1)
+  })
+}

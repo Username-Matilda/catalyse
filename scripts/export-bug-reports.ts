@@ -1,20 +1,22 @@
 #!/usr/bin/env node
 /**
- * Exports bug reports (with their comment threads) from a local sqlite db to a Markdown file.
+ * Exports bug reports (with their comment threads) from the database at DATABASE_URL (or
+ * --db <url>) to a Markdown file. Point it at a database restored from a prod backup.
  *
  * Usage:
- *   npm run export-bug-reports                          # open + in_progress only, from db/prod.db
- *   npm run export-bug-reports -- --db db/anonymised_prod.db --out bugs.md
+ *   npm run export-bug-reports                          # open + in_progress only
+ *   npm run export-bug-reports -- --db postgres://... --out bugs.md
  *   npm run export-bug-reports -- --status open         # single status
  *   npm run export-bug-reports -- --all                 # every status
  *   npm run export-bug-reports -- --base-url https://staging.example.com   # override live-link host
  */
 
-import { existsSync, writeFileSync } from 'node:fs'
+import { writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { DatabaseSync } from 'node:sqlite'
+import { Client } from 'pg'
+import { resolveDbUrl } from '../lib/db-url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, '..')
@@ -24,17 +26,12 @@ function argValue(flag: string): string | undefined {
   return idx !== -1 ? process.argv[idx + 1] : undefined
 }
 
-const dbPath = resolve(ROOT, argValue('--db') ?? 'db/prod.db')
+const dbUrl = argValue('--db') ?? resolveDbUrl()
 const outPath = resolve(ROOT, argValue('--out') ?? 'bug-reports.md')
 const baseUrl = (argValue('--base-url') ?? 'https://catalyse.up.railway.app').replace(/\/$/, '')
 const showAll = process.argv.includes('--all')
 const statusFilter = argValue('--status')
 const statuses = statusFilter ? [statusFilter] : showAll ? null : ['open', 'in_progress']
-
-if (!existsSync(dbPath)) {
-  console.error(`Error: db not found at ${dbPath}`)
-  process.exit(1)
-}
 
 interface BugReportRow {
   id: number
@@ -45,28 +42,29 @@ interface BugReportRow {
   severity: string | null
   page_url: string | null
   resolution_notes: string | null
-  created_at: number | null
+  created_at: Date | null
   reporter_name: string | null
   reporter_email: string | null
   assignee_name: string | null
   resolved_by_name: string | null
-  resolved_at: number | null
+  resolved_at: Date | null
 }
 
 interface CommentRow {
   bug_report_id: number
   content: string
-  created_at: number | null
+  created_at: Date | null
   author_name: string | null
 }
 
-function formatDate(epochMs: number | null): string {
-  if (epochMs === null) return 'unknown'
-  return new Date(epochMs).toISOString().replace('T', ' ').slice(0, 19)
+function formatDate(date: Date | null): string {
+  if (date === null) return 'unknown'
+  return date.toISOString().replace('T', ' ').slice(0, 19)
 }
 
-function main(): void {
-  const db = new DatabaseSync(dbPath, { readOnly: true })
+async function main(): Promise<void> {
+  const db = new Client({ connectionString: dbUrl })
+  await db.connect()
 
   let query = `
     SELECT
@@ -81,25 +79,21 @@ function main(): void {
   `
   const params: string[] = []
   if (statuses) {
-    query += ` WHERE br.status IN (${statuses.map(() => '?').join(', ')})`
+    query += ` WHERE br.status IN (${statuses.map((_, i) => `$${i + 1}`).join(', ')})`
     params.push(...statuses)
   }
   query += ' ORDER BY br.created_at DESC'
 
-  const reports = db.prepare(query).all(...params) as unknown as BugReportRow[]
+  const { rows: reports } = await db.query<BugReportRow>(query, params)
 
-  const comments = db
-    .prepare(
-      `
+  const { rows: comments } = await db.query<CommentRow>(`
       SELECT c.bug_report_id, c.content, c.created_at, a.name AS author_name
       FROM bug_report_comments c
       LEFT JOIN volunteers a ON a.id = c.author_id
       ORDER BY c.bug_report_id, c.created_at ASC
-    `,
-    )
-    .all() as unknown as CommentRow[]
+    `)
 
-  db.close()
+  await db.end()
 
   const commentsByReport = new Map<number, CommentRow[]>()
   for (const c of comments) {
@@ -110,7 +104,9 @@ function main(): void {
   const lines: string[] = []
   lines.push(`# Bug Reports`)
   lines.push('')
-  lines.push(`Source: \`${dbPath}\` — exported ${new Date().toISOString()}`)
+  lines.push(
+    `Source: \`${new URL(dbUrl).pathname.slice(1)}\` — exported ${new Date().toISOString()}`,
+  )
   lines.push(
     `Filter: ${statuses ? `status in (${statuses.join(', ')})` : 'all statuses'} — pass --status <status> or --all to change`,
   )
@@ -164,4 +160,7 @@ function main(): void {
   console.log(`Wrote ${reports.length} bug reports to ${outPath}`)
 }
 
-main()
+main().catch((err) => {
+  console.error(err instanceof Error ? err.message : err)
+  process.exit(1)
+})

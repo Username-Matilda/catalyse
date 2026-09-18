@@ -1,9 +1,8 @@
-import path from 'path'
-import { DatabaseSync } from 'node:sqlite'
+import { Client } from 'pg'
 import { test, expect } from '../fixtures'
 import { createApiClient } from '../client'
 import { fake } from '../fake'
-import { IS_LOCAL, parallelIndexFromBaseUrl, workerDbDir } from '../config'
+import { IS_LOCAL, parallelIndexFromBaseUrl, workerDbUrl } from '../config'
 
 // API-level coverage (01-auth-signup-login.spec.ts) confirms invalid/reused tokens return a
 // 400. This file covers what the /verify-email page actually renders for each error state,
@@ -74,7 +73,7 @@ test.describe('Verify Email page (edge cases)', () => {
     browser,
     baseUrl,
   }) => {
-    test.skip(!IS_LOCAL, 'backdates the token directly in the worker SQLite DB')
+    test.skip(!IS_LOCAL, 'backdates the token directly in the worker database')
 
     const context = await browser.newContext()
     const page = await context.newPage()
@@ -98,23 +97,20 @@ test.describe('Verify Email page (edge cases)', () => {
       const { emailVerificationToken: token } = signup.body
       expect(token).toBeTruthy()
 
-      // Backdate the token straight in the worker's SQLite file (node:sqlite, same tool
-      // scripts/seed-migration-test-state.ts uses) — this path is only exercised when
-      // IS_LOCAL, and the generated Prisma client can't be imported from Playwright's own
-      // module loader (CJS/ESM interop mismatch with Next's build pipeline).
-      const dbPath = path.join(workerDbDir(parallelIndexFromBaseUrl(baseUrl)), 'catalyse.db')
-      const db = new DatabaseSync(dbPath)
+      // Backdate the token straight in the worker's database schema — this path is only
+      // exercised when IS_LOCAL, and the generated Prisma client can't be imported from
+      // Playwright's own module loader (CJS/ESM interop mismatch with Next's build pipeline).
+      const dbUrl = new URL(workerDbUrl(parallelIndexFromBaseUrl(baseUrl)))
+      const db = new Client({ connectionString: dbUrl.toString() })
+      await db.connect()
       try {
-        // The app server (via Prisma) holds this same file open, and other tests are
-        // writing to it concurrently under fullyParallel — without a busy timeout a
-        // momentary lock throws immediately instead of waiting it out.
-        db.exec('PRAGMA busy_timeout = 5000')
-        db.prepare('UPDATE email_verification_tokens SET expires_at = ? WHERE token = ?').run(
-          new Date(Date.now() - 60_000).toISOString(),
+        await db.query(`SET search_path TO "${dbUrl.searchParams.get('schema')}"`)
+        await db.query('UPDATE email_verification_tokens SET expires_at = $1 WHERE token = $2', [
+          new Date(Date.now() - 60_000),
           token!,
-        )
+        ])
       } finally {
-        db.close()
+        await db.end()
       }
 
       await page.goto(`${baseUrl}/verify-email?token=${token}`)

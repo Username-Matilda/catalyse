@@ -3,6 +3,8 @@ import { execSync } from 'child_process'
 import fs from 'fs'
 import { IS_LOCAL, BASE_PORT, SERVER_PIDS_FILE } from './config'
 
+// Only the listener: a client socket to the port (Playwright itself, holding a keep-alive
+// connection) would otherwise be killed too.
 function killServerOnPort(port: number): void {
   try {
     execSync(`lsof -tiTCP:${port} -sTCP:LISTEN | xargs kill -TERM 2>/dev/null || true`, {
