@@ -23,8 +23,8 @@ import {
   FAILURES,
   GALLERY,
   HISTORY,
-  laneById,
   laneIndex,
+  LATEST,
   POOL,
   PREVIOUS,
   RUNS,
@@ -33,16 +33,15 @@ import {
   specId,
   STAGING,
   testKey,
-  type CaptureMeta,
 } from './config'
-import { renderGallery, type GalleryRow, type ImageProvenance, type RunCost } from './gallery'
+import { renderGallery, type RunCost } from './gallery'
+import { baselinePathFor, galleryRows, readMeta } from './rows'
 import {
   analyzeImages,
   appendHistory,
   decodePng,
   encodePng,
   ingestToPool,
-  isRealChange,
   pngSha,
   readBaseline,
   renderDiffImage,
@@ -81,32 +80,6 @@ function titlePathOf(test: TestCase): string[] {
 function keyOf(test: TestCase): string {
   const project = test.parent.project()
   return testKey(project?.name ?? '', test.location.file, titlePathOf(test))
-}
-
-/** What a capture is compared against: the pinned baseline, or the last complete run. */
-function baselinePathFor(file: string): string {
-  return existsSync(BASELINE) ? path.join(PREVIOUS, file) : path.join(CURRENT, file)
-}
-
-async function readMeta(pngPath: string): Promise<CaptureMeta | undefined> {
-  const metaPath = sidecarFile(pngPath)
-  if (!existsSync(metaPath)) return undefined
-  return JSON.parse(await readFile(metaPath, 'utf8')) as CaptureMeta
-}
-
-async function fileTimestamp(filePath: string): Promise<string | undefined> {
-  const meta = await readMeta(filePath)
-  return meta?.capturedAt
-}
-
-function provenance(meta: CaptureMeta | undefined, manifest: RunManifest): ImageProvenance {
-  return {
-    runId: meta?.runId,
-    commit: meta?.commit,
-    dirty: meta?.dirty ?? false,
-    ref: meta?.ref,
-    thisRun: meta?.runId === manifest.runId,
-  }
 }
 
 function firstLine(error: unknown): string {
@@ -179,6 +152,7 @@ export default class SnapshotReporter implements Reporter {
     this.manifest.finishedAt = new Date().toISOString()
     await this.commitRun()
     await writeRun(this.manifest, RUNS)
+    await writeFile(LATEST, JSON.stringify(this.manifest, null, 2))
     await pruneRuns(RUNS, RUNS_KEPT)
     await this.showProgress(true)
     const { failed } = runProgress(this.manifest)
@@ -298,7 +272,15 @@ export default class SnapshotReporter implements Reporter {
    */
   private async commitRun(): Promise<void> {
     const rotate = !existsSync(BASELINE)
-    for (const file of Object.keys(this.manifest.captures)) {
+    const kept: string[] = []
+    for (const [file, capture] of Object.entries(this.manifest.captures)) {
+      // A picture from a test that failed is worth looking at and worth
+      // nothing as a baseline: it stays in staging for this gallery, and the
+      // last good picture keeps `current/`.
+      if (this.manifest.tests[capture.test]?.status === 'failed') {
+        kept.push(file, sidecarFile(file))
+        continue
+      }
       for (const name of [file, sidecarFile(file)]) {
         const staged = path.join(STAGING, name)
         if (!existsSync(staged)) continue
@@ -311,117 +293,20 @@ export default class SnapshotReporter implements Reporter {
         await rename(staged, current)
       }
     }
-    await rm(STAGING, { recursive: true, force: true })
+    if (kept.length === 0) {
+      await rm(STAGING, { recursive: true, force: true })
+      return
+    }
+    for (const entry of await readdir(STAGING)) {
+      if (!kept.includes(entry)) await rm(path.join(STAGING, entry), { force: true })
+    }
   }
 
   private async showProgress(force: boolean): Promise<void> {
     if (!force && Date.now() - this.renderedAt < PROGRESS_EVERY_MS) return
     this.renderedAt = Date.now()
     const cost: RunCost = { ...this.captured, wallMs: Date.now() - this.startedAt }
-    const html = renderGallery(await this.galleryRows(), this.manifest, await readBaseline(BASELINE), cost)
+    const html = renderGallery(await galleryRows(this.manifest), this.manifest, await readBaseline(BASELINE), cost)
     await writeFile(GALLERY, html)
-  }
-
-  /** Every capture with an image on disk, plus failed tests that took none, in rail order. */
-  private async galleryRows(): Promise<GalleryRow[]> {
-    const rows: GalleryRow[] = []
-    const seen = new Set<string>()
-    for (const dir of [STAGING, CURRENT]) {
-      if (!existsSync(dir)) continue
-      for (const file of await readdir(dir)) {
-        if (!file.endsWith('.png') || seen.has(file)) continue
-        seen.add(file)
-        const row = await this.captureRow(file, dir === STAGING)
-        if (row) rows.push(row)
-      }
-    }
-    for (const [key, test] of Object.entries(this.manifest.tests)) {
-      if (test.status === 'failed' && test.captures.length === 0) {
-        rows.push(this.failureRow(key))
-      }
-    }
-    return rows.sort(
-      (a, b) =>
-        laneIndex(a.lane) - laneIndex(b.lane) ||
-        a.spec.localeCompare(b.spec) ||
-        a.testLine - b.testLine ||
-        a.testKey.localeCompare(b.testKey) ||
-        a.seq - b.seq,
-    )
-  }
-
-  private async captureRow(file: string, staged: boolean): Promise<GalleryRow | undefined> {
-    const currentPath = path.join(staged ? STAGING : CURRENT, file)
-    const previousPath = staged ? baselinePathFor(file) : path.join(PREVIOUS, file)
-    const meta = await readMeta(currentPath)
-    if (!meta || laneIndex(meta.lane) < 0) return undefined
-    const lane = laneById(meta.lane)
-    const test = this.manifest.tests[meta.key]
-    const inRun = test !== undefined && test.status !== 'pending'
-    const hasPrevious = meta.hasPrevious ?? existsSync(previousPath)
-    const changed = !hasPrevious || (meta.diff !== undefined && isRealChange(meta.diff))
-    return {
-      id: file.replace(/\.png$/, ''),
-      lane: lane.id,
-      laneLabel: lane.label,
-      viewport: lane.viewport,
-      theme: lane.theme,
-      spec: meta.spec,
-      test: meta.test,
-      testKey: meta.key,
-      testLine: meta.testLine,
-      seq: meta.seq,
-      label: meta.label,
-      path: meta.path,
-      file,
-      hasCurrent: true,
-      hasPrevious,
-      changed,
-      diffPixels: meta.diffPixels ?? 0,
-      durationMs: meta.durationMs,
-      previousTimestamp: hasPrevious ? await fileTimestamp(previousPath) : undefined,
-      currentTimestamp: meta.capturedAt,
-      bbox: meta.diff?.bbox ?? undefined,
-      hasDiff: existsSync(path.join(DIFFS, file)),
-      currentSrc: `${staged ? 'staging' : 'current'}/${file}`,
-      previousSrc: `${path.basename(path.dirname(previousPath))}/${file}`,
-      currentRun: provenance(meta, this.manifest),
-      previousRun: provenance(await readMeta(previousPath), this.manifest),
-      testStatus: inRun ? test.status : undefined,
-      unsettled: !meta.settled,
-      testError: inRun ? test.error : undefined,
-      failureSrc: inRun && test.failureShot ? `failures/${meta.key}.png` : undefined,
-    }
-  }
-
-  private failureRow(key: string): GalleryRow {
-    const test = this.manifest.tests[key]
-    const lane = laneById(test.lane)
-    const none: ImageProvenance = { dirty: false, thisRun: false }
-    return {
-      id: key,
-      lane: lane.id,
-      laneLabel: lane.label,
-      viewport: lane.viewport,
-      theme: lane.theme,
-      spec: test.spec,
-      test: test.title,
-      testKey: key,
-      testLine: test.line,
-      seq: 0,
-      label: 'no capture',
-      path: '',
-      hasCurrent: false,
-      hasPrevious: false,
-      changed: false,
-      diffPixels: 0,
-      hasDiff: false,
-      currentRun: none,
-      previousRun: none,
-      testStatus: 'failed',
-      unsettled: false,
-      testError: test.error,
-      failureSrc: test.failureShot ? `failures/${key}.png` : undefined,
-    }
   }
 }

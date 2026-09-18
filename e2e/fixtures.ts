@@ -35,14 +35,14 @@ interface Fixtures {
 }
 
 /**
- * How a context takes part in a snapshot run: `prepare` makes every page it
- * opens capture the way the lane asks, and `finish`, called before the
- * context closes, shoots the last page it was looking at as the test's final
- * frame, or files it under failures when the test did not pass.
+ * How a test's browser contexts take part in a snapshot run. Every context
+ * the test opens is prepared for the lane as it is created, and shoots the
+ * last page it was looking at as a final frame as it closes; `role` names
+ * that frame (`end (admin)`) where the fixture that opened the context knows
+ * whose it is.
  */
 interface Snapshots {
-  prepare: (context: BrowserContext, role: string) => Promise<void>
-  finish: (context: BrowserContext, role: string) => Promise<void>
+  role: (context: BrowserContext, role: string) => void
 }
 
 interface WorkerFixtures {
@@ -80,27 +80,53 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
     })
   },
 
-  snapshots: async ({ snap }, runFixture, testInfo) => {
-    await runFixture({
-      prepare: async (context) => {
-        if (!SNAPSHOTS_ENABLED) return
-        await prepareSnapshotContext(context, laneFor(testInfo))
-      },
-      finish: async (context, role) => {
-        if (!SNAPSHOTS_ENABLED) return
-        await finalFrame(context, role, testInfo, snap)
-      },
-    })
-  },
+  snapshots: [
+    async ({ browser, snap }, runFixture, testInfo) => {
+      const roles = new WeakMap<BrowserContext, string>()
+      const api: Snapshots = { role: (context, role) => roles.set(context, role) }
+      if (!SNAPSHOTS_ENABLED) {
+        await runFixture(api)
+        return
+      }
+      // Contexts are opened by fixtures and by tests alike, and the one place
+      // they all pass through is the worker's browser, which this test has to
+      // itself for as long as it runs.
+      const lane = laneFor(testInfo)
+      const newContext = browser.newContext
+      let unnamed = 0
+      browser.newContext = async (options) => {
+        const context = await newContext.call(browser, options)
+        await prepareSnapshotContext(context, lane)
+        const close = context.close
+        context.close = async (closeOptions) => {
+          let label = roles.get(context)
+          if (label === undefined) {
+            unnamed += 1
+            label = unnamed === 1 ? 'end' : `end ${String(unnamed)}`
+          } else {
+            label = `end (${label})`
+          }
+          await finalFrame(context, label, testInfo, snap)
+          return close.call(context, closeOptions)
+        }
+        return context
+      }
+      try {
+        await runFixture(api)
+      } finally {
+        browser.newContext = newContext
+      }
+    },
+    { auto: true },
+  ],
 
   adminPage: async ({ browser, baseUrl, snapshots, seededFake: _seeded }, runFixture) => {
     const authFile = workerAuthFile(parallelIndexFromBaseUrl(baseUrl))
     const context = await browser.newContext({ storageState: authFile })
     await context.addInitScript(dismissCookieConsentScript)
-    await snapshots.prepare(context, 'admin')
+    snapshots.role(context, 'admin')
     const page = await context.newPage()
     await runFixture(page)
-    await snapshots.finish(context, 'admin')
     await context.close()
   },
 
@@ -152,10 +178,9 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
       localStorage.setItem('authToken', token)
     }, auth_token)
     await context.addInitScript(dismissCookieConsentScript)
-    await snapshots.prepare(context, 'volunteer')
+    snapshots.role(context, 'volunteer')
     const page = await context.newPage()
     await runFixture({ page, ...credentials })
-    await snapshots.finish(context, 'volunteer')
     await context.close()
   },
 })
@@ -172,17 +197,22 @@ function lastOpenPage(context: BrowserContext): Page | undefined {
 
 async function finalFrame(
   context: BrowserContext,
-  role: string,
+  label: string,
   testInfo: TestInfo,
   snap: Snap,
 ): Promise<void> {
   const page = lastOpenPage(context)
   if (!page) return
-  if (testInfo.status !== testInfo.expectedStatus) {
-    if (await captureFailure(page, testInfo)) testInfo.annotations.push({ type: 'failure-shot' })
+  // A context closed from inside a test body has no status yet; an error on
+  // record is the sign the test is on its way out.
+  const failing =
+    testInfo.errors.length > 0 ||
+    (testInfo.status !== undefined && testInfo.status !== testInfo.expectedStatus)
+  if (failing) {
+    await captureFailure(page, testInfo)
     return
   }
-  await snap(page, `end (${role})`)
+  await snap(page, label)
 }
 
 // The cookie consent banner is fixed to the bottom of the viewport and, on a fresh

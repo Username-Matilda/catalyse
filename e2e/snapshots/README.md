@@ -53,9 +53,10 @@ test('Owner edits a task', async ({ volunteer, snap }) => {
 `snap` does nothing in a plain test run. Pick labels that name the state, not
 the step: "validation errors shown", not "after clicking save".
 
-A test that opens a context of its own can take part too: `snapshots.prepare`
-sets it up for the lane, and `snapshots.finish`, called before the context
-closes, takes its final frame.
+A context a test opens for itself takes part the same way: every context the
+worker's browser opens during a snapshot run is prepared for the lane, and
+shoots its last page as it closes, labelled `end`. The fixtures that know
+whose context it is name the frame through `snapshots.role`.
 
 ## Determinism
 
@@ -112,9 +113,9 @@ npm run snapshots -- --against=main   # capture main, pin it as the baseline
 npm run snapshots                     # capture your tree, diff against the pin
 ```
 
-The first run creates a git worktree under the temp directory, symlinks
-`node_modules` into it and copies the env files, so it never touches your
-working tree and never reinstalls anything. It captures the ref there, copies
+The first run creates a git worktree under the repo's ignored `tmp/`, hard
+links `node_modules` into it and copies the env files, so it never touches
+your working tree and never reinstalls anything. It captures the ref there, copies
 the pictures into `previous/`, writes `baseline.json` and removes the
 worktree. With a baseline pinned, every plain run leaves `previous/` alone and
 diffs fresh captures against it, so you can keep editing and re-running. The
@@ -122,6 +123,33 @@ gallery banners the pin and captions each baseline picture with its ref.
 
 ```sh
 npm run snapshots -- --clear-baseline
+```
+
+A published gallery can be pinned the same way, which is what a pull request
+does in CI against what main last published:
+
+```sh
+npm run snapshots -- --baseline-from=https://example.github.io/catalyse/main
+```
+
+## In CI
+
+`.github/workflows/snapshots.yml` captures each lane in a job of its own,
+pins main's published gallery as the baseline for a pull request, then merges
+the lanes into one gallery with `--export`. That page goes up as the
+`snapshots-gallery` artifact, and onto the `gh-pages` branch under `main/` or
+`pr/<number>/`, from where GitHub Pages serves it once the repository's Pages
+source is set to that branch. A comment on the pull request links to it. A
+closed pull request's gallery is removed from the branch.
+
+The branch is rewritten as a single commit on every publish, so it holds every
+gallery still wanted and no history of pictures. A pull request's export links
+the pictures main already published rather than copying them, so it carries
+only the page, the rows that changed and their diffs.
+
+```sh
+npm run snapshots -- --render                       # rebuild index.html from the runs on disk
+npm run snapshots -- --export=gallery               # the page and its files, ready to publish
 ```
 
 ## The generated directory
@@ -150,7 +178,12 @@ exactly as they were.
 Every run writes `runs/<runId>.json` before capturing anything and updates it
 as each test finishes, recording the commit, whether the tree was dirty, the
 arguments that narrowed it, and what became of each test. A manifest still
-saying `running` marks a killed run.
+saying `running` marks a killed run. `manifest.json` at the root is a copy of
+the last one to finish, which is what `--baseline-from` reads.
+
+A test that fails keeps its pictures out of `current/`: they show on the
+gallery for that run, badged, and the last good picture stays as the next
+run's baseline.
 
 **Compare with the sidecar, never by hashing the PNG.** Run unchanged code
 twice and the bytes can still differ while every pixel stays put. Read
@@ -166,7 +199,8 @@ twice and the bytes can still differ while every pixel stays put. Read
 - `reporter.ts`: a Playwright reporter that plans the run, diffs and files each
   staged capture as its test ends, rotates the directories at the end and
   rebuilds the gallery as it goes.
-- `gallery.ts`: renders the page from the rows the reporter gathers.
+- `rows.ts`: reads the rows the page shows back off the disk layout.
+- `gallery.ts`: renders the page from those rows.
 - `png.ts`: the decoder, the diff and the pool, with no Playwright in them.
 - `runs.ts`: the manifest.
-- `scripts/snapshots.ts`: the command, and the `--against` worktree.
+- `scripts/snapshots.ts`: the command: the `--against` worktree, the published baseline, and the merged export CI publishes.
