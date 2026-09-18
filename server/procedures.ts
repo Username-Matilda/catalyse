@@ -1,7 +1,8 @@
 import { os, ORPCError } from '@orpc/server'
 import { ApprovalStatus } from '@/generated/prisma/enums'
 import { isSuperAdmin } from '@/lib/auth'
-import { MAINTENANCE_MESSAGE, canBypassMaintenance, isMaintenanceMode } from '@/lib/maintenance'
+import { canBypassMaintenance, isMaintenanceMode } from '@/lib/maintenance'
+import { MAINTENANCE_MESSAGE } from '@/lib/maintenance-message'
 import type { Context } from './context'
 
 // The procedures that keep working while maintenance mode is on: enough for the client to

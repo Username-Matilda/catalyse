@@ -1,8 +1,6 @@
 import { prisma } from './prisma'
 import { isSuperAdmin } from './auth'
 
-export const MAINTENANCE_MESSAGE = 'Catalyse is down for maintenance. Please check back soon.'
-
 // Toggled by a super admin on the platform settings page. Consulted on every RPC, so a
 // missing settings row means "open" rather than a crash.
 export async function isMaintenanceMode(): Promise<boolean> {

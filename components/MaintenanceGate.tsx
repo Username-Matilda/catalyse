@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { orpc } from '@/lib/orpc'
 import { useAuth } from '@/lib/auth-context'
-import { MAINTENANCE_MESSAGE } from '@/lib/maintenance'
+import { MAINTENANCE_MESSAGE } from '@/lib/maintenance-message'
 
 /**
  * Replaces the whole app with a "down for maintenance" page while maintenance mode is on,
