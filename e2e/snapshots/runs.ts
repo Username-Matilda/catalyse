@@ -63,6 +63,11 @@ export interface RunManifest {
   filters: string[]
   /** Lane ids this run captures in. */
   lanes: string[]
+  /**
+   * The runs this manifest was merged from, when one lane's run per job is
+   * put back together into one gallery; each keeps its own manifest too.
+   */
+  merged?: string[]
   /** Every planned test, keyed by its test key. */
   tests: Record<string, RunTest>
   /** Every capture taken so far, keyed by PNG file name. */
@@ -124,5 +129,31 @@ export function runProgress(manifest: RunManifest): {
     done: tests.filter((test) => test.status !== 'pending').length,
     planned: tests.length,
     failed: tests.filter((test) => test.status === 'failed').length,
+  }
+}
+
+/**
+ * One manifest standing for the newest complete run of each lane, so a gallery
+ * can be rebuilt from runs that captured one lane each. Tests and captures are
+ * keyed by lane, so the union never collides.
+ */
+export function mergeLatestRuns(runs: RunManifest[]): RunManifest | undefined {
+  const complete = runs.filter((run) => run.status === 'complete')
+  const newest = complete[0]
+  if (!newest) return undefined
+  const byLane = new Map<string, RunManifest>()
+  for (const run of complete) {
+    for (const lane of run.lanes) {
+      if (!byLane.has(lane)) byLane.set(lane, run)
+    }
+  }
+  const parts = [...new Set(byLane.values())]
+  return {
+    ...newest,
+    lanes: [...byLane.keys()],
+    merged: parts.map((run) => run.runId),
+    filters: [...new Set(parts.flatMap((run) => run.filters))],
+    tests: Object.assign({}, ...parts.map((run) => run.tests)) as RunManifest['tests'],
+    captures: Object.assign({}, ...parts.map((run) => run.captures)) as RunManifest['captures'],
   }
 }

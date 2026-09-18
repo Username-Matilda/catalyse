@@ -31,6 +31,8 @@ export const RUNS = path.join(SNAPSHOT_ROOT, 'runs')
 export const HISTORY = path.join(SNAPSHOT_ROOT, 'history.json')
 export const BASELINE = path.join(SNAPSHOT_ROOT, 'baseline.json')
 export const GALLERY = path.join(SNAPSHOT_ROOT, 'index.html')
+/** The manifest of the last run to finish, for whoever wants the gallery's contents without the page. */
+export const LATEST = path.join(SNAPSHOT_ROOT, 'manifest.json')
 
 export type Theme = 'light' | 'dark'
 
