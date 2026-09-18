@@ -19,6 +19,9 @@ export default defineConfig({
   resolve: { alias },
   test: {
     globalSetup: ['./test/global-setup.ts'],
+    // Transformed modules are kept under node_modules/.vitest-cache, so a run only pays to
+    // transform what changed since the last one.
+    fsModuleCache: true,
     projects: [
       {
         resolve: { alias },
