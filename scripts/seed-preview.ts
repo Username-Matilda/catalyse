@@ -39,25 +39,6 @@ async function main(): Promise<void> {
     return
   }
   execSync('npm run fetch-prod-db', { stdio: 'inherit' })
-  try {
-    execSync('npm run anonymise-db', { stdio: 'inherit' })
-  } catch (err) {
-    // Raw production data must not outlive a failed scrub; an empty database reseeds on
-    // the next start.
-    await emptyDatabase()
-    throw err
-  }
-}
-
-async function emptyDatabase(): Promise<void> {
-  const client = new Client({ connectionString: libpqUrl(resolveDbUrl()) })
-  await client.connect()
-  try {
-    await client.query('DROP SCHEMA IF EXISTS public CASCADE')
-    await client.query('CREATE SCHEMA public')
-  } finally {
-    await client.end()
-  }
 }
 
 main().catch((err) => {
