@@ -24,6 +24,7 @@
     "export-bug-reports": "tsx scripts/export-bug-reports.ts",
     "install:browsers": "playwright install chromium --with-deps",
     "test:e2e": "playwright test",
+    "snapshots": "tsx scripts/snapshots.ts",
     "test:unit": "vitest run --coverage",
     "test:unit:watch": "vitest",
     "test:e2e:dev": "E2E_DEV=1 playwright test",

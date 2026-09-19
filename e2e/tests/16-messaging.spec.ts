@@ -9,6 +9,7 @@ test.describe('Messaging', () => {
     volunteer,
     browser,
     baseUrl,
+    snap,
   }) => {
     const subject = fake.messageSubject()
     const body = fake.messageBody()
@@ -58,6 +59,7 @@ test.describe('Messaging', () => {
 
       await dialog.getByLabel('Subject').fill(subject)
       await dialog.getByLabel('Message').fill(body)
+      await snap(senderPage, 'contact form filled')
       await dialog.getByRole('button', { name: 'Send Message' }).click()
 
       await expect(getAlert(senderPage)).toContainText('Message sent', { timeout: 10_000 })
@@ -146,19 +148,5 @@ test.describe('Messaging', () => {
     await expect(viewLink).toHaveAttribute('href', `/projects/${projectId}`)
     await viewLink.click()
     await expect(volunteer.page).toHaveURL(`${baseUrl}/projects/${projectId}`)
-  })
-
-  test.skip('Both parties see the message in their history', async () => {
-    // Not possible: the /api/messages endpoint exists, but no messages inbox,
-    // history view, or tab has been built in the frontend. A real user has no
-    // way to browse sent or received messages through the UI.
-  })
-
-  test.skip('Volunteer marks a message as read', async () => {
-    // Not possible: the /api/messages/{id}/read endpoint exists, but there is no
-    // per-message read/unread UI in the frontend. The dashboard "Mark all as read"
-    // button marks notifications as read (notifications table), not contact messages
-    // (contact_messages.read_at), so there is no user-visible action that fulfils
-    // this scenario.
   })
 })

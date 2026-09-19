@@ -17,6 +17,7 @@ test.describe('Project Lifecycle', () => {
     adminPage,
     volunteer,
     baseUrl,
+    snap,
   }) => {
     const title = fake.projectTitle()
     const projectId = await proposeProject(
@@ -24,6 +25,8 @@ test.describe('Project Lifecycle', () => {
       volunteer.page,
       title,
       'Test proposal description',
+      undefined,
+      snap,
     )
     await adminApproveProject(baseUrl, adminPage, title)
 
@@ -196,12 +199,6 @@ test.describe('Project Lifecycle', () => {
     await expect(outcomeDisplay).toContainText('Successful')
     await expect(outcomeDisplay).toContainText(outcomeNotes)
   })
-
-  // SKIPPED: The app has no UI that displays a volunteer's endorsements — there is no profile
-  // view, directory card, or project page that shows "endorsed via project_outcome". The only
-  // way to verify this is via the admin API endpoint, which requires the volunteer's numeric ID.
-  // Skip until endorsements become visible somewhere in the UI.
-  test.skip('Required-skill endorsements are created for the project owner on a successful outcome', async () => {})
 })
 
 test.describe('Project Creation Requires At Least One Task', () => {

@@ -1442,7 +1442,7 @@ export const projectsRouter = {
             id: { not: input.taskId },
           },
           select: { id: true, title: true },
-          orderBy: { sortOrder: 'asc' },
+          orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
         }),
       ])
 
