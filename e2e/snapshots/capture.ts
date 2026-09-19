@@ -5,10 +5,11 @@
  */
 import type { BrowserContext, Page, TestInfo } from '@playwright/test'
 import { existsSync } from 'node:fs'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import {
   captureFile,
+  DIFFS,
   FAILURES,
   laneById,
   sidecarFile,
@@ -18,7 +19,17 @@ import {
   type CaptureMeta,
   type Lane,
 } from './config'
-import { analyzeImages, decodePng, isRealChange, type DecodedImage } from './png'
+import {
+  analyzeImages,
+  decodePng,
+  encodePng,
+  isRealChange,
+  pngSha,
+  renderDiffImage,
+  type DecodedImage,
+  type DiffAnalysis,
+} from './png'
+import { baselinePathFor } from './rows'
 
 /**
  * How long the full-page frame must stay identical before the shot is taken.
@@ -26,14 +37,22 @@ import { analyzeImages, decodePng, isRealChange, type DecodedImage } from './png
  * (a spinner between two of its frames, a toast on its way out) satisfies
  * them mid-flight, so the hold must outlast the longest such pause.
  */
-const STABLE_HOLD_MS = 400
+const STABLE_HOLD_MS = knob('SNAPSHOT_HOLD_MS', 400)
 const STABLE_POLL_MS = 100
 /** Painted frames the hold must also span, so a starved page cannot pass by not drawing. */
-const STABLE_FRAMES = 4
+const STABLE_FRAMES = knob('SNAPSHOT_FRAMES', 4)
 /** A page still moving after this long is shot anyway and reported as unsettled. */
 const STABLE_CAP_MS = 6_000
 /** After the poll says still, one more beat for the compositor to catch up. */
-const RASTER_SETTLE_MS = 150
+const RASTER_SETTLE_MS = knob('SNAPSHOT_RASTER_MS', 150)
+/** How long to give the network to go quiet before the frame poll starts; 0 skips the wait. */
+const NETWORK_IDLE_MS = knob('SNAPSHOT_NETWORK_IDLE_MS', 3_000)
+
+/** A timing the environment may override, for measuring one setting against another. */
+function knob(name: string, fallback: number): number {
+  const value = process.env[name]
+  return value === undefined ? fallback : parseInt(value, 10)
+}
 
 /**
  * The instant every date on a page is rewritten to before the shot. Records
@@ -198,7 +217,9 @@ export async function normaliseDates(page: Page): Promise<void> {
 /** Everything a capture waits for before the page is judged still. */
 async function settle(page: Page): Promise<boolean> {
   await page.evaluate(() => document.fonts.ready)
-  await page.waitForLoadState('networkidle', { timeout: 3_000 }).catch(() => undefined)
+  if (NETWORK_IDLE_MS > 0) {
+    await page.waitForLoadState('networkidle', { timeout: NETWORK_IDLE_MS }).catch(() => undefined)
+  }
   // A full-page shot resizes the viewport to the document, and on a page
   // scrolled part-way down the sticky header lands somewhere different in
   // each frame while the scroll position is restored. From the top there is
@@ -232,11 +253,25 @@ export async function captureSnapshot(
   const file = captureFile(key, seq, label)
   const settled = await settle(page)
   await mkdir(STAGING, { recursive: true })
-  await page.screenshot({
-    path: path.join(STAGING, file),
-    fullPage: true,
-    animations: 'disabled',
-  })
+  const buffer = await page.screenshot({ fullPage: true, animations: 'disabled' })
+  await writeFile(path.join(STAGING, file), buffer)
+  // The diff is taken here, in the worker, where the work spreads across the
+  // pool; the reporter alone would fall behind eight workers' captures.
+  const previousPath = baselinePathFor(file)
+  const hasPrevious = existsSync(previousPath)
+  let diff: DiffAnalysis | undefined
+  if (hasPrevious) {
+    const prevImage = decodePng(await readFile(previousPath))
+    const currImage = decodePng(buffer)
+    diff = analyzeImages(prevImage, currImage)
+    await mkdir(DIFFS, { recursive: true })
+    const diffPath = path.join(DIFFS, file)
+    if (diff.count > 0) {
+      await writeFile(diffPath, encodePng(renderDiffImage(prevImage, currImage)))
+    } else {
+      await rm(diffPath, { force: true })
+    }
+  }
   const meta: CaptureMeta = {
     lane: lane.id,
     spec: specId(testInfo.file),
@@ -258,7 +293,11 @@ export async function captureSnapshot(
       deviceScaleFactor: lane.deviceScaleFactor,
     },
     theme: lane.theme,
+    sha: pngSha(buffer),
+    hasPrevious,
+    diffPixels: diff?.count ?? 0,
   }
+  if (diff) meta.diff = diff
   await writeFile(path.join(STAGING, sidecarFile(file)), JSON.stringify(meta, null, 2))
   return file
 }

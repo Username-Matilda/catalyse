@@ -5,10 +5,34 @@
  * without talking to each other.
  */
 import { createHash } from 'node:crypto'
+import { cpus } from 'node:os'
 import path from 'node:path'
 
 /** Whether this Playwright run is capturing snapshots at all. */
 export const SNAPSHOTS_ENABLED = process.env.SNAPSHOTS === '1'
+
+/**
+ * Workers a snapshot run uses, each with a server and schema of its own. A
+ * server is a whole Next process, so the count follows the machine: one per
+ * core, less one so the browsers have somewhere to run, capped so a big
+ * machine does not open more servers than its database wants. A worker takes
+ * whole spec files, so a file's tests still run in order against a database
+ * only they and their file-mates have touched.
+ */
+export function snapshotWorkerCount(): number {
+  if (process.env.SNAPSHOT_WORKERS) return Math.max(1, parseInt(process.env.SNAPSHOT_WORKERS, 10))
+  return Math.min(8, Math.max(1, cpus().length - 1))
+}
+
+/**
+ * How many servers a snapshot run needs: one per worker. A worker's slot is
+ * shared across the lanes in the run, so each slot gets a server of its own;
+ * which slot a spec file lands on is fixed for a given set of files, the same
+ * as in a plain run.
+ */
+export function snapshotServerCount(): number {
+  return snapshotWorkerCount()
+}
 
 export const SNAPSHOT_ROOT = path.resolve(__dirname, '..', '..', 'snapshots')
 export const CURRENT = path.join(SNAPSHOT_ROOT, 'current')

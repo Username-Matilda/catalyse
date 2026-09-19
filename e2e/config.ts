@@ -38,11 +38,19 @@ export function workerDbSchema(parallelIndex: number): string {
   return `e2e_${parallelIndex}`
 }
 
-export function workerDbUrl(parallelIndex: number): string {
+/**
+ * Connections the servers may hold between them. Postgres defaults to a
+ * hundred, and a few must stay free for migrations, the tests' own direct
+ * queries and whatever else is using the database.
+ */
+const POOL_BUDGET = 80
+
+export function workerDbUrl(parallelIndex: number, serverCount = WORKER_COUNT): string {
   const url = new URL(resolveTestDbUrl())
   url.searchParams.set('schema', workerDbSchema(parallelIndex))
-  // Each worker's app server gets its own pool; keep the sum well under max_connections.
-  url.searchParams.set('connection_limit', '10')
+  // Each server gets its own pool, sized so the sum stays inside the budget.
+  const limit = Math.max(2, Math.min(10, Math.floor(POOL_BUDGET / serverCount)))
+  url.searchParams.set('connection_limit', String(limit))
   return url.toString()
 }
 

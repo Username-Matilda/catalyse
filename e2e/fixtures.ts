@@ -3,7 +3,7 @@ import { workerAuthFile, workerBaseUrl, parallelIndexFromBaseUrl } from './confi
 import { fake, seedFake } from './fake'
 import fs from 'fs'
 import { createApiClient } from './client'
-import { SNAPSHOTS_ENABLED, laneIndex } from './snapshots/config'
+import { SNAPSHOTS_ENABLED } from './snapshots/config'
 import {
   captureFailure,
   captureSnapshot,
@@ -52,20 +52,16 @@ interface WorkerFixtures {
 export const test = base.extend<Fixtures, WorkerFixtures>({
   baseUrl: [
     async ({}, runFixture, workerInfo: WorkerInfo) => {
-      // A snapshot lane is one Playwright project run on one worker, so the
-      // lane picks the server and the data behind every one of its pictures
-      // is exactly the data its own tests made, in the order they ran.
-      const index = SNAPSHOTS_ENABLED
-        ? laneIndex(workerInfo.project.name)
-        : workerInfo.parallelIndex
-      await runFixture(workerBaseUrl(index))
+      await runFixture(workerBaseUrl(workerInfo.parallelIndex))
     },
     { scope: 'worker' },
   ],
 
   seededFake: [
     async ({}, runFixture, testInfo) => {
-      seedFake(testInfo.titlePath.join(' › '))
+      // The lane is part of the seed: the same test runs once per lane, and
+      // two lanes can share a server, so each must make its own people.
+      seedFake(`${testInfo.project.name} ${testInfo.titlePath.join(' › ')}`)
       await runFixture()
     },
     { auto: true },
