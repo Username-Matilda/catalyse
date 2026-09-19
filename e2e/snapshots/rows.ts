@@ -83,7 +83,7 @@ async function captureRow(
   const test = manifest.tests[meta.key]
   const inRun = test !== undefined && test.status !== 'pending'
   const hasPrevious = meta.hasPrevious ?? existsSync(previousPath)
-  const changed = !hasPrevious || (meta.diff !== undefined && isRealChange(meta.diff))
+  const changed = hasPrevious && meta.diff !== undefined && isRealChange(meta.diff)
   const previousMeta = hasPrevious ? await readMeta(previousPath) : undefined
   return {
     id: file.replace(/\.png$/, ''),

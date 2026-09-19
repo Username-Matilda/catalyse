@@ -210,10 +210,14 @@ function slugId(text: string): string {
 }
 
 /** What a row is, over all its lanes: the worst state any lane is in. */
-function groupState(group: RowGroup): 'failed' | 'unsettled' | 'changed' | 'same' {
+type GroupState = 'failed' | 'unsettled' | 'changed' | 'new' | 'same'
+
+/** The worst state any lane of the row is in. A first capture is new, not changed. */
+function groupState(group: RowGroup): GroupState {
   if (group.rows.some((row) => row.testStatus === 'failed')) return 'failed'
   if (group.rows.some((row) => row.unsettled)) return 'unsettled'
   if (group.rows.some((row) => row.changed)) return 'changed'
+  if (group.rows.some((row) => !row.hasPrevious)) return 'new'
   return 'same'
 }
 
@@ -238,11 +242,13 @@ function lanePane(row: GalleryRow): string {
           row.currentTimestamp,
         )
       : `<figure class="missing"><figcaption>Current</figcaption><div>Never captured</div></figure>`
-  const status = row.changed
-    ? `Changed${row.hasPrevious ? ` · ${String(row.diffPixels)}px` : ''}`
-    : row.hasPrevious && row.diffPixels > 0
-      ? `Same · ±${String(row.diffPixels)}px noise`
-      : 'Unchanged'
+  const status = !row.hasPrevious
+    ? 'New'
+    : row.changed
+      ? `Changed · ${String(row.diffPixels)}px`
+      : row.diffPixels > 0
+        ? `Same · ±${String(row.diffPixels)}px noise`
+        : 'Unchanged'
   const timing =
     row.durationMs === undefined
       ? ''
@@ -283,8 +289,8 @@ function rowSection(group: RowGroup): string {
   </section>`
 }
 
-function navMark(state: ReturnType<typeof groupState>): string {
-  if (state === 'same') return ''
+function navMark(state: GroupState): string {
+  if (state === 'same' || state === 'new') return ''
   return `<i class="mark ${state}" title="${state}"></i>`
 }
 
@@ -315,7 +321,7 @@ function navRail(groups: RowGroup[]): string {
             .map(groupState)
             .sort((a, b) => RANK[a] - RANK[b])[0]
           const marks = captures
-            .filter((group) => groupState(group) !== 'same')
+            .filter((group) => navMark(groupState(group)) !== '')
             .map(
               (group) =>
                 `<a class="cap" href="#${group.id}" data-target="${group.id}" title="${escapeHtml(`${group.label}: ${groupState(group)}`)}">${navMark(groupState(group))}${escapeHtml(group.label)}</a>`,
@@ -325,13 +331,12 @@ function navRail(groups: RowGroup[]): string {
         })
         .join('')
       const specState = specGroups.map(groupState).sort((a, b) => RANK[a] - RANK[b])[0]
-      const open = specState !== 'same'
-      return `<details data-spec="${escapeHtml(spec)}" data-state="${specState}"${open ? ' open' : ''}><summary>${escapeHtml(spec)}${navMark(specState)}<b></b></summary>${items}</details>`
+      return `<details data-spec="${escapeHtml(spec)}" data-state="${specState}"><summary>${escapeHtml(spec)}${navMark(specState)}<b></b></summary>${items}</details>`
     })
     .join('')
 }
 
-const RANK = { failed: 0, unsettled: 1, changed: 2, same: 3 } as const
+const RANK: Record<GroupState, number> = { failed: 0, unsettled: 1, changed: 2, new: 3, same: 4 }
 
 export function renderGallery(
   rows: GalleryRow[],
@@ -364,18 +369,12 @@ export function renderGallery(
     <span class="figure"><b>${escapeHtml(formatDuration(cost.wallMs))}</b> <em>waited</em></span>
     <span class="figure"><b>${String(cost.captures)}</b> <em>captures this run</em></span>
   </p>`
-  const filters = `<div class="filters">
-    <div class="filter-row" data-filter="run">
-      <button type="button" data-value="this" class="on">This run${changedCount((row) => row.testStatus !== undefined)}</button>
-      <button type="button" data-value="all">All rows${changedCount(() => true)}</button>
-    </div>
-    <div class="filter-row" data-filter="changed">
-      <button type="button" data-value="all" class="on">Everything</button>
-      <button type="button" data-value="changed">Changed only${changedCount(() => true)}</button>
-    </div>
+  const filters = `<div class="switches">${switchFor('viewport', viewports)}${switchFor('theme', themes)}</div>
+  <div class="filters">
+    <label class="toggle" data-filter="run"><input type="checkbox" value="all" /> Show rows from earlier runs too</label>
+    <label class="toggle" data-filter="changed"><input type="checkbox" value="changed" /> Only what changed${changedCount(() => true)}</label>
     <input type="search" id="search" placeholder="Filter by spec, test or label" />
-  </div>
-  <div class="switches">${switchFor('viewport', viewports)}${switchFor('theme', themes)}</div>`
+  </div>`
   const { done, planned } = runProgress(manifest)
   return `<!doctype html>
 <html lang="en">
@@ -416,7 +415,7 @@ export function renderGallery(
     i.mark.failed { background: #dc2626; box-shadow: 0 0 0 2px #fecaca; }
     section h2 em { color: #64748b; font-style: normal; font-weight: 500; }
     aside .test[hidden], aside details[hidden], aside h4[hidden], section[hidden], .pane[hidden] { display: none; }
-    .switches { display: flex; flex-direction: column; gap: .4rem; margin: .5rem 0 .75rem; }
+    .switches { display: flex; flex-direction: column; gap: .4rem; margin: 0 0 .75rem; padding-bottom: .75rem; border-bottom: 1px solid #e5eaf1; }
     .switch { display: flex; align-items: center; gap: .5rem; font-size: .78rem; color: #64748b; }
     .switch::before { content: attr(data-switch); width: 4.2rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; font-size: .68rem; }
     .switch button { flex: 1; padding: .3rem .5rem; border: 1px solid #cbd5e1; margin-left: -1px; background: #fff; color: #64748b; font: inherit; font-size: .8rem; font-weight: 600; cursor: pointer; text-transform: capitalize; }
@@ -433,13 +432,10 @@ export function renderGallery(
     .pane[data-changed="true"] .pane-head .timing { background: #eef2f7; color: #64748b; }
     p.elsewhere { margin: 0; color: #64748b; font-size: .8rem; font-weight: 400; text-transform: none; letter-spacing: 0; }
     p.elsewhere span { font-weight: 600; color: #c2410c; }
-    .filters { display: flex; flex-direction: column; gap: .35rem; margin: 0 0 .5rem; }
-    .filter-row { display: flex; flex-wrap: wrap; gap: .3rem; }
-    .filter-row button { display: inline-flex; align-items: center; gap: .35rem; padding: .3rem .6rem; border: 1px solid #d9e0ea; border-radius: 999px; background: #fff; color: #334155; font: inherit; font-size: .8rem; cursor: pointer; }
-    .filter-row button:hover { background: #f1f5f9; }
-    .filter-row button.on { border-color: #1a73e8; background: #1a73e8; color: #fff; }
-    .filter-row button b { padding: 0 .3rem; border-radius: 999px; background: #fee2e2; color: #b91c1c; font-size: .7rem; }
-    .filter-row button.on b { background: #dbeafe; color: #1d4ed8; }
+    .filters { display: flex; flex-direction: column; gap: .4rem; margin: 0 0 .75rem; }
+    .toggle { display: flex; align-items: center; gap: .45rem; color: #334155; font-size: .82rem; cursor: pointer; }
+    .toggle input { margin: 0; accent-color: #1a73e8; }
+    .toggle b { padding: 0 .3rem; border-radius: 999px; background: #fee2e2; color: #b91c1c; font-size: .7rem; }
     #search { width: 100%; box-sizing: border-box; padding: .4rem .6rem; border: 1px solid #d9e0ea; border-radius: .45rem; font: inherit; font-size: .85rem; }
     main { max-width: 1720px; margin-left: 24rem; padding: 1.25rem; }
     section { scroll-margin-top: 1rem; margin: 0 0 1.25rem; border: 1px solid #d9e0ea; border-radius: .5rem; background: #fff; box-shadow: 0 1px 3px rgb(15 23 42 / .08); }
@@ -559,10 +555,9 @@ ${LANES.map(
           heading.hidden = !any;
         }
       }
-      for (const row of document.querySelectorAll(".filter-row")) {
-        for (const button of row.querySelectorAll("button")) {
-          button.classList.toggle("on", button.dataset.value === chosen[row.dataset.filter]);
-        }
+      for (const toggle of document.querySelectorAll(".toggle")) {
+        const input = toggle.querySelector("input");
+        input.checked = chosen[toggle.dataset.filter] === input.value;
       }
       for (const sw of document.querySelectorAll(".switch")) {
         for (const button of sw.querySelectorAll("button")) {
@@ -570,13 +565,22 @@ ${LANES.map(
         }
       }
     };
-    for (const row of document.querySelectorAll(".filter-row, .switch")) {
-      const key = row.dataset.filter || row.dataset.switch;
-      row.addEventListener("click", (event) => {
+    for (const sw of document.querySelectorAll(".switch")) {
+      sw.addEventListener("click", (event) => {
         const button = event.target.closest("button");
         if (!button) return;
-        chosen[key] = button.dataset.value;
-        localStorage.setItem("catalyse-snapshots-" + key, button.dataset.value);
+        chosen[sw.dataset.switch] = button.dataset.value;
+        localStorage.setItem("catalyse-snapshots-" + sw.dataset.switch, button.dataset.value);
+        applyFilters();
+      });
+    }
+    const OFF = { run: "this", changed: "all" };
+    for (const toggle of document.querySelectorAll(".toggle")) {
+      const input = toggle.querySelector("input");
+      input.addEventListener("change", () => {
+        const key = toggle.dataset.filter;
+        chosen[key] = input.checked ? input.value : OFF[key];
+        localStorage.setItem("catalyse-snapshots-" + key, chosen[key]);
         applyFilters();
       });
     }
@@ -586,26 +590,30 @@ ${LANES.map(
     });
     applyFilters();
 
-    // A spec stays folded unless it holds something to look at or the reader
-    // opened it; both are remembered per spec.
+    // Specs start folded. The one whose row is on screen unfolds as the page
+    // scrolls, and folds again when the reader moves on, unless they opened
+    // it themselves, which sticks until they close it.
+    const pinned = new Set();
     for (const details of document.querySelectorAll("aside details")) {
-      const saved = localStorage.getItem("catalyse-snapshots-open-" + details.dataset.spec);
-      if (saved !== null) details.open = saved === "1";
-      details.addEventListener("toggle", () => {
-        localStorage.setItem("catalyse-snapshots-open-" + details.dataset.spec, details.open ? "1" : "0");
+      details.querySelector("summary").addEventListener("click", () => {
+        // Runs before the toggle, so the state read here is the one being left.
+        if (details.open) pinned.delete(details.dataset.spec);
+        else pinned.add(details.dataset.spec);
       });
     }
 
     const blocks = [...document.querySelectorAll("aside .test")];
     const activate = (id) => {
+      let current = null;
       for (const block of blocks) {
         const on = block.dataset.targets.split(" ").includes(id);
         block.classList.toggle("active", on);
-        if (on) {
-          const details = block.closest("details");
-          if (details && !details.open) details.open = true;
-        }
+        if (on) current = block.closest("details");
       }
+      for (const details of document.querySelectorAll("aside details")) {
+        details.open = details === current || pinned.has(details.dataset.spec);
+      }
+      if (current) current.querySelector(".test.active")?.scrollIntoView({ block: "nearest" });
       for (const cap of document.querySelectorAll("aside a.cap")) cap.classList.toggle("active", cap.dataset.target === id);
     };
     const observer = new IntersectionObserver((entries) => {
