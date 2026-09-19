@@ -51,6 +51,6 @@ export const adminProcedure = base.use(({ context, next }) => {
 export const superAdminProcedure = base.use(({ context, next }) => {
   if (!context.volunteer) throw new ORPCError('UNAUTHORIZED')
   if (!context.volunteer.isAdmin) throw new ORPCError('FORBIDDEN')
-  if (!isSuperAdmin(context.volunteer.email)) throw new ORPCError('FORBIDDEN')
+  if (!isSuperAdmin(context.volunteer)) throw new ORPCError('FORBIDDEN')
   return next({ context: { volunteer: context.volunteer } })
 })

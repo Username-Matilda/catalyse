@@ -140,6 +140,12 @@ export const journalistOutreachRouter = {
     if (!email) {
       throw new ORPCError('BAD_REQUEST', { message: 'Your account has no email address.' })
     }
+    // The emailed link proves the address for everyone else; an account must have too.
+    if (!context.volunteer.emailConfirmed) {
+      throw new ORPCError('FORBIDDEN', {
+        message: 'Confirm your email address first, or request a sign-in link instead.',
+      })
+    }
     const participant = await prisma.experimentalOutreachParticipant.upsert({
       where: { email },
       create: { email },

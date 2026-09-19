@@ -212,8 +212,10 @@ describe('auth.signup', () => {
         approvalStatus: 'pending',
         emailConfirmed: false,
       })
+      // Opened signed out, so the link proves the mailbox but not who signed up.
       expect(await anon().auth.verifyEmail({ token: res.emailVerificationToken! })).toEqual({
         success: true,
+        requiresPasswordReset: true,
       })
       expect(await prisma.volunteer.findUniqueOrThrow({ where: { id: res.id } })).toMatchObject({
         isAdmin: true,
@@ -431,7 +433,10 @@ describe('verifyEmail / resendVerification', () => {
     })
 
     const t = await tokenFor(pending.id)
-    expect(await anon().auth.verifyEmail({ token: t.token })).toEqual({ success: true })
+    expect(await anon().auth.verifyEmail({ token: t.token })).toEqual({
+      success: true,
+      requiresPasswordReset: false,
+    })
     expect(
       (await prisma.volunteer.findUniqueOrThrow({ where: { id: pending.id } })).emailConfirmed,
     ).toBe(true)
@@ -465,6 +470,52 @@ describe('verifyEmail / resendVerification', () => {
     const rejected = await createVolunteer({ emailConfirmed: false, approvalStatus: 'rejected' })
     await anon().auth.verifyEmail({ token: (await tokenFor(rejected.id)).token })
     expect(email.sendApplicationReceivedEmail).toHaveBeenCalledTimes(1)
+  })
+
+  it('locks out whoever pre-registered a listed address when its owner confirms it', async () => {
+    // Anyone can sign up with an address they do not own. The owner, expecting mail
+    // from Catalyse, clicks the link from their own browser, signed out.
+    const squatted = await createVolunteer({
+      email: 'admin14@example.com',
+      approvalStatus: 'pending',
+      emailConfirmed: false,
+    })
+    const attacker = await anon().auth.login({
+      email: 'admin14@example.com',
+      password: TEST_PASSWORD,
+    })
+    const t = await tokenFor(squatted.id)
+    expect(await anon().auth.verifyEmail({ token: t.token })).toEqual({
+      success: true,
+      requiresPasswordReset: true,
+    })
+    expect(await prisma.volunteer.findUniqueOrThrow({ where: { id: squatted.id } })).toMatchObject({
+      isAdmin: true,
+      passwordHash: null,
+    })
+    expect(await prisma.session.count({ where: { volunteerId: squatted.id } })).toBe(0)
+    expect(attacker.token).toBeTruthy()
+    await expect(
+      anon().auth.login({ email: 'admin14@example.com', password: TEST_PASSWORD }),
+    ).rejects.toBeDefined()
+  })
+
+  it('keeps the password when the link is opened while signed in to the account', async () => {
+    const invitee = await createVolunteer({
+      email: 'admin15@example.com',
+      approvalStatus: 'pending',
+      emailConfirmed: false,
+    })
+    const t = await tokenFor(invitee.id)
+    expect(await clientAs(invitee).auth.verifyEmail({ token: t.token })).toEqual({
+      success: true,
+      requiresPasswordReset: false,
+    })
+    const res = await anon().auth.login({ email: 'admin15@example.com', password: TEST_PASSWORD })
+    expect(res.token).toBeTruthy()
+    expect(await prisma.volunteer.findUniqueOrThrow({ where: { id: invitee.id } })).toMatchObject({
+      isAdmin: true,
+    })
   })
 
   it('does not confirm an address that was changed while the link was being verified', async () => {
@@ -644,10 +695,20 @@ describe('google sign-in (stubbed)', () => {
 
   it('signs in existing accounts, and hands new ones to the signup form', async () => {
     const existing = await createVolunteer({ email: 'g@example.com', emailConfirmed: false })
+    const earlier = await anon().auth.login({ email: 'g@example.com', password: TEST_PASSWORD })
     const res = await anon().auth.google({ stub: true, email: 'g@example.com', name: 'Ignored' })
+    // Whoever set the password on the unconfirmed account is not known to be this person.
+    expect(await prisma.volunteer.findUniqueOrThrow({ where: { id: existing.id } })).toMatchObject({
+      emailConfirmed: true,
+      passwordHash: null,
+    })
+    expect(await prisma.session.count({ where: { tokenHash: hashToken(earlier.token) } })).toBe(0)
+
+    const confirmed = await createVolunteer({ email: 'g2@example.com' })
+    await anon().auth.google({ stub: true, email: 'g2@example.com' })
     expect(
-      (await prisma.volunteer.findUniqueOrThrow({ where: { id: existing.id } })).emailConfirmed,
-    ).toBe(true)
+      (await prisma.volunteer.findUniqueOrThrow({ where: { id: confirmed.id } })).passwordHash,
+    ).toBeTruthy()
     expect(res).toMatchObject({
       isNewUser: false,
       isPending: false,

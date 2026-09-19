@@ -1,5 +1,5 @@
 import { prisma } from './prisma'
-import { isSuperAdmin } from './auth'
+import { isSuperAdmin, type EmailIdentity } from './auth'
 
 // Toggled by a super admin on the platform settings page. Consulted on every RPC, so a
 // missing settings row means "open" rather than a crash.
@@ -11,6 +11,6 @@ export async function isMaintenanceMode(): Promise<boolean> {
   return settings?.maintenanceMode ?? false
 }
 
-export function canBypassMaintenance(volunteer: { email: string | null } | null): boolean {
-  return isSuperAdmin(volunteer?.email)
+export function canBypassMaintenance(volunteer: EmailIdentity | null): boolean {
+  return isSuperAdmin(volunteer)
 }

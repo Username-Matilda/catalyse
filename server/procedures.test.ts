@@ -53,6 +53,13 @@ describe('procedure gates', () => {
       maintenanceMode: false,
     })
   })
+
+  it('superAdminProcedure refuses an admin who changed to a listed address without confirming it', async () => {
+    const squatter = await createSuperAdmin({ emailConfirmed: false })
+    await expect(clientAs(squatter).admin.platformSettings.get()).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    })
+  })
 })
 
 describe('maintenance mode', () => {

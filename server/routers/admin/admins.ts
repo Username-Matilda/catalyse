@@ -168,6 +168,12 @@ export const adminAdminsRouter = {
           message: 'This invite is for a different email address',
         })
       }
+      // The token travels by email and can be forwarded; only a proven address redeems it.
+      if (!volunteer.emailConfirmed) {
+        throw new ORPCError('FORBIDDEN', {
+          message: 'Confirm your email address before accepting this invite',
+        })
+      }
 
       await prisma.$transaction([
         prisma.volunteer.update({

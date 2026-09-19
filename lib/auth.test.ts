@@ -19,6 +19,8 @@ import {
   isSuperAdmin,
   checkAdminBootstrap,
   acceptPendingInvite,
+  isEntitledToAdmin,
+  revokeCredentials,
   AUTH_TOKEN_TTL_MS,
 } from './auth'
 
@@ -138,10 +140,56 @@ describe('requireAdmin / requireSuperAdmin', () => {
     expect((await requireSuperAdmin(st)).volunteer?.id).toBe(superAdmin.id)
   })
 
-  it('isSuperAdmin is case-insensitive and false for empty', () => {
-    expect(isSuperAdmin('ADMIN@example.com')).toBe(true)
+  it('refuses an admin whose listed address is unconfirmed', async () => {
+    const squatter = await createAdmin({ email: 'admin18@example.com', emailConfirmed: false })
+    const token = await createSession(squatter.id)
+    expect((await requireSuperAdmin(token)).error?.status).toBe(403)
+    expect(redactVolunteer(squatter).isSuperAdmin).toBe(false)
+  })
+
+  it('isSuperAdmin is case-insensitive, false for empty and false until confirmed', () => {
+    expect(isSuperAdmin({ email: 'ADMIN@example.com', emailConfirmed: true })).toBe(true)
+    expect(isSuperAdmin({ email: 'admin@example.com', emailConfirmed: false })).toBe(false)
+    expect(isSuperAdmin({ email: null, emailConfirmed: true })).toBe(false)
     expect(isSuperAdmin(null)).toBe(false)
-    expect(isSuperAdmin('x@example.com')).toBe(false)
+    expect(isSuperAdmin({ email: 'x@example.com', emailConfirmed: true })).toBe(false)
+  })
+})
+
+describe('isEntitledToAdmin', () => {
+  it('is true for a confirmed listed address or a confirmed pending invite', async () => {
+    const inviter = await createAdmin()
+    await prisma.adminInvite.create({
+      data: {
+        email: 'entitled@example.com',
+        inviteToken: 'entitled-tok',
+        invitedById: inviter.id,
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+    })
+    const invited = { email: 'Entitled@example.com', emailConfirmed: true }
+    expect(await isEntitledToAdmin(invited)).toBe(true)
+    expect(await isEntitledToAdmin({ ...invited, emailConfirmed: false })).toBe(false)
+    expect(await isEntitledToAdmin({ email: 'admin@example.com', emailConfirmed: true })).toBe(true)
+    expect(await isEntitledToAdmin({ email: 'x@example.com', emailConfirmed: true })).toBe(false)
+  })
+})
+
+describe('revokeCredentials', () => {
+  it('clears the password, the legacy token and every session', async () => {
+    const vol = await createVolunteer()
+    await prisma.volunteer.update({
+      where: { id: vol.id },
+      data: { authToken: 'legacy-revoke', authTokenExpiresAt: new Date(Date.now() + 60_000) },
+    })
+    const token = await createSession(vol.id)
+    await revokeCredentials(vol.id)
+    expect(await getCurrentVolunteer(token)).toBeNull()
+    expect(await getCurrentVolunteer('legacy-revoke')).toBeNull()
+    expect(await prisma.volunteer.findUniqueOrThrow({ where: { id: vol.id } })).toMatchObject({
+      passwordHash: null,
+      authToken: null,
+    })
   })
 })
 

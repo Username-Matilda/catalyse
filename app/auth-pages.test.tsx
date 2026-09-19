@@ -95,6 +95,22 @@ describe('forgot / reset password', () => {
 })
 
 describe('verify email', () => {
+  it('sends the owner of an admin address to set a new password', async () => {
+    const vol = await createVolunteer({ email: 'admin16@example.com', emailConfirmed: false })
+    await prisma.emailVerificationToken.create({
+      data: {
+        volunteerId: vol.id,
+        token: 'verify-admin',
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+    })
+    await renderApp(<VerifyEmailPage />, { url: '/verify-email?token=verify-admin' })
+    expect(await screen.findByRole('link', { name: 'Set a new password' })).toHaveAttribute(
+      'href',
+      '/forgot-password',
+    )
+  })
+
   it('confirms a valid token, explains a used one, and can resend a link', async () => {
     const vol = await createVolunteer({ emailConfirmed: false })
     const token = (

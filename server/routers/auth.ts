@@ -11,6 +11,8 @@ import {
   deleteAllSessions,
   deleteOtherSessions,
   promoteIfEntitled,
+  isEntitledToAdmin,
+  revokeCredentials,
   redactVolunteer,
 } from '@/lib/auth'
 import {
@@ -554,7 +556,7 @@ export const authRouter = {
 
   verifyEmail: publicProcedure
     .input(z.object({ token: z.string().min(1) }))
-    .handler(async ({ input }) => {
+    .handler(async ({ input, context }) => {
       const record = await prisma.emailVerificationToken.findUnique({
         where: { token: input.token },
         include: {
@@ -598,6 +600,12 @@ export const authRouter = {
         throw new ORPCError('BAD_REQUEST', {
           message: 'This confirmation link has already been used',
         })
+      // A click made while signed in to the account comes from whoever set it up. Any
+      // other click proves the mailbox only, so it must not hand admin to a password
+      // or session somebody else created.
+      const requiresPasswordReset =
+        context.volunteer?.id !== confirmed.id && (await isEntitledToAdmin(confirmed))
+      if (requiresPasswordReset) await revokeCredentials(confirmed.id)
       const wasPromoted = await promoteIfEntitled(confirmed)
 
       if (!volunteer.emailConfirmed && volunteer.email) {
@@ -628,7 +636,7 @@ export const authRouter = {
           )
         }
       }
-      return { success: true }
+      return { success: true, requiresPasswordReset }
     }),
 
   resendVerification: publicProcedure
@@ -754,7 +762,8 @@ export const authRouter = {
       const found = await prisma.volunteer.findFirst({ where: { email, deletedAt: null } })
       if (found) {
         // Google vouches for the address, which may have been unconfirmed since a
-        // password signup.
+        // password signup. That signup need not have been this person's.
+        if (!found.emailConfirmed) await revokeCredentials(found.id)
         const existing = found.emailConfirmed
           ? found
           : await prisma.volunteer.update({

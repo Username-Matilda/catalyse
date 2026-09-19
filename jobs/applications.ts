@@ -28,9 +28,9 @@ export async function runApplicationsSummaryJob(): Promise<Record<string, unknow
   const admins = (
     await prisma.volunteer.findMany({
       where: { isAdmin: true, deletedAt: null },
-      select: { name: true, email: true },
+      select: { name: true, email: true, emailConfirmed: true },
     })
-  ).filter((a) => isSuperAdmin(a.email))
+  ).filter((a) => isSuperAdmin(a))
 
   let sent = 0
   for (const admin of admins) {

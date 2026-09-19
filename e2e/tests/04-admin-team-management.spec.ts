@@ -1,7 +1,7 @@
 import { test, expect, getAlert, dismissCookieConsentScript } from '../fixtures'
 import { fake } from '../fake'
 import { ADMIN_EMAIL } from '../config'
-import { signup } from '../actions/auth'
+import { signup, login } from '../actions/auth'
 import { Page } from '@playwright/test'
 import { createApiClient } from '../client'
 
@@ -100,9 +100,28 @@ test.describe('Admin: Admin Team Management', () => {
       // redirects to dashboard instead of back to accept-invite
       await page.evaluate(() => localStorage.removeItem('pendingAdminInvite'))
 
-      // Signing up with the invited email auto-accepts the invite server-side
+      // Signing up proves nothing about the address, so the invite waits for the
+      // confirmation link. A pending signup leaves the browser signed out, so the link
+      // proves the mailbox only and the password chosen at signup is cleared.
       await signup(baseUrl, page, person.name, person.email, 'testpassword1')
-      await page.waitForURL(`${baseUrl}/dashboard`, { timeout: 15_000 })
+      await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible({
+        timeout: 15_000,
+      })
+
+      const api = createApiClient(baseUrl)
+      const resent = await api.auth.resendVerification({ body: { email: person.email } })
+      const { emailVerificationToken } = resent.body as { emailVerificationToken?: string }
+      await page.goto(`${baseUrl}/verify-email?token=${emailVerificationToken}`)
+      await expect(page.getByRole('link', { name: 'Set a new password' })).toBeVisible({
+        timeout: 10_000,
+      })
+
+      const forgot = await api.auth.forgotPassword({ body: { email: person.email } })
+      const { _devResetToken } = forgot.body as { _devResetToken?: string }
+      await api.auth.resetPassword({
+        body: { token: _devResetToken!, newPassword: 'testpassword2' },
+      })
+      await login(baseUrl, page, person.email, 'testpassword2')
 
       const me = await getMe(page, baseUrl)
       expect(me.isAdmin).toBeTruthy()

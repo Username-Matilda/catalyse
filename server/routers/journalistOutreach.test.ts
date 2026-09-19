@@ -147,6 +147,10 @@ describe('journalistOutreach sign-in', () => {
     await expect(clientAs(noEmail).journalistOutreach.catalyseSignIn()).rejects.toMatchObject({
       code: 'BAD_REQUEST',
     })
+    const unconfirmed = await createVolunteer({ emailConfirmed: false })
+    await expect(clientAs(unconfirmed).journalistOutreach.catalyseSignIn()).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    })
   })
 
   it('rate limits link requests and verification', async () => {
