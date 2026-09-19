@@ -99,6 +99,31 @@ describe('auth.login', () => {
       true,
     )
   })
+  it('does not promote an account whose email is unconfirmed', async () => {
+    // A pending applicant repoints their account at an invited address (or an
+    // ADMIN_EMAILS address) without ever confirming it, then logs back in.
+    const inviter = await createAdmin()
+    await prisma.adminInvite.create({
+      data: {
+        email: 'ceo@example.com',
+        inviteToken: 't-unconfirmed',
+        invitedById: inviter.id,
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+    })
+    for (const target of ['ceo@example.com', 'admin12@example.com']) {
+      const applicant = await createVolunteer({ approvalStatus: 'pending', emailConfirmed: false })
+      await clientAs(applicant).auth.changeEmail({ newEmail: target, password: TEST_PASSWORD })
+      const res = await anon().auth.login({ email: target, password: TEST_PASSWORD })
+      expect(res.wasPromoted).toBe(false)
+      expect(
+        await prisma.volunteer.findUniqueOrThrow({ where: { id: applicant.id } }),
+      ).toMatchObject({ isAdmin: false, approvalStatus: 'pending', emailConfirmed: false })
+    }
+    expect(
+      await prisma.adminInvite.findUniqueOrThrow({ where: { inviteToken: 't-unconfirmed' } }),
+    ).toMatchObject({ status: 'pending', acceptedById: null })
+  })
 })
 
 describe('auth.signup', () => {
@@ -164,17 +189,9 @@ describe('auth.signup', () => {
     })
   })
 
-  it('auto-approves bootstrapped admins, invitees, and everyone when approval is off', async () => {
-    const boot = await anon().auth.signup(signupInput('admin6@example.com'))
-    expect(boot.pending).toBe(false)
-    expect(boot).not.toHaveProperty('emailVerificationToken')
-    expect(email.sendWelcomeEmail).toHaveBeenCalledWith({
-      to: 'admin6@example.com',
-      name: 'New Person',
-    })
-
+  it('promotes bootstrapped admins and invitees only once they confirm their email', async () => {
     const inviter = await createAdmin()
-    await prisma.adminInvite.create({
+    const invite = await prisma.adminInvite.create({
       data: {
         email: 'inv@example.com',
         inviteToken: 't2',
@@ -182,7 +199,33 @@ describe('auth.signup', () => {
         expiresAt: new Date(Date.now() + 60_000),
       },
     })
-    expect((await anon().auth.signup(signupInput('inv@example.com'))).pending).toBe(false)
+    for (const address of ['admin6@example.com', 'inv@example.com']) {
+      // Signing up with a listed address proves nothing: the account waits like any other.
+      const res = await anon().auth.signup(signupInput(address))
+      expect(res.pending).toBe(true)
+      expect(res.emailVerificationToken).toBeTruthy()
+      expect(email.sendWelcomeAndConfirmEmail).toHaveBeenLastCalledWith(
+        expect.objectContaining({ to: address }),
+      )
+      expect(await prisma.volunteer.findUniqueOrThrow({ where: { id: res.id } })).toMatchObject({
+        isAdmin: false,
+        approvalStatus: 'pending',
+        emailConfirmed: false,
+      })
+      expect(await anon().auth.verifyEmail({ token: res.emailVerificationToken! })).toEqual({
+        success: true,
+      })
+      expect(await prisma.volunteer.findUniqueOrThrow({ where: { id: res.id } })).toMatchObject({
+        isAdmin: true,
+        approvalStatus: 'approved',
+        emailConfirmed: true,
+      })
+      expect(email.sendWelcomeEmail).toHaveBeenLastCalledWith({ to: address, name: 'New Person' })
+    }
+    expect(email.sendApplicationReceivedEmail).not.toHaveBeenCalled()
+    expect(await prisma.adminInvite.findUniqueOrThrow({ where: { id: invite.id } })).toMatchObject({
+      status: 'accepted',
+    })
 
     await prisma.platformSettings.update({
       where: { id: 1 },
@@ -204,8 +247,6 @@ describe('auth.signup', () => {
 
   it('survives failures in the best-effort steps', async () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
-    vi.spyOn(prisma.volunteer, 'updateMany').mockRejectedValueOnce(new Error('boot') as never)
-    vi.spyOn(prisma.adminInvite, 'findMany').mockRejectedValueOnce(new Error('invite') as never)
     vi.spyOn(prisma.platformSettings, 'upsert').mockRejectedValueOnce(
       new Error('settings') as never,
     )
@@ -218,11 +259,6 @@ describe('auth.signup', () => {
       expect(error).toHaveBeenCalledWith('[SIGNUP NOTIFY]', expect.any(Error))
     })
     vi.restoreAllMocks()
-    // The welcome email of a bootstrapped admin can fail too.
-    const error2 = vi.spyOn(console, 'error').mockImplementation(() => {})
-    vi.mocked(email.sendWelcomeEmail).mockRejectedValueOnce(new Error('smtp'))
-    expect((await anon().auth.signup(signupInput('admin11@example.com'))).pending).toBe(false)
-    await vi.waitFor(() => expect(error2).toHaveBeenCalledWith('[SIGNUP]', expect.any(Error)))
   })
 })
 
@@ -431,6 +467,42 @@ describe('verifyEmail / resendVerification', () => {
     expect(email.sendApplicationReceivedEmail).toHaveBeenCalledTimes(1)
   })
 
+  it('does not confirm an address that was changed while the link was being verified', async () => {
+    // The applicant owns the inbox for their own signup address and so holds a valid
+    // token; they fire the confirmation and a changeEmail to an invited address at
+    // once. Whatever the interleaving, the invited address must stay unconfirmed.
+    const inviter = await createAdmin()
+    await prisma.adminInvite.create({
+      data: {
+        email: 'target@example.com',
+        inviteToken: 't-race',
+        invitedById: inviter.id,
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+    })
+    const vol = await createVolunteer({ approvalStatus: 'pending', emailConfirmed: false })
+    const t = await tokenFor(vol.id)
+    const realTx = prisma.$transaction.bind(prisma) as (fn: unknown) => Promise<unknown>
+    vi.spyOn(prisma, '$transaction').mockImplementationOnce(async (fn: unknown) => {
+      await clientAs(vol).auth.changeEmail({
+        newEmail: 'target@example.com',
+        password: TEST_PASSWORD,
+      })
+      return realTx(fn)
+    })
+    await expect(anon().auth.verifyEmail({ token: t.token })).rejects.toMatchObject({
+      message: expect.stringContaining('already been used'),
+    })
+    vi.restoreAllMocks()
+    expect(await prisma.volunteer.findUniqueOrThrow({ where: { id: vol.id } })).toMatchObject({
+      email: 'target@example.com',
+      emailConfirmed: false,
+      isAdmin: false,
+    })
+    const res = await anon().auth.login({ email: 'target@example.com', password: TEST_PASSWORD })
+    expect(res.wasPromoted).toBe(false)
+  })
+
   it('logs email failures and settings lookup failures on verify', async () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     const v1 = await createVolunteer({ emailConfirmed: false })
@@ -440,6 +512,9 @@ describe('verifyEmail / resendVerification', () => {
     const v2 = await createVolunteer({ emailConfirmed: false, approvalStatus: 'pending' })
     vi.mocked(email.sendApplicationReceivedEmail).mockRejectedValueOnce(new Error('smtp'))
     await anon().auth.verifyEmail({ token: (await tokenFor(v2.id)).token })
+    const promoted = await createVolunteer({ email: 'admin11@example.com', emailConfirmed: false })
+    vi.mocked(email.sendWelcomeEmail).mockRejectedValueOnce(new Error('smtp'))
+    await anon().auth.verifyEmail({ token: (await tokenFor(promoted.id)).token })
     await prisma.platformSettings.update({
       where: { id: 1 },
       data: { requireApplicationApproval: false },
@@ -452,7 +527,7 @@ describe('verifyEmail / resendVerification', () => {
       data: { requireApplicationApproval: true },
     })
     await vi.waitFor(() =>
-      expect(error.mock.calls.filter((c) => c[0] === '[VERIFY_EMAIL]')).toHaveLength(3),
+      expect(error.mock.calls.filter((c) => c[0] === '[VERIFY_EMAIL]')).toHaveLength(4),
     )
     vi.restoreAllMocks()
   })
@@ -568,8 +643,11 @@ describe('google sign-in (stubbed)', () => {
   })
 
   it('signs in existing accounts, and hands new ones to the signup form', async () => {
-    const existing = await createVolunteer({ email: 'g@example.com' })
+    const existing = await createVolunteer({ email: 'g@example.com', emailConfirmed: false })
     const res = await anon().auth.google({ stub: true, email: 'g@example.com', name: 'Ignored' })
+    expect(
+      (await prisma.volunteer.findUniqueOrThrow({ where: { id: existing.id } })).emailConfirmed,
+    ).toBe(true)
     expect(res).toMatchObject({
       isNewUser: false,
       isPending: false,
@@ -656,11 +734,10 @@ describe('google sign-in (stubbed)', () => {
   it('logs email failures and tolerates bootstrap failures on Google signup', async () => {
     const { email: _e, password: _p, name: _n, ...form } = signupInput('unused@example.com')
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
-    // A listed admin email whose bootstrap and invite lookups both fail lands as pending.
+    // A listed admin email whose bootstrap fails lands as pending.
     vi.mocked(verifyGoogleToken).mockResolvedValueOnce({ email: 'admin9@example.com', name: 'F' })
     vi.mocked(email.sendApplicationReceivedEmail).mockRejectedValueOnce(new Error('smtp'))
     vi.spyOn(prisma.volunteer, 'updateMany').mockRejectedValueOnce(new Error('boot') as never)
-    vi.spyOn(prisma.adminInvite, 'findMany').mockRejectedValueOnce(new Error('invite') as never)
     expect((await anon().auth.completeGoogleSignup({ ...form, credential: 'good' })).pending).toBe(
       true,
     )

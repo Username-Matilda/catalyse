@@ -10,8 +10,7 @@ import {
   deleteSession,
   deleteAllSessions,
   deleteOtherSessions,
-  checkAdminBootstrap,
-  acceptPendingInvite,
+  promoteIfEntitled,
   redactVolunteer,
 } from '@/lib/auth'
 import {
@@ -216,9 +215,7 @@ export const authRouter = {
         throw new ORPCError('UNAUTHORIZED', { message: 'Invalid email or password' })
       }
 
-      let wasPromoted = await checkAdminBootstrap(email, volunteer.id)
-      const inviteAccepted = await acceptPendingInvite(email, volunteer.id)
-      if (inviteAccepted) wasPromoted = true
+      const wasPromoted = await promoteIfEntitled(volunteer)
 
       const token = await createSession(volunteer.id)
 
@@ -301,36 +298,31 @@ export const authRouter = {
       })
     }
 
-    const wasBootstrapped = await checkAdminBootstrap(email, volunteer.id).catch(() => false)
-    const wasInvited = await acceptPendingInvite(email, volunteer.id).catch(() => false)
     const platformSettings = await prisma.platformSettings
       .upsert({ where: { id: 1 }, create: { id: 1, requireApplicationApproval: true }, update: {} })
       .catch(() => ({ requireApplicationApproval: true }))
 
-    let emailVerificationToken: string | undefined
-    if (wasBootstrapped || wasInvited) {
-      sendWelcomeEmail({ to: email, name: input.name }).catch((e) => console.error('[SIGNUP]', e))
-    } else {
-      const vt = await prisma.emailVerificationToken.create({
-        data: {
-          volunteerId: volunteer.id,
-          token: randomBytes(32).toString('hex'),
-          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        },
+    // The address is unproven until the link is clicked, so any admin bootstrap or
+    // invite for it is granted by verifyEmail, not here.
+    const vt = await prisma.emailVerificationToken.create({
+      data: {
+        volunteerId: volunteer.id,
+        token: randomBytes(32).toString('hex'),
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      },
+    })
+    const emailVerificationToken = vt.token
+    if (!platformSettings.requireApplicationApproval) {
+      await prisma.volunteer.update({
+        where: { id: volunteer.id },
+        data: { approvalStatus: ApprovalStatus.approved },
       })
-      emailVerificationToken = vt.token
-      if (!platformSettings.requireApplicationApproval) {
-        await prisma.volunteer.update({
-          where: { id: volunteer.id },
-          data: { approvalStatus: ApprovalStatus.approved },
-        })
-      }
-      sendWelcomeAndConfirmEmail({ to: email, token: vt.token, name: input.name }).catch((e) =>
-        console.error('[SIGNUP]', e),
-      )
     }
+    sendWelcomeAndConfirmEmail({ to: email, token: vt.token, name: input.name }).catch((e) =>
+      console.error('[SIGNUP]', e),
+    )
 
-    const isApproved = wasBootstrapped || wasInvited || !platformSettings.requireApplicationApproval
+    const isApproved = !platformSettings.requireApplicationApproval
     if (!isApproved) {
       notifyAdmins(
         'new_volunteer_signup',
@@ -352,7 +344,7 @@ export const authRouter = {
       id: volunteer.id,
       token,
       pending: !isApproved,
-      ...(STUB_EMAIL && emailVerificationToken ? { emailVerificationToken } : {}),
+      ...(STUB_EMAIL ? { emailVerificationToken } : {}),
     }
   }),
 
@@ -586,17 +578,34 @@ export const authRouter = {
       if (record.expiresAt < new Date())
         throw new ORPCError('BAD_REQUEST', { message: 'This confirmation link has expired' })
 
+      // Claim the token and confirm in one transaction, and only if the token is still
+      // unused: changeEmail voids tokens before switching the address, so a link
+      // verified concurrently with an address change never confirms the new address.
       const { volunteer } = record
-      await prisma.$transaction([
-        prisma.emailVerificationToken.update({
-          where: { id: record.id },
+      const confirmed = await prisma.$transaction(async (tx) => {
+        const claimed = await tx.emailVerificationToken.updateMany({
+          where: { id: record.id, usedAt: null },
           data: { usedAt: new Date() },
-        }),
-        prisma.volunteer.update({ where: { id: volunteer.id }, data: { emailConfirmed: true } }),
-      ])
+        })
+        if (claimed.count === 0) return null
+        return tx.volunteer.update({
+          where: { id: volunteer.id },
+          data: { emailConfirmed: true },
+          select: { id: true, email: true, emailConfirmed: true },
+        })
+      })
+      if (!confirmed)
+        throw new ORPCError('BAD_REQUEST', {
+          message: 'This confirmation link has already been used',
+        })
+      const wasPromoted = await promoteIfEntitled(confirmed)
 
       if (!volunteer.emailConfirmed && volunteer.email) {
-        if (volunteer.approvalStatus === ApprovalStatus.approved) {
+        if (wasPromoted) {
+          sendWelcomeEmail({ to: volunteer.email, name: volunteer.name }).catch((e) =>
+            console.error('[VERIFY_EMAIL]', e),
+          )
+        } else if (volunteer.approvalStatus === ApprovalStatus.approved) {
           const settings = await prisma.platformSettings
             .upsert({
               where: { id: 1 },
@@ -742,11 +751,18 @@ export const authRouter = {
         ;({ email, name } = googleUser)
       }
 
-      const existing = await prisma.volunteer.findFirst({ where: { email, deletedAt: null } })
-      if (existing) {
+      const found = await prisma.volunteer.findFirst({ where: { email, deletedAt: null } })
+      if (found) {
+        // Google vouches for the address, which may have been unconfirmed since a
+        // password signup.
+        const existing = found.emailConfirmed
+          ? found
+          : await prisma.volunteer.update({
+              where: { id: found.id },
+              data: { emailConfirmed: true },
+            })
         const token = await createSession(existing.id)
-        let wasPromoted = await checkAdminBootstrap(email, existing.id)
-        if (await acceptPendingInvite(email, existing.id)) wasPromoted = true
+        const wasPromoted = await promoteIfEntitled(existing)
         return {
           token,
           wasPromoted,
@@ -849,9 +865,8 @@ export const authRouter = {
         })
       }
 
-      const wasBootstrapped = await checkAdminBootstrap(email, volunteer.id).catch(() => false)
-      const wasInvited = await acceptPendingInvite(email, volunteer.id).catch(() => false)
-      const isApproved = wasBootstrapped || wasInvited
+      const wasPromoted = await promoteIfEntitled(volunteer).catch(() => false)
+      const isApproved = wasPromoted
 
       if (isApproved) {
         sendWelcomeEmail({ to: email, name }).catch((e) => console.error('[GOOGLE_SIGNUP]', e))
@@ -863,7 +878,7 @@ export const authRouter = {
       const token = await createSession(volunteer.id)
       return {
         token,
-        wasPromoted: wasBootstrapped || wasInvited,
+        wasPromoted,
         pending: !isApproved,
         name,
       }

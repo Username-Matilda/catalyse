@@ -146,29 +146,44 @@ describe('requireAdmin / requireSuperAdmin', () => {
 })
 
 describe('checkAdminBootstrap', () => {
-  it('promotes listed emails only', async () => {
-    const vol = await createVolunteer({ approvalStatus: 'pending', emailConfirmed: false })
-    expect(await checkAdminBootstrap('nobody@example.com', vol.id)).toBe(false)
-    expect(await checkAdminBootstrap('ADMIN@example.com', vol.id)).toBe(true)
-    const after = await prisma.volunteer.findUniqueOrThrow({ where: { id: vol.id } })
-    expect(after).toMatchObject({ isAdmin: true, approvalStatus: 'approved', emailConfirmed: true })
+  it('promotes listed emails only, and only once confirmed', async () => {
+    const vol = await createVolunteer({
+      email: 'admin19@example.com',
+      approvalStatus: 'pending',
+      emailConfirmed: false,
+    })
+    expect(await checkAdminBootstrap({ ...vol, email: 'nobody@example.com' })).toBe(false)
+    expect(await checkAdminBootstrap(vol)).toBe(false)
+    expect(await checkAdminBootstrap({ ...vol, email: null, emailConfirmed: true })).toBe(false)
+    expect(await prisma.volunteer.findUniqueOrThrow({ where: { id: vol.id } })).toMatchObject({
+      isAdmin: false,
+      approvalStatus: 'pending',
+      emailConfirmed: false,
+    })
+    expect(
+      await checkAdminBootstrap({ ...vol, email: 'ADMIN19@example.com', emailConfirmed: true }),
+    ).toBe(true)
+    expect(await prisma.volunteer.findUniqueOrThrow({ where: { id: vol.id } })).toMatchObject({
+      isAdmin: true,
+      approvalStatus: 'approved',
+    })
   })
 
   it('is a no-op when no admin emails are configured', async () => {
     vi.resetModules()
     vi.stubEnv('ADMIN_EMAILS', '')
     const { checkAdminBootstrap: fresh } = await import('./auth')
-    expect(await fresh('admin@example.com', 1)).toBe(false)
+    expect(await fresh({ id: 1, email: 'admin@example.com', emailConfirmed: true })).toBe(false)
     vi.unstubAllEnvs()
     vi.resetModules()
   })
 })
 
 describe('acceptPendingInvite', () => {
-  it('accepts a matching pending invite and promotes the volunteer', async () => {
+  it('accepts a matching pending invite once the email is confirmed', async () => {
     const inviter = await createAdmin()
     const vol = await createVolunteer({ email: 'invitee@example.com', approvalStatus: 'pending' })
-    expect(await acceptPendingInvite('invitee@example.com', vol.id)).toBe(false)
+    expect(await acceptPendingInvite(vol)).toBe(false)
     const invite = await prisma.adminInvite.create({
       data: {
         email: 'Invitee@Example.com',
@@ -177,9 +192,17 @@ describe('acceptPendingInvite', () => {
         expiresAt: new Date(Date.now() + 60_000),
       },
     })
-    expect(await acceptPendingInvite('invitee@example.com', vol.id)).toBe(true)
+    expect(await acceptPendingInvite({ ...vol, emailConfirmed: false })).toBe(false)
+    expect(await acceptPendingInvite({ ...vol, email: null })).toBe(false)
+    expect(await prisma.adminInvite.findUniqueOrThrow({ where: { id: invite.id } })).toMatchObject({
+      status: 'pending',
+    })
+    expect(await acceptPendingInvite(vol)).toBe(true)
     const after = await prisma.adminInvite.findUniqueOrThrow({ where: { id: invite.id } })
     expect(after).toMatchObject({ status: 'accepted', acceptedById: vol.id })
-    expect((await prisma.volunteer.findUniqueOrThrow({ where: { id: vol.id } })).isAdmin).toBe(true)
+    expect(await prisma.volunteer.findUniqueOrThrow({ where: { id: vol.id } })).toMatchObject({
+      isAdmin: true,
+      approvalStatus: 'approved',
+    })
   })
 })

@@ -6,7 +6,7 @@ import { sendAdminInviteEmail } from '@/lib/email'
 import { InviteAdminSchema } from '@/lib/schemas'
 import { adminProcedure, authedProcedure, superAdminProcedure } from '../../procedures'
 import { env } from '@/lib/env'
-import { InviteStatus } from '@/generated/prisma/enums'
+import { ApprovalStatus, InviteStatus } from '@/generated/prisma/enums'
 
 const APP_URL = env.APP_URL
 const STUB_EMAIL = env.STUB_EMAIL
@@ -170,7 +170,10 @@ export const adminAdminsRouter = {
       }
 
       await prisma.$transaction([
-        prisma.volunteer.update({ where: { id: volunteer.id }, data: { isAdmin: true } }),
+        prisma.volunteer.update({
+          where: { id: volunteer.id },
+          data: { isAdmin: true, approvalStatus: ApprovalStatus.approved },
+        }),
         prisma.adminInvite.update({
           where: { id: invite.id },
           data: {
