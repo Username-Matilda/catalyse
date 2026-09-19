@@ -235,13 +235,30 @@ async function settle(page: Page): Promise<boolean> {
  * Shoot the page into `staging/` as capture `seq` of this test, and write the
  * sidecar the reporter completes. Returns the file name.
  */
+export interface CaptureOptions {
+  /**
+   * Take toasts off the page before the shot. A final frame is taken at
+   * whatever moment the test happened to end, and a toast on a four second
+   * timer is on screen in one run and gone in the next; nothing about the
+   * test's outcome lives in it. A picture a test asks for mid-flow keeps
+   * its toasts, since that may be what the test is showing.
+   */
+  dismissToasts?: boolean
+}
+
 export async function captureSnapshot(
   page: Page,
   testInfo: TestInfo,
   seq: number,
   label: string,
+  options: CaptureOptions = {},
 ): Promise<string> {
   const started = Date.now()
+  if (options.dismissToasts) {
+    await page.evaluate(() => {
+      for (const alert of document.querySelectorAll('[role="alert"]')) alert.remove()
+    })
+  }
   const lane = laneFor(testInfo)
   const key = keyFor(testInfo)
   const file = captureFile(key, seq, label)

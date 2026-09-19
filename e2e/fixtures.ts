@@ -9,6 +9,7 @@ import {
   captureSnapshot,
   laneFor,
   prepareSnapshotContext,
+  type CaptureOptions,
 } from './snapshots/capture'
 
 interface Volunteer {
@@ -23,7 +24,7 @@ interface Volunteer {
  * moment: `snap(page, 'dialog open')`. Only does anything in a snapshot run
  * (`npm run snapshots`); a plain test run returns at once.
  */
-export type Snap = (page: Page, label: string) => Promise<void>
+export type Snap = (page: Page, label: string, options?: CaptureOptions) => Promise<void>
 
 interface Fixtures {
   adminPage: Page
@@ -73,10 +74,10 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
 
   snap: async ({}, runFixture, testInfo) => {
     let seq = 0
-    await runFixture(async (page, label) => {
+    await runFixture(async (page, label, options) => {
       if (!SNAPSHOTS_ENABLED) return
       seq += 1
-      await captureSnapshot(page, testInfo, seq, label)
+      await captureSnapshot(page, testInfo, seq, label, options)
     })
   },
 
@@ -212,7 +213,7 @@ async function finalFrame(
     await captureFailure(page, testInfo)
     return
   }
-  await snap(page, label)
+  await snap(page, label, { dismissToasts: true })
 }
 
 // Analytics loads for anyone who has not declined it. Declining up front keeps Google
