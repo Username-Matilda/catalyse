@@ -25,6 +25,8 @@ export const fake = {
   uniqueEmail: () => faker.internet.email().toLowerCase(),
   username: () => faker.internet.username(),
   phoneNumber: () => faker.phone.number({ style: 'international' }),
-  localGroupName: () => faker.location.city(),
+  // Suffixed: a city name alone repeats across the tests sharing a worker's database.
+  localGroupName: () =>
+    `${faker.location.city()} ${faker.string.alpha({ length: 4, casing: 'upper' })}`,
   teamName: () => `${faker.word.adjective()} ${faker.word.noun()} Squad`,
 }
