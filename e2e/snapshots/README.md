@@ -13,10 +13,12 @@ a plain test run captures nothing.
 npm run snapshots
 ```
 
-The run is the Playwright suite with `SNAPSHOTS=1`, every lane at once on a
-pool of workers sized to the machine (one per core less one, at most eight;
-`SNAPSHOT_WORKERS` overrides it), each worker with a server and database
-schema of its own. Open
+The run is the Playwright suite with `SNAPSHOTS=1`, every lane at once. The
+machine sets how many servers open (one per two cores, at most six;
+`SNAPSHOT_WORKERS` overrides it) and the lanes in the run share them out, so
+a full run here is four lanes with a worker each and a single lane in CI has
+every server to itself. Each lane's servers and database schemas are its own,
+so a lane only ever shares a database with itself. Open
 `snapshots/index.html` while it works and watch it fill in; each new frame
 lands beside the image it replaces, and the page reloads itself every few
 seconds until the run is done. `npm run snapshots -- --help` lists the flags.

@@ -5,11 +5,10 @@
  */
 import type { BrowserContext, Page, TestInfo } from '@playwright/test'
 import { existsSync } from 'node:fs'
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import {
   captureFile,
-  DIFFS,
   FAILURES,
   laneById,
   sidecarFile,
@@ -19,17 +18,7 @@ import {
   type CaptureMeta,
   type Lane,
 } from './config'
-import {
-  analyzeImages,
-  decodePng,
-  encodePng,
-  isRealChange,
-  pngSha,
-  renderDiffImage,
-  type DecodedImage,
-  type DiffAnalysis,
-} from './png'
-import { baselinePathFor } from './rows'
+import { analyzeImages, decodePng, isRealChange, type DecodedImage } from './png'
 
 /**
  * How long the full-page frame must stay identical before the shot is taken.
@@ -253,25 +242,11 @@ export async function captureSnapshot(
   const file = captureFile(key, seq, label)
   const settled = await settle(page)
   await mkdir(STAGING, { recursive: true })
-  const buffer = await page.screenshot({ fullPage: true, animations: 'disabled' })
-  await writeFile(path.join(STAGING, file), buffer)
-  // The diff is taken here, in the worker, where the work spreads across the
-  // pool; the reporter alone would fall behind eight workers' captures.
-  const previousPath = baselinePathFor(file)
-  const hasPrevious = existsSync(previousPath)
-  let diff: DiffAnalysis | undefined
-  if (hasPrevious) {
-    const prevImage = decodePng(await readFile(previousPath))
-    const currImage = decodePng(buffer)
-    diff = analyzeImages(prevImage, currImage)
-    await mkdir(DIFFS, { recursive: true })
-    const diffPath = path.join(DIFFS, file)
-    if (diff.count > 0) {
-      await writeFile(diffPath, encodePng(renderDiffImage(prevImage, currImage)))
-    } else {
-      await rm(diffPath, { force: true })
-    }
-  }
+  await page.screenshot({
+    path: path.join(STAGING, file),
+    fullPage: true,
+    animations: 'disabled',
+  })
   const meta: CaptureMeta = {
     lane: lane.id,
     spec: specId(testInfo.file),
@@ -293,11 +268,7 @@ export async function captureSnapshot(
       deviceScaleFactor: lane.deviceScaleFactor,
     },
     theme: lane.theme,
-    sha: pngSha(buffer),
-    hasPrevious,
-    diffPixels: diff?.count ?? 0,
   }
-  if (diff) meta.diff = diff
   await writeFile(path.join(STAGING, sidecarFile(file)), JSON.stringify(meta, null, 2))
   return file
 }

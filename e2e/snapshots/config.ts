@@ -12,26 +12,54 @@ import path from 'node:path'
 export const SNAPSHOTS_ENABLED = process.env.SNAPSHOTS === '1'
 
 /**
- * Workers a snapshot run uses, each with a server and schema of its own. A
- * server is a whole Next process, so the count follows the machine: one per
- * core, less one so the browsers have somewhere to run, capped so a big
- * machine does not open more servers than its database wants. A worker takes
- * whole spec files, so a file's tests still run in order against a database
- * only they and their file-mates have touched.
+ * Servers a snapshot run may open, each with a worker, a browser and a
+ * database schema of its own. A server is a whole Next process, so the count
+ * follows the machine at one per two cores, capped so a big machine does not
+ * ask the database for more connections than it allows.
  */
-export function snapshotWorkerCount(): number {
+export function snapshotServerCount(): number {
   if (process.env.SNAPSHOT_WORKERS) return Math.max(1, parseInt(process.env.SNAPSHOT_WORKERS, 10))
-  return Math.min(8, Math.max(1, cpus().length - 1))
+  return Math.min(6, Math.max(1, Math.floor(cpus().length / 2)))
+}
+
+/** Lanes this run captures: the ones `--project` named, or all of them. */
+export function lanesInRun(argv: string[] = process.argv): string[] {
+  const named = argv
+    .flatMap((arg, i) =>
+      arg === '--project' ? [argv[i + 1]] : arg.startsWith('--project=') ? [arg.slice(10)] : [],
+    )
+    .filter((id): id is string => id !== undefined && laneIndex(id) >= 0)
+  return named.length > 0 ? named : LANES.map((lane) => lane.id)
 }
 
 /**
- * How many servers a snapshot run needs: one per worker. A worker's slot is
- * shared across the lanes in the run, so each slot gets a server of its own;
- * which slot a spec file lands on is fixed for a given set of files, the same
- * as in a plain run.
+ * Workers per lane: the servers shared out among the lanes in the run, at
+ * least one each. A worker takes whole spec files, so a file's tests run in
+ * order against a database only they and their lane-mates have touched.
  */
-export function snapshotServerCount(): number {
-  return snapshotWorkerCount()
+export function snapshotWorkersPerLane(argv: string[] = process.argv): number {
+  return Math.max(1, Math.floor(snapshotServerCount() / lanesInRun(argv).length))
+}
+
+/** Playwright's pool: every lane's workers at once. */
+export function snapshotWorkerCount(argv: string[] = process.argv): number {
+  return snapshotWorkersPerLane(argv) * lanesInRun(argv).length
+}
+
+/**
+ * A worker slot serves every lane in turn, so a slot's server would see
+ * every lane's data and the same test's people would collide across lanes.
+ * Each lane gets a block of servers instead, so a lane only ever shares a
+ * database with itself.
+ */
+export function snapshotServerIndex(
+  laneId: string,
+  slot: number,
+  argv: string[] = process.argv,
+): number {
+  const perLane = snapshotWorkersPerLane(argv)
+  const position = Math.max(0, lanesInRun(argv).indexOf(laneId))
+  return position * perLane + (slot % perLane)
 }
 
 export const SNAPSHOT_ROOT = path.resolve(__dirname, '..', '..', 'snapshots')

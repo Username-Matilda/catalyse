@@ -1,6 +1,6 @@
 import { defineConfig, devices, type Project } from '@playwright/test'
 import { WORKER_COUNT } from './e2e/config'
-import { LANES, SNAPSHOTS_ENABLED, snapshotServerCount } from './e2e/snapshots/config'
+import { LANES, SNAPSHOTS_ENABLED, snapshotWorkerCount } from './e2e/snapshots/config'
 
 /**
  * A snapshot run captures every test once per lane. Each lane is a Playwright
@@ -24,7 +24,7 @@ const laneProjects: Project[] = LANES.map((lane) => ({
 export default defineConfig({
   testDir: './e2e/tests',
   fullyParallel: !SNAPSHOTS_ENABLED,
-  workers: SNAPSHOTS_ENABLED ? snapshotServerCount() : WORKER_COUNT,
+  workers: SNAPSHOTS_ENABLED ? snapshotWorkerCount() : WORKER_COUNT,
   reporter: SNAPSHOTS_ENABLED
     ? [['line'], ['./e2e/snapshots/reporter.ts']]
     : process.env.CI
