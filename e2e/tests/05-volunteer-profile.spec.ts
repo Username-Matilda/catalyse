@@ -20,14 +20,10 @@ async function setCheckbox(page: Page, id: string, checked: boolean) {
 }
 
 test.describe('Volunteer Profile', () => {
-  // Known gap: signup bounds hours per week to 40, a profile update does not.
-  // Expected to fail until the update schema matches signup's, and the run
-  // goes red the day it passes, so the gap cannot be closed without notice.
   test('Profile update refuses more hours per week than signup allows', async ({
     volunteer,
     baseUrl,
   }) => {
-    test.fail()
     await volunteer.page.goto(`${baseUrl}/profile`)
     await volunteer.page.getByLabel('Hours per Week').fill('100')
     await volunteer.page.getByRole('button', { name: 'Save Changes' }).click()

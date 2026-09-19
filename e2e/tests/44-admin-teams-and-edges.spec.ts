@@ -3,20 +3,16 @@ import { fake } from '../fake'
 import { navigateToAdminTeams } from '../actions/teams'
 
 test.describe('Admin team management', () => {
-  // Known gap: nothing validates the URL, so a team can be saved with one no
-  // browser can open. Expected to fail until the schema checks it, and the run
-  // goes red the day it passes, so the gap cannot be closed without notice.
   test('The add-team dialog refuses a Luma URL that is not a URL', async ({
     adminPage,
     baseUrl,
   }) => {
-    test.fail()
     await navigateToAdminTeams(baseUrl, adminPage)
     await adminPage.getByRole('button', { name: 'Add Team' }).click()
     await adminPage.getByLabel('Team Name').fill(fake.teamName())
     await adminPage.getByLabel('Luma calendar URL').fill('not a url')
     await adminPage.getByRole('button', { name: /^Add/ }).last().click()
-    await expect(getAlert(adminPage)).toContainText(/url/i, { timeout: 10_000 })
+    await expect(getAlert(adminPage)).toContainText('Enter a full address', { timeout: 10_000 })
   })
 
   test('Admin adds a team from the dialog, then deletes it', async ({
