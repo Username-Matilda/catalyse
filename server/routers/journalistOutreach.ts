@@ -217,9 +217,9 @@ export const journalistOutreachRouter = {
     .handler(async ({ input, context }) => {
       const { participant } = context
       const now = new Date()
-      // Only a journalist this participant was handed. A lapsed claim keeps its claimant
-      // until someone else picks the journalist up, so it still counts: the email was sent
-      // either way. Pausing does not block this, for the same reason.
+      // Only a journalist this participant was handed. A lapsed or released claim keeps its
+      // holder until someone else picks the journalist up, so it still counts: the email
+      // was sent either way. Pausing does not block this, for the same reason.
       const updated = await prisma.experimentalJournalist.updateMany({
         where: { id: input.journalistId, contactedAt: null, claimedById: participant.id },
         data: {
@@ -265,10 +265,17 @@ export const journalistOutreachRouter = {
     .input(z.object({ journalistId: z.number().int() }))
     .handler(async ({ input, context }) => {
       // Skipped and timed-out journalists both drop behind untried ones, so the volunteer
-      // who let one go isn't handed it straight back.
+      // who let one go isn't handed it straight back. claimedById stays as the last holder:
+      // the page releases a timed-out claim and then asks whether the email was already
+      // sent, and markSent accepts only the last holder.
       await prisma.experimentalJournalist.updateMany({
-        where: { id: input.journalistId, claimedById: context.participant.id, contactedAt: null },
-        data: { claimedById: null, claimedAt: null, skipCount: { increment: 1 } },
+        where: {
+          id: input.journalistId,
+          claimedById: context.participant.id,
+          claimedAt: { not: null },
+          contactedAt: null,
+        },
+        data: { claimedAt: null, skipCount: { increment: 1 } },
       })
       return { success: true }
     }),

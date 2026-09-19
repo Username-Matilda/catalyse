@@ -374,11 +374,23 @@ describe('journalistOutreach claiming', () => {
       skipCount: 0,
     })
     await a.api.release({ journalistId: j.id })
+    // Releasing twice counts one skip; the last holder stays on record.
+    await a.api.release({ journalistId: j.id })
     expect(
       await prisma.experimentalJournalist.findUniqueOrThrow({ where: { id: j.id } }),
     ).toMatchObject({
-      claimedById: null,
+      claimedById: a.participant.id,
+      claimedAt: null,
       skipCount: 1,
+    })
+    expect(await b.api.current()).toMatchObject({ availableCount: 1 })
+
+    // The page releases a timed-out claim before asking whether the email went out.
+    await expect(
+      b.api.markSent({ journalistId: j.id, sentLeaning: 'DEMOCRAT' }),
+    ).rejects.toMatchObject({ code: 'CONFLICT' })
+    expect(await a.api.markSent({ journalistId: j.id, sentLeaning: 'DEMOCRAT' })).toEqual({
+      contactedCount: 1,
     })
   })
 })
