@@ -70,4 +70,4 @@ into whatever you are already working on.
 - **Keep the picture deterministic.** Fake data is seeded per test, dates are rewritten before the shot, and the page must hold still. A capture reported as **unsettled** holds something that never stops moving; fix that rather than re-running. Don't put a wall-clock value, a random choice or a live counter in a screen without a way to hold it.
 - **A red mark or count means pixels changed against the previous capture of that test.** The first run after a change to the capture machinery itself marks many rows; run again and they clear. A picture with nothing to compare against is **New**, and is not counted.
 - **Compare with the sidecar, never by hashing the PNG**: `diffPixels` and `diff` in each capture's `.json` are the comparison the gallery uses.
-- Commit nothing under `snapshots/`. CI captures every lane on each pull request and uploads the gallery as the `snapshots-gallery` artifact on the run.
+- Commit nothing under `snapshots/`. Nothing in CI runs this yet; it is a local tool.

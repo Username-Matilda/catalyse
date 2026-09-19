@@ -19,7 +19,6 @@ import {
   PREVIOUS,
   RUNS,
   sidecarFile,
-  SNAPSHOT_ROOT,
   type CaptureMeta,
 } from '../e2e/snapshots/config'
 import { renderGallery } from '../e2e/snapshots/gallery'
@@ -31,7 +30,7 @@ import {
   writeBaseline,
 } from '../e2e/snapshots/png'
 import { galleryRows } from '../e2e/snapshots/rows'
-import { listRuns, mergeLatestRuns, type RunManifest } from '../e2e/snapshots/runs'
+import { listRuns, mergeLatestRuns } from '../e2e/snapshots/runs'
 
 const ROOT = path.resolve(__dirname, '..')
 
@@ -45,13 +44,6 @@ snapshots/index.html, and diffs each picture against the run before it.
   --clear-baseline   Drop that pin and go back to diffing the run before.
   --render           Rebuild snapshots/index.html from the newest complete run
                      of each lane on disk, without capturing anything.
-  --baseline-from=<url>
-                     Pin a published gallery as the baseline, the way --against
-                     pins a ref: its pictures come down into previous/.
-  --export=<dir> [--baseline-from=<url>]
-                     Render as --render does, into <dir> with the files the
-                     page needs. Given the URL the baseline came from, the
-                     pictures already published there are linked, not copied.
   --help             This.
 
 Anything else is passed to Playwright, so a run can be narrowed the usual way:
@@ -163,52 +155,10 @@ async function captureAgainst(ref: string, args: string[]): Promise<number> {
 }
 
 /**
- * Pin a published gallery as the baseline: its manifest names every picture,
- * and each comes down into `previous/` with its sidecar. This is how a pull
- * request's run diffs against what main last published.
- */
-async function baselineFrom(url: string): Promise<number> {
-  const base = url.replace(/\/$/, '')
-  const response = await fetch(`${base}/manifest.json`)
-  if (!response.ok) {
-    console.error(`No gallery at ${base} (${String(response.status)}); nothing pinned.`)
-    return 1
-  }
-  const manifest = (await response.json()) as RunManifest
-  await mkdir(PREVIOUS, { recursive: true })
-  const pins: Record<string, string> = {}
-  for (const file of Object.keys(manifest.captures)) {
-    const png = await fetch(`${base}/current/${file}`)
-    if (!png.ok) continue
-    const buffer = Buffer.from(await png.arrayBuffer())
-    await writeFile(path.join(PREVIOUS, file), buffer)
-    const sidecar = await fetch(`${base}/current/${sidecarFile(file)}`)
-    if (sidecar.ok) {
-      const meta = (await sidecar.json()) as CaptureMeta
-      meta.ref = manifest.ref ?? 'main'
-      await writeFile(path.join(PREVIOUS, sidecarFile(file)), JSON.stringify(meta, null, 2))
-    }
-    pins[file] = pngSha(buffer)
-  }
-  await writeBaseline(
-    { ref: 'main', sha: manifest.commit, pinnedAt: new Date().toISOString(), pins },
-    BASELINE,
-  )
-  console.log(`Baseline pinned from ${base}: ${String(Object.keys(pins).length)} pictures.`)
-  return 0
-}
-
-/**
  * The gallery from what is on disk: the newest complete run of each lane,
- * merged. This is how one page comes out of a run split across CI jobs.
- *
- * With `exportDir`, the page and the files it needs are copied there for
- * publishing. Given the URL the baseline was pinned from, the pictures that
- * already live there are referenced rather than copied: every previous
- * picture, and the current picture of every row that did not change. What
- * remains is the page, the changed rows and the diffs.
+ * merged, so a page can be rebuilt without capturing anything.
  */
-async function render(exportDir?: string, baselineUrl?: string): Promise<number> {
+async function render(): Promise<number> {
   const manifest = mergeLatestRuns(await listRuns(RUNS))
   if (!manifest) {
     console.error('No complete run to render.')
@@ -221,49 +171,9 @@ async function render(exportDir?: string, baselineUrl?: string): Promise<number>
     wallMs: 0,
   }
   const rows = await galleryRows(manifest)
-  const baseline = await readBaseline(BASELINE)
-  if (exportDir === undefined) {
-    await writeFile(GALLERY, renderGallery(rows, manifest, baseline, cost))
-    await writeFile(LATEST, JSON.stringify(manifest, null, 2))
-    console.log(`Gallery: ${GALLERY} (${manifest.lanes.join(', ')})`)
-    return 0
-  }
-  const remote = baselineUrl?.replace(/\/$/, '')
-  const files = new Set<string>()
-  for (const row of rows) {
-    if (row.failureSrc !== undefined) files.add(row.failureSrc)
-    if (row.file === undefined) continue
-    // A published gallery is a baseline for others to diff against and a
-    // record of one build, so it carries only current pictures; the previous
-    // ones are reachable where they were published, or not at all.
-    if (remote !== undefined && row.hasPrevious && row.previousRun.ref !== undefined) {
-      row.previousSrc = `${remote}/current/${row.file}`
-    } else {
-      row.hasPrevious = false
-      row.previousSrc = undefined
-    }
-    if (remote !== undefined && row.hasPrevious && !row.changed && row.diffPixels === 0) {
-      row.currentSrc = row.previousSrc
-    } else if (row.currentSrc !== undefined) {
-      files.add(row.currentSrc)
-    }
-    if (row.hasDiff && row.hasPrevious) files.add(`diffs/${row.file}`)
-  }
-  await rm(exportDir, { recursive: true, force: true })
-  await mkdir(exportDir, { recursive: true })
-  for (const file of files) {
-    const source = path.join(SNAPSHOT_ROOT, file)
-    if (!existsSync(source)) continue
-    await mkdir(path.dirname(path.join(exportDir, file)), { recursive: true })
-    await copyFile(source, path.join(exportDir, file))
-    const sidecar = sidecarFile(source)
-    if (sidecar !== source && existsSync(sidecar)) {
-      await copyFile(sidecar, sidecarFile(path.join(exportDir, file)))
-    }
-  }
-  await writeFile(path.join(exportDir, 'index.html'), renderGallery(rows, manifest, baseline, cost))
-  await writeFile(path.join(exportDir, 'manifest.json'), JSON.stringify(manifest, null, 2))
-  console.log(`Exported ${String(files.size)} files and the gallery to ${exportDir}`)
+  await writeFile(GALLERY, renderGallery(rows, manifest, await readBaseline(BASELINE), cost))
+  await writeFile(LATEST, JSON.stringify(manifest, null, 2))
+  console.log(`Gallery: ${GALLERY} (${manifest.lanes.join(', ')})`)
   return 0
 }
 
@@ -272,8 +182,6 @@ async function main(argv: string[]): Promise<number> {
   let against: string | undefined
   let clear = false
   let rerender = false
-  let baselineUrl: string | undefined
-  let exportDir: string | undefined
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i]
     if (arg === '--help' || arg === '-h') {
@@ -284,11 +192,6 @@ async function main(argv: string[]): Promise<number> {
       clear = true
     } else if (arg === '--render') {
       rerender = true
-    } else if (arg.startsWith('--baseline-from=')) {
-      baselineUrl = arg.slice('--baseline-from='.length)
-    } else if (arg.startsWith('--export=')) {
-      rerender = true
-      exportDir = path.resolve(arg.slice('--export='.length))
     } else if (arg.startsWith('--against=')) {
       against = arg.slice('--against='.length)
     } else if (arg === '--against') {
@@ -306,8 +209,7 @@ async function main(argv: string[]): Promise<number> {
     )
     return 0
   }
-  if (rerender) return render(exportDir, baselineUrl)
-  if (baselineUrl !== undefined) return baselineFrom(baselineUrl)
+  if (rerender) return render()
   if (against !== undefined) return captureAgainst(against, passthrough)
   const status = playwright(passthrough)
   console.log(`Gallery: ${GALLERY}`)
