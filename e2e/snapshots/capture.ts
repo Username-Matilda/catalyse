@@ -34,8 +34,13 @@ const STABLE_FRAMES = knob('SNAPSHOT_FRAMES', 4)
 const STABLE_CAP_MS = 6_000
 /** After the poll says still, one more beat for the compositor to catch up. */
 const RASTER_SETTLE_MS = knob('SNAPSHOT_RASTER_MS', 150)
-/** How long to give the network to go quiet before the frame poll starts; 0 skips the wait. */
-const NETWORK_IDLE_MS = knob('SNAPSHOT_NETWORK_IDLE_MS', 3_000)
+/**
+ * How long to give the network to go quiet before the frame poll starts; 0
+ * skips the wait. Off by default: the frame poll already waits for whatever
+ * a late response draws, and a page with a long poll open never goes idle,
+ * so the wait only ever ran out its clock.
+ */
+const NETWORK_IDLE_MS = knob('SNAPSHOT_NETWORK_IDLE_MS', 0)
 
 /** A timing the environment may override, for measuring one setting against another. */
 function knob(name: string, fallback: number): number {
