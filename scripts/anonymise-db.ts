@@ -8,12 +8,12 @@
  */
 
 import { fileURLToPath } from 'node:url'
-import { randomBytes } from 'node:crypto'
 import { Client } from 'pg'
 import { faker } from '@faker-js/faker'
 import { libpqUrl } from '../jobs/backup'
 import { resolveDbUrl } from '../lib/db-url'
 import { makePasswordHash, seedDevAccounts } from './seed-dev-accounts'
+import { COLUMN_TREATMENT, REDACTED } from './anonymise-columns'
 
 // ── Anonymisation ─────────────────────────────────────────────────────────────
 
@@ -35,7 +35,9 @@ function fakeVolunteerData(id: number): {
   const lastName = faker.person.lastName()
   return {
     name: `${firstName} ${lastName}`,
-    email: faker.internet.email({ firstName, lastName }).toLowerCase(),
+    // A reserved domain and the id: faker's default providers are real ones, where an
+    // invented address can be somebody's, and two volunteers can draw the same name.
+    email: `${`${firstName}.${lastName}`.toLowerCase().replace(/[^a-z.]/g, '')}.${id}@example.com`,
     bio: faker.lorem.sentence(),
     discordHandle: faker.internet.username(),
     signalNumber: faker.phone.number({ style: 'international' }),
@@ -47,12 +49,9 @@ function fakeVolunteerData(id: number): {
   }
 }
 
-function randomToken(length = 64): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-  return Array.from(randomBytes(length), (b) => chars[b % chars.length]).join('')
-}
-
 export async function anonymise(db: Client): Promise<void> {
+  // One known password for every account, admin flags kept, so a developer can sign in as
+  // anyone. An anonymised copy must therefore never sit behind a public URL.
   const anonPasswordHash = makePasswordHash('volunteerpass1')
 
   const { rows: volunteerRows } = await db.query<{
@@ -97,28 +96,68 @@ export async function anonymise(db: Client): Promise<void> {
     'SELECT id, invited_by_id FROM admin_invites',
   )
   for (const row of adminInvites) {
-    await db.query('UPDATE admin_invites SET email = $1, invite_token = $2 WHERE id = $3', [
+    await db.query('UPDATE admin_invites SET email = $1 WHERE id = $2', [
       fakeVolunteerData(row.invited_by_id).email,
-      randomToken(),
       row.id,
     ])
   }
 
-  await db.query("UPDATE admin_notes SET content = '[redacted]'")
-  await db.query("UPDATE contact_messages SET subject = '[redacted]', message = '[redacted]'")
-  await db.query("UPDATE bug_reports SET reporter_email = NULL, description = '[redacted]'")
-  await db.query('UPDATE deletion_requests SET volunteer_email = NULL')
-
-  const { rows: resetTokens } = await db.query<{ id: number }>(
-    'SELECT id FROM password_reset_tokens',
-  )
-  for (const { id } of resetTokens) {
-    await db.query('UPDATE password_reset_tokens SET token = $1 WHERE id = $2', [randomToken(), id])
+  const present = await presentColumns(db)
+  if (present.has('experimental_journalists.email')) await anonymiseJournalists(db)
+  if (present.has('experimental_outreach_participants.email')) {
+    await db.query(
+      "UPDATE experimental_outreach_participants SET email = 'participant' || id || '@example.com'",
+    )
   }
+  await applyTreatments(db, present)
+}
 
-  await db.query('UPDATE notifications SET body = NULL')
-  await db.query("UPDATE work_item_comments SET content = '[redacted]'")
-  await db.query('DELETE FROM sessions')
+// The dump being anonymised can predate this code's migrations, so a column the map names
+// may not exist yet.
+async function presentColumns(db: Client): Promise<Set<string>> {
+  const { rows } = await db.query<{ table_name: string; column_name: string }>(
+    'SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = current_schema()',
+  )
+  return new Set(rows.map((r) => `${r.table_name}.${r.column_name}`))
+}
+
+async function anonymiseJournalists(db: Client): Promise<void> {
+  const { rows } = await db.query<{ id: number }>('SELECT id FROM experimental_journalists')
+  for (const { id } of rows) {
+    // Offset so a journalist never shares a seed, and so a fake identity, with a volunteer.
+    faker.seed(1_000_000 + id)
+    const firstName = faker.person.firstName()
+    const lastName = faker.person.lastName()
+    await db.query(
+      'UPDATE experimental_journalists SET first_name = $1, last_name = $2, email = $3, organisation = $4 WHERE id = $5',
+      [firstName, lastName, `journalist${id}@example.com`, faker.company.name(), id],
+    )
+  }
+}
+
+const RANDOM_TOKEN_SQL = "replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '')"
+
+async function applyTreatments(db: Client, present: Set<string>): Promise<void> {
+  for (const [table, columns] of Object.entries(COLUMN_TREATMENT)) {
+    const treated = Object.entries(columns).filter(([column]) => present.has(`${table}.${column}`))
+    if (treated.some(([, treatment]) => treatment === 'rows-deleted')) {
+      await db.query(`DELETE FROM "${table}"`)
+      continue
+    }
+    for (const [column, treatment] of treated) {
+      if (treatment === 'redact') {
+        await db.query(`UPDATE "${table}" SET "${column}" = $1 WHERE "${column}" IS NOT NULL`, [
+          REDACTED,
+        ])
+      } else if (treatment === 'null') {
+        await db.query(`UPDATE "${table}" SET "${column}" = NULL`)
+      } else if (treatment === 'token') {
+        await db.query(
+          `UPDATE "${table}" SET "${column}" = ${RANDOM_TOKEN_SQL} WHERE "${column}" IS NOT NULL`,
+        )
+      }
+    }
+  }
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
