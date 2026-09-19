@@ -5,7 +5,7 @@
  */
 import type { BrowserContext, Page, TestInfo } from '@playwright/test'
 import { existsSync } from 'node:fs'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, rename, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import {
   captureFile,
@@ -291,7 +291,11 @@ export async function captureSnapshot(
     },
     theme: lane.theme,
   }
-  await writeFile(path.join(STAGING, sidecarFile(file)), JSON.stringify(meta, null, 2))
+  // Through a rename, so a reporter in another lane's process never reads
+  // a sidecar part-way through being written.
+  const sidecar = path.join(STAGING, sidecarFile(file))
+  await writeFile(`${sidecar}.tmp`, JSON.stringify(meta, null, 2))
+  await rename(`${sidecar}.tmp`, sidecar)
   return file
 }
 

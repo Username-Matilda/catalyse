@@ -32,9 +32,11 @@ export async function readMeta(pngPath: string): Promise<CaptureMeta | undefined
   try {
     return JSON.parse(await readFile(metaPath, 'utf8')) as CaptureMeta
   } catch (error) {
-    // Another lane's process may move the file between the listing and the
-    // read; the next rebuild sees it where it landed.
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined
+    // Another lane's process may move or still be writing the file; the next
+    // rebuild sees it where and as it landed.
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT' || error instanceof SyntaxError) {
+      return undefined
+    }
     throw error
   }
 }
