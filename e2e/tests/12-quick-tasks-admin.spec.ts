@@ -136,7 +136,7 @@ test.describe('Quick Tasks (admin)', () => {
   }) => {
     const skill = await createSkillViaApi(baseUrl)
     const taskTitle = await createOpenQuickTaskViaApi(baseUrl, skill)
-    const commentText = `comment ${Date.now()}`
+    const commentText = `comment: ${fake.note()}`
 
     await adminPage.goto(`${baseUrl}/quick-tasks`)
     await expect(adminPage.getByRole('heading', { name: 'Quick Tasks', level: 1 })).toBeVisible({
@@ -161,8 +161,8 @@ test.describe('Quick Tasks (admin)', () => {
     const skill = await createSkillViaApi(baseUrl)
     const taskTitle = await createOpenQuickTaskViaApi(baseUrl, skill)
     await assignQuickTask(baseUrl, adminPage, taskTitle, volunteer.name)
-    const adminComment = `admin note ${Date.now()}`
-    const volunteerReply = `volunteer reply ${Date.now()}`
+    const adminComment = `admin note: ${fake.note()}`
+    const volunteerReply = `volunteer reply: ${fake.note()}`
 
     // Admin expands the task and posts the first comment
     await adminPage.goto(`${baseUrl}/quick-tasks`)
@@ -429,7 +429,10 @@ test.describe('Quick Tasks (admin)', () => {
 
     // Admin creates a quick task and assigns it to a specific volunteer
     const created = await adminApi.quickTasks.create({
-      body: { title: `Iso task ${Date.now()}`, description: 'isolation test description' },
+      body: {
+        title: `Iso task ${fake.quickTaskTitle()}`,
+        description: 'isolation test description',
+      },
     })
     expect(created.status).toBe(200)
     const workItemId = (created.body as { id: number }).id
@@ -440,7 +443,7 @@ test.describe('Quick Tasks (admin)', () => {
     })
     expect(assignResult.status).toBe(200)
 
-    const commentText = `admin-only ${Date.now()}`
+    const commentText = `admin-only: ${fake.note()}`
     const added = await adminApi.workItemComments.add({
       body: { workItemId, content: commentText },
     })
@@ -476,7 +479,7 @@ test.describe('Quick Tasks (admin)', () => {
     const adminApi = createApiClient(baseUrl, adminToken)
 
     const created = await adminApi.quickTasks.create({
-      body: { title: `Open task ${Date.now()}`, description: 'open browse test' },
+      body: { title: `Open task ${fake.quickTaskTitle()}`, description: 'open browse test' },
     })
     expect(created.status).toBe(200)
     const workItemId = (created.body as { id: number }).id

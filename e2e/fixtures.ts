@@ -55,7 +55,7 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
     async ({}, runFixture, workerInfo: WorkerInfo) => {
       // A snapshot lane has a block of servers to itself (see snapshotServerIndex).
       const index = SNAPSHOTS_ENABLED
-        ? snapshotServerIndex(workerInfo.project.name, workerInfo.parallelIndex)
+        ? snapshotServerIndex(workerInfo.parallelIndex)
         : workerInfo.parallelIndex
       await runFixture(workerBaseUrl(index))
     },

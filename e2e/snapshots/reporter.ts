@@ -22,7 +22,7 @@ import {
   DIFFS,
   FAILURES,
   GALLERY,
-  HISTORY,
+  historyFile,
   laneIndex,
   LATEST,
   POOL,
@@ -180,13 +180,14 @@ export default class SnapshotReporter implements Reporter {
     for (const dir of [SNAPSHOT_ROOT, PREVIOUS, CURRENT, DIFFS, POOL, RUNS, FAILURES]) {
       mkdirSync(dir, { recursive: true })
     }
-    if (existsSync(STAGING)) {
-      for (const entry of readdirSync(STAGING)) {
-        rmSync(path.join(DIFFS, entry), { force: true })
-      }
-      rmSync(STAGING, { recursive: true, force: true })
-    }
+    // Only this run's lanes: another lane's process may be staging already.
     mkdirSync(STAGING, { recursive: true })
+    const mine = (entry: string) => this.manifest.lanes.some((lane) => entry.startsWith(`${lane}--`))
+    for (const entry of readdirSync(STAGING)) {
+      if (!mine(entry)) continue
+      rmSync(path.join(DIFFS, entry), { force: true })
+      rmSync(path.join(STAGING, entry), { force: true })
+    }
     // A failure shot is only ever this run's; last run's would read as today's.
     for (const key of Object.keys(this.manifest.tests)) {
       rmSync(path.join(FAILURES, `${key}.png`), { force: true })
@@ -253,7 +254,7 @@ export default class SnapshotReporter implements Reporter {
     meta.dirty = this.manifest.dirty
     await writeFile(sidecarFile(stagedPath), JSON.stringify(meta, null, 2))
     await ingestToPool(buffer, POOL)
-    await appendHistory(file, sha, undefined, HISTORY)
+    await appendHistory(file, sha, undefined, historyFile(meta.lane))
     this.manifest.captures[file] = {
       status: meta.settled ? 'captured' : 'unsettled',
       test: key,
@@ -297,12 +298,9 @@ export default class SnapshotReporter implements Reporter {
         await rename(staged, current)
       }
     }
-    if (kept.length === 0) {
-      await rm(STAGING, { recursive: true, force: true })
-      return
-    }
+    const mine = (entry: string) => this.manifest.lanes.some((lane) => entry.startsWith(`${lane}--`))
     for (const entry of await readdir(STAGING)) {
-      if (!kept.includes(entry)) await rm(path.join(STAGING, entry), { force: true })
+      if (mine(entry) && !kept.includes(entry)) await rm(path.join(STAGING, entry), { force: true })
     }
   }
 

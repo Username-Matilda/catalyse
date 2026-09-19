@@ -68,7 +68,7 @@ test.describe('Quick Tasks: self-serve', () => {
     baseUrl,
   }) => {
     const adminApi = createApiClient(baseUrl, readAdminToken(baseUrl))
-    const taskTitle = `Quick-flagged ${Date.now()}`
+    const taskTitle = `Quick-flagged ${fake.quickTaskTitle()}`
     const projectCreated = await adminApi.admin.projects.create({
       body: {
         title: fake.projectTitle(),
@@ -133,7 +133,7 @@ test.describe('Quick Tasks: self-serve', () => {
     baseUrl,
   }) => {
     const adminApi = createApiClient(baseUrl, readAdminToken(baseUrl))
-    const taskTitle = `Admin-visible-flagged ${Date.now()}`
+    const taskTitle = `Admin-visible-flagged ${fake.quickTaskTitle()}`
     const projectCreated = await adminApi.admin.projects.create({
       body: {
         title: fake.projectTitle(),
@@ -289,7 +289,7 @@ test.describe('Leaving a project', () => {
 
   test('A volunteer declined from a project cannot claim its tasks', async ({ baseUrl }) => {
     const adminApi = createApiClient(baseUrl, readAdminToken(baseUrl))
-    const taskTitle = `Declined-claim ${Date.now()}`
+    const taskTitle = `Declined-claim ${fake.quickTaskTitle()}`
     const { projectId, taskId } = await seedProjectWithTask(baseUrl, taskTitle, true)
 
     const volunteer = await createApprovedVolunteer(baseUrl)
@@ -322,7 +322,7 @@ test.describe('Leaving a project', () => {
     baseUrl,
   }) => {
     const adminApi = createApiClient(baseUrl, readAdminToken(baseUrl))
-    const taskTitle = `Withdraw-release ${Date.now()}`
+    const taskTitle = `Withdraw-release ${fake.quickTaskTitle()}`
     const { projectId, taskId } = await seedProjectWithTask(baseUrl, taskTitle)
 
     const volunteer = await createApprovedVolunteer(baseUrl)

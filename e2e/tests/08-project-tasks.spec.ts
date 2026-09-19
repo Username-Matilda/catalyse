@@ -386,7 +386,7 @@ test.describe('Project Tasks', () => {
     expect(claim.status).toBe(200)
 
     // Admin posts the first comment on the task
-    const adminComment = `admin feedback ${Date.now()}`
+    const adminComment = `admin feedback: ${fake.note()}`
     const adminPost = await adminApi.workItemComments.add({
       body: { workItemId: taskId, content: adminComment },
     })
@@ -402,7 +402,7 @@ test.describe('Project Tasks', () => {
     ).toBe(true)
 
     // Volunteer replies
-    const volunteerReply = `volunteer reply ${Date.now()}`
+    const volunteerReply = `volunteer reply: ${fake.note()}`
     const volPost = await volApi.workItemComments.add({
       body: { workItemId: taskId, content: volunteerReply },
     })
