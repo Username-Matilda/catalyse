@@ -17,6 +17,44 @@ import {
 
 const BASE_OMIT = { id: true, createdAt: true, updatedAt: true } as const
 
+// ─── Volunteer text fields ───────────────────────────────────────────────────
+
+// A name is shown to every admin and volunteer and lands in emails sent from this domain,
+// so it must not be able to carry a link or hide characters: no slashes or "www.", no
+// control characters, and none of the zero-width and bidirectional-override code points.
+const NAME_FORBIDDEN = /[/\\]|www\.|[\u0000-\u001f\u007f​-‏‪-‮⁠-⁩﻿]/i
+
+export const PersonNameSchema = z
+  .string()
+  .trim()
+  .min(1, 'Name is required')
+  .max(80, 'Name must be 80 characters or fewer')
+  .refine((name) => !NAME_FORBIDDEN.test(name), {
+    message: 'Name cannot contain links or special characters',
+  })
+
+/** A name from a source that cannot be asked to retype it, such as a Google profile. */
+export function sanitisePersonName(name: string): string {
+  const cleaned = name.replace(new RegExp(NAME_FORBIDDEN.source, 'gi'), ' ').replace(/\s+/g, ' ')
+  return cleaned.trim().slice(0, 80).trim() || 'New volunteer'
+}
+
+const shortText = (label: string, max: number) =>
+  z.string().max(max, `${label} must be ${max} characters or fewer`)
+
+/** Bounds shared by signup and profile edits, so neither is a way round the other. */
+const VOLUNTEER_TEXT_LIMITS = {
+  discordHandle: shortText('Discord handle', 100).nullable().optional(),
+  signalNumber: shortText('Signal number', 100).nullable().optional(),
+  whatsappNumber: shortText('WhatsApp number', 100).nullable().optional(),
+  contactPreference: shortText('Contact preference', 100).nullable().optional(),
+  contactNotes: shortText('Contact notes', 500).nullable().optional(),
+  location: shortText('Location', 200).nullable().optional(),
+  localGroup: shortText('Local group', 200).nullable().optional(),
+  otherSkills: shortText('Other skills', 500).nullable().optional(),
+  skillIds: z.array(z.number().int()).max(50, 'Choose 50 skills or fewer').optional(),
+}
+
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
 export const SignupSchema = VolunteerSchema.pick({
@@ -56,8 +94,13 @@ export const SignupSchema = VolunteerSchema.pick({
     applicationMessage: true,
   })
   .extend({
+    ...VOLUNTEER_TEXT_LIMITS,
+    name: PersonNameSchema,
     // email is nullable on Volunteer (Google OAuth accounts have none), but required at signup
-    email: z.string().email('A valid email address is required'),
+    email: z
+      .string()
+      .email('A valid email address is required')
+      .max(254, 'Email must be 254 characters or fewer'),
     password: z
       .string()
       .min(8, 'Password must be at least 8 characters')
@@ -69,14 +112,13 @@ export const SignupSchema = VolunteerSchema.pick({
     bio: z
       .string()
       .min(20, 'Please write at least 20 characters')
-      .max(5000, 'About You must be no more than 5000 characters'),
-    country: z.string().min(1, 'Country is required'),
+      .max(2000, 'About You must be no more than 2000 characters'),
+    country: z.string().min(1, 'Country is required').max(100),
     availabilityHoursPerWeek: z
       .number()
       .int()
       .min(1, 'Availability is required')
       .max(40, 'Availability must be no more than 40 hours per week'),
-    skillIds: z.array(z.number().int()).optional(),
   })
 
 export const CompleteGoogleSignupSchema = SignupSchema.omit({
@@ -412,11 +454,13 @@ export const UpdateVolunteerSchema = VolunteerSchema.omit({
 })
   .partial()
   .extend({
+    ...VOLUNTEER_TEXT_LIMITS,
+    name: PersonNameSchema.optional(),
+    bio: shortText('About You', 2000).nullable().optional(),
     applicationMessage: z
       .string()
       .min(20, 'Please write at least 20 characters')
       .max(5000, 'Application message must be no more than 5000 characters')
       .nullable()
       .optional(),
-    skillIds: z.array(z.number().int()).optional(),
   })

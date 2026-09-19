@@ -58,6 +58,7 @@ describe('application review', () => {
     expect(main).toHaveTextContent('Previously rejected 2 times')
     expect(main).toHaveTextContent('try again')
     expect(screen.queryByText(/Already under review/)).toBeNull()
+    expect(screen.queryByRole('note')).toBeNull()
     expect(screen.getByLabelText(/Internal admin notes/)).toHaveValue('existing admin')
     expect(screen.getByLabelText(/Message to applicant/)).toHaveValue('existing applicant')
 
@@ -96,6 +97,20 @@ describe('application review', () => {
     expect(
       (await prisma.volunteer.findUniqueOrThrow({ where: { id: app.id } })).approvalStatus,
     ).toBe('approved')
+  })
+
+  it('warns the reviewer when the applicant wrote a link', async () => {
+    const sa = await createSuperAdmin()
+    const app = await createVolunteer({
+      name: 'Link Applicant',
+      approvalStatus: 'pending',
+      applicationMessage: 'My portfolio is at https://example.com/portfolio',
+    })
+    await renderApp(<ApplicationReviewPage />, { as: sa, params: { id: String(app.id) } })
+    await screen.findByRole('heading', { name: 'Link Applicant' })
+    expect(screen.getByRole('note')).toHaveTextContent('nobody has checked where they lead')
+    // Shown as the text the applicant typed, never as something to click.
+    expect(screen.queryByRole('link', { name: /example\.com/ })).toBeNull()
   })
 
   it('shows each status banner, reopens a rejection, and handles unknown ids and failures', async () => {

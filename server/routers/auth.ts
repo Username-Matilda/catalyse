@@ -33,6 +33,7 @@ import {
   ChangePasswordSchema,
   ChangeEmailSchema,
   ResetPasswordSchema,
+  sanitisePersonName,
 } from '@/lib/schemas'
 import { publicProcedure, authedProcedure } from '../procedures'
 import { env } from '@/lib/env'
@@ -328,7 +329,7 @@ export const authRouter = {
     if (!isApproved) {
       notifyAdmins(
         'new_volunteer_signup',
-        `New volunteer application: ${volunteer.name}`,
+        'New volunteer application',
         `${volunteer.name} has applied to join Catalyse`,
         `/admin/applications/${volunteer.id}`,
         {
@@ -823,7 +824,8 @@ export const authRouter = {
           throw new ORPCError('UNAUTHORIZED', {
             message: 'Your Google sign-in has expired, please sign in with Google again',
           })
-        ;({ email, name } = googleUser)
+        email = googleUser.email
+        name = sanitisePersonName(googleUser.name)
       }
 
       const existing = await prisma.volunteer.findFirst({

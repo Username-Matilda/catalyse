@@ -9,6 +9,7 @@ import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import { formatDate } from '@/lib/format-date'
 import { countryLabel } from '@/lib/filter-options'
+import { containsLink } from '@/lib/links'
 import { ApprovalStatus } from '@/generated/prisma/enums'
 
 export default function ApplicationReviewPage() {
@@ -179,6 +180,16 @@ export default function ApplicationReviewPage() {
           {daysUntilAnonymise !== null && daysUntilAnonymise >= 0
             ? ` (${daysUntilAnonymise === 0 ? 'today' : `${daysUntilAnonymise} day${daysUntilAnonymise === 1 ? '' : 's'}`})`
             : ''}
+        </p>
+      )}
+
+      {containsLink(app.bio, app.applicationMessage, app.contactNotes) && (
+        <p
+          role="note"
+          className="text-sm mb-6 p-3 rounded-lg border bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-300"
+        >
+          This application contains links. The applicant wrote them and nobody has checked where
+          they lead, so take care before opening one.
         </p>
       )}
 
