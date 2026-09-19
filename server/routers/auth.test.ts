@@ -357,6 +357,46 @@ describe('changePassword / changeEmail', () => {
     await c.auth.changeEmail({ newEmail: 'again@example.com', password: TEST_PASSWORD })
     await vi.waitFor(() => expect(error).toHaveBeenCalledWith('[CHANGE_EMAIL]', expect.any(Error)))
   })
+
+  it('rations email changes to three a day per account, and refuses a malformed address', async () => {
+    const vol = await createVolunteer()
+    const c = clientAs(vol)
+    await expect(
+      c.auth.changeEmail({ newEmail: 'not an address', password: TEST_PASSWORD }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+    // Refused attempts cost nothing.
+    await expect(
+      c.auth.changeEmail({ newEmail: 'r0@example.com', password: 'wrong' }),
+    ).rejects.toMatchObject({ message: 'Password is incorrect' })
+
+    for (const n of [1, 2, 3]) {
+      await c.auth.changeEmail({ newEmail: `r${n}@example.com`, password: TEST_PASSWORD })
+    }
+    const sent = vi.mocked(email.sendWelcomeAndConfirmEmail).mock.calls.length
+    await expect(
+      c.auth.changeEmail({ newEmail: 'r4@example.com', password: TEST_PASSWORD }),
+    ).rejects.toMatchObject({ code: 'TOO_MANY_REQUESTS', message: expect.stringContaining('3') })
+    expect(vi.mocked(email.sendWelcomeAndConfirmEmail).mock.calls).toHaveLength(sent)
+    expect((await prisma.volunteer.findUniqueOrThrow({ where: { id: vol.id } })).email).toBe(
+      'r3@example.com',
+    )
+
+    // A day on, the window starts again.
+    await prisma.volunteer.update({
+      where: { id: vol.id },
+      data: { emailChangeWindowStart: new Date(Date.now() - 25 * 60 * 60 * 1000) },
+    })
+    await c.auth.changeEmail({ newEmail: 'r5@example.com', password: TEST_PASSWORD })
+    expect(await prisma.volunteer.findUniqueOrThrow({ where: { id: vol.id } })).toMatchObject({
+      email: 'r5@example.com',
+      emailChangeCount: 1,
+    })
+
+    denyNext()
+    await expect(
+      c.auth.changeEmail({ newEmail: 'r6@example.com', password: TEST_PASSWORD }),
+    ).rejects.toMatchObject({ code: 'TOO_MANY_REQUESTS' })
+  })
 })
 
 describe('forgotPassword / resetPassword', () => {

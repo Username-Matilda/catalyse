@@ -139,7 +139,12 @@ export const ChangePasswordSchema = z.object({
 })
 
 export const ChangeEmailSchema = z.object({
-  newEmail: z.string().min(1, 'New email is required'),
+  newEmail: z
+    .string()
+    .trim()
+    .min(1, 'New email is required')
+    .email('A valid email address is required')
+    .max(254, 'Email must be 254 characters or fewer'),
   password: z.string().min(1, 'Password is required'),
 })
 

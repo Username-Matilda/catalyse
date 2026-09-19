@@ -192,6 +192,33 @@ async function sendAccountDeletionNotifications(deletedId: number, deletedName: 
   }
 }
 
+const EMAIL_CHANGES_PER_DAY = 3
+const DAY_MS = 24 * 60 * 60 * 1000
+
+// Each change mails a confirmation link to an address nobody has proven, carrying the
+// account's name, so it is rationed per account: an IP limit resets with every deploy and
+// does nothing against one account used from many places. Conditional updates, so
+// concurrent requests cannot both take the last slot.
+async function claimEmailChange(volunteerId: number): Promise<boolean> {
+  const now = new Date()
+  const newWindow = await prisma.volunteer.updateMany({
+    where: {
+      id: volunteerId,
+      OR: [
+        { emailChangeWindowStart: null },
+        { emailChangeWindowStart: { lt: new Date(now.getTime() - DAY_MS) } },
+      ],
+    },
+    data: { emailChangeCount: 1, emailChangeWindowStart: now },
+  })
+  if (newWindow.count === 1) return true
+  const sameWindow = await prisma.volunteer.updateMany({
+    where: { id: volunteerId, emailChangeCount: { lt: EMAIL_CHANGES_PER_DAY } },
+    data: { emailChangeCount: { increment: 1 } },
+  })
+  return sameWindow.count === 1
+}
+
 export const authRouter = {
   login: publicProcedure
     .input(z.object({ email: z.string(), password: z.string() }))
@@ -429,6 +456,15 @@ export const authRouter = {
     }),
 
   changeEmail: authedProcedure.input(ChangeEmailSchema).handler(async ({ input, context }) => {
+    // The password check below is a guessing oracle for anyone holding a stolen session.
+    const { allowed, retryAfterMs } = checkRateLimit(context.request, 'change-email', {
+      limit: 10,
+      windowMs: 15 * 60 * 1000,
+    })
+    if (!allowed)
+      throw new ORPCError('TOO_MANY_REQUESTS', {
+        message: `Rate limited. Retry after ${retryAfterMs}ms`,
+      })
     const vol = await prisma.volunteer.findUnique({
       where: { id: context.volunteer.id },
       select: { passwordHash: true },
@@ -448,6 +484,11 @@ export const authRouter = {
       throw new ORPCError('BAD_REQUEST', {
         message: 'This email is already registered to another account',
       })
+    if (!(await claimEmailChange(context.volunteer.id))) {
+      throw new ORPCError('TOO_MANY_REQUESTS', {
+        message: `You can change your email ${EMAIL_CHANGES_PER_DAY} times a day. Try again tomorrow.`,
+      })
+    }
     // The new address is unproven: drop confirmed status and send a fresh confirmation
     // link there, otherwise a verified account could point itself at any address.
     await prisma.emailVerificationToken.updateMany({
