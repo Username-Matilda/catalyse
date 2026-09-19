@@ -8,6 +8,15 @@ import { clientAs, anon } from '@/test/rpc'
  * per-router tests then only need to cover their own logic, not the gate.
  */
 describe('procedure gates', () => {
+  it('refuses oversized input before the procedure sees it, signed in or not', async () => {
+    await expect(
+      anon().auth.login({ email: 'a@example.com', password: 'x'.repeat(2001) }),
+    ).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+      message: 'password must be 2000 characters or fewer',
+    })
+  })
+
   it('authedProcedure needs a session', async () => {
     await expect(anon().my.quickTasks()).rejects.toMatchObject({ code: 'UNAUTHORIZED' })
     const vol = await createVolunteer({ approvalStatus: 'pending' })
