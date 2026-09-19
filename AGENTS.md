@@ -50,6 +50,15 @@ into whatever you are already working on.
 - Router tests run against a real per-file SQLite database (`test/setup-db.ts`); component tests render in jsdom with `fetch` routed into the real oRPC handler (`test/setup-dom.ts`). Prefer these over mocking modules; mock only the network edge (email, Google, rate limiting).
 - Modules that read `process.env` at import time are configured in `test/setup-db.ts`; a test needing a different value must `vi.resetModules()` and re-import, so prefer reading env at call time in new code.
 
+## End-to-end tests
+
+`npm run test:e2e` drives a production build in a real browser, four workers each with its own server and Postgres schema (`e2e/`). The unit suite proves lines execute; this suite proves flows work, and it is the only place a page is rendered by the real Next server, routed, hydrated and clicked.
+
+- **A user-facing flow gets a happy-path test here**: a page, a dialog, a form that saves, a status transition, a permission boundary. Add it to the spec that owns the area (`e2e/tests/NN-*.spec.ts`) or start a new numbered spec for a new area. Sprinkle the error paths a user can reach: a refused save, a validation message, a page that turns them away.
+- **Drive the real UI the way a person would** with role and label locators, and assert on what they would see. Set up state through the API client (`e2e/client.ts`) where the flow being tested is not the setup; `e2e/actions/` holds the shared steps.
+- **Tests share a schema with the rest of their worker**, so assert on what this test made, never on the world being empty: the row it created leaves the list, not the list is empty. Fake data comes from `e2e/fake.ts` and is seeded per test, so a title is the same every run and different for every test; do not rely on `--repeat-each`, which reuses a seed.
+- **Failures print Playwright's call log**; read it before the component. "Resolved, then detached" means the step before changed the screen; "never resolved" means the markup moved or the action did nothing.
+
 ## Visual snapshots
 
 `npm run snapshots` runs the e2e suite with every test photographed, in four lanes (desktop and mobile, light and dark), and writes `snapshots/index.html`: each picture beside the one the previous run took, with changed pixels in red. Full guide: `e2e/snapshots/README.md`.
