@@ -16,7 +16,7 @@ npm run snapshots
 The run is the Playwright suite with `SNAPSHOTS=1`, every lane at once. The
 machine sets how many servers open (one per two cores, at most six;
 `SNAPSHOT_WORKERS` overrides it) and the lanes in the run share them out, so
-a full run here is four lanes with a worker each and a single lane in CI has
+a full run is four lanes with a worker each, and a single lane has
 every server to itself. Each lane's servers and database schemas are its own,
 so a lane only ever shares a database with itself. Open
 `snapshots/index.html` while it works and watch it fill in; each new frame
@@ -138,32 +138,14 @@ gallery banners the pin and captions each baseline picture with its ref.
 npm run snapshots -- --clear-baseline
 ```
 
-A published gallery can be pinned the same way, which is what a pull request
-does in CI against what main last published:
+## Rebuild the page without a run
 
 ```sh
-npm run snapshots -- --baseline-from=https://example.github.io/catalyse/main
+npm run snapshots -- --render
 ```
 
-## In CI
-
-`.github/workflows/snapshots.yml` captures each lane in a job of its own, then
-merges the lanes into one gallery with `--export` and uploads it as the
-`snapshots-gallery` artifact on the run. Download it and open `index.html`.
-
-The repository's workflows run with a read-only token and no secrets, so a
-fork's pull request runs them the same way (`test/ci-workflow.test.ts` holds
-that rule). Publishing the gallery as a page would need write access to a
-branch, so the workflow stops at the artifact. The pieces for a page are in
-place should that change: `--baseline-from <url>` pins a published gallery as
-the baseline, and `--export` given that URL links the pictures already
-published there rather than copying them, so a pull request's page would
-carry only the rows that changed and their diffs.
-
-```sh
-npm run snapshots -- --render                       # rebuild index.html from the runs on disk
-npm run snapshots -- --export=gallery               # the page and its files, ready to publish
-```
+Builds `snapshots/index.html` from the newest complete run of each lane on
+disk, so lanes captured in separate runs still come together on one page.
 
 ## The generated directory
 
@@ -192,7 +174,7 @@ Every run writes `runs/<runId>.json` before capturing anything and updates it
 as each test finishes, recording the commit, whether the tree was dirty, the
 arguments that narrowed it, and what became of each test. A manifest still
 saying `running` marks a killed run. `manifest.json` at the root is a copy of
-the last one to finish, which is what `--baseline-from` reads.
+the last one to finish.
 
 A test that fails keeps its pictures out of `current/`: they show on the
 gallery for that run, badged, and the last good picture stays as the next
@@ -216,4 +198,4 @@ twice and the bytes can still differ while every pixel stays put. Read
 - `gallery.ts`: renders the page from those rows.
 - `png.ts`: the decoder, the diff and the pool, with no Playwright in them.
 - `runs.ts`: the manifest.
-- `scripts/snapshots.ts`: the command: the `--against` worktree, the published baseline, and the merged export CI publishes.
+- `scripts/snapshots.ts`: the command, the `--against` worktree, and `--render`.
