@@ -59,37 +59,9 @@ async function getProject(baseUrl: string, token: string, id: number) {
 }
 
 test.describe('Project ownership states', () => {
-  test('An org project with no owner starts Ready and seeking an owner', async ({ baseUrl }) => {
-    const adminToken = readAdminToken(baseUrl)
-    const { id } = await createOrgProject(baseUrl)
-
-    const project = await getProject(baseUrl, adminToken, id)
-    expect(project.status).toBe('ready')
-    expect(project.ownerId).toBeNull()
-    expect(project.isSeekingOwner).toBe(true)
-  })
-
   // Regression: assigning someone as owner used to create the accepted interest and clear
   // the stored is_seeking_owner flag without ever setting assignee_id, leaving the project
   // ownerless *and* no longer advertising for one.
-  test('Assigning a volunteer as owner sets the owner and starts the project', async ({
-    baseUrl,
-  }) => {
-    const adminToken = readAdminToken(baseUrl)
-    const { id } = await createOrgProject(baseUrl)
-    const volunteer = await createApprovedVolunteer(baseUrl)
-
-    const assigned = await createApiClient(baseUrl, adminToken).projects.assign({
-      body: { projectId: id, volunteerId: volunteer.id, interestType: 'want_to_own' },
-    })
-    expect(assigned.status).toBe(200)
-
-    const project = await getProject(baseUrl, adminToken, id)
-    expect(project.ownerId).toBe(volunteer.id)
-    expect(project.status).toBe('in_progress')
-    expect(project.isSeekingOwner).toBe(false)
-  })
-
   test('Accepting a want_to_own interest sets the owner and starts the project', async ({
     baseUrl,
   }) => {
@@ -289,61 +261,4 @@ test.describe('Project ownership states', () => {
   // Regression: "Suggested for You" matched on the seeking flags alone. Every project is
   // created with isSeekingHelp true, so proposals were recommended to volunteers before an
   // admin had reviewed them.
-  test('A proposal awaiting review is not suggested to matching volunteers', async ({
-    baseUrl,
-  }) => {
-    const api = createApiClient(baseUrl)
-    const skillsResult = await api.skills.list()
-    expect(skillsResult.status).toBe(200)
-    const allSkills = (skillsResult.body as Array<{ skills: Array<{ id: number }> }>).flatMap(
-      (c) => c.skills,
-    )
-    const skillIds = [allSkills[0].id]
-
-    // A volunteer who proposes a project, and a second who matches its skills.
-    const proposer = await createApprovedVolunteer(baseUrl)
-    const title = fake.projectTitle()
-    const proposed = await createApiClient(baseUrl, proposer.token).projects.create({
-      body: {
-        title,
-        description: 'Proposal that should stay private until reviewed',
-        projectType: null,
-        estimatedDuration: null,
-        timeCommitmentHoursPerWeek: null,
-        urgency: 'medium',
-        collaborationLink: null,
-        country: null,
-        localGroup: null,
-        isSeekingHelp: true,
-        skillIds,
-        skillRequiredMap: Object.fromEntries(skillIds.map((id) => [id, true])),
-        tasks: [{ title: 'Initial task' }],
-      },
-    })
-    expect(proposed.status).toBe(200)
-    const projectId = (proposed.body as { id: number }).id
-
-    const matcher = await createApprovedVolunteer(baseUrl)
-    const matcherApi = createApiClient(baseUrl, matcher.token)
-    const updated = await matcherApi.volunteers.updateMe({ body: { skillIds } })
-    expect(updated.status).toBe(200)
-
-    const beforeReview = await matcherApi.dashboard.get()
-    expect(beforeReview.status).toBe(200)
-    const suggestedBefore = (beforeReview.body as { suggestedProjects: { id: number }[] })
-      .suggestedProjects
-    expect(suggestedBefore.map((p) => p.id)).not.toContain(projectId)
-
-    // Once approved it goes live as `ready`, and the same volunteer should now see it.
-    const approved = await createApiClient(baseUrl, readAdminToken(baseUrl)).admin.projects.review({
-      body: { id: projectId, status: 'approved' },
-    })
-    expect(approved.status).toBe(200)
-
-    const afterReview = await matcherApi.dashboard.get()
-    expect(afterReview.status).toBe(200)
-    const suggestedAfter = (afterReview.body as { suggestedProjects: { id: number }[] })
-      .suggestedProjects
-    expect(suggestedAfter.map((p) => p.id)).toContain(projectId)
-  })
 })

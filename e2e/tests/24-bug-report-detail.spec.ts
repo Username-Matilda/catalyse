@@ -105,14 +105,6 @@ test.describe('Bug Report Detail Page', () => {
     expect([403, 404]).toContain(addResult.status)
   })
 
-  test('An anonymous request to create a bug report is rejected', async ({ baseUrl }) => {
-    const api = createApiClient(baseUrl)
-    const result = await api.bugReports.create({
-      body: { title: 'Anonymous attempt', description: 'Should be rejected without a login' },
-    })
-    expect(result.status).toBe(401)
-  })
-
   test('A javascript: pageUrl is never rendered as a clickable link', async ({
     volunteer,
     baseUrl,

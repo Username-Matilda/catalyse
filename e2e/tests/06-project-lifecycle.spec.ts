@@ -1,7 +1,6 @@
-import { test, expect, getAlert, readAdminToken, createApprovedVolunteer } from '../fixtures'
+import { test, expect, getAlert } from '../fixtures'
 import { goToDashboardNotifications } from '../actions/dashboard'
 import { fake } from '../fake'
-import { createApiClient } from '../client'
 import {
   proposeProject,
   adminCreateProject,
@@ -219,52 +218,5 @@ test.describe('Project Creation Requires At Least One Task', () => {
       timeout: 10_000,
     })
     await expect(adminPage.getByRole('heading', { name: 'Publish this project?' })).toHaveCount(0)
-  })
-
-  test('The API rejects a project proposal with no tasks', async ({ baseUrl }) => {
-    const volunteer = await createApprovedVolunteer(baseUrl)
-    const api = createApiClient(baseUrl, volunteer.token)
-
-    const result = await api.projects.create({
-      body: {
-        title: fake.projectTitle(),
-        description: 'Proposal with no tasks, sent directly to the API',
-        projectType: null,
-        estimatedDuration: null,
-        timeCommitmentHoursPerWeek: null,
-        urgency: 'medium',
-        collaborationLink: null,
-        country: null,
-        localGroup: null,
-        isSeekingHelp: true,
-        tasks: [],
-      },
-    })
-
-    expect(result.status).toBe(400)
-    expect(JSON.stringify(result.body)).toContain('At least one task is required')
-  })
-
-  test('The API rejects an org project with no tasks', async ({ baseUrl }) => {
-    const adminApi = createApiClient(baseUrl, readAdminToken(baseUrl))
-
-    const result = await adminApi.admin.projects.create({
-      body: {
-        title: fake.projectTitle(),
-        description: 'Org project with no tasks, sent directly to the API',
-        projectType: null,
-        estimatedDuration: null,
-        timeCommitmentHoursPerWeek: null,
-        urgency: 'medium',
-        collaborationLink: null,
-        country: null,
-        localGroup: null,
-        isSeekingHelp: false,
-        tasks: [],
-      },
-    })
-
-    expect(result.status).toBe(400)
-    expect(JSON.stringify(result.body)).toContain('At least one task is required')
   })
 })

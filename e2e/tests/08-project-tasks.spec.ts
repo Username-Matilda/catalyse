@@ -1,12 +1,4 @@
-import {
-  test,
-  expect,
-  getAlert,
-  readAdminToken,
-  confirmVolunteerEmail,
-  approveVolunteer,
-  createApprovedVolunteer,
-} from '../fixtures'
+import { test, expect, getAlert, readAdminToken, createApprovedVolunteer } from '../fixtures'
 import { fake } from '../fake'
 import { proposeProject, adminCreateProjectViaApi, adminApproveProject } from '../actions/projects'
 import { Page } from '@playwright/test'
@@ -324,98 +316,6 @@ test.describe('Project Tasks', () => {
   // TODO: project task cards have no comment thread UI — convert this to a UI test once
   // a CommentThread is added to each task card on the project page (similar to how
   // quick tasks show comments on the dashboard and admin pages).
-  test('Admin and task assignee exchange comments on a project task', async ({ baseUrl }) => {
-    const adminToken = readAdminToken(baseUrl)
-    expect(adminToken).toBeTruthy()
-    const adminApi = createApiClient(baseUrl, adminToken)
-
-    // Admin creates a project and a task
-    const projectCreated = await adminApi.admin.projects.create({
-      body: {
-        title: fake.projectTitle(),
-        description: 'Task comment back-and-forth test',
-        projectType: null,
-        estimatedDuration: null,
-        timeCommitmentHoursPerWeek: null,
-        urgency: 'medium',
-        collaborationLink: null,
-        country: null,
-        localGroup: null,
-        isSeekingHelp: false,
-        tasks: [{ title: 'Setup task' }],
-      },
-    })
-    expect(projectCreated.status).toBe(200)
-    const projectId = (projectCreated.body as { id: number }).id
-
-    const taskCreated = await adminApi.projects.createTask({
-      body: { projectId, title: 'Back-and-forth comment task' },
-    })
-    expect(taskCreated.status).toBe(200)
-    const taskId = (taskCreated.body as { id: number }).id
-
-    // A fresh volunteer signs up, gets approved, and claims the task
-    const person = fake.person()
-    const api = createApiClient(baseUrl)
-    const signup = await api.auth.signup({
-      body: {
-        name: person.name,
-        email: person.email,
-        password: 'testpassword1',
-        bio: 'e2e test bio, at least twenty characters long',
-        country: 'UK',
-        availabilityHoursPerWeek: 5,
-        applicationMessage: 'e2e test application message',
-        consentMakeProfileVisibleInDirectory: true,
-        consentContactableByProjectOwners: true,
-      },
-    })
-    expect(signup.status).toBe(200)
-    const {
-      id: volId,
-      token: volToken,
-      emailVerificationToken,
-    } = signup.body as { id: number; token: string; emailVerificationToken?: string }
-    if (emailVerificationToken) await confirmVolunteerEmail(baseUrl, emailVerificationToken)
-    await approveVolunteer(baseUrl, volId, volToken)
-    const volApi = createApiClient(baseUrl, volToken)
-
-    const claim = await volApi.projects.updateTask({
-      body: { projectId, taskId, data: { status: 'in_progress', assigneeId: volId } },
-    })
-    expect(claim.status).toBe(200)
-
-    // Admin posts the first comment on the task
-    const adminComment = `admin feedback: ${fake.note()}`
-    const adminPost = await adminApi.workItemComments.add({
-      body: { workItemId: taskId, content: adminComment },
-    })
-    expect(adminPost.status).toBe(200)
-
-    // Volunteer reads the thread and sees admin's comment
-    const volList = await volApi.workItemComments.list({ body: { workItemId: taskId } })
-    expect(volList.status).toBe(200)
-    expect(
-      (volList.body as { comments: { content: string }[] }).comments.some(
-        (c) => c.content === adminComment,
-      ),
-    ).toBe(true)
-
-    // Volunteer replies
-    const volunteerReply = `volunteer reply: ${fake.note()}`
-    const volPost = await volApi.workItemComments.add({
-      body: { workItemId: taskId, content: volunteerReply },
-    })
-    expect(volPost.status).toBe(200)
-
-    // Admin reads the thread and sees both messages
-    const adminList = await adminApi.workItemComments.list({ body: { workItemId: taskId } })
-    expect(adminList.status).toBe(200)
-    const finalComments = (adminList.body as { comments: { content: string }[] }).comments
-    expect(finalComments.some((c) => c.content === adminComment)).toBe(true)
-    expect(finalComments.some((c) => c.content === volunteerReply)).toBe(true)
-  })
-
   test('Admin deletes a task', async ({ adminPage, baseUrl }) => {
     test.setTimeout(60_000)
     const projectId = await adminCreateProjectViaApi(

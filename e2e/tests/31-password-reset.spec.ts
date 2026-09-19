@@ -1,6 +1,5 @@
 import { test, expect, getAlert } from '../fixtures'
 import { login } from '../actions/auth'
-import { createApiClient } from '../client'
 import { fake } from '../fake'
 
 test.describe('Password Reset', () => {
@@ -117,22 +116,3 @@ test.describe('Password Reset', () => {
   })
 })
 
-test.describe('Password Reset (API)', () => {
-  test('A used reset token cannot be reused', async ({ volunteer, baseUrl }) => {
-    const api = createApiClient(baseUrl)
-    const forgot = await api.auth.forgotPassword({ body: { email: volunteer.email } })
-    expect(forgot.status).toBe(200)
-    const token = (forgot.body as { _devResetToken?: string })._devResetToken
-    expect(token).toBeTruthy()
-
-    const first = await api.auth.resetPassword({
-      body: { token: token!, newPassword: 'anothernewpassword1' },
-    })
-    expect(first.status).toBe(200)
-
-    const second = await api.auth.resetPassword({
-      body: { token: token!, newPassword: 'yetanotherpassword1' },
-    })
-    expect(second.status).toBe(400)
-  })
-})

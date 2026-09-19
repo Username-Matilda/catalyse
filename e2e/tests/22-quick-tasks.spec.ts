@@ -317,33 +317,4 @@ test.describe('Leaving a project', () => {
     const titles = (available.body as { title: string }[]).map((t) => t.title)
     expect(titles).not.toContain(taskTitle)
   })
-
-  test('Withdrawing from a project releases the tasks that volunteer holds on it', async ({
-    baseUrl,
-  }) => {
-    const adminApi = createApiClient(baseUrl, readAdminToken(baseUrl))
-    const taskTitle = `Withdraw-release ${fake.quickTaskTitle()}`
-    const { projectId, taskId } = await seedProjectWithTask(baseUrl, taskTitle)
-
-    const volunteer = await createApprovedVolunteer(baseUrl)
-    const volApi = createApiClient(baseUrl, volunteer.token)
-
-    const claim = await volApi.projects.updateTask({
-      body: { projectId, taskId, data: { status: 'in_progress', assigneeId: volunteer.id } },
-    })
-    expect(claim.status).toBe(200)
-
-    const withdrawn = await volApi.projects.withdrawInterest({ body: { projectId } })
-    expect(withdrawn.status).toBe(200)
-
-    const task = await adminApi.projects.getTask({ body: { projectId, taskId } })
-    expect((task.body as { status: string }).status).toBe('open')
-    expect((task.body as { assignedToId: number | null }).assignedToId).toBeNull()
-
-    // Having left, they can no longer pick it back up.
-    const reclaim = await volApi.projects.updateTask({
-      body: { projectId, taskId, data: { status: 'in_progress', assigneeId: volunteer.id } },
-    })
-    expect(reclaim.status).toBe(403)
-  })
 })

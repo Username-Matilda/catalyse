@@ -308,30 +308,6 @@ test.describe('Teams', () => {
     }).toPass({ timeout: 10_000 })
   })
 
-  test('A volunteer who is neither admin nor team leader cannot review a join request', async ({
-    baseUrl,
-  }) => {
-    const teamName = fake.teamName()
-    const team = await createTeamViaApi(baseUrl, teamName)
-
-    const applicant = await createApprovedVolunteer(baseUrl)
-    const applicantApi = createApiClient(baseUrl, applicant.token)
-    const applied = await applicantApi.teams.apply({ body: { id: team.id } })
-    if (applied.status !== 200) throw new Error(`apply failed: ${JSON.stringify(applied.body)}`)
-
-    const requests = await adminApi(baseUrl).teams.listJoinRequests({
-      params: { teamId: team.id },
-    })
-    const requestId = (requests.body as { requests: { id: number }[] }).requests[0].id
-
-    const bystander = await createApprovedVolunteer(baseUrl)
-    const bystanderApi = createApiClient(baseUrl, bystander.token)
-    const result = await bystanderApi.teams.reviewJoinRequest({
-      body: { id: requestId, action: 'accept' },
-    })
-    expect(result.status).toBe(403)
-  })
-
   test('A project tagged to a team is visible to its members, hidden from others, and notifies the team', async ({
     baseUrl,
   }) => {

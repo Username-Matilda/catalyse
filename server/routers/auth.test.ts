@@ -627,6 +627,31 @@ describe('verifyEmail / resendVerification', () => {
       code: 'TOO_MANY_REQUESTS',
     })
   })
+
+  it('a resend retires the old token and the new one confirms', async () => {
+    const signup = await anon().auth.signup(signupInput('resend@example.com'))
+    const oldToken = signup.emailVerificationToken!
+    const me = await prisma.volunteer.findUniqueOrThrow({ where: { id: signup.id } })
+    const resent = await clientAs(me).auth.resendVerification({})
+    expect(resent.emailVerificationToken).toBeTruthy()
+    await expect(anon().auth.verifyEmail({ token: oldToken })).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    })
+    await expect(
+      anon().auth.verifyEmail({ token: resent.emailVerificationToken! }),
+    ).resolves.toBeTruthy()
+  })
+
+  it('confirms an email whose account an admin approved first', async () => {
+    const signup = await anon().auth.signup(signupInput('early@example.com'))
+    await prisma.volunteer.update({
+      where: { id: signup.id },
+      data: { approvalStatus: 'approved' },
+    })
+    await expect(
+      anon().auth.verifyEmail({ token: signup.emailVerificationToken! }),
+    ).resolves.toBeTruthy()
+  })
 })
 
 describe('deleteAccount', () => {

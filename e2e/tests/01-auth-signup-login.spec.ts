@@ -3,7 +3,6 @@ import {
   expect,
   getAlert,
   confirmVolunteerEmail,
-  approveVolunteer,
   rejectVolunteer,
   dismissCookieConsentScript,
 } from '../fixtures'
@@ -209,62 +208,6 @@ test.describe('Authentication: Signup & Login', () => {
     }
   })
 
-  test('Resend invalidates old confirmation token', async ({ baseUrl }) => {
-    const person = fake.person()
-    const api = createApiClient(baseUrl)
-    const signupResult = await api.auth.signup({
-      body: {
-        name: person.name,
-        email: person.email,
-        password: 'testpassword1',
-        bio: 'e2e test bio, at least twenty characters long',
-        country: 'UK',
-        availabilityHoursPerWeek: 5,
-        applicationMessage: 'e2e test application message',
-        consentMakeProfileVisibleInDirectory: true,
-        consentContactableByProjectOwners: true,
-      },
-    })
-    expect(signupResult.status).toBe(200)
-    const { token: authToken, emailVerificationToken: oldToken } = signupResult.body
-    expect(oldToken).toBeTruthy()
-
-    const authedApi = createApiClient(baseUrl, authToken)
-    await authedApi.auth.resendVerification({ body: {} })
-
-    const verifyResult = await api.auth.verifyEmail({ body: { token: oldToken! } })
-    expect(verifyResult.status).toBe(400)
-  })
-
-  test('New token from resend confirms email successfully', async ({ baseUrl }) => {
-    const person = fake.person()
-    const api = createApiClient(baseUrl)
-    const signupResult = await api.auth.signup({
-      body: {
-        name: person.name,
-        email: person.email,
-        password: 'testpassword1',
-        bio: 'e2e test bio, at least twenty characters long',
-        country: 'UK',
-        availabilityHoursPerWeek: 5,
-        applicationMessage: 'e2e test application message',
-        consentMakeProfileVisibleInDirectory: true,
-        consentContactableByProjectOwners: true,
-      },
-    })
-    expect(signupResult.status).toBe(200)
-    const { token: authToken } = signupResult.body
-
-    const authedApi = createApiClient(baseUrl, authToken)
-    const resendResult = await authedApi.auth.resendVerification({ body: {} })
-    expect(resendResult.status).toBe(200)
-    const { emailVerificationToken: newToken } = resendResult.body
-    expect(newToken).toBeTruthy()
-
-    const verifyResult = await api.auth.verifyEmail({ body: { token: newToken! } })
-    expect(verifyResult.status).toBe(200)
-  })
-
   test('Admin can start review; application moves to Under Review tab', async ({
     adminPage,
     baseUrl,
@@ -400,34 +343,6 @@ test.describe('Authentication: Signup & Login', () => {
     await expect(card).toBeVisible({ timeout: 20_000 })
     await expect(card.getByText(/will be anonymised on/i)).toBeVisible()
     await expect(card.getByText('Test rejection')).toBeVisible()
-  })
-
-  test('Admin approved before email confirmation; verify-email succeeds', async ({ baseUrl }) => {
-    const person = fake.person()
-    const api = createApiClient(baseUrl)
-    const signupResult = await api.auth.signup({
-      body: {
-        name: person.name,
-        email: person.email,
-        password: 'testpassword1',
-        bio: 'e2e test bio, at least twenty characters long',
-        country: 'UK',
-        availabilityHoursPerWeek: 5,
-        applicationMessage: 'e2e test application message',
-        consentMakeProfileVisibleInDirectory: true,
-        consentContactableByProjectOwners: true,
-      },
-    })
-    expect(signupResult.status).toBe(200)
-    const { id: volunteerId, emailVerificationToken } = signupResult.body
-    expect(emailVerificationToken).toBeTruthy()
-
-    // Admin approves before user confirms email
-    await approveVolunteer(baseUrl, volunteerId)
-
-    // User then confirms email — should still succeed
-    const verifyResult = await api.auth.verifyEmail({ body: { token: emailVerificationToken! } })
-    expect(verifyResult.status).toBe(200)
   })
 
   test('Google signup: application message and profile fields saved and visible to admin', async ({
