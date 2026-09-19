@@ -285,23 +285,53 @@ describe('journalistOutreach claiming', () => {
       sentLeaning: 'REPUBLICAN',
     })
 
+    // The claim lapses and the effort is paused before the volunteer reports back.
     await api.claimNext()
-    await api.release({ journalistId: j2.id })
+    await prisma.experimentalJournalist.update({
+      where: { id: j2.id },
+      data: { claimedAt: new Date(0) },
+    })
+    await prisma.experimentalOutreachSettings.upsert({
+      where: { id: 1 },
+      create: { id: 1, paused: true },
+      update: { paused: true },
+    })
     expect(await api.markSent({ journalistId: j2.id, sentLeaning: 'DEMOCRAT' })).toEqual({
       contactedCount: 2,
     })
+    await prisma.experimentalOutreachSettings.update({ where: { id: 1 }, data: { paused: false } })
     expect(await api.current()).toMatchObject({ contactedCount: 2, availableCount: 0 })
   })
 
-  it('refuses to mark sent a journalist someone else holds or already contacted', async () => {
+  it('refuses to mark sent a journalist the caller was never handed', async () => {
+    const unclaimed = await createJournalist()
     const j = await createJournalist()
     const a = await signIn()
     const b = await signIn()
+    const conflict = { code: 'CONFLICT' }
+    await expect(
+      b.api.markSent({ journalistId: unclaimed.id, sentLeaning: 'DEMOCRAT' }),
+    ).rejects.toMatchObject(conflict)
+    await prisma.experimentalJournalist.update({
+      where: { id: unclaimed.id },
+      data: { contactedAt: new Date() },
+    })
+
     await a.api.claimNext()
     await expect(
       b.api.markSent({ journalistId: j.id, sentLeaning: 'DEMOCRAT' }),
-    ).rejects.toMatchObject({
-      code: 'CONFLICT',
+    ).rejects.toMatchObject(conflict)
+    // Someone else's lapsed claim is still not the caller's.
+    await prisma.experimentalJournalist.update({
+      where: { id: j.id },
+      data: { claimedAt: new Date(0) },
+    })
+    await expect(
+      b.api.markSent({ journalistId: j.id, sentLeaning: 'DEMOCRAT' }),
+    ).rejects.toMatchObject(conflict)
+    await prisma.experimentalJournalist.update({
+      where: { id: j.id },
+      data: { claimedAt: new Date() },
     })
     await a.api.markSent({ journalistId: j.id, sentLeaning: 'DEMOCRAT' })
     await expect(

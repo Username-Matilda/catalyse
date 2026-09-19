@@ -217,18 +217,11 @@ export const journalistOutreachRouter = {
     .handler(async ({ input, context }) => {
       const { participant } = context
       const now = new Date()
-      // A lapsed claim still counts if nobody else has picked the journalist up since: the
-      // email was sent either way.
+      // Only a journalist this participant was handed. A lapsed claim keeps its claimant
+      // until someone else picks the journalist up, so it still counts: the email was sent
+      // either way. Pausing does not block this, for the same reason.
       const updated = await prisma.experimentalJournalist.updateMany({
-        where: {
-          id: input.journalistId,
-          contactedAt: null,
-          OR: [
-            { claimedById: participant.id },
-            { claimedAt: null },
-            { claimedAt: { lte: claimCutoff(now) } },
-          ],
-        },
+        where: { id: input.journalistId, contactedAt: null, claimedById: participant.id },
         data: {
           contactedById: participant.id,
           contactedAt: now,
