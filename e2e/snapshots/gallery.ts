@@ -185,7 +185,7 @@ function groupRows(rows: GalleryRow[]): RowGroup[] {
     let group = groups.get(key)
     if (!group) {
       group = {
-        id: slugId(key),
+        id: `row-${slugId(key)}`,
         spec: row.spec,
         describe: row.describe,
         title: row.title,
