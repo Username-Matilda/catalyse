@@ -18,7 +18,7 @@ import { Client } from 'pg'
 import { buildNext } from '../scripts/next-build'
 import { createApiClient } from './client'
 import { resolveDbUrl } from '../lib/db-url'
-import { LANES, SNAPSHOTS_ENABLED } from './snapshots/config'
+import { SNAPSHOTS_ENABLED, snapshotServerCount } from './snapshots/config'
 
 const PROJECT_ROOT = path.resolve(__dirname, '..')
 const NEXT_BINARY = path.join(PROJECT_ROOT, 'node_modules', '.bin', 'next')
@@ -66,7 +66,7 @@ async function migrateWorkerDb(parallelIndex: number): Promise<void> {
   })
 }
 
-async function startWorkerNextJs(parallelIndex: number): Promise<number> {
+async function startWorkerNextJs(parallelIndex: number, serverCount: number): Promise<number> {
   const nextPort = BASE_PORT + parallelIndex
 
   killServerOnPort(nextPort)
@@ -79,7 +79,7 @@ async function startWorkerNextJs(parallelIndex: number): Promise<number> {
     env: {
       ...process.env,
       PORT: String(nextPort),
-      DATABASE_URL: workerDbUrl(parallelIndex),
+      DATABASE_URL: workerDbUrl(parallelIndex, serverCount),
       ADMIN_EMAILS: ADMIN_EMAIL,
       RESEND_API_KEY: '',
       STUB_EMAIL: 'true',
@@ -160,8 +160,8 @@ async function setupAdminAuth(parallelIndex: number): Promise<void> {
 }
 
 async function globalSetup(config: FullConfig): Promise<void> {
-  // A snapshot run gives every lane a server of its own (see the baseUrl fixture).
-  const workerCount = SNAPSHOTS_ENABLED ? LANES.length : config.workers
+  // A snapshot run gives every lane a block of servers (see the baseUrl fixture).
+  const workerCount = SNAPSHOTS_ENABLED ? snapshotServerCount() : config.workers
 
   if (IS_LOCAL) {
     generatePrismaClient()
@@ -173,7 +173,7 @@ async function globalSetup(config: FullConfig): Promise<void> {
     )
     const pids: Record<string, number> = {}
     for (let i = 0; i < workerCount; i++) {
-      pids[i] = await startWorkerNextJs(i)
+      pids[i] = await startWorkerNextJs(i, workerCount)
     }
     fs.writeFileSync(SERVER_PIDS_FILE, JSON.stringify(pids))
 

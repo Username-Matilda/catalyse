@@ -2,9 +2,10 @@ import { faker } from '@faker-js/faker'
 import { createHash } from 'node:crypto'
 
 /**
- * Seed the generator from a test's title, so the same test always makes the
- * same people, projects and prose, and two tests never share a sequence. The
- * names still read as real names; only their choice is fixed.
+ * Seed the generator from a test's project and title, so the same test always
+ * makes the same people, projects and prose, and no two tests, nor one test
+ * in two lanes, share a sequence. The names still read as real names; only
+ * their choice is fixed.
  */
 export function seedFake(title: string): void {
   faker.seed(createHash('sha1').update(title).digest().readUInt32BE(0))

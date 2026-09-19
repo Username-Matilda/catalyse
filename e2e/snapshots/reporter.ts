@@ -35,18 +35,8 @@ import {
   testKey,
 } from './config'
 import { renderGallery, type RunCost } from './gallery'
-import { baselinePathFor, galleryRows, readMeta } from './rows'
-import {
-  analyzeImages,
-  appendHistory,
-  decodePng,
-  encodePng,
-  ingestToPool,
-  isRealChange,
-  pngSha,
-  readBaseline,
-  renderDiffImage,
-} from './png'
+import { galleryRows, readMeta } from './rows'
+import { appendHistory, ingestToPool, isRealChange, pngSha, readBaseline } from './png'
 import {
   newRunId,
   pruneRuns,
@@ -59,7 +49,7 @@ import {
 /** How many run manifests to keep. A few KB each; the images live in the pool. */
 const RUNS_KEPT = 50
 /** How often the gallery is rewritten while a run is still capturing. */
-const PROGRESS_EVERY_MS = 2_000
+const PROGRESS_EVERY_MS = 10_000
 
 function git(args: string): string {
   try {
@@ -217,37 +207,17 @@ export default class SnapshotReporter implements Reporter {
   }
 
   /**
-   * Diff a staged capture against this run's baseline, complete its sidecar,
-   * and pool it. The numbers are cached once here, so every later gallery
-   * build reads them instead of decoding both PNGs again.
+   * File a staged capture: the worker took it and diffed it, so what is left
+   * is to stamp the sidecar with the run, pool the picture and record it.
    */
   private async fileCapture(file: string, key: string): Promise<void> {
     const stagedPath = path.join(STAGING, file)
     const meta = await readMeta(stagedPath)
     if (!meta) return
     const buffer = await readFile(stagedPath)
-    const sha = pngSha(buffer)
-    const previousPath = baselinePathFor(file)
-    const hasPrevious = existsSync(previousPath)
-    let diffPixels = 0
-    let changed: boolean | undefined
-    if (hasPrevious) {
-      const prevImage = decodePng(await readFile(previousPath))
-      const currImage = decodePng(buffer)
-      const diff = analyzeImages(prevImage, currImage)
-      meta.diff = diff
-      diffPixels = diff.count
-      changed = isRealChange(diff)
-      const diffPath = path.join(DIFFS, file)
-      if (diff.count > 0) {
-        await writeFile(diffPath, encodePng(renderDiffImage(prevImage, currImage)))
-      } else {
-        await rm(diffPath, { force: true })
-      }
-    }
+    const sha = meta.sha ?? pngSha(buffer)
+    const changed = meta.diff === undefined ? undefined : isRealChange(meta.diff)
     meta.sha = sha
-    meta.hasPrevious = hasPrevious
-    meta.diffPixels = diffPixels
     meta.runId = this.manifest.runId
     meta.commit = this.manifest.commit
     meta.dirty = this.manifest.dirty
@@ -259,7 +229,7 @@ export default class SnapshotReporter implements Reporter {
       test: key,
       sha,
       durationMs: meta.durationMs,
-      diffPixels,
+      diffPixels: meta.diffPixels ?? 0,
       changed,
     }
     this.manifest.tests[key]?.captures.push(file)

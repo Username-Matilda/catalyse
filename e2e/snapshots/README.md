@@ -13,8 +13,10 @@ a plain test run captures nothing.
 npm run snapshots
 ```
 
-The run is the Playwright suite with `SNAPSHOTS=1`, one lane at a time on one
-worker, each lane against a server and database of its own. Open
+The run is the Playwright suite with `SNAPSHOTS=1`, every lane at once on a
+pool of workers sized to the machine (one per core less one, at most eight;
+`SNAPSHOT_WORKERS` overrides it), each worker with a server and database
+schema of its own. Open
 `snapshots/index.html` while it works and watch it fill in; each new frame
 lands beside the image it replaces, and the page reloads itself every few
 seconds until the run is done. `npm run snapshots -- --help` lists the flags.
@@ -66,9 +68,11 @@ run holds still everything it can:
 - **Fake data is seeded per test** from the test's title (`seedFake` in
   `e2e/fake.ts`), so the same test always makes the same people and projects.
   The names still read as real names; only their choice is fixed.
-- **One worker, one lane.** Tests run in file order against a database only
-  that lane's tests have touched, so a directory page lists the same rows in
-  the same order every run.
+- **A worker takes whole spec files.** A file's tests run in order against
+  a database only its own tests and its worker-mates' have touched, and which
+  worker a file lands on is fixed for a given set of files. A page that lists
+  what other tests made can still differ when a spec is added or removed, so
+  a test asserts on, and photographs, what it made itself.
 - **Dates are rewritten in the rendered text** to one fixed date just before
   the shot (`normaliseDates` in `capture.ts`). Records are created by the test
   seconds before they are photographed, so what a page shows is the wall
