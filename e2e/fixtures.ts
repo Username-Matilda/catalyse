@@ -3,7 +3,7 @@ import { workerAuthFile, workerBaseUrl, parallelIndexFromBaseUrl } from './confi
 import { fake, seedFake } from './fake'
 import fs from 'fs'
 import { createApiClient } from './client'
-import { SNAPSHOTS_ENABLED } from './snapshots/config'
+import { SNAPSHOTS_ENABLED, snapshotServerIndex } from './snapshots/config'
 import {
   captureFailure,
   captureSnapshot,
@@ -52,7 +52,11 @@ interface WorkerFixtures {
 export const test = base.extend<Fixtures, WorkerFixtures>({
   baseUrl: [
     async ({}, runFixture, workerInfo: WorkerInfo) => {
-      await runFixture(workerBaseUrl(workerInfo.parallelIndex))
+      // A snapshot lane has a block of servers to itself (see snapshotServerIndex).
+      const index = SNAPSHOTS_ENABLED
+        ? snapshotServerIndex(workerInfo.project.name, workerInfo.parallelIndex)
+        : workerInfo.parallelIndex
+      await runFixture(workerBaseUrl(index))
     },
     { scope: 'worker' },
   ],

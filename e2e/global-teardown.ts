@@ -2,7 +2,7 @@ import { FullConfig } from '@playwright/test'
 import { execSync } from 'child_process'
 import fs from 'fs'
 import { IS_LOCAL, BASE_PORT, SERVER_PIDS_FILE } from './config'
-import { SNAPSHOTS_ENABLED, snapshotServerCount } from './snapshots/config'
+import { SNAPSHOTS_ENABLED, snapshotWorkerCount } from './snapshots/config'
 
 // Only the listener: a client socket to the port (Playwright itself, holding a keep-alive
 // connection) would otherwise be killed too.
@@ -31,7 +31,7 @@ async function globalTeardown(config: FullConfig): Promise<void> {
     fs.unlinkSync(SERVER_PIDS_FILE)
   }
 
-  const serverCount = SNAPSHOTS_ENABLED ? snapshotServerCount() : config.workers
+  const serverCount = SNAPSHOTS_ENABLED ? snapshotWorkerCount() : config.workers
   for (let i = 0; i < serverCount; i++) {
     killServerOnPort(BASE_PORT + i)
   }
