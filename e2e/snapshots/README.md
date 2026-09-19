@@ -25,9 +25,10 @@ Anything after `--` that the script doesn't recognise goes to Playwright, so a
 run narrows the usual way while you iterate on one screen:
 
 ```sh
-npm run snapshots -- e2e/tests/11-dashboard.spec.ts
-npm run snapshots -- --grep "notification"
-npm run snapshots -- --project=desktop-light
+npm run snapshots -- e2e/tests/11-dashboard.spec.ts                # one spec file
+npm run snapshots -- --grep "marks all notifications as read"      # one test, by its title
+npm run snapshots -- --project=desktop-light                       # one lane
+npm run snapshots -- --project=mobile-dark e2e/tests/11-dashboard.spec.ts   # combined
 ```
 
 A narrowed run regenerates only the matching pictures. The gallery still shows
