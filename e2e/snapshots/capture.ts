@@ -18,6 +18,7 @@ import {
   type CaptureMeta,
   type Lane,
 } from './config'
+import { analyzeImages, decodePng, isRealChange, type DecodedImage } from './png'
 
 /**
  * How long the full-page frame must stay identical before the shot is taken.
@@ -62,7 +63,7 @@ export function snapshotInitScript(lane: Lane): { theme: string; css: string } {
       * { caret-color: transparent !important; }
       * { scrollbar-width: none !important; }
       *::-webkit-scrollbar { width: 0 !important; height: 0 !important; }
-      *, *::before, *::after { transition: none !important; animation-duration: 0s !important; animation-delay: 0s !important; }
+      *, *::before, *::after { transition: none !important; animation: none !important; }
     `,
   }
 }
@@ -132,19 +133,18 @@ async function paintedFrames(page: Page, budgetMs: number): Promise<number> {
  * any of it. Returns whether the page settled inside the cap.
  */
 export async function waitForPageStable(page: Page): Promise<boolean> {
-  let previous: Buffer | null = null
+  let previous: DecodedImage | null = null
   let lastChange = Date.now()
   let framesHeld = 0
   const start = Date.now()
   while (Date.now() - start < STABLE_CAP_MS) {
-    const frame = await page.screenshot({
-      fullPage: true,
-      animations: 'disabled',
-      scale: 'css',
-      type: 'jpeg',
-      quality: 50,
-    })
-    if (previous === null || !frame.equals(previous)) {
+    // Polled at CSS scale to keep each frame cheap, and judged by the same
+    // noise floor as the gallery's own comparison: a frame that would read
+    // as "same" on the page is still enough.
+    const frame = decodePng(
+      await page.screenshot({ fullPage: true, animations: 'disabled', scale: 'css' }),
+    )
+    if (previous === null || isRealChange(analyzeImages(previous, frame))) {
       previous = frame
       lastChange = Date.now()
       framesHeld = 0
@@ -202,8 +202,14 @@ async function settle(page: Page): Promise<boolean> {
   // A full-page shot resizes the viewport to the document, and on a page
   // scrolled part-way down the sticky header lands somewhere different in
   // each frame while the scroll position is restored. From the top there is
-  // nothing to restore, and the picture is the page as a reader first meets it.
-  await page.evaluate(() => scrollTo(0, 0))
+  // nothing to restore, and the picture is the page as a reader first meets
+  // it. A modal's own scrolling body is the same problem one level down.
+  await page.evaluate(() => {
+    scrollTo(0, 0)
+    for (const element of document.querySelectorAll<HTMLElement>('*')) {
+      if (element.scrollTop > 0) element.scrollTop = 0
+    }
+  })
   const settled = await waitForPageStable(page)
   await normaliseDates(page)
   await page.waitForTimeout(RASTER_SETTLE_MS)
