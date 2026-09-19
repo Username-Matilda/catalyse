@@ -1,5 +1,9 @@
 import { faker } from '@faker-js/faker'
 
+// Names that tests look things up by get a random tag: faker draws from finite lists, and
+// every test a worker runs shares one database, so bare names repeat.
+const unique = (name: string) => `${name} ${faker.string.alpha({ length: 4, casing: 'upper' })}`
+
 export const fake = {
   person: () => {
     const firstName = faker.person.firstName()
@@ -10,11 +14,11 @@ export const fake = {
     }
   },
   personName: () => faker.person.fullName(),
-  projectTitle: () => faker.company.catchPhrase(),
-  skillCategory: () => `${faker.word.adjective()} ${faker.word.noun()}`,
-  skillName: () => `${faker.word.adjective()} ${faker.word.noun()}`,
-  quickTaskTitle: () => `${faker.word.verb()} ${faker.word.noun()} ${faker.word.noun()}`,
-  bugTitle: () => faker.lorem.sentence(),
+  projectTitle: () => unique(faker.company.catchPhrase()),
+  skillCategory: () => unique(`${faker.word.adjective()} ${faker.word.noun()}`),
+  skillName: () => unique(`${faker.word.adjective()} ${faker.word.noun()}`),
+  quickTaskTitle: () => unique(`${faker.word.verb()} ${faker.word.noun()} ${faker.word.noun()}`),
+  bugTitle: () => unique(faker.lorem.sentence()),
   note: () => faker.lorem.sentence(),
   messageSubject: () => faker.lorem.words(4),
   messageBody: () => faker.lorem.paragraph(),
@@ -25,8 +29,6 @@ export const fake = {
   uniqueEmail: () => faker.internet.email().toLowerCase(),
   username: () => faker.internet.username(),
   phoneNumber: () => faker.phone.number({ style: 'international' }),
-  // Suffixed: a city name alone repeats across the tests sharing a worker's database.
-  localGroupName: () =>
-    `${faker.location.city()} ${faker.string.alpha({ length: 4, casing: 'upper' })}`,
-  teamName: () => `${faker.word.adjective()} ${faker.word.noun()} Squad`,
+  localGroupName: () => unique(faker.location.city()),
+  teamName: () => unique(`${faker.word.adjective()} ${faker.word.noun()} Squad`),
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { screen, waitFor, cleanup } from '@testing-library/react'
+import { screen, waitFor, cleanup, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { prisma } from '@/lib/prisma'
 import { createVolunteer, createAdmin, createTeam, createLocalGroup } from '@/test/factories'
@@ -53,8 +53,11 @@ describe('teams list', () => {
     expect(
       await prisma.teamMembership.count({ where: { teamId: mine.id, volunteerId: me.id } }),
     ).toBe(0)
-    // The list refetches: "My Team" is now joinable. Failed actions are reported.
-    const apply = await screen.findByRole('button', { name: 'Apply to Join' })
+    // The list refetches: "My Team" is now joinable. Failed actions are reported. Scoped to
+    // the card: the apply's refetch may still show "Open Team" as joinable for a moment.
+    const apply = await within(
+      screen.getByRole('link', { name: 'My Team' }).closest('article')!,
+    ).findByRole('button', { name: 'Apply to Join' })
     localStorage.setItem('authToken', 'stale')
     await userEvent.click(apply)
     await screen.findByText('Unauthorized')
