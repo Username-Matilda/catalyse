@@ -252,7 +252,8 @@ export default class SnapshotReporter implements Reporter {
     meta.runId = this.manifest.runId
     meta.commit = this.manifest.commit
     meta.dirty = this.manifest.dirty
-    await writeFile(sidecarFile(stagedPath), JSON.stringify(meta, null, 2))
+    await writeFile(`${sidecarFile(stagedPath)}.tmp`, JSON.stringify(meta, null, 2))
+    await rename(`${sidecarFile(stagedPath)}.tmp`, sidecarFile(stagedPath))
     await ingestToPool(buffer, POOL)
     await appendHistory(file, sha, undefined, historyFile(meta.lane))
     this.manifest.captures[file] = {
