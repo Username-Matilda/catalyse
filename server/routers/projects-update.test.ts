@@ -229,3 +229,86 @@ describe('projects.delete', () => {
   })
 })
 void row
+
+describe('projects awaiting triage', () => {
+  it('lets nobody but an admin move a proposal out of an unapproved status', async () => {
+    const proposer = await createVolunteer()
+    for (const status of ['draft', 'pending_review', 'needs_discussion'] as const) {
+      const project = await createProject({
+        creatorId: proposer.id,
+        assigneeId: proposer.id,
+        status,
+      })
+      await createTask(project.id)
+      for (const target of ['ready', 'in_progress', 'completed'] as const) {
+        await expect(
+          clientAs(proposer).projects.update({ id: project.id, status: target }),
+        ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+      }
+      // Other fields stay editable, and resending the current status is not a change.
+      const edited = await clientAs(proposer).projects.update({
+        id: project.id,
+        status,
+        title: 'Still mine to edit',
+      })
+      expect(edited).toMatchObject({ status, title: 'Still mine to edit' })
+    }
+
+    const pending = await createProject({ creatorId: proposer.id, status: 'pending_review' })
+    const approved = await clientAs(await createAdmin()).projects.update({
+      id: pending.id,
+      status: 'ready',
+    })
+    expect(approved.status).toBe('ready')
+  })
+
+  it('takes no interest in, and starts no work on, a proposal', async () => {
+    const proposer = await createVolunteer()
+    const friend = await createVolunteer()
+    const project = await createProject({
+      creatorId: proposer.id,
+      assigneeId: proposer.id,
+      status: 'pending_review',
+      isSeekingHelp: true,
+    })
+    await expect(
+      clientAs(friend).projects.expressInterest({
+        projectId: project.id,
+        interestType: 'want_to_own',
+      }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+
+    // An interest recorded before the project went back to review hands over ownership
+    // when accepted, but the status stays with the admins.
+    const interest = await prisma.workItemInterest.create({
+      data: { workItemId: project.id, volunteerId: friend.id, interestType: 'want_to_own' },
+    })
+    await clientAs(proposer).projects.respondToInterest({
+      projectId: project.id,
+      interestId: interest.id,
+      status: 'accepted',
+    })
+    expect(await row(project.id)).toMatchObject({
+      assigneeId: friend.id,
+      status: 'pending_review',
+    })
+  })
+
+  it('lists unapproved projects to their proposer and admins only', async () => {
+    const proposer = await createVolunteer()
+    const stranger = await createVolunteer()
+    const mine = await createProject({ creatorId: proposer.id, status: 'draft' })
+    const ids = async (as: Parameters<typeof clientAs>[0]) =>
+      (await clientAs(as).projects.list({ status: 'draft' })).projects.map((p) => p.id)
+    expect(await ids(stranger)).not.toContain(mine.id)
+    expect(await ids(proposer)).toContain(mine.id)
+    expect(await ids(await createAdmin())).toContain(mine.id)
+
+    const gantt = async (as: Parameters<typeof clientAs>[0]) =>
+      (await clientAs(as).projects.ganttOverview({ statuses: ['draft', 'ready'] })).projects.map(
+        (p) => p.id,
+      )
+    expect(await gantt(proposer)).not.toContain(mine.id)
+    expect(await gantt(await createAdmin())).toContain(mine.id)
+  })
+})
