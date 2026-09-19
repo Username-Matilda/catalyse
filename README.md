@@ -195,6 +195,10 @@ catalyse/
 └── e2e/                    # Playwright end-to-end tests
 ```
 
+`AGENTS.md` holds the working notes for coding agents and contributors, and
+`SELF-IMPROVE.md` is the backlog of things about the repo itself that made work
+harder than it needed to be, sorted by how often each has bitten.
+
 ## License
 
 MIT - Built for PauseAI
