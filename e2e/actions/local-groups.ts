@@ -71,7 +71,7 @@ export async function adminEditGroup(
   opts: { newName?: string; newCountry?: string } = {},
 ): Promise<void> {
   const card = adminPage.getByRole('article').filter({ hasText: groupName })
-  await card.getByRole('button', { name: 'Edit' }).click()
+  await card.getByRole('button', { name: 'Edit', exact: true }).click()
   await adminPage
     .getByRole('heading', { name: 'Edit Local Group', level: 2 })
     .waitFor({ timeout: 10_000 })

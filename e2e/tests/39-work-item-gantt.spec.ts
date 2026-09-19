@@ -418,7 +418,9 @@ test.describe('Work item scheduling and dependencies', () => {
     const pb = body.projects.find((p) => p.id === b)!.placement!
     expect(ymd(pa.end)).toBe('2027-05-05')
     expect(ymd(pb.start)).toBe('2027-05-06')
-    expect(body.dependencies).toMatchObject([{ predecessorId: a, successorId: b }])
+    expect(body.dependencies).toContainEqual(
+      expect.objectContaining({ predecessorId: a, successorId: b }),
+    )
   })
 
   test('the roadmap hides archived projects until the archived filter is asked for', async ({

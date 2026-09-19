@@ -89,7 +89,7 @@ test.describe('Admin: Skill Management', () => {
 
     // Edit the skill name
     const skillItem = categoryCard.locator('.skill-item').filter({ hasText: skillName })
-    await skillItem.getByRole('button', { name: 'Edit' }).click()
+    await skillItem.getByRole('button', { name: 'Edit', exact: true }).click()
     await expect(adminPage.getByRole('heading', { name: 'Edit Skill', level: 2 })).toBeVisible({
       timeout: 5_000,
     })
