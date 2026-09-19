@@ -479,18 +479,4 @@ test.describe('Authentication: Signup & Login', () => {
     await expect(card).toBeVisible({ timeout: 20_000 })
     await expect(card.getByText(applicationMessage)).toBeVisible()
   })
-
-  test.skip('Re-applicant shows full prior rejection history on admin card', async () => {
-    // Scenario:
-    // 1. Person signs up with email A, admin rejects them with notes + applicant message.
-    // 2. After 7 days the anonymisation job runs: creates AnonymisedEmail + RejectedApplication
-    //    rows for the email hash, then nulls out PII on the volunteer record.
-    // 3. Person signs up again with the same email A.
-    // 4. Admin opens the new application — the amber "Previously rejected" box should list
-    //    every prior rejection event (date, admin notes, message sent to applicant), not just
-    //    the most recent one. If rejected and re-applied multiple times, all events appear.
-    //
-    // Skipped: triggering anonymisation requires backdating rejected_at by 7 days,
-    // which needs a test-only seed endpoint that doesn't yet exist.
-  })
 })

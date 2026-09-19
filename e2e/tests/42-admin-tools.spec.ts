@@ -12,8 +12,10 @@ test.describe('Cron job runs', () => {
     await expect(adminPage.getByRole('heading', { name: 'Cron Job Runs' })).toBeVisible({
       timeout: 10_000,
     })
-    await expect(adminPage.getByText('No cron job runs recorded yet.')).toBeVisible()
-    await snap(adminPage, 'no runs yet')
+    // Other tests on this server may have run jobs already, so the page is
+    // not assumed empty; what is asserted is the run this test makes.
+    const before = await adminPage.locator('tbody tr').filter({ hasText: 'digest' }).count()
+    await snap(adminPage, 'job cards')
 
     // The digest is idempotent, and with nobody subscribed it has nothing to send.
     const digestCard = adminPage
@@ -23,8 +25,9 @@ test.describe('Cron job runs', () => {
       .last()
     await digestCard.getByRole('button', { name: 'Run now' }).click()
 
-    const row = adminPage.locator('tbody tr').filter({ hasText: 'digest' }).first()
-    await expect(row).toBeVisible({ timeout: 15_000 })
+    const rows = adminPage.locator('tbody tr').filter({ hasText: 'digest' })
+    await expect(rows).toHaveCount(before + 1, { timeout: 15_000 })
+    const row = rows.first()
     await expect(row).toContainText('admin')
     await expect(row).toContainText(/success|failed/)
 
