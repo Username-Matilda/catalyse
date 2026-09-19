@@ -250,7 +250,7 @@ test.describe('Project Interests and Assignment', () => {
     baseUrl,
   }) => {
     const projectId = await setupSeekingProject(baseUrl)
-    const commentText = `admin note ${Date.now()}`
+    const commentText = `admin note: ${fake.note()}`
 
     // Admin posts a comment on the project
     await adminPage.goto(`${baseUrl}/projects/${projectId}`)
@@ -292,7 +292,7 @@ test.describe('Project Interests and Assignment', () => {
     await expect(getAlert(adminPage)).toContainText('Interest accepted', { timeout: 10_000 })
 
     // The accepted helper can now post a comment
-    const commentText = `helper comment ${Date.now()}`
+    const commentText = `helper comment: ${fake.note()}`
     await volunteer.page.goto(`${baseUrl}/projects/${projectId}`)
     await expect(volunteer.page.getByLabel('Add a comment')).toBeVisible({ timeout: 10_000 })
     await volunteer.page.getByLabel('Add a comment').fill(commentText)
@@ -311,7 +311,7 @@ test.describe('Project Interests and Assignment', () => {
     await transferProjectOwnership(baseUrl, adminPage, projectId, volunteer.name)
 
     // Owner (volunteer) posts a comment
-    const commentText = `owner update ${Date.now()}`
+    const commentText = `owner update: ${fake.note()}`
     await volunteer.page.goto(`${baseUrl}/projects/${projectId}`)
     await expect(volunteer.page.getByLabel('Add a comment')).toBeVisible({ timeout: 10_000 })
     await volunteer.page.getByLabel('Add a comment').fill(commentText)

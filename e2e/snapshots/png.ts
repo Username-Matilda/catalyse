@@ -5,7 +5,7 @@
  */
 import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { deflateSync, inflateSync } from 'node:zlib'
 
@@ -352,8 +352,9 @@ export interface BaselineFile {
 
 /**
  * Append a capture to the history, skipping when the last entry for this file
- * already has the same sha so a no-change run does not pad the list. Callers
- * write from one process in sequence, so there is no lock here.
+ * already has the same sha so a no-change run does not pad the list. One
+ * process owns a history file, and writes it through a rename so a reader
+ * never meets a half-written one.
  */
 export async function appendHistory(
   file: string,
@@ -373,7 +374,8 @@ export async function appendHistory(
   entries.push(entry)
   history[file] = entries
   await mkdir(dirname(historyPath), { recursive: true })
-  await writeFile(historyPath, JSON.stringify(history, null, 2))
+  await writeFile(`${historyPath}.tmp`, JSON.stringify(history, null, 2))
+  await rename(`${historyPath}.tmp`, historyPath)
 }
 
 export async function readBaseline(baselinePath: string): Promise<BaselineFile | undefined> {

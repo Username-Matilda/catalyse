@@ -12,13 +12,13 @@ import {
   workerDbSchema,
   workerDbUrl,
   workerAuthFile,
-  SERVER_PIDS_FILE,
+  pidsFile,
 } from './config'
 import { Client } from 'pg'
 import { buildNext } from '../scripts/next-build'
 import { createApiClient } from './client'
 import { resolveDbUrl } from '../lib/db-url'
-import { SNAPSHOTS_ENABLED, snapshotWorkerCount } from './snapshots/config'
+import { SNAPSHOTS_ENABLED, snapshotBlock, snapshotServerCount } from './snapshots/config'
 
 const PROJECT_ROOT = path.resolve(__dirname, '..')
 const NEXT_BINARY = path.join(PROJECT_ROOT, 'node_modules', '.bin', 'next')
@@ -160,37 +160,40 @@ async function setupAdminAuth(parallelIndex: number): Promise<void> {
 }
 
 async function globalSetup(config: FullConfig): Promise<void> {
-  // A snapshot run gives every lane a block of servers (see the baseUrl fixture).
-  const workerCount = SNAPSHOTS_ENABLED ? snapshotWorkerCount() : config.workers
+  // A snapshot lane owns a block of servers (see snapshotBlock); a plain run owns them all.
+  const block = SNAPSHOTS_ENABLED ? snapshotBlock() : { first: 0, count: config.workers }
+  const indexes = Array.from({ length: block.count }, (_, i) => block.first + i)
 
   if (IS_LOCAL) {
     generatePrismaClient()
-    if (!IS_DEV_MODE) await buildNext()
+    // `npm run snapshots` builds once before its lane processes start.
+    if (!IS_DEV_MODE && process.env.SNAPSHOT_PREBUILT !== '1') await buildNext()
 
-    const ports = Array.from({ length: workerCount }, (_, i) => BASE_PORT + i)
+    const ports = indexes.map((i) => BASE_PORT + i)
     console.log(
-      `[setup] Starting ${workerCount} worker${workerCount > 1 ? 's' : ''} on ports ${ports.join(', ')}`,
+      `[setup] Starting ${indexes.length} worker${indexes.length > 1 ? 's' : ''} on ports ${ports.join(', ')}`,
     )
     const pids: Record<string, number> = {}
-    for (let i = 0; i < workerCount; i++) {
-      pids[i] = await startWorkerNextJs(i, workerCount)
+    for (const i of indexes) {
+      pids[i] = await startWorkerNextJs(i, snapshotServerCountFor(config))
     }
-    fs.writeFileSync(SERVER_PIDS_FILE, JSON.stringify(pids))
+    fs.writeFileSync(pidsFile(block.first), JSON.stringify(pids))
 
-    await Promise.all(
-      Array.from({ length: workerCount }, (_, i) =>
-        waitForServer(workerBaseUrl(i), '/api/health', 30_000),
-      ),
-    )
+    await Promise.all(indexes.map((i) => waitForServer(workerBaseUrl(i), '/api/health', 30_000)))
 
-    await Promise.all(Array.from({ length: workerCount }, (_, i) => setupAdminAuth(i)))
+    await Promise.all(indexes.map((i) => setupAdminAuth(i)))
   } else {
     await setupAdminAuth(0)
     const src = workerAuthFile(0)
-    for (let i = 1; i < workerCount; i++) {
+    for (let i = 1; i < indexes.length; i++) {
       fs.copyFileSync(src, workerAuthFile(i))
     }
   }
+}
+
+/** Servers open across the whole run, which sizes each one's connection pool. */
+function snapshotServerCountFor(config: FullConfig): number {
+  return SNAPSHOTS_ENABLED ? snapshotServerCount() : config.workers
 }
 
 export default globalSetup

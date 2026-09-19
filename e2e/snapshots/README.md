@@ -13,12 +13,14 @@ a plain test run captures nothing.
 npm run snapshots
 ```
 
-The run is the Playwright suite with `SNAPSHOTS=1`, every lane at once. The
-machine sets how many servers open (one per two cores, at most six;
-`SNAPSHOT_WORKERS` overrides it) and the lanes in the run share them out, so
-a full run is four lanes with a worker each, and a single lane has
-every server to itself. Each lane's servers and database schemas are its own,
-so a lane only ever shares a database with itself. Open
+The command builds the app once, then runs the Playwright suite once per
+lane with `SNAPSHOTS=1`, every lane at once, each as a process of its own.
+The machine sets how many servers open in all (one per two cores, at most
+six; `SNAPSHOT_WORKERS` overrides it) and the lanes share them out, so a full
+run is four lanes with a worker each and a single lane has every server to
+itself. A lane's process, servers and database schemas are its own, so its
+worker pool never mixes with another lane's and a lane only ever shares a
+database with itself. Open
 `snapshots/index.html` while it works and watch it fill in; each new frame
 lands beside the image it replaces, and the page reloads itself every few
 seconds until the run is done. `npm run snapshots -- --help` lists the flags.
@@ -155,7 +157,7 @@ Git ignores `snapshots/`.
 snapshots/
   index.html
   baseline.json   # only while --against has a ref pinned
-  history.json    # per-picture timeline of (sha, capturedAt, ref)
+  history-<lane>.json  # per-picture timeline of (sha, capturedAt, ref), one per lane
   runs/           # one manifest per run
   current/        # each PNG and its .json sidecar
   previous/       # what the last run replaced, or the pinned baseline

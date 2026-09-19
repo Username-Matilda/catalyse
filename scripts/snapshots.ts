@@ -6,14 +6,14 @@
  * This script adds the two things Playwright cannot do for itself: pin a git
  * ref as the baseline, and clear that pin.
  */
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { copyFile, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import {
   BASELINE,
   GALLERY,
-  HISTORY,
+  historyFile,
   LATEST,
   POOL,
   PREVIOUS,
@@ -21,7 +21,9 @@ import {
   sidecarFile,
   type CaptureMeta,
 } from '../e2e/snapshots/config'
+import { LANES, snapshotServerCount } from '../e2e/snapshots/config'
 import { renderGallery } from '../e2e/snapshots/gallery'
+import { buildNext } from './next-build'
 import {
   appendHistory,
   clearBaseline,
@@ -79,11 +81,59 @@ function output(command: string, args: string[], cwd = ROOT): string {
   return result.stdout.trim()
 }
 
-function playwright(args: string[], cwd = ROOT): number {
-  return run(path.join(ROOT, 'node_modules', '.bin', 'playwright'), ['test', ...args], {
-    cwd,
-    env: { SNAPSHOTS: '1' },
-  })
+const PLAYWRIGHT = path.join(ROOT, 'node_modules', '.bin', 'playwright')
+
+/** The lanes an argument list names with `--project`, or every lane. */
+function lanesFrom(args: string[]): string[] {
+  const named = args
+    .flatMap((arg, i) =>
+      arg === '--project' ? [args[i + 1]] : arg.startsWith('--project=') ? [arg.slice(10)] : [],
+    )
+    .filter((id): id is string => id !== undefined)
+  return named.length > 0 ? named : LANES.map((lane) => lane.id)
+}
+
+/**
+ * Run the suite once per lane, every lane at once, each as a Playwright
+ * process of its own on a block of servers shared out from the machine's
+ * count. A process's worker pool then never mixes lanes, so each of a lane's
+ * tests lands on a server only that lane has touched.
+ */
+async function playwright(args: string[], cwd = ROOT): Promise<number> {
+  const lanes = lanesFrom(args)
+  const rest = args.filter((arg, i) => !arg.startsWith('--project') && args[i - 1] !== '--project')
+  const perLane = Math.max(1, Math.floor(snapshotServerCount() / lanes.length))
+  // One build for every lane, done here so four processes never build at
+  // once. A worktree builds with its own copy of the script, in its own tree.
+  const prebuilt = process.env.E2E_DEV !== '1'
+  if (prebuilt) {
+    if (cwd === ROOT) await buildNext()
+    else if (
+      run(path.join(cwd, 'node_modules', '.bin', 'tsx'), ['scripts/build-once.ts'], { cwd }) !== 0
+    ) {
+      throw new Error('The worktree build failed')
+    }
+  }
+  const children = lanes.map(
+    (lane, i) =>
+      new Promise<number>((resolve, reject) => {
+        const child = spawn(PLAYWRIGHT, ['test', `--project=${lane}`, ...rest], {
+          cwd,
+          env: {
+            ...process.env,
+            SNAPSHOTS: '1',
+            SNAPSHOT_SERVER_FIRST: String(i * perLane),
+            SNAPSHOT_SERVER_COUNT: String(perLane),
+            ...(prebuilt ? { SNAPSHOT_PREBUILT: '1' } : {}),
+          },
+          stdio: 'inherit',
+        })
+        child.on('error', reject)
+        child.on('exit', (code) => resolve(code ?? 1))
+      }),
+  )
+  const codes = await Promise.all(children)
+  return codes.find((code) => code !== 0) ?? 0
 }
 
 /**
@@ -114,7 +164,7 @@ async function captureAgainst(ref: string, args: string[]): Promise<number> {
         await copyFile(path.join(ROOT, envFile), path.join(worktree, envFile))
       }
     }
-    const status = playwright(args, worktree)
+    const status = await playwright(args, worktree)
     if (status !== 0)
       console.log(`The ${ref} run exited ${String(status)}; pinning what it captured.`)
     const worktreeCurrent = path.join(worktree, 'snapshots', 'current')
@@ -139,7 +189,7 @@ async function captureAgainst(ref: string, args: string[]): Promise<number> {
         await writeFile(path.join(PREVIOUS, sidecarFile(entry)), JSON.stringify(meta, null, 2))
       }
       pins[entry] = sha
-      await appendHistory(entry, sha, ref, HISTORY)
+      await appendHistory(entry, sha, ref, historyFile(entry.split('--')[0]))
     }
     if (Object.keys(pins).length === 0) throw new Error(`The ${ref} run captured nothing.`)
     const sha = output('git', ['rev-parse', ref])
@@ -211,8 +261,8 @@ async function main(argv: string[]): Promise<number> {
   }
   if (rerender) return render()
   if (against !== undefined) return captureAgainst(against, passthrough)
-  const status = playwright(passthrough)
-  console.log(`Gallery: ${GALLERY}`)
+  const status = await playwright(passthrough)
+  await render()
   return status
 }
 

@@ -44,7 +44,7 @@ test.describe('Admin team management', () => {
 
 test.describe('Edges', () => {
   test('An unknown page shows the not-found screen', async ({ volunteer, baseUrl, snap }) => {
-    await volunteer.page.goto(`${baseUrl}/no-such-page-${Date.now()}`)
+    await volunteer.page.goto(`${baseUrl}/no-such-page`)
     await expect(volunteer.page.getByRole('heading', { name: 'Page Not Found' })).toBeVisible({
       timeout: 10_000,
     })

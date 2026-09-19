@@ -12,54 +12,33 @@ import path from 'node:path'
 export const SNAPSHOTS_ENABLED = process.env.SNAPSHOTS === '1'
 
 /**
- * Servers a snapshot run may open, each with a worker, a browser and a
- * database schema of its own. A server is a whole Next process, so the count
- * follows the machine at one per two cores, capped so a big machine does not
- * ask the database for more connections than it allows.
+ * Servers a snapshot run may open in all, each with a worker, a browser and
+ * a database schema of its own. A server is a whole Next process, so the
+ * count follows the machine at one per two cores, capped so a big machine
+ * does not ask the database for more connections than it allows.
  */
 export function snapshotServerCount(): number {
   if (process.env.SNAPSHOT_WORKERS) return Math.max(1, parseInt(process.env.SNAPSHOT_WORKERS, 10))
   return Math.min(6, Math.max(1, Math.floor(cpus().length / 2)))
 }
 
-/** Lanes this run captures: the ones `--project` named, or all of them. */
-export function lanesInRun(argv: string[] = process.argv): string[] {
-  const named = argv
-    .flatMap((arg, i) =>
-      arg === '--project' ? [argv[i + 1]] : arg.startsWith('--project=') ? [arg.slice(10)] : [],
-    )
-    .filter((id): id is string => id !== undefined && laneIndex(id) >= 0)
-  return named.length > 0 ? named : LANES.map((lane) => lane.id)
-}
-
 /**
- * Workers per lane: the servers shared out among the lanes in the run, at
- * least one each. A worker takes whole spec files, so a file's tests run in
- * order against a database only they and their lane-mates have touched.
+ * Each lane runs as a Playwright process of its own, so its worker pool never
+ * mixes with another lane's and every one of its tests lands on a server in
+ * its block. The command in front of the run picks the block and hands it to
+ * the process as the first server index and the count; a process started by
+ * hand with `SNAPSHOTS=1` gets the whole count from index zero.
  */
-export function snapshotWorkersPerLane(argv: string[] = process.argv): number {
-  return Math.max(1, Math.floor(snapshotServerCount() / lanesInRun(argv).length))
+export function snapshotBlock(): { first: number; count: number } {
+  const first = parseInt(process.env.SNAPSHOT_SERVER_FIRST ?? '0', 10)
+  const count = parseInt(process.env.SNAPSHOT_SERVER_COUNT ?? String(snapshotServerCount()), 10)
+  return { first, count }
 }
 
-/** Playwright's pool: every lane's workers at once. */
-export function snapshotWorkerCount(argv: string[] = process.argv): number {
-  return snapshotWorkersPerLane(argv) * lanesInRun(argv).length
-}
-
-/**
- * A worker slot serves every lane in turn, so a slot's server would see
- * every lane's data and the same test's people would collide across lanes.
- * Each lane gets a block of servers instead, so a lane only ever shares a
- * database with itself.
- */
-export function snapshotServerIndex(
-  laneId: string,
-  slot: number,
-  argv: string[] = process.argv,
-): number {
-  const perLane = snapshotWorkersPerLane(argv)
-  const position = Math.max(0, lanesInRun(argv).indexOf(laneId))
-  return position * perLane + (slot % perLane)
+/** The server a worker slot uses: its place in this process's block. */
+export function snapshotServerIndex(slot: number): number {
+  const { first, count } = snapshotBlock()
+  return first + (slot % count)
 }
 
 export const SNAPSHOT_ROOT = path.resolve(__dirname, '..', '..', 'snapshots')
@@ -80,7 +59,13 @@ export const DIFFS = path.join(SNAPSHOT_ROOT, 'diffs')
 export const FAILURES = path.join(SNAPSHOT_ROOT, 'failures')
 export const POOL = path.join(SNAPSHOT_ROOT, 'pool')
 export const RUNS = path.join(SNAPSHOT_ROOT, 'runs')
-export const HISTORY = path.join(SNAPSHOT_ROOT, 'history.json')
+/**
+ * A capture's timeline, one file per lane: lanes run as processes of their
+ * own and a lane's captures are its own, so no two processes write one file.
+ */
+export function historyFile(laneId: string): string {
+  return path.join(SNAPSHOT_ROOT, `history-${laneId}.json`)
+}
 export const BASELINE = path.join(SNAPSHOT_ROOT, 'baseline.json')
 export const GALLERY = path.join(SNAPSHOT_ROOT, 'index.html')
 /** The manifest of the last run to finish, for whoever wants the gallery's contents without the page. */

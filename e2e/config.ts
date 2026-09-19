@@ -48,4 +48,10 @@ export function workerDbUrl(parallelIndex: number, serverCount = WORKER_COUNT): 
   return url.toString()
 }
 
-export const SERVER_PIDS_FILE = path.join(os.tmpdir(), 'catalyse_e2e_pids.json')
+/** Where a run records the servers it started, one file per block so lane processes never share one. */
+export function pidsFile(firstIndex: number): string {
+  return path.join(
+    os.tmpdir(),
+    firstIndex === 0 ? 'catalyse_e2e_pids.json' : `catalyse_e2e_pids_${firstIndex}.json`,
+  )
+}

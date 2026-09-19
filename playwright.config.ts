@@ -1,13 +1,14 @@
 import { defineConfig, devices, type Project } from '@playwright/test'
 import { WORKER_COUNT } from './e2e/config'
-import { LANES, SNAPSHOTS_ENABLED, snapshotWorkerCount } from './e2e/snapshots/config'
+import { LANES, SNAPSHOTS_ENABLED, snapshotBlock } from './e2e/snapshots/config'
 
 /**
  * A snapshot run captures every test once per lane. Each lane is a Playwright
  * project named after it, with the viewport it shoots at; the theme is applied
- * by the fixtures. Lanes run at once, each on its own block of workers and
- * servers, and a worker takes whole spec files so a file's tests keep their
- * order and their database history.
+ * by the fixtures. `npm run snapshots` runs each lane as a process of its own
+ * on its own block of servers, so a worker pool never mixes lanes, and a
+ * worker takes whole spec files so a file's tests keep their order and their
+ * database history.
  */
 const laneProjects: Project[] = LANES.map((lane) => ({
   name: lane.id,
@@ -24,7 +25,7 @@ const laneProjects: Project[] = LANES.map((lane) => ({
 export default defineConfig({
   testDir: './e2e/tests',
   fullyParallel: !SNAPSHOTS_ENABLED,
-  workers: SNAPSHOTS_ENABLED ? snapshotWorkerCount() : WORKER_COUNT,
+  workers: SNAPSHOTS_ENABLED ? snapshotBlock().count : WORKER_COUNT,
   reporter: SNAPSHOTS_ENABLED
     ? [['line'], ['./e2e/snapshots/reporter.ts']]
     : process.env.CI

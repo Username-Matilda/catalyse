@@ -29,8 +29,14 @@ export function baselinePathFor(file: string): string {
 
 export async function readMeta(pngPath: string): Promise<CaptureMeta | undefined> {
   const metaPath = sidecarFile(pngPath)
-  if (!existsSync(metaPath)) return undefined
-  return JSON.parse(await readFile(metaPath, 'utf8')) as CaptureMeta
+  try {
+    return JSON.parse(await readFile(metaPath, 'utf8')) as CaptureMeta
+  } catch (error) {
+    // Another lane's process may move the file between the listing and the
+    // read; the next rebuild sees it where it landed.
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined
+    throw error
+  }
 }
 
 function provenance(meta: CaptureMeta | undefined, manifest: RunManifest): ImageProvenance {
