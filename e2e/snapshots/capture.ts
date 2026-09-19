@@ -77,6 +77,7 @@ export function snapshotInitScript(lane: Lane): { theme: string; css: string } {
       * { scrollbar-width: none !important; }
       *::-webkit-scrollbar { width: 0 !important; height: 0 !important; }
       *, *::before, *::after { transition: none !important; animation: none !important; }
+      html.snapshot-final [role="alert"] { display: none !important; }
     `,
   }
 }
@@ -186,6 +187,8 @@ export async function normaliseDates(page: Page): Promise<void> {
       [/\b\d{4}-\d{2}-\d{2}\b/g, fixed.input],
       [/\b\d{1,2}\/\d{1,2}\/\d{4}\b/g, '12/09/2026'],
       [/\bjust now\b/g, fixed.relative],
+      // A measured duration, such as a job's run time, is wall clock too.
+      [/\b\d+(?:\.\d+)?(?:ms|s|m)\b(?=\s|$|<)/g, '100ms'],
       [/\b\d+ (?:min|mins|hour|hours|day|days) ago\b/g, fixed.relative],
       [/\b(?:in|In) \d+ (?:min|mins|hour|hours|day|days)\b/g, 'in 3 days'],
     ]
@@ -254,11 +257,11 @@ export async function captureSnapshot(
   options: CaptureOptions = {},
 ): Promise<string> {
   const started = Date.now()
-  if (options.dismissToasts) {
-    await page.evaluate(() => {
-      for (const alert of document.querySelectorAll('[role="alert"]')) alert.remove()
-    })
-  }
+  // A class on the root rather than removing the element: the app renders
+  // its toasts from state and would put a removed one straight back.
+  await page.evaluate((final) => {
+    document.documentElement.classList.toggle('snapshot-final', final)
+  }, options.dismissToasts === true)
   const lane = laneFor(testInfo)
   const key = keyFor(testInfo)
   const file = captureFile(key, seq, label)
