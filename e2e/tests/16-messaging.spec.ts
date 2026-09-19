@@ -149,18 +149,4 @@ test.describe('Messaging', () => {
     await viewLink.click()
     await expect(volunteer.page).toHaveURL(`${baseUrl}/projects/${projectId}`)
   })
-
-  test.skip('Both parties see the message in their history', async () => {
-    // Not possible: the /api/messages endpoint exists, but no messages inbox,
-    // history view, or tab has been built in the frontend. A real user has no
-    // way to browse sent or received messages through the UI.
-  })
-
-  test.skip('Volunteer marks a message as read', async () => {
-    // Not possible: the /api/messages/{id}/read endpoint exists, but there is no
-    // per-message read/unread UI in the frontend. The dashboard "Mark all as read"
-    // button marks notifications as read (notifications table), not contact messages
-    // (contact_messages.read_at), so there is no user-visible action that fulfils
-    // this scenario.
-  })
 })
