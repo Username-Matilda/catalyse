@@ -78,6 +78,8 @@ export function snapshotInitScript(lane: Lane): { theme: string; css: string } {
       *::-webkit-scrollbar { width: 0 !important; height: 0 !important; }
       *, *::before, *::after { transition: none !important; animation: none !important; }
       html.snapshot-final [role="alert"] { display: none !important; }
+      /* A dotted underline's dot phase drifts a pixel with subpixel text position. */
+      * { text-decoration-style: solid !important; }
     `,
   }
 }
@@ -189,6 +191,8 @@ export async function normaliseDates(page: Page): Promise<void> {
       [/\bjust now\b/g, fixed.relative],
       // A measured duration, such as a job's run time, is wall clock too.
       [/\b\d+(?:\.\d+)?(?:ms|s|m)\b(?=\s|$|<)/g, '100ms'],
+      // A countdown ticks once a second, and a shot lands either side of a tick.
+      [/\b\d{1,2}:\d{2} left\b/g, '20:00 left'],
       [/\b\d+ (?:min|mins|hour|hours|day|days) ago\b/g, fixed.relative],
       [/\b(?:in|In) \d+ (?:min|mins|hour|hours|day|days)\b/g, 'in 3 days'],
     ]
