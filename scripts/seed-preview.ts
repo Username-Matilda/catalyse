@@ -5,7 +5,7 @@ import { resolveDbUrl } from '../lib/db-url'
 
 /**
  * Runs at container start, before migrations. Preview environments (Railway PR deploys) get
- * a copy of production so reviewers see realistic data. Only an empty database
+ * an anonymised copy of production so reviewers see realistic data. Only an empty database
  * is seeded: the container also restarts on failure and on every push to the PR, and
  * reviewers' changes should survive those. SEED_PREVIEW_FORCE=1 reseeds regardless.
  * Production, environments without B2 credentials, and environments without ALLOW_DB_RESTORE=1
@@ -39,6 +39,25 @@ async function main(): Promise<void> {
     return
   }
   execSync('npm run fetch-prod-db', { stdio: 'inherit' })
+  try {
+    execSync('npm run anonymise-db', { stdio: 'inherit' })
+  } catch (err) {
+    // Raw production data must not outlive a failed scrub; an empty database reseeds on
+    // the next start.
+    await emptyDatabase()
+    throw err
+  }
+}
+
+async function emptyDatabase(): Promise<void> {
+  const client = new Client({ connectionString: libpqUrl(resolveDbUrl()) })
+  await client.connect()
+  try {
+    await client.query('DROP SCHEMA IF EXISTS public CASCADE')
+    await client.query('CREATE SCHEMA public')
+  } finally {
+    await client.end()
+  }
 }
 
 main().catch((err) => {

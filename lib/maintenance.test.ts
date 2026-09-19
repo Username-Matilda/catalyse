@@ -11,9 +11,10 @@ describe('maintenance', () => {
     expect(await isMaintenanceMode()).toBe(false)
   })
 
-  it('only super admins bypass', () => {
+  it('only super admins with a confirmed address bypass', () => {
     expect(canBypassMaintenance(null)).toBe(false)
-    expect(canBypassMaintenance({ email: 'someone@example.com' })).toBe(false)
-    expect(canBypassMaintenance({ email: 'admin@example.com' })).toBe(true)
+    expect(canBypassMaintenance({ email: 'someone@example.com', emailConfirmed: true })).toBe(false)
+    expect(canBypassMaintenance({ email: 'admin@example.com', emailConfirmed: false })).toBe(false)
+    expect(canBypassMaintenance({ email: 'admin@example.com', emailConfirmed: true })).toBe(true)
   })
 })

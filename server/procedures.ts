@@ -1,6 +1,7 @@
 import { os, ORPCError } from '@orpc/server'
 import { ApprovalStatus } from '@/generated/prisma/enums'
 import { isSuperAdmin } from '@/lib/auth'
+import { inputLimitViolation } from '@/lib/input-limits'
 import { canBypassMaintenance, isMaintenanceMode } from '@/lib/maintenance'
 import { MAINTENANCE_MESSAGE } from '@/lib/maintenance-message'
 import type { Context } from './context'
@@ -17,7 +18,9 @@ const MAINTENANCE_OPEN = new Set([
   'auth.logout',
 ])
 
-const base = os.$context<Context>().use(async ({ context, next, path }) => {
+const base = os.$context<Context>().use(async ({ context, next, path }, input) => {
+  const violation = inputLimitViolation(input)
+  if (violation) throw new ORPCError('BAD_REQUEST', { message: violation })
   if (
     !MAINTENANCE_OPEN.has(path.join('.')) &&
     !canBypassMaintenance(context.volunteer) &&
@@ -51,6 +54,6 @@ export const adminProcedure = base.use(({ context, next }) => {
 export const superAdminProcedure = base.use(({ context, next }) => {
   if (!context.volunteer) throw new ORPCError('UNAUTHORIZED')
   if (!context.volunteer.isAdmin) throw new ORPCError('FORBIDDEN')
-  if (!isSuperAdmin(context.volunteer.email)) throw new ORPCError('FORBIDDEN')
+  if (!isSuperAdmin(context.volunteer)) throw new ORPCError('FORBIDDEN')
   return next({ context: { volunteer: context.volunteer } })
 })

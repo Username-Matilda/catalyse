@@ -7,6 +7,7 @@ import {
   DependencyBodySchema,
   ApplicationActionSchema,
   UpdateVolunteerSchema,
+  sanitisePersonName,
 } from './schemas'
 
 const signup = {
@@ -42,6 +43,55 @@ describe('SignupSchema', () => {
         'Availability must be no more than 40 hours per week',
       ]),
     )
+  })
+
+  it('keeps links and hidden characters out of names, on signup and on profile edits', () => {
+    for (const name of [
+      'PauseAI Security: re-verify at https://evil.example',
+      'see www.evil.example',
+      'evil.example/login',
+      'Ann‮evil',
+      'Ann​Smith',
+      'Ann\nSmith',
+      'x'.repeat(81),
+    ]) {
+      expect(SignupSchema.safeParse({ ...signup, name }).success).toBe(false)
+      expect(UpdateVolunteerSchema.safeParse({ name }).success).toBe(false)
+    }
+    for (const name of ["Siobhán O'Connor-Smith", 'Dr. J. R. Müller', '李小龍', '  Ann  ']) {
+      expect(SignupSchema.safeParse({ ...signup, name }).success).toBe(true)
+    }
+    expect(SignupSchema.parse({ ...signup, name: '  Ann  ' }).name).toBe('Ann')
+  })
+
+  it('bounds the free-text and contact fields, on signup and on profile edits', () => {
+    const tooLong = {
+      email: `${'a'.repeat(250)}@example.com`,
+      bio: 'x'.repeat(2001),
+      applicationMessage: 'x'.repeat(5001),
+      location: 'x'.repeat(201),
+      otherSkills: 'x'.repeat(501),
+      discordHandle: 'x'.repeat(101),
+      contactNotes: 'x'.repeat(501),
+      skillIds: Array(51).fill(1),
+    }
+    for (const [field, value] of Object.entries(tooLong)) {
+      expect(SignupSchema.safeParse({ ...signup, [field]: value }).success, field).toBe(false)
+      if (field !== 'email') {
+        expect(UpdateVolunteerSchema.safeParse({ [field]: value }).success, field).toBe(false)
+      }
+    }
+    expect(
+      SignupSchema.safeParse({ ...signup, bio: 'x'.repeat(2000), skillIds: Array(50).fill(1) })
+        .success,
+    ).toBe(true)
+  })
+
+  it('cleans a name it cannot ask anyone to retype', () => {
+    expect(sanitisePersonName('Ann Smith')).toBe('Ann Smith')
+    expect(sanitisePersonName('Ann https://evil.example/x')).toBe('Ann https: evil.example x')
+    expect(sanitisePersonName(`${'x'.repeat(100)}`)).toHaveLength(80)
+    expect(sanitisePersonName('​//')).toBe('New volunteer')
   })
 
   it('Google signup drops email/password/name and adds the credential', () => {
