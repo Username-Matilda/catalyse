@@ -32,6 +32,14 @@ describe('login', () => {
     expect(await prisma.session.count({ where: { volunteerId: vol.id } })).toBe(1)
   })
 
+  it('posts even without JavaScript, so a password never lands in the URL', async () => {
+    await renderApp(<LoginPage />, { url: '/login' })
+    expect((await screen.findByLabelText('Password')).closest('form')).toHaveAttribute(
+      'method',
+      'post',
+    )
+  })
+
   it('bounces an already signed-in visitor to the dashboard', async () => {
     const vol = await createVolunteer()
     await renderApp(<LoginPage />, { as: vol })
