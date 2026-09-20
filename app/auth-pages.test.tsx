@@ -12,8 +12,6 @@ import ResetPasswordPage from './reset-password/page'
 import VerifyEmailPage from './verify-email/page'
 import AcceptInvitePage from './accept-invite/page'
 
-vi.mock('next/script', () => ({ default: () => null }))
-
 describe('login', () => {
   it('logs in with email and password, then goes to the dashboard', async () => {
     const vol = await createVolunteer({ email: 'login@example.com' })

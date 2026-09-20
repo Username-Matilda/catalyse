@@ -10,32 +10,22 @@ import {
   TEST_PASSWORD,
 } from '@/test/factories'
 import { clientAs, anon } from '@/test/rpc'
+import { rateLimit } from '@/test/fakes/rate-limit'
 import { hashToken } from '@/lib/auth'
 
-const { checkRateLimitMock } = vi.hoisted(() => ({ checkRateLimitMock: vi.fn() }))
-vi.mock('@/lib/rate-limit', async (importOriginal) => {
-  const original = await importOriginal<typeof import('@/lib/rate-limit')>()
-  checkRateLimitMock.mockImplementation(original.checkRateLimit)
-  return { ...original, checkRateLimit: checkRateLimitMock }
-})
-const denyNext = () => checkRateLimitMock.mockReturnValueOnce({ allowed: false, retryAfterMs: 1 })
+const denyNext = () => rateLimit.denyNext()
 
-vi.mock('@/lib/email', async (importOriginal) => {
-  const original = await importOriginal<typeof import('@/lib/email')>()
-  const ok = () => vi.fn(async () => true)
-  return {
-    ...original,
-    sendWelcomeEmail: ok(),
-    sendWelcomeAndConfirmEmail: ok(),
-    sendPasswordResetEmail: ok(),
-    sendApplicationReceivedEmail: ok(),
-    sendApplicationApprovedEmail: ok(),
-    sendProjectNotificationEmail: ok(),
-  }
-})
-vi.mock('@/lib/google-auth', () => ({ verifyGoogleToken: vi.fn(async () => null) }))
-import * as email from '@/lib/email'
-import { verifyGoogleToken } from '@/lib/google-auth'
+import { emails, linkParam } from '@/test/fakes/email'
+import { google } from '@/test/fakes/google'
+
+const subjects = {
+  confirm: 'Welcome to Catalyse: please confirm your email',
+  welcome: 'Welcome to Catalyse!',
+  reset: 'Reset your Catalyse password',
+  received: 'Your Catalyse application has been received',
+  approved: 'Your Catalyse application has been approved',
+}
+const sentSubjects = () => emails.sent.map((e) => e.subject)
 
 beforeEach(() => vi.clearAllMocks())
 
@@ -147,9 +137,9 @@ describe('auth.signup', () => {
       consentMakeProfileVisibleInDirectory: true,
     })
     expect(row.skills).toHaveLength(1)
-    expect(email.sendWelcomeAndConfirmEmail).toHaveBeenCalledWith(
-      expect.objectContaining({ to: 'new@example.com', token: res.emailVerificationToken }),
-    )
+    const confirm = emails.lastTo('new@example.com')
+    expect(confirm.subject).toBe(subjects.confirm)
+    expect(linkParam(confirm, 'token')).toBe(res.emailVerificationToken)
     await vi.waitFor(async () =>
       expect(
         await prisma.notification.count({
@@ -204,9 +194,7 @@ describe('auth.signup', () => {
       const res = await anon().auth.signup(signupInput(address))
       expect(res.pending).toBe(true)
       expect(res.emailVerificationToken).toBeTruthy()
-      expect(email.sendWelcomeAndConfirmEmail).toHaveBeenLastCalledWith(
-        expect.objectContaining({ to: address }),
-      )
+      expect(emails.lastTo(address).subject).toBe(subjects.confirm)
       expect(await prisma.volunteer.findUniqueOrThrow({ where: { id: res.id } })).toMatchObject({
         isAdmin: false,
         approvalStatus: 'pending',
@@ -222,9 +210,10 @@ describe('auth.signup', () => {
         approvalStatus: 'approved',
         emailConfirmed: true,
       })
-      expect(email.sendWelcomeEmail).toHaveBeenLastCalledWith({ to: address, name: 'New Person' })
+      await vi.waitFor(() => expect(emails.lastTo(address).subject).toBe(subjects.welcome))
+      expect(emails.lastTo(address).html).toContain('New Person')
     }
-    expect(email.sendApplicationReceivedEmail).not.toHaveBeenCalled()
+    expect(sentSubjects()).not.toContain(subjects.received)
     expect(await prisma.adminInvite.findUniqueOrThrow({ where: { id: invite.id } })).toMatchObject({
       status: 'accepted',
     })
@@ -238,9 +227,7 @@ describe('auth.signup', () => {
     expect(
       (await prisma.volunteer.findUniqueOrThrow({ where: { id: open.id } })).approvalStatus,
     ).toBe('approved')
-    expect(email.sendWelcomeAndConfirmEmail).toHaveBeenLastCalledWith(
-      expect.objectContaining({ to: 'open@example.com' }),
-    )
+    expect(emails.last).toMatchObject({ to: 'open@example.com', subject: subjects.confirm })
     await prisma.platformSettings.update({
       where: { id: 1 },
       data: { requireApplicationApproval: true },
@@ -252,7 +239,7 @@ describe('auth.signup', () => {
     vi.spyOn(prisma.platformSettings, 'upsert').mockRejectedValueOnce(
       new Error('settings') as never,
     )
-    vi.mocked(email.sendWelcomeAndConfirmEmail).mockRejectedValueOnce(new Error('smtp'))
+    emails.failNext()
     vi.spyOn(prisma.volunteer, 'findMany').mockRejectedValueOnce(new Error('admins') as never)
     const res = await anon().auth.signup(signupInput('admin7@example.com'))
     expect(res.pending).toBe(true)
@@ -345,15 +332,13 @@ describe('changePassword / changeEmail', () => {
       email: 'fresh@example.com',
       emailConfirmed: false,
     })
-    expect(email.sendWelcomeAndConfirmEmail).toHaveBeenCalledWith(
-      expect.objectContaining({ to: 'fresh@example.com' }),
-    )
+    expect(emails.last).toMatchObject({ to: 'fresh@example.com', subject: subjects.confirm })
     const noPw = await createVolunteer({ passwordHash: null })
     await expect(
       clientAs(noPw).auth.changeEmail({ newEmail: 'y@example.com', password: 'x' }),
     ).rejects.toMatchObject({ message: expect.stringContaining('without a password') })
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
-    vi.mocked(email.sendWelcomeAndConfirmEmail).mockRejectedValueOnce(new Error('smtp'))
+    emails.failNext()
     await c.auth.changeEmail({ newEmail: 'again@example.com', password: TEST_PASSWORD })
     await vi.waitFor(() => expect(error).toHaveBeenCalledWith('[CHANGE_EMAIL]', expect.any(Error)))
   })
@@ -372,11 +357,11 @@ describe('changePassword / changeEmail', () => {
     for (const n of [1, 2, 3]) {
       await c.auth.changeEmail({ newEmail: `r${n}@example.com`, password: TEST_PASSWORD })
     }
-    const sent = vi.mocked(email.sendWelcomeAndConfirmEmail).mock.calls.length
+    const sent = emails.sent.length
     await expect(
       c.auth.changeEmail({ newEmail: 'r4@example.com', password: TEST_PASSWORD }),
     ).rejects.toMatchObject({ code: 'TOO_MANY_REQUESTS', message: expect.stringContaining('3') })
-    expect(vi.mocked(email.sendWelcomeAndConfirmEmail).mock.calls).toHaveLength(sent)
+    expect(emails.sent).toHaveLength(sent)
     expect((await prisma.volunteer.findUniqueOrThrow({ where: { id: vol.id } })).email).toBe(
       'r3@example.com',
     )
@@ -408,9 +393,7 @@ describe('forgotPassword / resetPassword', () => {
     })
     const res = await anon().auth.forgotPassword({ email: vol.email!.toUpperCase() })
     expect(res._devResetToken).toBeTruthy()
-    expect(email.sendPasswordResetEmail).toHaveBeenCalledWith(
-      expect.objectContaining({ to: vol.email }),
-    )
+    expect(emails.last).toMatchObject({ to: vol.email, subject: subjects.reset })
     // A second request supersedes the first token.
     const res2 = await anon().auth.forgotPassword({ email: vol.email! })
     await expect(
@@ -480,17 +463,13 @@ describe('verifyEmail / resendVerification', () => {
     expect(
       (await prisma.volunteer.findUniqueOrThrow({ where: { id: pending.id } })).emailConfirmed,
     ).toBe(true)
-    expect(email.sendApplicationReceivedEmail).toHaveBeenCalledWith({
-      to: pending.email,
-      name: pending.name,
-    })
+    expect(emails.last).toMatchObject({ to: pending.email, subject: subjects.received })
+    expect(emails.last.html).toContain(pending.name)
 
     const approved = await createVolunteer({ emailConfirmed: false })
     await anon().auth.verifyEmail({ token: (await tokenFor(approved.id)).token })
-    expect(email.sendApplicationApprovedEmail).toHaveBeenCalledWith({
-      to: approved.email,
-      name: approved.name,
-    })
+    expect(emails.last).toMatchObject({ to: approved.email, subject: subjects.approved })
+    expect(emails.last.html).toContain(approved.name)
 
     await prisma.platformSettings.update({
       where: { id: 1 },
@@ -498,7 +477,7 @@ describe('verifyEmail / resendVerification', () => {
     })
     const open = await createVolunteer({ emailConfirmed: false })
     await anon().auth.verifyEmail({ token: (await tokenFor(open.id)).token })
-    expect(email.sendWelcomeEmail).toHaveBeenCalledWith({ to: open.email, name: open.name })
+    expect(emails.last).toMatchObject({ to: open.email, subject: subjects.welcome })
     await prisma.platformSettings.update({
       where: { id: 1 },
       data: { requireApplicationApproval: true },
@@ -509,7 +488,7 @@ describe('verifyEmail / resendVerification', () => {
     await anon().auth.verifyEmail({ token: (await tokenFor(already.id)).token })
     const rejected = await createVolunteer({ emailConfirmed: false, approvalStatus: 'rejected' })
     await anon().auth.verifyEmail({ token: (await tokenFor(rejected.id)).token })
-    expect(email.sendApplicationReceivedEmail).toHaveBeenCalledTimes(1)
+    expect(sentSubjects().filter((x) => x === subjects.received)).toHaveLength(1)
   })
 
   it('locks out whoever pre-registered a listed address when its owner confirms it', async () => {
@@ -598,20 +577,20 @@ describe('verifyEmail / resendVerification', () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     const v1 = await createVolunteer({ emailConfirmed: false })
     vi.spyOn(prisma.platformSettings, 'upsert').mockRejectedValueOnce(new Error('db') as never)
-    vi.mocked(email.sendApplicationApprovedEmail).mockRejectedValueOnce(new Error('smtp'))
+    emails.failNext()
     await anon().auth.verifyEmail({ token: (await tokenFor(v1.id)).token })
     const v2 = await createVolunteer({ emailConfirmed: false, approvalStatus: 'pending' })
-    vi.mocked(email.sendApplicationReceivedEmail).mockRejectedValueOnce(new Error('smtp'))
+    emails.failNext()
     await anon().auth.verifyEmail({ token: (await tokenFor(v2.id)).token })
     const promoted = await createVolunteer({ email: 'admin11@example.com', emailConfirmed: false })
-    vi.mocked(email.sendWelcomeEmail).mockRejectedValueOnce(new Error('smtp'))
+    emails.failNext()
     await anon().auth.verifyEmail({ token: (await tokenFor(promoted.id)).token })
     await prisma.platformSettings.update({
       where: { id: 1 },
       data: { requireApplicationApproval: false },
     })
     const v3 = await createVolunteer({ emailConfirmed: false })
-    vi.mocked(email.sendWelcomeEmail).mockRejectedValueOnce(new Error('smtp'))
+    emails.failNext()
     await anon().auth.verifyEmail({ token: (await tokenFor(v3.id)).token })
     await prisma.platformSettings.update({
       where: { id: 1 },
@@ -636,11 +615,9 @@ describe('verifyEmail / resendVerification', () => {
     const unconfirmed = await createVolunteer({ emailConfirmed: false })
     const res = await clientAs(unconfirmed).auth.resendVerification({})
     expect(res.emailVerificationToken).toBeTruthy()
-    expect(email.sendWelcomeAndConfirmEmail).toHaveBeenCalledWith(
-      expect.objectContaining({ to: unconfirmed.email }),
-    )
+    expect(emails.last).toMatchObject({ to: unconfirmed.email, subject: subjects.confirm })
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
-    vi.mocked(email.sendWelcomeAndConfirmEmail).mockRejectedValueOnce(new Error('smtp'))
+    emails.failNext()
     await anon().auth.resendVerification({ email: unconfirmed.email! })
     await vi.waitFor(() =>
       expect(error).toHaveBeenCalledWith('[RESEND_VERIFICATION]', expect.any(Error)),
@@ -698,7 +675,7 @@ describe('deleteAccount', () => {
         where: { volunteerId: admin.id, type: 'account_deleted_impact' },
       }),
     ).toMatchObject({ body: `'${mine.title}' needs a new owner.` })
-    const sent = vi.mocked(email.sendProjectNotificationEmail).mock.calls.map((c) => c[0].to)
+    const sent = emails.sent.map((e) => e.to)
     expect(sent).toEqual(expect.arrayContaining([owner.email, admin.email]))
     expect(sent).not.toContain(null)
   })
@@ -706,7 +683,7 @@ describe('deleteAccount', () => {
   it('deletes a passwordless account without a password, and one with nothing to notify', async () => {
     const me = await createVolunteer({ passwordHash: null })
     expect((await clientAs(me).auth.deleteAccount({})).message).toContain('deleted')
-    expect(email.sendProjectNotificationEmail).not.toHaveBeenCalled()
+    expect(emails.sent).toEqual([])
   })
 
   it('logs notification failures during deletion', async () => {
@@ -717,7 +694,7 @@ describe('deleteAccount', () => {
     await createProject({ assigneeId: me.id })
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.spyOn(prisma.notification, 'create').mockRejectedValue(new Error('db') as never)
-    vi.mocked(email.sendProjectNotificationEmail).mockRejectedValue(new Error('smtp'))
+    emails.failAll()
     await clientAs(me).auth.deleteAccount({})
     expect(error).toHaveBeenCalledWith('[NOTIFY ERROR]', expect.any(Error))
     expect(error).toHaveBeenCalledWith('[NOTIFY ERROR] email failed:', expect.any(Error))
@@ -782,7 +759,7 @@ describe('google sign-in (stubbed)', () => {
     await expect(anon().auth.google({ credential: 'bad' })).rejects.toMatchObject({
       message: 'Invalid Google token',
     })
-    vi.mocked(verifyGoogleToken).mockResolvedValueOnce({ email: 'real@example.com', name: 'Real' })
+    google.accept('good', { email: 'real@example.com', name: 'Real' })
     expect((await anon().auth.google({ credential: 'good' })).isNewUser).toBe(true)
     denyNext()
     await expect(anon().auth.google({ stub: true })).rejects.toMatchObject({
@@ -804,10 +781,8 @@ describe('google sign-in (stubbed)', () => {
       approvalStatus: 'pending',
       passwordHash: null,
     })
-    expect(email.sendApplicationReceivedEmail).toHaveBeenCalledWith({
-      to: 'stub@example.com',
-      name: 'Stub User',
-    })
+    expect(emails.last).toMatchObject({ to: 'stub@example.com', subject: subjects.received })
+    expect(emails.last.html).toContain('Stub User')
     await expect(anon().auth.completeGoogleSignup({ ...form, stub: true })).rejects.toMatchObject({
       message: 'Email already registered',
     })
@@ -819,13 +794,11 @@ describe('google sign-in (stubbed)', () => {
     await expect(
       anon().auth.completeGoogleSignup({ ...form, credential: 'bad' }),
     ).rejects.toMatchObject({ code: 'UNAUTHORIZED' })
-    vi.mocked(verifyGoogleToken).mockResolvedValueOnce({
-      email: 'admin8@example.com',
-      name: 'Boot',
-    })
+    google.accept('good', { email: 'admin8@example.com', name: 'Boot' })
     const boot = await anon().auth.completeGoogleSignup({ ...form, credential: 'good' })
     expect(boot).toMatchObject({ pending: false, wasPromoted: true })
-    expect(email.sendWelcomeEmail).toHaveBeenCalledWith({ to: 'admin8@example.com', name: 'Boot' })
+    expect(emails.last).toMatchObject({ to: 'admin8@example.com', subject: subjects.welcome })
+    expect(emails.last.html).toContain('Boot')
     denyNext()
     await expect(anon().auth.completeGoogleSignup({ ...form, stub: true })).rejects.toMatchObject({
       code: 'TOO_MANY_REQUESTS',
@@ -836,14 +809,14 @@ describe('google sign-in (stubbed)', () => {
     const { email: _e, password: _p, name: _n, ...form } = signupInput('unused@example.com')
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     // A listed admin email whose bootstrap fails lands as pending.
-    vi.mocked(verifyGoogleToken).mockResolvedValueOnce({ email: 'admin9@example.com', name: 'F' })
-    vi.mocked(email.sendApplicationReceivedEmail).mockRejectedValueOnce(new Error('smtp'))
+    google.accept('good', { email: 'admin9@example.com', name: 'F' })
+    emails.failNext()
     vi.spyOn(prisma.volunteer, 'updateMany').mockRejectedValueOnce(new Error('boot') as never)
     expect((await anon().auth.completeGoogleSignup({ ...form, credential: 'good' })).pending).toBe(
       true,
     )
-    vi.mocked(verifyGoogleToken).mockResolvedValueOnce({ email: 'admin10@example.com', name: 'F' })
-    vi.mocked(email.sendWelcomeEmail).mockRejectedValueOnce(new Error('smtp'))
+    google.accept('good', { email: 'admin10@example.com', name: 'F' })
+    emails.failNext()
     await anon().auth.completeGoogleSignup({ ...form, credential: 'good' })
     await vi.waitFor(() =>
       expect(error.mock.calls.filter((c) => c[0] === '[GOOGLE_SIGNUP]')).toHaveLength(2),

@@ -4,18 +4,39 @@ import { runDigestJob } from '@/jobs/digest'
 import { runNudgesJob } from '@/jobs/nudges'
 import { runApplicationsSummaryJob, runApplicationsAnonymisationJob } from '@/jobs/applications'
 import { runCspSummaryJob } from '@/jobs/csp-summary'
-import { type CronJobName } from '@/lib/cron-job-names'
+import { CRON_JOB_NAMES, type CronJobName } from '@/lib/cron-job-names'
 
 export { CRON_JOB_NAMES, type CronJobName } from '@/lib/cron-job-names'
 
-export const CRON_JOBS: Record<CronJobName, (triggeredBy?: CronTriggerSource) => Promise<unknown>> =
-  {
-    backup: (triggeredBy) => recordCronRun('backup', runBackupJob, triggeredBy),
-    digest: (triggeredBy) => recordCronRun('digest', runDigestJob, triggeredBy),
-    nudges: (triggeredBy) => recordCronRun('nudges', runNudgesJob, triggeredBy),
-    'applications-summary': (triggeredBy) =>
-      recordCronRun('applications-summary', runApplicationsSummaryJob, triggeredBy),
-    'applications-anonymisation': (triggeredBy) =>
-      recordCronRun('applications-anonymisation', runApplicationsAnonymisationJob, triggeredBy),
-    'csp-summary': (triggeredBy) => recordCronRun('csp-summary', runCspSummaryJob, triggeredBy),
-  }
+export type CronJobRunners = Record<CronJobName, () => Promise<unknown>>
+
+const realRunners: CronJobRunners = {
+  backup: runBackupJob,
+  digest: runDigestJob,
+  nudges: runNudgesJob,
+  'applications-summary': runApplicationsSummaryJob,
+  'applications-anonymisation': runApplicationsAnonymisationJob,
+  'csp-summary': runCspSummaryJob,
+}
+
+let current: CronJobRunners = realRunners
+
+/** The implementations behind CRON_JOBS; tests swap them with `setCronJobRunners`. */
+export function cronJobRunners(): CronJobRunners {
+  return current
+}
+
+/** Replaces the job implementations; `undefined` restores the real ones. Returns the previous set. */
+export function setCronJobRunners(runners: CronJobRunners | undefined): CronJobRunners {
+  const previous = current
+  current = runners ?? realRunners
+  return previous
+}
+
+/** Each job by name, wrapped so every run is recorded in the cron audit table. */
+export const CRON_JOBS = Object.fromEntries(
+  CRON_JOB_NAMES.map((name) => [
+    name,
+    (triggeredBy?: CronTriggerSource) => recordCronRun(name, () => current[name](), triggeredBy),
+  ]),
+) as Record<CronJobName, (triggeredBy?: CronTriggerSource) => Promise<unknown>>

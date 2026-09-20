@@ -1,17 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { prisma } from '@/lib/prisma'
 
-const rateLimit = vi.hoisted(() => ({ allowed: true }))
-vi.mock('@/lib/rate-limit', async (importOriginal) => {
-  const original = await importOriginal<typeof import('@/lib/rate-limit')>()
-  return {
-    ...original,
-    checkRateLimit: () =>
-      rateLimit.allowed
-        ? { allowed: true, retryAfterMs: 0 }
-        : { allowed: false, retryAfterMs: 1500 },
-  }
-})
+import { rateLimit } from '@/test/fakes/rate-limit'
 
 const post = (body: string | null, headers: Record<string, string> = {}) =>
   new Request('http://localhost/api/csp-report', {
@@ -53,10 +43,9 @@ describe('POST /api/csp-report', () => {
 
     expect((await POST(post('{}', { 'content-length': '9000' }))).status).toBe(413)
 
-    rateLimit.allowed = false
+    rateLimit.denyNext(1500)
     const limited = await POST(post('{}'))
     expect(limited.status).toBe(429)
-    rateLimit.allowed = true
 
     vi.spyOn(prisma.platformSettings, 'update').mockRejectedValueOnce(new Error('db down'))
     expect((await POST(post('{}'))).status).toBe(204)

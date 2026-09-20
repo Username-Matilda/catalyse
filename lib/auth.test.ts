@@ -218,12 +218,11 @@ describe('checkAdminBootstrap', () => {
   })
 
   it('is a no-op when no admin emails are configured', async () => {
-    vi.resetModules()
     vi.stubEnv('ADMIN_EMAILS', '')
-    const { checkAdminBootstrap: fresh } = await import('./auth')
-    expect(await fresh({ id: 1, email: 'admin@example.com', emailConfirmed: true })).toBe(false)
+    expect(
+      await checkAdminBootstrap({ id: 1, email: 'admin@example.com', emailConfirmed: true }),
+    ).toBe(false)
     vi.unstubAllEnvs()
-    vi.resetModules()
   })
 })
 

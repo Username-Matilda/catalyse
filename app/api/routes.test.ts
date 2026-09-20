@@ -1,19 +1,17 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
 import { createVolunteer } from '@/test/factories'
 import { createSession } from '@/lib/auth'
 
-vi.mock('@/jobs/backup', () => ({ runBackupJob: vi.fn(async () => 'backup-ok') }))
-vi.mock('@/jobs/digest', () => ({ runDigestJob: vi.fn(async () => 'digest-ok') }))
-vi.mock('@/jobs/nudges', () => ({ runNudgesJob: vi.fn(async () => ({ nudged: 1 })) }))
-const anonymise = vi.hoisted(() => ({ fail: true }))
-vi.mock('@/jobs/applications', () => ({
-  runApplicationsSummaryJob: vi.fn(async () => 'summary-ok'),
-  runApplicationsAnonymisationJob: vi.fn(async () => {
-    if (anonymise.fail) throw new Error('anon failed')
-    return 'anon-ok'
-  }),
-}))
+import { cronJobs } from '@/test/fakes/cron-jobs'
+
+beforeEach(() => {
+  cronJobs.returns('backup', 'backup-ok')
+  cronJobs.returns('digest', 'digest-ok')
+  cronJobs.returns('nudges', { nudged: 1 })
+  cronJobs.returns('applications-summary', 'summary-ok')
+  cronJobs.fails('applications-anonymisation', 'anon failed')
+})
 
 const cron = (path: string, auth = 'Bearer cron-secret') =>
   new NextRequest(`http://localhost/api/cron/${path}`, {
@@ -39,11 +37,10 @@ describe('cron routes', () => {
     const anon = await import('./cron/applications-anonymisation/route')
     expect((await anon.POST(cron('applications-anonymisation', 'x'))).status).toBe(401)
     await expect(anon.POST(cron('applications-anonymisation'))).rejects.toThrow('anon failed')
-    anonymise.fail = false
+    cronJobs.returns('applications-anonymisation', 'anon-ok')
     expect(await (await anon.POST(cron('applications-anonymisation'))).json()).toEqual({
       anonymisation: 'anon-ok',
     })
-    anonymise.fail = true
   })
 
   it('daily runs every job and reports failures inline', async () => {

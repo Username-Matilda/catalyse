@@ -2,12 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { prisma } from '@/lib/prisma'
 import { createVolunteer, createAdmin, createTeam } from '@/test/factories'
 
-vi.mock('./email', () => ({
-  sendProjectNotificationEmail: vi.fn(async () => true),
-  sendAdminAlertEmail: vi.fn(async () => true),
-}))
-
-import { sendProjectNotificationEmail, sendAdminAlertEmail } from './email'
+import { emails } from '@/test/fakes/email'
 import {
   createNotification,
   clearNotifications,
@@ -45,21 +40,19 @@ describe('notifyUser', () => {
   it('creates the notification and emails a project or admin-alert payload', async () => {
     const vol = await createVolunteer()
     await notifyUser(vol.id, 'a', 'T', null, null)
-    expect(sendProjectNotificationEmail).not.toHaveBeenCalled()
+    expect(emails.sent).toEqual([])
 
     await notifyUser(vol.id, 'a', 'T', 'b', '/l', { message: 'm', projectId: 1, projectTitle: 'P' })
-    expect(sendProjectNotificationEmail).toHaveBeenCalledWith(
-      expect.objectContaining({ to: vol.email, subject: 'T', projectId: 1 }),
-    )
+    expect(emails.last).toMatchObject({ to: vol.email, subject: 'T' })
+    expect(emails.last.html).toContain('/projects/1')
     await notifyUser(vol.id, 'a', 'T', 'b', '/l', {
       subject: 'Custom',
       message: 'm',
       ctaLabel: 'Go',
       ctaUrl: '/go',
     })
-    expect(sendAdminAlertEmail).toHaveBeenCalledWith(
-      expect.objectContaining({ subject: 'Custom', ctaUrl: '/go' }),
-    )
+    expect(emails.last.subject).toBe('Custom')
+    expect(emails.last.html).toContain('http://localhost:3000/go')
   })
 
   it('skips the email for a volunteer without one, and logs send/insert failures', async () => {
@@ -69,11 +62,11 @@ describe('notifyUser', () => {
       projectId: 1,
       projectTitle: 'P',
     })
-    expect(sendProjectNotificationEmail).not.toHaveBeenCalled()
+    expect(emails.sent).toEqual([])
 
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     const vol = await createVolunteer()
-    vi.mocked(sendProjectNotificationEmail).mockRejectedValueOnce(new Error('smtp'))
+    emails.failNext()
     await notifyUser(vol.id, 'a', 'T', null, null, {
       message: 'm',
       projectId: 1,
@@ -116,6 +109,6 @@ describe('notifyTeamOfProject / notifyAdmins', () => {
     await vi.waitFor(async () =>
       expect(await prisma.notification.count({ where: { type: 'alert' } })).toBe(1),
     )
-    expect(sendAdminAlertEmail).toHaveBeenCalledWith(expect.objectContaining({ to: admin.email }))
+    expect(emails.to(admin.email!)).toHaveLength(1)
   })
 })

@@ -16,11 +16,7 @@ import { navigation } from '@/test/next-navigation'
 import JournalistOutreachPage from './page'
 import OutreachVerifyPage from './verify/page'
 
-vi.mock('@/lib/email', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/lib/email')>()),
-  sendOutreachLoginEmail: vi.fn(async () => true),
-}))
-import { sendOutreachLoginEmail } from '@/lib/email'
+import { emails } from '@/test/fakes/email'
 
 beforeEach(async () => {
   await prisma.experimentalJournalist.deleteMany()
@@ -95,7 +91,7 @@ describe('journalist outreach sign-in', () => {
     await userEvent.type(screen.getByLabelText('Your email'), 'sam@example.com')
     await userEvent.click(button('Send me a link'))
     expect(await screen.findByText('Check your inbox')).toBeInTheDocument()
-    expect(vi.mocked(sendOutreachLoginEmail).mock.lastCall![0].to).toBe('sam@example.com')
+    expect(emails.last.to).toBe('sam@example.com')
 
     await userEvent.click(button('Use a different email'))
     await userEvent.clear(screen.getByLabelText('Your email'))
@@ -112,9 +108,7 @@ describe('journalist outreach sign-in', () => {
     )
     expect(await screen.findByText(`Signed in as ${volunteer.email}`, { exact: false }))
     expect(localStorage.getItem(OUTREACH_TOKEN_STORAGE_KEY)).toBeTruthy()
-    expect(sendOutreachLoginEmail).not.toHaveBeenCalledWith(
-      expect.objectContaining({ to: volunteer.email }),
-    )
+    expect(emails.to(volunteer.email!)).toEqual([])
   })
 
   it('redeems a link and stores the session, or explains a bad link', async () => {

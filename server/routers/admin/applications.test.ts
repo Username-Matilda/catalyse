@@ -4,22 +4,14 @@ import { prisma } from '@/lib/prisma'
 import { createVolunteer, createSuperAdmin, createSkill } from '@/test/factories'
 import { clientAs } from '@/test/rpc'
 
-vi.mock('@/lib/email', async (importOriginal) => {
-  const original = await importOriginal<typeof import('@/lib/email')>()
-  return {
-    ...original,
-    sendApplicationApprovedEmail: vi.fn(async () => true),
-    sendApplicationRejectedEmail: vi.fn(async () => true),
-    sendApplicationNeedsInfoEmail: vi.fn(async () => true),
-    sendApplicationReopenedEmail: vi.fn(async () => true),
-  }
-})
-import {
-  sendApplicationApprovedEmail,
-  sendApplicationRejectedEmail,
-  sendApplicationNeedsInfoEmail,
-  sendApplicationReopenedEmail,
-} from '@/lib/email'
+import { emails } from '@/test/fakes/email'
+
+const subjects = {
+  approved: 'Your Catalyse application has been approved',
+  rejected: 'Update on your Catalyse application',
+  needsInfo: 'Action needed on your Catalyse application',
+  reopened: 'Your Catalyse application has been reopened',
+}
 
 const hashOf = (email: string) =>
   createHash('sha256').update(email.toLowerCase().trim()).digest('hex')
@@ -136,11 +128,8 @@ describe('admin.applications.action', () => {
       }),
     ).toEqual({ message: 'More information requested' })
     expect(await status(v.id)).toBe('needs_info')
-    expect(sendApplicationNeedsInfoEmail).toHaveBeenCalledWith({
-      to: v.email,
-      name: v.name,
-      applicantNotes: 'tell us more',
-    })
+    expect(emails.last).toMatchObject({ to: v.email, subject: subjects.needsInfo })
+    expect(emails.last.html).toContain('tell us more')
     await expect(
       c.admin.applications.action({ id: v.id, action: 'start_review' }),
     ).rejects.toMatchObject({ message: 'Cannot start review on a needs_info application' })
@@ -163,13 +152,13 @@ describe('admin.applications.action', () => {
       adminNotes: 'n',
       applicantNotes: 'p',
     })
-    expect(sendApplicationNeedsInfoEmail).toHaveBeenCalledTimes(1)
+    expect(emails.sent).toHaveLength(1)
     const stored = await createVolunteer({
       approvalStatus: 'pending',
       applicationApplicantNotes: 'stored',
     })
     await c.admin.applications.action({ id: stored.id, action: 'request_info' })
-    expect(vi.mocked(sendApplicationNeedsInfoEmail).mock.lastCall![0].applicantNotes).toBe('stored')
+    expect(emails.last.html).toContain('stored')
   })
 
   it('approve, reject, reopen — with emails and notification clean-up', async () => {
@@ -183,7 +172,8 @@ describe('admin.applications.action', () => {
       message: 'Application approved',
     })
     expect(await status(a.id)).toBe('approved')
-    expect(sendApplicationApprovedEmail).toHaveBeenCalledWith({ to: a.email, name: a.name })
+    expect(emails.last).toMatchObject({ to: a.email, subject: subjects.approved })
+    expect(emails.last.html).toContain(a.name)
     expect(
       await prisma.notification.count({ where: { type: 'new_volunteer_signup', entityId: a.id } }),
     ).toBe(0)
@@ -202,11 +192,8 @@ describe('admin.applications.action', () => {
     ).toEqual({ message: 'Application rejected' })
     const rRow = await prisma.volunteer.findUniqueOrThrow({ where: { id: r.id } })
     expect(rRow.rejectedAt).not.toBeNull()
-    expect(sendApplicationRejectedEmail).toHaveBeenCalledWith({
-      to: r.email,
-      name: r.name,
-      applicantNotes: 'sorry',
-    })
+    expect(emails.last).toMatchObject({ to: r.email, subject: subjects.rejected })
+    expect(emails.last.html).toContain('sorry')
 
     expect(
       await c.admin.applications.action({
@@ -220,31 +207,26 @@ describe('admin.applications.action', () => {
       approvalStatus: 'needs_info',
       rejectedAt: null,
     })
-    expect(sendApplicationReopenedEmail).toHaveBeenCalledWith({
-      to: r.email,
-      name: r.name,
-      applicantNotes: 'welcome back',
-    })
+    expect(emails.last).toMatchObject({ to: r.email, subject: subjects.reopened })
+    expect(emails.last.html).toContain('welcome back')
 
     // Email-less volunteers skip every send.
     const silent = await createVolunteer({ approvalStatus: 'pending', email: null })
     await c.admin.applications.action({ id: silent.id, action: 'reject' })
     await c.admin.applications.action({ id: silent.id, action: 'reopen' })
     await c.admin.applications.action({ id: silent.id, action: 'approve' })
-    expect(sendApplicationApprovedEmail).toHaveBeenCalledTimes(1)
-    expect(sendApplicationRejectedEmail).toHaveBeenCalledTimes(1)
-    expect(sendApplicationReopenedEmail).toHaveBeenCalledTimes(1)
+    expect(emails.sent.map((e) => e.subject)).toEqual([
+      subjects.approved,
+      subjects.rejected,
+      subjects.reopened,
+    ])
   })
 
   it('logs but does not fail when an email send rejects', async () => {
     const me = await createSuperAdmin()
     const c = clientAs(me)
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const boom = () => Promise.reject(new Error('smtp'))
-    vi.mocked(sendApplicationNeedsInfoEmail).mockImplementationOnce(boom)
-    vi.mocked(sendApplicationReopenedEmail).mockImplementationOnce(boom)
-    vi.mocked(sendApplicationApprovedEmail).mockImplementationOnce(boom)
-    vi.mocked(sendApplicationRejectedEmail).mockImplementationOnce(boom)
+    emails.failNext(4)
     const v = await createVolunteer({ approvalStatus: 'pending' })
     await c.admin.applications.action({ id: v.id, action: 'request_info' })
     await c.admin.applications.action({ id: v.id, action: 'reject' })

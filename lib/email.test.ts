@@ -1,66 +1,159 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
+import * as e from './email'
+import { env } from './env'
+import {
+  createEmailTransport,
+  emailTransport,
+  setEmailTransport,
+  FileStubTransport,
+  ResendTransport,
+  type ResendClient,
+  UnconfiguredTransport,
+} from './email-transport'
+import { emails } from '@/test/fakes/email'
+import http from 'node:http'
+import { Resend } from 'resend'
 
 const sendMock = vi.fn()
-vi.mock('resend', () => ({
-  Resend: class {
-    emails = { send: sendMock }
-  },
-}))
+const resendClient = { emails: { send: sendMock } } as unknown as ResendClient
 
 afterEach(() => {
-  vi.unstubAllEnvs()
-  vi.resetModules()
   vi.restoreAllMocks()
   sendMock.mockReset()
 })
 
-type Email = typeof import('./email')
-
-async function load(vars: Record<string, string>): Promise<Email> {
-  vi.stubEnv('STUB_EMAIL', 'false')
-  vi.stubEnv('RESEND_API_KEY', '')
-  vi.stubEnv('REPLY_TO_EMAIL', '')
-  vi.stubEnv('APP_URL', 'https://app.test')
-  for (const [k, v] of Object.entries(vars)) vi.stubEnv(k, v)
-  return import('./email')
-}
-
 describe('html tagged template', () => {
-  it('escapes interpolations except rawHtml, and stringifies null as empty', async () => {
-    const { html, rawHtml } = await load({})
-    expect(html`<b>${'<i>'}</b>${rawHtml('<u>')}${null}${'"&\''}`).toBe(
+  it('escapes interpolations except rawHtml, and stringifies null as empty', () => {
+    expect(e.html`<b>${'<i>'}</b>${e.rawHtml('<u>')}${null}${'"&\''}`).toBe(
       '<b>&lt;i&gt;</b><u>&quot;&amp;&#39;',
     )
   })
 })
 
-describe('sendEmail transport', () => {
+const baseEnv = {
+  STUB_EMAIL: false,
+  RESEND_API_KEY: undefined,
+  FROM_EMAIL: 'from@x',
+  REPLY_TO_EMAIL: undefined,
+}
+const message = { to: 'a@b.c', subject: 'Hello', html: '<p>hi</p>' }
+
+describe('email transports', () => {
   let log: ReturnType<typeof vi.spyOn>
   beforeEach(() => {
     log = vi.spyOn(console, 'log').mockImplementation(() => {})
     vi.spyOn(console, 'error').mockImplementation(() => {})
   })
 
+  it('is chosen from the environment: stub first, then Resend, else unconfigured', () => {
+    expect(createEmailTransport({ ...baseEnv, STUB_EMAIL: true })).toBeInstanceOf(FileStubTransport)
+    expect(createEmailTransport({ ...baseEnv, RESEND_API_KEY: 'key' })).toBeInstanceOf(
+      ResendTransport,
+    )
+    expect(createEmailTransport(baseEnv)).toBeInstanceOf(UnconfiguredTransport)
+  })
+
+  it('is built once from the environment and can be swapped', () => {
+    const fake = emails
+    expect(setEmailTransport(undefined)).toBe(fake)
+    const fromEnv = emailTransport()
+    expect(fromEnv).toBeInstanceOf(FileStubTransport)
+    expect(emailTransport()).toBe(fromEnv)
+    expect(setEmailTransport(fake)).toBe(fromEnv)
+    expect(e.isEmailConfigured()).toBe(true)
+  })
+
   it('writes a preview file when stubbed', async () => {
-    const email = await load({ STUB_EMAIL: 'true' })
-    expect(email.isEmailConfigured()).toBe(true)
-    expect(await email.sendWelcomeEmail({ to: 'a@b.c', name: 'Ann' })).toBe(true)
+    const stub = new FileStubTransport()
+    expect(stub.configured()).toBe(true)
+    expect(await stub.send(message)).toBe(true)
     expect(log).toHaveBeenCalledWith(expect.stringContaining('[EMAIL STUB] To: a@b.c'))
   })
 
   it('logs and returns false when nothing is configured', async () => {
-    const email = await load({})
-    expect(email.isEmailConfigured()).toBe(false)
-    expect(await email.sendWelcomeEmail({ to: 'a@b.c', name: 'Ann' })).toBe(false)
+    const none = new UnconfiguredTransport()
+    expect(none.configured()).toBe(false)
+    expect(await none.send(message)).toBe(false)
     expect(log).toHaveBeenCalledWith(expect.stringContaining('[EMAIL NOT CONFIGURED]'))
   })
 
   it('sends through Resend, with the reply-to from the call or the env', async () => {
-    const email = await load({ RESEND_API_KEY: 'key', REPLY_TO_EMAIL: 'reply@x' })
+    const resend = new ResendTransport(
+      { ...baseEnv, RESEND_API_KEY: 'key', REPLY_TO_EMAIL: 'reply@x' },
+      resendClient,
+    )
     sendMock.mockResolvedValue({ error: null })
-    expect(await email.sendWelcomeEmail({ to: 'a@b.c', name: 'Ann' })).toBe(true)
-    expect(sendMock.mock.calls[0][0]).toMatchObject({ to: ['a@b.c'], replyTo: 'reply@x' })
-    await email.sendRelayMessage({
+    expect(await resend.send(message)).toBe(true)
+    expect(sendMock.mock.calls[0][0]).toMatchObject({
+      from: 'from@x',
+      to: ['a@b.c'],
+      replyTo: 'reply@x',
+    })
+    await resend.send({ ...message, replyTo: 'b@x' })
+    expect(sendMock.mock.calls[1][0]).toMatchObject({ replyTo: 'b@x' })
+  })
+
+  it('reports Resend errors and thrown failures as false', async () => {
+    const resend = new ResendTransport({ ...baseEnv, RESEND_API_KEY: 'key' }, resendClient)
+    sendMock.mockResolvedValueOnce({ error: { message: 'nope' } })
+    expect(await resend.send(message)).toBe(false)
+    sendMock.mockRejectedValueOnce(new Error('network'))
+    expect(await resend.send(message)).toBe(false)
+    expect(sendMock.mock.calls[0][0]).not.toHaveProperty('replyTo')
+  })
+
+  it('puts the expected request on the wire through the real Resend SDK', async () => {
+    // A stand-in for api.resend.com, so the SDK's serialisation and error handling run for
+    // real instead of being replaced by the fake client above.
+    const requests: { auth: string | undefined; body: Record<string, unknown> }[] = []
+    let status = 200
+    const server = http.createServer((req, res) => {
+      let body = ''
+      req.on('data', (chunk) => (body += chunk))
+      req.on('end', () => {
+        requests.push({ auth: req.headers.authorization, body: JSON.parse(body) })
+        res.writeHead(status, { 'content-type': 'application/json' })
+        res.end(
+          JSON.stringify(
+            status === 200
+              ? { id: 'email_1' }
+              : { statusCode: status, name: 'validation_error', message: 'bad from' },
+          ),
+        )
+      })
+    })
+    await new Promise<void>((resolve) => server.listen(0, resolve))
+    const address = server.address()
+    if (!address || typeof address === 'string') throw new Error('server has no port')
+    const client = new Resend('re_key', { baseUrl: `http://127.0.0.1:${address.port}` })
+    const resend = new ResendTransport(
+      { ...baseEnv, RESEND_API_KEY: 're_key', REPLY_TO_EMAIL: 'reply@x' },
+      client,
+    )
+    try {
+      expect(await resend.send(message)).toBe(true)
+      expect(requests[0]).toEqual({
+        auth: 'Bearer re_key',
+        body: {
+          from: 'from@x',
+          to: ['a@b.c'],
+          subject: 'Hello',
+          html: '<p>hi</p>',
+          reply_to: 'reply@x',
+        },
+      })
+      status = 422
+      expect(await resend.send(message)).toBe(false)
+      expect(console.error).toHaveBeenCalledWith('[EMAIL ERROR] bad from')
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()))
+    }
+    // With the server gone the SDK reports the failed connection as an error, not a throw.
+    expect(await resend.send(message)).toBe(false)
+  })
+
+  it('relays a message with the sender as reply-to', async () => {
+    await e.sendRelayMessage({
       to: 'a@b.c',
       toName: 'A',
       fromName: 'B',
@@ -68,24 +161,13 @@ describe('sendEmail transport', () => {
       subject: 'Hi',
       message: 'm',
     })
-    expect(sendMock.mock.calls[1][0]).toMatchObject({ subject: '[Catalyse] Hi', replyTo: 'b@x' })
-  })
-
-  it('reports Resend errors and thrown failures as false', async () => {
-    const email = await load({ RESEND_API_KEY: 'key' })
-    sendMock.mockResolvedValueOnce({ error: { message: 'nope' } })
-    expect(await email.sendWelcomeEmail({ to: 'a@b.c', name: 'Ann' })).toBe(false)
-    sendMock.mockRejectedValueOnce(new Error('network'))
-    expect(await email.sendWelcomeEmail({ to: 'a@b.c', name: 'Ann' })).toBe(false)
-    expect(sendMock.mock.calls[0][0]).not.toHaveProperty('replyTo')
+    expect(emails.last).toMatchObject({ subject: '[Catalyse] Hi', replyTo: 'b@x' })
   })
 })
 
 describe('templates', () => {
-  it('builds every template with escaped content and the right links', async () => {
-    const e = await load({ STUB_EMAIL: 'true' })
-    vi.spyOn(console, 'log').mockImplementation(() => {})
-    const app = 'https://app.test'
+  it('builds every template with escaped content and the right links', () => {
+    const app = env.APP_URL
 
     expect(e.buildWelcomeAndConfirmHtml('<A>', `${app}/verify?x`)).toContain('Hi &lt;A&gt;')
     expect(e.buildApplicationReceivedHtml('A')).toContain('Application Received')
@@ -136,9 +218,7 @@ describe('templates', () => {
     expect(e.buildTaskSurrenderedAssigneeHtml('A', 'T', 'P', 1)).toContain(`${app}/projects/1`)
   })
 
-  it('every send helper resolves through the stub transport', async () => {
-    const e = await load({ STUB_EMAIL: 'true' })
-    vi.spyOn(console, 'log').mockImplementation(() => {})
+  it('every send helper resolves through the transport', async () => {
     const base = { to: 'a@b.c', name: 'A' }
     const results = await Promise.all([
       e.sendWelcomeAndConfirmEmail({ ...base, token: 't' }),

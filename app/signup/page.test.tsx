@@ -7,9 +7,7 @@ import { renderApp } from '@/test/render'
 import { navigation } from '@/test/next-navigation'
 import SignupPage from './page'
 
-vi.mock('next/script', () => ({ default: () => null }))
-vi.mock('@/lib/google-auth', () => ({ verifyGoogleToken: vi.fn(async () => null) }))
-import { verifyGoogleToken } from '@/lib/google-auth'
+import { google as googleAuth } from '@/test/fakes/google'
 
 const type = (label: string, text: string) => userEvent.type(screen.getByLabelText(label), text)
 const submit = () =>
@@ -218,10 +216,7 @@ describe('signup with Google', () => {
     await signIn('bad')
     expect(await screen.findByRole('alert')).toHaveTextContent('Invalid Google token')
     const existing = await createVolunteer({ email: 'g-existing@example.com' })
-    vi.mocked(verifyGoogleToken).mockResolvedValueOnce({
-      email: existing.email!,
-      name: existing.name,
-    })
+    googleAuth.accept('known', { email: existing.email!, name: existing.name })
     await signIn('known')
     await waitFor(() => expect(navigation.push).toHaveBeenCalledWith('/dashboard'))
 
@@ -344,7 +339,7 @@ describe('signup with Google', () => {
       'google_pending_auth',
       JSON.stringify({ credential: 'boot', name: 'Boot', email: 'admin12@example.com' }),
     )
-    vi.mocked(verifyGoogleToken).mockResolvedValue({ email: 'admin12@example.com', name: 'Boot' })
+    googleAuth.accept('boot', { email: 'admin12@example.com', name: 'Boot' })
     await renderApp(<SignupPage />)
     await screen.findByText('Complete your application')
     await type('About You', 'A biography that comfortably passes twenty characters.')

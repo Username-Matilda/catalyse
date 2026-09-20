@@ -15,20 +15,99 @@ const CLOCK_SKEW_S = 300
 
 type Jwk = { kid?: string; kty: string; alg?: string; n: string; e: string }
 
-let jwksCache: { keys: Jwk[]; expiresAt: number } | null = null
+export type GoogleAccount = { email: string; name: string }
 
-async function googleSigningKeys(): Promise<Jwk[]> {
-  if (jwksCache && jwksCache.expiresAt > Date.now()) return jwksCache.keys
+/**
+ * Turns a Google Sign-In credential into the account it belongs to. The auth router calls
+ * whichever verifier `googleVerifier()` returns; tests swap in their own with
+ * `setGoogleVerifier`.
+ */
+export abstract class GoogleTokenVerifier {
+  /** The verified account, or null for anything that should not be trusted. */
+  abstract verify(credential: string): Promise<GoogleAccount | null>
+}
 
-  const res = await fetch(GOOGLE_JWKS_URL)
-  if (!res.ok) throw new Error(`Google JWKS fetch failed: ${res.status}`)
-  const { keys } = (await res.json()) as { keys?: Jwk[] }
-  if (!keys?.length) throw new Error('Google JWKS response contained no keys')
+/** Verifies ID tokens against Google's published signing keys. */
+export class JwksGoogleVerifier extends GoogleTokenVerifier {
+  private jwksCache: { keys: Jwk[]; expiresAt: number } | null = null
 
-  const maxAge = /max-age=(\d+)/.exec(res.headers.get('cache-control') ?? '')
-  const ttl = maxAge ? Number(maxAge[1]) * 1000 : DEFAULT_JWKS_TTL_MS
-  jwksCache = { keys, expiresAt: Date.now() + ttl }
-  return keys
+  private async signingKeys(): Promise<Jwk[]> {
+    if (this.jwksCache && this.jwksCache.expiresAt > Date.now()) return this.jwksCache.keys
+
+    const res = await fetch(GOOGLE_JWKS_URL)
+    if (!res.ok) throw new Error(`Google JWKS fetch failed: ${res.status}`)
+    const { keys } = (await res.json()) as { keys?: Jwk[] }
+    if (!keys?.length) throw new Error('Google JWKS response contained no keys')
+
+    const maxAge = /max-age=(\d+)/.exec(res.headers.get('cache-control') ?? '')
+    const ttl = maxAge ? Number(maxAge[1]) * 1000 : DEFAULT_JWKS_TTL_MS
+    this.jwksCache = { keys, expiresAt: Date.now() + ttl }
+    return keys
+  }
+
+  /**
+   * Null if the credential is missing, malformed, expired, signed by an unknown key, or
+   * issued for a different client.
+   */
+  async verify(credential: string): Promise<GoogleAccount | null> {
+    const clientId = env.GOOGLE_CLIENT_ID
+    if (!clientId || !credential) return null
+
+    try {
+      const [headerB64, payloadB64, signatureB64, ...rest] = credential.split('.')
+      if (!headerB64 || !payloadB64 || !signatureB64 || rest.length > 0) return null
+
+      const header = decodeSegment(headerB64) as { alg?: string; kid?: string }
+      if (header.alg !== 'RS256' || !header.kid) return null
+
+      const jwk = (await this.signingKeys()).find((k) => k.kid === header.kid)
+      if (!jwk) return null
+
+      const signatureValid = createVerify('RSA-SHA256')
+        .update(`${headerB64}.${payloadB64}`)
+        .verify(
+          createPublicKey({ key: jwk as JsonWebKey, format: 'jwk' }),
+          Buffer.from(signatureB64, 'base64url'),
+        )
+      if (!signatureValid) return null
+
+      const claims = decodeSegment(payloadB64) as IdTokenClaims
+      if (!claims.iss || !GOOGLE_ISSUERS.includes(claims.iss)) return null
+      if (claims.aud !== clientId) return null
+
+      const now = Math.floor(Date.now() / 1000)
+      if (typeof claims.exp !== 'number' || claims.exp <= now - CLOCK_SKEW_S) return null
+      if (typeof claims.iat === 'number' && claims.iat > now + CLOCK_SKEW_S) return null
+
+      // Google sends this as a boolean in the ID token; older docs show the string form.
+      if (claims.email_verified !== true && claims.email_verified !== 'true') return null
+      if (!claims.email) return null
+
+      return { email: claims.email, name: claims.name || claims.email.split('@')[0] }
+    } catch {
+      return null
+    }
+  }
+}
+
+let current: GoogleTokenVerifier | undefined
+
+/** The process-wide verifier, created on first use. */
+export function googleVerifier(): GoogleTokenVerifier {
+  return (current ??= new JwksGoogleVerifier())
+}
+
+/** Replaces the process-wide verifier; returns the previous one so a caller can restore it. */
+export function setGoogleVerifier(
+  verifier: GoogleTokenVerifier | undefined,
+): GoogleTokenVerifier | undefined {
+  const previous = current
+  current = verifier
+  return previous
+}
+
+export function verifyGoogleToken(credential: string): Promise<GoogleAccount | null> {
+  return googleVerifier().verify(credential)
 }
 
 type IdTokenClaims = {
@@ -43,50 +122,4 @@ type IdTokenClaims = {
 
 function decodeSegment(segment: string): unknown {
   return JSON.parse(Buffer.from(segment, 'base64url').toString('utf8'))
-}
-
-/**
- * Returns the verified account, or null if the credential is missing, malformed,
- * expired, signed by an unknown key, or issued for a different client.
- */
-export async function verifyGoogleToken(
-  credential: string,
-): Promise<{ email: string; name: string } | null> {
-  const clientId = env.GOOGLE_CLIENT_ID
-  if (!clientId || !credential) return null
-
-  try {
-    const [headerB64, payloadB64, signatureB64, ...rest] = credential.split('.')
-    if (!headerB64 || !payloadB64 || !signatureB64 || rest.length > 0) return null
-
-    const header = decodeSegment(headerB64) as { alg?: string; kid?: string }
-    if (header.alg !== 'RS256' || !header.kid) return null
-
-    const jwk = (await googleSigningKeys()).find((k) => k.kid === header.kid)
-    if (!jwk) return null
-
-    const signatureValid = createVerify('RSA-SHA256')
-      .update(`${headerB64}.${payloadB64}`)
-      .verify(
-        createPublicKey({ key: jwk as JsonWebKey, format: 'jwk' }),
-        Buffer.from(signatureB64, 'base64url'),
-      )
-    if (!signatureValid) return null
-
-    const claims = decodeSegment(payloadB64) as IdTokenClaims
-    if (!claims.iss || !GOOGLE_ISSUERS.includes(claims.iss)) return null
-    if (claims.aud !== clientId) return null
-
-    const now = Math.floor(Date.now() / 1000)
-    if (typeof claims.exp !== 'number' || claims.exp <= now - CLOCK_SKEW_S) return null
-    if (typeof claims.iat === 'number' && claims.iat > now + CLOCK_SKEW_S) return null
-
-    // Google sends this as a boolean in the ID token; older docs show the string form.
-    if (claims.email_verified !== true && claims.email_verified !== 'true') return null
-    if (!claims.email) return null
-
-    return { email: claims.email, name: claims.name || claims.email.split('@')[0] }
-  } catch {
-    return null
-  }
 }

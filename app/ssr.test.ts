@@ -13,16 +13,8 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
   useParams: () => ({}),
 }))
-vi.mock('next/script', () => ({ default: () => null }))
-// Google Fonts are fetched at build time; here each face just contributes its class variable.
-vi.mock('next/font/google', () => {
-  const font = (name: string) => () => ({ variable: `--font-${name}`, className: name })
-  return {
-    Montserrat: font('montserrat'),
-    Roboto_Slab: font('roboto-slab'),
-    Saira_Condensed: font('saira'),
-  }
-})
+vi.mock('next/script', async () => (await import('@/test/next-stubs')).script)
+vi.mock('next/font/google', async () => (await import('@/test/next-stubs')).fontGoogle)
 
 async function ssr(page: ComponentType) {
   const [{ AppProviders }, { ThemeProvider }, { LocationModalProvider }] = await Promise.all([

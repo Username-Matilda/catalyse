@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { prisma } from '@/lib/prisma'
 import { createVolunteer, createAdmin, createProject, createTask } from '@/test/factories'
 import { clientAs } from '@/test/rpc'
+import { emails } from '@/test/fakes/email'
 
 describe('admin.stats.get', () => {
   it('aggregates volunteer, project and interest counts', async () => {
@@ -63,7 +64,6 @@ describe('admin.triage', () => {
   })
 
   it('submits a volunteer draft for review with notifications', async () => {
-    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
     const admin = await createAdmin()
     const creator = await createVolunteer()
     const c = clientAs(admin)
@@ -114,13 +114,11 @@ describe('admin.triage', () => {
     expect(await c.admin.triage.submitDraft({ id: orphan.id })).toEqual({
       message: 'Project submitted for review',
     })
-    // Emails go out after the response; wait for every stub send so none logs after the test
-    // file has torn down.
+    // Emails go out after the response.
     const admins = await prisma.volunteer.count({
       where: { isAdmin: true, deletedAt: null, email: { not: null } },
     })
-    const sent = (subject: string) =>
-      log.mock.calls.filter(([line]) => String(line).includes(`Subject: ${subject}`))
+    const sent = (subject: string) => emails.sent.filter((e) => e.subject === subject)
     await vi.waitFor(() => {
       expect(sent(`New project proposal: ${draft.title}`)).toHaveLength(admins)
       expect(sent(`Your draft was submitted for review: ${draft.title}`)).toHaveLength(1)

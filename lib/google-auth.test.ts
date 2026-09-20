@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, afterEach, beforeAll } from 'vitest'
 import { generateKeyPairSync, createSign, type KeyObject } from 'node:crypto'
+import {
+  JwksGoogleVerifier,
+  googleVerifier,
+  setGoogleVerifier,
+  verifyGoogleToken,
+} from './google-auth'
+import { google } from '@/test/fakes/google'
 
 let privateKey: KeyObject
 let jwk: Record<string, unknown>
@@ -41,24 +48,35 @@ function mockJwks(keys: unknown[] = [jwk], headers: Record<string, string> = {},
 
 afterEach(() => {
   vi.unstubAllEnvs()
-  vi.resetModules()
   vi.restoreAllMocks()
 })
 
-async function load(clientId = 'client-id') {
+/** A fresh verifier (so an empty JWKS cache) under the given client id. */
+function load(clientId = 'client-id') {
   vi.stubEnv('GOOGLE_CLIENT_ID', clientId)
-  return (await import('./google-auth')).verifyGoogleToken
+  const verifier = new JwksGoogleVerifier()
+  return (credential: string) => verifier.verify(credential)
 }
 
 describe('verifyGoogleToken', () => {
+  it('goes through the process-wide verifier, which is built on first use and swappable', async () => {
+    google.accept('cred', { email: 'a@b.c', name: 'A' })
+    expect(await verifyGoogleToken('cred')).toEqual({ email: 'a@b.c', name: 'A' })
+    expect(setGoogleVerifier(undefined)).toBe(google)
+    const real = googleVerifier()
+    expect(real).toBeInstanceOf(JwksGoogleVerifier)
+    expect(googleVerifier()).toBe(real)
+    expect(setGoogleVerifier(google)).toBe(real)
+  })
+
   it('rejects without a client id or credential', async () => {
-    expect(await (await load(''))(token(good()))).toBeNull()
-    expect(await (await load())('')).toBeNull()
+    expect(await load('')(token(good()))).toBeNull()
+    expect(await load()('')).toBeNull()
   })
 
   it('accepts a valid token and caches the JWKS for the cache-control max-age', async () => {
     const fetchMock = mockJwks([jwk], { 'cache-control': 'public, max-age=3600' })
-    const verify = await load()
+    const verify = load()
     expect(await verify(token(good()))).toEqual({ email: 'ann@example.com', name: 'Ann' })
     expect(await verify(token({ ...good(), name: undefined }))).toEqual({
       email: 'ann@example.com',
@@ -73,7 +91,7 @@ describe('verifyGoogleToken', () => {
 
   it('uses the default TTL without a max-age header', async () => {
     const fetchMock = mockJwks()
-    const verify = await load()
+    const verify = load()
     expect(await verify(token(good()))).not.toBeNull()
     expect(await verify(token(good()))).not.toBeNull()
     expect(fetchMock).toHaveBeenCalledTimes(1)
@@ -81,16 +99,15 @@ describe('verifyGoogleToken', () => {
 
   it('fails closed on JWKS fetch problems', async () => {
     mockJwks([], {}, false)
-    expect(await (await load())(token(good()))).toBeNull()
+    expect(await load()(token(good()))).toBeNull()
     vi.restoreAllMocks()
-    vi.resetModules()
     mockJwks([])
-    expect(await (await load())(token(good()))).toBeNull()
+    expect(await load()(token(good()))).toBeNull()
   })
 
   it('rejects malformed, wrongly signed, or unknown-key tokens', async () => {
     mockJwks()
-    const verify = await load()
+    const verify = load()
     expect(await verify('a.b')).toBeNull()
     expect(await verify('a.b.c.d')).toBeNull()
     expect(await verify('not-json.x.y')).toBeNull()
@@ -102,7 +119,7 @@ describe('verifyGoogleToken', () => {
 
   it('rejects bad claims', async () => {
     mockJwks()
-    const verify = await load()
+    const verify = load()
     expect(await verify(token({ ...good(), iss: 'https://evil' }))).toBeNull()
     expect(await verify(token({ ...good(), iss: undefined }))).toBeNull()
     expect(await verify(token({ ...good(), aud: 'other' }))).toBeNull()

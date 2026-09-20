@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { screen, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
@@ -10,10 +10,6 @@ import VolunteerSelect from './VolunteerSelect'
 import ConfirmLocationModal from './ConfirmLocationModal'
 import { CookieConsentProvider, useCookieConsent } from '@/lib/cookie-consent-context'
 import { LocationModalProvider } from '@/lib/location-modal-context'
-
-vi.mock('next/script', () => ({
-  default: (p: { id?: string }) => <script data-testid={p.id ?? 'ga'} />,
-}))
 
 function BannerFlag() {
   const { bannerVisible } = useCookieConsent()

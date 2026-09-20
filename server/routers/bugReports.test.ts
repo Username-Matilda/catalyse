@@ -2,18 +2,9 @@ import { describe, it, expect, vi } from 'vitest'
 import { prisma } from '@/lib/prisma'
 import { createVolunteer, createAdmin } from '@/test/factories'
 import { clientAs } from '@/test/rpc'
+import { rateLimit } from '@/test/fakes/rate-limit'
 
-// `checkRateLimit` reads DISABLE_RATE_LIMIT at import time and the test env disables it, so
-// the "too many requests" branch is unreachable through the real limiter. Route it through a
-// spy that keeps the real behaviour until a test forces one refusal.
-const { checkRateLimitMock } = vi.hoisted(() => ({ checkRateLimitMock: vi.fn() }))
-vi.mock('@/lib/rate-limit', async (importOriginal) => {
-  const original = await importOriginal<typeof import('@/lib/rate-limit')>()
-  checkRateLimitMock.mockImplementation(original.checkRateLimit)
-  return { ...original, checkRateLimit: checkRateLimitMock }
-})
-const denyNextRequest = () =>
-  checkRateLimitMock.mockReturnValueOnce({ allowed: false, retryAfterMs: 1000 })
+const denyNextRequest = () => rateLimit.denyNext(1000)
 
 const waitForNotification = (volunteerId: number, type: string, count = 1) =>
   vi.waitFor(async () =>

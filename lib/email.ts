@@ -1,6 +1,5 @@
-import { randomUUID } from 'node:crypto'
-import { Resend } from 'resend'
 import { env } from './env'
+import { emailTransport } from './email-transport'
 
 function escapeHtml(s: string): string {
   return s
@@ -39,59 +38,12 @@ export function html(strings: TemplateStringsArray, ...values: unknown[]): strin
   return out
 }
 
-const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null
-
 export function isEmailConfigured(): boolean {
-  return env.STUB_EMAIL || Boolean(env.RESEND_API_KEY)
+  return emailTransport().configured()
 }
 
-const STUB_EMAIL_DIR = '/tmp/catalyse-emails'
-
-async function sendEmail(
-  to: string,
-  subject: string,
-  html: string,
-  replyTo?: string,
-): Promise<boolean> {
-  if (env.STUB_EMAIL) {
-    const fs = await import('fs/promises')
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-    const slug = subject
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '')
-      .slice(0, 60)
-    // A fan-out sends several same-subject emails within one millisecond, so the timestamp
-    // alone would name the same file for each of them.
-    const file = `${STUB_EMAIL_DIR}/${timestamp}_${slug}_${randomUUID().slice(0, 8)}.html`
-    await fs.mkdir(STUB_EMAIL_DIR, { recursive: true })
-    await fs.writeFile(file, html)
-    console.log(`[EMAIL STUB] To: ${to} | Subject: ${subject}\n[EMAIL STUB] Preview: ${file}`)
-    return true
-  }
-  if (!resend) {
-    console.log(`[EMAIL NOT CONFIGURED] Would send to ${to}: ${subject}`)
-    return false
-  }
-  try {
-    const payload: Parameters<typeof resend.emails.send>[0] = {
-      from: env.FROM_EMAIL,
-      to: [to],
-      subject,
-      html,
-    }
-    const effectiveReplyTo = replyTo || env.REPLY_TO_EMAIL
-    if (effectiveReplyTo) payload.replyTo = effectiveReplyTo
-    const { error } = await resend.emails.send(payload)
-    if (error) {
-      console.error(`[EMAIL ERROR] ${error.message}`)
-      return false
-    }
-    return true
-  } catch (err) {
-    console.error('[EMAIL ERROR]', err)
-    return false
-  }
+function sendEmail(to: string, subject: string, html: string, replyTo?: string): Promise<boolean> {
+  return emailTransport().send({ to, subject, html, replyTo })
 }
 
 const baseStyle = `

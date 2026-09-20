@@ -1,9 +1,7 @@
 generator client {
   provider      = "prisma-client"
   output        = "../generated/prisma"
-  // "native" is whatever generated the client last; the Linux target keeps the client usable
-  // inside the devcontainer when the macOS host regenerates it (and vice versa).
-  binaryTargets = ["native", "linux-arm64-openssl-3.0.x"]
+  binaryTargets = ["native"]
 }
 
 generator zod {
