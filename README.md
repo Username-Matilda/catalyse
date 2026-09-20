@@ -99,7 +99,9 @@ npm run fetch-prod-db && npm run migrate
 
 `fetch-prod-db` downloads the latest prod `pg_dump` from B2, **drops and recreates the `public` schema** of the target database, and restores into it. It then runs the same scrub as `anonymise-db` (PII replaced, dev accounts seeded) and empties the database again if that fails, so raw prod data is never left behind. Every account gets the same known password, so an anonymised copy must not sit behind a public URL. `anonymise-db` alone re-scrubs a database that is already restored. `scripts/anonymise-columns.ts` records how each text column is treated, and a test fails when a new column is missing from it. Both scripts refuse to run when `RAILWAY_ENVIRONMENT_NAME=production`, and `fetch-prod-db` refuses in any Railway environment unless `ALLOW_DB_RESTORE=1` is set (set it only on the preview base environment). `migrate` runs `prisma migrate deploy`, which applies any unapplied migration files in order without drift-checking.
 
-Unit tests create a throwaway schema per test file (`vitest_*`) in the same database, and e2e workers use `e2e_<n>`; neither touches `public`.
+Unit tests clone a throwaway database per test file (`vitest_*`) from a template migrated once per run, which needs a role with `CREATEDB`. E2E workers use the schemas `e2e_<n>`. Both go to `TEST_DATABASE_URL` when set, else `DATABASE_URL`; neither touches `public` of your dev data. `docker compose up -d` also starts `db-test` on port 5433, an in-memory Postgres with durability off that is only safe because it holds nothing but test data. Set `TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5433/catalyse_test` in `.env.local` to use it.
+
+Local runs default to a quarter of the cores for both suites. Tune with `VITEST_MAX_WORKERS` and `WORKER_COUNT` in `.env.local` (CI ignores the defaults and sizes itself).
 
 ### Adding a migration
 

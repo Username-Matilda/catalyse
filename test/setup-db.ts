@@ -1,5 +1,5 @@
 import { afterAll, beforeEach } from 'vitest'
-import { createSchema, dropSchema, urlWithSchema, SCHEMA_PREFIX } from './pg'
+import { createDatabase, dropDatabase, testUrl, DB_PREFIX } from './pg'
 import { setEmailTransport } from '@/lib/email-transport'
 import { setGoogleVerifier } from '@/lib/google-auth'
 import { setRateLimiter } from '@/lib/rate-limit'
@@ -9,18 +9,19 @@ import { rateLimit } from './fakes/rate-limit'
 import { cronJobs } from './fakes/cron-jobs'
 
 /**
- * Gives the current test file its own private database schema. vitest isolates module
- * state per file, so `lib/prisma` is instantiated afresh in each and reads DATABASE_URL at
- * that moment — this runs before any test module is imported.
+ * Gives the current test file its own private database, cloned from the template built in
+ * global setup. vitest isolates module state per file, so `lib/prisma` is instantiated
+ * afresh in each and reads DATABASE_URL at that moment — this runs before any test module
+ * is imported.
  */
-const schema = `${SCHEMA_PREFIX}${process.pid}_${Math.random().toString(36).slice(2)}`
-await createSchema(schema)
-process.env.DATABASE_URL = urlWithSchema(schema)
+const database = `${DB_PREFIX}${process.pid}_${Math.random().toString(36).slice(2)}`
+await createDatabase(database)
+process.env.DATABASE_URL = testUrl(database)
 afterAll(async () => {
   // Lets in-flight queries finish and closes the pool, so the drop is not fighting them.
   const { prisma } = await import('@/lib/prisma')
   await prisma.$disconnect()
-  await dropSchema(schema)
+  await dropDatabase(database)
 })
 // Routers return verification and invite tokens in their responses when email is stubbed.
 process.env.STUB_EMAIL = 'true'

@@ -1,10 +1,11 @@
 import { defineConfig } from 'vitest/config'
 import { availableParallelism } from 'node:os'
+import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 /**
  * The unit tier, run with `npm run test:unit`. It covers everything the app is built from —
- * pure logic, oRPC routers against a throwaway SQLite database, and React components/pages
+ * pure logic, oRPC routers against a real Postgres database, and React components/pages
  * rendered in jsdom — and CI fails unless every line and statement of the covered tree is
  * executed. Anything that needs a real browser (layout, navigation between pages, a full
  * production build) still belongs in the Playwright suite under `e2e/`.
@@ -12,17 +13,20 @@ import { fileURLToPath } from 'node:url'
  * Two projects share one config: `.test.ts` files run in plain node, `.test.tsx` files get a
  * jsdom window. The shared harness lives in `test/`; each file there explains its part.
  */
+// Same files and precedence as lib/db-url, so `VITEST_MAX_WORKERS` can be set in .env.local.
+for (const file of ['.env', '.env.local']) if (existsSync(file)) process.loadEnvFile(file)
+
 const alias = { '@': fileURLToPath(new URL('.', import.meta.url)) }
 // Playwright owns `e2e/**/*.spec.ts`; vitest only ever collects `*.test.ts(x)`.
 const exclude = ['node_modules/**', 'e2e/**', '.next/**', 'generated/**', 'tmp/**', '.claude/**']
 
-// Every worker builds its own Postgres schema and a jsdom window against one shared database.
-// A dev machine also runs the browser, editor and Docker, so a worker per core starves the
-// page tests into timeouts; use half the cores. CI has the machine to itself and takes
+// Every worker holds a jsdom window and clones a Postgres database per test file. A dev
+// machine also runs the browser, editor and Docker, so a worker per core starves the page
+// tests into timeouts; use a quarter of the cores. CI has the machine to itself and takes
 // vitest's default. `VITEST_MAX_WORKERS` overrides either.
 const maxWorkers =
   Number(process.env.VITEST_MAX_WORKERS) ||
-  (process.env.CI ? undefined : Math.max(1, Math.floor(availableParallelism() / 2)))
+  (process.env.CI ? undefined : Math.max(2, Math.floor(availableParallelism() / 4)))
 
 export default defineConfig({
   resolve: { alias },
