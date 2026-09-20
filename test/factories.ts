@@ -7,6 +7,9 @@ let seq = 0
 export const nextSeq = () => ++seq
 
 export const TEST_PASSWORD = 'correct-horse-battery'
+// PBKDF2 is deliberately slow, and every volunteer shares the password, so hash it once per file.
+let testPasswordHash: string | undefined
+const hashedTestPassword = () => (testPasswordHash ??= hashPassword(TEST_PASSWORD))
 
 /** An approved, email-confirmed volunteer. Pass overrides to make an admin, a pending one, etc. */
 export async function createVolunteer(
@@ -18,7 +21,7 @@ export async function createVolunteer(
       name: `Volunteer ${n}`,
       email: `volunteer${n}@example.com`,
       bio: 'A test volunteer with a bio long enough to pass validation.',
-      passwordHash: hashPassword(TEST_PASSWORD),
+      passwordHash: hashedTestPassword(),
       approvalStatus: ApprovalStatus.approved,
       emailConfirmed: true,
       consentMakeProfileVisibleInDirectory: true,
