@@ -1,5 +1,6 @@
 import { afterAll, beforeEach } from 'vitest'
-import { createDatabase, dropDatabase, testUrl, DB_PREFIX } from './pg'
+import { createTestDb, dropTestDb, testUrl, DB_PREFIX } from './pg'
+import { setDatabaseUrl } from '@/lib/db-url'
 import { setEmailTransport } from '@/lib/email-transport'
 import { setGoogleVerifier } from '@/lib/google-auth'
 import { setRateLimiter } from '@/lib/rate-limit'
@@ -9,19 +10,18 @@ import { rateLimit } from './fakes/rate-limit'
 import { cronJobs } from './fakes/cron-jobs'
 
 /**
- * Gives the current test file its own private database, cloned from the template built in
- * global setup. vitest isolates module state per file, so `lib/prisma` is instantiated
- * afresh in each and reads DATABASE_URL at that moment — this runs before any test module
- * is imported.
+ * Gives the current test file its own private copy of the schema (see `test/pg.ts`). vitest
+ * isolates module state per file, so `lib/prisma` is instantiated afresh in each and reads
+ * the URL set here at that moment — this runs before any test module is imported.
  */
-const database = `${DB_PREFIX}${process.pid}_${Math.random().toString(36).slice(2)}`
-await createDatabase(database)
-process.env.DATABASE_URL = testUrl(database)
+const name = `${DB_PREFIX}${process.pid}_${Math.random().toString(36).slice(2)}`
+await createTestDb(name)
+setDatabaseUrl(testUrl(name))
 afterAll(async () => {
   // Lets in-flight queries finish and closes the pool, so the drop is not fighting them.
   const { prisma } = await import('@/lib/prisma')
   await prisma.$disconnect()
-  await dropDatabase(database)
+  await dropTestDb(name)
 })
 // Routers return verification and invite tokens in their responses when email is stubbed.
 process.env.STUB_EMAIL = 'true'
@@ -44,8 +44,8 @@ process.env.CRON_SECRET = 'cron-secret'
 setEmailTransport(emails)
 setGoogleVerifier(google)
 setRateLimiter(rateLimit)
-// The jobs module reaches `lib/prisma`, whose client is built from DATABASE_URL on import,
-// so it is loaded only after that is set above.
+// The jobs module reaches `lib/prisma`, whose client is built from the URL on import, so it
+// is loaded only after that is set above.
 const { setCronJobRunners } = await import('@/lib/cron-jobs')
 setCronJobRunners(cronJobs.runners)
 beforeEach(() => {
