@@ -30,8 +30,13 @@ const STABLE_HOLD_MS = knob('SNAPSHOT_HOLD_MS', 400)
 const STABLE_POLL_MS = 100
 /** Painted frames the hold must also span, so a starved page cannot pass by not drawing. */
 const STABLE_FRAMES = knob('SNAPSHOT_FRAMES', 4)
-/** A page still moving after this long is shot anyway and reported as unsettled. */
+/**
+ * A page still moving after this long is shot anyway and reported as
+ * unsettled; a loaded machine that manages fewer polls than the minimum in
+ * that time gets the extra looks, since one slow screenshot is not movement.
+ */
 const STABLE_CAP_MS = 6_000
+const STABLE_MIN_POLLS = 8
 /** After the poll says still, one more beat for the compositor to catch up. */
 const RASTER_SETTLE_MS = knob('SNAPSHOT_RASTER_MS', 150)
 /**
@@ -153,7 +158,7 @@ export async function waitForPageStable(page: Page): Promise<boolean> {
   let lastChange = Date.now()
   let framesHeld = 0
   const start = Date.now()
-  while (Date.now() - start < STABLE_CAP_MS) {
+  for (let polls = 0; Date.now() - start < STABLE_CAP_MS || polls < STABLE_MIN_POLLS; polls++) {
     // Polled at CSS scale to keep each frame cheap, and judged by the same
     // noise floor as the gallery's own comparison: a frame that would read
     // as "same" on the page is still enough.
@@ -176,6 +181,12 @@ export async function waitForPageStable(page: Page): Promise<boolean> {
  * Rewrite every date the page shows to {@link SNAPSHOT_DATE}, in text nodes
  * and in date inputs. The patterns are the ones `lib/format-date.ts` produces.
  */
+declare global {
+  interface Window {
+    __snapshotNormaliser?: MutationObserver
+  }
+}
+
 export async function normaliseDates(page: Page): Promise<void> {
   await page.evaluate((fixed) => {
     const months =
@@ -196,16 +207,32 @@ export async function normaliseDates(page: Page): Promise<void> {
       [/\b\d+ (?:min|mins|hour|hours|day|days) ago\b/g, fixed.relative],
       [/\b(?:in|In) \d+ (?:min|mins|hour|hours|day|days)\b/g, 'in 3 days'],
     ]
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
-    const nodes: Text[] = []
-    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-      nodes.push(node as Text)
-    }
-    for (const node of nodes) {
+    const normalise = (node: Text) => {
       let text = node.data
       for (const [pattern, replacement] of rules) text = text.replace(pattern, replacement)
       if (text !== node.data) node.data = text
     }
+    const normaliseTree = (root: Node) => {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+      const nodes: Text[] = []
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        nodes.push(node as Text)
+      }
+      nodes.forEach(normalise)
+    }
+    normaliseTree(document.body)
+    // A countdown or a relative time re-renders on its own timer, and a tick
+    // between here and the shot would put the live value back; the observer
+    // rewrites it again before the frame paints.
+    const observer = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        if (m.type === 'characterData') normalise(m.target as Text)
+        for (const added of m.addedNodes) normaliseTree(added)
+      }
+    })
+    observer.observe(document.body, { characterData: true, childList: true, subtree: true })
+    window.__snapshotNormaliser?.disconnect()
+    window.__snapshotNormaliser = observer
     for (const input of document.querySelectorAll<HTMLInputElement>('input[type="date"]')) {
       if (input.value) input.value = fixed.input
     }
@@ -232,6 +259,9 @@ async function settle(page: Page): Promise<boolean> {
       if (element.scrollTop > 0) element.scrollTop = 0
     }
   })
+  // The pointer stays where the last click left it, and whatever the next
+  // page puts under that spot shows its hover colour.
+  await page.mouse.move(0, 0)
   const settled = await waitForPageStable(page)
   await normaliseDates(page)
   await page.waitForTimeout(RASTER_SETTLE_MS)
@@ -276,6 +306,8 @@ export async function captureSnapshot(
     fullPage: true,
     animations: 'disabled',
   })
+  // The test goes on from here and may read a date the page shows.
+  await page.evaluate(() => window.__snapshotNormaliser?.disconnect())
   const meta: CaptureMeta = {
     lane: lane.id,
     spec: specId(testInfo.file),
