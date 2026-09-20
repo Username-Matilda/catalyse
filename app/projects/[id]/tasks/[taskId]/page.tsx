@@ -12,18 +12,7 @@ import CommentThread from '@/components/CommentThread'
 import { useToast } from '@/lib/toast'
 import { formatDate, toDateInputValue, fromDateInputValue } from '@/lib/format-date'
 import { TaskStatus } from '@/generated/prisma/enums'
-
-const TASK_STATUS_LABELS: Record<string, string> = {
-  [TaskStatus.open]: 'Open',
-  [TaskStatus.in_progress]: 'In Progress',
-  [TaskStatus.completed]: 'Completed',
-}
-
-function statusVariant(status: string) {
-  if (status === TaskStatus.completed) return 'success'
-  if (status === TaskStatus.in_progress) return 'warning'
-  return 'neutral'
-}
+import { TASK_STATUS_LABELS, TASK_STATUS_VARIANTS } from '@/lib/status-labels'
 
 export default function TaskDetailPage({
   params,
@@ -185,7 +174,7 @@ export default function TaskDetailPage({
         <div className="flex justify-between items-start mb-3 gap-4">
           <h1 className="m-0">{task.title}</h1>
           <div className="flex items-center gap-2 shrink-0">
-            <Badge variant={statusVariant(task.status)}>
+            <Badge variant={TASK_STATUS_VARIANTS[task.status] ?? 'neutral'}>
               {TASK_STATUS_LABELS[task.status] ?? task.status}
             </Badge>
             {canEdit && !isEditing && (

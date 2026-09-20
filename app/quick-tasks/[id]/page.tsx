@@ -9,7 +9,7 @@ import { useToast } from '@/lib/toast'
 import Button from '@/components/Button'
 import { Badge } from '@/components/Badge'
 import CommentThread from '@/components/CommentThread'
-import { QUICK_TASK_STATUS_LABELS } from '@/components/ProjectCard'
+import { QUICK_TASK_STATUS_LABELS } from '@/lib/status-labels'
 import { QuickTaskStatus } from '@/generated/prisma/enums'
 
 const REVIEW_RATING_LABELS: Record<string, string> = {

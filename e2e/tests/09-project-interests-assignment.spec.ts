@@ -31,7 +31,7 @@ test.describe('Project Interests and Assignment', () => {
     await expect(volunteer.page.getByRole('button', { name: 'Express Interest' })).not.toBeVisible({
       timeout: 10_000,
     })
-    await expect(volunteer.page.getByLabel('interest status')).toContainText('Pending', {
+    await expect(volunteer.page.getByLabel('interest status')).toContainText('Applied', {
       timeout: 10_000,
     })
   })
@@ -46,7 +46,7 @@ test.describe('Project Interests and Assignment', () => {
     await volunteer.page.getByRole('button', { name: 'Express Interest' }).click()
 
     await expect(getAlert(volunteer.page)).toContainText('Interest expressed!', { timeout: 10_000 })
-    await expect(volunteer.page.getByLabel('interest status')).toContainText('Pending', {
+    await expect(volunteer.page.getByLabel('interest status')).toContainText('Applied', {
       timeout: 10_000,
     })
   })

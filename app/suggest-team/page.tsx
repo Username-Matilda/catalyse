@@ -7,13 +7,7 @@ import Button from '@/components/Button'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import { formatDate } from '@/lib/format-date'
-
-const STATUS_LABELS: Record<string, string> = {
-  pending: 'Pending Review',
-  accepted: 'Accepted',
-  on_hold: 'Under Review',
-  declined: 'Declined',
-}
+import { SUGGESTION_STATUS_LABELS } from '@/lib/status-labels'
 
 const STATUS_CLASSES: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
@@ -126,7 +120,7 @@ export default function SuggestTeamPage() {
                   <span
                     className={`text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap ${STATUS_CLASSES[s.status] ?? ''}`}
                   >
-                    {STATUS_LABELS[s.status] ?? s.status}
+                    {SUGGESTION_STATUS_LABELS[s.status] ?? s.status}
                   </span>
                 </article>
               ))}

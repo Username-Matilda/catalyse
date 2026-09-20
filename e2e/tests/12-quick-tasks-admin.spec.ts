@@ -94,7 +94,7 @@ test.describe('Quick Tasks (admin)', () => {
     // Task appears in the list with status 'open'
     const taskCard = adminPage.getByRole('article').filter({ hasText: taskTitle })
     await expect(taskCard).toBeVisible({ timeout: 10_000 })
-    await expect(taskCard.getByRole('status')).toContainText('open')
+    await expect(taskCard.getByRole('status')).toContainText('Open')
   })
 
   test('Admin assigns a quick task to a volunteer; task status becomes assigned and volunteer receives a notification', async ({
@@ -123,7 +123,7 @@ test.describe('Quick Tasks (admin)', () => {
     await taskCard.getByRole('button', { name: 'Assign', exact: true }).click()
 
     await expect(getAlert(adminPage)).toContainText('Task assigned!', { timeout: 10_000 })
-    await expect(taskCard.getByRole('status')).toContainText('in_progress', { timeout: 10_000 })
+    await expect(taskCard.getByRole('status')).toContainText('In progress', { timeout: 10_000 })
 
     // Volunteer receives an assignment notification
     await goToDashboardNotifications(baseUrl, volunteer.page)
@@ -213,7 +213,7 @@ test.describe('Quick Tasks (admin)', () => {
     const banner = volunteer.page.getByRole('region', { name: 'Quick Tasks' })
     const taskCard = banner.getByRole('article').filter({ hasText: taskTitle })
     await expect(taskCard).toBeVisible({ timeout: 10_000 })
-    await expect(taskCard.getByRole('status')).toContainText('In Progress')
+    await expect(taskCard.getByRole('status')).toContainText('In progress')
   })
 
   test('Volunteer submits a completed quick task; task status becomes submitted and admin receives a notification', async ({
@@ -249,7 +249,7 @@ test.describe('Quick Tasks (admin)', () => {
       timeout: 10_000,
     })
     const adminTaskCard = adminPage.getByRole('article').filter({ hasText: taskTitle })
-    await expect(adminTaskCard.getByRole('status')).toContainText('under_review', {
+    await expect(adminTaskCard.getByRole('status')).toContainText('Submitted for review', {
       timeout: 10_000,
     })
 
@@ -293,7 +293,7 @@ test.describe('Quick Tasks (admin)', () => {
     await expect(getAlert(adminPage)).toContainText('Task reviewed!', { timeout: 10_000 })
 
     // Task status becomes 'completed'
-    await expect(taskCard.getByRole('status')).toContainText('completed', { timeout: 10_000 })
+    await expect(taskCard.getByRole('status')).toContainText('Done', { timeout: 10_000 })
 
     // Volunteer receives a feedback notification
     await goToDashboardNotifications(baseUrl, volunteer.page)
@@ -344,7 +344,7 @@ test.describe('Quick Tasks (admin)', () => {
     await expect(getAlert(adminPage)).toContainText('Task reviewed!', { timeout: 10_000 })
 
     // Task status becomes 'completed'
-    await expect(taskCard.getByRole('status')).toContainText('completed', { timeout: 10_000 })
+    await expect(taskCard.getByRole('status')).toContainText('Done', { timeout: 10_000 })
 
     // Volunteer receives a feedback notification
     await goToDashboardNotifications(baseUrl, volunteer.page)

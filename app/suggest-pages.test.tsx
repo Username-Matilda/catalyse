@@ -61,7 +61,7 @@ describe('/suggest-team', () => {
     await renderApp(<SuggestTeamPage />, { as: me })
     await screen.findByText('(merged into Existing)')
     expect(screen.getByText('Same thing')).toBeInTheDocument()
-    expect(screen.getByText('Under Review')).toBeInTheDocument()
+    expect(screen.getByText('Under review')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Submit Suggestion' })).toBeDisabled()
     await userEvent.type(screen.getByLabelText('Team Name'), 'Comms')
     await userEvent.type(screen.getByLabelText(/Description/), 'Talking to press')

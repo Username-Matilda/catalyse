@@ -99,7 +99,7 @@ test.describe('Teams', () => {
 
     const item = volunteer.page.getByRole('article').filter({ hasText: teamName })
     await expect(item).toBeVisible({ timeout: 10_000 })
-    await expect(item).toContainText('Pending Review')
+    await expect(item).toContainText('Applied')
   })
 
   test('Admin accepts a suggestion; suggester becomes leader by default', async ({

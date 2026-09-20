@@ -11,6 +11,12 @@ import CommentThread from '@/components/CommentThread'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import VolunteerSelect from '@/components/VolunteerSelect'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import {
+  QUICK_TASK_STATUS_LABELS,
+  QUICK_TASK_STATUS_VARIANTS,
+  TASK_STATUS_LABELS,
+  TASK_STATUS_VARIANTS,
+} from '@/lib/status-labels'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import { formatDate } from '@/lib/format-date'
@@ -51,21 +57,6 @@ interface FeaturedProjectTask {
   createdAt: string
 }
 
-const STATUS_VARIANTS: Record<string, BadgeVariant> = {
-  open: 'warning',
-  in_progress: 'info',
-  under_review: 'caution',
-  completed: 'success',
-}
-
-// Project tasks use TaskStatus (open/in_progress/completed), not QuickTaskStatus —
-// no under_review here, since submitting for review is a quick-task-only concept.
-const PROJECT_TASK_STATUS_VARIANTS: Record<string, BadgeVariant> = {
-  open: 'warning',
-  in_progress: 'info',
-  completed: 'success',
-}
-
 const RATING_CLASSES: Record<string, string> = {
   excellent: 'text-success',
   good: 'text-secondary',
@@ -76,12 +67,6 @@ const RATING_LABELS: Record<string, string> = {
   excellent: 'Excellent',
   good: 'Good',
   needs_improvement: 'Needs improvement',
-}
-
-const STATUS_LABELS: Record<string, string> = {
-  in_progress: 'Assigned',
-  under_review: 'Submitted, awaiting review',
-  completed: 'Completed',
 }
 
 const SKILL_CHIP_CLASSES =
@@ -226,8 +211,8 @@ function VolunteerQuickTasksView({ user }: { user: ApprovedUser }) {
                 title={task.title}
                 titleHref={`/quick-tasks/${task.id}`}
                 status={task.status}
-                statusVariant={task.status === QuickTaskStatus.completed ? 'success' : 'warning'}
-                statusLabel={STATUS_LABELS[task.status] ?? task.status}
+                statusVariant={QUICK_TASK_STATUS_VARIANTS[task.status] ?? 'neutral'}
+                statusLabel={QUICK_TASK_STATUS_LABELS[task.status] ?? task.status}
                 description={task.description}
                 meta={[
                   task.skillName && (
@@ -285,8 +270,8 @@ function VolunteerQuickTasksView({ user }: { user: ApprovedUser }) {
                   title={task.title}
                   titleHref={`/quick-tasks/${task.id}`}
                   status="open"
-                  statusVariant="warning"
-                  statusLabel="Open"
+                  statusVariant={QUICK_TASK_STATUS_VARIANTS.open}
+                  statusLabel={QUICK_TASK_STATUS_LABELS.open}
                   description={task.description}
                   meta={[
                     task.skillName && (
@@ -318,8 +303,8 @@ function VolunteerQuickTasksView({ user }: { user: ApprovedUser }) {
                   title={task.title}
                   titleHref={`/projects/${task.projectId}/tasks/${task.id}`}
                   status="open"
-                  statusVariant="warning"
-                  statusLabel="Open"
+                  statusVariant={TASK_STATUS_VARIANTS.open}
+                  statusLabel={TASK_STATUS_LABELS.open}
                   description={task.description}
                   meta={[
                     task.projectTitle && (
@@ -669,7 +654,8 @@ function AdminQuickTasksView() {
               anchorId={`task-${task.id}`}
               title={task.title}
               status={task.status}
-              statusVariant={STATUS_VARIANTS[task.status] ?? 'neutral'}
+              statusVariant={QUICK_TASK_STATUS_VARIANTS[task.status] ?? 'neutral'}
+              statusLabel={QUICK_TASK_STATUS_LABELS[task.status] ?? task.status}
               description={task.description}
               meta={[
                 task.skillName && (
@@ -789,7 +775,8 @@ function AdminQuickTasksView() {
                 title={task.title}
                 titleHref={`/projects/${task.projectId}/tasks/${task.id}`}
                 status={task.status}
-                statusVariant={PROJECT_TASK_STATUS_VARIANTS[task.status] ?? 'neutral'}
+                statusVariant={TASK_STATUS_VARIANTS[task.status] ?? 'neutral'}
+                statusLabel={TASK_STATUS_LABELS[task.status] ?? task.status}
                 description={task.description}
                 meta={[
                   task.projectTitle && (

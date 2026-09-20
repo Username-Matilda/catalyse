@@ -97,6 +97,7 @@ describe('dashboard', () => {
 
     // Quick task card expands and can be submitted for review.
     expect(screen.queryByText('Done one')).toBeNull()
+    expect(screen.getByText('In progress')).toBeInTheDocument()
     await userEvent.click(screen.getByText('Quick one'))
     await userEvent.click(screen.getByRole('button', { name: 'Mark as Complete' }))
     await screen.findByText('Task submitted for review!')

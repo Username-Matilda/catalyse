@@ -52,8 +52,21 @@ describe('quick tasks — volunteer view', () => {
     await within(myList).findByText('Mine in progress')
     expect(within(myList).getByText('Related: Host project')).toBeInTheDocument()
     expect(within(myList).getByText('~2h')).toBeInTheDocument()
+    // The shared vocabulary, on every screen that shows one of these.
+    const myCard = (title: string) =>
+      within(within(myList).getByText(title).closest('[role=article]')!)
+    expect(myCard('Mine in progress').getByRole('status')).toHaveTextContent('In progress')
+    expect(myCard('Mine done').getByRole('status')).toHaveTextContent('Done')
     const browse = screen.getByText('Browse Quick Tasks').closest('section')!
     await within(browse).findByText('Open quick')
+    expect(
+      within(within(browse).getByText('Open quick').closest('[role=article]')!).getByRole('status'),
+    ).toHaveTextContent('Open')
+    expect(
+      within(within(browse).getByText('Featured task').closest('[role=article]')!).getByRole(
+        'status',
+      ),
+    ).toHaveTextContent('Not started')
     expect(within(browse).getByRole('link', { name: 'Host project' })).toBeInTheDocument()
 
     await userEvent.click(within(myList).getByRole('button', { name: 'Mark as Complete' }))

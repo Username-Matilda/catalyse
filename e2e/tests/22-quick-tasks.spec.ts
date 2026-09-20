@@ -31,7 +31,7 @@ test.describe('Quick Tasks: self-serve', () => {
     // Moves out of the browse pool into "My Quick Tasks" — same title, now with a status
     // badge and no Claim button, proving it's no longer the open/unclaimed browse card.
     const claimedCard = myTasks.getByRole('article').filter({ hasText: taskTitle })
-    await expect(claimedCard.getByRole('status')).toContainText('Assigned', { timeout: 10_000 })
+    await expect(claimedCard.getByRole('status')).toContainText('In progress', { timeout: 10_000 })
     await expect(claimedCard.getByRole('button', { name: 'Claim', exact: true })).not.toBeVisible()
     await expect(browseCard).toHaveCount(0, { timeout: 10_000 })
   })
@@ -168,7 +168,7 @@ test.describe('Quick Tasks: self-serve', () => {
       'href',
       `/projects/${projectId}/tasks/${taskId}`,
     )
-    await expect(card.getByRole('status')).toContainText('open')
+    await expect(card.getByRole('status')).toContainText('Not started')
   })
 
   test('Self-claim does not create a duplicate interest for a volunteer who already has one', async ({
@@ -242,11 +242,11 @@ test.describe('Quick Tasks: self-serve', () => {
     )
     await taskCard.getByRole('button', { name: 'Assign', exact: true }).click()
     await expect(getAlert(adminPage)).toContainText('Task assigned!', { timeout: 10_000 })
-    await expect(taskCard.getByRole('status')).toContainText('in_progress', { timeout: 10_000 })
+    await expect(taskCard.getByRole('status')).toContainText('In progress', { timeout: 10_000 })
 
     await taskCard.getByRole('button', { name: 'Unassign', exact: true }).click()
     await expect(getAlert(adminPage)).toContainText('Assignee removed', { timeout: 10_000 })
-    await expect(taskCard.getByRole('status')).toContainText('open', { timeout: 10_000 })
+    await expect(taskCard.getByRole('status')).toContainText('Open', { timeout: 10_000 })
   })
 })
 

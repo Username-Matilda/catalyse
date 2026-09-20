@@ -63,20 +63,6 @@ const PROJECT_TYPE_LABELS: Record<string, string> = {
   one_off: 'One-off',
 }
 
-export const INTEREST_STATUS_LABELS: Record<string, string> = {
-  pending: 'Pending',
-  accepted: 'Accepted',
-  declined: 'Declined',
-  withdrawn: 'Withdrawn',
-}
-
-export const QUICK_TASK_STATUS_LABELS: Record<string, string> = {
-  open: 'Open',
-  in_progress: 'In Progress',
-  under_review: 'Under Review',
-  completed: 'Completed',
-}
-
 export function projectStatusVariant(status: string): BadgeVariant {
   return PROJECT_STATUS_CONFIG[status]?.variant ?? 'neutral'
 }
