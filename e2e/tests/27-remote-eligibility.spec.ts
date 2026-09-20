@@ -67,4 +67,3 @@ test.describe('Project form & settings: remote eligibility', () => {
     ).toBeChecked({ timeout: 10_000 })
   })
 })
-
