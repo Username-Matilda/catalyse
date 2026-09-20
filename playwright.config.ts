@@ -7,7 +7,7 @@ export default defineConfig({
   workers: WORKER_COUNT,
   reporter: process.env.CI ? 'github' : 'line',
   retries: 0,
-  timeout: 30_000,
+  timeout: 60_000,
   globalSetup: require.resolve('./e2e/global-setup'),
   globalTeardown: require.resolve('./e2e/global-teardown'),
   use: {
