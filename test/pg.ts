@@ -51,7 +51,16 @@ export async function createSchema(schema: string): Promise<void> {
 }
 
 export async function dropSchema(schema: string): Promise<void> {
-  await withClient((client) => client.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`))
+  // A query the test file left in flight can still hold locks in the schema, and Postgres
+  // may pick the drop as the deadlock victim.
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await withClient((client) => client.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`))
+      return
+    } catch (e) {
+      if ((e as { code?: string }).code !== '40P01' || attempt === 5) throw e
+    }
+  }
 }
 
 export async function dropStaleSchemas(): Promise<void> {
@@ -60,6 +69,6 @@ export async function dropStaleSchemas(): Promise<void> {
       `SELECT nspname FROM pg_namespace WHERE nspname LIKE $1`,
       [`${SCHEMA_PREFIX}%`],
     )
-    for (const { nspname } of rows) await client.query(`DROP SCHEMA "${nspname}" CASCADE`)
+    for (const { nspname } of rows) await client.query(`DROP SCHEMA IF EXISTS "${nspname}" CASCADE`)
   })
 }
