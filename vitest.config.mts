@@ -20,13 +20,13 @@ const alias = { '@': fileURLToPath(new URL('.', import.meta.url)) }
 // Playwright owns `e2e/**/*.spec.ts`; vitest only ever collects `*.test.ts(x)`.
 const exclude = ['node_modules/**', 'e2e/**', '.next/**', 'generated/**', 'tmp/**', '.claude/**']
 
-// Every worker holds a jsdom window and clones a Postgres database per test file. A dev
+// Every worker holds a jsdom window and a private copy of the database per test file. A dev
 // machine also runs the browser, editor and Docker, so a worker per core starves the page
-// tests into timeouts; use a quarter of the cores. CI has the machine to itself and takes
-// vitest's default. `VITEST_MAX_WORKERS` overrides either.
+// tests into timeouts; use half the cores. CI has the machine to itself and takes vitest's
+// default. `VITEST_MAX_WORKERS` (settable in .env.local) overrides either.
 const maxWorkers =
   Number(process.env.VITEST_MAX_WORKERS) ||
-  (process.env.CI ? undefined : Math.max(2, Math.floor(availableParallelism() / 4)))
+  (process.env.CI ? undefined : Math.max(1, Math.floor(availableParallelism() / 2)))
 
 // Locally a run prints only failing tests and a summary: a passing run should be one screen,
 // and a test's console output is shown only if it fails. CI keeps the full log and the

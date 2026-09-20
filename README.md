@@ -101,7 +101,7 @@ npm run fetch-prod-db && npm run migrate
 
 Each unit test file gets its own copy of the schema (`vitest_*`), made either by cloning a template database migrated once per run (`TEST_DB_MODE=clone`, needs a role with `CREATEDB`) or by replaying the migrations into a schema (`TEST_DB_MODE=schema`). Cloning is faster only on the `db-test` server, so the default is `clone` when `TEST_DATABASE_URL` is set and `schema` otherwise. E2E workers use the schemas `e2e_<n>`. Both go to `TEST_DATABASE_URL` when set, else `DATABASE_URL`; neither touches `public` of your dev data. `docker compose up -d` also starts `db-test` on port 5433, an in-memory Postgres with durability off that is only safe because it holds nothing but test data. Set `TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5433/catalyse_test` in `.env.local` to use it.
 
-Local runs default to a quarter of the cores for both suites. Tune with `VITEST_MAX_WORKERS` and `WORKER_COUNT` in `.env.local` (CI ignores the defaults and sizes itself).
+Both suites default to half the cores. Tune them with `VITEST_MAX_WORKERS` and `WORKER_COUNT` in `.env.local`, and find a good count for a machine with `npx tsx scripts/tune-workers.ts unit 3 4 5 6`.
 
 ### Adding a migration
 
