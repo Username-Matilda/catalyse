@@ -72,18 +72,17 @@ describe('notifyMatchingVolunteers', () => {
       skills: { create: [a, b].map((s) => ({ skillId: s.id, isRequired: true })) },
     })
     await notifyMatchingVolunteers(global.id)
-    expect(sendDigestEmail).toHaveBeenCalledTimes(1)
-    expect(sendDigestEmail).toHaveBeenCalledWith(expect.objectContaining({ to: optedIn.email }))
+    expect(emails.sent.map((e) => e.to)).toEqual([optedIn.email])
 
     // A project open to nobody outside its country alerts neither, opted in or not.
-    vi.mocked(sendDigestEmail).mockClear()
+    emails.reset()
     const local = await createProject({
       country: 'US',
       remoteEligibility: 'NONE',
       skills: { create: [a, b].map((s) => ({ skillId: s.id, isRequired: true })) },
     })
     await notifyMatchingVolunteers(local.id)
-    expect(sendDigestEmail).not.toHaveBeenCalled()
+    expect(emails.sent).toEqual([])
   })
 
   it('is a no-op with no candidate volunteers, and logs a failed send', async () => {
