@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * Restores the latest prod backup from B2 into the database at DATABASE_URL. The data is raw
- * prod data (PII included; scripts/anonymise-db.ts can scrub it). Refuses to touch the production environment.
+ * Restores the latest prod backup from B2 into the database at DATABASE_URL, then anonymises it
+ * and seeds the dev accounts (scripts/anonymise-db.ts). If the scrub fails the database is
+ * emptied again, so raw prod data never outlives it. Refuses to touch the production environment.
  *
  * Usage:
  *   npx tsx scripts/fetch-prod-db.ts              # reads B2 creds from .env.b2
@@ -15,6 +16,8 @@ import { execFileSync } from 'node:child_process'
 import { Client } from 'pg'
 import { libpqUrl } from '../jobs/backup'
 import { resolveDbUrl } from '../lib/db-url'
+import { anonymise } from './anonymise-db'
+import { seedDevAccounts } from './seed-dev-accounts'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, '..')
@@ -110,12 +113,7 @@ async function b2DownloadFile(
 
 // ── Restore ───────────────────────────────────────────────────────────────────
 
-/**
- * Empties the public schema and restores the dump into it. The dump's own
- * `CREATE SCHEMA public` entry is filtered out of the restore list, since the schema
- * is recreated here first; `pg_restore -l`/`-L` is the documented way to skip entries.
- */
-export async function restoreDump(dumpPath: string, dbUrl: string): Promise<void> {
+async function emptyDatabase(dbUrl: string): Promise<void> {
   const client = new Client({ connectionString: dbUrl })
   await client.connect()
   try {
@@ -124,6 +122,26 @@ export async function restoreDump(dumpPath: string, dbUrl: string): Promise<void
   } finally {
     await client.end()
   }
+}
+
+async function anonymiseDatabase(dbUrl: string): Promise<void> {
+  const client = new Client({ connectionString: dbUrl })
+  await client.connect()
+  try {
+    await anonymise(client)
+    await seedDevAccounts(client)
+  } finally {
+    await client.end()
+  }
+}
+
+/**
+ * Empties the public schema and restores the dump into it. The dump's own
+ * `CREATE SCHEMA public` entry is filtered out of the restore list, since the schema
+ * is recreated here first; `pg_restore -l`/`-L` is the documented way to skip entries.
+ */
+export async function restoreDump(dumpPath: string, dbUrl: string): Promise<void> {
+  await emptyDatabase(dbUrl)
   const listing = execFileSync('pg_restore', ['-l', dumpPath], { encoding: 'utf8' })
   const filtered = listing
     .split('\n')
@@ -192,7 +210,18 @@ async function main(): Promise<void> {
   console.log(`Restoring into ${new URL(dbUrl).pathname.slice(1)}...`)
   await restoreDump(dumpPath, dbUrl)
 
-  console.log('Done. The restored data is not anonymised.')
+  console.log('Anonymising and seeding dev accounts...')
+  try {
+    await anonymiseDatabase(dbUrl)
+  } catch (err) {
+    await emptyDatabase(dbUrl)
+    throw err
+  }
+
+  console.log('Done.')
+  console.log('  volunteer@example.com  / password1')
+  console.log('  admin@example.com      / password1')
+  console.log('  superadmin@example.com / password1')
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
