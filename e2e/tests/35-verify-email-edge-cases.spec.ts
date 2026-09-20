@@ -105,8 +105,10 @@ test.describe('Verify Email page (edge cases)', () => {
       await db.connect()
       try {
         await db.query(`SET search_path TO "${dbUrl.searchParams.get('schema')}"`)
+        // The column has no time zone and pg writes a Date in local time, so the margin
+        // must exceed any UTC offset.
         await db.query('UPDATE email_verification_tokens SET expires_at = $1 WHERE token = $2', [
-          new Date(Date.now() - 60_000),
+          new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
           token!,
         ])
       } finally {

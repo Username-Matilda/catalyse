@@ -78,8 +78,16 @@ describe('admin.admins', () => {
       clientAs(wrongPerson).admin.admins.acceptInvite({ inviteToken: 'nope' }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' })
 
-    const invitee = await createVolunteer({ email: 'New@example.com' })
-    expect(await clientAs(invitee).admin.admins.acceptInvite({ inviteToken: token })).toEqual({
+    // A forwarded link is not enough: the account must have proven the invited address.
+    const invitee = await createVolunteer({ email: 'New@example.com', emailConfirmed: false })
+    await expect(
+      clientAs(invitee).admin.admins.acceptInvite({ inviteToken: token }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN', message: expect.stringContaining('Confirm') })
+    const proven = await prisma.volunteer.update({
+      where: { id: invitee.id },
+      data: { emailConfirmed: true },
+    })
+    expect(await clientAs(proven).admin.admins.acceptInvite({ inviteToken: token })).toEqual({
       message: 'You are now an admin!',
     })
     expect((await prisma.volunteer.findUniqueOrThrow({ where: { id: invitee.id } })).isAdmin).toBe(

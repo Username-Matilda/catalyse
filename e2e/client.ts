@@ -43,7 +43,12 @@ export function createApiClient(
 ): RouterClient<typeof appRouter> {
   const link = new RPCLink({
     url: `${baseUrl}/api/rpc`,
-    headers: () => (token ? { Authorization: `Bearer ${token}` } : {}),
+    // Without keep-alive: a pooled socket the server has just closed as idle fails the
+    // next request with "other side closed".
+    headers: () => ({
+      connection: 'close',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    }),
   })
   const orpcClient = createORPCClient<RouterClient<typeof appRouter>>(link)
   return wrapClient(orpcClient) as RouterClient<typeof appRouter>

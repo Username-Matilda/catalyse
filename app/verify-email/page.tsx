@@ -51,6 +51,19 @@ function VerifyEmailContent() {
     )
   }
 
+  if (verifyMutation.isSuccess && verifyMutation.data.requiresPasswordReset) {
+    return (
+      <div className="bg-surface rounded-xl shadow p-8 text-center">
+        <h1>Email confirmed!</h1>
+        <p className="text-text-light mt-4 mb-6">
+          This address has admin access, so to keep it safe we&#39;ve signed the account out
+          everywhere and cleared its password. Set a new password, or sign in with Google.
+        </p>
+        <Button href="/forgot-password">Set a new password</Button>
+      </div>
+    )
+  }
+
   if (verifyMutation.isSuccess) {
     return (
       <div className="bg-surface rounded-xl shadow p-8 text-center">

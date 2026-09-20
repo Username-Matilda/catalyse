@@ -171,6 +171,12 @@ export const projectsRouter = {
 
       if (input.status) {
         conditions.push(Prisma.sql`status = ${input.status}`)
+        // Asking for an unapproved status by name shows a volunteer their own proposals only.
+        if (!volunteer.isAdmin && UNAPPROVED_STATUSES.includes(input.status)) {
+          conditions.push(
+            Prisma.sql`(creator_id = ${volunteer.id} OR assignee_id = ${volunteer.id})`,
+          )
+        }
       } else {
         conditions.push(
           Prisma.raw(
@@ -835,6 +841,19 @@ export const projectsRouter = {
       const body = input
       const newStatus = body.status
 
+      // Until an admin has triaged it, a proposal's status is the admins' to change; the
+      // proposer's one move, submitting a draft, goes through publishDraft.
+      if (
+        newStatus !== undefined &&
+        newStatus !== project.status &&
+        !volunteer.isAdmin &&
+        UNAPPROVED_STATUSES.includes(project.status)
+      ) {
+        throw new ORPCError('FORBIDDEN', {
+          message: 'This project is awaiting admin review, so its status cannot be changed yet',
+        })
+      }
+
       if (
         newStatus &&
         newStatus === ProjectStatus.in_progress &&
@@ -1041,7 +1060,7 @@ export const projectsRouter = {
         where: {
           id: input.projectId,
           type: WorkItemType.PROJECT,
-          status: { notIn: TERMINAL_STATUSES },
+          status: { notIn: [...TERMINAL_STATUSES, ...UNAPPROVED_STATUSES] },
           // Seeking help is a stored flag; seeking an owner is simply having none.
           OR: [{ isSeekingHelp: true }, { assigneeId: null }],
         },
@@ -1187,7 +1206,13 @@ export const projectsRouter = {
       if (input.status === InterestStatus.accepted && interest.interestType === 'want_to_own') {
         await prisma.workItem.update({
           where: { id: input.projectId },
-          data: { assigneeId: interest.volunteerId, status: ProjectStatus.in_progress },
+          data: {
+            assigneeId: interest.volunteerId,
+            // A new owner starts the work, but never carries a proposal past triage.
+            ...(UNAPPROVED_STATUSES.includes(project.status)
+              ? {}
+              : { status: ProjectStatus.in_progress }),
+          },
         })
       }
 
@@ -1602,10 +1627,14 @@ export const projectsRouter = {
     )
     .handler(async ({ input, context }) => {
       const volunteer = context.volunteer
-      const statuses =
+      const requested =
         input.statuses && input.statuses.length > 0
           ? input.statuses
           : [ProjectStatus.ready, ProjectStatus.in_progress, ProjectStatus.on_hold]
+      // Proposals awaiting triage are the admins' to see across the organisation.
+      const statuses = volunteer.isAdmin
+        ? requested
+        : requested.filter((s) => !UNAPPROVED_STATUSES.includes(s))
 
       const teamMemberships = await prisma.teamMembership.findMany({
         where: { volunteerId: volunteer.id },

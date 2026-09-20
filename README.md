@@ -43,7 +43,8 @@ Catalyse connects volunteers with projects, matching skills to needs and enablin
 - npm
 - A PostgreSQL 18 server. `docker compose up -d` starts one matching CI and production; a
   native install (Homebrew, apt, Postgres.app) works too — set `DATABASE_URL` accordingly.
-  `pg_dump`/`pg_restore` are needed for `fetch-prod-db` and the backup job.
+  `pg_dump`/`pg_restore` are needed for `fetch-prod-db` and the backup job; `local-setup`
+  installs them if missing (`npm run install:pg-tools`: Homebrew on macOS, apt/dnf/pacman/apk on Linux).
 
 ### Installation
 
@@ -51,7 +52,7 @@ Catalyse connects volunteers with projects, matching skills to needs and enablin
 npm run local-setup
 ```
 
-This installs dependencies and Playwright browsers, restores a copy of production into your database, and runs migrations. Postgres must be running first.
+This installs dependencies, Playwright browsers and the Postgres client tools, restores a copy of production into your database (anonymised), and runs migrations. Postgres must be running first.
 
 ### Environment
 
@@ -96,7 +97,7 @@ The local dev database is a copy of prod, restored into whatever `DATABASE_URL` 
 npm run fetch-prod-db && npm run migrate
 ```
 
-`fetch-prod-db` downloads the latest prod `pg_dump` from B2, **drops and recreates the `public` schema** of the target database, and restores into it. The restored data is raw prod data (PII included). `anonymise-db` is a separate, currently unused script that scrubs PII and seeds the dev accounts. Both scripts refuse to run when `RAILWAY_ENVIRONMENT_NAME=production`, and `fetch-prod-db` refuses in any Railway environment unless `ALLOW_DB_RESTORE=1` is set (set it only on the preview base environment). `migrate` runs `prisma migrate deploy`, which applies any unapplied migration files in order without drift-checking.
+`fetch-prod-db` downloads the latest prod `pg_dump` from B2, **drops and recreates the `public` schema** of the target database, and restores into it. It then runs the same scrub as `anonymise-db` (PII replaced, dev accounts seeded) and empties the database again if that fails, so raw prod data is never left behind. Every account gets the same known password, so an anonymised copy must not sit behind a public URL. `anonymise-db` alone re-scrubs a database that is already restored. `scripts/anonymise-columns.ts` records how each text column is treated, and a test fails when a new column is missing from it. Both scripts refuse to run when `RAILWAY_ENVIRONMENT_NAME=production`, and `fetch-prod-db` refuses in any Railway environment unless `ALLOW_DB_RESTORE=1` is set (set it only on the preview base environment). `migrate` runs `prisma migrate deploy`, which applies any unapplied migration files in order without drift-checking.
 
 Unit tests create a throwaway schema per test file (`vitest_*`) in the same database, and e2e workers use `e2e_<n>`; neither touches `public`.
 
@@ -152,7 +153,7 @@ Actions are pinned to commit SHAs with the version in a trailing comment; bump b
 
 | Script             | Description                                                                                                                                     |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `local-setup`      | One-time local setup: install deps, browsers, fetch prod DB, run migrations                                                                     |
+| `local-setup`      | One-time local setup: install deps, browsers, Postgres client tools, fetch prod DB (anonymised), run migrations                                 |
 | `issue <number>`   | Launch a sandboxed Claude session to work on a GitHub issue (creates branch, fetches issue, restricts CLI access). Usage: `npm run issue -- 84` |
 | `check-all`        | Run typecheck, lint, format check, and tests — use before committing                                                                            |
 | `dev`              | Start local dev server with Turbopack                                                                                                           |
@@ -167,7 +168,7 @@ Actions are pinned to commit SHAs with the version in a trailing comment; bump b
 | `build:railway`    | Production build entrypoint used by Railway CI                                                                                                  |
 | `new-migration`    | Create a new migration SQL file from schema diff                                                                                                |
 | `migrate`          | Apply pending migration files to the local database                                                                                             |
-| `fetch-prod-db`    | Restore latest prod backup into DATABASE_URL (raw, not anonymised)                                                                              |
+| `fetch-prod-db`    | Restore latest prod backup into DATABASE_URL, anonymised, with dev accounts seeded                                                              |
 | `anonymise-db`     | Anonymise PII in DATABASE_URL and seed dev accounts                                                                                             |
 | `install:browsers` | Install Playwright's Chromium browser                                                                                                           |
 | `test:unit`        | Run unit tests with vitest                                                                                                                      |
@@ -194,6 +195,10 @@ catalyse/
 ├── scripts/                # Build and utility scripts
 └── e2e/                    # Playwright end-to-end tests
 ```
+
+`AGENTS.md` holds the working notes for coding agents and contributors, and
+`SELF-IMPROVE.md` is the backlog of things about the repo itself that made work
+harder than it needed to be, sorted by how often each has bitten.
 
 ## License
 

@@ -17,6 +17,9 @@ const schema = `${SCHEMA_PREFIX}${process.pid}_${Math.random().toString(36).slic
 await createSchema(schema)
 process.env.DATABASE_URL = urlWithSchema(schema)
 afterAll(async () => {
+  // Lets in-flight queries finish and closes the pool, so the drop is not fighting them.
+  const { prisma } = await import('@/lib/prisma')
+  await prisma.$disconnect()
   await dropSchema(schema)
 })
 // Routers return verification and invite tokens in their responses when email is stubbed.

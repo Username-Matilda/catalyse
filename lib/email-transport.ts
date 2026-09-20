@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { Resend } from 'resend'
 import { env } from './env'
 
@@ -70,7 +71,9 @@ export class FileStubTransport extends EmailTransport {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '')
       .slice(0, 60)
-    const file = `${FileStubTransport.DIR}/${timestamp}_${slug}.html`
+    // A fan-out sends several same-subject emails within one millisecond, so the timestamp
+    // alone would name the same file for each of them.
+    const file = `${FileStubTransport.DIR}/${timestamp}_${slug}_${randomUUID().slice(0, 8)}.html`
     await fs.mkdir(FileStubTransport.DIR, { recursive: true })
     await fs.writeFile(file, html)
     console.log(`[EMAIL STUB] To: ${to} | Subject: ${subject}\n[EMAIL STUB] Preview: ${file}`)

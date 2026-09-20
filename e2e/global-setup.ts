@@ -139,6 +139,17 @@ async function setupAdminAuth(parallelIndex: number): Promise<void> {
         `Admin signup failed for worker ${parallelIndex}: ${JSON.stringify(result.body)}`,
       )
     }
+    // Admin is granted once the listed address is confirmed; confirming while signed in
+    // keeps the password the login below uses.
+    const { token, emailVerificationToken } = result.body
+    const verified = await createApiClient(baseUrl, token).auth.verifyEmail({
+      body: { token: emailVerificationToken },
+    })
+    if (verified.status !== 200) {
+      throw new Error(
+        `Admin email confirmation failed for worker ${parallelIndex}: ${JSON.stringify(verified.body)}`,
+      )
+    }
   }
 
   const browser = await chromium.launch()

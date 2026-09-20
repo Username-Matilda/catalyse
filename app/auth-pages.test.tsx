@@ -30,6 +30,14 @@ describe('login', () => {
     expect(await prisma.session.count({ where: { volunteerId: vol.id } })).toBe(1)
   })
 
+  it('posts even without JavaScript, so a password never lands in the URL', async () => {
+    await renderApp(<LoginPage />, { url: '/login' })
+    expect((await screen.findByLabelText('Password')).closest('form')).toHaveAttribute(
+      'method',
+      'post',
+    )
+  })
+
   it('bounces an already signed-in visitor to the dashboard', async () => {
     const vol = await createVolunteer()
     await renderApp(<LoginPage />, { as: vol })
@@ -93,6 +101,22 @@ describe('forgot / reset password', () => {
 })
 
 describe('verify email', () => {
+  it('sends the owner of an admin address to set a new password', async () => {
+    const vol = await createVolunteer({ email: 'admin16@example.com', emailConfirmed: false })
+    await prisma.emailVerificationToken.create({
+      data: {
+        volunteerId: vol.id,
+        token: 'verify-admin',
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+    })
+    await renderApp(<VerifyEmailPage />, { url: '/verify-email?token=verify-admin' })
+    expect(await screen.findByRole('link', { name: 'Set a new password' })).toHaveAttribute(
+      'href',
+      '/forgot-password',
+    )
+  })
+
   it('confirms a valid token, explains a used one, and can resend a link', async () => {
     const vol = await createVolunteer({ emailConfirmed: false })
     const token = (

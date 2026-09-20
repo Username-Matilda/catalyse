@@ -42,36 +42,35 @@ describe('useUrlParam', () => {
 })
 
 describe('useUrlSearchInput', () => {
-  it('debounces typing into the URL, and clears the key when emptied', async () => {
+  it('writes the URL on every keystroke and debounces the committed value', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
     try {
       window.history.replaceState(null, '', '/volunteers')
       render(<SearchProbe />)
       fireEvent.change(screen.getByRole('textbox'), { target: { value: 'ann' } })
+      expect(window.location.search).toBe('?q=ann')
       expect(screen.getByTestId('url')).toHaveTextContent('')
       act(() => vi.advanceTimersByTime(60))
-      expect(window.location.search).toBe('?q=ann')
       expect(screen.getByTestId('url')).toHaveTextContent('ann')
       fireEvent.change(screen.getByRole('textbox'), { target: { value: '' } })
-      act(() => vi.advanceTimersByTime(60))
       expect(window.location.search).toBe('')
+      act(() => vi.advanceTimersByTime(60))
+      expect(screen.getByTestId('url')).toHaveTextContent('')
     } finally {
       vi.useRealTimers()
     }
   })
 
-  it('does not write once the page has navigated away', async () => {
+  it('follows the URL when history moves it', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
     try {
-      window.history.replaceState(null, '', '/volunteers')
+      window.history.replaceState(null, '', '/volunteers?q=ann')
       render(<SearchProbe />)
-      fireEvent.change(screen.getByRole('textbox'), { target: { value: 'x' } })
-      // Simulate a route change that commits before the debounce fires, without the
-      // hook re-rendering (its pathname is still /volunteers): bypass the patched
-      // replaceState so no subscriber is notified.
-      History.prototype.replaceState.call(window.history, null, '', '/projects/3')
+      expect(screen.getByRole('textbox')).toHaveValue('ann')
+      expect(screen.getByTestId('url')).toHaveTextContent('ann')
+      act(() => window.history.replaceState(null, '', '/volunteers?q=bob'))
       act(() => vi.advanceTimersByTime(60))
-      expect(window.location.search).toBe('')
+      expect(screen.getByTestId('url')).toHaveTextContent('bob')
     } finally {
       vi.useRealTimers()
     }

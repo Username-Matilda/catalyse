@@ -16,7 +16,8 @@ import { IS_LOCAL } from '../config'
 
 const STUB_EMAIL_DIR = '/tmp/catalyse-emails'
 
-function countStubEmails(sinceMs: number, contentIncludes: string): number {
+// Every fragment must appear in the email body for it to count.
+function countStubEmails(sinceMs: number, contentIncludes: string[]): number {
   if (!fs.existsSync(STUB_EMAIL_DIR)) return 0
   let count = 0
   for (const file of fs.readdirSync(STUB_EMAIL_DIR)) {
@@ -28,9 +29,15 @@ function countStubEmails(sinceMs: number, contentIncludes: string): number {
       continue // file removed by a concurrent worker between readdir and stat
     }
     if (mtimeMs < sinceMs) continue
-    if (fs.readFileSync(full, 'utf-8').includes(contentIncludes)) count++
+    const html = fs.readFileSync(full, 'utf-8')
+    if (contentIncludes.every((fragment) => html.includes(fragment))) count++
   }
   return count
+}
+
+// The greeting line as it is rendered in the email body (names such as O'Brien are escaped).
+function greeting(name: string): string {
+  return `Hi ${name.replace(/&/g, '&amp;').replace(/'/g, '&#39;')},`
 }
 
 // Polls until at least one matching stub email appears (or the timeout elapses), then
@@ -38,7 +45,7 @@ function countStubEmails(sinceMs: number, contentIncludes: string): number {
 // recipients' sends together, so once the first lands the rest have had their chance too.
 async function waitForStubEmailCount(
   sinceMs: number,
-  contentIncludes: string,
+  contentIncludes: string[],
   timeoutMs: number,
 ): Promise<number> {
   const deadline = Date.now() + timeoutMs
@@ -208,17 +215,18 @@ test.describe('Match alerts respect remote eligibility & country opt-in', () => 
 
     const skillIds = await getSeededSkillIds(baseUrl)
     // Two UK volunteers matching on skills; only one has opted in to cross-country alerts.
-    await createMatchingVolunteer(baseUrl, 'UK', true, skillIds)
-    await createMatchingVolunteer(baseUrl, 'UK', false, skillIds)
+    const optedIn = await createMatchingVolunteer(baseUrl, 'UK', true, skillIds)
+    const optedOut = await createMatchingVolunteer(baseUrl, 'UK', false, skillIds)
 
     const sinceMs = Date.now()
     const title = fake.projectTitle()
     await adminCreateRemoteProject(baseUrl, title, 'GLOBAL', skillIds)
 
-    // Exactly one email for this title: the opted-in volunteer. If the opted-out
-    // volunteer had also been notified, this would be 2.
-    const count = await waitForStubEmailCount(sinceMs, title, 15_000)
+    // Counted per recipient: other tests sharing this worker's database leave opted-in
+    // volunteers of their own behind, who are alerted about this project too.
+    const count = await waitForStubEmailCount(sinceMs, [title, greeting(optedIn.name)], 15_000)
     expect(count).toBe(1)
+    expect(countStubEmails(sinceMs, [title, greeting(optedOut.name)])).toBe(0)
   })
 
   test('NONE-eligibility project does not alert an out-of-country volunteer even if opted in', async ({
@@ -233,7 +241,7 @@ test.describe('Match alerts respect remote eligibility & country opt-in', () => 
     const title = fake.projectTitle()
     await adminCreateRemoteProject(baseUrl, title, 'NONE', skillIds)
 
-    const count = await waitForStubEmailCount(sinceMs, title, 5_000)
+    const count = await waitForStubEmailCount(sinceMs, [title], 5_000)
     expect(count).toBe(0)
   })
 })

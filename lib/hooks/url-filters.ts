@@ -38,14 +38,17 @@ export function useUrlParam(key: string): [string, (value: string) => void] {
 }
 
 /**
- * Manages a text search input with a debounced URL write.
+ * Manages a text search input whose value lives in the URL.
  *
- * Returns [inputValue, setInputValue, urlValue] where:
+ * Returns [inputValue, setInputValue, committedValue] where:
  * - inputValue / setInputValue drive the <input> element directly
- * - urlValue is the committed (debounced) value to pass to API queries
+ * - committedValue is the debounced value to pass to API queries
  *
- * The effect is skipped when inputValue already matches the URL to prevent
- * a spurious router.replace on mount that would race auth redirects.
+ * The URL is written on every keystroke, not on a timer. Next patches history.replaceState
+ * to dispatch a router restore, and a restore dispatched while a navigation is pending
+ * discards that navigation (dispatchAction in next/dist/client/components/app-router-instance).
+ * A debounced write could fire just after the user clicked a result and cancel the click;
+ * a write made in the input's own event handler is always ordered before that click.
  */
 export function useUrlSearchInput(
   key: string,
@@ -54,28 +57,27 @@ export function useUrlSearchInput(
   const searchParams = useSearchParams()
   const pathname = usePathname()
   const urlValue = searchParams.get(key) ?? ''
-  const [input, setInput] = useState(urlValue)
+  const [input, setInputState] = useState(urlValue)
+  const [committed, setCommitted] = useState(urlValue)
 
-  useEffect(() => {
-    if (input === urlValue) return
-    const t = setTimeout(() => {
-      // Clicking a result navigates away; the timer is cleared on unmount, but the new
-      // route can commit before that cleanup runs. Writing a bare `?q=...` at that point
-      // resolves against whatever page is showing now and stamps the search onto it
-      // (/projects/39?q=...), so bail out once we've left the page this input belongs to.
-      if (window.location.pathname !== pathname) return
-      const params = new URLSearchParams(searchParams.toString())
-      if (input) params.set(key, input)
+  const setInput = useCallback(
+    (value: string) => {
+      setInputState(value)
+      const params = new URLSearchParams(window.location.search)
+      if (value) params.set(key, value)
       else params.delete(key)
-      // Use the History API directly instead of router.replace(). Next.js patches
-      // history.replaceState to sync usePathname/useSearchParams without going through
-      // the router's navigation queue — router.replace() here would otherwise race a
-      // pending router.push() from clicking a result (e.g. a search result link clicked
-      // just as the debounce fires) and silently cancel that navigation.
-      window.history.replaceState(null, '', `${pathname}?${params.toString()}`)
-    }, delayMs)
-    return () => clearTimeout(t)
-  }, [input, searchParams, pathname]) // eslint-disable-line react-hooks/exhaustive-deps
+      const qs = params.toString()
+      window.history.replaceState(null, '', qs ? `${pathname}?${qs}` : pathname)
+    },
+    [key, pathname],
+  )
 
-  return [input, setInput, urlValue]
+  // Debounces the query, and follows the URL when back/forward changes it.
+  useEffect(() => {
+    if (urlValue === committed) return
+    const t = setTimeout(() => setCommitted(urlValue), delayMs)
+    return () => clearTimeout(t)
+  }, [urlValue, committed, delayMs])
+
+  return [input, setInput, committed]
 }

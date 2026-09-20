@@ -43,12 +43,11 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [token, setTokenState] = useState<string | null>(() =>
-    typeof window !== 'undefined' ? localStorage.getItem('authToken') : null,
-  )
-  const [loading, setLoading] = useState(
-    () => typeof window !== 'undefined' && !!localStorage.getItem('authToken'),
-  )
+  // The stored token is only read after mount, so the first client render matches the
+  // server's: nobody signed in, still loading. Reading localStorage during render would
+  // make the two disagree whenever a token exists.
+  const [token, setTokenState] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
   const router = useRouter()
 
   const fetchMe = useCallback(async (): Promise<User | null> => {
@@ -66,14 +65,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
-    if (!token) return
-    // False positive: rule traces call graph without modelling async boundaries.
-    // setState inside fetchMe only runs after await, never synchronously in the effect.
+    const stored = localStorage.getItem('authToken')
     // eslint-disable-next-line react-hooks/set-state-in-effect
+    setTokenState(stored)
+    if (!stored) {
+      setLoading(false)
+      return
+    }
     fetchMe().finally(() => setLoading(false))
-    // Intentionally omit `token` from deps: only fetch on mount. setToken() already
-    // calls fetchMe() explicitly, so including token here would double-fetch on login.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchMe])
 
   useEffect(() => {

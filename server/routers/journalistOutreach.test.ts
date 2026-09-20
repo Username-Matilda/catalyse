@@ -137,6 +137,10 @@ describe('journalistOutreach sign-in', () => {
     await expect(clientAs(noEmail).journalistOutreach.catalyseSignIn()).rejects.toMatchObject({
       code: 'BAD_REQUEST',
     })
+    const unconfirmed = await createVolunteer({ emailConfirmed: false })
+    await expect(clientAs(unconfirmed).journalistOutreach.catalyseSignIn()).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    })
   })
 
   it('rate limits link requests and verification', async () => {
@@ -270,23 +274,53 @@ describe('journalistOutreach claiming', () => {
       sentLeaning: 'REPUBLICAN',
     })
 
+    // The claim lapses and the effort is paused before the volunteer reports back.
     await api.claimNext()
-    await api.release({ journalistId: j2.id })
+    await prisma.experimentalJournalist.update({
+      where: { id: j2.id },
+      data: { claimedAt: new Date(0) },
+    })
+    await prisma.experimentalOutreachSettings.upsert({
+      where: { id: 1 },
+      create: { id: 1, paused: true },
+      update: { paused: true },
+    })
     expect(await api.markSent({ journalistId: j2.id, sentLeaning: 'DEMOCRAT' })).toEqual({
       contactedCount: 2,
     })
+    await prisma.experimentalOutreachSettings.update({ where: { id: 1 }, data: { paused: false } })
     expect(await api.current()).toMatchObject({ contactedCount: 2, availableCount: 0 })
   })
 
-  it('refuses to mark sent a journalist someone else holds or already contacted', async () => {
+  it('refuses to mark sent a journalist the caller was never handed', async () => {
+    const unclaimed = await createJournalist()
     const j = await createJournalist()
     const a = await signIn()
     const b = await signIn()
+    const conflict = { code: 'CONFLICT' }
+    await expect(
+      b.api.markSent({ journalistId: unclaimed.id, sentLeaning: 'DEMOCRAT' }),
+    ).rejects.toMatchObject(conflict)
+    await prisma.experimentalJournalist.update({
+      where: { id: unclaimed.id },
+      data: { contactedAt: new Date() },
+    })
+
     await a.api.claimNext()
     await expect(
       b.api.markSent({ journalistId: j.id, sentLeaning: 'DEMOCRAT' }),
-    ).rejects.toMatchObject({
-      code: 'CONFLICT',
+    ).rejects.toMatchObject(conflict)
+    // Someone else's lapsed claim is still not the caller's.
+    await prisma.experimentalJournalist.update({
+      where: { id: j.id },
+      data: { claimedAt: new Date(0) },
+    })
+    await expect(
+      b.api.markSent({ journalistId: j.id, sentLeaning: 'DEMOCRAT' }),
+    ).rejects.toMatchObject(conflict)
+    await prisma.experimentalJournalist.update({
+      where: { id: j.id },
+      data: { claimedAt: new Date() },
     })
     await a.api.markSent({ journalistId: j.id, sentLeaning: 'DEMOCRAT' })
     await expect(
@@ -329,11 +363,23 @@ describe('journalistOutreach claiming', () => {
       skipCount: 0,
     })
     await a.api.release({ journalistId: j.id })
+    // Releasing twice counts one skip; the last holder stays on record.
+    await a.api.release({ journalistId: j.id })
     expect(
       await prisma.experimentalJournalist.findUniqueOrThrow({ where: { id: j.id } }),
     ).toMatchObject({
-      claimedById: null,
+      claimedById: a.participant.id,
+      claimedAt: null,
       skipCount: 1,
+    })
+    expect(await b.api.current()).toMatchObject({ availableCount: 1 })
+
+    // The page releases a timed-out claim before asking whether the email went out.
+    await expect(
+      b.api.markSent({ journalistId: j.id, sentLeaning: 'DEMOCRAT' }),
+    ).rejects.toMatchObject({ code: 'CONFLICT' })
+    expect(await a.api.markSent({ journalistId: j.id, sentLeaning: 'DEMOCRAT' })).toEqual({
+      contactedCount: 1,
     })
   })
 })

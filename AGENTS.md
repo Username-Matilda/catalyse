@@ -70,3 +70,20 @@ Every unit test file gets `emails`, a `MemoryEmailTransport` from `test/fakes/em
 - **Transport code itself** (`lib/email-transport.ts`) is tested by constructing each transport directly; `ResendTransport` takes a fake client as its second argument.
 
 The same shape serves the other seams: `google.accept(credential, account)` (`test/fakes/google.ts`) makes a Google credential verify; `rateLimit.denyNext(retryAfterMs)` (`test/fakes/rate-limit.ts`) refuses the next rate-limited request; `cronJobs.returns(name, value)` / `cronJobs.fails(name, message)` (`test/fakes/cron-jobs.ts`) decide what a scheduled job does when a route or admin action runs it.
+
+## Self improvement
+
+After a medium to large task, review whether anything systemic made it hard or
+slow: code structure, missing tools, infrastructure, documentation, errors and
+diagnostics, a command too noisy for the context window, or information the user
+could have given up front. Record what you find in `SELF-IMPROVE.md`, following
+the rules at the top of that file. It has to have caused substantial confusion or
+extra turns, and it has to look likely to recur on other tasks. Where the list
+already holds the problem, increase its count (`1x` → `2x`) and reorder the list
+so the largest number comes first.
+
+`SELF-IMPROVE.md` always travels with the commit. Whatever it says when you
+commit goes in with it, including edits you never made and edits about something
+else entirely. It is the human's working notes as much as yours, so leaving a
+change of theirs behind strands it there until whatever you commit next. Never
+split it into a commit of its own, and never leave it out for being unrelated.

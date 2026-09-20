@@ -5,7 +5,7 @@ import { resolveDbUrl } from '../lib/db-url'
 
 /**
  * Runs at container start, before migrations. Preview environments (Railway PR deploys) get
- * a copy of production so reviewers see realistic data. Only an empty database
+ * an anonymised copy of production so reviewers see realistic data. Only an empty database
  * is seeded: the container also restarts on failure and on every push to the PR, and
  * reviewers' changes should survive those. SEED_PREVIEW_FORCE=1 reseeds regardless.
  * Production, environments without B2 credentials, and environments without ALLOW_DB_RESTORE=1

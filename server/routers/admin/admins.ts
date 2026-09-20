@@ -6,7 +6,7 @@ import { sendAdminInviteEmail } from '@/lib/email'
 import { InviteAdminSchema } from '@/lib/schemas'
 import { adminProcedure, authedProcedure, superAdminProcedure } from '../../procedures'
 import { env } from '@/lib/env'
-import { InviteStatus } from '@/generated/prisma/enums'
+import { ApprovalStatus, InviteStatus } from '@/generated/prisma/enums'
 
 export const adminAdminsRouter = {
   list: adminProcedure.handler(async () => {
@@ -165,9 +165,18 @@ export const adminAdminsRouter = {
           message: 'This invite is for a different email address',
         })
       }
+      // The token travels by email and can be forwarded; only a proven address redeems it.
+      if (!volunteer.emailConfirmed) {
+        throw new ORPCError('FORBIDDEN', {
+          message: 'Confirm your email address before accepting this invite',
+        })
+      }
 
       await prisma.$transaction([
-        prisma.volunteer.update({ where: { id: volunteer.id }, data: { isAdmin: true } }),
+        prisma.volunteer.update({
+          where: { id: volunteer.id },
+          data: { isAdmin: true, approvalStatus: ApprovalStatus.approved },
+        }),
         prisma.adminInvite.update({
           where: { id: invite.id },
           data: {

@@ -10,8 +10,9 @@ import {
   deleteSession,
   deleteAllSessions,
   deleteOtherSessions,
-  checkAdminBootstrap,
-  acceptPendingInvite,
+  promoteIfEntitled,
+  isEntitledToAdmin,
+  revokeCredentials,
   redactVolunteer,
 } from '@/lib/auth'
 import {
@@ -32,6 +33,7 @@ import {
   ChangePasswordSchema,
   ChangeEmailSchema,
   ResetPasswordSchema,
+  sanitisePersonName,
 } from '@/lib/schemas'
 import { publicProcedure, authedProcedure } from '../procedures'
 import { env } from '@/lib/env'
@@ -189,6 +191,33 @@ async function sendAccountDeletionNotifications(deletedId: number, deletedName: 
   }
 }
 
+const EMAIL_CHANGES_PER_DAY = 3
+const DAY_MS = 24 * 60 * 60 * 1000
+
+// Each change mails a confirmation link to an address nobody has proven, carrying the
+// account's name, so it is rationed per account: an IP limit resets with every deploy and
+// does nothing against one account used from many places. Conditional updates, so
+// concurrent requests cannot both take the last slot.
+async function claimEmailChange(volunteerId: number): Promise<boolean> {
+  const now = new Date()
+  const newWindow = await prisma.volunteer.updateMany({
+    where: {
+      id: volunteerId,
+      OR: [
+        { emailChangeWindowStart: null },
+        { emailChangeWindowStart: { lt: new Date(now.getTime() - DAY_MS) } },
+      ],
+    },
+    data: { emailChangeCount: 1, emailChangeWindowStart: now },
+  })
+  if (newWindow.count === 1) return true
+  const sameWindow = await prisma.volunteer.updateMany({
+    where: { id: volunteerId, emailChangeCount: { lt: EMAIL_CHANGES_PER_DAY } },
+    data: { emailChangeCount: { increment: 1 } },
+  })
+  return sameWindow.count === 1
+}
+
 export const authRouter = {
   login: publicProcedure
     .input(z.object({ email: z.string(), password: z.string() }))
@@ -215,9 +244,7 @@ export const authRouter = {
         throw new ORPCError('UNAUTHORIZED', { message: 'Invalid email or password' })
       }
 
-      let wasPromoted = await checkAdminBootstrap(email, volunteer.id)
-      const inviteAccepted = await acceptPendingInvite(email, volunteer.id)
-      if (inviteAccepted) wasPromoted = true
+      const wasPromoted = await promoteIfEntitled(volunteer)
 
       const token = await createSession(volunteer.id)
 
@@ -300,40 +327,35 @@ export const authRouter = {
       })
     }
 
-    const wasBootstrapped = await checkAdminBootstrap(email, volunteer.id).catch(() => false)
-    const wasInvited = await acceptPendingInvite(email, volunteer.id).catch(() => false)
     const platformSettings = await prisma.platformSettings
       .upsert({ where: { id: 1 }, create: { id: 1, requireApplicationApproval: true }, update: {} })
       .catch(() => ({ requireApplicationApproval: true }))
 
-    let emailVerificationToken: string | undefined
-    if (wasBootstrapped || wasInvited) {
-      sendWelcomeEmail({ to: email, name: input.name }).catch((e) => console.error('[SIGNUP]', e))
-    } else {
-      const vt = await prisma.emailVerificationToken.create({
-        data: {
-          volunteerId: volunteer.id,
-          token: randomBytes(32).toString('hex'),
-          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        },
+    // The address is unproven until the link is clicked, so any admin bootstrap or
+    // invite for it is granted by verifyEmail, not here.
+    const vt = await prisma.emailVerificationToken.create({
+      data: {
+        volunteerId: volunteer.id,
+        token: randomBytes(32).toString('hex'),
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      },
+    })
+    const emailVerificationToken = vt.token
+    if (!platformSettings.requireApplicationApproval) {
+      await prisma.volunteer.update({
+        where: { id: volunteer.id },
+        data: { approvalStatus: ApprovalStatus.approved },
       })
-      emailVerificationToken = vt.token
-      if (!platformSettings.requireApplicationApproval) {
-        await prisma.volunteer.update({
-          where: { id: volunteer.id },
-          data: { approvalStatus: ApprovalStatus.approved },
-        })
-      }
-      sendWelcomeAndConfirmEmail({ to: email, token: vt.token, name: input.name }).catch((e) =>
-        console.error('[SIGNUP]', e),
-      )
     }
+    sendWelcomeAndConfirmEmail({ to: email, token: vt.token, name: input.name }).catch((e) =>
+      console.error('[SIGNUP]', e),
+    )
 
-    const isApproved = wasBootstrapped || wasInvited || !platformSettings.requireApplicationApproval
+    const isApproved = !platformSettings.requireApplicationApproval
     if (!isApproved) {
       notifyAdmins(
         'new_volunteer_signup',
-        `New volunteer application: ${volunteer.name}`,
+        'New volunteer application',
         `${volunteer.name} has applied to join Catalyse`,
         `/admin/applications/${volunteer.id}`,
         {
@@ -351,7 +373,7 @@ export const authRouter = {
       id: volunteer.id,
       token,
       pending: !isApproved,
-      ...(env.STUB_EMAIL && emailVerificationToken ? { emailVerificationToken } : {}),
+      ...(env.STUB_EMAIL ? { emailVerificationToken } : {}),
     }
   }),
 
@@ -433,6 +455,15 @@ export const authRouter = {
     }),
 
   changeEmail: authedProcedure.input(ChangeEmailSchema).handler(async ({ input, context }) => {
+    // The password check below is a guessing oracle for anyone holding a stolen session.
+    const { allowed, retryAfterMs } = checkRateLimit(context.request, 'change-email', {
+      limit: 10,
+      windowMs: 15 * 60 * 1000,
+    })
+    if (!allowed)
+      throw new ORPCError('TOO_MANY_REQUESTS', {
+        message: `Rate limited. Retry after ${retryAfterMs}ms`,
+      })
     const vol = await prisma.volunteer.findUnique({
       where: { id: context.volunteer.id },
       select: { passwordHash: true },
@@ -452,6 +483,11 @@ export const authRouter = {
       throw new ORPCError('BAD_REQUEST', {
         message: 'This email is already registered to another account',
       })
+    if (!(await claimEmailChange(context.volunteer.id))) {
+      throw new ORPCError('TOO_MANY_REQUESTS', {
+        message: `You can change your email ${EMAIL_CHANGES_PER_DAY} times a day. Try again tomorrow.`,
+      })
+    }
     // The new address is unproven: drop confirmed status and send a fresh confirmation
     // link there, otherwise a verified account could point itself at any address.
     await prisma.emailVerificationToken.updateMany({
@@ -561,7 +597,7 @@ export const authRouter = {
 
   verifyEmail: publicProcedure
     .input(z.object({ token: z.string().min(1) }))
-    .handler(async ({ input }) => {
+    .handler(async ({ input, context }) => {
       const record = await prisma.emailVerificationToken.findUnique({
         where: { token: input.token },
         include: {
@@ -585,17 +621,40 @@ export const authRouter = {
       if (record.expiresAt < new Date())
         throw new ORPCError('BAD_REQUEST', { message: 'This confirmation link has expired' })
 
+      // Claim the token and confirm in one transaction, and only if the token is still
+      // unused: changeEmail voids tokens before switching the address, so a link
+      // verified concurrently with an address change never confirms the new address.
       const { volunteer } = record
-      await prisma.$transaction([
-        prisma.emailVerificationToken.update({
-          where: { id: record.id },
+      const confirmed = await prisma.$transaction(async (tx) => {
+        const claimed = await tx.emailVerificationToken.updateMany({
+          where: { id: record.id, usedAt: null },
           data: { usedAt: new Date() },
-        }),
-        prisma.volunteer.update({ where: { id: volunteer.id }, data: { emailConfirmed: true } }),
-      ])
+        })
+        if (claimed.count === 0) return null
+        return tx.volunteer.update({
+          where: { id: volunteer.id },
+          data: { emailConfirmed: true },
+          select: { id: true, email: true, emailConfirmed: true },
+        })
+      })
+      if (!confirmed)
+        throw new ORPCError('BAD_REQUEST', {
+          message: 'This confirmation link has already been used',
+        })
+      // A click made while signed in to the account comes from whoever set it up. Any
+      // other click proves the mailbox only, so it must not hand admin to a password
+      // or session somebody else created.
+      const requiresPasswordReset =
+        context.volunteer?.id !== confirmed.id && (await isEntitledToAdmin(confirmed))
+      if (requiresPasswordReset) await revokeCredentials(confirmed.id)
+      const wasPromoted = await promoteIfEntitled(confirmed)
 
       if (!volunteer.emailConfirmed && volunteer.email) {
-        if (volunteer.approvalStatus === ApprovalStatus.approved) {
+        if (wasPromoted) {
+          sendWelcomeEmail({ to: volunteer.email, name: volunteer.name }).catch((e) =>
+            console.error('[VERIFY_EMAIL]', e),
+          )
+        } else if (volunteer.approvalStatus === ApprovalStatus.approved) {
           const settings = await prisma.platformSettings
             .upsert({
               where: { id: 1 },
@@ -618,7 +677,7 @@ export const authRouter = {
           )
         }
       }
-      return { success: true }
+      return { success: true, requiresPasswordReset }
     }),
 
   resendVerification: publicProcedure
@@ -741,11 +800,19 @@ export const authRouter = {
         ;({ email, name } = googleUser)
       }
 
-      const existing = await prisma.volunteer.findFirst({ where: { email, deletedAt: null } })
-      if (existing) {
+      const found = await prisma.volunteer.findFirst({ where: { email, deletedAt: null } })
+      if (found) {
+        // Google vouches for the address, which may have been unconfirmed since a
+        // password signup. That signup need not have been this person's.
+        if (!found.emailConfirmed) await revokeCredentials(found.id)
+        const existing = found.emailConfirmed
+          ? found
+          : await prisma.volunteer.update({
+              where: { id: found.id },
+              data: { emailConfirmed: true },
+            })
         const token = await createSession(existing.id)
-        let wasPromoted = await checkAdminBootstrap(email, existing.id)
-        if (await acceptPendingInvite(email, existing.id)) wasPromoted = true
+        const wasPromoted = await promoteIfEntitled(existing)
         return {
           token,
           wasPromoted,
@@ -797,7 +864,8 @@ export const authRouter = {
           throw new ORPCError('UNAUTHORIZED', {
             message: 'Your Google sign-in has expired, please sign in with Google again',
           })
-        ;({ email, name } = googleUser)
+        email = googleUser.email
+        name = sanitisePersonName(googleUser.name)
       }
 
       const existing = await prisma.volunteer.findFirst({
@@ -848,9 +916,8 @@ export const authRouter = {
         })
       }
 
-      const wasBootstrapped = await checkAdminBootstrap(email, volunteer.id).catch(() => false)
-      const wasInvited = await acceptPendingInvite(email, volunteer.id).catch(() => false)
-      const isApproved = wasBootstrapped || wasInvited
+      const wasPromoted = await promoteIfEntitled(volunteer).catch(() => false)
+      const isApproved = wasPromoted
 
       if (isApproved) {
         sendWelcomeEmail({ to: email, name }).catch((e) => console.error('[GOOGLE_SIGNUP]', e))
@@ -862,7 +929,7 @@ export const authRouter = {
       const token = await createSession(volunteer.id)
       return {
         token,
-        wasPromoted: wasBootstrapped || wasInvited,
+        wasPromoted,
         pending: !isApproved,
         name,
       }

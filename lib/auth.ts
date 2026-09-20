@@ -150,7 +150,7 @@ export function redactVolunteer(
     consentGivenAt: vol.consentGivenAt,
     cookieConsentAnalytics: vol.cookieConsentAnalytics ?? null,
     isAdmin: vol.isAdmin,
-    isSuperAdmin: isSuperAdmin(vol.email),
+    isSuperAdmin: isSuperAdmin(vol),
     approvalStatus: vol.approvalStatus,
     emailConfirmed: vol.emailConfirmed,
     emailDigest: vol.emailDigest,
@@ -192,14 +192,20 @@ export async function requireAdmin(
   return { volunteer, error: null }
 }
 
-export function isSuperAdmin(email: string | null | undefined): boolean {
-  if (!email) return false
+/** The fields admin entitlement is decided from. */
+export type EmailIdentity = Pick<Volunteer, 'email' | 'emailConfirmed'>
+
+// Admin entitlement is decided by email address, so the address must be proven first:
+// an unconfirmed account can be pointed at any address by signing up with it or
+// changing to it, and nobody has clicked the link.
+export function isSuperAdmin(volunteer: EmailIdentity | null | undefined): boolean {
+  if (!volunteer?.email || !volunteer.emailConfirmed) return false
   const adminEmails = env.ADMIN_EMAILS
   return adminEmails
     .split(',')
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean)
-    .includes(email.toLowerCase())
+    .includes(volunteer.email.toLowerCase())
 }
 
 export async function requireSuperAdmin(
@@ -210,7 +216,7 @@ export async function requireSuperAdmin(
 > {
   const result = await requireAdmin(authorization)
   if (result.error) return result
-  if (!isSuperAdmin(result.volunteer.email)) {
+  if (!isSuperAdmin(result.volunteer)) {
     return {
       volunteer: null,
       error: Response.json({ detail: 'Super-admin access required' }, { status: 403 }),
@@ -219,38 +225,62 @@ export async function requireSuperAdmin(
   return result
 }
 
-// Promote volunteer to admin if their email is in ADMIN_EMAILS env var
-export async function checkAdminBootstrap(email: string, volunteerId: number): Promise<boolean> {
-  const adminEmails = env.ADMIN_EMAILS
-  if (!adminEmails) return false
-  const allowed = adminEmails
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean)
-  if (!allowed.includes(email.toLowerCase())) return false
+/** The fields promotion decisions are made from. */
+export type PromotionCandidate = Pick<Volunteer, 'id'> & EmailIdentity
+
+// Promote volunteer to admin if their confirmed email is in ADMIN_EMAILS env var
+export async function checkAdminBootstrap(volunteer: PromotionCandidate): Promise<boolean> {
+  if (!isSuperAdmin(volunteer)) return false
   await prisma.volunteer.updateMany({
-    where: { id: volunteerId, isAdmin: false },
-    data: { isAdmin: true, approvalStatus: ApprovalStatus.approved, emailConfirmed: true },
+    where: { id: volunteer.id, isAdmin: false },
+    data: { isAdmin: true, approvalStatus: ApprovalStatus.approved },
   })
   return true
 }
 
-// Accept any pending, unexpired admin invite for this email (case-insensitive).
-export async function acceptPendingInvite(email: string, volunteerId: number): Promise<boolean> {
-  const target = email.toLowerCase()
+// The pending, unexpired admin invite for this confirmed email (case-insensitive), if any.
+async function findPendingInvite(volunteer: EmailIdentity) {
+  if (!volunteer.emailConfirmed || !volunteer.email) return null
+  const target = volunteer.email.toLowerCase()
   const pending = await prisma.adminInvite.findMany({
     where: { status: InviteStatus.pending, expiresAt: { gt: new Date() } },
     select: { id: true, email: true },
   })
-  const invite = pending.find((i) => i.email.toLowerCase() === target)
+  return pending.find((i) => i.email.toLowerCase() === target) ?? null
+}
+
+export async function acceptPendingInvite(volunteer: PromotionCandidate): Promise<boolean> {
+  const invite = await findPendingInvite(volunteer)
   if (!invite) return false
   await prisma.volunteer.update({
-    where: { id: volunteerId },
-    data: { isAdmin: true, approvalStatus: ApprovalStatus.approved, emailConfirmed: true },
+    where: { id: volunteer.id },
+    data: { isAdmin: true, approvalStatus: ApprovalStatus.approved },
   })
   await prisma.adminInvite.update({
     where: { id: invite.id },
-    data: { status: InviteStatus.accepted, acceptedById: volunteerId, acceptedAt: new Date() },
+    data: { status: InviteStatus.accepted, acceptedById: volunteer.id, acceptedAt: new Date() },
   })
   return true
+}
+
+/** Whether promoteIfEntitled would grant or confirm admin for this volunteer. */
+export async function isEntitledToAdmin(volunteer: EmailIdentity): Promise<boolean> {
+  return isSuperAdmin(volunteer) || (await findPendingInvite(volunteer)) !== null
+}
+
+// Whoever first registered an address need not be the person who later proves it, so
+// before that proof grants anything, the password and sessions set up beforehand go.
+export async function revokeCredentials(volunteerId: number): Promise<void> {
+  await prisma.volunteer.update({
+    where: { id: volunteerId },
+    data: { passwordHash: null, authToken: null, authTokenExpiresAt: null },
+  })
+  await deleteAllSessions(volunteerId)
+}
+
+/** Runs both promotion checks; true if either granted admin. */
+export async function promoteIfEntitled(volunteer: PromotionCandidate): Promise<boolean> {
+  const bootstrapped = await checkAdminBootstrap(volunteer)
+  const invited = await acceptPendingInvite(volunteer)
+  return bootstrapped || invited
 }

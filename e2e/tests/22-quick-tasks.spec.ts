@@ -24,7 +24,7 @@ test.describe('Quick Tasks: self-serve', () => {
 
     const browseCard = browsePool.getByRole('article').filter({ hasText: taskTitle })
     await expect(browseCard).toBeVisible({ timeout: 10_000 })
-    await browseCard.getByRole('button', { name: 'Claim' }).click()
+    await browseCard.getByRole('button', { name: 'Claim', exact: true }).click()
 
     await expect(getAlert(volunteer.page)).toContainText('Task claimed!', { timeout: 10_000 })
 
@@ -32,7 +32,7 @@ test.describe('Quick Tasks: self-serve', () => {
     // badge and no Claim button, proving it's no longer the open/unclaimed browse card.
     const claimedCard = myTasks.getByRole('article').filter({ hasText: taskTitle })
     await expect(claimedCard.getByRole('status')).toContainText('Assigned', { timeout: 10_000 })
-    await expect(claimedCard.getByRole('button', { name: 'Claim' })).not.toBeVisible()
+    await expect(claimedCard.getByRole('button', { name: 'Claim', exact: true })).not.toBeVisible()
     await expect(browseCard).toHaveCount(0, { timeout: 10_000 })
   })
 
@@ -51,7 +51,7 @@ test.describe('Quick Tasks: self-serve', () => {
     await expect(volunteer.page.getByRole('heading', { name: taskTitle, level: 1 })).toBeVisible({
       timeout: 10_000,
     })
-    await volunteer.page.getByRole('button', { name: 'Claim' }).click()
+    await volunteer.page.getByRole('button', { name: 'Claim', exact: true }).click()
 
     await expect(getAlert(volunteer.page)).toContainText('Task claimed!', { timeout: 10_000 })
     await expect(volunteer.page.getByRole('button', { name: 'Mark as Complete' })).toBeVisible({
@@ -100,7 +100,7 @@ test.describe('Quick Tasks: self-serve', () => {
 
     // Claiming from Quick Tasks assigns the task and auto-adds the volunteer as an
     // accepted participant on the project, even though they never expressed interest.
-    await card.getByRole('button', { name: 'Claim' }).click()
+    await card.getByRole('button', { name: 'Claim', exact: true }).click()
     await expect(getAlert(volunteer.page)).toContainText('Task claimed!', { timeout: 10_000 })
 
     // A claimed project task is not a QuickTask row, so it never lands in "My Quick
@@ -244,7 +244,7 @@ test.describe('Quick Tasks: self-serve', () => {
     await expect(getAlert(adminPage)).toContainText('Task assigned!', { timeout: 10_000 })
     await expect(taskCard.getByRole('status')).toContainText('in_progress', { timeout: 10_000 })
 
-    await taskCard.getByRole('button', { name: 'Unassign' }).click()
+    await taskCard.getByRole('button', { name: 'Unassign', exact: true }).click()
     await expect(getAlert(adminPage)).toContainText('Assignee removed', { timeout: 10_000 })
     await expect(taskCard.getByRole('status')).toContainText('open', { timeout: 10_000 })
   })
