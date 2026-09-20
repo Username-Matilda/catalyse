@@ -7,6 +7,7 @@ import {
   createSkill,
 } from '@/test/factories'
 import { clientAs } from '@/test/rpc'
+import { prisma } from '@/lib/prisma'
 
 /**
  * Rules the project routers hold that no screen states outright: what a
@@ -71,6 +72,69 @@ describe('a volunteer who does not manage the project', () => {
         assigneeId: other.id,
       }),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+  })
+})
+
+describe('an accepted helper', () => {
+  const accepted = async (projectId: number, message?: string) => {
+    const v = await createVolunteer()
+    await prisma.workItemInterest.create({
+      data: {
+        workItemId: projectId,
+        volunteerId: v.id,
+        interestType: 'want_to_contribute',
+        status: 'accepted',
+        message,
+      },
+    })
+    return v
+  }
+
+  it('can add a task, where an outsider cannot', async () => {
+    const project = await createProject({ isSeekingHelp: true })
+    await expect(
+      clientAs(await createVolunteer()).projects.createTask({
+        projectId: project.id,
+        title: 'Should be rejected',
+      }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    const member = await accepted(project.id)
+    expect(
+      (await clientAs(member).projects.createTask({ projectId: project.id, title: 'Added' }))
+        .message,
+    ).toBe('Task created')
+  })
+
+  it('can delete their own task but not another helper’s', async () => {
+    const project = await createProject({ isSeekingHelp: true })
+    const a = await accepted(project.id)
+    const b = await accepted(project.id)
+    const task = await clientAs(a).projects.createTask({ projectId: project.id, title: 'Mine' })
+    await expect(
+      clientAs(b).projects.deleteTask({ projectId: project.id, taskId: task.id }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    expect(
+      await clientAs(a).projects.deleteTask({ projectId: project.id, taskId: task.id }),
+    ).toEqual({ message: 'Task deleted' })
+  })
+
+  it('sees the helper roster without anyone’s private application message', async () => {
+    const project = await createProject({ isSeekingHelp: true })
+    const a = await accepted(project.id, 'a private message')
+    const b = await accepted(project.id, 'b private message')
+    const applicant = await createVolunteer()
+    await clientAs(applicant).projects.expressInterest({
+      projectId: project.id,
+      interestType: 'want_to_contribute',
+      message: 'pending private message',
+    })
+    const view = (await clientAs(a).projects.getById({ id: project.id })) as {
+      helpers: { volunteerId: number; message?: string }[]
+      interests: unknown
+    }
+    expect(view.helpers.map((h) => h.volunteerId).sort()).toEqual([a.id, b.id].sort())
+    expect(view.helpers.every((h) => h.message === undefined)).toBe(true)
+    expect(view.interests).toBeUndefined()
   })
 })
 
