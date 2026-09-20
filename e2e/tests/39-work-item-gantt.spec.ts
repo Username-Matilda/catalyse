@@ -569,10 +569,14 @@ test.describe('Work item scheduling and dependencies', () => {
     await expect(adminPage.getByRole('button', { name: /Also needs dates:/ })).toBeVisible()
     await expect(adminPage.getByRole('region', { name: /Unscheduled/ })).toHaveCount(0)
 
-    // The dates really were written, not just drawn: both are now pinned on the server.
-    const s = await schedule(api, projectId)
-    expect(s.scheduled.length).toBeGreaterThanOrEqual(2)
-    expect(s.scheduled.every((p) => p.isPinned)).toBe(true)
+    // The dates really were written, not just drawn: both are now pinned on the server. The bar
+    // can appear before the write lands, so wait for the server rather than read it once.
+    await expect
+      .poll(async () => {
+        const { scheduled } = await schedule(api, projectId)
+        return scheduled.length >= 2 && scheduled.every((p) => p.isPinned)
+      })
+      .toBe(true)
   })
 
   test('hovering the anchor label explains what an anchor is', async ({ baseUrl, adminPage }) => {
