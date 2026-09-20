@@ -6,7 +6,7 @@
     "issue": "bash scripts/issue.sh",
     "local-setup": "cp -n .env.local.example .env.local; npm install && npm run install:browsers && npm run install:pg-tools && npm run fetch-prod-db && npm run migrate && npm run generate",
     "seed-preview": "tsx scripts/seed-preview.ts",
-    "check-all": "npm run typecheck && npm run lint && npm run format:check && npm run test:unit && npm run test:e2e",
+    "check-all": "tsx scripts/check-all.ts",
     "dev": "next dev --turbo",
     "build": "prisma generate && next build",
     "start": "next start",
