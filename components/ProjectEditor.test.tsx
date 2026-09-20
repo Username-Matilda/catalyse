@@ -39,8 +39,13 @@ describe('ProjectEditor — new volunteer proposal', () => {
     expect(screen.getByText(/reviewed by PauseAI team leads/)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Save draft' }))
     expect(await screen.findByText('A title is required, even for a draft.')).toBeInTheDocument()
+    // Toasts expire on a timer, so clear this one and check Submit raises its own.
+    await userEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+    await waitFor(() =>
+      expect(screen.queryByText('A title is required, even for a draft.')).toBeNull(),
+    )
     await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
-    expect(screen.getAllByText('A title is required, even for a draft.')).toHaveLength(2)
+    expect(await screen.findByText('A title is required, even for a draft.')).toBeInTheDocument()
 
     await userEvent.type(screen.getByLabelText('Project Title'), 'My idea')
     await userEvent.type(screen.getByLabelText('Description'), 'Some words')

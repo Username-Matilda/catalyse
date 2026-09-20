@@ -80,6 +80,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
   // Every animation and auto-dismiss timer, so none outlives the provider.
   const timers = useRef(new Set<ReturnType<typeof setTimeout>>())
+  const nextId = useRef(0)
   useEffect(() => {
     const pending = timers.current
     return () => pending.forEach(clearTimeout)
@@ -103,7 +104,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
   const show = useCallback<ShowToast>(
     (message, type = 'info') => {
-      const id = Date.now()
+      const id = nextId.current++
       setToasts((prev) => [...prev, { id, message, type, visible: false, hiding: false }])
       schedule(
         () => setToasts((prev) => prev.map((t) => (t.id === id ? { ...t, visible: true } : t))),
