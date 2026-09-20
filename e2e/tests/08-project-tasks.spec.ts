@@ -1,4 +1,4 @@
-import { test, expect, getAlert, readAdminToken } from '../fixtures'
+import { test, expect, getAlert, readAdminToken, createApprovedVolunteer } from '../fixtures'
 import { fake } from '../fake'
 import { proposeProject, adminCreateProjectViaApi, adminApproveProject } from '../actions/projects'
 import { Page } from '@playwright/test'
