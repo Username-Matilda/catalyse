@@ -140,13 +140,13 @@ describe('auth.signup', () => {
     const confirm = emails.lastTo('new@example.com')
     expect(confirm.subject).toBe(subjects.confirm)
     expect(linkParam(confirm, 'token')).toBe(res.emailVerificationToken)
-    await vi.waitFor(async () =>
-      expect(
-        await prisma.notification.count({
-          where: { volunteerId: admin.id, type: 'new_volunteer_signup', entityId: res.id },
-        }),
-      ).toBe(1),
-    )
+    // Written before signup returns, so an approval that follows at once has
+    // a row to clear rather than racing the insert.
+    expect(
+      await prisma.notification.count({
+        where: { volunteerId: admin.id, type: 'new_volunteer_signup', entityId: res.id },
+      }),
+    ).toBe(1)
     expect(await prisma.session.count({ where: { tokenHash: hashToken(res.token) } })).toBe(1)
   })
 
