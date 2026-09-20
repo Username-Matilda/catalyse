@@ -25,7 +25,7 @@
     "install:browsers": "playwright install chromium --with-deps",
     "install:pg-tools": "tsx scripts/install-pg-tools.ts",
     "test:e2e": "playwright test",
-    "test:unit": "vitest run --coverage",
+    "test:unit": "tsx scripts/test-unit.ts",
     "coverage:report": "tsx scripts/coverage-report.ts",
     "test:unit:watch": "vitest",
     "test:e2e:dev": "E2E_DEV=1 playwright test",

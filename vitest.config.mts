@@ -28,10 +28,22 @@ const maxWorkers =
   Number(process.env.VITEST_MAX_WORKERS) ||
   (process.env.CI ? undefined : Math.max(2, Math.floor(availableParallelism() / 4)))
 
+// Locally a run prints only failing tests and a summary: a passing run should be one screen,
+// and a test's console output is shown only if it fails. CI keeps the full log and the
+// per-file coverage table. Pass `--reporter=default` for the tick-by-tick view.
+const quiet = !process.env.CI
+// The JSON results let `npm run test:unit` tell a failing test from a coverage shortfall.
+const RESULTS_FILE = 'tmp/unit-results.json'
+
 export default defineConfig({
   resolve: { alias },
   test: {
     maxWorkers,
+    reporters: [
+      quiet ? 'minimal' : 'default',
+      ['json', { outputFile: RESULTS_FILE }],
+      ...(process.env.GITHUB_ACTIONS === 'true' ? ['github-actions'] : []),
+    ],
     globalSetup: ['./test/global-setup.ts'],
     // Transformed modules are kept under node_modules/.vitest-cache, so a run only pays to
     // transform what changed since the last one.
@@ -65,7 +77,8 @@ export default defineConfig({
       provider: 'v8',
       include: ['app/**', 'components/**', 'lib/**', 'server/**'],
       exclude: ['**/*.test.{ts,tsx}', '**/*.d.ts'],
-      reporter: ['text', 'html', 'lcov', 'json', 'json-summary'],
+      // `npm run test:unit` lists the uncovered lines when only coverage fails.
+      reporter: [quiet ? 'text-summary' : 'text', 'html', 'lcov', 'json', 'json-summary'],
       // CI reads the summary even from a failed run, to show what was missed alongside the failure.
       reportOnFailure: true,
       reportsDirectory: './coverage',
