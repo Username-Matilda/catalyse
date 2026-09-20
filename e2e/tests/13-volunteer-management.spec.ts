@@ -173,8 +173,8 @@ test.describe('Volunteer Management', () => {
     const notesList = adminPage.locator('#notesList')
     await expect(notesList).toContainText(noteContent, { timeout: 10_000 })
 
-    adminPage.once('dialog', (dialog) => dialog.accept())
     await notesList.getByRole('button', { name: 'Delete' }).click()
+    await adminPage.getByRole('dialog').getByRole('button', { name: 'Delete note' }).click()
 
     await expect(getAlert(adminPage)).toContainText('Note deleted.', { timeout: 10_000 })
     await expect(notesList).not.toContainText(noteContent, { timeout: 10_000 })

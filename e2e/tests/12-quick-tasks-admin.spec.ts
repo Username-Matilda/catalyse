@@ -381,8 +381,8 @@ test.describe('Quick Tasks (admin)', () => {
       timeout: 10_000,
     })
 
-    adminPage.once('dialog', (dialog) => dialog.accept())
     await taskCard.getByRole('button', { name: 'Delete', exact: true }).click()
+    await adminPage.getByRole('dialog').getByRole('button', { name: 'Delete task' }).click()
 
     await expect(getAlert(adminPage)).toContainText('Task deleted', { timeout: 10_000 })
     await expect(taskCard).not.toBeVisible({ timeout: 10_000 })

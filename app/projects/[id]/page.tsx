@@ -13,6 +13,7 @@ import Tooltip from '@/components/Tooltip'
 import { INTEREST_STATUS_LABELS, projectStatusVariant } from '@/components/ProjectCard'
 import CommentThread from '@/components/CommentThread'
 import Modal from '@/components/ui/Modal'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import VolunteerSelect from '@/components/VolunteerSelect'
 import Tabs from '@/components/Tabs'
@@ -642,6 +643,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const [declineInterestId, setDeclineInterestId] = useState<number | null>(null)
   const [declineMessage, setDeclineMessage] = useState('')
 
+  // Confirmations
+  const [deleteTaskId, setDeleteTaskId] = useState<number | null>(null)
+  const [withdrawAccepted, setWithdrawAccepted] = useState<boolean | null>(null)
+  const [showTransferConfirm, setShowTransferConfirm] = useState(false)
+  const [showRemoveOwnerConfirm, setShowRemoveOwnerConfirm] = useState(false)
+
   // ── Queries ──────────────────────────────────────────────────────────────
 
   const { data: projectRaw, isPending: loadingProject } = useQuery({
@@ -1033,11 +1040,6 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     })
   }
 
-  function handleDeleteTask(taskId: number) {
-    if (!window.confirm('Delete this task?')) return
-    deleteTaskMutation.mutate({ projectId: parseInt(idParam, 10), taskId })
-  }
-
   function handleSelectStatus(value: string) {
     const validStatuses = Object.values(ProjectStatus)
     const status = validStatuses.find((s) => s === value)
@@ -1060,12 +1062,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     })
   }
 
-  function handleWithdrawInterest(isAccepted: boolean) {
-    const message = isAccepted
-      ? 'Withdraw from this project? Any tasks you hold on it will be released back to open.'
-      : 'Withdraw your interest?'
-    if (!window.confirm(message)) return
+  function confirmWithdrawInterest() {
     withdrawInterestMutation.mutate({ projectId: parseInt(idParam, 10) })
+    setWithdrawAccepted(null)
   }
 
   function handleAcceptInterest(interestId: number) {
@@ -1541,7 +1540,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                             role="menuitem"
                                             className={`w-full text-left px-3 py-2 text-sm text-red-700 dark:text-red-400 hover:bg-accent transition-colors cursor-pointer ${canAssign || canUnassign ? 'border-t border-brand-border mt-1' : ''}`}
                                             onClick={() => {
-                                              handleDeleteTask(task.id)
+                                              setDeleteTaskId(task.id)
                                               close()
                                             }}
                                           >
@@ -1707,11 +1706,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                               size="sm"
                               disabled={!transferTo || updateProjectMutation.isPending}
                               onClick={() => {
-                                if (!window.confirm('Transfer ownership to this volunteer?')) return
-                                updateProjectMutation.mutate({
-                                  id: parseInt(idParam, 10),
-                                  assigneeId: parseInt(transferTo, 10),
-                                })
+                                setShowTransferConfirm(true)
                                 close()
                               }}
                             >
@@ -1723,12 +1718,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                               role="menuitem"
                               className="w-full text-left px-3 py-2 text-sm text-red-700 dark:text-red-400 hover:bg-accent transition-colors cursor-pointer border-t border-brand-border mt-1"
                               onClick={() => {
-                                if (!window.confirm('Remove the current owner from this project?'))
-                                  return
-                                updateProjectMutation.mutate({
-                                  id: parseInt(idParam, 10),
-                                  assigneeId: null,
-                                })
+                                setShowRemoveOwnerConfirm(true)
                                 close()
                               }}
                             >
@@ -2032,7 +2022,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                         variant="secondary"
                         className="mt-2"
                         onClick={() =>
-                          handleWithdrawInterest(
+                          setWithdrawAccepted(
                             project.myInterest?.status === InterestStatus.accepted,
                           )
                         }
@@ -2194,6 +2184,75 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           </form>
         </Modal>
       )}
+
+      {deleteTaskId !== null && (
+        <ConfirmDialog
+          id="confirm-delete-project-task"
+          isOpen
+          title="Delete this task?"
+          body="The task and anything posted on it are removed for everyone. This cannot be undone."
+          confirmLabel="Delete task"
+          busyLabel="Deleting…"
+          danger
+          busy={deleteTaskMutation.isPending}
+          onConfirm={() => {
+            deleteTaskMutation.mutate({ projectId: parseInt(idParam, 10), taskId: deleteTaskId })
+            setDeleteTaskId(null)
+          }}
+          onClose={() => setDeleteTaskId(null)}
+        />
+      )}
+
+      <ConfirmDialog
+        id="confirm-withdraw-interest"
+        isOpen={withdrawAccepted !== null}
+        title={withdrawAccepted ? 'Withdraw from this project?' : 'Withdraw your interest?'}
+        body={
+          withdrawAccepted
+            ? 'Tasks you claimed will be released. You would need to express interest again to rejoin.'
+            : 'The owner will no longer see your request. You can express interest again later.'
+        }
+        confirmLabel="Withdraw"
+        busyLabel="Withdrawing…"
+        danger
+        busy={withdrawInterestMutation.isPending}
+        onConfirm={confirmWithdrawInterest}
+        onClose={() => setWithdrawAccepted(null)}
+      />
+
+      <ConfirmDialog
+        id="confirm-transfer-ownership"
+        isOpen={showTransferConfirm}
+        title="Transfer ownership to this volunteer?"
+        body="They take over the project and you lose the owner's controls on it."
+        confirmLabel="Transfer"
+        busyLabel="Transferring…"
+        busy={updateProjectMutation.isPending}
+        onConfirm={() => {
+          updateProjectMutation.mutate({
+            id: parseInt(idParam, 10),
+            assigneeId: parseInt(transferTo, 10),
+          })
+          setShowTransferConfirm(false)
+        }}
+        onClose={() => setShowTransferConfirm(false)}
+      />
+
+      <ConfirmDialog
+        id="confirm-remove-owner"
+        isOpen={showRemoveOwnerConfirm}
+        title="Remove the current owner from this project?"
+        body="The project is left without an owner until someone else takes it on."
+        confirmLabel="Remove ownership"
+        busyLabel="Removing…"
+        danger
+        busy={updateProjectMutation.isPending}
+        onConfirm={() => {
+          updateProjectMutation.mutate({ id: parseInt(idParam, 10), assigneeId: null })
+          setShowRemoveOwnerConfirm(false)
+        }}
+        onClose={() => setShowRemoveOwnerConfirm(false)}
+      />
     </>
   )
 }

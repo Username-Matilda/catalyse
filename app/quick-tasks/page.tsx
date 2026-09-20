@@ -10,6 +10,7 @@ import Button from '@/components/Button'
 import CommentThread from '@/components/CommentThread'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import VolunteerSelect from '@/components/VolunteerSelect'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import { formatDate } from '@/lib/format-date'
@@ -407,6 +408,7 @@ function AdminQuickTasksView() {
 
   // Review modal
   const [reviewModal, setReviewModal] = useState<AdminQuickTask | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<AdminQuickTask | null>(null)
   const [reviewRating, setReviewRating] = useState<'excellent' | 'good' | 'needs_improvement'>(
     'good',
   )
@@ -608,11 +610,6 @@ function AdminQuickTasksView() {
     })
   }
 
-  function deleteTask(task: AdminQuickTask) {
-    if (!confirm(`Delete "${task.title}"? This cannot be undone.`)) return
-    deleteTaskMutation.mutate({ id: task.id })
-  }
-
   async function copyLink(path: string) {
     const url = `${window.location.origin}${path}`
     try {
@@ -748,7 +745,7 @@ function AdminQuickTasksView() {
                   <Button variant="secondary" size="sm" onClick={() => openEdit(task)}>
                     Edit
                   </Button>
-                  <Button variant="danger" size="sm" onClick={() => deleteTask(task)}>
+                  <Button variant="danger" size="sm" onClick={() => setDeleteTarget(task)}>
                     Delete
                   </Button>
                   {task.assignedToId && (
@@ -1121,6 +1118,24 @@ function AdminQuickTasksView() {
             </div>
           </div>
         </div>
+      )}
+
+      {deleteTarget && (
+        <ConfirmDialog
+          id="confirm-delete-quick-task"
+          isOpen
+          title="Delete this task?"
+          body={`"${deleteTarget.title}" and its comments are removed for everyone. This cannot be undone.`}
+          confirmLabel="Delete task"
+          busyLabel="Deleting…"
+          danger
+          busy={deleteTaskMutation.isPending}
+          onConfirm={() => {
+            deleteTaskMutation.mutate({ id: deleteTarget.id })
+            setDeleteTarget(null)
+          }}
+          onClose={() => setDeleteTarget(null)}
+        />
       )}
     </>
   )

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { screen, waitFor, cleanup, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { prisma } from '@/lib/prisma'
@@ -33,7 +33,6 @@ describe('admin team detail', () => {
       data: { teamId: team.id, volunteerId: asker.id, message: 'Let me in' },
     })
     await prisma.teamJoinRequest.create({ data: { teamId: team.id, volunteerId: quiet.id } })
-    vi.spyOn(window, 'confirm').mockReturnValue(false)
 
     await mount(team.id, admin)
     await screen.findByRole('heading', { name: 'Edit Team' })
@@ -94,9 +93,14 @@ describe('admin team detail', () => {
 
     // Delete needs confirmation.
     await userEvent.click(screen.getByRole('button', { name: 'Delete Team' }))
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancel' }),
+    )
     expect(await prisma.team.count({ where: { id: team.id } })).toBe(1)
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     await userEvent.click(screen.getByRole('button', { name: 'Delete Team' }))
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete Team' }),
+    )
     await screen.findByText('Team deleted')
     expect(navigation.push).toHaveBeenCalledWith('/admin/teams')
   })
@@ -143,7 +147,6 @@ describe('admin team detail', () => {
     const member = await createVolunteer({ name: 'Gone Member' })
     const team = await createTeam({ name: 'Fragile Team' })
     await prisma.teamMembership.create({ data: { teamId: team.id, volunteerId: member.id } })
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     // An expired session logs the page out, so each failure gets its own mount.
     for (const name of ['Make Leader', 'Remove', 'Save Changes', 'Delete Team']) {
       cleanup()
@@ -152,6 +155,11 @@ describe('admin team detail', () => {
       await screen.findByRole('heading', { name: 'Fragile Team' })
       localStorage.setItem('authToken', 'stale')
       await userEvent.click(screen.getByRole('button', { name }))
+      if (name === 'Delete Team') {
+        await userEvent.click(
+          within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete Team' }),
+        )
+      }
       await screen.findByText('Unauthorized').catch((e: Error) => {
         throw new Error(`${name}: ${e.message.slice(0, 80)}`)
       })

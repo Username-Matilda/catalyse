@@ -179,8 +179,8 @@ test.describe('Project Interests and Assignment', () => {
       timeout: 10_000,
     })
 
-    volunteer.page.once('dialog', (dialog) => dialog.accept())
     await volunteer.page.getByRole('button', { name: 'Withdraw Interest' }).click()
+    await volunteer.page.getByRole('dialog').getByRole('button', { name: 'Withdraw' }).click()
     await expect(getAlert(volunteer.page)).toContainText('Interest withdrawn', { timeout: 10_000 })
 
     // Interest form reappears

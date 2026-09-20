@@ -8,6 +8,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ORPCError } from '@orpc/client'
 import Button from '@/components/Button'
 import VolunteerSelect from '@/components/VolunteerSelect'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 
@@ -53,6 +54,7 @@ export default function AdminTeamDetailPage({ params }: { params: Promise<{ id: 
   }, [team, initialized])
 
   const [assignVolunteerId, setAssignVolunteerId] = useState('')
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
   const { data: joinRequestsData } = useQuery({
     ...orpc.teams.listJoinRequests.queryOptions({ input: { teamId } }),
@@ -94,8 +96,8 @@ export default function AdminTeamDetailPage({ params }: { params: Promise<{ id: 
     }
   }
 
-  function handleDelete() {
-    if (!window.confirm('Delete this team? This cannot be undone.')) return
+  function confirmDelete() {
+    setShowDeleteDialog(false)
     deleteTeamMutation.mutate(
       { id: teamId },
       {
@@ -243,7 +245,7 @@ export default function AdminTeamDetailPage({ params }: { params: Promise<{ id: 
               {updateTeamMutation.isPending ? 'Saving…' : 'Save Changes'}
             </Button>
             {user.isAdmin && (
-              <Button type="button" variant="danger" onClick={handleDelete}>
+              <Button type="button" variant="danger" onClick={() => setShowDeleteDialog(true)}>
                 Delete Team
               </Button>
             )}
@@ -331,6 +333,19 @@ export default function AdminTeamDetailPage({ params }: { params: Promise<{ id: 
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        id="confirm-delete-team"
+        isOpen={showDeleteDialog}
+        title="Delete this team?"
+        body="Its members lose access to the projects scoped to it. This cannot be undone."
+        confirmLabel="Delete Team"
+        busyLabel="Deleting…"
+        danger
+        busy={deleteTeamMutation.isPending}
+        onConfirm={confirmDelete}
+        onClose={() => setShowDeleteDialog(false)}
+      />
     </main>
   )
 }

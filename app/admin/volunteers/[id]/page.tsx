@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import Tabs from '@/components/Tabs'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 
@@ -106,6 +107,7 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
   // Note inline edit
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null)
   const [editingNoteContent, setEditingNoteContent] = useState('')
+  const [deleteNoteId, setDeleteNoteId] = useState<number | null>(null)
 
   // Endorsement form
   const [endorseSkillId, setEndorseSkillId] = useState('')
@@ -177,8 +179,8 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
     }
   }
 
-  async function deleteNote(noteId: number) {
-    if (!confirm('Delete this note?')) return
+  async function confirmDeleteNote(noteId: number) {
+    setDeleteNoteId(null)
     try {
       await deleteNoteMutation.mutateAsync({ id: noteId })
       showToast('Note deleted.', 'success')
@@ -416,7 +418,11 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
                             >
                               Edit
                             </Button>
-                            <Button variant="danger" size="sm" onClick={() => deleteNote(n.id)}>
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              onClick={() => setDeleteNoteId(n.id)}
+                            >
                               Delete
                             </Button>
                           </div>
@@ -560,6 +566,19 @@ export default function AdminVolunteerDetailPage({ params }: { params: Promise<{
           )}
         </div>
       </main>
+
+      {deleteNoteId !== null && (
+        <ConfirmDialog
+          id="confirm-delete-note"
+          isOpen
+          title="Delete this note?"
+          body="The note is removed for every admin. This cannot be undone."
+          confirmLabel="Delete note"
+          danger
+          onConfirm={() => void confirmDeleteNote(deleteNoteId)}
+          onClose={() => setDeleteNoteId(null)}
+        />
+      )}
     </>
   )
 }

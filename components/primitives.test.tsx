@@ -7,6 +7,7 @@ import Toggle from './Toggle'
 import Radio from './Radio'
 import Checkbox from './Checkbox'
 import Alert from './ui/Alert'
+import ConfirmDialog from './ui/ConfirmDialog'
 import DescriptionTips from './DescriptionTips'
 import Tooltip from './Tooltip'
 import { ApprovalStepper } from './ApprovalStepper'
@@ -89,6 +90,37 @@ describe('Alert', () => {
     expect(screen.getByRole('alert')).toHaveClass('toast-info')
     expect(screen.queryByLabelText('Dismiss')).toBeNull()
     vi.useRealTimers()
+  })
+})
+
+describe('ConfirmDialog', () => {
+  it('renders nothing when closed, and confirms, cancels or closes when open', async () => {
+    const onConfirm = vi.fn()
+    const onClose = vi.fn()
+    const props = { title: 'Delete it?', body: 'Gone for good.', confirmLabel: 'Delete', onConfirm }
+    const { rerender } = render(
+      <ConfirmDialog {...props} isOpen={false} onClose={onClose} danger busy />,
+    )
+    expect(screen.queryByRole('dialog')).toBeNull()
+
+    rerender(
+      <ConfirmDialog {...props} isOpen onClose={onClose} danger busy busyLabel="Deleting…" />,
+    )
+    const dialog = screen.getByRole('dialog', { name: 'Delete it?' })
+    expect(dialog).toHaveTextContent('Gone for good.')
+    const confirm = screen.getByRole('button', { name: 'Deleting…' })
+    expect(confirm).toBeDisabled()
+    expect(confirm).toHaveClass('bg-error')
+    await userEvent.click(confirm)
+    expect(onConfirm).not.toHaveBeenCalled()
+
+    rerender(<ConfirmDialog {...props} isOpen onClose={onClose} busy cancelLabel="Keep it" />)
+    expect(screen.getByRole('button', { name: 'Delete' })).toHaveClass('bg-primary')
+    rerender(<ConfirmDialog {...props} isOpen onClose={onClose} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(onClose).toHaveBeenCalledTimes(1)
   })
 })
 

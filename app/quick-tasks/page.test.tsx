@@ -201,10 +201,15 @@ describe('quick tasks — admin view', () => {
     fireEvent.submit(screen.getByLabelText('Internal Notes (admin only)').closest('form')!)
     await screen.findByText('Task reviewed!')
 
-    vi.spyOn(window, 'confirm').mockReturnValueOnce(false)
     await userEvent.click(within(editedCard()).getByRole('button', { name: 'Delete' }))
-    vi.spyOn(window, 'confirm').mockReturnValueOnce(true)
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancel' }),
+    )
+    expect(await prisma.workItem.count({ where: { id: fresh.id } })).toBe(1)
     await userEvent.click(within(editedCard()).getByRole('button', { name: 'Delete' }))
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete task' }),
+    )
     await screen.findByText('Task deleted')
     expect(await prisma.workItem.count({ where: { id: fresh.id } })).toBe(0)
   })
@@ -305,8 +310,10 @@ describe('quick tasks — admin view', () => {
     fireEvent.submit(screen.getByLabelText('Internal Notes (admin only)').closest('form')!)
     await waitFor(() => expect(errors()).toBe(4))
     fireEvent.click(screen.getByRole('dialog').parentElement!)
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     await userEvent.click(within(card()).getByRole('button', { name: 'Delete' }))
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete task' }),
+    )
     await waitFor(() => expect(errors()).toBe(5))
     await userEvent.click(screen.getByRole('button', { name: 'Create Task' }))
     localStorage.setItem('authToken', 'stale')

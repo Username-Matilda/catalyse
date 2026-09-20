@@ -12,6 +12,7 @@ import FilterDropdown from '@/components/FilterDropdown'
 import DescriptionTips from '@/components/DescriptionTips'
 import SkillPicker from '@/components/SkillPicker'
 import Modal from '@/components/ui/Modal'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { buildLocationOptions, type LocalGroupOption } from '@/lib/filter-options'
 import { useToast } from '@/lib/toast'
 import { toDateInputValue, fromDateInputValue } from '@/lib/format-date'
@@ -72,6 +73,10 @@ export default function ProjectEditor(props: ProjectEditorProps) {
   const [showPublishModal, setShowPublishModal] = useState(false)
   const [showDeleteDraftModal, setShowDeleteDraftModal] = useState(false)
   const [showDeleteProjectModal, setShowDeleteProjectModal] = useState(false)
+  const [deleteTaskTarget, setDeleteTaskTarget] = useState<{
+    projectId: number
+    taskId: number
+  } | null>(null)
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [newTaskDescription, setNewTaskDescription] = useState('')
   const [taskDrafts, setTaskDrafts] = useState<
@@ -350,11 +355,6 @@ export default function ProjectEditor(props: ProjectEditorProps) {
     } catch {
       // createTaskMutation's onError already toasted.
     }
-  }
-
-  function handleDeleteTask(projectId: number, taskId: number) {
-    if (!window.confirm('Delete this task?')) return
-    deleteTaskMutation.mutate({ projectId, taskId })
   }
 
   // Saves a task's title/description on blur, only if it actually changed from what's
@@ -790,7 +790,7 @@ export default function ProjectEditor(props: ProjectEditorProps) {
                         type="button"
                         variant="danger"
                         size="sm"
-                        onClick={() => handleDeleteTask(projectId, task.id)}
+                        onClick={() => setDeleteTaskTarget({ projectId, taskId: task.id })}
                         disabled={deleteTaskMutation.isPending}
                       >
                         Delete task
@@ -955,56 +955,62 @@ export default function ProjectEditor(props: ProjectEditorProps) {
 
       {projectId !== undefined && (
         <>
-          <Modal
+          <ConfirmDialog
             id="confirm-delete-project"
             title="Delete this project?"
             isOpen={showDeleteProjectModal}
+            body={
+              <p>
+                This will permanently delete{' '}
+                <strong className="italic">{title || 'this project'}</strong>, including its tasks,
+                comments, and interest history. This cannot be undone.
+              </p>
+            }
+            confirmLabel="Delete Project"
+            busyLabel="Deleting…"
+            danger
+            busy={deleteMutation.isPending}
+            onConfirm={() => deleteMutation.mutate({ id: projectId })}
             onClose={() => setShowDeleteProjectModal(false)}
-          >
-            <p>
-              This will permanently delete{' '}
-              <strong className="italic">{title || 'this project'}</strong>, including its tasks,
-              comments, and interest history. This cannot be undone.
-            </p>
-            <div className="mt-4 flex justify-end gap-2">
-              <Button variant="secondary" onClick={() => setShowDeleteProjectModal(false)}>
-                Cancel
-              </Button>
-              <Button
-                variant="danger"
-                onClick={() => deleteMutation.mutate({ id: projectId })}
-                disabled={deleteMutation.isPending}
-              >
-                {deleteMutation.isPending ? 'Deleting…' : 'Delete Project'}
-              </Button>
-            </div>
-          </Modal>
+          />
 
-          <Modal
+          <ConfirmDialog
             id="confirm-delete-draft"
             title="Delete this draft?"
             isOpen={showDeleteDraftModal}
+            body={
+              <p>
+                This will permanently delete{' '}
+                <strong className="italic">{title || 'this draft'}</strong>, including any tasks
+                you&apos;ve added. This cannot be undone.
+              </p>
+            }
+            confirmLabel="Delete Draft"
+            busyLabel="Deleting…"
+            danger
+            busy={deleteDraftMutation.isPending}
+            onConfirm={() => deleteDraftMutation.mutate({ id: projectId })}
             onClose={() => setShowDeleteDraftModal(false)}
-          >
-            <p>
-              This will permanently delete{' '}
-              <strong className="italic">{title || 'this draft'}</strong>, including any tasks
-              you&apos;ve added. This cannot be undone.
-            </p>
-            <div className="mt-4 flex justify-end gap-2">
-              <Button variant="secondary" onClick={() => setShowDeleteDraftModal(false)}>
-                Cancel
-              </Button>
-              <Button
-                variant="danger"
-                onClick={() => deleteDraftMutation.mutate({ id: projectId })}
-                disabled={deleteDraftMutation.isPending}
-              >
-                {deleteDraftMutation.isPending ? 'Deleting…' : 'Delete Draft'}
-              </Button>
-            </div>
-          </Modal>
+          />
         </>
+      )}
+
+      {deleteTaskTarget && (
+        <ConfirmDialog
+          id="confirm-delete-editor-task"
+          title="Delete this task?"
+          isOpen
+          body="The task and anything posted on it are removed. This cannot be undone."
+          confirmLabel="Delete task"
+          busyLabel="Deleting…"
+          danger
+          busy={deleteTaskMutation.isPending}
+          onConfirm={() => {
+            deleteTaskMutation.mutate(deleteTaskTarget)
+            setDeleteTaskTarget(null)
+          }}
+          onClose={() => setDeleteTaskTarget(null)}
+        />
       )}
 
       {projectId !== undefined && (isSaving || showSaved) && (

@@ -311,8 +311,8 @@ export async function transferProjectOwnership(
     adminPage.getByRole('heading', { level: 3, name: 'Transfer Ownership' }),
   ).toBeVisible({ timeout: 10_000 })
   await selectFilterDropdown(adminPage, 'Transfer to', volunteerName)
-  adminPage.once('dialog', (dialog) => dialog.accept())
   await adminPage.getByRole('menu').getByRole('button', { name: 'Transfer', exact: true }).click()
+  await adminPage.getByRole('dialog').getByRole('button', { name: 'Transfer', exact: true }).click()
   await expect(getAlert(adminPage)).toBeVisible({ timeout: 10_000 })
 }
 
@@ -325,8 +325,8 @@ export async function removeProjectOwner(
     await adminPage.goto(`${baseUrl}/projects/${projectId}`)
   }
   await adminPage.getByRole('button', { name: 'Ownership actions' }).click()
-  adminPage.once('dialog', (dialog) => dialog.accept())
   await adminPage.getByRole('menuitem', { name: 'Remove ownership' }).click()
+  await adminPage.getByRole('dialog').getByRole('button', { name: 'Remove ownership' }).click()
   await expect(getAlert(adminPage)).toBeVisible({ timeout: 10_000 })
 }
 

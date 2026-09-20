@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { screen, waitFor, cleanup, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { prisma } from '@/lib/prisma'
@@ -58,7 +58,6 @@ describe('admin volunteer detail', () => {
       status: 'in_progress',
     })
     await createProject({ title: 'Proposed project', creatorId: vol.id, status: 'pending_review' })
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
 
     await mount(vol.id, admin)
     await screen.findByRole('heading', { name: 'Detailed Vol' })
@@ -97,6 +96,9 @@ describe('admin volunteer detail', () => {
     await waitFor(() => expect(notes()).toHaveTextContent('reliability'))
     expect(await prisma.adminNote.count({ where: { volunteerId: vol.id } })).toBe(2)
     await userEvent.click(within(notes()).getAllByRole('button', { name: 'Delete' })[0])
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete note' }),
+    )
     await screen.findByText('Note deleted.')
     await waitFor(async () =>
       expect(await prisma.adminNote.count({ where: { volunteerId: vol.id } })).toBe(1),
@@ -151,13 +153,15 @@ describe('admin volunteer detail', () => {
     const note = await prisma.adminNote.create({
       data: { volunteerId: vol.id, authorId: admin.id, content: 'Doomed note' },
     })
-    vi.spyOn(window, 'confirm').mockReturnValue(false)
     await mount(vol.id, admin)
     await screen.findByRole('heading', { name: 'Sparse Vol' })
     expect(screen.queryByText('Profile Hidden')).toBeNull()
     expect(screen.getByText('No skills listed.')).toBeInTheDocument()
     expect(screen.getByText('No endorsements yet.')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancel' }),
+    )
     expect(await prisma.adminNote.count({ where: { id: note.id } })).toBe(1)
     await userEvent.click(screen.getByRole('tab', { name: 'Quick Tasks' }))
     expect(screen.getByText('No Quick Tasks assigned yet.')).toBeInTheDocument()
@@ -170,9 +174,11 @@ describe('admin volunteer detail', () => {
     await prisma.adminNote.delete({ where: { id: note.id } })
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
     await screen.findByText('Note not found')
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     await userEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete note' }),
+    )
     await screen.findAllByText('Note not found')
     await userEvent.click(screen.getByRole('tab', { name: 'Endorse Skill' }))
     await userEvent.click(screen.getByRole('button', { name: 'Endorse Skill' }))

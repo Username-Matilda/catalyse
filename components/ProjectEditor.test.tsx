@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { screen, waitFor, fireEvent, cleanup } from '@testing-library/react'
+import { screen, waitFor, fireEvent, cleanup, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { prisma } from '@/lib/prisma'
 import {
@@ -256,11 +256,16 @@ describe('ProjectEditor — editing an existing project', () => {
     fireEvent.change(taskTitle, { target: { value: 'New title' } })
     blur(taskDesc)
     await waitFor(async () => expect((await row(task.id)).description).toBe('more'))
-    vi.spyOn(window, 'confirm').mockReturnValueOnce(false)
-    await userEvent.click(screen.getByRole('button', { name: 'Delete task' }))
+    const deleteTaskButton = screen.getByRole('button', { name: 'Delete task' })
+    await userEvent.click(deleteTaskButton)
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancel' }),
+    )
     expect(await row(task.id)).toBeTruthy()
-    vi.spyOn(window, 'confirm').mockReturnValueOnce(true)
-    await userEvent.click(screen.getByRole('button', { name: 'Delete task' }))
+    await userEvent.click(deleteTaskButton)
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete task' }),
+    )
     await waitFor(async () =>
       expect(await prisma.workItem.count({ where: { id: task.id } })).toBe(0),
     )
@@ -335,8 +340,10 @@ describe('ProjectEditor — editing an existing project', () => {
     fireEvent.change(taskTitle, { target: { value: 'T2' } })
     blur(taskTitle)
     expect(await screen.findByText('Project or task not found')).toBeInTheDocument()
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     await userEvent.click(screen.getByRole('button', { name: 'Delete task' }))
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete task' }),
+    )
     expect(await screen.findByText('Project not found')).toBeInTheDocument()
     await userEvent.type(screen.getByLabelText('Task title', { selector: '#new-task-title' }), 'N')
     await userEvent.click(screen.getByRole('button', { name: 'Add Task' }))
