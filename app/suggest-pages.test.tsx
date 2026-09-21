@@ -60,6 +60,10 @@ describe('/suggest-team', () => {
     })
     await renderApp(<SuggestTeamPage />, { as: me })
     await screen.findByText('(merged into Existing)')
+    expect(screen.getByRole('link', { name: 'propose a project' })).toHaveAttribute(
+      'href',
+      '/suggest',
+    )
     expect(screen.getByText('Same thing')).toBeInTheDocument()
     expect(screen.getByText('Under review')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Submit Suggestion' })).toBeDisabled()

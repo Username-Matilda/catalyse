@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRequireAuth } from '@/lib/hooks/auth'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
@@ -54,9 +55,13 @@ export default function SuggestTeamPage() {
   return (
     <main className="container py-5 pb-15">
       <h1>Suggest a Team</h1>
-      <p className="text-text-light mb-6">
+      <p className="text-text-light mb-2">
         Don&apos;t see a team for what you&apos;re working on? Suggest one and an admin will review
         it.
+      </p>
+      <p className="text-text-light mb-6">
+        A team is for a group that collaborates on a kind of project, such as a country, a region or
+        a function. For a one-off goal, <Link href="/suggest">propose a project</Link> instead.
       </p>
 
       <div className="max-w-xl">

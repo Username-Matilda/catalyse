@@ -44,6 +44,9 @@ describe('teams list', () => {
     const { me, open, mine, led } = await setup()
     await renderApp(<TeamsPage />, { as: me })
     const openCard = (await screen.findByRole('link', { name: 'Open Team' })).closest('article')!
+    expect(
+      screen.getByText(/Teams are groups that collaborate on a particular kind of project/),
+    ).toBeInTheDocument()
     expect(openCard).toHaveTextContent('1 member · Led by Lead Person')
     expect(openCard.querySelector('a[href="https://luma"]')).toBeNull()
     const ledCard = screen.getByRole('link', { name: 'Led Team' }).closest('article')!

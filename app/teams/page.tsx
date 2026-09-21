@@ -61,8 +61,9 @@ export default function TeamsPage() {
         </Link>
       </div>
       <p className="text-text-light mb-6">
-        Teams are standing groups of volunteers with a recurring meeting and shared doc, apply to
-        join any number of teams alongside your local group. A team leader reviews applications.
+        Teams are groups that collaborate on a particular kind of project, such as a country or
+        region, or a function like communications. Joining a team lets you see its projects and work
+        with its members. Apply to any number of teams; a team leader reviews each application.
       </p>
 
       {isLoading ? (
