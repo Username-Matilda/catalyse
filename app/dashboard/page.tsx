@@ -9,7 +9,8 @@ import CommentThread from '@/components/CommentThread'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import { ProjectList, statusBadgeClasses } from '@/components/ProjectCard'
-import { QUICK_TASK_STATUS_LABELS } from '@/lib/status-labels'
+import { QUICK_TASK_STATUS_LABELS, TASK_STATUS_LABELS } from '@/lib/status-labels'
+import { daysQuiet } from '@/lib/staleness'
 import { QUICK_TASK_SUBMITTED_MESSAGE } from '@/lib/action-messages'
 import Tabs from '@/components/Tabs'
 import Modal from '@/components/ui/Modal'
@@ -18,6 +19,12 @@ import type { AppRouter } from '@/server/router'
 import { ApprovalStatus, QuickTaskStatus } from '@/generated/prisma/enums'
 import { ApprovalStepper } from '@/components/ApprovalStepper'
 import { friendlyDate } from '@/lib/format-date'
+
+function QuietNote({ updatedAt }: { updatedAt: string | Date | null }) {
+  const days = daysQuiet(updatedAt)
+  if (days === null) return null
+  return <div className="text-sm text-warning mt-1">No update for {days} days</div>
+}
 
 const NOTIFICATIONS_PAGE_SIZE = 20
 type NotificationFilter = 'all' | 'unread' | 'read'
@@ -90,6 +97,10 @@ export default function DashboardPage() {
   const quickTasks = quickTasksRaw.filter(
     (t) => t.status === QuickTaskStatus.in_progress || t.status === QuickTaskStatus.under_review,
   )
+  const { data: projectTasks = [] } = useQuery({
+    ...orpc.my.projectTasks.queryOptions(),
+    enabled: !!user,
+  })
 
   const { data: notificationsData } = useQuery({
     ...orpc.notifications.list.queryOptions({
@@ -287,10 +298,32 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Quick Tasks */}
-        {quickTasks.length > 0 && (
-          <section aria-label="Quick Tasks" className="mb-8">
-            <h2>Quick Tasks</h2>
+        {/* Quick Tasks and claimed project tasks */}
+        {quickTasks.length + projectTasks.length > 0 && (
+          <section aria-label="Your tasks" className="mb-8">
+            <h2>Your tasks</h2>
+            {projectTasks.map((task) => (
+              <div
+                key={`project-${task.id}`}
+                role="article"
+                className="bg-surface rounded-xl shadow p-6 mb-3 overflow-hidden wrap-break-word"
+              >
+                <div className="flex justify-between items-center gap-3">
+                  <div>
+                    <Link href={`/projects/${task.projectId}/tasks/${task.id}`}>
+                      <strong>{task.title}</strong>
+                    </Link>
+                    <span className="ml-2 text-sm text-text-light">
+                      in <Link href={`/projects/${task.projectId}`}>{task.projectTitle}</Link>
+                    </span>
+                    <QuietNote updatedAt={task.updatedAt} />
+                  </div>
+                  <span role="status" className={statusBadgeClasses(task.status)}>
+                    {TASK_STATUS_LABELS[task.status] ?? task.status}
+                  </span>
+                </div>
+              </div>
+            ))}
             {quickTasks.map((task) => (
               <div
                 key={task.id}
@@ -306,6 +339,7 @@ export default function DashboardPage() {
                     {task.skillName && (
                       <span className="ml-2 text-sm text-text-light">{task.skillName}</span>
                     )}
+                    <QuietNote updatedAt={task.updatedAt} />
                   </div>
                   <span role="status" className={statusBadgeClasses(task.status)}>
                     {QUICK_TASK_STATUS_LABELS[task.status] ?? task.status}

@@ -2,7 +2,13 @@ import { describe, it, expect } from 'vitest'
 import { screen, waitFor, act, cleanup, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { prisma } from '@/lib/prisma'
-import { createVolunteer, createProject, createQuickTask, createSkill } from '@/test/factories'
+import {
+  createVolunteer,
+  createProject,
+  createQuickTask,
+  createSkill,
+  createTask,
+} from '@/test/factories'
 import { renderApp } from '@/test/render'
 import DashboardPage from './page'
 
@@ -240,6 +246,51 @@ describe('dashboard', () => {
     await userEvent.keyboard('{Escape}')
     expect(screen.queryByRole('dialog')).toBeNull()
     await waitFor(async () => expect((await note()).readAt).not.toBeNull())
+  })
+
+  it('lists claimed project tasks with Quick Tasks, and flags the ones gone quiet', async () => {
+    const me = await createVolunteer()
+    const project = await createProject({ title: 'Host project', status: 'in_progress' })
+    const stale = await createTask(project.id, {
+      title: 'Quiet task',
+      status: 'in_progress',
+      assigneeId: me.id,
+    })
+    await prisma.workItem.update({
+      where: { id: stale.id },
+      data: { updatedAt: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000) },
+    })
+    const fresh = await createTask(project.id, {
+      title: 'Fresh task',
+      status: 'in_progress',
+      assigneeId: me.id,
+    })
+    await createTask(project.id, { title: 'Finished task', status: 'completed', assigneeId: me.id })
+    await createQuickTask({ title: 'Quick one', assigneeId: me.id, status: 'in_progress' })
+
+    await renderApp(<DashboardPage />, { as: me, url: '/dashboard' })
+    const strip = await screen.findByRole('region', { name: 'Your tasks' })
+    await within(strip).findByText('Quiet task')
+    await within(strip).findByText('Quick one')
+    expect(within(strip).queryByText('Finished task')).toBeNull()
+
+    const card = (title: string) =>
+      within(
+        strip
+          .querySelector(`a[href$="/tasks/${title === 'Quiet task' ? stale.id : fresh.id}"]`)!
+          .closest('[role=article]') as HTMLElement,
+      )
+    expect(card('Quiet task').getByRole('status')).toHaveTextContent('In progress')
+    expect(card('Quiet task').getByRole('link', { name: 'Host project' })).toHaveAttribute(
+      'href',
+      `/projects/${project.id}`,
+    )
+    expect(card('Quiet task').getByText('No update for 9 days')).toBeInTheDocument()
+    expect(card('Fresh task').queryByText(/No update for/)).toBeNull()
+    expect(within(strip).getByRole('link', { name: 'Quiet task' })).toHaveAttribute(
+      'href',
+      `/projects/${project.id}/tasks/${stale.id}`,
+    )
   })
 
   it('surfaces a failed quick-task submission', async () => {

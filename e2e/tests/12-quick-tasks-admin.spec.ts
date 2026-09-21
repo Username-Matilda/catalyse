@@ -56,7 +56,7 @@ async function submitQuickTask(
     timeout: 10_000,
   })
 
-  const banner = volunteerPage.getByRole('region', { name: 'Quick Tasks' })
+  const banner = volunteerPage.getByRole('region', { name: 'Your tasks' })
   const taskCard = banner.getByRole('article').filter({ hasText: taskTitle })
   await expect(taskCard).toBeVisible({ timeout: 10_000 })
   await taskCard.getByText(taskTitle, { exact: true }).click()
@@ -177,7 +177,7 @@ test.describe('Quick Tasks (admin)', () => {
 
     // Assignee sees admin's comment on the dashboard and replies
     await volunteer.page.goto(`${baseUrl}/dashboard`)
-    const volBanner = volunteer.page.getByRole('region', { name: 'Quick Tasks' })
+    const volBanner = volunteer.page.getByRole('region', { name: 'Your tasks' })
     const volCard = volBanner.getByRole('article').filter({ hasText: taskTitle })
     await expect(volCard).toBeVisible({ timeout: 10_000 })
     await volCard.getByText(taskTitle, { exact: true }).click()
@@ -210,7 +210,7 @@ test.describe('Quick Tasks (admin)', () => {
     })
 
     // Quick task banner shows the assigned task with its details
-    const banner = volunteer.page.getByRole('region', { name: 'Quick Tasks' })
+    const banner = volunteer.page.getByRole('region', { name: 'Your tasks' })
     const taskCard = banner.getByRole('article').filter({ hasText: taskTitle })
     await expect(taskCard).toBeVisible({ timeout: 10_000 })
     await expect(taskCard.getByRole('status')).toContainText('In progress')
@@ -231,7 +231,7 @@ test.describe('Quick Tasks (admin)', () => {
       timeout: 10_000,
     })
 
-    const banner = volunteer.page.getByRole('region', { name: 'Quick Tasks' })
+    const banner = volunteer.page.getByRole('region', { name: 'Your tasks' })
     const taskCard = banner.getByRole('article').filter({ hasText: taskTitle })
     await expect(taskCard).toBeVisible({ timeout: 10_000 })
     await taskCard.getByText(taskTitle, { exact: true }).click()
