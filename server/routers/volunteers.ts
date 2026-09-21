@@ -164,7 +164,13 @@ export const volunteersRouter = {
                 interests: {
                   some: {
                     volunteerId: vol.id,
-                    status: { notIn: [InterestStatus.declined, InterestStatus.withdrawn] },
+                    status: {
+                      notIn: [
+                        InterestStatus.declined,
+                        InterestStatus.withdrawn,
+                        InterestStatus.removed,
+                      ],
+                    },
                   },
                 },
               },

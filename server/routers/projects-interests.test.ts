@@ -153,16 +153,20 @@ describe('projects.respondToInterest', () => {
     })
 
     const task = await createTask(p.id, { assigneeId: helper.id, status: 'in_progress' })
-    await c.projects.respondToInterest({
-      projectId: p.id,
-      interestId: interest.id,
-      status: 'declined',
-    })
+    // Turning down someone already on the project removes them.
+    expect(
+      await c.projects.respondToInterest({
+        projectId: p.id,
+        interestId: interest.id,
+        status: 'declined',
+      }),
+    ).toEqual({ message: 'Interest removed' })
+    expect((await interestRow(helper.id, p.id)).status).toBe('removed')
     expect(
       (await prisma.workItem.findUniqueOrThrow({ where: { id: task.id } })).assigneeId,
     ).toBeNull()
-    await notified(helper.id, 'interest_declined', {
-      title: `Declined: your interest in '${p.title}'`,
+    await notified(helper.id, 'interest_removed', {
+      title: `Removed: you're no longer on '${p.title}'`,
       link: `/projects/${p.id}`,
     })
 
@@ -190,6 +194,68 @@ describe('projects.respondToInterest', () => {
       assigneeId: helper.id,
       status: 'in_progress',
     })
+  })
+})
+
+describe('interest history', () => {
+  it('records how each person came and went, for the owner only', async () => {
+    const owner = await createVolunteer()
+    const p = await createProject({ assigneeId: owner.id, isSeekingHelp: true })
+    const c = clientAs(owner)
+    const apply = async () => {
+      const v = await createVolunteer()
+      await clientAs(v).projects.expressInterest({
+        projectId: p.id,
+        interestType: 'want_to_contribute',
+      })
+      return v
+    }
+    const add = async () => {
+      const v = await createVolunteer()
+      await c.projects.assign({ projectId: p.id, volunteerId: v.id })
+      return v
+    }
+    const turnDown = async (v: { id: number }) =>
+      c.projects.respondToInterest({
+        projectId: p.id,
+        interestId: (await interestRow(v.id, p.id)).id,
+        status: 'declined',
+      })
+
+    const declined = await apply()
+    await turnDown(declined)
+    const removed = await add()
+    await turnDown(removed)
+    const appliedThenLeft = await apply()
+    await clientAs(appliedThenLeft).projects.withdrawInterest({ projectId: p.id })
+    const addedThenLeft = await add()
+    await clientAs(addedThenLeft).projects.withdrawInterest({ projectId: p.id })
+
+    const history = (await c.projects.getById({ id: p.id })).interests!.map((i) => [
+      i.volunteerId,
+      i.origin,
+      i.status,
+    ])
+    expect(history).toEqual(
+      expect.arrayContaining([
+        [declined.id, 'applied', 'declined'],
+        [removed.id, 'added', 'removed'],
+        [appliedThenLeft.id, 'applied', 'withdrawn'],
+        [addedThenLeft.id, 'added', 'withdrawn'],
+      ]),
+    )
+    await notified(removed.id, 'interest_removed', {
+      title: `Removed: you're no longer on '${p.title}'`,
+    })
+    await notified(declined.id, 'interest_declined', {
+      title: `Declined: your interest in '${p.title}'`,
+    })
+
+    // Anyone else sees current helpers only, and none of the history.
+    const helper = await add()
+    const view = await clientAs(await createVolunteer()).projects.getById({ id: p.id })
+    expect(view.interests).toBeUndefined()
+    expect(view.helpers?.map((h) => h.volunteerId)).toEqual([helper.id])
   })
 })
 
@@ -237,18 +303,23 @@ describe('projects.assign', () => {
     })
     await c.projects.assign({ projectId: p.id, volunteerId: applicant.id })
     expect((await interestRow(applicant.id, p.id)).status).toBe('accepted')
-    // A declined interest gets neither re-accepted nor recreated; the assignee is still notified.
-    const declined = await createVolunteer()
-    await prisma.workItemInterest.create({
-      data: {
-        workItemId: p.id,
-        volunteerId: declined.id,
-        interestType: 'want_to_contribute',
-        status: 'declined',
-      },
+    expect(await interestRow(applicant.id, p.id)).toMatchObject({
+      status: 'accepted',
+      origin: 'applied',
     })
-    await c.projects.assign({ projectId: p.id, volunteerId: declined.id })
-    expect((await interestRow(declined.id, p.id)).status).toBe('declined')
+    // Someone declined, removed or withdrawn before is added this time.
+    for (const status of ['declined', 'removed', 'withdrawn'] as const) {
+      const earlier = await createVolunteer()
+      await prisma.workItemInterest.create({
+        data: { workItemId: p.id, volunteerId: earlier.id, interestType: 'x', status },
+      })
+      await c.projects.assign({ projectId: p.id, volunteerId: earlier.id })
+      expect(await interestRow(earlier.id, p.id)).toMatchObject({
+        status: 'accepted',
+        origin: 'added',
+        interestType: 'want_to_contribute',
+      })
+    }
   })
 
   it('assigning as owner sets the assignee, unless the project is finished', async () => {

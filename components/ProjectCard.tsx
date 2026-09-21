@@ -50,6 +50,7 @@ export const PROJECT_STATUS_CONFIG: Record<string, { label: string; variant: Bad
   accepted: { label: 'Accepted', variant: 'success' },
   declined: { label: 'Declined', variant: 'neutral' },
   withdrawn: { label: 'Withdrawn', variant: 'neutral' },
+  removed: { label: 'Removed', variant: 'neutral' },
 }
 
 export const STATUS_LABELS: Record<string, string> = Object.fromEntries(

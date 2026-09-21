@@ -45,6 +45,7 @@ import {
 } from '@/lib/project-status'
 import {
   ApprovalStatus,
+  InterestOrigin,
   InterestStatus,
   ProjectStatus,
   TaskStatus,
@@ -688,6 +689,7 @@ export const projectsRouter = {
             interestType: string
             message: string | null
             status: string
+            origin: string
             responseMessage: string | null
             createdAt: Date | null
             respondedAt: Date | null
@@ -725,6 +727,7 @@ export const projectsRouter = {
           interestType: i.interestType,
           message: i.message,
           status: i.status,
+          origin: i.origin,
           responseMessage: i.responseMessage,
           createdAt: i.createdAt,
           respondedAt: i.respondedAt,
@@ -1068,6 +1071,7 @@ export const projectsRouter = {
               interestType,
               message,
               status: InterestStatus.pending,
+              origin: InterestOrigin.applied,
               respondedAt: null,
               responseMessage: null,
             },
@@ -1079,6 +1083,7 @@ export const projectsRouter = {
               interestType,
               message,
               status: InterestStatus.pending,
+              origin: InterestOrigin.applied,
             },
           })
 
@@ -1163,10 +1168,16 @@ export const projectsRouter = {
         })
       }
 
+      // Turning down someone already on the project is a removal, not a decline.
+      const status =
+        input.status === InterestStatus.declined && interest.status === InterestStatus.accepted
+          ? InterestStatus.removed
+          : input.status
+
       await prisma.workItemInterest.update({
         where: { id: input.interestId },
         data: {
-          status: input.status,
+          status,
           responseMessage: input.responseMessage ?? null,
           respondedAt: new Date(),
         },
@@ -1174,7 +1185,7 @@ export const projectsRouter = {
 
       await clearNotifications('new_interest', input.interestId)
 
-      if (input.status === InterestStatus.declined) {
+      if (status !== InterestStatus.accepted) {
         await releaseTasksHeldBy(input.projectId, interest.volunteerId)
       }
 
@@ -1193,13 +1204,18 @@ export const projectsRouter = {
 
       await notifyUser(
         interest.volunteerId,
-        `interest_${input.status}`,
-        `${input.status === InterestStatus.accepted ? 'Accepted' : 'Declined'}: your interest in '${project.title}'`,
+        `interest_${status}`,
+        status === InterestStatus.removed
+          ? `Removed: you're no longer on '${project.title}'`
+          : `${status === InterestStatus.accepted ? 'Accepted' : 'Declined'}: your interest in '${project.title}'`,
         input.responseMessage ?? null,
         `/projects/${input.projectId}`,
         {
-          message: html`The team has <strong>${input.status}</strong> your interest in the project
-            <strong>${project.title}</strong>.`,
+          message:
+            status === InterestStatus.removed
+              ? html`The team has taken you off the project <strong>${project.title}</strong>.`
+              : html`The team has <strong>${status}</strong> your interest in the project
+                  <strong>${project.title}</strong>.`,
           projectTitle: project.title,
           projectId: input.projectId,
           extraHtml: input.responseMessage
@@ -1212,7 +1228,7 @@ export const projectsRouter = {
         },
       )
 
-      return { message: `Interest ${input.status}` }
+      return { message: `Interest ${status}` }
     }),
 
   assign: authedProcedure
@@ -1246,23 +1262,31 @@ export const projectsRouter = {
         })
       }
 
+      // One row per person and project, whatever happened before.
       const existing = await prisma.workItemInterest.findFirst({
-        where: {
-          workItemId: input.projectId,
-          volunteerId: input.volunteerId,
-          status: { not: InterestStatus.withdrawn },
-        },
+        where: { workItemId: input.projectId, volunteerId: input.volunteerId },
       })
 
-      if (existing) {
-        if (existing.status === InterestStatus.pending) {
-          await prisma.workItemInterest.update({
-            where: { id: existing.id },
-            data: { status: InterestStatus.accepted, respondedAt: new Date() },
-          })
-        } else if (existing.status === InterestStatus.accepted) {
-          return { message: 'This volunteer is already assigned to this project' }
-        }
+      if (existing?.status === InterestStatus.accepted) {
+        return { message: 'This volunteer is already assigned to this project' }
+      }
+      if (existing?.status === InterestStatus.pending) {
+        // They applied; the owner said yes.
+        await prisma.workItemInterest.update({
+          where: { id: existing.id },
+          data: { status: InterestStatus.accepted, respondedAt: new Date() },
+        })
+      } else if (existing) {
+        // Declined, removed or withdrawn earlier: this time the owner added them.
+        await prisma.workItemInterest.update({
+          where: { id: existing.id },
+          data: {
+            status: InterestStatus.accepted,
+            origin: InterestOrigin.added,
+            interestType: input.interestType,
+            respondedAt: new Date(),
+          },
+        })
       } else {
         await prisma.workItemInterest.create({
           data: {
@@ -1270,6 +1294,7 @@ export const projectsRouter = {
             workItemId: input.projectId,
             interestType: input.interestType,
             status: InterestStatus.accepted,
+            origin: InterestOrigin.added,
             respondedAt: new Date(),
           },
         })

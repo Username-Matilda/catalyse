@@ -320,25 +320,33 @@ describe('quick tasks — admin view', () => {
     )
     await userEvent.click(await screen.findByRole('option', { name: 'Xena Helper' }))
     await prisma.workItem.delete({ where: { id: openQt.id } })
+    // Each failure is dismissed once seen, so the next step waits for a toast of its own;
+    // counting toasts instead races their auto-dismiss when the suite runs slowly.
+    const expectNotFound = async () => {
+      const toast = (await screen.findByText('Task not found', {}, { timeout: 5000 })).closest(
+        '[role=alert]',
+      ) as HTMLElement
+      await userEvent.click(within(toast).getByLabelText('Dismiss'))
+      await waitFor(() => expect(screen.queryByText('Task not found')).toBeNull())
+    }
     await userEvent.click(within(openCard()).getByRole('button', { name: 'Assign' }))
-    await screen.findByText('Task not found')
-    const errors = () => screen.getAllByText('Task not found').length
+    await expectNotFound()
     await userEvent.click(within(card()).getByRole('button', { name: 'Edit' }))
     await prisma.workItem.delete({ where: { id: qt.id } })
     fireEvent.submit(screen.getByLabelText('Title').closest('form')!)
-    await waitFor(() => expect(errors()).toBe(2))
+    await expectNotFound()
     fireEvent.click(screen.getByRole('dialog').parentElement!)
     await userEvent.click(within(card()).getByRole('button', { name: 'Unassign' }))
-    await waitFor(() => expect(errors()).toBe(3))
+    await expectNotFound()
     await userEvent.click(within(card()).getByRole('button', { name: 'Review' }))
     fireEvent.submit(screen.getByLabelText('Internal Notes (admin only)').closest('form')!)
-    await waitFor(() => expect(errors()).toBe(4))
+    await expectNotFound()
     fireEvent.click(screen.getByRole('dialog').parentElement!)
     await userEvent.click(within(card()).getByRole('button', { name: 'Delete' }))
     await userEvent.click(
       within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete task' }),
     )
-    await waitFor(() => expect(errors()).toBe(5))
+    await expectNotFound()
     await userEvent.click(screen.getByRole('button', { name: 'Create Task' }))
     localStorage.setItem('authToken', 'stale')
     await userEvent.type(screen.getByLabelText('Title'), 'x')

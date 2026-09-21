@@ -43,6 +43,24 @@ export const INTEREST_STATUS_LABELS: Record<string, string> = {
   accepted: 'Accepted',
   declined: 'Declined',
   withdrawn: 'Withdrawn',
+  removed: 'Removed',
+}
+
+const INTEREST_ENDINGS: Record<string, string> = {
+  declined: 'declined',
+  removed: 'removed',
+  withdrawn: 'withdrew',
+}
+
+/**
+ * How someone came to a project and how they left it, for the project owner: "Applied,
+ * declined", "Added, removed", "Applied, withdrew". Null while they are still on it or
+ * waiting.
+ */
+export function interestHistoryLabel(origin: string, status: string): string | null {
+  const ending = INTEREST_ENDINGS[status]
+  if (!ending) return null
+  return `${origin === 'added' ? 'Added' : 'Applied'}, ${ending}`
 }
 
 /** A proposed team or local group, waiting on an admin. */

@@ -182,7 +182,7 @@ test.describe('Project Interests and Assignment', () => {
     // Interest status updates to declined
     await expect(
       adminPage.locator('.interest-card').filter({ hasText: volunteer.name }),
-    ).toContainText('Declined', { timeout: 10_000 })
+    ).toContainText('Applied, declined', { timeout: 10_000 })
   })
 
   test('Volunteer withdraws their pending interest', async ({ volunteer, baseUrl }) => {
@@ -259,9 +259,14 @@ test.describe('Project Interests and Assignment', () => {
     await expect(getAlert(adminPage)).toContainText(`Removed ${volunteer.name}.`, {
       timeout: 10_000,
     })
-    await expect(volunteerCard).toContainText('Declined', { timeout: 10_000 })
-    await expect(volunteerCard).toContainText('Removed')
+    await expect(volunteerCard).toContainText('Added, removed', { timeout: 10_000 })
     await expect(volunteerCard.getByRole('button', { name: 'Remove' })).toHaveCount(0)
+
+    // The volunteer is told they were removed, not declined.
+    await goToDashboardNotifications(baseUrl, volunteer.page)
+    await expect(
+      volunteer.page.locator('strong').filter({ hasText: "Removed: you're no longer on" }),
+    ).toBeVisible({ timeout: 10_000 })
   })
 
   test('Non-participant can read a project comment thread but cannot post', async ({

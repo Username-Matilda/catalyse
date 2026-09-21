@@ -273,8 +273,8 @@ describe('project page — owner', () => {
     await userEvent.click(screen.getByLabelText('Task actions for First task'))
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Unassign' }))
     await screen.findByText('Task unassigned!')
-    // A declined request reads as removed, not as something the volunteer wanted.
-    expect(interestCard('Otto Other')).toHaveTextContent('Removed')
+    // The owner sees how each person came and went.
+    expect(interestCard('Otto Other')).toHaveTextContent('Applied, declined')
     expect(interestCard('Otto Other')).not.toHaveTextContent('wanted to')
     // An accepted helper is removed, not declined, and the dialog and toast say so.
     await userEvent.click(
@@ -286,6 +286,7 @@ describe('project page — owner', () => {
     expect(within(removeDialog).queryByRole('button', { name: 'Decline' })).toBeNull()
     fireEvent.submit(screen.getByLabelText('Optional message for the volunteer').closest('form')!)
     await screen.findByText('Removed Hana Helper.')
+    await waitFor(() => expect(interestCard('Hana Helper')).toHaveTextContent('Applied, removed'))
     // Clicking outside closes the menu.
     await userEvent.click(screen.getByLabelText('Task actions for First task'))
     fireEvent.mouseDown(document.body)

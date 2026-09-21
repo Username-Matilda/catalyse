@@ -66,8 +66,17 @@ enum QuickTaskStatus {
 enum InterestStatus {
   pending
   accepted
+  // An applicant the owner turned down.
   declined
   withdrawn
+  // A helper the owner took off the project after they were on it.
+  removed
+}
+
+/// How someone came to be on a project's interest list.
+enum InterestOrigin {
+  applied
+  added
 }
 
 enum ApprovalStatus {
@@ -426,6 +435,7 @@ model WorkItemInterest {
   interestType    String         @map("interest_type") // TODO: enum — want_to_contribute, want_to_own
   message         String?
   status          InterestStatus @default(pending)
+  origin          InterestOrigin @default(applied)
   responseMessage String?        @map("response_message")
   createdAt       DateTime?      @default(now()) @map("created_at")
   respondedAt     DateTime?      @map("responded_at")

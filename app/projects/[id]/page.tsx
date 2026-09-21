@@ -11,7 +11,7 @@ import Checkbox from '@/components/Checkbox'
 import { Badge, badgeClasses, badgeColorClasses } from '@/components/Badge'
 import Tooltip from '@/components/Tooltip'
 import { projectStatusVariant } from '@/components/ProjectCard'
-import { INTEREST_STATUS_LABELS } from '@/lib/status-labels'
+import { INTEREST_STATUS_LABELS, interestHistoryLabel } from '@/lib/status-labels'
 import { interestSentMessage, PROJECT_TASK_CLAIMED_MESSAGE } from '@/lib/action-messages'
 import CommentThread from '@/components/CommentThread'
 import MessageDialog from '@/components/MessageDialog'
@@ -954,7 +954,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     (i) => i.volunteerId !== project.ownerId,
   )
   const interestedVolunteers = volunteerInterests.filter(
-    (i) => i.status !== InterestStatus.declined && i.status !== InterestStatus.withdrawn,
+    (i) => i.status === InterestStatus.pending || i.status === InterestStatus.accepted,
   )
   const interestedVolunteerIds = new Set(interestedVolunteers.map((i) => i.volunteerId))
   const assignVolunteerOptions = [
@@ -1798,11 +1798,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                     ? interest.interestType === 'want_to_own'
                                       ? 'wants to own'
                                       : 'wants to help'
-                                    : interest.status === InterestStatus.declined
-                                      ? 'Removed'
-                                      : interest.interestType === 'want_to_own'
-                                        ? 'wanted to own'
-                                        : 'wanted to help'}
+                                    : interestHistoryLabel(interest.origin, interest.status)}
                               </div>
                             </div>
                             {interest.status === InterestStatus.pending ? (
@@ -1839,11 +1835,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                   Remove
                                 </Button>
                               </div>
-                            ) : (
-                              <Badge variant={projectStatusVariant(interest.status)}>
-                                {INTEREST_STATUS_LABELS[interest.status] ?? interest.status}
-                              </Badge>
-                            )}
+                            ) : null}
                             {interest.message && interest.status !== InterestStatus.accepted && (
                               <p className="text-sm text-text-light w-full m-0">
                                 {interest.message}

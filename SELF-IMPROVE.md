@@ -40,3 +40,14 @@ confusing than it needed to be, and that will do so again.
       line — render the dialog inside `{target && (…)}` and read the target in
       the handler closure — belongs in `AGENTS.md` next to the coverage rules,
       and in `components/ui/ConfirmDialog.tsx`'s own usage note.
+
+## 1x
+
+- [ ] **Component tests count error toasts (`getAllByText(msg).length`), and a
+      toast dismisses itself after 4 s, so the count never arrives when the
+      full suite runs slowly.** `app/quick-tasks/page.test.tsx` failed that way
+      in a `check-all` run and cost a second full run; the same pattern is in
+      `app/projects/[id]/page.test.tsx` and `components/ProjectEditor.test.tsx`.
+      A shared helper in `test/` that finds a toast by text, clicks its Dismiss
+      and waits for it to go (the `expectNotFound` helper in the Quick Tasks
+      test) would let each step wait for a toast of its own.
