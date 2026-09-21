@@ -48,7 +48,9 @@ describe('Header', () => {
     await prisma.notification.create({ data: { volunteerId: admin.id, type: 'x', title: 't' } })
     await mount(admin, '/projects')
     const nameButton = await screen.findByRole('button', { name: new RegExp(admin.name) })
-    expect(await screen.findByRole('link', { name: /Notifications/ })).toHaveTextContent('1')
+    await waitFor(() =>
+      expect(screen.getByRole('link', { name: /Notifications/ })).toHaveTextContent('1'),
+    )
     expect(screen.getByRole('link', { name: 'Projects' })).toHaveClass('bg-primary')
     expect(screen.getByRole('link', { name: 'Teams' })).not.toHaveClass('bg-primary')
     expect(screen.queryByText('Confirm your location')).toBeNull()
@@ -84,6 +86,18 @@ describe('Header', () => {
     await waitFor(() => expect(navigation.push).toHaveBeenCalledWith('/login'))
   })
 
+  it('always links to Notifications, with a count only while something is unread', async () => {
+    const vol = await createVolunteer({ locationConfirmedAt: new Date() })
+    await mount(vol, '/projects')
+    const link = await screen.findByRole('link', { name: /Notifications/ })
+    expect(link).toHaveAttribute('href', '/dashboard#tab-notifications')
+    expect(link).toHaveTextContent(/^Notifications$/)
+    await userEvent.click(screen.getByLabelText('Open menu'))
+    const links = screen.getAllByRole('link', { name: /Notifications/ })
+    expect(links).toHaveLength(2)
+    expect(links[1]).toHaveAttribute('href', '/dashboard#tab-notifications')
+  })
+
   it('shows a plain admin panel link for non-super admins', async () => {
     const admin = await createAdmin({ locationConfirmedAt: new Date() })
     await mount(admin, '/dashboard')
@@ -100,7 +114,6 @@ describe('Header', () => {
     await mount(vol, '/dashboard')
     const myProjects = await screen.findByRole('link', { name: 'My Projects' })
     expect(myProjects).toHaveClass('bg-primary')
-    // The Notifications button only exists while something is unread.
     await userEvent.click(await screen.findByRole('link', { name: /Notifications/ }))
     act(() => window.dispatchEvent(new HashChangeEvent('hashchange')))
     expect(window.location.hash).toBe('#tab-notifications')

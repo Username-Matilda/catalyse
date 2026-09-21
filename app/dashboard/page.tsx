@@ -415,51 +415,61 @@ export default function DashboardPage() {
               </p>
             ) : (
               <>
-                {notifications.map((n) => (
-                  <div
-                    key={n.id}
-                    className={`bg-surface rounded-xl shadow p-5 mb-3 wrap-break-word ${!n.readAt ? 'border-l-4 border-primary' : ''}`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <strong className={!n.readAt ? 'text-brand-text' : 'text-text-light'}>
-                        {n.title}
-                      </strong>
-                      <span className="text-xs text-text-light whitespace-nowrap">
-                        {n.createdAt ? friendlyDate(n.createdAt) : ''}
-                      </span>
-                    </div>
-                    <p className="text-sm mt-1 mb-0">{n.body}</p>
-                    <div className="flex items-center gap-3 mt-2">
-                      {n.link && (
-                        <Link
-                          href={n.link}
-                          className="text-sm underline"
-                          onClick={() => {
-                            if (!n.readAt) markReadMutation.mutate({ id: n.id })
-                          }}
-                        >
-                          View
-                        </Link>
+                {notifications.map((n, i) => (
+                  <React.Fragment key={n.id}>
+                    {notificationFilter === 'all' && i === 0 && !n.readAt && (
+                      <h3 className="text-sm text-text-light mb-2 mt-0">Unread</h3>
+                    )}
+                    {notificationFilter === 'all' &&
+                      n.readAt &&
+                      i > 0 &&
+                      !notifications[i - 1].readAt && (
+                        <h3 className="text-sm text-text-light mb-2 mt-4">Earlier</h3>
                       )}
-                      {n.readAt ? (
-                        <button
-                          type="button"
-                          className="text-sm underline text-text-light cursor-pointer bg-transparent border-0 p-0"
-                          onClick={() => markUnreadMutation.mutate({ id: n.id })}
-                        >
-                          Mark as unread
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          className="text-sm underline text-text-light cursor-pointer bg-transparent border-0 p-0"
-                          onClick={() => markReadMutation.mutate({ id: n.id })}
-                        >
-                          Mark as read
-                        </button>
-                      )}
+                    <div
+                      className={`bg-surface rounded-xl shadow p-5 mb-3 wrap-break-word ${!n.readAt ? 'border-l-4 border-primary' : ''}`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <strong className={!n.readAt ? 'text-brand-text' : 'text-text-light'}>
+                          {n.title}
+                        </strong>
+                        <span className="text-xs text-text-light whitespace-nowrap">
+                          {n.createdAt ? friendlyDate(n.createdAt) : ''}
+                        </span>
+                      </div>
+                      <p className="text-sm mt-1 mb-0">{n.body}</p>
+                      <div className="flex items-center gap-3 mt-2">
+                        {n.link && (
+                          <Link
+                            href={n.link}
+                            className="text-sm underline"
+                            onClick={() => {
+                              if (!n.readAt) markReadMutation.mutate({ id: n.id })
+                            }}
+                          >
+                            View
+                          </Link>
+                        )}
+                        {n.readAt ? (
+                          <button
+                            type="button"
+                            className="text-sm underline text-text-light cursor-pointer bg-transparent border-0 p-0"
+                            onClick={() => markUnreadMutation.mutate({ id: n.id })}
+                          >
+                            Mark as unread
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="text-sm underline text-text-light cursor-pointer bg-transparent border-0 p-0"
+                            onClick={() => markReadMutation.mutate({ id: n.id })}
+                          >
+                            Mark as read
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  </React.Fragment>
                 ))}
                 {notificationsTotalPages > 1 && (
                   <div className="flex items-center justify-center gap-4 mt-6">

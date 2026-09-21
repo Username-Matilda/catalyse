@@ -88,24 +88,24 @@ function DashboardNavButtons({ unreadCount }: { unreadCount: number }) {
       >
         My Projects
       </Button>
-      {unreadCount > 0 && (
-        <Button
-          href="/dashboard#tab-notifications"
-          variant={activeTab === 'notifications' ? 'primary' : 'ghost'}
-          size="sm"
-          onClick={(e) => {
-            if (onDashboard) {
-              e.preventDefault()
-              goToTab('notifications')
-            }
-          }}
-        >
-          Notifications
+      <Button
+        href="/dashboard#tab-notifications"
+        variant={activeTab === 'notifications' ? 'primary' : 'ghost'}
+        size="sm"
+        onClick={(e) => {
+          if (onDashboard) {
+            e.preventDefault()
+            goToTab('notifications')
+          }
+        }}
+      >
+        Notifications
+        {unreadCount > 0 && (
           <span className="bg-primary text-[#111827] text-xs px-2 py-0.5 rounded-full ml-1">
             {unreadCount}
           </span>
-        </Button>
-      )}
+        )}
+      </Button>
     </>
   )
 }
@@ -387,8 +387,9 @@ export default function Header() {
                       Confirm your location
                     </button>
                   )}
-                  <MobileNavLink href="/dashboard">
-                    Dashboard
+                  <MobileNavLink href="/dashboard">Dashboard</MobileNavLink>
+                  <MobileNavLink href="/dashboard#tab-notifications">
+                    Notifications
                     {unreadCount > 0 && (
                       <span className="bg-primary text-[#111827] text-xs px-2 py-0.5 rounded-full ml-1">
                         {unreadCount}

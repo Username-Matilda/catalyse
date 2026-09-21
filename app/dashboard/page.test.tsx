@@ -164,10 +164,38 @@ describe('dashboard', () => {
     await userEvent.click(screen.getByRole('link', { name: 'View' }))
     expect((await linked()).readAt).toEqual(readAt)
     await userEvent.click(screen.getByRole('button', { name: 'Mark as unread' }))
+    // Unread items lead the list, so Note 0 moves to the top of the first page.
+    await userEvent.click(await screen.findByRole('button', { name: 'Previous' }))
     await screen.findByRole('button', { name: 'Mark as read' })
     expect((await linked()).readAt).toBeNull()
     await userEvent.click(screen.getByRole('link', { name: 'View' }))
     await waitFor(async () => expect((await linked()).readAt).not.toBeNull())
+  })
+
+  it('groups notifications under Unread and Earlier, and only when both are present', async () => {
+    const me = await createVolunteer()
+    const day = (d: number) => new Date(Date.UTC(2026, 0, d))
+    await prisma.notification.createMany({
+      data: [
+        { volunteerId: me.id, type: 'x', title: 'Fresh', createdAt: day(1) },
+        { volunteerId: me.id, type: 'x', title: 'Seen', readAt: day(9), createdAt: day(5) },
+      ],
+    })
+    await renderApp(<DashboardPage />, { as: me, url: '/dashboard#tab-notifications' })
+    const unread = await screen.findByRole('heading', { name: 'Unread' })
+    const earlier = screen.getByRole('heading', { name: 'Earlier' })
+    const fresh = screen.getByText('Fresh')
+    const seen = screen.getByText('Seen')
+    const before = (a: Node, b: Node) =>
+      Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(before(unread, fresh)).toBe(true)
+    expect(before(fresh, earlier)).toBe(true)
+    expect(before(earlier, seen)).toBe(true)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Read' }))
+    await waitFor(() => expect(screen.queryByText('Fresh')).toBeNull())
+    expect(screen.queryByRole('heading', { name: 'Unread' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Earlier' })).toBeNull()
   })
 
   it('surfaces a failed quick-task submission', async () => {
