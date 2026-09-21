@@ -83,11 +83,8 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
 
 export { expect } from '@playwright/test'
 
-// The cookie consent banner is fixed to the bottom of the viewport and, on a fresh
-// context, stays mounted (nothing dismisses it) for the whole test. Under CPU load its
-// mount is delayed just enough to land between Playwright's actionability check and the
-// actual click, occasionally swallowing clicks on content near the bottom of the page.
-// Pre-seeding localStorage keeps it from ever rendering in tests.
+// Analytics loads for anyone who has not declined it. Declining up front keeps Google
+// Analytics from loading in a test browser.
 export function dismissCookieConsentScript(): void {
   localStorage.setItem('cookieConsent', 'false')
 }

@@ -5,21 +5,16 @@ import { ThemeToggle } from './ThemeToggle'
 import BugReportDialog from './BugReportDialog'
 import Button from '@/components/Button'
 import { useToast } from '@/lib/toast'
-import { useCookieConsent } from '@/lib/cookie-consent-context'
 import { useAuth } from '@/lib/auth-context'
 
 export default function FloatingActions() {
   const [bugDialogOpen, setBugDialogOpen] = useState(false)
   const toast = useToast()
-  const { bannerVisible } = useCookieConsent()
   const { user } = useAuth()
 
   return (
     <>
-      {/* bottom-4 centers the group in the xl:h-16 footer; bottom-20 clears the same h-16 banner + the 16px gap */}
-      <div
-        className={`fixed right-6 z-[200] hidden xl:flex items-center bg-surface border border-brand-border rounded-lg shadow-lg overflow-hidden ${bannerVisible ? 'bottom-20' : 'bottom-4'}`}
-      >
+      <div className="fixed right-6 bottom-4 z-[200] hidden xl:flex items-center bg-surface border border-brand-border rounded-lg shadow-lg overflow-hidden">
         <ThemeToggle icon={false} className="rounded-none self-stretch" />
         {process.env.NODE_ENV === 'development' && (
           <>

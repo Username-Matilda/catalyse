@@ -32,7 +32,7 @@ process.env.STUB_GOOGLE = 'true'
 // A configured client id makes the pages render their Google button; the stub flag above
 // keeps the server from verifying real credentials.
 process.env.GOOGLE_CLIENT_ID = 'test-google-client'
-// Read at module load by CookieConsentBanner, so it must be set before any import.
+// Read at module load by Analytics, so it must be set before any import.
 process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID = 'G-TEST'
 // Several listed addresses so a test file can create more than one super-admin.
 process.env.ADMIN_EMAILS = Array.from({ length: 20 }, (_, i) => `admin${i || ''}@example.com`).join(

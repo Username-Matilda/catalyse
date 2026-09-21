@@ -1,103 +1,49 @@
 import { describe, it, expect } from 'vitest'
-import { screen, waitFor, act } from '@testing-library/react'
+import { screen, waitFor, act, cleanup } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { prisma } from '@/lib/prisma'
 import { createVolunteer, createLocalGroup } from '@/test/factories'
 import { renderApp } from '@/test/render'
-import CookieConsentBanner from './CookieConsentBanner'
+import Analytics from './Analytics'
 import VolunteerSelect from './VolunteerSelect'
 import ConfirmLocationModal from './ConfirmLocationModal'
-import { CookieConsentProvider, useCookieConsent } from '@/lib/cookie-consent-context'
 import { LocationModalProvider } from '@/lib/location-modal-context'
 
-function BannerFlag() {
-  const { bannerVisible } = useCookieConsent()
-  return <span data-testid="flag">{String(bannerVisible)}</span>
-}
-
-describe('CookieConsentBanner', () => {
-  it('asks once for anonymous visitors and stores the answer', async () => {
-    await renderApp(
-      <CookieConsentProvider>
-        <CookieConsentBanner />
-        <BannerFlag />
-      </CookieConsentProvider>,
-    )
-    expect(await screen.findByText('Decline')).toBeInTheDocument()
-    expect(screen.getByTestId('flag')).toHaveTextContent('true')
-    await userEvent.click(screen.getByText('Decline'))
-    expect(localStorage.getItem('cookieConsent')).toBe('false')
-    expect(screen.queryByText('Decline')).toBeNull()
-    expect(screen.getByTestId('flag')).toHaveTextContent('false')
-    // A stored answer is respected on the next visit.
-    await renderApp(
-      <CookieConsentProvider>
-        <CookieConsentBanner />
-      </CookieConsentProvider>,
-    )
-    await waitFor(() => expect(screen.queryByText('Accept')).toBeNull())
-  })
-
-  it("uses and updates the signed-in volunteer's stored choice, loading GA when accepted", async () => {
-    const Banner = CookieConsentBanner
-    const decided = await createVolunteer({ cookieConsentAnalytics: true })
-    await renderApp(
-      <CookieConsentProvider>
-        <Banner />
-      </CookieConsentProvider>,
-      { as: decided },
-    )
+describe('Analytics', () => {
+  it('loads Google Analytics for a visitor who has not declined, and shows no banner', async () => {
+    await renderApp(<Analytics />)
     expect(await screen.findByTestId('ga-init')).toBeInTheDocument()
     expect(screen.queryByText('Accept')).toBeNull()
-
-    expect(localStorage.getItem('cookieConsent')).toBe('true')
-
-    localStorage.removeItem('cookieConsent')
-    const undecided = await createVolunteer({ cookieConsentAnalytics: null })
-    await renderApp(
-      <CookieConsentProvider>
-        <Banner />
-      </CookieConsentProvider>,
-      { as: undecided },
-    )
-    await userEvent.click(await screen.findByText('Accept'))
-    await waitFor(async () =>
-      expect(
-        (await prisma.volunteer.findUniqueOrThrow({ where: { id: undecided.id } }))
-          .cookieConsentAnalytics,
-      ).toBe(true),
-    )
-  })
-
-  it("keeps an account's Decline on the device, over an older answer to the banner", async () => {
-    localStorage.setItem('cookieConsent', 'true')
-    const declined = await createVolunteer({ cookieConsentAnalytics: false })
-    await renderApp(
-      <CookieConsentProvider>
-        <CookieConsentBanner />
-      </CookieConsentProvider>,
-      { as: declined },
-    )
-    await waitFor(() => expect(localStorage.getItem('cookieConsent')).toBe('false'))
-    expect(screen.queryByTestId('ga-init')).toBeNull()
     expect(screen.queryByText('Decline')).toBeNull()
   })
 
-  it('says so when the choice cannot be saved to the account, and keeps it on the device', async () => {
+  it('stays off for a visitor who declined on this device', async () => {
+    localStorage.setItem('cookieConsent', 'false')
+    await renderApp(<Analytics />)
+    await act(async () => {})
+    expect(screen.queryByTestId('ga-init')).toBeNull()
+  })
+
+  it("follows the signed-in volunteer's account choice, and keeps it on the device", async () => {
+    const accepted = await createVolunteer({ cookieConsentAnalytics: true })
+    await renderApp(<Analytics />, { as: accepted })
+    expect(await screen.findByTestId('ga-init')).toBeInTheDocument()
+    expect(localStorage.getItem('cookieConsent')).toBe('true')
+
+    // A Decline kept on the account beats an older answer stored on the device.
+    cleanup()
+    localStorage.setItem('cookieConsent', 'true')
+    const declined = await createVolunteer({ cookieConsentAnalytics: false })
+    await renderApp(<Analytics />, { as: declined })
+    await waitFor(() => expect(localStorage.getItem('cookieConsent')).toBe('false'))
+    expect(screen.queryByTestId('ga-init')).toBeNull()
+  })
+
+  it('loads for a signed-in volunteer who has not chosen', async () => {
     const undecided = await createVolunteer({ cookieConsentAnalytics: null })
-    await renderApp(
-      <CookieConsentProvider>
-        <CookieConsentBanner />
-      </CookieConsentProvider>,
-      { as: undecided },
-    )
-    const decline = await screen.findByText('Decline')
-    await prisma.volunteer.update({ where: { id: undecided.id }, data: { deletedAt: new Date() } })
-    await userEvent.click(decline)
-    await screen.findByText(/couldn't be saved to your account/)
-    expect(localStorage.getItem('cookieConsent')).toBe('false')
-    expect(screen.queryByText('Accept')).toBeNull()
+    await renderApp(<Analytics />, { as: undecided })
+    expect(await screen.findByTestId('ga-init')).toBeInTheDocument()
   })
 })
 

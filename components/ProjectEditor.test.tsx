@@ -13,18 +13,11 @@ import {
 import { renderApp } from '@/test/render'
 import { navigation } from '@/test/next-navigation'
 import ProjectEditor from './ProjectEditor'
-import { CookieConsentProvider } from '@/lib/cookie-consent-context'
 
 const mount = (
   props: React.ComponentProps<typeof ProjectEditor>,
   as: Awaited<ReturnType<typeof createVolunteer>>,
-) =>
-  renderApp(
-    <CookieConsentProvider>
-      <ProjectEditor {...props} />
-    </CookieConsentProvider>,
-    { as },
-  )
+) => renderApp(<ProjectEditor {...props} />, { as })
 
 const row = (id: number) => prisma.workItem.findUniqueOrThrow({ where: { id } })
 const blur = (el: HTMLElement) => fireEvent.blur(el)

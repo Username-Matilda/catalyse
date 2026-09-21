@@ -166,9 +166,9 @@ export default function PrivacyPage() {
                 data via cookies. IP addresses are anonymised. Google Signals and ads
                 personalisation are disabled, so this data is never used for advertising. Google,
                 our analytics provider, processes this data on our behalf — we never sell it or
-                share it for any other purpose. Only loaded if you accept cookies via the consent
-                banner. You can withdraw consent at any time in Settings &gt; Privacy &amp; Data, or
-                by clearing your browser cookies. Data may be processed in the United States.
+                share it for any other purpose. It loads unless you have turned it off, and there is
+                no cookie banner. You can turn it off at any time in Settings &gt; Privacy &amp;
+                Data. Data may be processed in the United States.
               </li>
               <li>
                 <strong>Google Sign-In</strong> (authentication): if you choose to sign in with
@@ -208,8 +208,8 @@ export default function PrivacyPage() {
               </li>
               <li>
                 <strong>Analytics cookies</strong>: Google Analytics uses cookies to collect
-                anonymised usage data. These are only loaded after you accept the cookie consent
-                banner. You can decline or withdraw consent at any time.
+                anonymised usage data. These load unless you have turned analytics off in Settings
+                &gt; Privacy &amp; Data, which you can do at any time.
               </li>
             </ul>
 

@@ -11,7 +11,6 @@ import FilterDropdown, { useFilterOptions, type FilterOption } from './FilterDro
 import { renderApp } from '@/test/render'
 import { createVolunteer } from '@/test/factories'
 import { prisma } from '@/lib/prisma'
-import { CookieConsentProvider, useCookieConsent } from '@/lib/cookie-consent-context'
 
 function mockMatchMedia(dark: boolean) {
   const listeners = new Set<() => void>()
@@ -109,21 +108,13 @@ describe('Modal', () => {
 })
 
 describe('FloatingActions', () => {
-  function Probe() {
-    const { setBannerVisible } = useCookieConsent()
-    return <button onClick={() => setBannerVisible(true)}>banner</button>
-  }
-
   it('offers the theme toggle, dev toasts, and the bug dialog for signed-in users', async () => {
     mockMatchMedia(false)
     vi.stubEnv('NODE_ENV', 'development')
     const vol = await createVolunteer()
     await renderApp(
       <ThemeProvider>
-        <CookieConsentProvider>
-          <Probe />
-          <FloatingActions />
-        </CookieConsentProvider>
+        <FloatingActions />
       </ThemeProvider>,
       { as: vol },
     )
@@ -133,8 +124,6 @@ describe('FloatingActions', () => {
     expect(screen.getAllByRole('alert')).toHaveLength(3)
     const bug = await screen.findByLabelText('Report a bug or give feedback')
     expect(bug.parentElement).toHaveClass('bottom-4')
-    await userEvent.click(screen.getByText('banner'))
-    expect(bug.parentElement).toHaveClass('bottom-20')
     await userEvent.click(bug)
     expect(await screen.findByRole('dialog')).toBeInTheDocument()
     await userEvent.click(screen.getByLabelText('Close'))

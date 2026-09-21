@@ -1,28 +1,8 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, act, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { CookieConsentProvider, useCookieConsent } from './cookie-consent-context'
 import { LocationModalProvider, useLocationModal } from './location-modal-context'
 import { ToastProvider, useToast } from './toast'
-
-describe('CookieConsentProvider', () => {
-  function Probe() {
-    const { bannerVisible, setBannerVisible } = useCookieConsent()
-    return <button onClick={() => setBannerVisible(!bannerVisible)}>{String(bannerVisible)}</button>
-  }
-  it('toggles banner visibility, and is a no-op default outside the provider', async () => {
-    render(
-      <CookieConsentProvider>
-        <Probe />
-      </CookieConsentProvider>,
-    )
-    await userEvent.click(screen.getByText('false'))
-    expect(screen.getByText('true')).toBeInTheDocument()
-    render(<Probe />)
-    await userEvent.click(screen.getAllByText('false')[0])
-    expect(screen.getAllByText('false')).toHaveLength(1)
-  })
-})
 
 describe('LocationModalProvider', () => {
   function Probe() {
