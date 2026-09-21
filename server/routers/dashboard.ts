@@ -1,5 +1,10 @@
 import { prisma } from '@/lib/prisma'
-import { withProjectExtras, projectInclude, EnrichedProject } from '@/lib/work-item'
+import {
+  withProjectExtras,
+  projectInclude,
+  projectScopeWhere,
+  EnrichedProject,
+} from '@/lib/work-item'
 import { authedProcedure } from '../procedures'
 import { ADVERTISABLE_STATUSES } from '@/lib/project-status'
 import { WorkItemType } from '@/generated/prisma/enums'
@@ -14,7 +19,6 @@ export const dashboardRouter = {
       select: {
         emailConfirmed: true,
         skills: { select: { skillId: true } },
-        teamMemberships: { select: { teamId: true } },
       },
     })
     const approvalWelcome = await prisma.notification.findFirst({
@@ -23,7 +27,6 @@ export const dashboardRouter = {
       select: { id: true },
     })
     const volunteerSkillIds = new Set((volunteerWithSkills?.skills ?? []).map((s) => s.skillId))
-    const volunteerTeamIds = (volunteerWithSkills?.teamMemberships ?? []).map((m) => m.teamId)
 
     const alreadyInterestedProjects = await prisma.workItemInterest.findMany({
       where: { volunteerId: volunteer.id },
@@ -73,11 +76,7 @@ export const dashboardRouter = {
                   // ownerless projects — the ones most in need of someone — were never
                   // suggested to anyone. Same workaround as proposedProjects above.
                   { OR: [{ assigneeId: null }, { assigneeId: { not: volunteer.id } }] },
-                  // Team-scoped projects must only be suggested to members of that team —
-                  // matches the access check in getById/canReachProject.
-                  ...(volunteer.isAdmin
-                    ? []
-                    : [{ OR: [{ teamId: null }, { teamId: { in: volunteerTeamIds } }] }]),
+                  projectScopeWhere(volunteer),
                 ],
                 id: { notIn: interestedProjectIds.length > 0 ? interestedProjectIds : [-1] },
               },

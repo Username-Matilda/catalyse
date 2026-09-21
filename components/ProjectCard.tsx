@@ -91,6 +91,11 @@ export function ProjectCard({
   showProposer?: boolean
 }) {
   const proposer = showProposer ? proposerDisplay(p) : null
+  // The grade says how well the viewer fits; these say why.
+  const matchedRequired = (p.skills ?? [])
+    .filter((s) => s.isRequired && userSkillIds.has(s.id))
+    .slice(0, 3)
+    .map((s) => s.name)
   return (
     <div
       className={`card bg-surface rounded-xl shadow px-5 pt-5 pb-4 overflow-hidden wrap-break-word grid grid-rows-subgrid row-span-6 gap-y-2 relative min-w-0 ${p.isMyTeam ? 'border-l-4 border-primary' : ''}`}
@@ -123,16 +128,20 @@ export function ProjectCard({
             {p.owner ? 'Will be owner' : 'Would need to find owner'}
           </span>
         ) : (
-          <span>👤 {p.owner ? p.owner.name : 'No owner yet'}</span>
+          <span title="Owner">👤 {p.owner ? p.owner.name : 'No owner yet'}</span>
         )}
         {(() => {
           const parts = projectLocationParts(p.country, p.localGroup, p.remoteEligibility)
-          return parts.length > 0 && <span>📍 {parts.join(' · ')}</span>
+          return parts.length > 0 && <span title="Location">📍 {parts.join(' · ')}</span>
         })()}
-        {p.team && <span>🧑‍🤝‍🧑 {p.team.name}</span>}
-        {p.projectType && <span>📋 {PROJECT_TYPE_LABELS[p.projectType] ?? p.projectType}</span>}
-        {p.timeCommitmentHoursPerWeek && <span>🕐 {p.timeCommitmentHoursPerWeek}h/week</span>}
-        {p.urgency && <span>⚡ {p.urgency} priority</span>}
+        {p.team && <span title="Team">🧑‍🤝‍🧑 {p.team.name}</span>}
+        {p.projectType && (
+          <span title="Type">📋 {PROJECT_TYPE_LABELS[p.projectType] ?? p.projectType}</span>
+        )}
+        {p.timeCommitmentHoursPerWeek && (
+          <span title="Hours per week">🕐 {p.timeCommitmentHoursPerWeek}h/week</span>
+        )}
+        {p.urgency && <span title="Priority">⚡ {p.urgency} priority</span>}
       </div>
       <p className="row-start-4 min-w-0 text-text-light text-sm m-0 wrap-break-word">
         {p.description
@@ -169,9 +178,14 @@ export function ProjectCard({
         (p.skills?.length ?? 0) > 0 &&
         userSkillIds.size > 0 &&
         matchGradeLabel(p.match.matchedRequiredCount) ? (
-          <span className="text-xs font-semibold text-primary-text">
-            {matchGradeLabel(p.match.matchedRequiredCount)}
-          </span>
+          <div className="text-xs">
+            <span className="font-semibold text-primary-text">
+              {matchGradeLabel(p.match.matchedRequiredCount)}
+            </span>
+            {matchedRequired.length > 0 && (
+              <div className="text-text-light">Matches: {matchedRequired.join(', ')}</div>
+            )}
+          </div>
         ) : (
           <div />
         )}

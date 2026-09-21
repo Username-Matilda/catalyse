@@ -93,7 +93,7 @@ describe('projects directory', () => {
     await waitFor(() => expect(screen.getByText('No projects found')).toBeInTheDocument())
 
     await userEvent.click(screen.getByRole('button', { name: 'Status filter' }))
-    await userEvent.click(screen.getByRole('option', { name: 'All Active' }))
+    await userEvent.click(screen.getByRole('option', { name: 'All' }))
     await userEvent.click(screen.getByRole('button', { name: 'Needs filter' }))
     await userEvent.click(screen.getByRole('option', { name: 'Looking for People' }))
     await screen.findByRole('link', { name: 'Urgent UK' })
@@ -120,6 +120,29 @@ describe('projects directory', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Clear filters' }))
     expect(navigation.replace).toHaveBeenCalledWith('?', { scroll: false })
     expect(screen.getByLabelText('Search')).toHaveValue('')
+  })
+
+  it('leaves the grouped overview for one ordered list when a sort is chosen', async () => {
+    const me = await createVolunteer()
+    const owner = await createVolunteer()
+    const made = (title: string, day: number) =>
+      createProject({
+        title,
+        assigneeId: owner.id,
+        status: 'in_progress',
+        isSeekingHelp: false,
+        createdAt: new Date(Date.UTC(2026, 0, day)),
+      })
+    await made('Sorted older', 1)
+    await made('Sorted newer', 2)
+    await renderApp(<ProjectsPage />, { as: me, url: '/projects?q=Sorted' })
+    await screen.findByRole('link', { name: 'Sorted older' })
+    expect(screen.getByText('In Progress: 2 projects')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Sort filter' }))
+    await userEvent.click(screen.getByRole('option', { name: 'Newest first' }))
+    await waitFor(() => expect(screen.queryByText('In Progress: 2 projects')).toBeNull())
+    const links = screen.getAllByRole('link', { name: /^Sorted/ }).map((l) => l.textContent)
+    expect(links).toEqual(['Sorted newer', 'Sorted older'])
   })
 
   it('shows admin alerts, the all-teams filter, and the email confirmation error', async () => {

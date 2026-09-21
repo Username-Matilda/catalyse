@@ -7,7 +7,10 @@ import {
   projectInclude,
   EnrichedProject,
   canViewWorkItem,
-  resolveTeamPrivy,
+  canSeeProjectScope,
+  projectScopeSql,
+  projectScopeWhere,
+  resolveProjectPrivy,
   CLAIM_BLOCKING_INTEREST_STATUSES,
   serializeTask,
   applyScheduleWrite,
@@ -48,23 +51,19 @@ import {
   WorkItemType,
 } from '@/generated/prisma/enums'
 
-/**
- * Can this volunteer reach a team-restricted project at all? Mirrors the list/getById
- * gate: a project tagged to a team is only reachable by that team's members, its
- * owner/proposer, an accepted helper, or an admin.
- */
+/** Is the project within this volunteer's scope (team and country)? See lib/work-item.ts. */
 async function canReachProject(
   project: {
     id: number
     teamId: number | null
     creatorId: number | null
     assigneeId: number | null
+    country: string | null
+    remoteEligibility: string
   },
-  volunteer: { id: number; isAdmin: boolean | null },
+  volunteer: { id: number; isAdmin: boolean | null; country: string | null },
 ): Promise<boolean> {
-  if (project.teamId === null || volunteer.isAdmin) return true
-  if (project.creatorId === volunteer.id || project.assigneeId === volunteer.id) return true
-  return resolveTeamPrivy(project.teamId, project.id, volunteer.id)
+  return canSeeProjectScope(project, volunteer)
 }
 
 /**
@@ -125,6 +124,13 @@ const TASK_ORDER: Record<string, number> = {
   [TaskStatus.completed]: 1,
 }
 
+const URGENCY_RANK_SQL = `CASE urgency WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END`
+// Projects looking for people first, then the most urgent, then the newest.
+const DEFAULT_PROJECT_ORDER_SQL = `ORDER BY
+  CASE WHEN is_seeking_help OR ${SEEKING_OWNER_SQL} THEN 0 ELSE 1 END,
+  ${URGENCY_RANK_SQL},
+  created_at DESC, id DESC`
+
 export const projectsRouter = {
   list: approvedProcedure
     .input(
@@ -141,7 +147,7 @@ export const projectsRouter = {
         isSeekingOwner: z.boolean().optional(),
         isSeekingAny: z.boolean().optional(),
         notSeeking: z.boolean().optional(),
-        sortBy: z.string().optional().default('created_at'),
+        sortBy: z.string().optional(),
         limit: z.number().int().min(1).max(100).optional().default(50),
         offset: z.number().int().min(0).optional().default(0),
       }),
@@ -219,26 +225,16 @@ export const projectsRouter = {
         conditions.push(Prisma.raw(`NOT is_seeking_help AND NOT ${SEEKING_OWNER_SQL}`))
       }
 
-      // A project tagged to a team is only browsable by that team's members, its
-      // owner/proposer, or an admin — everyone else never sees it in the list.
-      if (!volunteer.isAdmin) {
-        conditions.push(Prisma.sql`(
-          team_id IS NULL
-          OR creator_id = ${volunteer.id}
-          OR assignee_id = ${volunteer.id}
-          OR team_id IN (SELECT team_id FROM team_memberships WHERE volunteer_id = ${volunteer.id})
-          OR id IN (
-            SELECT work_item_id FROM work_item_interests
-            WHERE volunteer_id = ${volunteer.id} AND status = ${InterestStatus.accepted}::"InterestStatus"
-          )
-        )`)
-      }
+      conditions.push(projectScopeSql(volunteer))
 
       const whereClause = Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`
-      const orderClause = Prisma.raw(`ORDER BY
-        CASE WHEN is_seeking_help OR ${SEEKING_OWNER_SQL} THEN 0 ELSE 1 END,
-        CASE urgency WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
-        created_at DESC, id DESC`)
+      const orderClause = Prisma.raw(
+        input.sortBy === 'created_at'
+          ? 'ORDER BY created_at DESC, id DESC'
+          : input.sortBy === 'urgency'
+            ? `ORDER BY ${URGENCY_RANK_SQL}, created_at DESC, id DESC`
+            : DEFAULT_PROJECT_ORDER_SQL,
+      )
 
       const [countResult, idRows] = await Promise.all([
         prisma.$queryRaw<
@@ -344,24 +340,10 @@ export const projectsRouter = {
       if (input.isOrgProposed !== undefined) {
         sharedConditions.push(Prisma.sql`is_org_proposed = ${input.isOrgProposed}`)
       }
-      if (!volunteer.isAdmin) {
-        sharedConditions.push(Prisma.sql`(
-          team_id IS NULL
-          OR creator_id = ${volunteer.id}
-          OR assignee_id = ${volunteer.id}
-          OR team_id IN (SELECT team_id FROM team_memberships WHERE volunteer_id = ${volunteer.id})
-          OR id IN (
-            SELECT work_item_id FROM work_item_interests
-            WHERE volunteer_id = ${volunteer.id} AND status = ${InterestStatus.accepted}::"InterestStatus"
-          )
-        )`)
-      }
+      sharedConditions.push(projectScopeSql(volunteer))
 
       const seekingSqlStr = `(is_seeking_help OR ${SEEKING_OWNER_SQL})`
-      const orderClause = Prisma.raw(`ORDER BY
-        CASE WHEN is_seeking_help OR ${SEEKING_OWNER_SQL} THEN 0 ELSE 1 END,
-        CASE urgency WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
-        created_at DESC, id DESC`)
+      const orderClause = Prisma.raw(DEFAULT_PROJECT_ORDER_SQL)
 
       const bucketDefs: { key: string; extra: Prisma.Sql }[] = [
         { key: 'seeking', extra: Prisma.raw(seekingSqlStr) },
@@ -643,15 +625,8 @@ export const projectsRouter = {
 
       if (!project) throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
 
-      if (project.teamId !== null && !volunteer.isAdmin) {
-        const isDirectParticipant =
-          project.creatorId === volunteer.id || project.assigneeId === volunteer.id
-        if (
-          !isDirectParticipant &&
-          !(await resolveTeamPrivy(project.teamId, project.id, volunteer.id))
-        ) {
-          throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
-        }
+      if (!(await canReachProject(project, volunteer))) {
+        throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
       }
 
       const hiddenStatuses: string[] = [
@@ -1346,7 +1321,6 @@ export const projectsRouter = {
       })
       if (!project) throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
 
-      const isTeamPrivy = await resolveTeamPrivy(project.teamId, project.id, volunteer.id)
       if (
         !canViewWorkItem(
           project,
@@ -1354,9 +1328,10 @@ export const projectsRouter = {
             id: volunteer.id,
             isAdmin: Boolean(volunteer.isAdmin),
             isApproved: volunteer.approvalStatus === ApprovalStatus.approved,
+            country: volunteer.country,
           },
           undefined,
-          isTeamPrivy,
+          await resolveProjectPrivy(project, volunteer),
         )
       ) {
         throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
@@ -1434,7 +1409,6 @@ export const projectsRouter = {
       })
       if (!task) throw new ORPCError('NOT_FOUND', { message: 'Task not found' })
 
-      const isTeamPrivy = await resolveTeamPrivy(project.teamId, project.id, volunteer.id)
       if (
         !canViewWorkItem(
           task,
@@ -1442,9 +1416,10 @@ export const projectsRouter = {
             id: volunteer.id,
             isAdmin: Boolean(volunteer.isAdmin),
             isApproved: volunteer.approvalStatus === ApprovalStatus.approved,
+            country: volunteer.country,
           },
           project,
-          isTeamPrivy,
+          await resolveProjectPrivy(project, volunteer),
         )
       ) {
         throw new ORPCError('NOT_FOUND', { message: 'Task not found' })
@@ -1641,12 +1616,6 @@ export const projectsRouter = {
         ? requested
         : requested.filter((s) => !UNAPPROVED_STATUSES.includes(s))
 
-      const teamMemberships = await prisma.teamMembership.findMany({
-        where: { volunteerId: volunteer.id },
-        select: { teamId: true },
-      })
-      const myTeamIds = teamMemberships.map((m) => m.teamId)
-
       const visible = await prisma.workItem.findMany({
         where: {
           type: WorkItemType.PROJECT,
@@ -1654,21 +1623,7 @@ export const projectsRouter = {
           ...(input.teamId ? { teamId: input.teamId } : {}),
           ...(input.country ? { country: input.country } : {}),
           ...(input.localGroup ? { localGroup: input.localGroup } : {}),
-          ...(volunteer.isAdmin
-            ? {}
-            : {
-                OR: [
-                  { teamId: null },
-                  { creatorId: volunteer.id },
-                  { assigneeId: volunteer.id },
-                  ...(myTeamIds.length > 0 ? [{ teamId: { in: myTeamIds } }] : []),
-                  {
-                    interests: {
-                      some: { volunteerId: volunteer.id, status: InterestStatus.accepted },
-                    },
-                  },
-                ],
-              }),
+          AND: [projectScopeWhere(volunteer)],
         },
         select: { id: true, title: true, status: true },
       })

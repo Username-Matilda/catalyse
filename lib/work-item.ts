@@ -1,6 +1,6 @@
 import { Prisma } from '@/generated/prisma/client'
 import { prisma } from './prisma'
-import { calculateMatchScore } from './matching'
+import { calculateMatchScore, isGeoEligible } from './matching'
 import { isSeekingOwner, UNAPPROVED_STATUSES } from './project-status'
 import {
   InterestStatus,
@@ -21,9 +21,19 @@ export type WorkItemForAccess = {
   creatorId: number | null
   assigneeId: number | null
   teamId?: number | null
+  country: string | null
+  remoteEligibility: string
 }
 
-export type CommentViewer = { id: number; isAdmin: boolean; isApproved: boolean } | null
+export type CommentViewer = {
+  id: number
+  isAdmin: boolean
+  isApproved: boolean
+  country: string | null
+} | null
+
+/** Which of a project's scope restrictions the viewer is exempt from; see `resolveProjectPrivy`. */
+export type ProjectPrivy = { team: boolean; country: boolean }
 
 const PROJECT_HIDDEN_STATUSES: string[] = UNAPPROVED_STATUSES
 
@@ -39,33 +49,31 @@ export const CLAIM_BLOCKING_INTEREST_STATUSES: InterestStatus[] = [
  * Can `viewer` see this work item (and therefore its comment thread)?
  * For TASK, pass the parent PROJECT — task visibility follows the project.
  *
- * `isTeamPrivy` — viewer is a member of the project's team, or an accepted helper on it.
- * The caller resolves it (requires a DB lookup); only relevant when the project has a
- * team assigned, in which case it's otherwise restricted to the team, its owner/proposer,
- * and admins.
+ * `privy` — the project scope restrictions the viewer is exempt from, resolved by the caller
+ * with `resolveProjectPrivy` (it needs the database). See "Project scope" below.
  */
 export function canViewWorkItem(
   item: WorkItemForAccess,
   viewer: CommentViewer,
   parent?: WorkItemForAccess | null,
-  isTeamPrivy?: boolean,
+  privy?: ProjectPrivy,
 ): boolean {
   switch (item.type) {
     case WorkItemType.PROJECT: {
+      const isDirectParticipant = Boolean(
+        viewer && (viewer.isAdmin || viewer.id === item.creatorId || viewer.id === item.assigneeId),
+      )
       if (item.teamId !== null && item.teamId !== undefined) {
-        const isDirectParticipant = Boolean(
-          viewer &&
-          (viewer.isAdmin || viewer.id === item.creatorId || viewer.id === item.assigneeId),
-        )
-        if (!isDirectParticipant && !isTeamPrivy) return false
+        if (!isDirectParticipant && !privy?.team) return false
+      }
+      if (viewer && isOutsideCountry(item, viewer.country)) {
+        if (!isDirectParticipant && !privy?.country) return false
       }
       if (!PROJECT_HIDDEN_STATUSES.includes(item.status)) return true
       return Boolean(viewer && (viewer.isAdmin || viewer.id === item.creatorId))
     }
     case WorkItemType.TASK:
-      return parent
-        ? canViewWorkItem(parent, viewer, undefined, isTeamPrivy)
-        : Boolean(viewer?.isAdmin)
+      return parent ? canViewWorkItem(parent, viewer, undefined, privy) : Boolean(viewer?.isAdmin)
     case WorkItemType.QUICK_TASK:
       // Open, unclaimed tasks are browsable by any approved volunteer before they claim one —
       // but not by a pending applicant, same as the approvedProcedure gate on the pages that
@@ -103,6 +111,134 @@ export async function resolveTeamPrivy(
     }),
   ])
   return Boolean(membership || interest)
+}
+
+// ── Project scope ─────────────────────────────────────────────────────────────
+// A project reaches a volunteer only within its scope. A team-tagged project stays within
+// its team; a country-scoped one (it names a country and is not open to remote volunteers
+// everywhere) stays within that country. Its owner and proposer see it regardless, and so
+// do admins. For a team project, its team's members and accepted helpers see it; for a
+// country-scoped one, so does anyone already on it: the team's members, anyone who applied
+// or was added, and anyone holding one of its tasks. A volunteer who has not given a
+// country is not held to the country rule.
+//
+// The rule is written three ways, for the three shapes of query: `projectScopeSql` for raw
+// SQL lists, `projectScopeWhere` for Prisma queries, and `resolveProjectPrivy` with
+// `canViewWorkItem` (or `canSeeProjectScope`) for a single row.
+
+export type ProjectViewer = { id: number; isAdmin: boolean | null; country: string | null }
+
+type ScopedProject = {
+  id: number
+  teamId: number | null
+  creatorId: number | null
+  assigneeId: number | null
+  country: string | null
+  remoteEligibility: string
+}
+
+/** Is this project scoped to a country other than the viewer's? */
+export function isOutsideCountry(
+  project: { country: string | null; remoteEligibility: string },
+  viewerCountry: string | null,
+): boolean {
+  return !isGeoEligible(viewerCountry, true, project.country, project.remoteEligibility)
+}
+
+/** Has the volunteer applied to, been added to, or been given a task on this project? */
+async function isOnProject(projectId: number, volunteerId: number): Promise<boolean> {
+  const [interest, task] = await Promise.all([
+    prisma.workItemInterest.findFirst({
+      where: { workItemId: projectId, volunteerId },
+      select: { id: true },
+    }),
+    prisma.workItem.findFirst({
+      where: { parentId: projectId, assigneeId: volunteerId },
+      select: { id: true },
+    }),
+  ])
+  return Boolean(interest || task)
+}
+
+/** Which of the project's scope restrictions `viewer` is exempt from, for `canViewWorkItem`. */
+export async function resolveProjectPrivy(
+  project: Omit<ScopedProject, 'creatorId' | 'assigneeId'>,
+  viewer: { id: number; country: string | null },
+): Promise<ProjectPrivy> {
+  const team = await resolveTeamPrivy(project.teamId, project.id, viewer.id)
+  const country =
+    team || !isOutsideCountry(project, viewer.country) || (await isOnProject(project.id, viewer.id))
+  return { team, country }
+}
+
+/** Is the project within `viewer`'s scope? Status (drafts and the like) is not checked. */
+export async function canSeeProjectScope(
+  project: ScopedProject,
+  viewer: ProjectViewer,
+): Promise<boolean> {
+  if (viewer.isAdmin || viewer.id === project.creatorId || viewer.id === project.assigneeId) {
+    return true
+  }
+  const privy = await resolveProjectPrivy(project, viewer)
+  return (project.teamId === null || privy.team) && privy.country
+}
+
+/** The scope rule as a condition on `work_items` rows, for raw SQL project lists. */
+export function projectScopeSql(viewer: ProjectViewer): Prisma.Sql {
+  if (viewer.isAdmin) return Prisma.sql`TRUE`
+  const id = viewer.id
+  const involved = Prisma.sql`creator_id = ${id} OR assignee_id = ${id}
+    OR team_id IN (SELECT team_id FROM team_memberships WHERE volunteer_id = ${id})`
+  const team = Prisma.sql`(
+    team_id IS NULL OR ${involved}
+    OR id IN (
+      SELECT work_item_id FROM work_item_interests
+      WHERE volunteer_id = ${id} AND status = ${InterestStatus.accepted}::"InterestStatus"
+    )
+  )`
+  if (!viewer.country) return team
+  return Prisma.sql`${team} AND (
+    country IS NULL
+    OR remote_eligibility = ${RemoteEligibility.GLOBAL}::"RemoteEligibility"
+    OR country = ${viewer.country}
+    OR ${involved}
+    OR id IN (SELECT work_item_id FROM work_item_interests WHERE volunteer_id = ${id})
+    OR id IN (SELECT parent_id FROM work_items WHERE assignee_id = ${id} AND parent_id IS NOT NULL)
+  )`
+}
+
+/** The scope rule as a Prisma filter on projects. */
+export function projectScopeWhere(viewer: ProjectViewer): Prisma.WorkItemWhereInput {
+  if (viewer.isAdmin) return {}
+  const id = viewer.id
+  const involved: Prisma.WorkItemWhereInput[] = [
+    { creatorId: id },
+    { assigneeId: id },
+    { team: { members: { some: { volunteerId: id } } } },
+  ]
+  const team: Prisma.WorkItemWhereInput = {
+    OR: [
+      { teamId: null },
+      ...involved,
+      { interests: { some: { volunteerId: id, status: InterestStatus.accepted } } },
+    ],
+  }
+  if (!viewer.country) return team
+  return {
+    AND: [
+      team,
+      {
+        OR: [
+          { country: null },
+          { remoteEligibility: RemoteEligibility.GLOBAL },
+          { country: viewer.country },
+          ...involved,
+          { interests: { some: { volunteerId: id } } },
+          { children: { some: { assigneeId: id } } },
+        ],
+      },
+    ],
+  }
 }
 
 /**

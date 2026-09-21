@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
 import { notifyUser } from '@/lib/notify'
-import { canViewWorkItem, canPostComment, resolveTeamPrivy } from '@/lib/work-item'
+import { canViewWorkItem, canPostComment, resolveProjectPrivy } from '@/lib/work-item'
 import { authedProcedure } from '../procedures'
 import { ApprovalStatus, InterestStatus, WorkItemType } from '@/generated/prisma/enums'
 
@@ -15,6 +15,8 @@ const WORK_ITEM_SELECT = {
   creatorId: true,
   assigneeId: true,
   teamId: true,
+  country: true,
+  remoteEligibility: true,
 } as const
 
 type LoadedWorkItem = {
@@ -26,6 +28,8 @@ type LoadedWorkItem = {
   creatorId: number | null
   assigneeId: number | null
   teamId: number | null
+  country: string | null
+  remoteEligibility: string
 }
 
 async function loadWithParent(id: number) {
@@ -83,14 +87,17 @@ export const workItemCommentsRouter = {
         id: context.volunteer.id,
         isAdmin: Boolean(context.volunteer.isAdmin),
         isApproved: context.volunteer.approvalStatus === ApprovalStatus.approved,
+        country: context.volunteer.country,
       }
-      const teamProject = loaded.item.type === WorkItemType.TASK ? loaded.parent : loaded.item
-      const isTeamPrivy = await resolveTeamPrivy(
-        teamProject?.teamId,
-        teamProject?.id ?? input.workItemId,
-        viewer.id,
-      )
-      if (!canViewWorkItem(loaded.item, viewer, loaded.parent, isTeamPrivy)) {
+      // Only a project, and a task through its project, has a scope to be exempt from.
+      const project =
+        loaded.item.type === WorkItemType.PROJECT
+          ? loaded.item
+          : loaded.item.type === WorkItemType.TASK
+            ? loaded.parent
+            : null
+      const privy = project ? await resolveProjectPrivy(project, viewer) : undefined
+      if (!canViewWorkItem(loaded.item, viewer, loaded.parent, privy)) {
         throw new ORPCError('NOT_FOUND', { message: 'Work item not found' })
       }
 

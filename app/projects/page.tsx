@@ -18,7 +18,7 @@ import { type Project, ProjectList, statusBadgeClasses } from '@/components/Proj
 import { badgeClasses } from '@/components/Badge'
 
 const STATUS_OPTIONS = [
-  { value: '', label: 'All Active' },
+  { value: '', label: 'All' },
   { value: 'ready', label: 'Ready' },
   { value: 'in_progress', label: 'In Progress' },
   { value: 'on_hold', label: 'On Hold' },
@@ -70,7 +70,8 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
 
   const [completedOpen, setCompletedOpen] = useState(false)
 
-  const isFlatView = Boolean(statusFilter || needsFilter)
+  // A chosen sort needs one ordered list; the grouped overview has its own order.
+  const isFlatView = Boolean(statusFilter || needsFilter || sortBy)
 
   // Reset to page 1 whenever a filter changes, but not on the initial mount
   // (which would clobber a deep-linked ?page=N&status=... URL).

@@ -3,6 +3,7 @@ import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
 import { redactVolunteer } from '@/lib/auth'
 import { UpdateVolunteerSchema } from '@/lib/schemas'
+import { projectScopeWhere } from '@/lib/work-item'
 import { approvedProcedure, authedProcedure } from '../procedures'
 import {
   ApprovalStatus,
@@ -210,6 +211,7 @@ export const volunteersRouter = {
           where: {
             type: WorkItemType.PROJECT,
             OR: [{ assigneeId: input.id }, { creatorId: input.id }],
+            AND: [projectScopeWhere(currentVolunteer)],
             status: {
               notIn: [
                 ProjectStatus.archived,

@@ -117,6 +117,37 @@ describe('projects.list', () => {
     ).toEqual([weak.id])
     expect((await clientAs(noSkills).projects.list(q)).projects).toHaveLength(1)
   })
+
+  it('orders by newest or most urgent when asked, seeking-first otherwise', async () => {
+    const me = await createVolunteer()
+    // Owned, so that only the seeking-help flag marks one as looking for people.
+    const assigneeId = (await createVolunteer()).id
+    const day = (n: number) => new Date(Date.UTC(2026, 0, n))
+    const oldUrgent = await createProject({
+      title: 'ordersort old urgent',
+      assigneeId,
+      urgency: 'high',
+      createdAt: day(1),
+    })
+    const newCalm = await createProject({
+      title: 'ordersort new calm',
+      assigneeId,
+      urgency: 'low',
+      createdAt: day(3),
+    })
+    const seeking = await createProject({
+      title: 'ordersort seeking',
+      assigneeId,
+      urgency: 'medium',
+      isSeekingHelp: true,
+      createdAt: day(2),
+    })
+    const order = async (sortBy?: string) =>
+      (await clientAs(me).projects.list({ search: 'ordersort', sortBy })).projects.map((p) => p.id)
+    expect(await order('created_at')).toEqual([newCalm.id, seeking.id, oldUrgent.id])
+    expect(await order('urgency')).toEqual([oldUrgent.id, seeking.id, newCalm.id])
+    expect(await order()).toEqual([seeking.id, oldUrgent.id, newCalm.id])
+  })
 })
 
 describe('projects.listGrouped', () => {
