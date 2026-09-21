@@ -21,19 +21,54 @@ describe('dashboard', () => {
     expect(screen.getByText(/Stay in the loop/)).toBeInTheDocument()
     await userEvent.click(screen.getByLabelText('Dismiss'))
     expect(screen.queryByText(/Stay in the loop/)).toBeNull()
-    // Nothing of their own and nothing unread: discovery is all there is to show.
+    // Until approved: the stepper and notifications, nothing to create, join or browse.
+    expect(screen.getByLabelText('Application status')).toHaveTextContent('Under Review')
+    expect(screen.queryByRole('link', { name: 'Create Project' })).toBeNull()
+    expect(screen.queryByRole('link', { name: /My projects/ })).toBeNull()
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Notifications'])
+    expect(screen.getByRole('tab', { name: 'Notifications' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    cleanup()
+
+    // Approved with nothing of their own and nothing unread: discovery is all there is,
+    // and every empty tab says where to go next.
+    const fresh = await createVolunteer()
+    await renderApp(<DashboardPage />, { as: fresh, url: '/dashboard' })
+    await screen.findByRole('link', { name: 'Create Project' })
     expect(screen.getByRole('tab', { name: 'Suggested for You' })).toHaveAttribute(
       'aria-selected',
       'true',
     )
-    expect(screen.getByText(/No suggested projects/)).toBeInTheDocument()
+    expect(screen.getByText(/Add skills to your profile/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Add skills →' })).toHaveAttribute('href', '/settings')
     await userEvent.click(screen.getByRole('tab', { name: 'Applications' }))
     expect(screen.getByText(/haven't applied to any projects/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Browse projects →' })).toHaveAttribute(
+      'href',
+      '/projects',
+    )
     expect(window.location.hash).toBe('#tab-applications')
     await userEvent.click(screen.getByRole('tab', { name: 'My projects' }))
     expect(screen.getByText(/don't own or help on any projects/)).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: 'Browse projects that match your skills →' }),
+    ).toHaveAttribute('href', '/projects')
     expect(window.location.hash).toBe('#tab-projects')
     expect(document.title).toBe('Catalyse | My projects')
+    cleanup()
+
+    // Skills, but nothing matches them.
+    const skilled = await createVolunteer({
+      skills: { create: [{ skillId: (await createSkill()).id }] },
+    })
+    await renderApp(<DashboardPage />, { as: skilled, url: '/dashboard#tab-suggested' })
+    await screen.findByText(/No suggested projects/)
+    expect(screen.getByRole('link', { name: 'Browse Quick Tasks →' })).toHaveAttribute(
+      'href',
+      '/quick-tasks',
+    )
 
     cleanup()
     const needsInfo = await createVolunteer({ approvalStatus: 'needs_info' })

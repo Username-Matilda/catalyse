@@ -128,15 +128,21 @@ export default function DashboardPage() {
   const waitingCount = applications.filter(
     (i) => i.interestStatus === InterestStatus.pending,
   ).length
-  const defaultTab: TabKey =
-    myProjects.length + proposedProjects.length > 0
+  // Until approved there are no projects to join or propose, so only notifications show.
+  const isMember = Boolean(
+    user && (user.approvalStatus === ApprovalStatus.approved || user.isAdmin),
+  )
+  const visibleTabs: readonly TabKey[] = isMember ? TAB_ORDER : ['notifications']
+  const defaultTab: TabKey = !isMember
+    ? 'notifications'
+    : myProjects.length + proposedProjects.length > 0
       ? 'projects'
       : applications.length > 0
         ? 'applications'
         : unreadCount > 0
           ? 'notifications'
           : 'suggested'
-  const activeTab = requestedTab ?? defaultTab
+  const activeTab = requestedTab && visibleTabs.includes(requestedTab) ? requestedTab : defaultTab
 
   useEffect(() => {
     document.title = `Catalyse | ${TAB_LABELS[activeTab]}`
@@ -315,7 +321,7 @@ export default function DashboardPage() {
       <main className="container py-5 pb-15">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 role="heading">Welcome back, {user.name}!</h1>
-          <Button href="/suggest">Create Project</Button>
+          {isMember && <Button href="/suggest">Create Project</Button>}
         </div>
 
         {/* Pending approval banner */}
@@ -428,30 +434,39 @@ export default function DashboardPage() {
         )}
 
         {/* Quick stats */}
-        <div className="grid grid-cols-4 gap-5 mb-8 max-[900px]:grid-cols-2 max-[600px]:grid-cols-1">
-          <StatTile count={myProjects.length + proposedProjects.length} href="#tab-projects">
-            My projects
-          </StatTile>
-          <StatTile count={waitingCount} href="#tab-applications">
-            Applications waiting
-          </StatTile>
-          <StatTile count={unreadCount} href="#tab-notifications">
-            Unread notifications
-          </StatTile>
-          <StatTile count={tasksInProgress} href="#your-tasks">
-            Tasks in progress
-          </StatTile>
-        </div>
+        {isMember && (
+          <div className="grid grid-cols-4 gap-5 mb-8 max-[900px]:grid-cols-2 max-[600px]:grid-cols-1">
+            <StatTile count={myProjects.length + proposedProjects.length} href="#tab-projects">
+              My projects
+            </StatTile>
+            <StatTile count={waitingCount} href="#tab-applications">
+              Applications waiting
+            </StatTile>
+            <StatTile count={unreadCount} href="#tab-notifications">
+              Unread notifications
+            </StatTile>
+            <StatTile count={tasksInProgress} href="#your-tasks">
+              Tasks in progress
+            </StatTile>
+          </div>
+        )}
 
         {/* Tabs */}
         {/* [test hook] active class added to active tab; notification-badge class used as test selector */}
-        <Tabs tabs={tabs} activeTab={activeTab} onChange={handleTabClick} />
+        <Tabs
+          tabs={tabs.filter((t) => visibleTabs.includes(t.key))}
+          activeTab={activeTab}
+          onChange={handleTabClick}
+        />
 
         {/* Tab content */}
         {activeTab === 'projects' && (
           <div>
             {myProjects.length === 0 ? (
-              <p className="text-text-light">You don&apos;t own or help on any projects yet.</p>
+              <p className="text-text-light">
+                You don&apos;t own or help on any projects yet.{' '}
+                <Link href="/projects">Browse projects that match your skills →</Link>
+              </p>
             ) : (
               <ProjectList projects={myProjects} />
             )}
@@ -469,7 +484,10 @@ export default function DashboardPage() {
         {activeTab === 'applications' && (
           <div>
             {applications.length === 0 ? (
-              <p className="text-text-light">You haven&apos;t applied to any projects yet.</p>
+              <p className="text-text-light">
+                You haven&apos;t applied to any projects yet.{' '}
+                <Link href="/projects">Browse projects →</Link>
+              </p>
             ) : (
               <ProjectList
                 projects={applications}
@@ -486,9 +504,15 @@ export default function DashboardPage() {
 
         {activeTab === 'suggested' && (
           <div>
-            {suggestedProjects.length === 0 ? (
+            {!user.skills?.length ? (
               <p className="text-text-light">
-                No suggested projects matching your skills right now.
+                Add skills to your profile to get suggestions.{' '}
+                <Link href="/settings">Add skills →</Link>
+              </p>
+            ) : suggestedProjects.length === 0 ? (
+              <p className="text-text-light">
+                No suggested projects matching your skills right now.{' '}
+                <Link href="/quick-tasks">Browse Quick Tasks →</Link>
               </p>
             ) : (
               <>
