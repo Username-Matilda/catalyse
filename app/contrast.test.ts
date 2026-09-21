@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'fs'
+import { readFileSync, readdirSync, statSync } from 'fs'
 import path from 'path'
 
 // WCAG 2.1 relative luminance and contrast ratio.
@@ -22,7 +22,7 @@ function tokens(selector: string): Record<string, string> {
 }
 
 // Every colour used for text, against every background it is drawn on.
-const TEXT = ['text', 'text-light', 'primary-text', 'error', 'success', 'warning-text']
+const TEXT = ['text', 'heading', 'text-light', 'primary-text', 'error', 'success', 'warning-text']
 const BACKGROUNDS = ['background', 'surface']
 
 describe.each([
@@ -36,4 +36,42 @@ describe.each([
       expect(contrast(t[fg], t[bg])).toBeGreaterThanOrEqual(4.5)
     },
   )
+})
+
+// `--secondary-dark` is a fill (button hover); as a text colour it is grey on the dark page.
+// Headings use `--heading`, and text on the orange fill uses `text-gray-900`.
+const ON_PRIMARY = '#111827'
+
+describe.each([
+  ['light', ':root {'],
+  ['dark', "[data-theme='dark'] {"],
+])('%s theme text on the orange fill', (_theme, selector) => {
+  it('gray-900 on --primary meets WCAG AA (4.5:1)', () => {
+    expect(contrast(ON_PRIMARY, tokens(selector).primary)).toBeGreaterThanOrEqual(4.5)
+  })
+})
+
+function sourceFiles(dir: string): string[] {
+  return readdirSync(dir).flatMap((name) => {
+    const full = path.join(dir, name)
+    if (statSync(full).isDirectory()) return sourceFiles(full)
+    return /\.tsx$/.test(name) && !/\.test\./.test(name) ? [full] : []
+  })
+}
+
+describe('text-secondary-dark', () => {
+  it('is only used on the accent pill, which sets its own dark-theme colour', () => {
+    const root = path.join(__dirname, '..')
+    const offenders = ['app', 'components']
+      .flatMap((d) => sourceFiles(path.join(root, d)))
+      .flatMap((file) =>
+        readFileSync(file, 'utf8')
+          .split('\n')
+          .filter(
+            (line) => line.includes('text-secondary-dark') && !line.includes('dark:text-gray-300'),
+          )
+          .map((line) => `${path.relative(root, file)}: ${line.trim()}`),
+      )
+    expect(offenders).toEqual([])
+  })
 })

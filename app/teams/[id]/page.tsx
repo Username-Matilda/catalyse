@@ -79,7 +79,7 @@ export default function TeamDetailPage({ params }: { params: Promise<{ id: strin
 
   return (
     <main className="container py-5 pb-15 max-w-2xl">
-      <Link href="/teams" className="text-sm text-secondary-dark no-underline hover:text-primary">
+      <Link href="/teams" className="text-sm text-brand-text no-underline hover:text-primary">
         ← All Teams
       </Link>
 
@@ -137,7 +137,7 @@ export default function TeamDetailPage({ params }: { params: Promise<{ id: strin
               href={team.lumaUrl}
               target="_blank"
               rel="noreferrer"
-              className="text-secondary-dark no-underline hover:text-primary"
+              className="text-brand-text no-underline hover:text-primary"
             >
               Meeting calendar
             </a>
@@ -147,7 +147,7 @@ export default function TeamDetailPage({ params }: { params: Promise<{ id: strin
               href={team.docUrl}
               target="_blank"
               rel="noreferrer"
-              className="text-secondary-dark no-underline hover:text-primary"
+              className="text-brand-text no-underline hover:text-primary"
             >
               Team doc
             </a>

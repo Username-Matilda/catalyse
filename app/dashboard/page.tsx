@@ -277,7 +277,7 @@ export default function DashboardPage() {
         <>
           {TAB_LABELS.notifications}
           {unreadCount > 0 && (
-            <span className="notification-badge bg-primary text-secondary-dark text-xs px-2 py-0.5 rounded-full ml-1">
+            <span className="notification-badge bg-primary text-gray-900 text-xs px-2 py-0.5 rounded-full ml-1">
               {unreadCount}
             </span>
           )}

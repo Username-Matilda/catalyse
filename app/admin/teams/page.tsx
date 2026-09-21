@@ -363,7 +363,7 @@ export default function AdminTeamsPage() {
                         Suggested by{' '}
                         <Link
                           href={`/admin/volunteers/${item.suggestedBy.id}`}
-                          className="text-secondary-dark no-underline hover:text-primary"
+                          className="text-brand-text no-underline hover:text-primary"
                         >
                           {item.suggestedBy.name}
                         </Link>

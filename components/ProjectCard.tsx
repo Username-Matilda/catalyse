@@ -105,7 +105,7 @@ export function ProjectCard({
         <Link
           role="link"
           href={`/projects/${p.id}`}
-          className="font-heading text-lg font-bold text-secondary-dark no-underline hover:text-primary transition-colors"
+          className="font-heading text-lg font-bold text-brand-text no-underline hover:text-primary transition-colors"
         >
           {p.title}
         </Link>

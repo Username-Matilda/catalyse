@@ -174,7 +174,7 @@ export default function AdminTeamDetailPage({ params }: { params: Promise<{ id: 
     return (
       <main className="container py-5 pb-15">
         <p className="text-text-light">Only this team&apos;s leader or an admin can manage it.</p>
-        <Link href={backHref} className="text-secondary-dark no-underline hover:text-primary">
+        <Link href={backHref} className="text-brand-text no-underline hover:text-primary">
           ← Back to Teams
         </Link>
       </main>
@@ -185,7 +185,7 @@ export default function AdminTeamDetailPage({ params }: { params: Promise<{ id: 
     return (
       <main className="container py-5 pb-15">
         <p className="text-text-light">Team not found.</p>
-        <Link href={backHref} className="text-secondary-dark no-underline hover:text-primary">
+        <Link href={backHref} className="text-brand-text no-underline hover:text-primary">
           ← Back to Teams
         </Link>
       </main>
@@ -194,7 +194,7 @@ export default function AdminTeamDetailPage({ params }: { params: Promise<{ id: 
 
   return (
     <main className="container py-5 pb-15 max-w-2xl">
-      <Link href={backHref} className="text-sm text-secondary-dark no-underline hover:text-primary">
+      <Link href={backHref} className="text-sm text-brand-text no-underline hover:text-primary">
         ← All Teams
       </Link>
       <h1 className="mt-3 mb-6">{team.name}</h1>

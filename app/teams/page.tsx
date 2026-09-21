@@ -89,7 +89,7 @@ export default function TeamsPage() {
                   <p className="font-semibold m-0">
                     <Link
                       href={`/teams/${team.id}`}
-                      className="text-secondary-dark no-underline hover:text-primary"
+                      className="text-brand-text no-underline hover:text-primary"
                     >
                       {team.name}
                     </Link>
@@ -115,7 +115,7 @@ export default function TeamsPage() {
                         href={team.lumaUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-secondary-dark no-underline hover:text-primary"
+                        className="text-brand-text no-underline hover:text-primary"
                       >
                         Meeting calendar
                       </a>
@@ -125,7 +125,7 @@ export default function TeamsPage() {
                         href={team.docUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-secondary-dark no-underline hover:text-primary"
+                        className="text-brand-text no-underline hover:text-primary"
                       >
                         Team doc
                       </a>
