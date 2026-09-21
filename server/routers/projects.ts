@@ -34,7 +34,12 @@ import {
   CreateProjectTaskSchema,
   UpdateProjectTaskSchema,
 } from '@/lib/schemas'
-import { authedProcedure, approvedProcedure, adminProcedure } from '../procedures'
+import {
+  authedProcedure,
+  approvedProcedure,
+  confirmedProcedure,
+  adminProcedure,
+} from '../procedures'
 import {
   OWNER_ALLOWED_STATUSES,
   SEEKING_OWNER_SQL,
@@ -133,7 +138,7 @@ const DEFAULT_PROJECT_ORDER_SQL = `ORDER BY
   created_at DESC, id DESC`
 
 export const projectsRouter = {
-  list: approvedProcedure
+  list: confirmedProcedure
     .input(
       z.object({
         status: z.string().optional(),
@@ -155,12 +160,6 @@ export const projectsRouter = {
     )
     .handler(async ({ input, context }) => {
       const volunteer = context.volunteer
-
-      if (!volunteer.emailConfirmed && !volunteer.isAdmin) {
-        throw new ORPCError('FORBIDDEN', {
-          message: 'Please confirm your email address to browse projects',
-        })
-      }
 
       const v = await prisma.volunteer.findUnique({
         where: { id: volunteer.id },
@@ -285,7 +284,7 @@ export const projectsRouter = {
    * section gets its own capped query + total here instead, so every section is complete up
    * to its own cap and knows how many more there are.
    */
-  listGrouped: approvedProcedure
+  listGrouped: confirmedProcedure
     .input(
       z.object({
         skillIds: z.array(z.number().int()).optional(),
@@ -300,12 +299,6 @@ export const projectsRouter = {
     )
     .handler(async ({ input, context }) => {
       const volunteer = context.volunteer
-
-      if (!volunteer.emailConfirmed && !volunteer.isAdmin) {
-        throw new ORPCError('FORBIDDEN', {
-          message: 'Please confirm your email address to browse projects',
-        })
-      }
 
       const v = await prisma.volunteer.findUnique({
         where: { id: volunteer.id },
@@ -614,7 +607,7 @@ export const projectsRouter = {
       return { message: 'Draft deleted' }
     }),
 
-  getById: approvedProcedure
+  getById: confirmedProcedure
     .input(z.object({ id: z.number().int() }))
     .handler(async ({ input, context }) => {
       const volunteer = context.volunteer
@@ -1030,7 +1023,7 @@ export const projectsRouter = {
     return { message: `Project '${project.title}' deleted` }
   }),
 
-  expressInterest: approvedProcedure
+  expressInterest: confirmedProcedure
     .input(z.object({ projectId: z.number().int() }).merge(ProjectInterestBodySchema))
     .handler(async ({ input, context }) => {
       const volunteer = context.volunteer
@@ -1334,7 +1327,7 @@ export const projectsRouter = {
       return { message: 'Volunteer assigned to project' }
     }),
 
-  listTasks: approvedProcedure
+  listTasks: confirmedProcedure
     .input(z.object({ projectId: z.number().int() }))
     .handler(async ({ input, context }) => {
       const volunteer = context.volunteer
@@ -1415,7 +1408,7 @@ export const projectsRouter = {
       }
     }),
 
-  getTask: approvedProcedure
+  getTask: confirmedProcedure
     .input(z.object({ projectId: z.number().int(), taskId: z.number().int() }))
     .handler(async ({ input, context }) => {
       const volunteer = context.volunteer
@@ -1621,7 +1614,7 @@ export const projectsRouter = {
    * Reuses the team-visibility rule from `list` — a team-tagged project stays hidden from
    * non-members.
    */
-  ganttOverview: approvedProcedure
+  ganttOverview: confirmedProcedure
     .input(
       z.object({
         statuses: z.array(z.string()).optional(),

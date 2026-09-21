@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useRequireApproved } from '@/lib/hooks/auth'
+import { useRequireConfirmed } from '@/lib/hooks/auth'
 import { orpc } from '@/lib/orpc'
 import Button from '@/components/Button'
 import Checkbox from '@/components/Checkbox'
@@ -27,7 +27,7 @@ export default function TaskDetailPage({
   const { id: projectIdStr, taskId: taskIdStr } = use(params)
   const projectId = parseInt(projectIdStr, 10)
   const taskId = parseInt(taskIdStr, 10)
-  const { user, loading } = useRequireApproved()
+  const { user, loading } = useRequireConfirmed()
   const showToast = useToast()
   const queryClient = useQueryClient()
 

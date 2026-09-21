@@ -45,6 +45,16 @@ export const approvedProcedure = authedProcedure.use(({ context, next }) => {
   return next({ context })
 })
 
+/** Approved, with the email address proven: the gate for browsing and joining projects. */
+export const confirmedProcedure = approvedProcedure.use(({ context, next }) => {
+  if (!context.volunteer.emailConfirmed && !context.volunteer.isAdmin) {
+    throw new ORPCError('FORBIDDEN', {
+      message: 'Please confirm your email address to browse projects',
+    })
+  }
+  return next({ context })
+})
+
 export const adminProcedure = base.use(({ context, next }) => {
   if (!context.volunteer) throw new ORPCError('UNAUTHORIZED')
   if (!context.volunteer.isAdmin) throw new ORPCError('FORBIDDEN')

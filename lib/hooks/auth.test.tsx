@@ -3,9 +3,21 @@ import { screen, waitFor, cleanup, act } from '@testing-library/react'
 import { createVolunteer, createAdmin } from '@/test/factories'
 import { renderApp } from '@/test/render'
 import { navigation } from '@/test/next-navigation'
-import { useRequireAuth, useRequireApproved, useRequireAdmin, useRequireSuperAdmin } from './auth'
+import {
+  useRequireAuth,
+  useRequireApproved,
+  useRequireConfirmed,
+  useRequireAdmin,
+  useRequireSuperAdmin,
+} from './auth'
 
-const hooks = { useRequireAuth, useRequireApproved, useRequireAdmin, useRequireSuperAdmin }
+const hooks = {
+  useRequireAuth,
+  useRequireApproved,
+  useRequireConfirmed,
+  useRequireAdmin,
+  useRequireSuperAdmin,
+}
 type HookName = keyof typeof hooks
 
 function Probe({ hook }: { hook: HookName }) {
@@ -44,6 +56,25 @@ describe('auth gate hooks', () => {
     navigation.reset()
     await settle('useRequireApproved', await createAdmin({ approvalStatus: 'pending' }))
     expect(navigation.replace).not.toHaveBeenCalled()
+  })
+
+  it('useRequireConfirmed sends an unconfirmed email to /verify-email, admins excepted', async () => {
+    const unconfirmed = await createVolunteer({ emailConfirmed: false })
+    await settle('useRequireConfirmed', unconfirmed)
+    expect(navigation.replace).toHaveBeenCalledWith('/verify-email')
+    expect(screen.getByText('anon')).toBeInTheDocument()
+    navigation.reset()
+    await settle('useRequireConfirmed', await createAdmin({ emailConfirmed: false }))
+    expect(navigation.replace).not.toHaveBeenCalled()
+    navigation.reset()
+    await settle('useRequireConfirmed', await createVolunteer())
+    expect(navigation.replace).not.toHaveBeenCalled()
+    navigation.reset()
+    await settle(
+      'useRequireConfirmed',
+      await createVolunteer({ approvalStatus: 'pending', emailConfirmed: false }),
+    )
+    expect(navigation.replace).toHaveBeenCalledWith('/dashboard?notice=pending')
   })
 
   it('useRequireAdmin / useRequireSuperAdmin send the wrong role to /projects', async () => {

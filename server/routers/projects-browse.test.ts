@@ -457,3 +457,28 @@ describe('projects.getById', () => {
     )
   })
 })
+
+describe('direct links', () => {
+  it('keeps a direct link to a project, its tasks or the roadmap closed to an unconfirmed email', async () => {
+    const project = await createProject({ title: 'Direct link' })
+    const task = await createTask(project.id)
+    const unconfirmed = clientAs(await createVolunteer({ emailConfirmed: false }))
+    const refused = { code: 'FORBIDDEN', message: /confirm your email/ }
+    await expect(unconfirmed.projects.getById({ id: project.id })).rejects.toMatchObject(refused)
+    await expect(unconfirmed.projects.listTasks({ projectId: project.id })).rejects.toMatchObject(
+      refused,
+    )
+    await expect(
+      unconfirmed.projects.getTask({ projectId: project.id, taskId: task.id }),
+    ).rejects.toMatchObject(refused)
+    await expect(unconfirmed.projects.ganttOverview({})).rejects.toMatchObject(refused)
+    await expect(
+      unconfirmed.projects.expressInterest({
+        projectId: project.id,
+        interestType: 'want_to_contribute',
+      }),
+    ).rejects.toMatchObject(refused)
+    const admin = clientAs(await createAdmin({ emailConfirmed: false }))
+    expect((await admin.projects.getById({ id: project.id })).id).toBe(project.id)
+  })
+})

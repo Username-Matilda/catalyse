@@ -3,7 +3,7 @@
 import { use } from 'react'
 import Link from 'next/link'
 import ProjectPorting from '@/components/ProjectPorting'
-import { useRequireApproved } from '@/lib/hooks/auth'
+import { useRequireConfirmed } from '@/lib/hooks/auth'
 import PageLoading from '@/components/PageLoading'
 
 /**
@@ -14,7 +14,7 @@ import PageLoading from '@/components/PageLoading'
 export default function ProjectImportPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = use(params)
   const projectId = parseInt(idParam, 10)
-  const { user, loading } = useRequireApproved()
+  const { user, loading } = useRequireConfirmed()
 
   if (loading || !user) return <PageLoading />
 

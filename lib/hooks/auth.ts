@@ -39,6 +39,23 @@ export function useRequireApproved() {
   return { ...auth, user: isApproved ? auth.user : null }
 }
 
+/** Where an approved volunteer with an unconfirmed email is sent from a project page. */
+export const VERIFY_EMAIL_URL = '/verify-email'
+
+/**
+ * For project pages: approved, and the email proven. An unconfirmed volunteer is sent to the
+ * page that asks them to confirm, so a direct link to a project is no way round the gate.
+ */
+export function useRequireConfirmed() {
+  const router = useRouter()
+  const auth = useRequireApproved()
+  const needsConfirmation = Boolean(auth.user && !auth.user.emailConfirmed && !auth.user.isAdmin)
+  useEffect(() => {
+    if (needsConfirmation) router.replace(VERIFY_EMAIL_URL)
+  }, [needsConfirmation, router])
+  return { ...auth, user: needsConfirmation ? null : auth.user }
+}
+
 export function useRequireAdmin() {
   const router = useRouter()
   const auth = useAuth()

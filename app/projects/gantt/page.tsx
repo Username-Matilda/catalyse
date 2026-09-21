@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useRequireApproved } from '@/lib/hooks/auth'
+import { useRequireConfirmed } from '@/lib/hooks/auth'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import Button from '@/components/Button'
@@ -22,7 +22,7 @@ const STATUS_FILTERS: { key: string; label: string }[] = [
 const DEFAULT_STATUSES = [ProjectStatus.ready, ProjectStatus.in_progress, ProjectStatus.on_hold]
 
 export default function RoadmapPage() {
-  const { user, loading } = useRequireApproved()
+  const { user, loading } = useRequireConfirmed()
   const showToast = useToast()
   const queryClient = useQueryClient()
   const [statuses, setStatuses] = useState<string[]>(DEFAULT_STATUSES)

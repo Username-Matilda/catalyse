@@ -2,7 +2,7 @@
 
 import React, { use, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useRequireApproved } from '@/lib/hooks/auth'
+import { useRequireConfirmed } from '@/lib/hooks/auth'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -554,7 +554,7 @@ function TaskTimeline({
 export default function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = use(params)
   const router = useRouter()
-  const { user, loading } = useRequireApproved()
+  const { user, loading } = useRequireConfirmed()
   const queryClient = useQueryClient()
 
   const showToast = useToast()
