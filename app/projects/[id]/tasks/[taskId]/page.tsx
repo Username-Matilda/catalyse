@@ -68,6 +68,7 @@ export default function TaskDetailPage({
       )
       setIsEditing(false)
       void queryClient.invalidateQueries({ queryKey: orpc.projects.getTask.key() })
+      void queryClient.invalidateQueries({ queryKey: orpc.workItemComments.list.key() })
     },
     onError: (err: unknown) =>
       showToast(err instanceof Error ? err.message : 'Failed to update task', 'error'),

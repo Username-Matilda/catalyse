@@ -78,18 +78,23 @@ describe('project page — visitor', () => {
     expect(screen.getByLabelText('1 comment')).toBeInTheDocument()
     expect(screen.getByText('Olive Owner')).toBeInTheDocument()
 
+    // Only people on the project can post, so there is no comment box until the claim.
+    expect(screen.queryByLabelText('Add a comment')).toBeNull()
     await userEvent.click(await screen.findByRole('button', { name: 'Claim' }))
     await screen.findByText(/Task claimed\. Post an update/)
     await waitFor(async () => expect((await row(open.id)).assigneeId).toBe(me.id))
     await userEvent.click(await screen.findByRole('button', { name: 'Done' }))
     await screen.findByText('Task completed!')
+    expect(await screen.findByLabelText('Add a comment')).toBeInTheDocument()
 
-    // Interest: the claim made me an accepted helper; withdrawing releases that.
+    // Interest: the claim made me an accepted helper; withdrawing releases that, and the
+    // comment box goes with it.
     await userEvent.click(await screen.findByRole('button', { name: 'Withdraw Interest' }))
     await userEvent.click(
       within(await screen.findByRole('dialog')).getByRole('button', { name: 'Withdraw' }),
     )
     await screen.findByText('Interest withdrawn')
+    await waitFor(() => expect(screen.queryByLabelText('Add a comment')).toBeNull())
     await userEvent.type(await screen.findByLabelText('Message (optional)'), 'Pick me')
     await userEvent.click(screen.getByRole('button', { name: 'Express Interest' }))
     await screen.findByText(/You'll get a notification when they reply/)

@@ -740,10 +740,13 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   // Task writes change both the list view (getById) and the timeline (listTasks); the panel
   // on the Timeline tab reads assignment from the latter, so both are refreshed together.
+  // Who may post depends on being an accepted helper, so the comment lists refresh with the
+  // project whenever interest or assignment changes.
   const invalidateProject = () =>
     Promise.all([
       queryClient.invalidateQueries({ queryKey: orpc.projects.getById.key() }),
       queryClient.invalidateQueries({ queryKey: orpc.projects.listTasks.key() }),
+      queryClient.invalidateQueries({ queryKey: orpc.workItemComments.list.key() }),
     ])
 
   const createTaskMutation = useMutation({
