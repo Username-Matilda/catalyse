@@ -67,8 +67,7 @@ describe('ProjectEditor — new volunteer proposal', () => {
     fireEvent.change(hours, { target: { value: '4' } })
     blur(hours)
     await waitFor(async () => expect((await row(draft.id)).timeCommitmentHoursPerWeek).toBe(4))
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Saved'))
-    await waitFor(() => expect(screen.queryByRole('status')).toBeNull(), { timeout: 4000 })
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/Last saved/))
   })
 
   it('adding a task creates the draft first; the delete button cancels', async () => {
@@ -171,6 +170,36 @@ describe('ProjectEditor — new volunteer proposal', () => {
     await waitFor(() => expect(navigation.push).toHaveBeenCalledWith(`/projects/${draft.id}`), {
       timeout: 3000,
     })
+  })
+})
+
+describe('ProjectEditor — autosave line', () => {
+  it('says when changes last saved, task changes included, and retries a failed save', async () => {
+    const me = await createVolunteer()
+    const project = await createProject({ creatorId: me.id, status: 'draft', title: 'Autosaved' })
+    await mount({ projectId: project.id }, me)
+    const title = await screen.findByDisplayValue('Autosaved')
+    const line = () => screen.getByRole('status')
+    expect(line()).toHaveTextContent('Changes save automatically.')
+    expect(line()).not.toHaveTextContent('Last saved')
+
+    await userEvent.type(screen.getByLabelText('Task title'), 'New task')
+    await userEvent.click(screen.getByRole('button', { name: 'Add Task' }))
+    await waitFor(() => expect(line()).toHaveTextContent(/Last saved \d/))
+
+    // A save that fails says so and can be retried once the cause is gone.
+    const someoneElse = await createVolunteer()
+    await prisma.workItem.update({
+      where: { id: project.id },
+      data: { creatorId: someoneElse.id },
+    })
+    fireEvent.change(title, { target: { value: 'Renamed' } })
+    blur(title)
+    await waitFor(() => expect(line()).toHaveTextContent("Couldn't save."))
+    await prisma.workItem.update({ where: { id: project.id }, data: { creatorId: me.id } })
+    await userEvent.click(within(line()).getByRole('button', { name: 'Retry' }))
+    await waitFor(async () => expect((await row(project.id)).title).toBe('Renamed'))
+    await waitFor(() => expect(line()).toHaveTextContent(/Last saved/))
   })
 })
 

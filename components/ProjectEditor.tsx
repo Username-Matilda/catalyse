@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { InferRouterInputs } from '@orpc/server'
@@ -16,7 +16,6 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { buildLocationOptions, type LocalGroupOption } from '@/lib/filter-options'
 import { useToast } from '@/lib/toast'
 import { toDateInputValue, fromDateInputValue } from '@/lib/format-date'
-import { useCookieConsent } from '@/lib/cookie-consent-context'
 import { orpc } from '@/lib/orpc'
 import type { AppRouter } from '@/server/router'
 
@@ -58,7 +57,6 @@ export default function ProjectEditor(props: ProjectEditorProps) {
   const toast = useToast()
   const queryClient = useQueryClient()
   const { user } = useRequireAuth()
-  const { bannerVisible } = useCookieConsent()
 
   // Which variant created this screen — only meaningful before a project id exists, to
   // pick the create endpoint and review-notice wording. Once an id exists (from the
@@ -168,13 +166,26 @@ export default function ProjectEditor(props: ProjectEditorProps) {
   const volunteerCreateMutation = useMutation(orpc.projects.create.mutationOptions())
   const adminCreateMutation = useMutation(orpc.admin.projects.create.mutationOptions())
 
+  // The autosave line under the title: when the last save landed, or how to retry a failed one.
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
+  const [retrySave, setRetrySave] = useState<(() => void) | null>(null)
+  function saveSucceeded() {
+    setLastSavedAt(new Date())
+    setRetrySave(null)
+  }
+  function saveFailed<V>(mutate: (variables: V) => void, variables: V) {
+    setRetrySave(() => () => mutate(variables))
+  }
+
   const updateMutation = useMutation({
     ...orpc.projects.update.mutationOptions(),
     onSuccess: () => {
+      saveSucceeded()
       queryClient.invalidateQueries({ queryKey: orpc.projects.getById.key() })
     },
-    onError: (err: unknown) => {
+    onError: (err: unknown, variables) => {
       toast(err instanceof Error ? err.message : 'Failed to save changes', 'error')
+      saveFailed(updateMutation.mutate, variables)
     },
   })
 
@@ -218,45 +229,45 @@ export default function ProjectEditor(props: ProjectEditorProps) {
 
   const createTaskMutation = useMutation({
     ...orpc.projects.createTask.mutationOptions(),
-    onError: (err: unknown) => {
+    onSuccess: () => {
+      saveSucceeded()
+      queryClient.invalidateQueries({ queryKey: orpc.projects.getById.key() })
+    },
+    onError: (err: unknown, variables) => {
       toast(err instanceof Error ? err.message : 'Failed to create task', 'error')
+      saveFailed(createTaskMutation.mutate, variables)
     },
   })
 
   const deleteTaskMutation = useMutation({
     ...orpc.projects.deleteTask.mutationOptions(),
     onSuccess: () => {
+      saveSucceeded()
       queryClient.invalidateQueries({ queryKey: orpc.projects.getById.key() })
     },
-    onError: (err: unknown) => {
+    onError: (err: unknown, variables) => {
       toast(err instanceof Error ? err.message : 'Failed to delete task', 'error')
+      saveFailed(deleteTaskMutation.mutate, variables)
     },
   })
 
   const updateTaskMutation = useMutation({
     ...orpc.projects.updateTask.mutationOptions(),
     onSuccess: () => {
+      saveSucceeded()
       queryClient.invalidateQueries({ queryKey: orpc.projects.getById.key() })
     },
-    onError: (err: unknown) => {
+    onError: (err: unknown, variables) => {
       toast(err instanceof Error ? err.message : 'Failed to update task', 'error')
+      saveFailed(updateTaskMutation.mutate, variables)
     },
   })
 
-  // Drives the fixed autosave indicator — covers the silent field/task-field saves, not
-  // create/delete task (those already show their own button-level "Adding…"/disabled state).
-  const isSaving = updateMutation.isPending || updateTaskMutation.isPending
-  const [showSaved, setShowSaved] = useState(false)
-  const wasSavingRef = useRef(false)
-  useEffect(() => {
-    if (wasSavingRef.current && !isSaving) {
-      setShowSaved(true)
-      const timer = setTimeout(() => setShowSaved(false), 2000)
-      wasSavingRef.current = isSaving
-      return () => clearTimeout(timer)
-    }
-    wasSavingRef.current = isSaving
-  }, [isSaving])
+  const isSaving =
+    updateMutation.isPending ||
+    updateTaskMutation.isPending ||
+    createTaskMutation.isPending ||
+    deleteTaskMutation.isPending
 
   function buildCreatePayload(): CreateProjectInput {
     const [country, localGroup] = locationValue.split(':')
@@ -389,6 +400,25 @@ export default function ProjectEditor(props: ProjectEditorProps) {
 
   return (
     <>
+      {projectId !== undefined && canEdit && (
+        <p role="status" className="text-sm text-text-light mt-0 mb-4">
+          {isSaving ? (
+            'Saving…'
+          ) : retrySave ? (
+            <>
+              <span className="text-error">Couldn&apos;t save.</span>{' '}
+              <button type="button" className="underline cursor-pointer" onClick={retrySave}>
+                Retry
+              </button>
+            </>
+          ) : lastSavedAt ? (
+            `Changes save automatically. Last saved ${lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`
+          ) : (
+            'Changes save automatically.'
+          )}
+        </p>
+      )}
+
       {permissionChecked && !canEdit && (
         <div
           role="alert"
@@ -1017,15 +1047,6 @@ export default function ProjectEditor(props: ProjectEditorProps) {
           }}
           onClose={() => setDeleteTaskTarget(null)}
         />
-      )}
-
-      {projectId !== undefined && (isSaving || showSaved) && (
-        <div
-          role="status"
-          className={`fixed left-4 z-[200] px-3 py-2 rounded-lg shadow-lg border border-brand-border bg-surface text-sm text-text-light ${bannerVisible ? 'bottom-20' : 'bottom-4'}`}
-        >
-          {isSaving ? 'Saving…' : 'Saved'}
-        </div>
       )}
     </>
   )
