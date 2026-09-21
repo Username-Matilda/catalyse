@@ -23,7 +23,7 @@ describe('dashboard', () => {
     expect(screen.queryByText(/Stay in the loop/)).toBeNull()
     // Until approved: the stepper and notifications, nothing to create, join or browse.
     expect(screen.getByLabelText('Application status')).toHaveTextContent('Under Review')
-    expect(screen.queryByRole('link', { name: 'Create Project' })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Propose a project' })).toBeNull()
     expect(screen.queryByRole('link', { name: /My projects/ })).toBeNull()
     expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Notifications'])
     expect(screen.getByRole('tab', { name: 'Notifications' })).toHaveAttribute(
@@ -36,7 +36,7 @@ describe('dashboard', () => {
     // and every empty tab says where to go next.
     const fresh = await createVolunteer()
     await renderApp(<DashboardPage />, { as: fresh, url: '/dashboard' })
-    await screen.findByRole('link', { name: 'Create Project' })
+    await screen.findByRole('link', { name: 'Propose a project' })
     expect(screen.getByRole('tab', { name: 'Suggested for You' })).toHaveAttribute(
       'aria-selected',
       'true',

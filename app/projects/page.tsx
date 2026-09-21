@@ -262,7 +262,7 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
             <Link href="/projects/gantt" className="text-primary-text text-sm underline">
               Roadmap →
             </Link>
-            <Button href="/suggest">Create Project</Button>
+            <Button href="/suggest">Propose a project</Button>
           </div>
         </div>
 

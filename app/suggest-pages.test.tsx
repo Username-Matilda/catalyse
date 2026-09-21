@@ -34,10 +34,17 @@ describe('/suggest', () => {
       'href',
       `/projects/${draft.id}/edit`,
     )
-    expect(screen.getByRole('link', { name: 'New Project' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Propose a project' })).toHaveAttribute(
       'href',
       '/suggest/new',
     )
+    cleanup()
+
+    // At the draft limit the page says so instead of offering a form that would refuse.
+    await createProject({ status: 'draft', creatorId: me.id, isOrgProposed: false })
+    await renderApp(<SuggestPage />, { as: me })
+    await screen.findByText('You have 2 drafts. Finish or delete one first.')
+    expect(screen.queryByRole('link', { name: 'Propose a project' })).toBeNull()
   })
 })
 

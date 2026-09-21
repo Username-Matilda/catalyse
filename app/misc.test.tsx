@@ -64,7 +64,7 @@ describe('editor host pages', () => {
       </CookieConsentProvider>,
       { as: me },
     )
-    expect(await screen.findByRole('heading', { name: 'Suggest a Project' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Propose a project' })).toBeInTheDocument()
 
     await renderApp(
       <CookieConsentProvider>

@@ -332,7 +332,7 @@ export default function DashboardPage() {
       <main className="container py-5 pb-15">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 role="heading">Welcome back, {user.name}!</h1>
-          {isMember && <Button href="/suggest">Create Project</Button>}
+          {isMember && <Button href="/suggest">Propose a project</Button>}
         </div>
 
         {pendingNotice && (

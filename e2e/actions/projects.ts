@@ -21,8 +21,8 @@ export async function openNewProjectForm(page: Page): Promise<void> {
   // The Button component renders as a link (not a button element) when given an href, so
   // match either role rather than assuming which one it picked.
   const newProjectButton = page
-    .getByRole('link', { name: 'New Project' })
-    .or(page.getByRole('button', { name: 'New Project' }))
+    .getByRole('link', { name: 'Propose a project' })
+    .or(page.getByRole('button', { name: 'Propose a project' }))
   const titleField = page.getByLabel('Project Title')
   await Promise.race([
     newProjectButton.first().waitFor({ state: 'visible', timeout: 10_000 }),

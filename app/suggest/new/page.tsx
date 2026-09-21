@@ -10,7 +10,7 @@ export default function SuggestNewProjectPage() {
 
   return (
     <main className="container py-5 pb-15">
-      <h1 role="heading">Suggest a Project</h1>
+      <h1 role="heading">Propose a project</h1>
       <p>
         Have an idea for something PauseAI should do? Propose it here! Our team will review it and,
         if approved, it&apos;ll be visible to all volunteers.

@@ -96,22 +96,56 @@ describe('ProjectEditor — new volunteer proposal', () => {
     await waitFor(() => expect(screen.getByDisplayValue('First task')).toBeInTheDocument())
   })
 
-  it('submits straight from new mode, creating and publishing in one go', async () => {
+  it('asks for a task before submitting, without leaving a draft behind', async () => {
     const me = await createVolunteer()
     await mount({ variant: 'volunteer' }, me)
     await waitFor(() => expect(localStorage.getItem('authToken')).toBeTruthy())
     await userEvent.type(screen.getByLabelText('Project Title'), 'One click')
     await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
-    expect(await screen.findByText('Submit draft for review?')).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Add at least one task before submitting.',
+    )
+    expect(screen.queryByText('Submit draft for review?')).toBeNull()
+    expect(await prisma.workItem.count({ where: { creatorId: me.id } })).toBe(0)
+
+    // The error stays until a task exists, and then submitting works.
+    await userEvent.type(screen.getByLabelText('Task title'), 'First step')
+    await userEvent.click(screen.getByRole('button', { name: 'Add Task' }))
+    await waitFor(() =>
+      expect(screen.queryByText('Add at least one task before submitting.')).toBeNull(),
+    )
+    // Once the new draft has loaded, Submit is the draft's own button.
+    await userEvent.click(await screen.findByRole('button', { name: 'Submit' }))
+    await screen.findByText('Submit draft for review?')
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Submit for Review' }))
-    // No tasks yet → the publish is refused and reported.
-    expect(await screen.findByText(/Add at least one task/)).toBeInTheDocument()
+    await screen.findByText('Submit draft for review?')
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByText('Submit draft for review?')).toBeNull())
+    await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Submit for Review' }))
+    await screen.findByText('Draft submitted for review!')
     const draft = await prisma.workItem.findFirstOrThrow({
       where: { creatorId: me.id, type: 'PROJECT' },
     })
-    expect(draft.status).toBe('draft')
+    expect(draft.status).toBe('pending_review')
+  })
+
+  it('keeps a start date and duration typed before the first save', async () => {
+    const me = await createVolunteer()
+    await mount({ variant: 'volunteer' }, me)
+    await waitFor(() => expect(localStorage.getItem('authToken')).toBeTruthy())
+    await userEvent.type(screen.getByLabelText('Project Title'), 'Dated')
+    fireEvent.change(screen.getByLabelText('Start date'), { target: { value: '2026-07-01' } })
+    fireEvent.change(screen.getByLabelText('Duration (days)'), { target: { value: '10' } })
+    await userEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+    await waitFor(async () =>
+      expect(await prisma.workItem.count({ where: { creatorId: me.id } })).toBe(1),
+    )
+    expect(await prisma.workItem.findFirstOrThrow({ where: { creatorId: me.id } })).toMatchObject({
+      startDate: new Date('2026-07-01T00:00:00Z'),
+      durationDays: 10,
+    })
   })
 
   it('falls back to router.back() without onCancel, and admins publish org projects directly', async () => {
@@ -376,11 +410,5 @@ describe('ProjectEditor — editing an existing project', () => {
     await userEvent.type(screen.getByLabelText('Project Title'), 'Third')
     await userEvent.click(screen.getByRole('button', { name: 'Save draft' }))
     expect(await screen.findByText(/already have 2 drafts/)).toBeInTheDocument()
-    // The same failure short-circuits a one-click submit.
-    await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
-    await userEvent.keyboard('{Escape}')
-    await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Submit for Review' }))
-    await waitFor(() => expect(screen.getAllByText(/already have 2 drafts/)).toHaveLength(2))
   })
 })

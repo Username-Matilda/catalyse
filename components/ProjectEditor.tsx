@@ -93,6 +93,8 @@ export default function ProjectEditor(props: ProjectEditorProps) {
   const [remoteEligibility, setRemoteEligibility] = useState<'NONE' | 'COUNTRY' | 'GLOBAL'>('NONE')
   const [duration, setDuration] = useState('')
   const [startDate, setStartDate] = useState('')
+  // Set by a Submit with no tasks; the error under Tasks shows until one is added.
+  const [submitWithoutTasks, setSubmitWithoutTasks] = useState(false)
   const [durationDays, setDurationDays] = useState('')
   const [collaborationLink, setCollaborationLink] = useState('')
   const [skills, setSkills] = useState<SelectedSkill[]>([])
@@ -111,6 +113,7 @@ export default function ProjectEditor(props: ProjectEditorProps) {
   })
 
   const isDraft = projectId === undefined ? true : projectData?.status === 'draft'
+  const taskCount = projectData?.tasks.length ?? 0
   // Org-proposed AND template-originated drafts both skip review and publish straight live —
   // see the self-publish gate in server/routers/projects.ts:publishDraft. A template-originated
   // draft can't exist before a project id does, so `initialVariant` never needs to cover it.
@@ -186,9 +189,6 @@ export default function ProjectEditor(props: ProjectEditorProps) {
 
   const publishMutation = useMutation({
     ...orpc.projects.publishDraft.mutationOptions(),
-    // Uses `variables.id` rather than the closed-over `projectId` state — when this
-    // mutation follows a same-click lazy create, the id wasn't known yet when this render's
-    // callback closures were captured.
     onSuccess: (_data, variables) => {
       toast(isOrgDraft ? 'Project published!' : 'Draft submitted for review!', 'success')
       setShowPublishModal(false)
@@ -272,6 +272,8 @@ export default function ProjectEditor(props: ProjectEditorProps) {
       remoteEligibility: remoteEligibility as CreateProjectInput['remoteEligibility'],
       estimatedDuration: duration.trim() || null,
       collaborationLink: collaborationLink.trim() || null,
+      startDate: fromDateInputValue(startDate),
+      durationDays: durationDays ? parseInt(durationDays, 10) : null,
       skillIds: skills.map((s) => s.skillId),
       skillRequiredMap: Object.fromEntries(skills.map((s) => [s.skillId, true])),
       isSeekingHelp: seekingHelp,
@@ -317,20 +319,18 @@ export default function ProjectEditor(props: ProjectEditorProps) {
     if (id !== null) router.replace(`/projects/${id}/edit`)
   }
 
+  // Checked here, before a new draft is created: the server refuses to publish a project
+  // with no tasks, and creating the draft first would leave it behind.
   function handleOpenPublishModal() {
     if (projectId === undefined && !title.trim()) {
       toast('A title is required, even for a draft.', 'error')
       return
     }
+    if (taskCount === 0) {
+      setSubmitWithoutTasks(true)
+      return
+    }
     setShowPublishModal(true)
-  }
-
-  // In new mode this lazily creates the draft first (same as Save draft/Add Task), then
-  // publishes it immediately — a one-click shortcut past the separate draft-editing step.
-  async function handleConfirmPublish() {
-    const id = await ensureProjectExists()
-    if (id === null) return
-    publishMutation.mutate({ id })
   }
 
   async function handleAddTask(e: React.FormEvent) {
@@ -733,11 +733,18 @@ export default function ProjectEditor(props: ProjectEditorProps) {
 
         {isDraft && canEdit && (
           <div className="mb-5">
-            <label>Tasks</label>
+            <label>
+              Tasks <span className="text-error">*</span>
+            </label>
             <p className="text-sm text-text-light mt-0 mb-2">
               Break the project into concrete tasks. This helps contributors understand the scope
               and gives them something to pick up.
             </p>
+            {submitWithoutTasks && taskCount === 0 && (
+              <p role="alert" className="text-sm text-error mt-0 mb-2">
+                Add at least one task before submitting.
+              </p>
+            )}
             {projectId !== undefined &&
               projectData?.tasks.map((task) => {
                 const draft = taskDrafts[task.id] ?? {
@@ -856,11 +863,7 @@ export default function ProjectEditor(props: ProjectEditorProps) {
           )}
 
           {projectId === undefined && (
-            <Button
-              type="button"
-              onClick={handleOpenPublishModal}
-              disabled={creatingDraft || publishMutation.isPending}
-            >
+            <Button type="button" onClick={handleOpenPublishModal} disabled={creatingDraft}>
               {isOrgDraft ? 'Publish' : 'Submit'}
             </Button>
           )}
@@ -884,7 +887,7 @@ export default function ProjectEditor(props: ProjectEditorProps) {
           {projectId !== undefined && isDraft && canEdit && (
             <Button
               type="button"
-              onClick={() => setShowPublishModal(true)}
+              onClick={handleOpenPublishModal}
               disabled={publishMutation.isPending}
             >
               {isOrgDraft ? 'Publish' : 'Submit'}
@@ -915,43 +918,46 @@ export default function ProjectEditor(props: ProjectEditorProps) {
         </div>
       </div>
 
-      <Modal
-        id="confirm-publish-draft"
-        title={isOrgDraft ? 'Publish this project?' : 'Submit draft for review?'}
-        isOpen={showPublishModal}
-        onClose={() => setShowPublishModal(false)}
-      >
-        <p>
-          {isOrgDraft ? (
-            <>
-              This will publish <strong className="italic">{title || 'this project'}</strong>{' '}
-              immediately. It will be visible to volunteers straight away.
-            </>
-          ) : (
-            <>
-              This will submit <strong className="italic">{title || 'this project'}</strong> to
-              PauseAI team leads for review.
-            </>
-          )}
-        </p>
-        <div className="mt-4 flex justify-end gap-2">
-          <Button variant="secondary" onClick={() => setShowPublishModal(false)}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleConfirmPublish}
-            disabled={creatingDraft || publishMutation.isPending}
-          >
-            {isOrgDraft
-              ? creatingDraft || publishMutation.isPending
-                ? 'Publishing…'
-                : 'Publish'
-              : creatingDraft || publishMutation.isPending
-                ? 'Submitting…'
-                : 'Submit for Review'}
-          </Button>
-        </div>
-      </Modal>
+      {/* Opens only once a task exists, so the draft does too. */}
+      {projectId !== undefined && (
+        <Modal
+          id="confirm-publish-draft"
+          title={isOrgDraft ? 'Publish this project?' : 'Submit draft for review?'}
+          isOpen={showPublishModal}
+          onClose={() => setShowPublishModal(false)}
+        >
+          <p>
+            {isOrgDraft ? (
+              <>
+                This will publish <strong className="italic">{title || 'this project'}</strong>{' '}
+                immediately. It will be visible to volunteers straight away.
+              </>
+            ) : (
+              <>
+                This will submit <strong className="italic">{title || 'this project'}</strong> to
+                PauseAI team leads for review.
+              </>
+            )}
+          </p>
+          <div className="mt-4 flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setShowPublishModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => publishMutation.mutate({ id: projectId })}
+              disabled={publishMutation.isPending}
+            >
+              {isOrgDraft
+                ? publishMutation.isPending
+                  ? 'Publishing…'
+                  : 'Publish'
+                : publishMutation.isPending
+                  ? 'Submitting…'
+                  : 'Submit for Review'}
+            </Button>
+          </div>
+        </Modal>
+      )}
 
       {projectId !== undefined && (
         <>
