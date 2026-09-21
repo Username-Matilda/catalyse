@@ -111,7 +111,7 @@ describe('project page — visitor', () => {
     await userEvent.click(
       within(await screen.findByRole('dialog')).getByRole('button', { name: 'Withdraw' }),
     )
-    await screen.findByText('Interest withdrawn')
+    await screen.findByText(/You've left the project/)
     await waitFor(() => expect(screen.queryByLabelText('Add a comment')).toBeNull())
     await userEvent.type(await screen.findByLabelText('Message (optional)'), 'Pick me')
     await userEvent.click(screen.getByRole('button', { name: 'Express Interest' }))
@@ -189,6 +189,32 @@ describe('project page — visitor', () => {
     )
     await screen.findByText('Unauthorized')
   })
+
+  it('calls the panel "Your place" for someone the owner added, and says what to do once removed', async () => {
+    const me = await createVolunteer()
+    const project = await createProject({ title: 'Added to it', status: 'ready' })
+    const interest = await prisma.workItemInterest.create({
+      data: {
+        workItemId: project.id,
+        volunteerId: me.id,
+        interestType: 'want_to_contribute',
+        origin: 'added',
+        status: 'accepted',
+      },
+    })
+    await mount(project.id, me)
+    await screen.findByRole('heading', { name: 'Your place on this project' })
+    expect(screen.getByText(/Your place:/)).toBeInTheDocument()
+    expect(screen.queryByText(/Your interest status/)).toBeNull()
+    cleanup()
+    await prisma.workItemInterest.update({
+      where: { id: interest.id },
+      data: { status: 'removed' },
+    })
+    await mount(project.id, me)
+    await screen.findByText('Contact the owner if you would like to rejoin.')
+    expect(screen.queryByRole('button', { name: 'Withdraw Interest' })).toBeNull()
+  })
 })
 
 describe('project page — owner', () => {
@@ -239,7 +265,7 @@ describe('project page — owner', () => {
     await userEvent.click(
       within(interestCard('Hana Helper')).getByRole('button', { name: 'Accept' }),
     )
-    await screen.findByText('Interest accepted')
+    await screen.findByText(/^Accepted\. They're on the project/)
     await userEvent.click(
       await within(interestCard('Otto Other')).findByRole('button', { name: 'Decline' }),
     )
@@ -253,7 +279,7 @@ describe('project page — owner', () => {
     )
     await userEvent.type(screen.getByLabelText('Optional message for the volunteer'), 'Not now')
     fireEvent.submit(screen.getByLabelText('Optional message for the volunteer').closest('form')!)
-    await screen.findByText('Interest declined')
+    await screen.findByText(/^Declined\. They've been notified/)
     await waitFor(async () =>
       expect(
         (await prisma.workItemInterest.findFirstOrThrow({ where: { volunteerId: other.id } }))
@@ -291,7 +317,7 @@ describe('project page — owner', () => {
     })
     expect(within(removeDialog).queryByRole('button', { name: 'Decline' })).toBeNull()
     fireEvent.submit(screen.getByLabelText('Optional message for the volunteer').closest('form')!)
-    await screen.findByText('Removed Hana Helper.')
+    await screen.findByText("Removed Hana Helper. They've been notified.")
     await waitFor(() => expect(interestCard('Hana Helper')).toHaveTextContent('Applied, removed'))
     // Clicking outside closes the menu.
     await userEvent.click(screen.getByLabelText('Task actions for First task'))
@@ -330,7 +356,7 @@ describe('project page — owner', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Volunteer to assign' }))
     await userEvent.click(await screen.findByRole('option', { name: 'Otto Other' }))
     fireEvent.submit(screen.getByRole('button', { name: 'Volunteer to assign' }).closest('form')!)
-    await screen.findByText('Volunteer assigned!')
+    await screen.findByText(/^Added to the project\./)
     // The picker empties once the volunteer is added, and says what adding does.
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Volunteer to assign' })).not.toHaveTextContent(

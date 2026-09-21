@@ -12,7 +12,15 @@ import { Badge, badgeClasses, badgeColorClasses } from '@/components/Badge'
 import Tooltip from '@/components/Tooltip'
 import { projectStatusVariant } from '@/components/ProjectCard'
 import { INTEREST_STATUS_LABELS, interestHistoryLabel } from '@/lib/status-labels'
-import { interestSentMessage, PROJECT_TASK_CLAIMED_MESSAGE } from '@/lib/action-messages'
+import {
+  interestSentMessage,
+  PROJECT_TASK_CLAIMED_MESSAGE,
+  VOLUNTEER_ADDED_MESSAGE,
+  INTEREST_WITHDRAWN_MESSAGE,
+  INTEREST_ACCEPTED_MESSAGE,
+  INTEREST_DECLINED_MESSAGE,
+  volunteerRemovedMessage,
+} from '@/lib/action-messages'
 import CommentThread from '@/components/CommentThread'
 import MessageDialog from '@/components/MessageDialog'
 import Linkify from '@/components/Linkify'
@@ -850,7 +858,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const withdrawInterestMutation = useMutation({
     ...orpc.projects.withdrawInterest.mutationOptions(),
     onSuccess: () => {
-      showToast('Interest withdrawn', 'success')
+      showToast(INTEREST_WITHDRAWN_MESSAGE, 'success')
       void invalidateProject()
     },
     onError: (err: unknown) =>
@@ -862,10 +870,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     onSuccess: (_data, variables) => {
       showToast(
         variables.status === InterestStatus.accepted
-          ? 'Interest accepted'
+          ? INTEREST_ACCEPTED_MESSAGE
           : declineTarget?.accepted
-            ? `Removed ${declineTarget.name}.`
-            : 'Interest declined',
+            ? volunteerRemovedMessage(declineTarget.name)
+            : INTEREST_DECLINED_MESSAGE,
         'success',
       )
       setDeclineTarget(null)
@@ -879,7 +887,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const assignMutation = useMutation({
     ...orpc.projects.assign.mutationOptions(),
     onSuccess: () => {
-      showToast('Volunteer assigned!', 'success')
+      showToast(VOLUNTEER_ADDED_MESSAGE, 'success')
       setAssignTo('')
       void invalidateProject()
     },
@@ -1969,7 +1977,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             {/* Interest section */}
             {canSeeInterest && (
               <div className={card}>
-                <h2>Interested in this project?</h2>
+                <h2>
+                  {project.myInterest?.origin === 'added'
+                    ? 'Your place on this project'
+                    : 'Interested in this project?'}
+                </h2>
                 {!project.myInterest ? (
                   <form onSubmit={handleExpressInterest}>
                     <div className="mb-5">
@@ -2011,12 +2023,19 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 ) : (
                   <div>
                     <p>
-                      Your interest status:{' '}
+                      {project.myInterest.origin === 'added'
+                        ? 'Your place:'
+                        : 'Your interest status:'}{' '}
                       <span aria-label="interest status" className="font-semibold">
                         {INTEREST_STATUS_LABELS[project.myInterest.status] ??
                           project.myInterest.status}
                       </span>
                     </p>
+                    {project.myInterest.status === InterestStatus.removed && (
+                      <p className="text-text-light text-sm">
+                        Contact the owner if you would like to rejoin.
+                      </p>
+                    )}
                     {project.myInterest.responseMessage && (
                       <p className="text-text-light text-sm">
                         {project.myInterest.responseMessage}

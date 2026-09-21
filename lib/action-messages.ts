@@ -19,3 +19,17 @@ export const QUICK_TASK_SUBMITTED_MESSAGE =
 export const QUICK_TASK_CLAIMED_MESSAGE = "Task claimed. Submit it for review when it's done."
 
 export const PROJECT_TASK_CLAIMED_MESSAGE = `Task claimed. Post an update within ${TASK_REMINDER_AFTER_DAYS} days; after ${TASK_RELEASE_AFTER_DAYS} days with none, the task is released.`
+
+export const VOLUNTEER_ADDED_MESSAGE =
+  'Added to the project. They have been told, and can see it in their notifications.'
+
+export const INTEREST_WITHDRAWN_MESSAGE =
+  "You've left the project. Express interest again if you want to rejoin."
+
+export const INTEREST_ACCEPTED_MESSAGE = "Accepted. They're on the project and have been notified."
+
+export const INTEREST_DECLINED_MESSAGE = "Declined. They've been notified."
+
+export function volunteerRemovedMessage(name: string): string {
+  return `Removed ${name}. They've been notified.`
+}

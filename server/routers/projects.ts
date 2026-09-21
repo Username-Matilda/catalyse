@@ -748,6 +748,7 @@ export const projectsRouter = {
             volunteerId: rawMyInterest.volunteerId,
             projectId: rawMyInterest.workItemId,
             interestType: rawMyInterest.interestType,
+            origin: rawMyInterest.origin,
             message: rawMyInterest.message,
             status: rawMyInterest.status,
             responseMessage: rawMyInterest.responseMessage,
