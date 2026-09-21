@@ -24,7 +24,7 @@ const notificationBadge = (page: Page) =>
 const unreadNotificationCount = (page: Page) =>
   page
     .locator('.card')
-    .filter({ has: page.getByText('Unread Notifications', { exact: true }) })
+    .filter({ has: page.getByText('Unread notifications', { exact: true }) })
     .locator('.stat-number')
 
 test.describe('Dashboard', () => {
