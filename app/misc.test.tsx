@@ -69,7 +69,7 @@ describe('editor host pages', () => {
     const admin = await createAdmin()
     await renderApp(<AdminCreateProjectPage />, { as: admin })
     expect(await screen.findByRole('heading', { name: 'Org Projects' })).toBeInTheDocument()
-    await userEvent.click(screen.getAllByRole('button', { name: 'Delete' }).at(-1)!)
+    await userEvent.click(screen.getAllByRole('button', { name: 'Cancel' }).at(-1)!)
     await waitFor(() => expect(navigation.push).toHaveBeenCalledWith('/admin/projects'))
   })
 })

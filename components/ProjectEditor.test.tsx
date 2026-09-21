@@ -119,6 +119,45 @@ describe('ProjectEditor — new volunteer proposal', () => {
     await waitFor(() => expect(screen.getByDisplayValue('First task')).toBeInTheDocument())
   })
 
+  it('makes one draft when Add Task lands while a create is already in flight', async () => {
+    const me = await createVolunteer()
+    await mount({ variant: 'volunteer' }, me)
+    await waitFor(() => expect(localStorage.getItem('authToken')).toBeTruthy())
+    await userEvent.type(screen.getByLabelText('Project Title'), 'Racing')
+    await userEvent.type(screen.getByLabelText('Task title'), 'Step')
+    const add = screen.getByRole('button', { name: 'Add Task' })
+    // Two clicks before either has re-rendered: both reach the create together.
+    fireEvent.click(add)
+    fireEvent.click(add)
+    await waitFor(
+      async () =>
+        expect(
+          await prisma.workItem.count({ where: { parent: { creatorId: me.id, title: 'Racing' } } }),
+        ).toBeGreaterThan(0),
+      { timeout: 5000 },
+    )
+    expect(
+      await prisma.workItem.count({
+        where: { creatorId: me.id, type: 'PROJECT', title: 'Racing' },
+      }),
+    ).toBe(1)
+  })
+
+  it('adds no task when the draft it needs cannot be created', async () => {
+    const me = await createVolunteer()
+    for (let i = 0; i < 2; i++)
+      await createProject({ status: 'draft', creatorId: me.id, isOrgProposed: false })
+    await mount({ variant: 'volunteer' }, me)
+    await waitFor(() => expect(localStorage.getItem('authToken')).toBeTruthy())
+    await userEvent.type(screen.getByLabelText('Project Title'), 'One too many')
+    await userEvent.type(screen.getByLabelText('Task title'), 'Orphan')
+    await userEvent.click(screen.getByRole('button', { name: 'Add Task' }))
+    expect(
+      await screen.findByText(/already have 2 drafts/, {}, { timeout: 5000 }),
+    ).toBeInTheDocument()
+    expect(await prisma.workItem.count({ where: { title: 'Orphan' } })).toBe(0)
+  })
+
   it('asks for a task before submitting', async () => {
     const me = await createVolunteer()
     await mount({ variant: 'volunteer' }, me)

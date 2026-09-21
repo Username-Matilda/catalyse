@@ -36,7 +36,7 @@ describe('Button', () => {
     expect(screen.getByRole('button', { name: 'Plain' })).toHaveClass('bg-primary')
     const link = screen.getByRole('link', { name: 'Link' })
     expect(link).toHaveAttribute('href', '/x')
-    expect(link).toHaveClass('border-secondary', 'bg-secondary', 'px-3')
+    expect(link).toHaveClass('border-text-light', 'bg-secondary', 'px-3')
     expect(screen.getByRole('button', { name: '×' })).toHaveClass('size-11', 'extra')
   })
 })
