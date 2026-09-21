@@ -21,12 +21,6 @@ async function createNotificationForVolunteer(
 const notificationBadge = (page: Page) =>
   page.locator('[data-tab="notifications"] .notification-badge')
 
-const unreadNotificationCount = (page: Page) =>
-  page
-    .locator('.card')
-    .filter({ has: page.getByText('Unread notifications', { exact: true }) })
-    .locator('.stat-number')
-
 test.describe('Dashboard', () => {
   test('Volunteer views their dashboard', async ({ volunteer, baseUrl }) => {
     await volunteer.page.goto(`${baseUrl}/dashboard`)
@@ -59,7 +53,6 @@ test.describe('Dashboard', () => {
     })
 
     await expect(notificationBadge(volunteer.page)).toBeVisible({ timeout: 10_000 })
-    await expect(unreadNotificationCount(volunteer.page)).not.toHaveText('0')
   })
 
   test('Volunteer marks all notifications as read', async ({ adminPage, volunteer, baseUrl }) => {
@@ -83,7 +76,6 @@ test.describe('Dashboard', () => {
     await volunteer.page.getByRole('button', { name: 'Mark all as read' }).click()
 
     await expect(notificationBadge(volunteer.page)).not.toBeVisible({ timeout: 10_000 })
-    await expect(unreadNotificationCount(volunteer.page)).toHaveText('0', { timeout: 10_000 })
     await expect(volunteer.page.getByRole('button', { name: 'Mark all as read' })).not.toBeVisible({
       timeout: 10_000,
     })

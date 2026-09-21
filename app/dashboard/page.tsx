@@ -51,27 +51,6 @@ function tabFromHash(hash: string): TabKey | null {
   return TAB_ORDER.find((t) => t === key) ?? null
 }
 
-// [test hook] card, stat-number classes used as test selectors
-function StatTile({
-  count,
-  href,
-  children,
-}: {
-  count: number
-  href: string
-  children: React.ReactNode
-}) {
-  return (
-    <a
-      href={href}
-      className="card block bg-surface rounded-xl shadow p-6 text-center no-underline hover:shadow-md transition-shadow"
-    >
-      <div className="stat-number text-4xl font-bold text-primary mb-1">{count}</div>
-      <div className="text-text-light text-sm">{children}</div>
-    </a>
-  )
-}
-
 function TabCount({ count }: { count: number }) {
   if (count === 0) return null
   return (
@@ -129,9 +108,6 @@ export default function DashboardPage() {
   const proposedProjects = data?.proposedProjects ?? []
   const applications = interests.filter((i) => i.interestStatus !== InterestStatus.accepted)
   const suggestedProjects = data?.suggestedProjects ?? []
-  const waitingCount = applications.filter(
-    (i) => i.interestStatus === InterestStatus.pending,
-  ).length
   // Until approved there are no projects to join or propose, so only notifications show.
   const isMember = Boolean(
     user && (user.approvalStatus === ApprovalStatus.approved || user.isAdmin),
@@ -166,8 +142,6 @@ export default function DashboardPage() {
     ...orpc.my.projectTasks.queryOptions(),
     enabled: !!user,
   })
-  const tasksInProgress =
-    projectTasks.length + quickTasks.filter((t) => t.status === QuickTaskStatus.in_progress).length
 
   const { data: notificationsData } = useQuery({
     ...orpc.notifications.list.queryOptions({
@@ -383,7 +357,7 @@ export default function DashboardPage() {
 
         {/* Quick Tasks and claimed project tasks */}
         {quickTasks.length + projectTasks.length > 0 && (
-          <section id="your-tasks" aria-label="Your tasks" className="mb-8">
+          <section aria-label="Your tasks" className="mb-8">
             <h2>Your tasks</h2>
             {projectTasks.map((task) => (
               <div
@@ -445,24 +419,6 @@ export default function DashboardPage() {
               </div>
             ))}
           </section>
-        )}
-
-        {/* Quick stats */}
-        {isMember && (
-          <div className="grid grid-cols-4 gap-5 mb-8 max-[900px]:grid-cols-2 max-[600px]:grid-cols-1">
-            <StatTile count={myProjects.length + proposedProjects.length} href="#tab-projects">
-              My projects
-            </StatTile>
-            <StatTile count={waitingCount} href="#tab-applications">
-              Applications waiting
-            </StatTile>
-            <StatTile count={unreadCount} href="#tab-notifications">
-              Unread notifications
-            </StatTile>
-            <StatTile count={tasksInProgress} href="#your-tasks">
-              Tasks in progress
-            </StatTile>
-          </div>
         )}
 
         {/* Tabs */}

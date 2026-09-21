@@ -133,19 +133,9 @@ describe('dashboard', () => {
     expect(within(proposedSection).getByRole('link', { name: 'Proposed one' })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Applied one' })).toBeNull()
 
-    // Tiles count what their tab holds, a declined application excepted, and open it.
-    const tile = (label: string) => screen.getByRole('link', { name: new RegExp(label) })
-    expect(tile('My projects')).toHaveTextContent('3My projects')
-    expect(tile('Applications waiting')).toHaveTextContent('1Applications waiting')
-    expect(tile('Unread notifications')).toHaveTextContent('0Unread notifications')
-    expect(tile('Tasks in progress')).toHaveTextContent('1Tasks in progress')
-    expect(tile('Tasks in progress')).toHaveAttribute('href', '#your-tasks')
-    expect(screen.getByRole('region', { name: 'Your tasks' })).toHaveAttribute('id', 'your-tasks')
-    await userEvent.click(tile('Applications waiting'))
-    expect(screen.getByRole('tab', { name: /^Applications/ })).toHaveAttribute(
-      'aria-selected',
-      'true',
-    )
+    // The Applications tab holds waiting and declined applications, each marked.
+    await userEvent.click(screen.getByRole('tab', { name: /^Applications/ }))
+    expect(screen.getByRole('region', { name: 'Your tasks' })).toBeInTheDocument()
     const cardFor = (title: string) =>
       screen.getByRole('link', { name: title }).closest('.card') as HTMLElement
     expect(within(cardFor('Applied one')).getByText('Applied')).toBeInTheDocument()
