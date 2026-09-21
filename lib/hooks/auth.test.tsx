@@ -50,7 +50,7 @@ describe('auth gate hooks', () => {
   it('useRequireApproved sends unapproved non-admins to the dashboard, with a notice', async () => {
     const pending = await createVolunteer({ approvalStatus: 'pending' })
     await settle('useRequireApproved', pending)
-    expect(navigation.replace).toHaveBeenCalledWith('/dashboard?notice=pending')
+    expect(navigation.replace).toHaveBeenCalledWith('/dashboard')
     // The page never gets the user, so it cannot render anything for them meanwhile.
     expect(screen.getByText('anon')).toBeInTheDocument()
     navigation.reset()
@@ -74,7 +74,7 @@ describe('auth gate hooks', () => {
       'useRequireConfirmed',
       await createVolunteer({ approvalStatus: 'pending', emailConfirmed: false }),
     )
-    expect(navigation.replace).toHaveBeenCalledWith('/dashboard?notice=pending')
+    expect(navigation.replace).toHaveBeenCalledWith('/dashboard')
   })
 
   it('useRequireAdmin / useRequireSuperAdmin send the wrong role to /projects', async () => {

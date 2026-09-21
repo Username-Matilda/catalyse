@@ -181,16 +181,10 @@ describe('dashboard', () => {
     void suggested
   })
 
-  it('explains a bounce from a page that needs approval, once', async () => {
+  it('explains a pending application with one banner, and shows no notice on arrival', async () => {
     const pending = await createVolunteer({ approvalStatus: 'pending' })
-    await renderApp(<DashboardPage />, { as: pending, url: '/dashboard?notice=pending' })
-    expect(
-      await screen.findByText(/Your application is being reviewed\. You'll be able to browse/),
-    ).toBeInTheDocument()
-    await waitFor(() => expect(window.location.search).toBe(''))
-    cleanup()
     await renderApp(<DashboardPage />, { as: pending, url: '/dashboard' })
-    await screen.findByRole('heading', { name: `Welcome back, ${pending.name}!` })
+    expect(await screen.findByText(/Your account is pending approval/)).toBeInTheDocument()
     expect(screen.queryByText(/Your application is being reviewed/)).toBeNull()
   })
 

@@ -193,9 +193,7 @@ describe('projects directory', () => {
   it('keeps unapproved volunteers out, showing a loading state until they leave', async () => {
     const pending = await createVolunteer({ approvalStatus: 'pending' })
     await renderApp(<ProjectsPage />, { as: pending, url: '/projects' })
-    await waitFor(() =>
-      expect(navigation.replace).toHaveBeenCalledWith('/dashboard?notice=pending'),
-    )
+    await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith('/dashboard'))
     expect(screen.getByRole('status')).toHaveTextContent('Loading…')
     expect(screen.queryByRole('heading', { name: 'Projects' })).toBeNull()
   })

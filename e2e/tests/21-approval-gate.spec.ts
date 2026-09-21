@@ -44,7 +44,9 @@ test.describe('Approval Gate', () => {
       await page.goto(`${baseUrl}/projects`)
       await page.waitForURL(/\/dashboard/, { timeout: 10_000 })
       await expect(
-        page.getByText("Your application is being reviewed. You'll be able to browse projects"),
+        page.getByText(
+          "Your account is pending approval. You'll be able to browse and join projects",
+        ),
       ).toBeVisible({ timeout: 10_000 })
     } finally {
       await ctx.close()

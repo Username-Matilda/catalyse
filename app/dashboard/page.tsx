@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react'
 import { useRequireAuth } from '@/lib/hooks/auth'
-import { useOneTimeNotice } from '@/lib/hooks/useOneTimeNotice'
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import Button from '@/components/Button'
@@ -72,8 +71,6 @@ export default function DashboardPage() {
   const [notificationFilter, setNotificationFilter] = useState<NotificationFilter>('all')
   const [notificationPage, setNotificationPage] = useState(1)
   const [welcomeDismissed, setWelcomeDismissed] = useState(false)
-  // Set when a page that needs approval sent the volunteer here (PENDING_NOTICE_URL).
-  const [pendingNotice] = useOneTimeNotice('pending')
 
   function setNotificationFilterAndResetPage(filter: NotificationFilter) {
     setNotificationFilter(filter)
@@ -301,16 +298,6 @@ export default function DashboardPage() {
           <h1 role="heading">Welcome back, {user.name}!</h1>
           {isMember && <Button href="/suggest">Propose a project</Button>}
         </div>
-
-        {pendingNotice && (
-          <div
-            role="status"
-            className="p-4 rounded-lg mb-5 bg-blue-100 text-blue-800 border border-blue-300 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-600"
-          >
-            Your application is being reviewed. You&apos;ll be able to browse projects once
-            it&apos;s approved.
-          </div>
-        )}
 
         {/* Pending approval banner */}
         {(user.approvalStatus === ApprovalStatus.pending ||

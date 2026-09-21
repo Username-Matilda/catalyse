@@ -14,8 +14,8 @@ export function useRequireAuth() {
   return auth
 }
 
-/** Where a volunteer lands when a page needs approval they don't have yet; see the dashboard. */
-export const PENDING_NOTICE_URL = '/dashboard?notice=pending'
+/** Where a volunteer lands when a page needs approval they don't have yet. */
+export const PENDING_URL = '/dashboard'
 
 /** Where someone lands from an admin page they may not open; see the projects page. */
 export const NO_ACCESS_NOTICE_URL = '/projects?notice=no-access'
@@ -34,7 +34,7 @@ export function useRequireApproved() {
   useEffect(() => {
     if (auth.loading) return
     if (!auth.user) router.replace('/login')
-    else if (!isApproved) router.replace(PENDING_NOTICE_URL)
+    else if (!isApproved) router.replace(PENDING_URL)
   }, [auth.user, auth.loading, isApproved, router])
   return { ...auth, user: isApproved ? auth.user : null }
 }
