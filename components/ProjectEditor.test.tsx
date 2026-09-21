@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { screen, waitFor, fireEvent, cleanup, within } from '@testing-library/react'
+import { screen, waitFor, fireEvent, cleanup, within, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { prisma } from '@/lib/prisma'
 import {
@@ -126,9 +126,12 @@ describe('ProjectEditor — new volunteer proposal', () => {
     await userEvent.type(screen.getByLabelText('Project Title'), 'Racing')
     await userEvent.type(screen.getByLabelText('Task title'), 'Step')
     const add = screen.getByRole('button', { name: 'Add Task' })
-    // Two clicks before either has re-rendered: both reach the create together.
-    fireEvent.click(add)
-    fireEvent.click(add)
+    // Two clicks before either has re-rendered, so the button is still enabled for the second:
+    // both reach the create together.
+    act(() => {
+      fireEvent.click(add)
+      fireEvent.click(add)
+    })
     await waitFor(
       async () =>
         expect(
