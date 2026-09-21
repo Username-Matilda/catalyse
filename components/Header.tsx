@@ -225,6 +225,12 @@ export default function Header() {
                       onClick={() => setUserMenuOpen(false)}
                     >
                       <Link
+                        href={`/volunteers/${user.id}`}
+                        className="block px-4 py-3 text-brand-text no-underline"
+                      >
+                        My profile
+                      </Link>
+                      <Link
                         href="/settings"
                         className="block px-4 py-3 text-brand-text no-underline"
                       >
@@ -396,7 +402,9 @@ export default function Header() {
                       </span>
                     )}
                   </MobileNavLink>
+                  <MobileNavLink href={`/volunteers/${user.id}`}>My profile</MobileNavLink>
                   <MobileNavLink href="/settings">Settings</MobileNavLink>
+                  <MobileNavLink href="/privacy">Privacy &amp; Data</MobileNavLink>
 
                   {user.isAdmin && (
                     <>

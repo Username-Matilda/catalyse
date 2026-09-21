@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  volunteerLocation,
   buildLocationOptions,
   buildLocalGroupOptionsForCountry,
   countryLabel,
@@ -57,5 +58,17 @@ describe('projectLocationParts', () => {
     ])
     expect(projectLocationParts('UK', null, 'COUNTRY')).toEqual(['Remote', 'United Kingdom'])
     expect(projectLocationParts(null, null, 'NONE')).toEqual([])
+  })
+})
+
+describe('volunteerLocation', () => {
+  it('joins town, local group and country once each', () => {
+    expect(volunteerLocation({ location: 'Manchester', localGroup: null, country: 'UK' })).toBe(
+      'Manchester · United Kingdom',
+    )
+    expect(volunteerLocation({ location: 'Leeds', localGroup: 'Leeds', country: 'UK' })).toBe(
+      'Leeds · United Kingdom',
+    )
+    expect(volunteerLocation({ location: null, localGroup: null, country: null })).toBe('')
   })
 })

@@ -9,7 +9,11 @@ import Link from 'next/link'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import FilterDropdown from '@/components/FilterDropdown'
-import { buildLocationOptions, countryLabel, type LocalGroupOption } from '@/lib/filter-options'
+import {
+  buildLocationOptions,
+  volunteerLocation,
+  type LocalGroupOption,
+} from '@/lib/filter-options'
 import { InferRouterOutputs } from '@orpc/server'
 import { orpc } from '@/lib/orpc'
 import { AppRouter } from '@/server/router'
@@ -167,15 +171,10 @@ function VolunteersPageContent({ user }: { user: AuthUser }) {
                       </Tooltip>
                     )}
                   </h3>
-                  {(v.location || v.country || v.localGroup || v.availabilityHoursPerWeek) && (
+                  {(volunteerLocation(v) || v.availabilityHoursPerWeek) && (
                     <div className="flex items-center gap-3 flex-wrap text-xs text-text-light mb-2">
-                      {(v.location || v.country || v.localGroup) && (
-                        <span>
-                          📍{' '}
-                          {[v.localGroup, countryLabel(v.country) || v.location]
-                            .filter(Boolean)
-                            .join(' · ')}
-                        </span>
+                      {volunteerLocation(v) && (
+                        <span title="Location">📍 {volunteerLocation(v)}</span>
                       )}
                       {v.availabilityHoursPerWeek && (
                         <span>🕐 {v.availabilityHoursPerWeek}h/week</span>

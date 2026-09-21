@@ -98,6 +98,23 @@ describe('Header', () => {
     expect(links[1]).toHaveAttribute('href', '/dashboard#tab-notifications')
   })
 
+  it('links to my own profile and to Privacy & Data from both menus', async () => {
+    const vol = await createVolunteer({ locationConfirmedAt: new Date() })
+    await mount(vol, '/projects')
+    await userEvent.click(await screen.findByRole('button', { name: vol.name }))
+    expect(screen.getByRole('link', { name: 'My profile' })).toHaveAttribute(
+      'href',
+      `/volunteers/${vol.id}`,
+    )
+    await userEvent.click(screen.getByRole('button', { name: vol.name }))
+    await userEvent.click(screen.getByLabelText('Open menu'))
+    expect(screen.getByRole('link', { name: 'My profile' })).toHaveAttribute(
+      'href',
+      `/volunteers/${vol.id}`,
+    )
+    expect(screen.getByRole('link', { name: 'Privacy & Data' })).toHaveAttribute('href', '/privacy')
+  })
+
   it('shows a plain admin panel link for non-super admins', async () => {
     const admin = await createAdmin({ locationConfirmedAt: new Date() })
     await mount(admin, '/dashboard')

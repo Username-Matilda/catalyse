@@ -108,7 +108,7 @@ describe('volunteer profile', () => {
       as: me,
     })
     await screen.findByRole('heading', { name: 'Profiled' })
-    expect(screen.getByText('Leeds · North')).toBeInTheDocument()
+    expect(screen.getByText('📍 Leeds · North')).toBeInTheDocument()
     expect(screen.getByText(`${skill.name} ✓`)).toBeInTheDocument()
     expect(screen.getByText('juggling')).toBeInTheDocument()
     expect(screen.getByText('3 hours/week')).toBeInTheDocument()

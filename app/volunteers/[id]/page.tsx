@@ -8,6 +8,7 @@ import Button from '@/components/Button'
 import { Badge } from '@/components/Badge'
 import { STATUS_LABELS, projectStatusVariant } from '@/components/ProjectCard'
 import MessageDialog from '@/components/MessageDialog'
+import { volunteerLocation } from '@/lib/filter-options'
 import { orpc } from '@/lib/orpc'
 
 export default function VolunteerDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -72,10 +73,8 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
               {volunteer.name}
             </h1>
 
-            {(volunteer.location || volunteer.localGroup) && (
-              <p className="text-text-light mb-4 text-sm">
-                {[volunteer.location, volunteer.localGroup].filter(Boolean).join(' · ')}
-              </p>
+            {volunteerLocation(volunteer) && (
+              <p className="text-text-light mb-4 text-sm">📍 {volunteerLocation(volunteer)}</p>
             )}
 
             <div id="volunteerBio" className="whitespace-pre-wrap mb-5">
