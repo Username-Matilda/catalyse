@@ -153,12 +153,16 @@ describe('admin team detail', () => {
       localStorage.clear()
       await mount(team.id, admin)
       await screen.findByRole('heading', { name: 'Fragile Team' })
-      localStorage.setItem('authToken', 'stale')
-      await userEvent.click(screen.getByRole('button', { name }))
+      // The token goes stale just before the request that should fail: any request made
+      // earlier (while a confirm dialog opens, say) would sign the page out and unmount it.
       if (name === 'Delete Team') {
-        await userEvent.click(
-          within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete Team' }),
-        )
+        await userEvent.click(screen.getByRole('button', { name }))
+        const dialog = await screen.findByRole('dialog')
+        localStorage.setItem('authToken', 'stale')
+        await userEvent.click(within(dialog).getByRole('button', { name: 'Delete Team' }))
+      } else {
+        localStorage.setItem('authToken', 'stale')
+        await userEvent.click(screen.getByRole('button', { name }))
       }
       await screen.findByText('Unauthorized').catch((e: Error) => {
         throw new Error(`${name}: ${e.message.slice(0, 80)}`)
