@@ -130,7 +130,9 @@ test.describe('Project Interests and Assignment', () => {
 
     // Volunteer receives a notification
     await goToDashboardNotifications(baseUrl, volunteer.page)
-    await expect(volunteer.page.locator('strong').filter({ hasText: 'was accepted' })).toBeVisible({
+    await expect(
+      volunteer.page.locator('strong').filter({ hasText: 'Accepted: your interest in' }),
+    ).toBeVisible({
       timeout: 10_000,
     })
   })
@@ -214,7 +216,7 @@ test.describe('Project Interests and Assignment', () => {
     // Volunteer receives an assignment notification
     await goToDashboardNotifications(baseUrl, volunteer.page)
     await expect(
-      volunteer.page.locator('strong').filter({ hasText: "You've been assigned to" }),
+      volunteer.page.locator('strong').filter({ hasText: "Assigned: you're on" }),
     ).toBeVisible({ timeout: 10_000 })
   })
 

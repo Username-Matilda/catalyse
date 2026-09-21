@@ -1219,7 +1219,7 @@ export const projectsRouter = {
       await notifyUser(
         interest.volunteerId,
         `interest_${input.status}`,
-        `Your interest in '${project.title}' was ${input.status}`,
+        `${input.status === InterestStatus.accepted ? 'Accepted' : 'Declined'}: your interest in '${project.title}'`,
         input.responseMessage ?? null,
         `/projects/${input.projectId}`,
         {
@@ -1320,7 +1320,7 @@ export const projectsRouter = {
       await notifyUser(
         input.volunteerId,
         'assigned_to_project',
-        `You've been assigned to '${project.title}'`,
+        `Assigned: you're on '${project.title}'`,
         `Assigned by ${volunteer.name}`,
         `/projects/${input.projectId}`,
         {
@@ -1879,7 +1879,7 @@ export const projectsRouter = {
       await notifyUser(
         input.assigneeId,
         'task_assigned',
-        `You've been assigned a task on '${project.title}'`,
+        `Assigned: a task on '${project.title}'`,
         task.title,
         `/projects/${input.projectId}`,
         {

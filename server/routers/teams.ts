@@ -280,8 +280,8 @@ export const teamsRouter = {
         request.volunteerId,
         'team_join_request_reviewed',
         input.action === 'accept'
-          ? `You're in! Approved to join ${team?.name ?? 'the team'}`
-          : `Your request to join ${team?.name ?? 'the team'} was declined`,
+          ? `Approved: you've joined ${team?.name ?? 'the team'}`
+          : `Declined: your request to join ${team?.name ?? 'the team'}`,
         null,
         `/teams/${request.teamId}`,
       )

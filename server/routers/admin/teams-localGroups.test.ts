@@ -111,7 +111,7 @@ describe('admin.teams', () => {
       where: { volunteerId: vol.id, type: 'team_suggestion_reviewed' },
     })
     expect(note).toMatchObject({
-      title: 'Your team suggestion "Renamed" was accepted',
+      title: 'Approved: your team suggestion "Renamed"',
       body: 'ok',
       link: `/teams/${team.id}`,
     })
@@ -164,14 +164,12 @@ describe('admin.teams', () => {
     expect((await prisma.teamSuggestion.findUniqueOrThrow({ where: { id: s2.id } })).status).toBe(
       'declined',
     )
-    const titles = (await prisma.notification.findMany({ where: { volunteerId: vol.id } })).map(
-      (n) => n.title,
-    )
-    expect(titles).toEqual(
+    const notes = await prisma.notification.findMany({ where: { volunteerId: vol.id } })
+    expect(notes.map((n) => [n.title, n.link])).toEqual(
       expect.arrayContaining([
-        'Your team suggestion "Sug" has been merged',
-        'Your team suggestion "Sug" is under review',
-        'Update on your team suggestion "Sug"',
+        ['Merged: your team suggestion "Sug"', `/teams/${target.id}`],
+        ['Under review: your team suggestion "Sug"', '/suggest-team'],
+        ['Declined: your team suggestion "Sug"', '/suggest-team'],
       ]),
     )
   })
@@ -265,7 +263,7 @@ describe('admin.localGroups', () => {
         where: { volunteerId: vol.id, type: 'local_group_suggestion_reviewed' },
       }),
     ).toMatchObject({
-      title: 'Your local group suggestion "Leeds North" was accepted',
+      title: 'Approved: your local group suggestion "Leeds North"',
       link: `/local-groups/${group.id}`,
     })
 
@@ -294,6 +292,17 @@ describe('admin.localGroups', () => {
     expect(
       (await prisma.localGroupSuggestion.findUniqueOrThrow({ where: { id: s3.id } })).status,
     ).toBe('declined')
+    expect(
+      (await prisma.notification.findMany({ where: { volunteerId: vol.id } })).map((n) => [
+        n.title,
+        n.link,
+      ]),
+    ).toEqual(
+      expect.arrayContaining([
+        [`Under review: your local group suggestion "${s3.name}"`, '/suggest-local-group'],
+        [`Declined: your local group suggestion "${s3.name}"`, '/suggest-local-group'],
+      ]),
+    )
 
     // A suggester with no email still gets the in-app notification path.
     const noEmail = await createVolunteer({ email: null })

@@ -466,8 +466,15 @@ describe('projects.assignTask', () => {
     expect(first).toMatchObject({ assigneeId: vol.id, status: 'in_progress' })
     await vi.waitFor(async () =>
       expect(
-        await prisma.notification.count({ where: { volunteerId: vol.id, type: 'task_assigned' } }),
-      ).toBe(1),
+        await prisma.notification.findMany({
+          where: { volunteerId: vol.id, type: 'task_assigned' },
+        }),
+      ).toEqual([
+        expect.objectContaining({
+          title: `Assigned: a task on '${project.title}'`,
+          link: `/projects/${project.id}`,
+        }),
+      ]),
     )
     await c.projects.assignTask({ projectId: project.id, taskId: t.id, assigneeId: other.id })
     expect((await task(t.id)).startedAt).toEqual(first.startedAt)

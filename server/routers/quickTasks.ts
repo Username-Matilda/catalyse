@@ -252,7 +252,7 @@ export const quickTasksRouter = {
       notifyUser(
         input.volunteerId,
         'quick_task_assigned',
-        `You've been assigned a Quick Task: ${task.title}`,
+        `Assigned: Quick Task '${task.title}'`,
         (task.description ?? '').slice(0, 200),
         `/quick-tasks/${input.id}`,
       )
@@ -411,7 +411,7 @@ export const quickTasksRouter = {
         notifyUser(
           task.assigneeId,
           'quick_task_reviewed',
-          `Your Quick Task was reviewed: ${task.title}`,
+          `Reviewed: your Quick Task '${task.title}'`,
           `Rating: ${input.reviewRating}${input.comment ? ` - ${input.comment}` : ''}`,
           `/quick-tasks/${input.id}`,
         )

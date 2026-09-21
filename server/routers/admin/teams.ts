@@ -7,10 +7,10 @@ import { adminProcedure } from '../../procedures'
 import { TeamSuggestionStatus, TeamMembershipRole } from '@/generated/prisma/enums'
 
 const NOTIFICATION_TITLES: Record<string, (name: string) => string> = {
-  accepted: (n) => `Your team suggestion "${n}" was accepted`,
-  merge: (n) => `Your team suggestion "${n}" has been merged`,
-  on_hold: (n) => `Your team suggestion "${n}" is under review`,
-  declined: (n) => `Update on your team suggestion "${n}"`,
+  accepted: (n) => `Approved: your team suggestion "${n}"`,
+  merge: (n) => `Merged: your team suggestion "${n}"`,
+  on_hold: (n) => `Under review: your team suggestion "${n}"`,
+  declined: (n) => `Declined: your team suggestion "${n}"`,
 }
 
 export const adminTeamsRouter = {
@@ -194,7 +194,7 @@ export const adminTeamsRouter = {
 
       const titleFn = NOTIFICATION_TITLES[notificationAction]
       const title = titleFn ? titleFn(finalName) : `Update on your team suggestion`
-      const notificationLink = targetTeamId ? `/teams/${targetTeamId}` : null
+      const notificationLink = targetTeamId ? `/teams/${targetTeamId}` : '/suggest-team'
 
       await createNotification(
         suggestion.suggestedBy.id,

@@ -15,10 +15,10 @@ const VALID_COUNTRIES = new Set(
 )
 
 const NOTIFICATION_TITLES: Record<string, (name: string) => string> = {
-  accepted: (n) => `Your local group suggestion "${n}" was accepted`,
-  merge: (n) => `Your local group suggestion "${n}" has been merged`,
-  on_hold: (n) => `Your local group suggestion "${n}" is under review`,
-  declined: (n) => `Update on your local group suggestion "${n}"`,
+  accepted: (n) => `Approved: your local group suggestion "${n}"`,
+  merge: (n) => `Merged: your local group suggestion "${n}"`,
+  on_hold: (n) => `Under review: your local group suggestion "${n}"`,
+  declined: (n) => `Declined: your local group suggestion "${n}"`,
 }
 
 export const adminLocalGroupsRouter = {
@@ -188,7 +188,9 @@ export const adminLocalGroupsRouter = {
       const titleFn = NOTIFICATION_TITLES[notificationAction]
       const title = titleFn ? titleFn(finalName) : `Update on your local group suggestion`
 
-      const notificationLink = targetGroupId ? `/local-groups/${targetGroupId}` : null
+      const notificationLink = targetGroupId
+        ? `/local-groups/${targetGroupId}`
+        : '/suggest-local-group'
 
       await createNotification(
         suggestion.suggestedBy.id,

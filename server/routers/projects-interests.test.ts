@@ -13,9 +13,11 @@ const interestRow = (volunteerId: number, workItemId: number) =>
   prisma.workItemInterest.findUniqueOrThrow({
     where: { volunteerId_workItemId: { volunteerId, workItemId } },
   })
-const notified = (volunteerId: number, type: string) =>
+const notified = (volunteerId: number, type: string, expected: object = {}) =>
   vi.waitFor(async () =>
-    expect(await prisma.notification.findFirst({ where: { volunteerId, type } })).not.toBeNull(),
+    expect(await prisma.notification.findFirst({ where: { volunteerId, type } })).toMatchObject(
+      expected,
+    ),
   )
 
 describe('projects.expressInterest / withdrawInterest', () => {
@@ -145,7 +147,10 @@ describe('projects.respondToInterest', () => {
       status: 'accepted',
       responseMessage: 'welcome',
     })
-    await notified(helper.id, 'interest_accepted')
+    await notified(helper.id, 'interest_accepted', {
+      title: `Accepted: your interest in '${p.title}'`,
+      link: `/projects/${p.id}`,
+    })
 
     const task = await createTask(p.id, { assigneeId: helper.id, status: 'in_progress' })
     await c.projects.respondToInterest({
@@ -156,7 +161,10 @@ describe('projects.respondToInterest', () => {
     expect(
       (await prisma.workItem.findUniqueOrThrow({ where: { id: task.id } })).assigneeId,
     ).toBeNull()
-    await notified(helper.id, 'interest_declined')
+    await notified(helper.id, 'interest_declined', {
+      title: `Declined: your interest in '${p.title}'`,
+      link: `/projects/${p.id}`,
+    })
 
     const pending = await createVolunteer({ approvalStatus: 'pending' })
     const pi = await prisma.workItemInterest.create({
@@ -214,7 +222,10 @@ describe('projects.assign', () => {
       message: 'Volunteer assigned to project',
     })
     expect((await interestRow(vol.id, p.id)).status).toBe('accepted')
-    await notified(vol.id, 'assigned_to_project')
+    await notified(vol.id, 'assigned_to_project', {
+      title: `Assigned: you're on '${p.title}'`,
+      link: `/projects/${p.id}`,
+    })
     expect(await c.projects.assign({ projectId: p.id, volunteerId: vol.id })).toEqual({
       message: 'This volunteer is already assigned to this project',
     })

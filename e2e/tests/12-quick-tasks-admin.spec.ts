@@ -128,7 +128,7 @@ test.describe('Quick Tasks (admin)', () => {
     // Volunteer receives an assignment notification
     await goToDashboardNotifications(baseUrl, volunteer.page)
     await expect(
-      volunteer.page.locator('strong').filter({ hasText: "You've been assigned a Quick Task" }),
+      volunteer.page.locator('strong').filter({ hasText: 'Assigned: Quick Task' }),
     ).toBeVisible({ timeout: 10_000 })
   })
 
@@ -298,7 +298,7 @@ test.describe('Quick Tasks (admin)', () => {
     // Volunteer receives a feedback notification
     await goToDashboardNotifications(baseUrl, volunteer.page)
     await expect(
-      volunteer.page.locator('strong').filter({ hasText: 'Your Quick Task was reviewed' }),
+      volunteer.page.locator('strong').filter({ hasText: 'Reviewed: your Quick Task' }),
     ).toBeVisible({ timeout: 10_000 })
 
     // Skill endorsement is auto-created; navigate to admin volunteer detail via the task card link
@@ -349,7 +349,7 @@ test.describe('Quick Tasks (admin)', () => {
     // Volunteer receives a feedback notification
     await goToDashboardNotifications(baseUrl, volunteer.page)
     await expect(
-      volunteer.page.locator('strong').filter({ hasText: 'Your Quick Task was reviewed' }),
+      volunteer.page.locator('strong').filter({ hasText: 'Reviewed: your Quick Task' }),
     ).toBeVisible({ timeout: 10_000 })
 
     // No skill endorsement created; navigate to admin volunteer detail to confirm

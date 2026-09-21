@@ -249,7 +249,9 @@ test.describe('Local Group Suggestions', () => {
 
     await goToDashboardNotifications(baseUrl, volunteer.page)
     await expect(
-      volunteer.page.locator('strong').filter({ hasText: `"${groupName}" was accepted` }),
+      volunteer.page
+        .locator('strong')
+        .filter({ hasText: `Approved: your local group suggestion "${groupName}"` }),
     ).toBeVisible({ timeout: 10_000 })
     await volunteer.page.getByRole('link', { name: 'View' }).first().click()
 

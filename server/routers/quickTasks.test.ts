@@ -10,9 +10,11 @@ import {
 } from '@/test/factories'
 import { clientAs } from '@/test/rpc'
 
-const notified = (volunteerId: number, type: string) =>
+const notified = (volunteerId: number, type: string, expected: object = {}) =>
   vi.waitFor(async () =>
-    expect(await prisma.notification.findFirst({ where: { volunteerId, type } })).not.toBeNull(),
+    expect(await prisma.notification.findFirst({ where: { volunteerId, type } })).toMatchObject(
+      expected,
+    ),
   )
 
 describe('quickTasks admin listing', () => {
@@ -199,7 +201,10 @@ describe('quickTasks admin mutations', () => {
     const first = await prisma.workItem.findUniqueOrThrow({ where: { id: q.id } })
     expect(first).toMatchObject({ assigneeId: vol.id, creatorId: admin.id, status: 'in_progress' })
     expect(first.startedAt).not.toBeNull()
-    await notified(vol.id, 'quick_task_assigned')
+    await notified(vol.id, 'quick_task_assigned', {
+      title: `Assigned: Quick Task '${q.title}'`,
+      link: `/quick-tasks/${q.id}`,
+    })
     const vol2 = await createVolunteer()
     await c.quickTasks.assign({ id: q.id, volunteerId: vol2.id })
     expect((await prisma.workItem.findUniqueOrThrow({ where: { id: q.id } })).startedAt).toEqual(
@@ -277,7 +282,10 @@ describe('quickTasks claim / submit / review', () => {
         where: { volunteerId: vol.id, skillId: skill.id },
       }),
     ).toMatchObject({ rating: 'strong', sourceId: q.id })
-    await notified(vol.id, 'quick_task_reviewed')
+    await notified(vol.id, 'quick_task_reviewed', {
+      title: `Reviewed: your Quick Task '${q.title}'`,
+      link: `/quick-tasks/${q.id}`,
+    })
 
     // Assigned by an admin → submit notifies the assigner; 'good' → verified endorsement (upsert path).
     const q2 = await createQuickTask({ skillId: skill.id })
