@@ -253,11 +253,14 @@ test.describe('Project Interests and Assignment', () => {
     await expect(volunteerCard).toBeVisible({ timeout: 10_000 })
 
     await volunteerCard.getByRole('button', { name: 'Remove' }).click()
-    const removeDialog = adminPage.getByRole('dialog', { name: 'Decline Volunteer' })
+    const removeDialog = adminPage.getByRole('dialog', { name: /^Remove .+ from this project\?$/ })
     await expect(removeDialog).toBeVisible({ timeout: 10_000 })
-    await removeDialog.getByRole('button', { name: 'Decline' }).click()
-    await expect(getAlert(adminPage)).toContainText('Interest declined', { timeout: 10_000 })
+    await removeDialog.getByRole('button', { name: 'Remove' }).click()
+    await expect(getAlert(adminPage)).toContainText(`Removed ${volunteer.name}.`, {
+      timeout: 10_000,
+    })
     await expect(volunteerCard).toContainText('Declined', { timeout: 10_000 })
+    await expect(volunteerCard).toContainText('Removed')
     await expect(volunteerCard.getByRole('button', { name: 'Remove' })).toHaveCount(0)
   })
 

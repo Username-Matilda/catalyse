@@ -642,7 +642,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const [contactBody, setContactBody] = useState('')
 
   // Decline interest
-  const [declineInterestId, setDeclineInterestId] = useState<number | null>(null)
+  // Declining a request and removing an accepted helper share one dialog and one status.
+  const [declineTarget, setDeclineTarget] = useState<{
+    id: number
+    name: string
+    accepted: boolean
+  } | null>(null)
   const [declineMessage, setDeclineMessage] = useState('')
 
   // Confirmations
@@ -844,10 +849,14 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     ...orpc.projects.respondToInterest.mutationOptions(),
     onSuccess: (_data, variables) => {
       showToast(
-        variables.status === InterestStatus.accepted ? 'Interest accepted' : 'Interest declined',
+        variables.status === InterestStatus.accepted
+          ? 'Interest accepted'
+          : declineTarget?.accepted
+            ? `Removed ${declineTarget.name}.`
+            : 'Interest declined',
         'success',
       )
-      setDeclineInterestId(null)
+      setDeclineTarget(null)
       setDeclineMessage('')
       void invalidateProject()
     },
@@ -859,6 +868,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     ...orpc.projects.assign.mutationOptions(),
     onSuccess: () => {
       showToast('Volunteer assigned!', 'success')
+      setAssignTo('')
       void invalidateProject()
     },
     onError: (err: unknown) =>
@@ -1077,8 +1087,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     })
   }
 
-  function handleDeclineInterest(interestId: number) {
-    setDeclineInterestId(interestId)
+  function handleDeclineInterest(interestId: number, name: string, accepted: boolean) {
+    setDeclineTarget({ id: interestId, name, accepted })
     setDeclineMessage('')
   }
 
@@ -1804,9 +1814,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                     ? interest.interestType === 'want_to_own'
                                       ? 'wants to own'
                                       : 'wants to help'
-                                    : interest.interestType === 'want_to_own'
-                                      ? 'wanted to own'
-                                      : 'wanted to help'}
+                                    : interest.status === InterestStatus.declined
+                                      ? 'Removed'
+                                      : interest.interestType === 'want_to_own'
+                                        ? 'wanted to own'
+                                        : 'wanted to help'}
                               </div>
                             </div>
                             {interest.status === InterestStatus.pending ? (
@@ -1817,7 +1829,13 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                 <Button
                                   variant="secondary"
                                   size="sm"
-                                  onClick={() => handleDeclineInterest(interest.id)}
+                                  onClick={() =>
+                                    handleDeclineInterest(
+                                      interest.id,
+                                      interest.volunteerName,
+                                      false,
+                                    )
+                                  }
                                 >
                                   Decline
                                 </Button>
@@ -1830,7 +1848,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                 <Button
                                   variant="secondary"
                                   size="sm"
-                                  onClick={() => handleDeclineInterest(interest.id)}
+                                  onClick={() =>
+                                    handleDeclineInterest(interest.id, interest.volunteerName, true)
+                                  }
                                 >
                                   Remove
                                 </Button>
@@ -1873,6 +1893,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                           {assignMutation.isPending ? 'Assigning…' : 'Assign'}
                         </Button>
                       </form>
+                    )}
+                    {volunteers.length > 0 && (
+                      <p className="text-xs text-text-light mt-1 mb-0">
+                        They are added straight away and get a notification.
+                      </p>
                     )}
                   </div>
                 )}
@@ -2066,105 +2091,91 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
       {/* Contact Owner modal */}
       {showContactModal && ownerId !== null && (
-        <div
-          className="fixed inset-0 bg-[rgba(29,53,87,0.5)] flex items-center justify-center z-1000 p-5"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowContactModal(false)
-          }}
+        <Modal
+          id="contact-owner"
+          title="Contact Owner"
+          isOpen
+          onClose={() => setShowContactModal(false)}
         >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Contact Owner"
-            className="bg-surface rounded-xl shadow-lg max-w-125 w-full max-h-[90vh] overflow-y-auto"
-          >
-            <div className="px-6 py-5 border-b border-brand-border flex justify-between items-center">
-              <h2 className="m-0 text-xl">Contact Owner</h2>
-              <Button
-                variant="ghost"
-                icon
-                onClick={() => setShowContactModal(false)}
-                aria-label="Close"
-              >
-                ×
+          <p className="text-sm text-text-light mb-4">
+            {project.owner?.name ?? 'The owner'} will get this by email and in their notifications.
+            Your email address is shared so they can reply.
+          </p>
+          {/* Direct contact channels */}
+          {hasDirectContact && (
+            <div className="mb-5">
+              <p className="text-sm font-medium mb-2">Contact directly:</p>
+              <div className="flex flex-col gap-2">
+                {ownerContact!.discordHandle && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-text-light">Discord:</span>
+                    <span className="font-medium">{ownerContact!.discordHandle}</span>
+                  </div>
+                )}
+                {ownerContact!.signalNumber && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-text-light">Signal:</span>
+                    <span className="font-medium">{ownerContact!.signalNumber}</span>
+                  </div>
+                )}
+                {ownerContact!.whatsappNumber && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-text-light">WhatsApp:</span>
+                    <span className="font-medium">{ownerContact!.whatsappNumber}</span>
+                  </div>
+                )}
+              </div>
+              <hr className="my-4 border-brand-border" />
+              <p className="text-sm text-text-light mb-3">Or send a message via the platform:</p>
+            </div>
+          )}
+
+          <form onSubmit={(e) => handleContactOwner(e, ownerId)}>
+            <div className="mb-5">
+              <label htmlFor="contact-subject">Subject</label>
+              <input
+                id="contact-subject"
+                type="text"
+                value={contactSubject}
+                onChange={(e) => setContactSubject(e.target.value)}
+                required
+              />
+            </div>
+            <div className="mb-5">
+              <label htmlFor="contact-message">Message</label>
+              <textarea
+                id="contact-message"
+                rows={4}
+                value={contactBody}
+                onChange={(e) => setContactBody(e.target.value)}
+                required
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button type="button" variant="ghost" onClick={() => setShowContactModal(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={sendMessageMutation.isPending}>
+                {sendMessageMutation.isPending ? 'Sending…' : 'Send Message'}
               </Button>
             </div>
-            <div className="p-6">
-              {/* Direct contact channels */}
-              {hasDirectContact && (
-                <div className="mb-5">
-                  <p className="text-sm font-medium mb-2">Contact directly:</p>
-                  <div className="flex flex-col gap-2">
-                    {ownerContact!.discordHandle && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <span className="text-text-light">Discord:</span>
-                        <span className="font-medium">{ownerContact!.discordHandle}</span>
-                      </div>
-                    )}
-                    {ownerContact!.signalNumber && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <span className="text-text-light">Signal:</span>
-                        <span className="font-medium">{ownerContact!.signalNumber}</span>
-                      </div>
-                    )}
-                    {ownerContact!.whatsappNumber && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <span className="text-text-light">WhatsApp:</span>
-                        <span className="font-medium">{ownerContact!.whatsappNumber}</span>
-                      </div>
-                    )}
-                  </div>
-                  <hr className="my-4 border-brand-border" />
-                  <p className="text-sm text-text-light mb-3">
-                    Or send a message via the platform:
-                  </p>
-                </div>
-              )}
-
-              <form onSubmit={(e) => handleContactOwner(e, ownerId)}>
-                <div className="mb-5">
-                  <label htmlFor="contact-subject">Subject</label>
-                  <input
-                    id="contact-subject"
-                    type="text"
-                    value={contactSubject}
-                    onChange={(e) => setContactSubject(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="mb-5">
-                  <label htmlFor="contact-message">Message</label>
-                  <textarea
-                    id="contact-message"
-                    rows={4}
-                    value={contactBody}
-                    onChange={(e) => setContactBody(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="flex gap-2 justify-end">
-                  <Button type="button" variant="ghost" onClick={() => setShowContactModal(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={sendMessageMutation.isPending}>
-                    {sendMessageMutation.isPending ? 'Sending…' : 'Send Message'}
-                  </Button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
+          </form>
+        </Modal>
       )}
 
       {/* Decline interest modal */}
-      {declineInterestId !== null && (
+      {declineTarget && (
         <Modal
           id="decline-interest"
-          title="Decline Volunteer"
+          title={
+            declineTarget.accepted
+              ? `Remove ${declineTarget.name} from this project?`
+              : 'Decline Volunteer'
+          }
           isOpen
-          onClose={() => setDeclineInterestId(null)}
+          onClose={() => setDeclineTarget(null)}
         >
-          <form onSubmit={(e) => confirmDeclineInterest(e, declineInterestId)}>
+          <form onSubmit={(e) => confirmDeclineInterest(e, declineTarget.id)}>
             <div className="mb-5">
               <label htmlFor="decline-message">Optional message for the volunteer</label>
               <textarea
@@ -2176,11 +2187,17 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               />
             </div>
             <div className="flex gap-2 justify-end">
-              <Button type="button" variant="secondary" onClick={() => setDeclineInterestId(null)}>
+              <Button type="button" variant="secondary" onClick={() => setDeclineTarget(null)}>
                 Cancel
               </Button>
               <Button type="submit" disabled={respondToInterestMutation.isPending}>
-                {respondToInterestMutation.isPending ? 'Declining…' : 'Decline'}
+                {respondToInterestMutation.isPending
+                  ? declineTarget.accepted
+                    ? 'Removing…'
+                    : 'Declining…'
+                  : declineTarget.accepted
+                    ? 'Remove'
+                    : 'Decline'}
               </Button>
             </div>
           </form>

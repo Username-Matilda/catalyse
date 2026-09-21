@@ -94,7 +94,18 @@ describe('project page — visitor', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Express Interest' }))
     await screen.findByText(/You'll get a notification when they reply/)
 
-    await userEvent.click(screen.getByRole('button', { name: /Contact/ }))
+    const contact = screen.getByRole('button', { name: /Contact/ })
+    await userEvent.click(contact)
+    // It says how the message is delivered, and Escape closes it with focus back on the button.
+    expect(
+      within(screen.getByRole('dialog', { name: 'Contact Owner' })).getByText(
+        `${owner.name} will get this by email and in their notifications. Your email address is shared so they can reply.`,
+      ),
+    ).toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog', { name: 'Contact Owner' })).toBeNull()
+    expect(contact).toHaveFocus()
+    await userEvent.click(contact)
     await userEvent.type(screen.getByLabelText('Subject'), 'Hello')
     await userEvent.type(screen.getByLabelText('Message'), 'Can I help?')
     fireEvent.submit(screen.getByLabelText('Subject').closest('form')!)
@@ -239,12 +250,19 @@ describe('project page — owner', () => {
     await userEvent.click(screen.getByLabelText('Task actions for First task'))
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Unassign' }))
     await screen.findByText('Task unassigned!')
-    // An accepted helper can be removed again (declined).
+    // A declined request reads as removed, not as something the volunteer wanted.
+    expect(interestCard('Otto Other')).toHaveTextContent('Removed')
+    expect(interestCard('Otto Other')).not.toHaveTextContent('wanted to')
+    // An accepted helper is removed, not declined, and the dialog and toast say so.
     await userEvent.click(
       within(interestCard('Hana Helper')).getByRole('button', { name: 'Remove' }),
     )
+    const removeDialog = await screen.findByRole('dialog', {
+      name: 'Remove Hana Helper from this project?',
+    })
+    expect(within(removeDialog).queryByRole('button', { name: 'Decline' })).toBeNull()
     fireEvent.submit(screen.getByLabelText('Optional message for the volunteer').closest('form')!)
-    await waitFor(() => expect(screen.getAllByText('Interest declined')).toHaveLength(2))
+    await screen.findByText('Removed Hana Helper.')
     // Clicking outside closes the menu.
     await userEvent.click(screen.getByLabelText('Task actions for First task'))
     fireEvent.mouseDown(document.body)
@@ -283,6 +301,15 @@ describe('project page — owner', () => {
     await userEvent.click(await screen.findByRole('option', { name: 'Otto Other' }))
     fireEvent.submit(screen.getByRole('button', { name: 'Volunteer to assign' }).closest('form')!)
     await screen.findByText('Volunteer assigned!')
+    // The picker empties once the volunteer is added, and says what adding does.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Volunteer to assign' })).not.toHaveTextContent(
+        'Otto Other',
+      ),
+    )
+    expect(
+      screen.getByText('They are added straight away and get a notification.'),
+    ).toBeInTheDocument()
 
     expect(screen.getByRole('link', { name: /Edit/ })).toHaveAttribute(
       'href',
