@@ -71,6 +71,19 @@ function PreferredRadio({
   )
 }
 
+/** Guidance for a field, styled so it can't be mistaken for text already typed into one. */
+function FieldHint({ id, children }: { id: string; children: React.ReactNode }) {
+  return (
+    <p
+      id={id}
+      className="flex gap-2 rounded-md bg-accent/50 px-3 py-2 mb-2 text-sm text-text-light"
+    >
+      <span aria-hidden="true">ℹ</span>
+      <span>{children}</span>
+    </p>
+  )
+}
+
 export default function SignupPage() {
   const router = useRouter()
   const { user, loading, setToken } = useAuth()
@@ -400,6 +413,289 @@ export default function SignupPage() {
     }
   }
 
+  // Everything both sign-up routes ask after the account details. A plain function rather
+  // than a component, so its inputs keep focus across the page's re-renders; `prefix` keeps
+  // the two forms' element ids apart.
+  function applicationFields({
+    prefix,
+    application,
+    onApplicationChange,
+    contactEmail,
+  }: {
+    prefix: string
+    application: string
+    onApplicationChange: (value: string) => void
+    contactEmail: string
+  }) {
+    const contactField = (
+      method: 'discord' | 'signal' | 'whatsapp',
+      label: string,
+      name: string,
+      value: string,
+      setValue: (v: string) => void,
+      placeholder: string,
+      autoComplete: string,
+    ) => (
+      <div className="mb-5">
+        <label htmlFor={`${prefix}${method}`}>{label}</label>
+        <input
+          type="text"
+          id={`${prefix}${method}`}
+          name={name}
+          autoComplete={autoComplete}
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => {
+            setValue(e.target.value)
+            if (e.target.value.trim() === '' && contactPref === method) setContactPref('')
+          }}
+        />
+        <PreferredRadio
+          method={method}
+          contactPref={contactPref}
+          onPrefChange={setContactPref}
+          disabled={value.trim() === ''}
+        />
+      </div>
+    )
+    return (
+      <>
+        <div className="mb-5">
+          <label htmlFor={`${prefix}applicationMessage`} className="required">
+            Your Application
+          </label>
+          <FieldHint id={`${prefix}applicationMessage-hint`}>
+            Tell us your connection to PauseAI (if you&apos;re already in the WhatsApp or Discord,
+            how we know you), why the mission matters to you, and how you&apos;d like to help. Only
+            admins read this; it isn&apos;t on your public profile.
+          </FieldHint>
+          <textarea
+            id={`${prefix}applicationMessage`}
+            name="applicationMessage"
+            autoComplete="off"
+            required
+            minLength={20}
+            rows={6}
+            aria-describedby={`${prefix}applicationMessage-hint`}
+            placeholder="e.g. I joined the Discord in March and would like to help run local events…"
+            value={application}
+            onChange={(e) => onApplicationChange(e.target.value)}
+          />
+        </div>
+
+        <div className="mb-5">
+          <label htmlFor={`${prefix}bio`} className="required">
+            About You
+          </label>
+          <FieldHint id={`${prefix}bio-hint`}>
+            Shown to other volunteers in the directory if you choose to make your profile visible.
+            Tell us about your background and what brings you to PauseAI.
+          </FieldHint>
+          <textarea
+            id={`${prefix}bio`}
+            name="bio"
+            autoComplete="off"
+            required
+            minLength={20}
+            aria-describedby={`${prefix}bio-hint`}
+            placeholder="Your background and what brings you to PauseAI…"
+            value={bio}
+            onChange={(e) => setBio(e.target.value)}
+          />
+        </div>
+
+        <h3 className="mt-6">Contact Preferences</h3>
+        <p className="text-sm text-text-light mt-1 mb-4">
+          Add ways for project owners to reach you. All optional.
+        </p>
+
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-5">
+          {contactField(
+            'discord',
+            'Discord Handle',
+            'discordHandle',
+            discord,
+            setDiscord,
+            'username#1234',
+            'off',
+          )}
+          {contactField('signal', 'Signal', 'signalNumber', signal, setSignal, '+44…', 'tel')}
+          {contactField(
+            'whatsapp',
+            'WhatsApp',
+            'whatsappNumber',
+            whatsapp,
+            setWhatsapp,
+            '+44…',
+            'tel',
+          )}
+          <div className="mb-5">
+            <label htmlFor={`${prefix}email_display`}>Contact Email</label>
+            <input type="text" id={`${prefix}email_display`} value={contactEmail} disabled />
+            <PreferredRadio
+              method="email"
+              contactPref={contactPref}
+              onPrefChange={setContactPref}
+              disabled={contactEmail.trim() === ''}
+            />
+          </div>
+        </div>
+
+        <div className="mb-5">
+          <label htmlFor={`${prefix}contactNotes`}>Contact Notes</label>
+          <input
+            type="text"
+            id={`${prefix}contactNotes`}
+            name="contactNotes"
+            autoComplete="off"
+            placeholder="e.g., Best to DM me on Discord first"
+            value={contactNotes}
+            onChange={(e) => setContactNotes(e.target.value)}
+          />
+        </div>
+
+        <h3 className="mt-6">Availability</h3>
+        <div className="mb-5">
+          <label htmlFor={`${prefix}availability`} className="required">
+            Hours per week you can give (1–40)
+          </label>
+          <input
+            type="number"
+            id={`${prefix}availability`}
+            name="availabilityHoursPerWeek"
+            autoComplete="off"
+            required
+            min={1}
+            max={40}
+            placeholder="e.g., 5"
+            value={availability}
+            onChange={(e) => setAvailability(e.target.value)}
+          />
+          <p className="text-sm text-text-light mt-1">
+            A rough guess is fine, and you can change it later.
+          </p>
+        </div>
+        <div className="mb-5">
+          <FilterDropdown
+            id={`${prefix}locationCountry`}
+            label="Country"
+            ariaLabel="Select country"
+            value={countryValue}
+            options={COUNTRY_OPTIONS}
+            onChange={handleCountryChange}
+            searchable
+            required
+          />
+        </div>
+        {countryValue && hasLocalGroups && (
+          <div className="mb-5">
+            <FilterDropdown
+              id={`${prefix}locationGroup`}
+              label="Local Group"
+              ariaLabel="Select local group"
+              value={localGroupValue}
+              options={localGroupOptions}
+              onChange={setLocalGroupValue}
+              searchable
+            />
+          </div>
+        )}
+        {showCityInput && (
+          <div className="mb-5">
+            <label htmlFor={`${prefix}location`}>City / Area</label>
+            <input
+              type="text"
+              id={`${prefix}location`}
+              name="location"
+              autoComplete="address-level2"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+            />
+          </div>
+        )}
+
+        <h3 className="mt-6">Your Skills</h3>
+        <p className="text-sm text-text-light mt-1 mb-3">
+          Select skills you can contribute. This helps match you with projects.
+        </p>
+        <SkillPicker value={skills} onChange={setSkills} />
+
+        <div className="mb-5 mt-4">
+          <label htmlFor={`${prefix}otherSkills`}>Other Skills</label>
+          <input
+            type="text"
+            id={`${prefix}otherSkills`}
+            name="otherSkills"
+            autoComplete="off"
+            placeholder="Any skills not listed above…"
+            value={otherSkills}
+            onChange={(e) => setOtherSkills(e.target.value)}
+          />
+        </div>
+
+        <div className="mt-6">
+          <h3>Privacy &amp; Consent</h3>
+          <div className="flex flex-col gap-2">
+            <label className="flex items-center gap-2 font-normal">
+              <input
+                type="checkbox"
+                checked={consentVisible}
+                onChange={(e) => setConsentVisible(e.target.checked)}
+              />
+              Make my profile visible in the volunteer directory
+            </label>
+            <label className="flex items-center gap-2 font-normal">
+              <input
+                type="checkbox"
+                checked={consentContact}
+                onChange={(e) => setConsentContact(e.target.checked)}
+              />
+              Allow project owners to contact me about opportunities
+            </label>
+            <label
+              className={`flex items-center gap-2 font-normal ml-6 ${consentContact ? 'opacity-100' : 'opacity-50'}`}
+            >
+              <input
+                type="checkbox"
+                checked={shareDirectly}
+                disabled={!consentContact}
+                onChange={(e) => setShareDirectly(e.target.checked)}
+              />
+              Share my contact info directly with project owners
+            </label>
+            <label className="flex items-center gap-2 font-normal mt-2">
+              <input
+                type="checkbox"
+                id={`${prefix}consent_analytics`}
+                checked={consentAnalytics}
+                onChange={(e) => setConsentAnalytics(e.target.checked)}
+              />
+              Allow Google Analytics to help us improve the platform
+            </label>
+          </div>
+          <p className="text-sm text-text-light mt-3">
+            You can change these settings or delete your account at any time.{' '}
+            <Link href="/privacy" target="_blank">
+              Read our privacy policy
+            </Link>
+          </p>
+        </div>
+
+        <h3 className="mt-6">Email Notifications</h3>
+        <div className="mb-5">
+          <FilterDropdown
+            id={`${prefix}emailDigest`}
+            label="Keep me in the loop about new projects"
+            ariaLabel="Keep me in the loop about new projects"
+            value={emailDigest}
+            options={emailDigestOptions}
+            onChange={setEmailDigest}
+          />
+        </div>
+      </>
+    )
+  }
+
   if (loading) return null
 
   if (googleApplicationStep && pendingGoogleAuth) {
@@ -439,285 +735,12 @@ export default function SignupPage() {
                 </p>
               </div>
 
-              <div className="mb-5">
-                <label htmlFor="g_applicationMessage" className="required">
-                  Your Application
-                </label>
-                <aside className="bg-brand-bg border border-brand-border rounded-lg px-4 py-3 mb-2 text-sm text-text-light">
-                  If you&apos;re already involved in PauseAI through the whatsapp or discord, tell
-                  us how we know you. If we don&apos;t know you, tell us why you&apos;d like to
-                  contribute to PauseAI. This is reviewed by admins only and is not shown on your
-                  public profile.
-                </aside>
-                <textarea
-                  id="g_applicationMessage"
-                  name="applicationMessage"
-                  autoComplete="off"
-                  required
-                  minLength={20}
-                  rows={6}
-                  value={googleApplicationMessage}
-                  onChange={(e) => setGoogleApplicationMessage(e.target.value)}
-                />
-              </div>
-
-              <div className="mb-5">
-                <label htmlFor="g_bio" className="required">
-                  About You
-                </label>
-                <aside className="bg-brand-bg border border-brand-border rounded-lg px-4 py-3 mb-2 text-sm text-text-light">
-                  Shown to other volunteers in the directory if you choose to make your profile
-                  visible. Tell us about your background and what brings you to PauseAI.
-                </aside>
-                <textarea
-                  id="g_bio"
-                  name="bio"
-                  autoComplete="off"
-                  required
-                  minLength={20}
-                  placeholder="Your background and what brings you to PauseAI…"
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value)}
-                />
-              </div>
-
-              <h3 className="mt-6">Contact Preferences</h3>
-              <p className="text-sm text-text-light mt-1 mb-4">
-                Add ways for project owners to reach you. All optional.
-              </p>
-
-              <div className="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-5">
-                <div className="mb-5">
-                  <label htmlFor="g_discord">Discord Handle</label>
-                  <input
-                    type="text"
-                    id="g_discord"
-                    name="discordHandle"
-                    autoComplete="off"
-                    placeholder="username#1234"
-                    value={discord}
-                    onChange={(e) => {
-                      setDiscord(e.target.value)
-                      if (e.target.value.trim() === '' && contactPref === 'discord')
-                        setContactPref('')
-                    }}
-                  />
-                  <PreferredRadio
-                    method="discord"
-                    contactPref={contactPref}
-                    onPrefChange={setContactPref}
-                    disabled={discord.trim() === ''}
-                  />
-                </div>
-                <div className="mb-5">
-                  <label htmlFor="g_signal">Signal</label>
-                  <input
-                    type="text"
-                    id="g_signal"
-                    name="signalNumber"
-                    autoComplete="tel"
-                    placeholder="+44…"
-                    value={signal}
-                    onChange={(e) => {
-                      setSignal(e.target.value)
-                      if (e.target.value.trim() === '' && contactPref === 'signal')
-                        setContactPref('')
-                    }}
-                  />
-                  <PreferredRadio
-                    method="signal"
-                    contactPref={contactPref}
-                    onPrefChange={setContactPref}
-                    disabled={signal.trim() === ''}
-                  />
-                </div>
-                <div className="mb-5">
-                  <label htmlFor="g_whatsapp">WhatsApp</label>
-                  <input
-                    type="text"
-                    id="g_whatsapp"
-                    name="whatsappNumber"
-                    autoComplete="tel"
-                    placeholder="+44…"
-                    value={whatsapp}
-                    onChange={(e) => {
-                      setWhatsapp(e.target.value)
-                      if (e.target.value.trim() === '' && contactPref === 'whatsapp')
-                        setContactPref('')
-                    }}
-                  />
-                  <PreferredRadio
-                    method="whatsapp"
-                    contactPref={contactPref}
-                    onPrefChange={setContactPref}
-                    disabled={whatsapp.trim() === ''}
-                  />
-                </div>
-                <div className="mb-5">
-                  <label htmlFor="g_email_display">Contact Email</label>
-                  <input
-                    type="text"
-                    id="g_email_display"
-                    value={pendingGoogleAuth?.email ?? ''}
-                    disabled
-                  />
-                  <PreferredRadio
-                    method="email"
-                    contactPref={contactPref}
-                    onPrefChange={setContactPref}
-                    disabled={!pendingGoogleAuth?.email}
-                  />
-                </div>
-              </div>
-
-              <div className="mb-5">
-                <label htmlFor="g_contactNotes">Contact Notes</label>
-                <input
-                  type="text"
-                  id="g_contactNotes"
-                  name="contactNotes"
-                  autoComplete="off"
-                  placeholder="e.g., Best to DM me on Discord first"
-                  value={contactNotes}
-                  onChange={(e) => setContactNotes(e.target.value)}
-                />
-              </div>
-
-              <h3 className="mt-6">Availability</h3>
-              <div className="mb-5">
-                <label htmlFor="g_availability" className="required">
-                  Hours per Week
-                </label>
-                <input
-                  type="number"
-                  id="g_availability"
-                  name="availabilityHoursPerWeek"
-                  autoComplete="off"
-                  required
-                  min={1}
-                  max={40}
-                  placeholder="e.g., 5"
-                  value={availability}
-                  onChange={(e) => setAvailability(e.target.value)}
-                />
-              </div>
-              <div className="mb-5">
-                <FilterDropdown
-                  id="g_locationCountry"
-                  label="Country"
-                  ariaLabel="Select country"
-                  value={countryValue}
-                  options={COUNTRY_OPTIONS}
-                  onChange={handleCountryChange}
-                  searchable
-                  required
-                />
-              </div>
-              {countryValue && hasLocalGroups && (
-                <div className="mb-5">
-                  <FilterDropdown
-                    id="g_locationGroup"
-                    label="Local Group"
-                    ariaLabel="Select local group"
-                    value={localGroupValue}
-                    options={localGroupOptions}
-                    onChange={setLocalGroupValue}
-                    searchable
-                  />
-                </div>
-              )}
-              {showCityInput && (
-                <div className="mb-5">
-                  <label htmlFor="g_location">City / Area</label>
-                  <input
-                    type="text"
-                    id="g_location"
-                    name="location"
-                    autoComplete="address-level2"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                  />
-                </div>
-              )}
-
-              <h3 className="mt-6">Your Skills</h3>
-              <p className="text-sm text-text-light mt-1 mb-3">
-                Select skills you can contribute. This helps match you with projects.
-              </p>
-              <SkillPicker value={skills} onChange={setSkills} />
-
-              <div className="mb-5 mt-4">
-                <label htmlFor="g_otherSkills">Other Skills</label>
-                <input
-                  type="text"
-                  id="g_otherSkills"
-                  name="otherSkills"
-                  autoComplete="off"
-                  placeholder="Any skills not listed above…"
-                  value={otherSkills}
-                  onChange={(e) => setOtherSkills(e.target.value)}
-                />
-              </div>
-
-              <div className="mt-6">
-                <h3>Privacy &amp; Consent</h3>
-                <div className="flex flex-col gap-2">
-                  <label className="flex items-center gap-2 font-normal">
-                    <input
-                      type="checkbox"
-                      checked={consentVisible}
-                      onChange={(e) => setConsentVisible(e.target.checked)}
-                    />
-                    Make my profile visible in the volunteer directory
-                  </label>
-                  <label className="flex items-center gap-2 font-normal">
-                    <input
-                      type="checkbox"
-                      checked={consentContact}
-                      onChange={(e) => setConsentContact(e.target.checked)}
-                    />
-                    Allow project owners to contact me about opportunities
-                  </label>
-                  <label
-                    className={`flex items-center gap-2 font-normal ml-6 ${consentContact ? 'opacity-100' : 'opacity-50'}`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={shareDirectly}
-                      disabled={!consentContact}
-                      onChange={(e) => setShareDirectly(e.target.checked)}
-                    />
-                    Share my contact info directly with project owners
-                  </label>
-                  <label className="flex items-center gap-2 font-normal mt-2">
-                    <input
-                      type="checkbox"
-                      id="g_consent_analytics"
-                      checked={consentAnalytics}
-                      onChange={(e) => setConsentAnalytics(e.target.checked)}
-                    />
-                    Allow Google Analytics to help us improve the platform
-                  </label>
-                </div>
-                <p className="text-sm text-text-light mt-3">
-                  You can change these settings or delete your account at any time.{' '}
-                  <Link href="/privacy" target="_blank">
-                    Read our privacy policy
-                  </Link>
-                </p>
-              </div>
-
-              <h3 className="mt-6">Email Notifications</h3>
-              <div className="mb-5">
-                <FilterDropdown
-                  id="g_emailDigest"
-                  label="Keep me in the loop about new projects"
-                  ariaLabel="Keep me in the loop about new projects"
-                  value={emailDigest}
-                  options={emailDigestOptions}
-                  onChange={setEmailDigest}
-                />
-              </div>
+              {applicationFields({
+                prefix: 'g_',
+                application: googleApplicationMessage,
+                onApplicationChange: setGoogleApplicationMessage,
+                contactEmail: pendingGoogleAuth.email ?? '',
+              })}
 
               <div className="mt-3">
                 <Button type="submit" className="w-full" disabled={googleApplicationSubmitting}>
@@ -746,26 +769,29 @@ export default function SignupPage() {
     return (
       <main className="container py-5 pb-15">
         <div className="max-w-2xl mx-auto">
-          <div className="bg-surface rounded-xl shadow p-8 text-center">
+          {/* role="status" so a screen reader announces that the form went through. */}
+          <div role="status" className="bg-surface rounded-xl shadow p-8 text-center">
             {isGoogleSignup ? (
               <>
                 <h1>Application submitted</h1>
-                <p className="text-text-light mt-4 mb-6">
-                  Thanks for applying! Our team will review your application and you&#39;ll hear
-                  from us by email soon.
-                </p>
+                <p className="text-text-light mt-4 mb-2">Thanks for applying! What happens next:</p>
+                <ol className="list-decimal pl-5 text-left text-text-light inline-block mb-6">
+                  <li>A member of the team reviews your application.</li>
+                  <li>We email you when it&#39;s approved, and you can pick your first task.</li>
+                </ol>
               </>
             ) : (
               <>
                 <h1>Check your email</h1>
-                <p className="text-text-light mt-4 mb-6">
-                  We&#39;ve sent a confirmation link to your email address. Please click it to
-                  confirm your email and activate your pending access.
+                <p className="text-text-light mt-4 mb-2">
+                  Thanks for applying! We&#39;ve sent a confirmation link to {email}. What happens
+                  next:
                 </p>
-                <p className="text-text-light mb-4">
-                  Once confirmed, your application will be reviewed by our team. You&#39;ll be able
-                  to browse projects while you wait.
-                </p>
+                <ol className="list-decimal pl-5 text-left text-text-light inline-block mb-4">
+                  <li>Open the link in that email to confirm your address.</li>
+                  <li>A member of the team reviews your application.</li>
+                  <li>We email you when it&#39;s approved, and you can pick your first task.</li>
+                </ol>
                 <div className="mt-6 pt-6 border-t border-border">
                   {resendSent ? (
                     <p className="text-text-light text-sm">
@@ -925,278 +951,12 @@ export default function SignupPage() {
               />
             </div>
 
-            <div className="mb-5">
-              <label htmlFor="applicationMessage" className="required">
-                Your Application
-              </label>
-              <aside className="bg-brand-bg border border-brand-border rounded-lg px-4 py-3 mb-2 text-sm text-text-light">
-                Tell us about your relationship to PauseAI, why you are excited about the mission,
-                and how you would like to contribute. This is reviewed by admins only and is not
-                shown on your public profile.
-              </aside>
-              <textarea
-                id="applicationMessage"
-                name="applicationMessage"
-                autoComplete="off"
-                required
-                minLength={20}
-                rows={6}
-                value={applicationMessage}
-                onChange={(e) => setApplicationMessage(e.target.value)}
-              />
-            </div>
-
-            <div className="mb-5">
-              <label htmlFor="bio" className="required">
-                About You
-              </label>
-              <aside className="bg-brand-bg border border-brand-border rounded-lg px-4 py-3 mb-2 text-sm text-text-light">
-                Shown to other volunteers in the directory if you choose to make your profile
-                visible. Tell us about your background and what brings you to PauseAI.
-              </aside>
-              <textarea
-                id="bio"
-                name="bio"
-                autoComplete="off"
-                required
-                minLength={20}
-                placeholder="Your background and what brings you to PauseAI…"
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-              />
-            </div>
-
-            <h3 className="mt-6">Contact Preferences</h3>
-            <p className="text-sm text-text-light mt-1 mb-4">
-              Add ways for project owners to reach you. All optional.
-            </p>
-
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-5">
-              <div className="mb-5">
-                <label htmlFor="discord">Discord Handle</label>
-                <input
-                  type="text"
-                  id="discord"
-                  name="discordHandle"
-                  autoComplete="off"
-                  placeholder="username#1234"
-                  value={discord}
-                  onChange={(e) => {
-                    setDiscord(e.target.value)
-                    if (e.target.value.trim() === '' && contactPref === 'discord')
-                      setContactPref('')
-                  }}
-                />
-                <PreferredRadio
-                  method="discord"
-                  contactPref={contactPref}
-                  onPrefChange={setContactPref}
-                  disabled={discord.trim() === ''}
-                />
-              </div>
-              <div className="mb-5">
-                <label htmlFor="signal">Signal</label>
-                <input
-                  type="text"
-                  id="signal"
-                  name="signalNumber"
-                  autoComplete="tel"
-                  placeholder="+44…"
-                  value={signal}
-                  onChange={(e) => {
-                    setSignal(e.target.value)
-                    if (e.target.value.trim() === '' && contactPref === 'signal') setContactPref('')
-                  }}
-                />
-                <PreferredRadio
-                  method="signal"
-                  contactPref={contactPref}
-                  onPrefChange={setContactPref}
-                  disabled={signal.trim() === ''}
-                />
-              </div>
-              <div className="mb-5">
-                <label htmlFor="whatsapp">WhatsApp</label>
-                <input
-                  type="text"
-                  id="whatsapp"
-                  name="whatsappNumber"
-                  autoComplete="tel"
-                  placeholder="+44…"
-                  value={whatsapp}
-                  onChange={(e) => {
-                    setWhatsapp(e.target.value)
-                    if (e.target.value.trim() === '' && contactPref === 'whatsapp')
-                      setContactPref('')
-                  }}
-                />
-                <PreferredRadio
-                  method="whatsapp"
-                  contactPref={contactPref}
-                  onPrefChange={setContactPref}
-                  disabled={whatsapp.trim() === ''}
-                />
-              </div>
-              <div className="mb-5">
-                <label htmlFor="email_display">Contact Email</label>
-                <input type="text" id="email_display" value={email} disabled />
-                <PreferredRadio
-                  method="email"
-                  contactPref={contactPref}
-                  onPrefChange={setContactPref}
-                  disabled={email.trim() === ''}
-                />
-              </div>
-            </div>
-
-            <div className="mb-5">
-              <label htmlFor="contactNotes">Contact Notes</label>
-              <input
-                type="text"
-                id="contactNotes"
-                name="contactNotes"
-                autoComplete="off"
-                placeholder="e.g., Best to DM me on Discord first"
-                value={contactNotes}
-                onChange={(e) => setContactNotes(e.target.value)}
-              />
-            </div>
-
-            <h3 className="mt-6">Availability</h3>
-            <div className="mb-5">
-              <label htmlFor="availability" className="required">
-                Hours per Week
-              </label>
-              <input
-                type="number"
-                id="availability"
-                name="availabilityHoursPerWeek"
-                autoComplete="off"
-                required
-                min={1}
-                max={40}
-                placeholder="e.g., 5"
-                value={availability}
-                onChange={(e) => setAvailability(e.target.value)}
-              />
-            </div>
-            <div className="mb-5">
-              <FilterDropdown
-                id="locationCountry"
-                label="Country"
-                ariaLabel="Select country"
-                value={countryValue}
-                options={COUNTRY_OPTIONS}
-                onChange={handleCountryChange}
-                searchable
-                required
-              />
-            </div>
-            {countryValue && hasLocalGroups && (
-              <div className="mb-5">
-                <FilterDropdown
-                  id="locationGroup"
-                  label="Local Group"
-                  ariaLabel="Select local group"
-                  value={localGroupValue}
-                  options={localGroupOptions}
-                  onChange={setLocalGroupValue}
-                  searchable
-                />
-              </div>
-            )}
-            {showCityInput && (
-              <div className="mb-5">
-                <label htmlFor="location">City / Area</label>
-                <input
-                  type="text"
-                  id="location"
-                  name="location"
-                  autoComplete="address-level2"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                />
-              </div>
-            )}
-
-            <h3 className="mt-6">Your Skills</h3>
-            <p className="text-sm text-text-light mt-1 mb-3">
-              Select skills you can contribute. This helps match you with projects.
-            </p>
-            <SkillPicker value={skills} onChange={setSkills} />
-
-            <div className="mb-5 mt-4">
-              <label htmlFor="otherSkills">Other Skills</label>
-              <input
-                type="text"
-                id="otherSkills"
-                name="otherSkills"
-                autoComplete="off"
-                placeholder="Any skills not listed above…"
-                value={otherSkills}
-                onChange={(e) => setOtherSkills(e.target.value)}
-              />
-            </div>
-
-            <div className="mt-6">
-              <h3>Privacy &amp; Consent</h3>
-              <div className="flex flex-col gap-2">
-                <label className="flex items-center gap-2 font-normal">
-                  <input
-                    type="checkbox"
-                    checked={consentVisible}
-                    onChange={(e) => setConsentVisible(e.target.checked)}
-                  />
-                  Make my profile visible in the volunteer directory
-                </label>
-                <label className="flex items-center gap-2 font-normal">
-                  <input
-                    type="checkbox"
-                    checked={consentContact}
-                    onChange={(e) => setConsentContact(e.target.checked)}
-                  />
-                  Allow project owners to contact me about opportunities
-                </label>
-                <label
-                  className={`flex items-center gap-2 font-normal ml-6 ${consentContact ? 'opacity-100' : 'opacity-50'}`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={shareDirectly}
-                    disabled={!consentContact}
-                    onChange={(e) => setShareDirectly(e.target.checked)}
-                  />
-                  Share my contact info directly with project owners
-                </label>
-                <label className="flex items-center gap-2 font-normal mt-2">
-                  <input
-                    type="checkbox"
-                    id="consent_analytics"
-                    checked={consentAnalytics}
-                    onChange={(e) => setConsentAnalytics(e.target.checked)}
-                  />
-                  Allow Google Analytics to help us improve the platform
-                </label>
-              </div>
-              <p className="text-sm text-text-light mt-3">
-                You can change these settings or delete your account at any time.{' '}
-                <Link href="/privacy" target="_blank">
-                  Read our privacy policy
-                </Link>
-              </p>
-            </div>
-
-            <h3 className="mt-6">Email Notifications</h3>
-            <div className="mb-5">
-              <FilterDropdown
-                id="emailDigest"
-                label="Keep me in the loop about new projects"
-                ariaLabel="Keep me in the loop about new projects"
-                value={emailDigest}
-                options={emailDigestOptions}
-                onChange={setEmailDigest}
-              />
-            </div>
+            {applicationFields({
+              prefix: '',
+              application: applicationMessage,
+              onApplicationChange: setApplicationMessage,
+              contactEmail: email,
+            })}
 
             <div className="mt-3">
               <Button type="submit" className="w-full" disabled={submitting}>
