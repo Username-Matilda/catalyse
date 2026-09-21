@@ -12,7 +12,6 @@ import Button from '@/components/Button'
 import FilterDropdown from '@/components/FilterDropdown'
 import { buildLocationOptions, type LocalGroupOption } from '@/lib/filter-options'
 import { InferRouterInputs } from '@orpc/server'
-import { ORPCError } from '@orpc/client'
 import { orpc } from '@/lib/orpc'
 import { AppRouter } from '@/server/router'
 import { type Project, ProjectList, statusBadgeClasses } from '@/components/ProjectCard'
@@ -258,15 +257,20 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
   const seeking = groups.find((g) => g.key === 'seeking')?.projects ?? []
   const inProgress = groups.find((g) => g.key === 'in_progress')?.projects ?? []
 
+  // Nothing to search or filter until the email is confirmed; the card below says what to do.
+  const needsConfirmation = !user.emailConfirmed && !user.isAdmin
+
   return (
     <>
       <main className="container py-5 pb-15">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 role="heading">Projects</h1>
           <div className="flex items-center gap-4">
-            <Link href="/projects/gantt" className="text-primary-text text-sm underline">
-              Roadmap →
-            </Link>
+            {!needsConfirmation && (
+              <Link href="/projects/gantt" className="text-primary-text text-sm underline">
+                Roadmap →
+              </Link>
+            )}
             <Button href="/suggest">Propose a project</Button>
           </div>
         </div>
@@ -283,17 +287,19 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
           </div>
         )}
 
-        <div className="border-brand-border bg-surface mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4">
-          <div>
-            <h2 className="m-0 text-base">Project templates</h2>
-            <p className="text-text-light m-0 text-sm">
-              Templates for projects to help you replicate success in your area.
-            </p>
+        {!needsConfirmation && (
+          <div className="border-brand-border bg-surface mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4">
+            <div>
+              <h2 className="m-0 text-base">Project templates</h2>
+              <p className="text-text-light m-0 text-sm">
+                Templates for projects to help you replicate success in your area.
+              </p>
+            </div>
+            <Button href="/templates" variant="secondary" size="sm">
+              Browse templates
+            </Button>
           </div>
-          <Button href="/templates" variant="secondary" size="sm">
-            Browse templates
-          </Button>
-        </div>
+        )}
 
         {user.isAdmin && pendingCount > 0 && (
           <div className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-900 dark:text-amber-200 dark:border-amber-600">
@@ -317,88 +323,90 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
           </div>
         )}
 
-        {/* Filters */}
-        <div className="mb-5">
-          <div className="mb-3">
-            <label htmlFor="search-projects">Search</label>
-            <input
-              id="search-projects"
-              type="search"
-              aria-label="Search"
-              placeholder="Search projects…"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-            />
-          </div>
-          <div className="flex gap-3 flex-wrap items-end">
-            <FilterDropdown
-              id="status-filter"
-              label="Status"
-              ariaLabel="Status filter"
-              value={statusFilter}
-              options={STATUS_OPTIONS}
-              onChange={setStatusFilter}
-            />
-            <FilterDropdown
-              id="needs-filter"
-              label="Needs"
-              ariaLabel="Needs filter"
-              value={needsFilter}
-              options={NEEDS_OPTIONS}
-              onChange={setNeedsFilter}
-            />
-            <FilterDropdown
-              id="urgency-filter"
-              label="Priority"
-              ariaLabel="Priority filter"
-              value={urgencyFilter}
-              options={URGENCY_OPTIONS}
-              onChange={setUrgencyFilter}
-            />
+        {!needsConfirmation && (
+          <>
+            {/* Filters */}
+            <div className="mb-5">
+              <div className="mb-3">
+                <label htmlFor="search-projects">Search</label>
+                <input
+                  id="search-projects"
+                  type="search"
+                  aria-label="Search"
+                  placeholder="Search projects…"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                />
+              </div>
+              <div className="flex gap-3 flex-wrap items-end">
+                <FilterDropdown
+                  id="status-filter"
+                  label="Status"
+                  ariaLabel="Status filter"
+                  value={statusFilter}
+                  options={STATUS_OPTIONS}
+                  onChange={setStatusFilter}
+                />
+                <FilterDropdown
+                  id="needs-filter"
+                  label="Needs"
+                  ariaLabel="Needs filter"
+                  value={needsFilter}
+                  options={NEEDS_OPTIONS}
+                  onChange={setNeedsFilter}
+                />
+                <FilterDropdown
+                  id="urgency-filter"
+                  label="Priority"
+                  ariaLabel="Priority filter"
+                  value={urgencyFilter}
+                  options={URGENCY_OPTIONS}
+                  onChange={setUrgencyFilter}
+                />
 
-            <FilterDropdown
-              id="location-filter"
-              label="Country/Group"
-              ariaLabel="Country/Group filter"
-              value={locationFilter}
-              options={buildLocationOptions(localGroups)}
-              onChange={setLocationFilter}
-              searchable
-            />
+                <FilterDropdown
+                  id="location-filter"
+                  label="Country/Group"
+                  ariaLabel="Country/Group filter"
+                  value={locationFilter}
+                  options={buildLocationOptions(localGroups)}
+                  onChange={setLocationFilter}
+                  searchable
+                />
 
-            {(user.isAdmin || myTeams.length > 0) && (
-              <FilterDropdown
-                id="team-filter"
-                label="Team"
-                ariaLabel="Team filter"
-                value={teamFilter}
-                options={teamOptions}
-                onChange={setTeamFilter}
-                searchable
-              />
-            )}
+                {(user.isAdmin || myTeams.length > 0) && (
+                  <FilterDropdown
+                    id="team-filter"
+                    label="Team"
+                    ariaLabel="Team filter"
+                    value={teamFilter}
+                    options={teamOptions}
+                    onChange={setTeamFilter}
+                    searchable
+                  />
+                )}
 
-            <FilterDropdown
-              id="sort-filter"
-              label="Sort by"
-              ariaLabel="Sort filter"
-              value={sortBy}
-              options={SORT_OPTIONS}
-              onChange={setSortBy}
-            />
+                <FilterDropdown
+                  id="sort-filter"
+                  label="Sort by"
+                  ariaLabel="Sort filter"
+                  value={sortBy}
+                  options={SORT_OPTIONS}
+                  onChange={setSortBy}
+                />
 
-            {hasFilters && (
-              <Button variant="outline" size="lg" onClick={clearFilters}>
-                Clear filters
-              </Button>
-            )}
-          </div>
-        </div>
+                {hasFilters && (
+                  <Button variant="outline" size="lg" onClick={clearFilters}>
+                    Clear filters
+                  </Button>
+                )}
+              </div>
+            </div>
+          </>
+        )}
 
-        {loadingProjects ? (
-          <Skeleton label="Loading projects…" />
-        ) : projectsError instanceof ORPCError && projectsError.code === 'FORBIDDEN' ? (
-          // The only refusal here is an unconfirmed email: a step to take, not a failure.
+        {needsConfirmation ? (
+          // An unconfirmed email is a step to take, not a failure.
           <div className="bg-surface rounded-xl shadow p-8 text-center max-w-lg mx-auto">
             <h3>Confirm your email to browse projects</h3>
             <p className="text-text-light">We sent a link to {user.email}.</p>
@@ -407,6 +415,8 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
               <Link href="/settings">Change email</Link>
             </p>
           </div>
+        ) : loadingProjects ? (
+          <Skeleton label="Loading projects…" />
         ) : projectsError ? (
           <div className="text-center py-15 px-5 text-text-light">
             <h3>Couldn&#39;t load projects</h3>

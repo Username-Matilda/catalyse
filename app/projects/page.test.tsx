@@ -171,6 +171,11 @@ describe('projects directory', () => {
     // An unconfirmed email is a step to take, not an error.
     await screen.findByRole('heading', { name: 'Confirm your email to browse projects' })
     expect(screen.queryByText("Couldn't load projects")).toBeNull()
+    // No search or filters, templates or roadmap while there is nothing to search.
+    expect(screen.queryByLabelText('Search')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Status filter' })).toBeNull()
+    expect(screen.queryByText('Project templates')).toBeNull()
+    expect(screen.queryByRole('link', { name: /Roadmap/ })).toBeNull()
     expect(screen.getByText(`We sent a link to ${unconfirmed.email}.`)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Change email' })).toHaveAttribute('href', '/settings')
     await userEvent.click(screen.getByRole('button', { name: 'Send it again' }))
