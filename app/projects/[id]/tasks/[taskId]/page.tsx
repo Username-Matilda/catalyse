@@ -15,6 +15,7 @@ import { formatDate, toDateInputValue, fromDateInputValue } from '@/lib/format-d
 import { TaskStatus } from '@/generated/prisma/enums'
 import { TASK_STATUS_LABELS, TASK_STATUS_VARIANTS } from '@/lib/status-labels'
 import { PROJECT_TASK_CLAIMED_MESSAGE } from '@/lib/action-messages'
+import { TASK_INACTIVITY_RULE } from '@/lib/staleness'
 
 export default function TaskDetailPage({
   params,
@@ -249,6 +250,7 @@ export default function TaskDetailPage({
             >
               Claim
             </Button>
+            <p className="text-sm text-text-light mt-2 mb-0">{TASK_INACTIVITY_RULE}</p>
           </div>
         )}
 
@@ -262,6 +264,7 @@ export default function TaskDetailPage({
             >
               Mark done
             </Button>
+            <p className="text-sm text-text-light mt-2 mb-0">{TASK_INACTIVITY_RULE}</p>
           </div>
         )}
 

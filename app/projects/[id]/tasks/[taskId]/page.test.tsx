@@ -83,8 +83,16 @@ describe('task detail page', () => {
     const depRow = (name: string) => screen.getByRole('link', { name }).closest('li') as HTMLElement
     expect(within(depRow('Predecessor')).getByRole('spinbutton')).toBeDisabled()
     expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull()
+    const rule =
+      "Post an update within 14 days. With no update we'll remind you at 14 days, warn you at 21, and release the task at 28."
+    expect(screen.getByText(rule)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Claim' }))
-    await screen.findByText(/Task claimed\. Post an update/)
+    await screen.findByText(
+      'Task claimed. Post an update within 14 days; after 28 days with none, the task is released.',
+    )
+    // The assignee keeps the rule in view beside Mark done.
+    await screen.findByRole('button', { name: 'Mark done' })
+    expect(screen.getByText(rule)).toBeInTheDocument()
     await waitFor(async () => expect((await row(task.id)).assigneeId).toBe(me.id))
     await screen.findByText(`Assigned to ${me.name}`)
     await screen.findByText(/Claimed on/)

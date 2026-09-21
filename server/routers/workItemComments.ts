@@ -133,6 +133,15 @@ export const workItemCommentsRouter = {
         },
       })
 
+      // The assignee's comment on their project task is the update the inactivity job
+      // waits for, so it restarts the clock.
+      if (loaded.item.type === WorkItemType.TASK && loaded.item.assigneeId === volunteer.id) {
+        await prisma.workItem.update({
+          where: { id: loaded.item.id },
+          data: { updatedAt: new Date(), nudgeSentAt: null, finalWarningSentAt: null },
+        })
+      }
+
       // Notify the other participants (in-app only).
       const recipientIds = new Set<number>()
       for (const id of [
