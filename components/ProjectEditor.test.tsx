@@ -384,7 +384,7 @@ describe('ProjectEditor — editing an existing project', () => {
     await mount({ projectId: draft.id }, me)
     await screen.findByDisplayValue('Submit me')
     await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Submit for Review' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Submit for Review' }))
     await waitFor(async () => expect((await row(draft.id)).status).toBe('pending_review'))
     await waitFor(() => expect(navigation.push).toHaveBeenCalledWith('/dashboard#tab-projects'), {
       timeout: 3000,
@@ -414,10 +414,26 @@ describe('ProjectEditor — editing an existing project', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Delete Draft' }))
     await userEvent.click(screen.getAllByRole('button', { name: 'Delete Draft' })[1])
     expect(await screen.findByText('Draft not found')).toBeInTheDocument()
+    // Submitting checks the draft first, and says it has gone.
+    for (const dismiss of screen.queryAllByLabelText('Dismiss')) await userEvent.click(dismiss)
+    await waitFor(() => expect(screen.queryByText('Project not found')).toBeNull())
     await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Submit for Review' }))
-    await waitFor(() => expect(screen.getAllByText('Draft not found').length).toBeGreaterThan(1))
+    expect(await screen.findByText('Project not found')).toBeInTheDocument()
+    expect(screen.queryByText('Submit draft for review?')).toBeNull()
     void task
+  })
+
+  it('reports a submit the server refuses', async () => {
+    const me = await createVolunteer()
+    const draft = await createProject({ status: 'draft', creatorId: me.id, title: 'Moved on' })
+    await createTask(draft.id)
+    await mount({ projectId: draft.id }, me)
+    await screen.findByDisplayValue('Moved on')
+    // Submitted from another tab meanwhile.
+    await prisma.workItem.update({ where: { id: draft.id }, data: { status: 'pending_review' } })
+    await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Submit for Review' }))
+    expect(await screen.findByText('Not authorized to publish this draft')).toBeInTheDocument()
   })
 
   it('reports a failed create and a failed live delete', async () => {

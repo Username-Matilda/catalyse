@@ -330,14 +330,28 @@ export default function ProjectEditor(props: ProjectEditorProps) {
     if (id !== null) router.replace(`/projects/${id}/edit`)
   }
 
-  // Checked here, before a new draft is created: the server refuses to publish a project
-  // with no tasks, and creating the draft first would leave it behind.
-  function handleOpenPublishModal() {
+  // Checked before any draft is created, since the server refuses to publish a project with
+  // no tasks. The count is read fresh: just after a first task is added, the cached project
+  // can still be the copy loaded before it existed.
+  async function handleOpenPublishModal() {
     if (projectId === undefined && !title.trim()) {
       toast('A title is required, even for a draft.', 'error')
       return
     }
-    if (taskCount === 0) {
+    let tasks = 0
+    if (projectId !== undefined) {
+      try {
+        const fresh = await queryClient.fetchQuery({
+          ...orpc.projects.getById.queryOptions({ input: { id: projectId } }),
+          staleTime: 0,
+        })
+        tasks = fresh.tasks.length
+      } catch (err: unknown) {
+        toast(err instanceof Error ? err.message : 'Failed to load project', 'error')
+        return
+      }
+    }
+    if (tasks === 0) {
       setSubmitWithoutTasks(true)
       return
     }
