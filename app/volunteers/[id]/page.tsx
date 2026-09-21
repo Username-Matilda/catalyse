@@ -153,7 +153,7 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
                     className={`inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-gray-700 dark:text-gray-300 border-l-[3px] ${e.rating === 'strong' ? 'border-l-success' : 'border-l-secondary'}`}
                   >
                     {e.skillName}{' '}
-                    <small className={e.rating === 'strong' ? 'text-success' : 'text-secondary'}>
+                    <small className={e.rating === 'strong' ? 'text-success' : 'text-text-light'}>
                       {e.rating}
                     </small>
                   </span>
@@ -170,7 +170,7 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
                   <div className="flex justify-between items-center">
                     <strong>{t.title}</strong>
                     <span
-                      className={`text-sm font-medium ${t.reviewRating === 'excellent' ? 'text-success' : 'text-secondary'}`}
+                      className={`text-sm font-medium ${t.reviewRating === 'excellent' ? 'text-success' : 'text-text-light'}`}
                     >
                       {t.reviewRating}
                     </span>

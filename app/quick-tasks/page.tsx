@@ -65,7 +65,7 @@ interface FeaturedProjectTask {
 
 const RATING_CLASSES: Record<string, string> = {
   excellent: 'text-success',
-  good: 'text-secondary',
+  good: 'text-text-light',
   needs_improvement: 'text-error',
 }
 

@@ -59,8 +59,18 @@ function sourceFiles(dir: string): string[] {
   })
 }
 
-describe('text-secondary-dark', () => {
-  it('is only used on the accent pill, which sets its own dark-theme colour', () => {
+describe('outline buttons', () => {
+  it('are drawn in the text colours, which are measured above, not in --secondary', () => {
+    const button = readFileSync(path.join(__dirname, '..', 'components', 'Button.tsx'), 'utf8')
+    const outline = button.match(/outline:\s*'([^']*)'/)?.[1] ?? ''
+    expect(outline).toContain('text-brand-text')
+    expect(outline).toContain('border-text-light')
+    expect(outline).not.toMatch(/\btext-secondary\b|\bborder-secondary\b/)
+  })
+})
+
+describe('text-secondary and text-secondary-dark', () => {
+  it('are not text colours: --secondary is a fill, and text-secondary-dark only sits on the accent pill', () => {
     const root = path.join(__dirname, '..')
     const offenders = ['app', 'components']
       .flatMap((d) => sourceFiles(path.join(root, d)))
@@ -68,7 +78,9 @@ describe('text-secondary-dark', () => {
         readFileSync(file, 'utf8')
           .split('\n')
           .filter(
-            (line) => line.includes('text-secondary-dark') && !line.includes('dark:text-gray-300'),
+            (line) =>
+              (line.includes('text-secondary-dark') && !line.includes('dark:text-gray-300')) ||
+              /\btext-secondary(?![-\w])/.test(line),
           )
           .map((line) => `${path.relative(root, file)}: ${line.trim()}`),
       )
