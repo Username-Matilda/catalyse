@@ -531,7 +531,13 @@ export default function SignupPage() {
           )}
           <div className="mb-5">
             <label htmlFor={`${prefix}email_display`}>Contact Email</label>
-            <input type="text" id={`${prefix}email_display`} value={contactEmail} disabled />
+            <input
+              type="text"
+              id={`${prefix}email_display`}
+              value={contactEmail}
+              placeholder="The email you sign up with"
+              disabled
+            />
             <PreferredRadio
               method="email"
               contactPref={contactPref}

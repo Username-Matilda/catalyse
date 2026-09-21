@@ -28,6 +28,15 @@ async function fillRequired(opts: { country?: boolean } = {}) {
 }
 
 describe('signup with email and password', () => {
+  it('fills Contact Email from the sign-up email, and says so while it is empty', async () => {
+    await renderApp(<SignupPage />)
+    const contact = await screen.findByLabelText('Contact Email')
+    expect(contact).toBeDisabled()
+    expect(contact).toHaveAttribute('placeholder', 'The email you sign up with')
+    await type('Email', 'ann.applicant@example.com')
+    expect(contact).toHaveValue('ann.applicant@example.com')
+  })
+
   it('validates client-side before submitting', async () => {
     await renderApp(<SignupPage />)
     await screen.findByLabelText('Your Name')
