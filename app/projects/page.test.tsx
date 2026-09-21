@@ -11,6 +11,7 @@ import {
 } from '@/test/factories'
 import { renderApp } from '@/test/render'
 import { navigation } from '@/test/next-navigation'
+import { emails } from '@/test/fakes/email'
 import ProjectsPage from './page'
 
 describe('projects directory', () => {
@@ -167,13 +168,24 @@ describe('projects directory', () => {
     cleanup()
     const unconfirmed = await createVolunteer({ emailConfirmed: false })
     await renderApp(<ProjectsPage />, { as: unconfirmed, url: '/projects?status=ready' })
-    await screen.findByText("Couldn't load projects")
-    expect(screen.getByRole('link', { name: 'Confirm your email' })).toBeInTheDocument()
+    // An unconfirmed email is a step to take, not an error.
+    await screen.findByRole('heading', { name: 'Confirm your email to browse projects' })
+    expect(screen.queryByText("Couldn't load projects")).toBeNull()
+    expect(screen.getByText(`We sent a link to ${unconfirmed.email}.`)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Change email' })).toHaveAttribute('href', '/settings')
+    await userEvent.click(screen.getByRole('button', { name: 'Send it again' }))
+    await screen.findByText(/Email sent! You can request another in \d+s\./)
+    expect(screen.getByRole('button', { name: 'Send it again' })).toBeDisabled()
+    await waitFor(() => expect(emails.lastTo(unconfirmed.email!)).toBeDefined())
   })
 
-  it('keeps unapproved volunteers out', async () => {
+  it('keeps unapproved volunteers out, showing a loading state until they leave', async () => {
     const pending = await createVolunteer({ approvalStatus: 'pending' })
     await renderApp(<ProjectsPage />, { as: pending, url: '/projects' })
-    await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith('/dashboard'))
+    await waitFor(() =>
+      expect(navigation.replace).toHaveBeenCalledWith('/dashboard?notice=pending'),
+    )
+    expect(screen.getByRole('status')).toHaveTextContent('Loading…')
+    expect(screen.queryByRole('heading', { name: 'Projects' })).toBeNull()
   })
 })

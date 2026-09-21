@@ -11,6 +11,7 @@ import VolunteerSelect from '@/components/VolunteerSelect'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
+import PageLoading from '@/components/PageLoading'
 
 interface TeamMember {
   id: number
@@ -159,7 +160,7 @@ export default function AdminTeamDetailPage({ params }: { params: Promise<{ id: 
 
   const backHref = user?.isAdmin ? '/admin/teams' : '/teams'
 
-  if (loading || !user) return null
+  if (loading || !user) return <PageLoading />
 
   if (isLoading) {
     return (

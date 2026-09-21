@@ -14,6 +14,7 @@ import Linkify from '@/components/Linkify'
 import SubmitForReviewButton from '@/components/SubmitForReviewButton'
 import { QUICK_TASK_CLAIMED_MESSAGE } from '@/lib/action-messages'
 import { QuickTaskStatus } from '@/generated/prisma/enums'
+import PageLoading from '@/components/PageLoading'
 
 const REVIEW_RATING_LABELS: Record<string, string> = {
   excellent: 'Excellent',
@@ -53,7 +54,7 @@ export default function QuickTaskDetailPage({ params }: { params: Promise<{ id: 
     },
   })
 
-  if (loading || !user) return null
+  if (loading || !user) return <PageLoading />
 
   if (isLoading) {
     return (

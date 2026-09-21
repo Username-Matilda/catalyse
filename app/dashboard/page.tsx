@@ -91,11 +91,22 @@ export default function DashboardPage() {
   const [notificationFilter, setNotificationFilter] = useState<NotificationFilter>('all')
   const [notificationPage, setNotificationPage] = useState(1)
   const [welcomeDismissed, setWelcomeDismissed] = useState(false)
+  // Set when a page that needs approval sent the volunteer here (PENDING_NOTICE_URL).
+  const [pendingNotice] = useState(
+    () =>
+      typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).get('notice') === 'pending',
+  )
 
   function setNotificationFilterAndResetPage(filter: NotificationFilter) {
     setNotificationFilter(filter)
     setNotificationPage(1)
   }
+
+  // Shown once: the notice leaves the address so a reload or a shared link doesn't repeat it.
+  useEffect(() => {
+    if (pendingNotice) history.replaceState(null, '', `/dashboard${window.location.hash}`)
+  }, [pendingNotice])
 
   useEffect(() => {
     function syncFromHash() {
@@ -323,6 +334,16 @@ export default function DashboardPage() {
           <h1 role="heading">Welcome back, {user.name}!</h1>
           {isMember && <Button href="/suggest">Create Project</Button>}
         </div>
+
+        {pendingNotice && (
+          <div
+            role="status"
+            className="p-4 rounded-lg mb-5 bg-blue-100 text-blue-800 border border-blue-300 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-600"
+          >
+            Your application is being reviewed. You&apos;ll be able to browse projects once
+            it&apos;s approved.
+          </div>
+        )}
 
         {/* Pending approval banner */}
         {(user.approvalStatus === ApprovalStatus.pending ||

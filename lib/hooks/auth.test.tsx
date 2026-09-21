@@ -35,9 +35,12 @@ describe('auth gate hooks', () => {
     expect(navigation.replace).not.toHaveBeenCalled()
   })
 
-  it('useRequireApproved sends unapproved non-admins to the dashboard', async () => {
-    await settle('useRequireApproved', await createVolunteer({ approvalStatus: 'pending' }))
-    expect(navigation.replace).toHaveBeenCalledWith('/dashboard')
+  it('useRequireApproved sends unapproved non-admins to the dashboard, with a notice', async () => {
+    const pending = await createVolunteer({ approvalStatus: 'pending' })
+    await settle('useRequireApproved', pending)
+    expect(navigation.replace).toHaveBeenCalledWith('/dashboard?notice=pending')
+    // The page never gets the user, so it cannot render anything for them meanwhile.
+    expect(screen.getByText('anon')).toBeInTheDocument()
     navigation.reset()
     await settle('useRequireApproved', await createAdmin({ approvalStatus: 'pending' }))
     expect(navigation.replace).not.toHaveBeenCalled()

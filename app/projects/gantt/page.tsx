@@ -10,6 +10,7 @@ import Button from '@/components/Button'
 import GanttChart from '@/components/gantt/GanttChart'
 import type { GanttRow as GanttRowData } from '@/components/gantt/types'
 import { ProjectStatus } from '@/generated/prisma/enums'
+import PageLoading from '@/components/PageLoading'
 
 const STATUS_FILTERS: { key: string; label: string }[] = [
   { key: ProjectStatus.ready, label: 'Ready' },
@@ -67,7 +68,7 @@ export default function RoadmapPage() {
     )
   }, [data])
 
-  if (loading || !user) return null
+  if (loading || !user) return <PageLoading />
 
   function toggleStatus(key: string) {
     setStatuses((cur) => (cur.includes(key) ? cur.filter((s) => s !== key) : [...cur, key]))

@@ -16,6 +16,7 @@ import { TaskStatus } from '@/generated/prisma/enums'
 import { TASK_STATUS_LABELS, TASK_STATUS_VARIANTS } from '@/lib/status-labels'
 import { PROJECT_TASK_CLAIMED_MESSAGE } from '@/lib/action-messages'
 import { TASK_INACTIVITY_RULE } from '@/lib/staleness'
+import PageLoading from '@/components/PageLoading'
 
 export default function TaskDetailPage({
   params,
@@ -153,7 +154,7 @@ export default function TaskDetailPage({
     updateMutation.mutate({ projectId, taskId, data: { status: TaskStatus.completed } })
   }
 
-  if (loading || !user) return null
+  if (loading || !user) return <PageLoading />
 
   if (isLoading) {
     return (

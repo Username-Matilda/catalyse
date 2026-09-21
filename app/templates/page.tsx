@@ -8,6 +8,7 @@ import { Badge } from '@/components/Badge'
 import { orpc } from '@/lib/orpc'
 import { formatDate } from '@/lib/format-date'
 import { useToast } from '@/lib/toast'
+import PageLoading from '@/components/PageLoading'
 
 const card = 'bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word'
 
@@ -38,7 +39,7 @@ export default function TemplatesLibraryPage() {
       showToast(err instanceof Error ? err.message : 'Could not create project', 'error'),
   })
 
-  if (loading || !user) return null
+  if (loading || !user) return <PageLoading />
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">

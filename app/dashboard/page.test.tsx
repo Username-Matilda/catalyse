@@ -191,6 +191,19 @@ describe('dashboard', () => {
     void suggested
   })
 
+  it('explains a bounce from a page that needs approval, once', async () => {
+    const pending = await createVolunteer({ approvalStatus: 'pending' })
+    await renderApp(<DashboardPage />, { as: pending, url: '/dashboard?notice=pending' })
+    expect(
+      await screen.findByText(/Your application is being reviewed\. You'll be able to browse/),
+    ).toBeInTheDocument()
+    await waitFor(() => expect(window.location.search).toBe(''))
+    cleanup()
+    await renderApp(<DashboardPage />, { as: pending, url: '/dashboard' })
+    await screen.findByRole('heading', { name: `Welcome back, ${pending.name}!` })
+    expect(screen.queryByText(/Your application is being reviewed/)).toBeNull()
+  })
+
   it('opens on Applications, then Notifications, when there is no project of my own', async () => {
     const me = await createVolunteer()
     const project = await createProject({ title: 'Waiting on it' })

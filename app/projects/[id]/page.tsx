@@ -58,6 +58,7 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import PageLoading from '@/components/PageLoading'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -910,7 +911,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
-  if (loading || !user) return null
+  if (loading || !user) return <PageLoading />
   if (loadingProject) {
     return (
       <>

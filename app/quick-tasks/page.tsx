@@ -24,6 +24,7 @@ import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import { formatDate } from '@/lib/format-date'
 import { QuickTaskStatus, TaskStatus } from '@/generated/prisma/enums'
+import PageLoading from '@/components/PageLoading'
 
 interface Skill {
   id: number
@@ -128,7 +129,7 @@ function QuickTaskCard({
 export default function QuickTasksPage() {
   const { user, loading } = useRequireApproved()
 
-  if (loading || !user) return null
+  if (loading || !user) return <PageLoading />
 
   return user.isAdmin ? <AdminQuickTasksView /> : <VolunteerQuickTasksView user={user} />
 }

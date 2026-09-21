@@ -11,6 +11,7 @@ interface User {
   isAdmin: boolean
   isSuperAdmin: boolean
   approvalStatus: string
+  emailConfirmed: boolean
   hasPassword: boolean
   emailDigest: string | null
   cookieConsentAnalytics: boolean | null

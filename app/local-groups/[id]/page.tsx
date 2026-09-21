@@ -9,6 +9,7 @@ import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import Button from '@/components/Button'
 import { countryLabel } from '@/lib/filter-options'
+import PageLoading from '@/components/PageLoading'
 
 export default function LocalGroupAdoptPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idStr } = use(params)
@@ -33,7 +34,7 @@ export default function LocalGroupAdoptPage({ params }: { params: Promise<{ id: 
     },
   })
 
-  if (loading || !user) return null
+  if (loading || !user) return <PageLoading />
 
   if (isLoading) {
     return (

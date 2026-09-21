@@ -16,6 +16,8 @@ import { orpc } from '@/lib/orpc'
 import { AppRouter } from '@/server/router'
 import { type Project, ProjectList, statusBadgeClasses } from '@/components/ProjectCard'
 import { badgeClasses } from '@/components/Badge'
+import PageLoading from '@/components/PageLoading'
+import ResendConfirmation from '@/components/ResendConfirmation'
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All' },
@@ -378,6 +380,16 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
 
         {loadingProjects ? (
           <div className="text-center py-10 text-text-light">Loading projects…</div>
+        ) : projectsError instanceof ORPCError && projectsError.code === 'FORBIDDEN' ? (
+          // The only refusal here is an unconfirmed email: a step to take, not a failure.
+          <div className="bg-surface rounded-xl shadow p-8 text-center max-w-lg mx-auto">
+            <h3>Confirm your email to browse projects</h3>
+            <p className="text-text-light">We sent a link to {user.email}.</p>
+            <ResendConfirmation email={user.email} />
+            <p className="text-sm mt-4 mb-0">
+              <Link href="/settings">Change email</Link>
+            </p>
+          </div>
         ) : projectsError ? (
           <div className="text-center py-15 px-5 text-text-light">
             <h3>Couldn&#39;t load projects</h3>
@@ -386,13 +398,6 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
                 ? projectsError.message
                 : 'Something went wrong loading projects.'}
             </p>
-            {projectsError instanceof ORPCError && projectsError.code === 'FORBIDDEN' && (
-              <p className="mt-2">
-                <Link href="/verify-email" className="underline">
-                  Confirm your email
-                </Link>
-              </p>
-            )}
           </div>
         ) : (isFlatView ? projects.length : groups.length) === 0 ? (
           <div className="text-center py-15 px-5 text-text-light">
@@ -529,7 +534,7 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
 export default function ProjectsPage() {
   const { user, loading } = useRequireApproved()
 
-  if (loading || !user) return null
+  if (loading || !user) return <PageLoading />
 
   return (
     <Suspense>

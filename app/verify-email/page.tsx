@@ -4,11 +4,14 @@ import { useEffect, useState, Suspense, FormEvent } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useMutation } from '@tanstack/react-query'
 import { orpc } from '@/lib/orpc'
+import { useAuth } from '@/lib/auth-context'
 import Button from '@/components/Button'
+import ResendConfirmation from '@/components/ResendConfirmation'
 
 function VerifyEmailContent() {
   const searchParams = useSearchParams()
   const token = searchParams.get('token')
+  const { user } = useAuth()
 
   const [resendEmail, setResendEmail] = useState('')
   const [resendSent, setResendSent] = useState(false)
@@ -78,12 +81,15 @@ function VerifyEmailContent() {
     )
   }
 
+  const awaitingConfirmation = Boolean(user && !user.emailConfirmed)
   const errorMessage =
     verifyMutation.error instanceof Error
       ? verifyMutation.error.message
       : token
         ? 'Email confirmation failed'
-        : 'Enter your email below to receive a confirmation link.'
+        : awaitingConfirmation
+          ? 'Open the link in the email we sent to confirm your address.'
+          : 'Enter your email below to receive a confirmation link.'
 
   const alreadyUsed = errorMessage.includes('already been used')
 
@@ -93,7 +99,15 @@ function VerifyEmailContent() {
         {token ? 'Confirmation failed' : 'Confirm your email'}
       </h1>
       <p className="text-text-light mt-4 mb-6">{errorMessage}</p>
-      {!alreadyUsed && (
+      {!alreadyUsed && user && awaitingConfirmation && (
+        <div className="mt-2 pt-6 border-t border-border">
+          <p className="text-text-light text-sm mb-3">
+            We&#39;ll send a new link to <strong>{user.email}</strong>.
+          </p>
+          <ResendConfirmation email={user.email} />
+        </div>
+      )}
+      {!alreadyUsed && !awaitingConfirmation && (
         <div className="mt-2 pt-6 border-t border-border text-left">
           {resendSent ? (
             <p className="text-text-light text-sm text-center">

@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { prisma } from '@/lib/prisma'
 import { createVolunteer, createSuperAdmin, TEST_PASSWORD } from '@/test/factories'
 import { renderApp } from '@/test/render'
+import { emails } from '@/test/fakes/email'
 import { navigation } from '@/test/next-navigation'
 import { anon } from '@/test/rpc'
 import LoginPage from './login/page'
@@ -147,6 +148,21 @@ describe('verify email', () => {
     for (let i = 0; i < 60; i++) act(() => vi.advanceTimersByTime(1000))
     vi.useRealTimers()
     expect(screen.getByText('Email sent! Check your inbox.')).toBeInTheDocument()
+  })
+
+  it('resends to the address of a signed-in volunteer without asking for it', async () => {
+    const me = await createVolunteer({ emailConfirmed: false, email: 'waiting@example.org' })
+    await renderApp(<VerifyEmailPage />, { as: me, url: '/verify-email' })
+    await screen.findByText('waiting@example.org')
+    expect(screen.queryByPlaceholderText('Your email address')).toBeNull()
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    fireEvent.click(screen.getByRole('button', { name: 'Send it again' }))
+    await vi.waitFor(() => expect(screen.getByText(/request another in 60s/)).toBeInTheDocument())
+    for (let i = 0; i < 60; i++) act(() => vi.advanceTimersByTime(1000))
+    vi.useRealTimers()
+    expect(screen.getByText('Email sent! Check your inbox.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Send it again' })).toBeEnabled()
+    await vi.waitFor(() => expect(emails.lastTo('waiting@example.org')).toBeDefined())
   })
 })
 
