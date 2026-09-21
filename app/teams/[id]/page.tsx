@@ -1,6 +1,6 @@
 'use client'
 
-import { use } from 'react'
+import { use, useState } from 'react'
 import Link from 'next/link'
 import { useRequireAuth } from '@/lib/hooks/auth'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -8,6 +8,8 @@ import Button from '@/components/Button'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import { teamApplicationSentMessage } from '@/lib/action-messages'
+import { useCooldown } from '@/lib/hooks/useCooldown'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 
 export default function TeamDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = use(params)
@@ -38,10 +40,14 @@ export default function TeamDetailPage({ params }: { params: Promise<{ id: strin
     },
   })
 
+  const [confirmingLeave, setConfirmingLeave] = useState(false)
+  const { isCooling, start: startCooldown } = useCooldown()
+
   const leaveMutation = useMutation({
     ...orpc.teams.leave.mutationOptions(),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       showToast('Left team', 'success')
+      startCooldown(variables.id)
       void invalidate()
     },
     onError: (err: unknown) => {
@@ -93,9 +99,9 @@ export default function TeamDetailPage({ params }: { params: Promise<{ id: strin
         ) : isMember ? (
           <Button
             size="sm"
-            variant="secondary"
+            variant="warning"
             disabled={leaveMutation.isPending}
-            onClick={() => leaveMutation.mutate({ id: team.id })}
+            onClick={() => setConfirmingLeave(true)}
           >
             Leave
           </Button>
@@ -106,7 +112,8 @@ export default function TeamDetailPage({ params }: { params: Promise<{ id: strin
         ) : (
           <Button
             size="sm"
-            disabled={applyMutation.isPending}
+            variant={isCooling(team.id) ? 'secondary' : 'primary'}
+            disabled={applyMutation.isPending || isCooling(team.id)}
             onClick={() => applyMutation.mutate({ id: team.id })}
           >
             Apply to Join
@@ -144,6 +151,24 @@ export default function TeamDetailPage({ params }: { params: Promise<{ id: strin
             </a>
           )}
         </div>
+      )}
+
+      {confirmingLeave && (
+        <ConfirmDialog
+          id="confirm-leave-team"
+          isOpen
+          title={`Leave ${team.name}?`}
+          body="You'll need to apply again and be approved to rejoin."
+          confirmLabel="Leave"
+          busyLabel="Leaving…"
+          danger
+          busy={leaveMutation.isPending}
+          onConfirm={() => {
+            leaveMutation.mutate({ id: team.id })
+            setConfirmingLeave(false)
+          }}
+          onClose={() => setConfirmingLeave(false)}
+        />
       )}
     </main>
   )

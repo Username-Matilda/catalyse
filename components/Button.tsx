@@ -11,6 +11,8 @@ const variants = {
   ghost: 'bg-transparent text-text-light hover:bg-accent hover:text-brand-text',
   outline:
     'bg-transparent border-2 border-secondary text-secondary hover:bg-secondary hover:text-white',
+  // An outline for actions that give something up, like leaving a team or withdrawing.
+  warning: 'bg-transparent border-2 border-error text-error hover:bg-error hover:text-white',
 }
 
 const activeVariants: Record<keyof typeof variants, string> = {
@@ -19,6 +21,7 @@ const activeVariants: Record<keyof typeof variants, string> = {
   danger: 'bg-red-700',
   ghost: 'bg-accent! text-brand-text!',
   outline: 'bg-secondary text-white',
+  warning: 'bg-error text-white',
 }
 
 const sizes = {

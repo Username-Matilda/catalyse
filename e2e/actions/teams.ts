@@ -97,6 +97,7 @@ export async function leaveTeam(baseUrl: string, page: Page, teamName: string): 
   await page.getByRole('heading', { name: 'Teams', level: 1 }).waitFor({ timeout: 10_000 })
   const card = page.getByRole('article').filter({ hasText: teamName })
   await card.getByRole('button', { name: 'Leave' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Leave' }).click()
   await expect(getAlert(page)).toBeVisible({ timeout: 10_000 })
 }
 

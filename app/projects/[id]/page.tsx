@@ -2021,7 +2021,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     {(project.myInterest.status === InterestStatus.pending ||
                       project.myInterest.status === InterestStatus.accepted) && (
                       <Button
-                        variant="secondary"
+                        variant="warning"
                         className="mt-2"
                         onClick={() =>
                           setWithdrawAccepted(

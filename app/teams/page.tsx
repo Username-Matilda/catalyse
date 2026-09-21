@@ -1,11 +1,14 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { useRequireAuth } from '@/lib/hooks/auth'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
+import { useCooldown } from '@/lib/hooks/useCooldown'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { teamApplicationSentMessage } from '@/lib/action-messages'
 
 export default function TeamsPage() {
@@ -30,10 +33,14 @@ export default function TeamsPage() {
     },
   })
 
+  const [leaving, setLeaving] = useState<{ id: number; name: string } | null>(null)
+  const { isCooling, start: startCooldown } = useCooldown()
+
   const leaveMutation = useMutation({
     ...orpc.teams.leave.mutationOptions(),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       showToast('Left team', 'success')
+      startCooldown(variables.id)
       void invalidate()
     },
     onError: (err: unknown) => {
@@ -128,9 +135,9 @@ export default function TeamsPage() {
                   ) : isMember ? (
                     <Button
                       size="sm"
-                      variant="secondary"
+                      variant="warning"
                       disabled={leaveMutation.isPending}
-                      onClick={() => leaveMutation.mutate({ id: team.id })}
+                      onClick={() => setLeaving({ id: team.id, name: team.name })}
                     >
                       Leave
                     </Button>
@@ -141,7 +148,8 @@ export default function TeamsPage() {
                   ) : (
                     <Button
                       size="sm"
-                      disabled={applyMutation.isPending}
+                      variant={isCooling(team.id) ? 'secondary' : 'primary'}
+                      disabled={applyMutation.isPending || isCooling(team.id)}
                       onClick={() => applyMutation.mutate({ id: team.id })}
                     >
                       Apply to Join
@@ -152,6 +160,24 @@ export default function TeamsPage() {
             )
           })}
         </div>
+      )}
+
+      {leaving && (
+        <ConfirmDialog
+          id="confirm-leave-team"
+          isOpen
+          title={`Leave ${leaving.name}?`}
+          body="You'll need to apply again and be approved to rejoin."
+          confirmLabel="Leave"
+          busyLabel="Leaving…"
+          danger
+          busy={leaveMutation.isPending}
+          onConfirm={() => {
+            leaveMutation.mutate({ id: leaving.id })
+            setLeaving(null)
+          }}
+          onClose={() => setLeaving(null)}
+        />
       )}
     </main>
   )

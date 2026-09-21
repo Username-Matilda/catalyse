@@ -9,6 +9,13 @@ import TeamsPage from './page'
 import TeamDetailPage from './[id]/page'
 import LocalGroupAdoptPage from '../local-groups/[id]/page'
 
+const confirmLeave = async () =>
+  userEvent.click(
+    within(await screen.findByRole('dialog', { name: /^Leave / })).getByRole('button', {
+      name: 'Leave',
+    }),
+  )
+
 async function setup() {
   const me = await createVolunteer()
   const leader = await createVolunteer({ name: 'Lead Person' })
@@ -51,6 +58,16 @@ describe('teams list', () => {
       await prisma.teamJoinRequest.count({ where: { teamId: open.id, volunteerId: me.id } }),
     ).toBe(1)
     await userEvent.click(screen.getByRole('button', { name: 'Leave' }))
+    await userEvent.click(
+      within(await screen.findByRole('dialog', { name: 'Leave My Team?' })).getByRole('button', {
+        name: 'Cancel',
+      }),
+    )
+    expect(
+      await prisma.teamMembership.count({ where: { teamId: mine.id, volunteerId: me.id } }),
+    ).toBe(1)
+    await userEvent.click(screen.getByRole('button', { name: 'Leave' }))
+    await confirmLeave()
     await screen.findByText('Left team')
     expect(
       await prisma.teamMembership.count({ where: { teamId: mine.id, volunteerId: me.id } }),
@@ -60,6 +77,8 @@ describe('teams list', () => {
     const apply = await within(
       screen.getByRole('link', { name: 'My Team' }).closest('article')!,
     ).findByRole('button', { name: 'Apply to Join' })
+    // Applying is held off for a moment after leaving, so a click aimed at Leave cannot land on it.
+    await waitFor(() => expect(apply).toBeEnabled(), { timeout: 5000 })
     localStorage.setItem('authToken', 'stale')
     await userEvent.click(apply)
     await screen.findByText('Unauthorized')
@@ -70,6 +89,7 @@ describe('teams list', () => {
     const leave = await screen.findByRole('button', { name: 'Leave' })
     localStorage.setItem('authToken', 'stale')
     await userEvent.click(leave)
+    await confirmLeave()
     await screen.findByText('Unauthorized')
   })
 
@@ -95,7 +115,13 @@ describe('team detail', () => {
     })
     await screen.findByRole('heading', { name: 'My Team' })
     await userEvent.click(screen.getByRole('button', { name: 'Leave' }))
+    await confirmLeave()
     await screen.findByText('Left team')
+    await waitFor(
+      async () =>
+        expect(await screen.findByRole('button', { name: 'Apply to Join' })).toBeEnabled(),
+      { timeout: 5000 },
+    )
     cleanup()
     await renderApp(<TeamDetailPage params={Promise.resolve({ id: String(open.id) })} />, {
       as: me,
@@ -127,6 +153,14 @@ describe('team detail', () => {
     expect(screen.getByRole('link', { name: 'Team doc' })).toHaveAttribute('href', 'https://doc2')
     localStorage.setItem('authToken', 'stale')
     await userEvent.click(screen.getByRole('button', { name: 'Leave' }))
+    await userEvent.click(
+      within(await screen.findByRole('dialog', { name: /^Leave / })).getByRole('button', {
+        name: 'Cancel',
+      }),
+    )
+    expect(screen.queryByRole('dialog')).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: 'Leave' }))
+    await confirmLeave()
     await screen.findByText('Unauthorized')
     cleanup()
     await renderApp(<TeamDetailPage params={Promise.resolve({ id: '999999' })} />, { as: me })
