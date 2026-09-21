@@ -21,13 +21,24 @@ function loadEnvFile(filePath: string): void {
 loadEnvFile(path.join(process.cwd(), '.env'))
 loadEnvFile(path.join(process.cwd(), '.env.local'))
 
+let override: string | undefined
+
+/**
+ * Points the process at another database without touching `DATABASE_URL`, which other code
+ * (the test harness among it) reads as the server the process was started with. Read by
+ * `lib/prisma` when it is imported, so call it first.
+ */
+export function setDatabaseUrl(url: string | undefined): void {
+  override = url
+}
+
 /**
  * The Postgres connection URL. Railway injects DATABASE_URL from the linked Postgres
  * service; locally it comes from .env.local. There is deliberately no default: a missing
  * value should fail loudly rather than silently point at the wrong database.
  */
 export function resolveDbUrl(): string {
-  const url = process.env.DATABASE_URL
+  const url = override ?? process.env.DATABASE_URL
   if (!url) throw new Error('DATABASE_URL is not set')
   return url
 }

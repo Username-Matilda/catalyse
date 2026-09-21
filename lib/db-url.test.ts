@@ -9,9 +9,24 @@ afterEach(() => {
 })
 
 describe('resolveDbUrl', () => {
+  // The harness has already pointed this file's copy of the module at its own database.
+  beforeEach(() => {
+    vi.resetModules()
+  })
+
   it('returns DATABASE_URL', async () => {
     vi.stubEnv('DATABASE_URL', 'postgres://host/db')
     const { resolveDbUrl } = await import('./db-url')
+    expect(resolveDbUrl()).toBe('postgres://host/db')
+  })
+
+  it('prefers a URL set with setDatabaseUrl, and falls back once it is cleared', async () => {
+    vi.stubEnv('DATABASE_URL', 'postgres://host/db')
+    const { resolveDbUrl, setDatabaseUrl } = await import('./db-url')
+    setDatabaseUrl('postgres://host/other')
+    expect(resolveDbUrl()).toBe('postgres://host/other')
+    expect(process.env.DATABASE_URL).toBe('postgres://host/db')
+    setDatabaseUrl(undefined)
     expect(resolveDbUrl()).toBe('postgres://host/db')
   })
 

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { Client } from 'pg'
 import { prisma } from '@/lib/prisma'
+import { resolveDbUrl } from '@/lib/db-url'
 import { createVolunteer, createAdmin, createProject } from '@/test/factories'
 import { createSession } from '@/lib/auth'
 import { libpqUrl } from '../jobs/backup'
@@ -9,7 +10,7 @@ import { anonymise } from './anonymise-db'
 
 /** A pg client on this test file's own schema, which is what the anonymiser is handed. */
 async function withSchemaClient<T>(fn: (db: Client) => Promise<T>): Promise<T> {
-  const url = new URL(process.env.DATABASE_URL!)
+  const url = new URL(resolveDbUrl())
   const db = new Client({ connectionString: libpqUrl(url.toString()) })
   await db.connect()
   try {
