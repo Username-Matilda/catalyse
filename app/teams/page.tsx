@@ -10,6 +10,8 @@ import { useToast } from '@/lib/toast'
 import { useCooldown } from '@/lib/hooks/useCooldown'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { teamApplicationSentMessage } from '@/lib/action-messages'
+import Skeleton from '@/components/Skeleton'
+import EmptyState from '@/components/EmptyState'
 
 export default function TeamsPage() {
   const { user, loading } = useRequireAuth()
@@ -67,9 +69,13 @@ export default function TeamsPage() {
       </p>
 
       {isLoading ? (
-        <div className="text-center py-10 text-text-light">Loading…</div>
+        <Skeleton label="Loading teams…" />
       ) : teams.length === 0 ? (
-        <p className="text-text-light">No teams yet.</p>
+        <EmptyState
+          title="No teams yet."
+          body="Suggest one for a group that collaborates on a kind of project."
+          action={<Button href="/suggest-team">Suggest a Team</Button>}
+        />
       ) : (
         <div className="space-y-4">
           {teams.map((team) => {

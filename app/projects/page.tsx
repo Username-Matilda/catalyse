@@ -19,6 +19,8 @@ import { type Project, ProjectList, statusBadgeClasses } from '@/components/Proj
 import { badgeClasses } from '@/components/Badge'
 import PageLoading from '@/components/PageLoading'
 import ResendConfirmation from '@/components/ResendConfirmation'
+import Skeleton from '@/components/Skeleton'
+import EmptyState from '@/components/EmptyState'
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All' },
@@ -394,7 +396,7 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
         </div>
 
         {loadingProjects ? (
-          <div className="text-center py-10 text-text-light">Loading projects…</div>
+          <Skeleton label="Loading projects…" />
         ) : projectsError instanceof ORPCError && projectsError.code === 'FORBIDDEN' ? (
           // The only refusal here is an unconfirmed email: a step to take, not a failure.
           <div className="bg-surface rounded-xl shadow p-8 text-center max-w-lg mx-auto">
@@ -415,16 +417,11 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
             </p>
           </div>
         ) : (isFlatView ? projects.length : groups.length) === 0 ? (
-          <div className="text-center py-15 px-5 text-text-light">
-            <h3>No projects found</h3>
-            <p>
-              Try adjusting your filters or{' '}
-              <Link href="/suggest" className="underline">
-                suggest a new project
-              </Link>
-              .
-            </p>
-          </div>
+          <EmptyState
+            title="No projects found"
+            body="Try adjusting your filters, or propose a project of your own."
+            action={<Button href="/suggest">Propose a project</Button>}
+          />
         ) : (
           <>
             {/* Status summary bar */}

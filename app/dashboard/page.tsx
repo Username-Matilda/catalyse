@@ -23,6 +23,7 @@ import Modal from '@/components/ui/Modal'
 import { ApprovalStatus, InterestStatus, QuickTaskStatus } from '@/generated/prisma/enums'
 import { ApprovalStepper } from '@/components/ApprovalStepper'
 import { friendlyDate } from '@/lib/format-date'
+import Skeleton from '@/components/Skeleton'
 
 function QuietNote({ updatedAt }: { updatedAt: string | Date | null }) {
   const days = daysQuiet(updatedAt)
@@ -230,7 +231,7 @@ export default function DashboardPage() {
     return (
       <>
         <main className="container py-5 pb-15">
-          <div className="text-center py-10 text-text-light">Loading dashboard…</div>
+          <Skeleton label="Loading dashboard…" />
         </main>
       </>
     )

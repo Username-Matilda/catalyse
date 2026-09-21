@@ -25,6 +25,8 @@ import { useToast } from '@/lib/toast'
 import { formatDate } from '@/lib/format-date'
 import { QuickTaskStatus, TaskStatus } from '@/generated/prisma/enums'
 import PageLoading from '@/components/PageLoading'
+import Skeleton from '@/components/Skeleton'
+import EmptyState from '@/components/EmptyState'
 
 interface Skill {
   id: number
@@ -191,15 +193,17 @@ function VolunteerQuickTasksView({ user }: { user: ApprovedUser }) {
           </p>
 
           {loadingTasks ? (
-            <div className="text-center py-10 text-text-light">Loading tasks…</div>
+            <Skeleton label="Loading tasks…" count={1} />
           ) : tasks.length === 0 ? (
-            <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word text-center">
-              <h3>No tasks assigned yet</h3>
-              <p className="text-text-light">
-                Check back soon, or browse <Link href="/projects">projects</Link> to find other ways
-                to contribute.
-              </p>
-            </div>
+            <EmptyState
+              title="No tasks assigned yet"
+              body="Claim one from the list below, or browse projects for other ways to contribute."
+              action={
+                <Button href="/projects" variant="outline">
+                  Browse projects
+                </Button>
+              }
+            />
           ) : (
             tasks.map((task) => (
               <QuickTaskCard
@@ -246,12 +250,17 @@ function VolunteerQuickTasksView({ user }: { user: ApprovedUser }) {
           </p>
 
           {loadingAvailable ? (
-            <div className="text-center py-10 text-text-light">Loading tasks…</div>
+            <Skeleton label="Loading tasks…" />
           ) : availableTasks.length === 0 ? (
-            <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word text-center">
-              <h3>No open Quick Tasks right now</h3>
-              <p className="text-text-light">Check back soon.</p>
-            </div>
+            <EmptyState
+              title="No open Quick Tasks right now"
+              body="Check back soon, or find a project that needs a hand."
+              action={
+                <Button href="/projects" variant="outline">
+                  Browse projects
+                </Button>
+              }
+            />
           ) : (
             availableTasks.map((task) =>
               task.kind === 'quick' ? (

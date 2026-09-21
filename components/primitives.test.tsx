@@ -12,6 +12,8 @@ import DescriptionTips from './DescriptionTips'
 import Tooltip from './Tooltip'
 import { ApprovalStepper } from './ApprovalStepper'
 import Tabs from './Tabs'
+import Skeleton from './Skeleton'
+import EmptyState from './EmptyState'
 import Providers from './Providers'
 import LandingCTA from './LandingCTA'
 import { renderApp } from '@/test/render'
@@ -194,5 +196,27 @@ describe('Providers / LandingCTA', () => {
     await waitFor(() =>
       expect(screen.getByRole('link', { name: 'Browse projects' })).toBeInTheDocument(),
     )
+  })
+})
+
+describe('Skeleton', () => {
+  it('holds the layout with placeholder shapes and a label for screen readers', () => {
+    const { container, rerender } = render(<Skeleton label="Loading things…" />)
+    const status = screen.getByRole('status')
+    expect(status).toHaveAttribute('aria-busy', 'true')
+    expect(status).toHaveTextContent('Loading things…')
+    expect(container.querySelectorAll('[aria-hidden="true"]')).toHaveLength(3)
+    rerender(<Skeleton label="Loading rows…" variant="row" count={2} className="loading" />)
+    expect(screen.getByRole('status')).toHaveClass('loading')
+    expect(container.querySelectorAll('[aria-hidden="true"]')).toHaveLength(2)
+  })
+})
+
+describe('EmptyState', () => {
+  it('names the empty list and offers the next step', () => {
+    render(<EmptyState title="Nothing here" body="Try elsewhere." action={<a href="/x">Go</a>} />)
+    expect(screen.getByRole('heading', { name: 'Nothing here' })).toBeInTheDocument()
+    expect(screen.getByText('Try elsewhere.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Go' })).toHaveAttribute('href', '/x')
   })
 })

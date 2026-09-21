@@ -9,6 +9,8 @@ import { orpc } from '@/lib/orpc'
 import { formatDate } from '@/lib/format-date'
 import { useToast } from '@/lib/toast'
 import PageLoading from '@/components/PageLoading'
+import Skeleton from '@/components/Skeleton'
+import EmptyState from '@/components/EmptyState'
 
 const card = 'bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word'
 
@@ -54,17 +56,22 @@ export default function TemplatesLibraryPage() {
         {user.isAdmin && <Button href="/templates/new">New template</Button>}
       </div>
 
-      {isPending && <p className="text-text-light">Loading templates…</p>}
+      {isPending && <Skeleton label="Loading templates…" />}
 
       {templates?.length === 0 && (
-        <div className={card}>
-          <p className="text-text-light m-0">
-            No templates yet.
-            {user.isAdmin
-              ? ' Build one from scratch, or save an existing project as a template from its project page.'
-              : ' Check back once an admin has published one.'}
-          </p>
-        </div>
+        <EmptyState
+          title="No templates yet."
+          body={
+            user.isAdmin
+              ? 'Build one from scratch, or save an existing project as a template from its project page.'
+              : 'Check back once an admin has published one.'
+          }
+          action={
+            <Button href="/projects" variant="outline">
+              Browse projects
+            </Button>
+          }
+        />
       )}
 
       {templates?.map((t) => (

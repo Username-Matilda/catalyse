@@ -19,6 +19,8 @@ import { orpc } from '@/lib/orpc'
 import { AppRouter } from '@/server/router'
 import { CARD_GRID_CLASSES } from '@/components/ProjectCard'
 import Tooltip from '@/components/Tooltip'
+import Skeleton from '@/components/Skeleton'
+import EmptyState from '@/components/EmptyState'
 
 type SkillCategory = InferRouterOutputs<AppRouter>['skills']['list'][number]
 type FlatSkill = SkillCategory['skills'][number] & { categoryName: string }
@@ -142,12 +144,23 @@ function VolunteersPageContent({ user }: { user: AuthUser }) {
         <div id="volunteersList">
           {/* [test hook] loading class polled by tests to detect when fetch completes */}
           {loadingVolunteers ? (
-            <div className="loading text-center py-10 text-text-light">Loading volunteers…</div>
+            <Skeleton label="Loading volunteers…" className="loading" />
           ) : volunteers.length === 0 ? (
-            <div className="text-center py-15 px-5 text-text-light">
-              <h3>No volunteers found</h3>
-              <p>Try adjusting your filters.</p>
-            </div>
+            <EmptyState
+              title="No volunteers found"
+              body={
+                hasFilters
+                  ? 'No one matches these filters.'
+                  : 'No one has made their profile visible yet.'
+              }
+              action={
+                hasFilters ? undefined : (
+                  <Button href="/settings" variant="outline">
+                    Show your profile in the directory
+                  </Button>
+                )
+              }
+            />
           ) : (
             <div className={CARD_GRID_CLASSES}>
               {/* [test hook] card class used as test selector */}
