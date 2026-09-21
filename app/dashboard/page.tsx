@@ -28,7 +28,7 @@ import Skeleton from '@/components/Skeleton'
 function QuietNote({ updatedAt }: { updatedAt: string | Date | null }) {
   const days = daysQuiet(updatedAt)
   if (days === null) return null
-  return <div className="text-sm text-warning mt-1">No update for {days} days</div>
+  return <div className="text-sm text-warning-text mt-1">No update for {days} days</div>
 }
 
 const NOTIFICATIONS_PAGE_SIZE = 20

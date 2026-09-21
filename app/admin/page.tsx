@@ -125,7 +125,11 @@ export default function AdminLandingPage() {
                 { label: 'Approved', value: stats.volunteers.approved, color: 'text-success' },
                 { label: 'Pending', value: stats.volunteers.pending, color: undefined },
                 { label: 'Under Review', value: stats.volunteers.underReview, color: undefined },
-                { label: 'Needs Info', value: stats.volunteers.needsInfo, color: 'text-warning' },
+                {
+                  label: 'Needs Info',
+                  value: stats.volunteers.needsInfo,
+                  color: 'text-warning-text',
+                },
               ].map((row, i, arr) => (
                 <div
                   key={row.label}
@@ -172,7 +176,7 @@ export default function AdminLandingPage() {
                 <div className="text-text-light">Total Interests</div>
               </div>
               <div>
-                <div className="text-4xl font-bold text-warning mb-1">
+                <div className="text-4xl font-bold text-warning-text mb-1">
                   {stats.interests.pending}
                 </div>
                 <div className="text-text-light">Pending Response</div>

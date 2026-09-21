@@ -3,6 +3,7 @@
 import { useEffect, useState, FormEvent, Suspense } from 'react'
 import { useRequireAuth } from '@/lib/hooks/auth'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import Link from 'next/link'
 import Button from '@/components/Button'
 import Checkbox from '@/components/Checkbox'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
@@ -803,9 +804,9 @@ function SettingsPageContent() {
             <p className="text-text-light mb-4">
               Read our full data practices, GDPR rights, and third-party processor information.
             </p>
-            <Button href="/privacy" variant="outline">
+            <Link href="/privacy" className="underline font-medium">
               Read Privacy Policy
-            </Button>
+            </Link>
           </div>
         </div>
       )}

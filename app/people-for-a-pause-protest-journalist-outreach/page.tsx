@@ -280,7 +280,7 @@ function TaskCard({
           placeholder={`Perhaps pick up on other AI articles ${task.organisation} has covered, or whether ${name} has written about AI extinction risk.`}
         />
         {!intro.trim() && (
-          <p className="text-sm text-warning mt-1 mb-0">
+          <p className="text-sm text-warning-text mt-1 mb-0">
             No personal opening yet. The email starts straight after “Dear {task.firstName},” until
             you add one.
           </p>

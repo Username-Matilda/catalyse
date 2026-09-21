@@ -123,7 +123,7 @@ export default function BugReportDialog({ isOpen, onClose }: BugReportDialogProp
             <form onSubmit={handleSubmit}>
               {/* [test hook] toast-error class used as test selector */}
               {error && (
-                <div className="toast-error flex items-center gap-3 p-4 rounded-lg mb-4 bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5] dark:bg-[#7F1D1D] dark:text-[#FCA5A5] dark:border-[#DC2626]">
+                <div className="toast-error flex items-center gap-3 p-4 rounded-lg mb-4 bg-red-100 text-red-800 border border-red-300 dark:bg-red-900 dark:text-red-300 dark:border-red-600">
                   {error}
                 </div>
               )}

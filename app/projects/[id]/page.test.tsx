@@ -261,6 +261,12 @@ describe('project page — owner', () => {
       ).toBe('Not now'),
     )
 
+    // The drag handle and the task menu say what they are.
+    expect(screen.getByLabelText('Drag to reorder First task')).toBeInTheDocument()
+    expect(screen.getByLabelText('Task actions for First task')).toHaveAttribute(
+      'title',
+      'Task actions for First task',
+    )
     // Assign a task to the accepted helper via the task menu, then unassign it.
     await userEvent.click(screen.getByLabelText('Task actions for First task'))
     await userEvent.click(

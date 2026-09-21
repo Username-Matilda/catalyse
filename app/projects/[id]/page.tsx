@@ -155,6 +155,7 @@ function ActionMenu({
           setPos({ top: r.bottom + window.scrollY + 6, left: r.right + window.scrollX - 256 })
           setOpen((o) => !o)
         }}
+        title={ariaLabel}
         className="w-7 h-7 flex items-center justify-center rounded-md text-base font-bold text-brand-text bg-brand-bg hover:bg-brand-border transition-colors cursor-pointer"
       >
         ⋯
@@ -215,8 +216,9 @@ function SortableTaskItem({
       <span
         {...(draggable ? attributes : {})}
         {...(draggable ? listeners : {})}
-        className={`w-4 shrink-0 leading-none text-text-light text-center text-base opacity-60 group-hover:opacity-100 transition-opacity mt-1 ${draggable ? 'cursor-grab' : ''}`}
+        className={`w-4 shrink-0 leading-none text-text-light text-center text-base mt-1 ${draggable ? 'cursor-grab' : ''}`}
         title={draggable ? 'Drag to reorder' : undefined}
+        aria-label={draggable ? `Drag to reorder ${task.title}` : undefined}
       >
         {draggable ? '⠿' : ''}
       </span>

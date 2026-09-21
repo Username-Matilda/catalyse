@@ -204,7 +204,9 @@ export default function GanttItemPanel({
             "On plan". */}
         {p.baseline && (
           <Fact label="Variance">
-            <span className={p.startVarianceDays ? 'text-warning' : undefined}>{variance}</span>
+            <span className={p.startVarianceDays ? 'text-warning-text' : undefined}>
+              {variance}
+            </span>
           </Fact>
         )}
         {p.actual && (
