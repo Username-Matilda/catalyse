@@ -63,7 +63,9 @@ export default function TaskDetailPage({
       showToast(
         variables.data.status === TaskStatus.in_progress
           ? PROJECT_TASK_CLAIMED_MESSAGE
-          : 'Task updated!',
+          : variables.data.status === TaskStatus.completed
+            ? 'Task completed!'
+            : 'Task updated!',
         'success',
       )
       setIsEditing(false)
@@ -145,6 +147,10 @@ export default function TaskDetailPage({
     })
   }
 
+  function handleDoneTask() {
+    updateMutation.mutate({ projectId, taskId, data: { status: TaskStatus.completed } })
+  }
+
   if (loading || !user) return null
 
   if (isLoading) {
@@ -217,7 +223,10 @@ export default function TaskDetailPage({
           )}
           {task.startedAt && (
             <span className="text-text-light text-sm self-center">
-              Started {formatDate(task.startedAt)}
+              {task.status === TaskStatus.completed || task.assigneeHasPosted
+                ? 'Started'
+                : 'Claimed on'}{' '}
+              {formatDate(task.startedAt)}
               {task.completedAt && ` · finished ${formatDate(task.completedAt)}`}
             </span>
           )}
@@ -234,6 +243,19 @@ export default function TaskDetailPage({
               onClick={() => handleClaimTask(user.id)}
             >
               Claim
+            </Button>
+          </div>
+        )}
+
+        {task.status === TaskStatus.in_progress && task.assignedToId === user.id && (
+          <div className="mt-4">
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={updateMutation.isPending}
+              onClick={handleDoneTask}
+            >
+              Mark done
             </Button>
           </div>
         )}

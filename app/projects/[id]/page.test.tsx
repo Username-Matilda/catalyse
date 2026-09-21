@@ -58,12 +58,20 @@ describe('project page — visitor', () => {
       title: 'Open task',
       estimatedHours: 2,
       deadline: new Date('2020-01-01'),
+      sortOrder: 1,
+    })
+    await createTask(project.id, {
+      title: 'Ongoing task',
+      status: 'in_progress',
+      assigneeId: owner.id,
+      sortOrder: 2,
     })
     await createTask(project.id, {
       title: 'Done task',
       status: 'completed',
       featuredAsQuickTask: true,
       deadline: new Date('2030-01-01'),
+      sortOrder: 3,
     })
     await prisma.workItemComment.create({
       data: { workItemId: open.id, authorId: owner.id, content: 'c' },
@@ -83,8 +91,18 @@ describe('project page — visitor', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Claim' }))
     await screen.findByText(/Task claimed\. Post an update/)
     await waitFor(async () => expect((await row(open.id)).assigneeId).toBe(me.id))
+    const taskOrder = () =>
+      screen
+        .getAllByRole('link')
+        .filter((l) => /\/tasks\/\d+$/.test(l.getAttribute('href') ?? ''))
+        .map((l) => l.textContent)
+        .filter((t) => t?.endsWith(' task'))
+    expect(taskOrder()).toEqual(['Open task', 'Ongoing task', 'Done task'])
     await userEvent.click(await screen.findByRole('button', { name: 'Done' }))
     await screen.findByText('Task completed!')
+    // The finished task stays where it was; the server's order applies on the next load.
+    await waitFor(() => expect(screen.getAllByText('done')).toHaveLength(2))
+    expect(taskOrder()).toEqual(['Open task', 'Ongoing task', 'Done task'])
     expect(await screen.findByLabelText('Add a comment')).toBeInTheDocument()
 
     // Interest: the claim made me an accepted helper; withdrawing releases that, and the

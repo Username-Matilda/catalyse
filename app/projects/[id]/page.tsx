@@ -693,11 +693,18 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     (t) => t.startDate !== null || t.durationDays !== null,
   ).length
 
-  // Sync orderedTasks when project data loads/changes
+  // Sync orderedTasks when project data loads/changes. Rows already on screen keep their
+  // place, so a task that changes status does not slide under the cursor (the server puts
+  // finished tasks last); new tasks are added at the end and the next load uses server order.
   useEffect(() => {
     if (project?.tasks) {
+      const fresh = new Map(project.tasks.map((t) => [t.id, t]))
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setOrderedTasks(project.tasks)
+      setOrderedTasks((current) => {
+        const kept = current.flatMap((t) => fresh.get(t.id) ?? [])
+        const seen = new Set(kept.map((t) => t.id))
+        return [...kept, ...project.tasks.filter((t) => !seen.has(t.id))]
+      })
     }
   }, [project?.tasks])
 
@@ -1433,7 +1440,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                               chips={
                                 <>
                                   {task.status === TaskStatus.completed && (
-                                    <span className="text-success text-sm font-semibold">done</span>
+                                    <span className="text-success text-sm font-semibold">
+                                      <span aria-hidden="true">✓</span> <span>done</span>
+                                    </span>
                                   )}
                                   {task.featuredAsQuickTask && (
                                     <span

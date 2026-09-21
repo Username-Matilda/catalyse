@@ -1455,7 +1455,7 @@ export const projectsRouter = {
         Boolean(volunteer.isAdmin) ||
         !(await isBlockedFromClaiming(input.projectId, volunteer.id))
 
-      const [predecessorRows, siblingTasks] = await Promise.all([
+      const [predecessorRows, siblingTasks, assigneeUpdates] = await Promise.all([
         prisma.workItemDependency.findMany({
           where: { successorId: input.taskId },
           include: { predecessor: { select: { id: true, title: true } } },
@@ -1469,10 +1469,15 @@ export const projectsRouter = {
           select: { id: true, title: true },
           orderBy: { sortOrder: 'asc' },
         }),
+        prisma.workItemComment.count({
+          where: { workItemId: task.id, authorId: task.assigneeId ?? -1 },
+        }),
       ])
 
       return {
         ...serializeTask(task),
+        // The assignee has said something on the task, so it reads as under way.
+        assigneeHasPosted: assigneeUpdates > 0,
         projectTitle: project.title,
         projectOwnerId: project.assigneeId,
         canClaim,

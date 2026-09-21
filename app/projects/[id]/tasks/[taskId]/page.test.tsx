@@ -18,6 +18,35 @@ const mount = (
   )
 
 describe('task detail page', () => {
+  it('lets the assignee mark a task done, and reads Claimed on until they post an update', async () => {
+    const me = await createVolunteer()
+    const someoneElse = await createVolunteer()
+    const project = await createProject({ status: 'in_progress' })
+    const task = await createTask(project.id, {
+      title: 'Mine',
+      status: 'in_progress',
+      assigneeId: me.id,
+      startedAt: new Date('2030-01-02T00:00:00Z'),
+    })
+    await mount(project.id, task.id, someoneElse)
+    await screen.findByRole('heading', { name: 'Mine' })
+    expect(screen.queryByRole('button', { name: 'Mark done' })).toBeNull()
+
+    cleanup()
+    await mount(project.id, task.id, me)
+    await screen.findByText(/Claimed on 2 January 2030/)
+    await prisma.workItemComment.create({
+      data: { workItemId: task.id, authorId: me.id, content: 'Going well' },
+    })
+    cleanup()
+    await mount(project.id, task.id, me)
+    await screen.findByText(/Started 2 January 2030/)
+    await userEvent.click(screen.getByRole('button', { name: 'Mark done' }))
+    await screen.findByText('Task completed!')
+    await waitFor(async () => expect((await row(task.id)).status).toBe('completed'))
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Mark done' })).toBeNull())
+  })
+
   it('shows a task, lets a volunteer claim it, and the owner edit it and manage dependencies', async () => {
     const owner = await createVolunteer({ name: 'Ola Owner' })
     const me = await createVolunteer()
@@ -58,7 +87,7 @@ describe('task detail page', () => {
     await screen.findByText(/Task claimed\. Post an update/)
     await waitFor(async () => expect((await row(task.id)).assigneeId).toBe(me.id))
     await screen.findByText(`Assigned to ${me.name}`)
-    await screen.findByText(/Started/)
+    await screen.findByText(/Claimed on/)
 
     cleanup()
     await mount(project.id, task.id, owner)

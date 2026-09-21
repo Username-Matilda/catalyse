@@ -91,7 +91,24 @@ describe('projects.listTasks / getTask', () => {
       featuredAsQuickTask: true,
       assignedToName: null,
       createdByName: null,
+      assigneeHasPosted: false,
     })
+    // Only the assignee's own comments count as an update.
+    await prisma.workItem.update({ where: { id: b.id }, data: { assigneeId: me.id } })
+    await prisma.workItemComment.create({
+      data: { workItemId: b.id, authorId: owner.id, content: 'How is it going?' },
+    })
+    expect(
+      (await clientAs(me).projects.getTask({ projectId: project.id, taskId: b.id }))
+        .assigneeHasPosted,
+    ).toBe(false)
+    await prisma.workItemComment.create({
+      data: { workItemId: b.id, authorId: me.id, content: 'Started on it' },
+    })
+    expect(
+      (await clientAs(me).projects.getTask({ projectId: project.id, taskId: b.id }))
+        .assigneeHasPosted,
+    ).toBe(true)
     expect(view.predecessors).toEqual([
       expect.objectContaining({ predecessorId: a.id, predecessorTitle: a.title, lagDays: 0 }),
     ])
