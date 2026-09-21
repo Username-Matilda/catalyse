@@ -7,11 +7,11 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import Button from '@/components/Button'
 import CommentThread from '@/components/CommentThread'
 import { orpc } from '@/lib/orpc'
-import { useToast } from '@/lib/toast'
 import { ProjectList, statusBadgeClasses } from '@/components/ProjectCard'
 import { QUICK_TASK_STATUS_LABELS, TASK_STATUS_LABELS } from '@/lib/status-labels'
 import { daysQuiet } from '@/lib/staleness'
-import { QUICK_TASK_SUBMITTED_MESSAGE } from '@/lib/action-messages'
+import Linkify from '@/components/Linkify'
+import SubmitForReviewButton from '@/components/SubmitForReviewButton'
 import Tabs from '@/components/Tabs'
 import Modal from '@/components/ui/Modal'
 import type { InferRouterOutputs } from '@orpc/server'
@@ -43,7 +43,6 @@ const TAB_LABELS: Record<TabKey, string> = {
 
 export default function DashboardPage() {
   const { user, loading } = useRequireAuth()
-  const showToast = useToast()
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<TabKey>(() => {
     if (typeof window === 'undefined') return 'owned'
@@ -119,17 +118,6 @@ export default function DashboardPage() {
     1,
     Math.ceil(notificationsTotal / NOTIFICATIONS_PAGE_SIZE),
   )
-
-  const submitTaskMutation = useMutation({
-    ...orpc.quickTasks.submit.mutationOptions(),
-    onSuccess: () => {
-      showToast(QUICK_TASK_SUBMITTED_MESSAGE, 'success')
-      void queryClient.invalidateQueries({ queryKey: orpc.my.quickTasks.key() })
-    },
-    onError: (err: unknown) => {
-      showToast(err instanceof Error ? err.message : 'Failed to submit task', 'error')
-    },
-  })
 
   const readAllMutation = useMutation({
     ...orpc.notifications.readAll.mutationOptions(),
@@ -347,15 +335,11 @@ export default function DashboardPage() {
                 </div>
                 {expandedTasks.has(task.id) && (
                   <div className="mt-3">
-                    <p className="text-text-light text-sm mb-3">{task.description}</p>
+                    <p className="text-text-light text-sm mb-3 whitespace-pre-wrap">
+                      <Linkify text={task.description} />
+                    </p>
                     {task.status === QuickTaskStatus.in_progress && (
-                      <Button
-                        size="sm"
-                        disabled={submitTaskMutation.isPending}
-                        onClick={() => submitTaskMutation.mutate({ id: task.id })}
-                      >
-                        Mark as Complete
-                      </Button>
+                      <SubmitForReviewButton taskId={task.id} size="sm" />
                     )}
                     <div className="mt-3">
                       <strong className="text-sm">Comments</strong>

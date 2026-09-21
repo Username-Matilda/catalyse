@@ -105,7 +105,10 @@ describe('dashboard', () => {
     expect(screen.queryByText('Done one')).toBeNull()
     expect(screen.getByText('In progress')).toBeInTheDocument()
     await userEvent.click(screen.getByText('Quick one'))
-    await userEvent.click(screen.getByRole('button', { name: 'Mark as Complete' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Submit for review' }))
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Submit for review' }),
+    )
     await screen.findByText(/Submitted\. An admin will review it/)
     await waitFor(async () =>
       expect((await prisma.workItem.findUniqueOrThrow({ where: { id: qt.id } })).status).toBe(
@@ -299,7 +302,10 @@ describe('dashboard', () => {
     await renderApp(<DashboardPage />, { as: me, url: '/dashboard' })
     await userEvent.click(await screen.findByText('Fragile'))
     await prisma.workItem.delete({ where: { id: qt.id } })
-    await userEvent.click(screen.getByRole('button', { name: 'Mark as Complete' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Submit for review' }))
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Submit for review' }),
+    )
     await screen.findByText('Task not found or not assigned to you')
   })
 })

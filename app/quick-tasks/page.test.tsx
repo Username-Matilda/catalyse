@@ -23,6 +23,7 @@ describe('quick tasks — volunteer view', () => {
     const project = await createProject({ title: 'Host project' })
     const mine = await createQuickTask({
       title: 'Mine in progress',
+      description: 'Post drafts at https://example.org/drafts.',
       assigneeId: me.id,
       status: 'in_progress',
       skillId: skill.id,
@@ -69,7 +70,13 @@ describe('quick tasks — volunteer view', () => {
     ).toHaveTextContent('Not started')
     expect(within(browse).getByRole('link', { name: 'Host project' })).toBeInTheDocument()
 
-    await userEvent.click(within(myList).getByRole('button', { name: 'Mark as Complete' }))
+    expect(
+      myCard('Mine in progress').getByRole('link', { name: 'https://example.org/drafts' }),
+    ).toHaveAttribute('target', '_blank')
+    await userEvent.click(within(myList).getByRole('button', { name: 'Submit for review' }))
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Submit for review' }),
+    )
     await screen.findByText(/Submitted\. An admin will review it/)
     await waitFor(async () => expect((await row(mine.id)).status).toBe('under_review'))
 
@@ -115,8 +122,12 @@ describe('quick tasks — volunteer view', () => {
     await userEvent.click(within(cardFor('Gone')).getByRole('button', { name: 'Claim' }))
     await screen.findByText('Project or task not found')
     await prisma.workItem.delete({ where: { id: mine.id } })
-    await userEvent.click(screen.getByRole('button', { name: 'Mark as Complete' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Submit for review' }))
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Submit for review' }),
+    )
     await screen.findByText('Task not found or not assigned to you')
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 })
 

@@ -14,6 +14,7 @@ import { projectStatusVariant } from '@/components/ProjectCard'
 import { INTEREST_STATUS_LABELS } from '@/lib/status-labels'
 import { interestSentMessage, PROJECT_TASK_CLAIMED_MESSAGE } from '@/lib/action-messages'
 import CommentThread from '@/components/CommentThread'
+import Linkify from '@/components/Linkify'
 import Modal from '@/components/ui/Modal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
@@ -1168,7 +1169,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           <div className={`min-w-0 ${taskView === 'timeline' ? '' : 'lg:col-span-2'}`}>
             {/* Main project card */}
             <div className={card}>
-              <p className="whitespace-pre-wrap">{project.description}</p>
+              <p className="whitespace-pre-wrap">
+                <Linkify text={project.description} />
+              </p>
 
               {project.skills.length > 0 && (
                 <div className="mt-3">

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Button from '@/components/Button'
+import Linkify from '@/components/Linkify'
 import Tooltip from '@/components/Tooltip'
 import { formatDateShort, toDateInputValue, fromDateInputValue } from '@/lib/format-date'
 import { barFill, barTone, TONE_LABELS } from './palette'
@@ -177,7 +178,11 @@ export default function GanttItemPanel({
         )}
       </div>
 
-      {description && <p className="mb-3 text-sm whitespace-pre-wrap">{description}</p>}
+      {description && (
+        <p className="mb-3 text-sm whitespace-pre-wrap">
+          <Linkify text={description} />
+        </p>
+      )}
 
       {/* Derived facts only. Anything editable is stated once, by its own control below — the
           panel should never print a value and then offer the field for it half a screen away. */}

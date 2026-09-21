@@ -10,7 +10,9 @@ import Button from '@/components/Button'
 import { Badge } from '@/components/Badge'
 import CommentThread from '@/components/CommentThread'
 import { QUICK_TASK_STATUS_LABELS } from '@/lib/status-labels'
-import { QUICK_TASK_CLAIMED_MESSAGE, QUICK_TASK_SUBMITTED_MESSAGE } from '@/lib/action-messages'
+import Linkify from '@/components/Linkify'
+import SubmitForReviewButton from '@/components/SubmitForReviewButton'
+import { QUICK_TASK_CLAIMED_MESSAGE } from '@/lib/action-messages'
 import { QuickTaskStatus } from '@/generated/prisma/enums'
 
 const REVIEW_RATING_LABELS: Record<string, string> = {
@@ -36,18 +38,6 @@ export default function QuickTaskDetailPage({ params }: { params: Promise<{ id: 
   const { data: task, isLoading } = useQuery({
     ...orpc.quickTasks.get.queryOptions({ input: { id } }),
     enabled: !!user && !isNaN(id),
-  })
-
-  const submitMutation = useMutation({
-    ...orpc.quickTasks.submit.mutationOptions(),
-    onSuccess: () => {
-      showToast(QUICK_TASK_SUBMITTED_MESSAGE, 'success')
-      void queryClient.invalidateQueries({ queryKey: orpc.quickTasks.get.key() })
-      void queryClient.invalidateQueries({ queryKey: orpc.my.quickTasks.key() })
-    },
-    onError: (err: unknown) => {
-      showToast(err instanceof Error ? err.message : 'Failed to submit task', 'error')
-    },
   })
 
   const claimMutation = useMutation({
@@ -77,19 +67,22 @@ export default function QuickTaskDetailPage({ params }: { params: Promise<{ id: 
     return (
       <main className="container py-5">
         <p className="text-text-light">Task not found.</p>
-        <Link href="/quick-tasks">
-          <Button variant="secondary" size="sm">
-            Back to My Tasks
-          </Button>
-        </Link>
+        <Button href="/quick-tasks" variant="secondary" size="sm">
+          Back to Quick Tasks
+        </Button>
       </main>
     )
   }
 
+  const mine = task.assignedToId === user.id
+
   return (
     <main className="container py-5 pb-15">
-      <Link href="/quick-tasks" className="text-sm text-primary-text underline block mb-4">
-        ← Back to My Tasks
+      <Link
+        href={mine ? '/quick-tasks' : '/quick-tasks#browse-quick-tasks'}
+        className="text-sm text-primary-text underline block mb-4"
+      >
+        {mine ? '← Back to My Quick Tasks' : '← Back to Quick Tasks'}
       </Link>
 
       <div className="bg-surface rounded-xl shadow p-6 overflow-hidden wrap-break-word">
@@ -118,7 +111,11 @@ export default function QuickTaskDetailPage({ params }: { params: Promise<{ id: 
           )}
         </div>
 
-        {task.description && <p className="whitespace-pre-wrap mb-6">{task.description}</p>}
+        {task.description && (
+          <p className="whitespace-pre-wrap mb-6">
+            <Linkify text={task.description} />
+          </p>
+        )}
 
         {task.status === QuickTaskStatus.completed && (
           <div className="bg-brand-bg rounded-lg p-4 mb-4 border border-brand-border">
@@ -142,16 +139,11 @@ export default function QuickTaskDetailPage({ params }: { params: Promise<{ id: 
           </Button>
         )}
 
-        {task.status === QuickTaskStatus.in_progress && (
-          <Button
-            onClick={() => submitMutation.mutate({ id: task.id })}
-            disabled={submitMutation.isPending}
-          >
-            {submitMutation.isPending ? 'Submitting…' : 'Mark as Complete'}
-          </Button>
+        {mine && task.status === QuickTaskStatus.in_progress && (
+          <SubmitForReviewButton taskId={task.id} />
         )}
 
-        {task.status === QuickTaskStatus.under_review && (
+        {mine && task.status === QuickTaskStatus.under_review && (
           <p className="text-text-light text-sm">Your submission is awaiting review.</p>
         )}
       </div>

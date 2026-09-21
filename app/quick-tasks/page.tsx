@@ -11,11 +11,9 @@ import CommentThread from '@/components/CommentThread'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import VolunteerSelect from '@/components/VolunteerSelect'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
-import {
-  PROJECT_TASK_CLAIMED_MESSAGE,
-  QUICK_TASK_CLAIMED_MESSAGE,
-  QUICK_TASK_SUBMITTED_MESSAGE,
-} from '@/lib/action-messages'
+import Linkify from '@/components/Linkify'
+import SubmitForReviewButton from '@/components/SubmitForReviewButton'
+import { PROJECT_TASK_CLAIMED_MESSAGE, QUICK_TASK_CLAIMED_MESSAGE } from '@/lib/action-messages'
 import {
   QUICK_TASK_STATUS_LABELS,
   QUICK_TASK_STATUS_VARIANTS,
@@ -117,7 +115,11 @@ function QuickTaskCard({
       {meta && meta.some(Boolean) && (
         <div className="flex gap-2 mb-3 flex-wrap items-center">{meta}</div>
       )}
-      {description && <p className="whitespace-pre-wrap mb-4">{description}</p>}
+      {description && (
+        <p className="whitespace-pre-wrap mb-4">
+          <Linkify text={description} />
+        </p>
+      )}
       {children}
     </div>
   )
@@ -144,17 +146,6 @@ function VolunteerQuickTasksView({ user }: { user: ApprovedUser }) {
 
   const { data: availableTasks = [], isLoading: loadingAvailable } = useQuery({
     ...orpc.quickTasks.available.queryOptions(),
-  })
-
-  const submitMutation = useMutation({
-    ...orpc.quickTasks.submit.mutationOptions(),
-    onSuccess: () => {
-      showToast(QUICK_TASK_SUBMITTED_MESSAGE, 'success')
-      void queryClient.invalidateQueries({ queryKey: orpc.my.quickTasks.key() })
-    },
-    onError: (err: unknown) => {
-      showToast(err instanceof Error ? err.message : 'Failed to submit task', 'error')
-    },
   })
 
   const invalidateAvailable = () => {
@@ -238,14 +229,7 @@ function VolunteerQuickTasksView({ user }: { user: ApprovedUser }) {
                 ]}
               >
                 {task.status === QuickTaskStatus.in_progress && (
-                  <Button
-                    onClick={() => submitMutation.mutate({ id: task.id })}
-                    disabled={submitMutation.isPending && submitMutation.variables?.id === task.id}
-                  >
-                    {submitMutation.isPending && submitMutation.variables?.id === task.id
-                      ? 'Submitting…'
-                      : 'Mark as Complete'}
-                  </Button>
+                  <SubmitForReviewButton taskId={task.id} />
                 )}
               </QuickTaskCard>
             ))

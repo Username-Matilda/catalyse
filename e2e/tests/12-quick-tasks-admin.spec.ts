@@ -60,10 +60,8 @@ async function submitQuickTask(
   const taskCard = banner.getByRole('article').filter({ hasText: taskTitle })
   await expect(taskCard).toBeVisible({ timeout: 10_000 })
   await taskCard.getByText(taskTitle, { exact: true }).click()
-  await expect(taskCard.getByRole('button', { name: 'Mark as Complete' })).toBeVisible({
-    timeout: 10_000,
-  })
-  await taskCard.getByRole('button', { name: 'Mark as Complete' }).click()
+  await taskCard.getByRole('button', { name: 'Submit for review' }).click()
+  await volunteerPage.getByRole('dialog').getByRole('button', { name: 'Submit for review' }).click()
   await expect(getAlert(volunteerPage)).toContainText('Submitted. An admin will review it', {
     timeout: 10_000,
   })
@@ -235,10 +233,11 @@ test.describe('Quick Tasks (admin)', () => {
     const taskCard = banner.getByRole('article').filter({ hasText: taskTitle })
     await expect(taskCard).toBeVisible({ timeout: 10_000 })
     await taskCard.getByText(taskTitle, { exact: true }).click()
-    await expect(taskCard.getByRole('button', { name: 'Mark as Complete' })).toBeVisible({
-      timeout: 10_000,
-    })
-    await taskCard.getByRole('button', { name: 'Mark as Complete' }).click()
+    await taskCard.getByRole('button', { name: 'Submit for review' }).click()
+    await volunteer.page
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Submit for review' })
+      .click()
     await expect(getAlert(volunteer.page)).toContainText('Submitted. An admin will review it', {
       timeout: 10_000,
     })

@@ -9,6 +9,7 @@ import Button from '@/components/Button'
 import Checkbox from '@/components/Checkbox'
 import { Badge } from '@/components/Badge'
 import CommentThread from '@/components/CommentThread'
+import Linkify from '@/components/Linkify'
 import { useToast } from '@/lib/toast'
 import { formatDate, toDateInputValue, fromDateInputValue } from '@/lib/format-date'
 import { TaskStatus } from '@/generated/prisma/enums'
@@ -232,7 +233,11 @@ export default function TaskDetailPage({
           )}
         </div>
 
-        {task.description && <p className="whitespace-pre-wrap mb-0">{task.description}</p>}
+        {task.description && (
+          <p className="whitespace-pre-wrap mb-0">
+            <Linkify text={task.description} />
+          </p>
+        )}
 
         {task.status === TaskStatus.open && task.canClaim && (
           <div className="mt-4">
