@@ -323,7 +323,7 @@ describe('ProjectEditor — editing an existing project', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
     await userEvent.click(screen.getByRole('button', { name: 'Submit for Review' }))
     await waitFor(async () => expect((await row(draft.id)).status).toBe('pending_review'))
-    await waitFor(() => expect(navigation.push).toHaveBeenCalledWith('/dashboard#tab-proposed'), {
+    await waitFor(() => expect(navigation.push).toHaveBeenCalledWith('/dashboard#tab-projects'), {
       timeout: 3000,
     })
   })

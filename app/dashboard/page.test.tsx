@@ -21,18 +21,19 @@ describe('dashboard', () => {
     expect(screen.getByText(/Stay in the loop/)).toBeInTheDocument()
     await userEvent.click(screen.getByLabelText('Dismiss'))
     expect(screen.queryByText(/Stay in the loop/)).toBeNull()
-    expect(
-      screen.getByText(/haven't got any projects|no projects|You don't own/i),
-    ).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('tab', { name: 'Interested Projects' }))
-    expect(screen.getByText(/haven't expressed interest/)).toBeInTheDocument()
-    expect(window.location.hash).toBe('#tab-interests')
-    await userEvent.click(screen.getByRole('tab', { name: 'Proposed Projects' }))
-    await userEvent.click(screen.getByRole('tab', { name: 'Suggested for You' }))
+    // Nothing of their own and nothing unread: discovery is all there is to show.
+    expect(screen.getByRole('tab', { name: 'Suggested for You' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
     expect(screen.getByText(/No suggested projects/)).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('tab', { name: 'Owned Projects' }))
-    expect(window.location.hash).toBe('')
-    expect(document.title).toBe('Catalyse | Owned Projects')
+    await userEvent.click(screen.getByRole('tab', { name: 'Applications' }))
+    expect(screen.getByText(/haven't applied to any projects/)).toBeInTheDocument()
+    expect(window.location.hash).toBe('#tab-applications')
+    await userEvent.click(screen.getByRole('tab', { name: 'My projects' }))
+    expect(screen.getByText(/don't own or help on any projects/)).toBeInTheDocument()
+    expect(window.location.hash).toBe('#tab-projects')
+    expect(document.title).toBe('Catalyse | My projects')
 
     cleanup()
     const needsInfo = await createVolunteer({ approvalStatus: 'needs_info' })
@@ -40,7 +41,7 @@ describe('dashboard', () => {
     expect(await screen.findByRole('link', { name: 'Update Application' })).toBeInTheDocument()
   })
 
-  it('lists owned, interested, proposed and suggested projects, and quick tasks', async () => {
+  it('puts my projects first, then applications, notifications and suggestions', async () => {
     const skill = await createSkill()
     const me = await createVolunteer({
       emailDigest: 'match',
@@ -53,14 +54,20 @@ describe('dashboard', () => {
       status: 'in_progress',
     })
     const proposed = await createProject({ title: 'Proposed one', creatorId: me.id })
-    const interested = await createProject({
-      title: 'Interested one',
+    const helping = await createProject({ title: 'Helping one', assigneeId: other.id })
+    const applied = await createProject({
+      title: 'Applied one',
       assigneeId: other.id,
       isSeekingHelp: true,
       status: 'in_progress',
     })
-    await prisma.workItemInterest.create({
-      data: { workItemId: interested.id, volunteerId: me.id, interestType: 'want_to_contribute' },
+    const turnedDown = await createProject({ title: 'Declined one', assigneeId: other.id })
+    await prisma.workItemInterest.createMany({
+      data: [
+        { workItemId: helping.id, status: 'accepted' as const },
+        { workItemId: applied.id, status: 'pending' as const },
+        { workItemId: turnedDown.id, status: 'declined' as const },
+      ].map((i) => ({ ...i, volunteerId: me.id, interestType: 'want_to_contribute' })),
     })
     const suggested = await createProject({
       title: 'Suggested one',
@@ -73,18 +80,34 @@ describe('dashboard', () => {
       skillId: skill.id,
     })
     await createQuickTask({ title: 'Done one', assigneeId: me.id, status: 'completed' })
-    await renderApp(<DashboardPage />, { as: me, url: '/dashboard#tab-suggested' })
-    await screen.findByRole('link', { name: 'Suggested one' })
-    expect(screen.getByRole('tab', { name: 'Suggested for You' })).toHaveAttribute(
+    // An unknown tab in the hash falls back to the default, which is my own work.
+    await renderApp(<DashboardPage />, { as: me, url: '/dashboard#tab-junk' })
+    await screen.findByRole('link', { name: 'Owned one' })
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual([
+      'My projects3',
+      'Applications2',
+      'Notifications',
+      'Suggested for You1',
+    ])
+    expect(screen.getByRole('tab', { name: /^My projects/ })).toHaveAttribute(
       'aria-selected',
       'true',
     )
-    await userEvent.click(screen.getByRole('tab', { name: 'Owned Projects' }))
-    expect(screen.getByRole('link', { name: 'Owned one' })).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('tab', { name: 'Interested Projects' }))
-    expect(screen.getByRole('link', { name: 'Interested one' })).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('tab', { name: 'Proposed Projects' }))
-    expect(screen.getByRole('link', { name: 'Proposed one' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Helping one' })).toBeInTheDocument()
+    const proposedSection = screen.getByRole('region', { name: 'Projects you proposed' })
+    expect(within(proposedSection).getByRole('link', { name: 'Proposed one' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Applied one' })).toBeNull()
+
+    await userEvent.click(screen.getByRole('tab', { name: /^Applications/ }))
+    const cardFor = (title: string) =>
+      screen.getByRole('link', { name: title }).closest('.card') as HTMLElement
+    expect(within(cardFor('Applied one')).getByText('Applied')).toBeInTheDocument()
+    expect(within(cardFor('Declined one')).getByText('Declined')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Helping one' })).toBeNull()
+
+    await userEvent.click(screen.getByRole('tab', { name: /^Suggested for You/ }))
+    expect(screen.getByRole('link', { name: 'Suggested one' })).toBeInTheDocument()
+    expect(window.location.hash).toBe('#tab-suggested')
 
     // The hash can also change externally (the header's tab buttons).
     act(() => {
@@ -96,7 +119,7 @@ describe('dashboard', () => {
       window.location.hash = ''
       window.dispatchEvent(new HashChangeEvent('hashchange'))
     })
-    expect(screen.getByRole('tab', { name: 'Owned Projects' })).toHaveAttribute(
+    expect(screen.getByRole('tab', { name: /^My projects/ })).toHaveAttribute(
       'aria-selected',
       'true',
     )
@@ -119,6 +142,30 @@ describe('dashboard', () => {
     void owned
     void proposed
     void suggested
+  })
+
+  it('opens on Applications, then Notifications, when there is no project of my own', async () => {
+    const me = await createVolunteer()
+    const project = await createProject({ title: 'Waiting on it' })
+    const interest = await prisma.workItemInterest.create({
+      data: { workItemId: project.id, volunteerId: me.id, interestType: 'want_to_contribute' },
+    })
+    await renderApp(<DashboardPage />, { as: me, url: '/dashboard' })
+    await screen.findByRole('link', { name: 'Waiting on it' })
+    expect(screen.getByRole('tab', { name: /^Applications/ })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    cleanup()
+
+    await prisma.workItemInterest.delete({ where: { id: interest.id } })
+    await prisma.notification.create({ data: { volunteerId: me.id, type: 'x', title: 'Hello' } })
+    await renderApp(<DashboardPage />, { as: me, url: '/dashboard' })
+    await screen.findByText('Hello')
+    expect(screen.getByRole('tab', { name: /^Notifications/ })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
   })
 
   it('pages, filters and marks notifications', async () => {

@@ -8,15 +8,18 @@ import Button from '@/components/Button'
 import CommentThread from '@/components/CommentThread'
 import { orpc } from '@/lib/orpc'
 import { ProjectList, statusBadgeClasses } from '@/components/ProjectCard'
-import { QUICK_TASK_STATUS_LABELS, TASK_STATUS_LABELS } from '@/lib/status-labels'
+import {
+  INTEREST_STATUS_LABELS,
+  QUICK_TASK_STATUS_LABELS,
+  TASK_STATUS_LABELS,
+} from '@/lib/status-labels'
+import { Badge } from '@/components/Badge'
 import { daysQuiet } from '@/lib/staleness'
 import Linkify from '@/components/Linkify'
 import SubmitForReviewButton from '@/components/SubmitForReviewButton'
 import Tabs from '@/components/Tabs'
 import Modal from '@/components/ui/Modal'
-import type { InferRouterOutputs } from '@orpc/server'
-import type { AppRouter } from '@/server/router'
-import { ApprovalStatus, QuickTaskStatus } from '@/generated/prisma/enums'
+import { ApprovalStatus, InterestStatus, QuickTaskStatus } from '@/generated/prisma/enums'
 import { ApprovalStepper } from '@/components/ApprovalStepper'
 import { friendlyDate } from '@/lib/format-date'
 
@@ -29,27 +32,39 @@ function QuietNote({ updatedAt }: { updatedAt: string | Date | null }) {
 const NOTIFICATIONS_PAGE_SIZE = 20
 type NotificationFilter = 'all' | 'unread' | 'read'
 
-type Interest = InferRouterOutputs<AppRouter>['dashboard']['get']['myInterests'][number]
-
-type TabKey = 'owned' | 'interests' | 'proposed' | 'suggested' | 'notifications'
+// Current work first, discovery last.
+const TAB_ORDER = ['projects', 'applications', 'notifications', 'suggested'] as const
+type TabKey = (typeof TAB_ORDER)[number]
 
 const TAB_LABELS: Record<TabKey, string> = {
-  owned: 'Owned Projects',
-  interests: 'Interested Projects',
-  proposed: 'Proposed Projects',
-  suggested: 'Suggested for You',
+  projects: 'My projects',
+  applications: 'Applications',
   notifications: 'Notifications',
+  suggested: 'Suggested for You',
+}
+
+/** The tab a `#tab-<key>` hash asks for, or null when it names none. */
+function tabFromHash(hash: string): TabKey | null {
+  const key = hash.startsWith('#tab-') ? hash.slice('#tab-'.length) : ''
+  return TAB_ORDER.find((t) => t === key) ?? null
+}
+
+function TabCount({ count }: { count: number }) {
+  if (count === 0) return null
+  return (
+    <span className="bg-accent text-secondary-dark text-xs px-2 py-0.5 rounded-full ml-1 dark:bg-gray-700 dark:text-gray-300">
+      {count}
+    </span>
+  )
 }
 
 export default function DashboardPage() {
   const { user, loading } = useRequireAuth()
   const queryClient = useQueryClient()
-  const [activeTab, setActiveTab] = useState<TabKey>(() => {
-    if (typeof window === 'undefined') return 'owned'
-    const hash = window.location.hash
-    if (hash.startsWith('#tab-')) return (hash.slice('#tab-'.length) as TabKey) || 'owned'
-    return 'owned'
-  })
+  // The tab the hash names; without one the page picks a default from what the volunteer has.
+  const [requestedTab, setRequestedTab] = useState<TabKey | null>(() =>
+    typeof window === 'undefined' ? null : tabFromHash(window.location.hash),
+  )
   const [expandedTasks, setExpandedTasks] = useState<Set<number>>(new Set())
   const [emailBannerDismissed, setEmailBannerDismissed] = useState(false)
   const [notificationFilter, setNotificationFilter] = useState<NotificationFilter>('all')
@@ -63,11 +78,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     function syncFromHash() {
-      const hash = window.location.hash
-      const tab: TabKey = hash.startsWith('#tab-')
-        ? (hash.slice('#tab-'.length) as TabKey) || 'owned'
-        : 'owned'
-      setActiveTab(tab)
+      setRequestedTab(tabFromHash(window.location.hash))
     }
     // Re-read the hash on mount too: Next.js client-side navigation does not
     // reliably reflect the new hash in window.location.hash by the time this
@@ -77,17 +88,38 @@ export default function DashboardPage() {
     return () => window.removeEventListener('hashchange', syncFromHash)
   }, [])
 
+  const { data, isPending: loadingData } = useQuery({
+    ...orpc.dashboard.get.queryOptions(),
+    enabled: !!user,
+  })
+
+  const unreadCount = data?.unreadNotificationCount ?? 0
+  const ownedProjects = data?.ownedProjects ?? []
+  const ownedIds = new Set(ownedProjects.map((p) => p.id))
+  const interests = data?.myInterests ?? []
+  const myProjects = [
+    ...ownedProjects,
+    ...interests.filter((i) => i.interestStatus === InterestStatus.accepted && !ownedIds.has(i.id)),
+  ]
+  const proposedProjects = data?.proposedProjects ?? []
+  const applications = interests.filter((i) => i.interestStatus !== InterestStatus.accepted)
+  const suggestedProjects = data?.suggestedProjects ?? []
+  const defaultTab: TabKey =
+    myProjects.length + proposedProjects.length > 0
+      ? 'projects'
+      : applications.length > 0
+        ? 'applications'
+        : unreadCount > 0
+          ? 'notifications'
+          : 'suggested'
+  const activeTab = requestedTab ?? defaultTab
+
   useEffect(() => {
     document.title = `Catalyse | ${TAB_LABELS[activeTab]}`
     return () => {
       document.title = 'Catalyse | Dashboard'
     }
   }, [activeTab])
-
-  const { data, isPending: loadingData } = useQuery({
-    ...orpc.dashboard.get.queryOptions(),
-    enabled: !!user,
-  })
 
   const { data: quickTasksRaw = [] } = useQuery({
     ...orpc.my.quickTasks.queryOptions(),
@@ -153,13 +185,8 @@ export default function DashboardPage() {
   }
 
   function handleTabClick(tab: TabKey) {
-    setActiveTab(tab)
-    if (tab === 'owned') {
-      history.replaceState(null, '', '/dashboard')
-      window.dispatchEvent(new HashChangeEvent('hashchange'))
-    } else {
-      window.location.hash = `tab-${tab}`
-    }
+    setRequestedTab(tab)
+    window.location.hash = `tab-${tab}`
   }
 
   if (loading || !user) return null
@@ -174,7 +201,6 @@ export default function DashboardPage() {
     )
   }
 
-  const unreadCount = data?.unreadNotificationCount ?? 0
   const welcome = welcomeDismissed ? null : (data?.approvalWelcome ?? null)
 
   function dismissWelcome(notificationId: number) {
@@ -190,10 +216,24 @@ export default function DashboardPage() {
   const showEmailBanner = !user.emailDigest && !emailBannerDismissed
 
   const tabs: { key: TabKey; label: React.ReactNode; 'data-tab'?: string }[] = [
-    { key: 'owned', label: TAB_LABELS.owned },
-    { key: 'interests', label: TAB_LABELS.interests },
-    { key: 'proposed', label: TAB_LABELS.proposed },
-    { key: 'suggested', label: TAB_LABELS.suggested },
+    {
+      key: 'projects',
+      label: (
+        <>
+          {TAB_LABELS.projects}
+          <TabCount count={myProjects.length + proposedProjects.length} />
+        </>
+      ),
+    },
+    {
+      key: 'applications',
+      label: (
+        <>
+          {TAB_LABELS.applications}
+          <TabCount count={applications.length} />
+        </>
+      ),
+    },
     {
       key: 'notifications',
       'data-tab': 'notifications',
@@ -205,6 +245,15 @@ export default function DashboardPage() {
               {unreadCount}
             </span>
           )}
+        </>
+      ),
+    },
+    {
+      key: 'suggested',
+      label: (
+        <>
+          {TAB_LABELS.suggested}
+          <TabCount count={suggestedProjects.length} />
         </>
       ),
     },
@@ -378,44 +427,45 @@ export default function DashboardPage() {
         <Tabs tabs={tabs} activeTab={activeTab} onChange={handleTabClick} />
 
         {/* Tab content */}
-        {activeTab === 'owned' && (
+        {activeTab === 'projects' && (
           <div>
-            {!data?.ownedProjects.length ? (
-              <p className="text-text-light">You don&apos;t own any projects yet.</p>
+            {myProjects.length === 0 ? (
+              <p className="text-text-light">You don&apos;t own or help on any projects yet.</p>
             ) : (
-              <ProjectList projects={data.ownedProjects} />
+              <ProjectList projects={myProjects} />
+            )}
+            {proposedProjects.length > 0 && (
+              <section aria-labelledby="proposed-projects" className="mt-8">
+                <h2 id="proposed-projects" className="text-lg">
+                  Projects you proposed
+                </h2>
+                <ProjectList projects={proposedProjects} />
+              </section>
             )}
           </div>
         )}
 
-        {activeTab === 'interests' && (
+        {activeTab === 'applications' && (
           <div>
-            {!data?.myInterests.length ? (
-              <p className="text-text-light">
-                You haven&apos;t expressed interest in any projects yet.
-              </p>
+            {applications.length === 0 ? (
+              <p className="text-text-light">You haven&apos;t applied to any projects yet.</p>
             ) : (
               <ProjectList
-                projects={data.myInterests as unknown as Interest[]}
+                projects={applications}
                 userSkillIds={new Set(user.skills?.map((s) => s.id) ?? [])}
+                badgeFor={(a) => (
+                  <Badge variant="info">
+                    {INTEREST_STATUS_LABELS[a.interestStatus] ?? a.interestStatus}
+                  </Badge>
+                )}
               />
-            )}
-          </div>
-        )}
-
-        {activeTab === 'proposed' && (
-          <div>
-            {!data?.proposedProjects.length ? (
-              <p className="text-text-light">You haven&apos;t proposed any projects yet.</p>
-            ) : (
-              <ProjectList projects={data.proposedProjects} />
             )}
           </div>
         )}
 
         {activeTab === 'suggested' && (
           <div>
-            {!data?.suggestedProjects.length ? (
+            {suggestedProjects.length === 0 ? (
               <p className="text-text-light">
                 No suggested projects matching your skills right now.
               </p>
@@ -425,7 +475,7 @@ export default function DashboardPage() {
                   Based on your skills, these projects might be a good fit:
                 </p>
                 <ProjectList
-                  projects={data.suggestedProjects}
+                  projects={suggestedProjects}
                   userSkillIds={new Set(user.skills?.map((s) => s.id) ?? [])}
                 />
               </>

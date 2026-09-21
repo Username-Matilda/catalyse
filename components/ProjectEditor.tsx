@@ -194,7 +194,7 @@ export default function ProjectEditor(props: ProjectEditorProps) {
       setShowPublishModal(false)
       queryClient.invalidateQueries({ queryKey: orpc.projects.getById.key() })
       invalidateMyDrafts()
-      const destination = isOrgDraft ? `/projects/${variables.id}` : '/dashboard#tab-proposed'
+      const destination = isOrgDraft ? `/projects/${variables.id}` : '/dashboard#tab-projects'
       setTimeout(() => router.push(destination), 1500)
     },
     onError: (err: unknown) => {

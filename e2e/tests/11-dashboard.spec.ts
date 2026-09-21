@@ -34,20 +34,17 @@ test.describe('Dashboard', () => {
       timeout: 10_000,
     })
 
-    // Owned Projects tab is active by default
-    await expect(volunteer.page.getByRole('tab', { name: 'Owned Projects' })).toHaveClass(
-      /\bactive\b/,
-    )
-
-    // Interested Projects tab
-    await volunteer.page.getByRole('tab', { name: 'Interested Projects' }).click()
-    await expect(volunteer.page.getByRole('tab', { name: 'Interested Projects' })).toHaveClass(
-      /\bactive\b/,
-    )
-
-    // Suggested for You tab
-    await volunteer.page.getByRole('tab', { name: 'Suggested for You' }).click()
+    // A new volunteer has no projects, applications or unread notifications, so the
+    // dashboard opens on suggestions.
     await expect(volunteer.page.getByRole('tab', { name: 'Suggested for You' })).toHaveClass(
+      /\bactive\b/,
+    )
+
+    await volunteer.page.getByRole('tab', { name: 'My projects' }).click()
+    await expect(volunteer.page.getByRole('tab', { name: 'My projects' })).toHaveClass(/\bactive\b/)
+
+    await volunteer.page.getByRole('tab', { name: 'Applications' }).click()
+    await expect(volunteer.page.getByRole('tab', { name: 'Applications' })).toHaveClass(
       /\bactive\b/,
     )
   })

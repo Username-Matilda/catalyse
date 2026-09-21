@@ -75,11 +75,14 @@ export function ProjectCard({
   project: p,
   userSkillIds = new Set(),
   action,
+  badge,
   showProposer = false,
 }: {
   project: Project
   userSkillIds?: Set<number>
   action?: React.ReactNode
+  /** An extra badge beside the status, such as where the viewer's application stands. */
+  badge?: React.ReactNode
   /**
    * Show who proposed the project alongside whether it already has an owner. Admin-only
    * by convention: volunteers browsing need to know a project has no owner yet, not who
@@ -110,6 +113,7 @@ export function ProjectCard({
         {p.isSeekingOwner && <Badge variant="caution">Seeking Owner</Badge>}
         {p.isSeekingHelp && <Badge variant="caution">Seeking Help</Badge>}
         {p.needsTasks && <Badge variant="warning">Needs Tasks</Badge>}
+        {badge}
       </div>
       <div className="row-start-3 flex items-center gap-3 flex-wrap text-xs text-text-light self-start">
         {showProposer ? (
@@ -186,16 +190,18 @@ export function ProjectCard({
 export const CARD_GRID_CLASSES = 'grid grid-cols-2 gap-x-5 gap-y-5 max-[600px]:grid-cols-1'
 export const CARD_GRID_SINGLE_CLASSES = 'flex flex-col gap-5'
 
-export function ProjectList({
+export function ProjectList<P extends Project>({
   projects,
   userSkillIds = new Set(),
   single = false,
   showProposer = false,
+  badgeFor,
 }: {
-  projects: Project[]
+  projects: P[]
   userSkillIds?: Set<number>
   single?: boolean
   showProposer?: boolean
+  badgeFor?: (project: P) => React.ReactNode
 }) {
   return (
     <div className={single ? CARD_GRID_SINGLE_CLASSES : CARD_GRID_CLASSES}>
@@ -205,6 +211,7 @@ export function ProjectList({
           project={p}
           userSkillIds={userSkillIds}
           showProposer={showProposer}
+          badge={badgeFor?.(p)}
         />
       ))}
     </div>
