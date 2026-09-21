@@ -66,7 +66,7 @@ test.describe('GDPR & Privacy', () => {
     if (vol2SignupResult.status !== 200)
       throw new Error(`vol2 signup failed: ${JSON.stringify(vol2SignupResult.body)}`)
     const { id: vol2Id, token: vol2Token } = vol2SignupResult.body
-    await approveVolunteer(baseUrl, vol2Id)
+    await approveVolunteer(baseUrl, vol2Id, vol2Token)
 
     // Admin creates a project and transfers ownership to vol2 so it has a contactable owner
     const contactProjectId = await adminCreateProjectViaApi(
@@ -162,7 +162,7 @@ test.describe('GDPR & Privacy', () => {
     if (signupResult.status !== 200)
       throw new Error(`vol2 signup failed: ${JSON.stringify(signupResult.body)}`)
     const { id: vol2Id, token: vol2Token } = signupResult.body
-    await approveVolunteer(baseUrl, vol2Id)
+    await approveVolunteer(baseUrl, vol2Id, vol2Token)
     const ctx2 = await browser.newContext()
     await ctx2.addInitScript((token: string) => {
       localStorage.setItem('authToken', token)

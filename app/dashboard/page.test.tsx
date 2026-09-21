@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { screen, waitFor, act, cleanup } from '@testing-library/react'
+import { screen, waitFor, act, cleanup, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { prisma } from '@/lib/prisma'
 import { createVolunteer, createProject, createQuickTask, createSkill } from '@/test/factories'
@@ -196,6 +196,50 @@ describe('dashboard', () => {
     await waitFor(() => expect(screen.queryByText('Fresh')).toBeNull())
     expect(screen.queryByRole('heading', { name: 'Unread' })).toBeNull()
     expect(screen.queryByRole('heading', { name: 'Earlier' })).toBeNull()
+  })
+
+  it('welcomes an approved volunteer once, pointing at projects or email confirmation', async () => {
+    const me = await createVolunteer({ emailConfirmed: false })
+    const note = () =>
+      prisma.notification.findFirstOrThrow({
+        where: { volunteerId: me.id, type: 'application_approved' },
+      })
+    await prisma.notification.create({
+      data: { volunteerId: me.id, type: 'application_approved', title: 'Approved' },
+    })
+    await renderApp(<DashboardPage />, { as: me, url: '/dashboard' })
+    const dialog = await screen.findByRole('dialog', { name: /You're approved/ })
+    expect(within(dialog).getByRole('link', { name: 'Confirm your email' })).toHaveAttribute(
+      'href',
+      '/verify-email',
+    )
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Not now' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    await waitFor(async () => expect((await note()).readAt).not.toBeNull())
+
+    // Read, so a later visit does not show it again.
+    cleanup()
+    await renderApp(<DashboardPage />, { as: me, url: '/dashboard' })
+    await screen.findByRole('heading', { name: /Welcome back/ })
+    expect(screen.queryByRole('dialog')).toBeNull()
+
+    // A confirmed volunteer is sent to the projects, and following the link dismisses it.
+    await prisma.volunteer.update({ where: { id: me.id }, data: { emailConfirmed: true } })
+    await prisma.notification.update({ where: { id: (await note()).id }, data: { readAt: null } })
+    cleanup()
+    await renderApp(<DashboardPage />, { as: me, url: '/dashboard' })
+    const confirmed = await screen.findByRole('dialog', { name: /You're approved/ })
+    await userEvent.click(within(confirmed).getByRole('link', { name: 'Browse projects' }))
+    await waitFor(async () => expect((await note()).readAt).not.toBeNull())
+
+    // Closing the dialog any other way counts as dismissing it too.
+    await prisma.notification.update({ where: { id: (await note()).id }, data: { readAt: null } })
+    cleanup()
+    await renderApp(<DashboardPage />, { as: me, url: '/dashboard' })
+    await screen.findByRole('dialog', { name: /You're approved/ })
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).toBeNull()
+    await waitFor(async () => expect((await note()).readAt).not.toBeNull())
   })
 
   it('surfaces a failed quick-task submission', async () => {

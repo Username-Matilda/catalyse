@@ -60,7 +60,7 @@ async function signupApprovedVolunteer(
     emailVerificationToken?: string
   }
   if (emailVerificationToken) await confirmVolunteerEmail(baseUrl, emailVerificationToken)
-  await approveVolunteer(baseUrl, id)
+  await approveVolunteer(baseUrl, id, token)
   return { id, token, name: person.name }
 }
 
@@ -176,7 +176,7 @@ test.describe('Task Reordering', () => {
       emailVerificationToken,
     } = signup.body as { id: number; token: string; emailVerificationToken?: string }
     if (emailVerificationToken) await confirmVolunteerEmail(baseUrl, emailVerificationToken)
-    await approveVolunteer(baseUrl, volId)
+    await approveVolunteer(baseUrl, volId, volToken)
     const volApi = createApiClient(baseUrl, volToken)
 
     const reorder = await volApi.projects.reorderTasks({

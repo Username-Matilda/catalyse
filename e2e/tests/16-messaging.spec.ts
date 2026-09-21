@@ -37,7 +37,7 @@ test.describe('Messaging', () => {
     if (senderSignupResult.status !== 200)
       throw new Error(`Sender signup failed: ${JSON.stringify(senderSignupResult.body)}`)
     const { id: senderId, token: senderToken } = senderSignupResult.body
-    await approveVolunteer(baseUrl, senderId)
+    await approveVolunteer(baseUrl, senderId, senderToken)
     const senderCtx = await browser.newContext()
     await senderCtx.addInitScript((token: string) => {
       localStorage.setItem('authToken', token)
@@ -108,7 +108,7 @@ test.describe('Messaging', () => {
     if (senderSignupResult.status !== 200)
       throw new Error(`Sender signup failed: ${JSON.stringify(senderSignupResult.body)}`)
     const { id: senderId, token: senderToken } = senderSignupResult.body
-    await approveVolunteer(baseUrl, senderId)
+    await approveVolunteer(baseUrl, senderId, senderToken)
     const senderCtx = await browser.newContext()
     await senderCtx.addInitScript((token: string) => {
       localStorage.setItem('authToken', token)

@@ -373,7 +373,7 @@ test.describe('Project Tasks', () => {
       emailVerificationToken,
     } = signup.body as { id: number; token: string; emailVerificationToken?: string }
     if (emailVerificationToken) await confirmVolunteerEmail(baseUrl, emailVerificationToken)
-    await approveVolunteer(baseUrl, volId)
+    await approveVolunteer(baseUrl, volId, volToken)
     const volApi = createApiClient(baseUrl, volToken)
 
     const claim = await volApi.projects.updateTask({

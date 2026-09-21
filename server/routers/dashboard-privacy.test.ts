@@ -78,6 +78,23 @@ describe('dashboard.get', () => {
     expect(d.unreadNotificationCount).toBe(1)
   })
 
+  it('offers the approval welcome until its notification is read', async () => {
+    const me = await createVolunteer({ emailConfirmed: false })
+    const c = clientAs(me)
+    expect((await c.dashboard.get()).approvalWelcome).toBeNull()
+    const note = await prisma.notification.create({
+      data: { volunteerId: me.id, type: 'application_approved', title: 'Approved' },
+    })
+    expect((await c.dashboard.get()).approvalWelcome).toEqual({
+      notificationId: note.id,
+      emailConfirmed: false,
+    })
+    await prisma.volunteer.update({ where: { id: me.id }, data: { emailConfirmed: true } })
+    expect((await c.dashboard.get()).approvalWelcome).toMatchObject({ emailConfirmed: true })
+    await c.notifications.markRead({ id: note.id })
+    expect((await c.dashboard.get()).approvalWelcome).toBeNull()
+  })
+
   it('suggests nothing to a volunteer without skills', async () => {
     const me = await createVolunteer()
     const d = await clientAs(me).dashboard.get()

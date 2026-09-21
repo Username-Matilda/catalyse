@@ -12,9 +12,15 @@ export const dashboardRouter = {
     const volunteerWithSkills = await prisma.volunteer.findUnique({
       where: { id: volunteer.id },
       select: {
+        emailConfirmed: true,
         skills: { select: { skillId: true } },
         teamMemberships: { select: { teamId: true } },
       },
+    })
+    const approvalWelcome = await prisma.notification.findFirst({
+      where: { volunteerId: volunteer.id, type: 'application_approved', readAt: null },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true },
     })
     const volunteerSkillIds = new Set((volunteerWithSkills?.skills ?? []).map((s) => s.skillId))
     const volunteerTeamIds = (volunteerWithSkills?.teamMemberships ?? []).map((m) => m.teamId)
@@ -107,6 +113,13 @@ export const dashboardRouter = {
         withProjectExtras(p as EnrichedProject, volunteerSkillIds),
       ),
       unreadNotificationCount: unreadCount,
+      // Shown once as a welcome dialog; reading the notification dismisses it for good.
+      approvalWelcome: approvalWelcome
+        ? {
+            notificationId: approvalWelcome.id,
+            emailConfirmed: volunteerWithSkills?.emailConfirmed ?? false,
+          }
+        : null,
     }
   }),
 }

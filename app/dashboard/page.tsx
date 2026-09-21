@@ -11,6 +11,7 @@ import { useToast } from '@/lib/toast'
 import { ProjectList, statusBadgeClasses } from '@/components/ProjectCard'
 import { QUICK_TASK_STATUS_LABELS } from '@/lib/status-labels'
 import Tabs from '@/components/Tabs'
+import Modal from '@/components/ui/Modal'
 import type { InferRouterOutputs } from '@orpc/server'
 import type { AppRouter } from '@/server/router'
 import { ApprovalStatus, QuickTaskStatus } from '@/generated/prisma/enums'
@@ -46,6 +47,7 @@ export default function DashboardPage() {
   const [emailBannerDismissed, setEmailBannerDismissed] = useState(false)
   const [notificationFilter, setNotificationFilter] = useState<NotificationFilter>('all')
   const [notificationPage, setNotificationPage] = useState(1)
+  const [welcomeDismissed, setWelcomeDismissed] = useState(false)
 
   function setNotificationFilterAndResetPage(filter: NotificationFilter) {
     setNotificationFilter(filter)
@@ -173,6 +175,18 @@ export default function DashboardPage() {
   }
 
   const unreadCount = data?.unreadNotificationCount ?? 0
+  const welcome = welcomeDismissed ? null : (data?.approvalWelcome ?? null)
+
+  function dismissWelcome(notificationId: number) {
+    setWelcomeDismissed(true)
+    // Clear the cached welcome now, so coming back to the dashboard before the read has
+    // been confirmed does not show it again.
+    queryClient.setQueryData(orpc.dashboard.get.queryOptions().queryKey, (old) =>
+      old ? { ...old, approvalWelcome: null } : old,
+    )
+    markReadMutation.mutate({ id: notificationId })
+  }
+
   const showEmailBanner = !user.emailDigest && !emailBannerDismissed
 
   const tabs: { key: TabKey; label: React.ReactNode; 'data-tab'?: string }[] = [
@@ -198,6 +212,31 @@ export default function DashboardPage() {
 
   return (
     <>
+      {welcome && (
+        <Modal
+          id="approval-welcome"
+          title="You're approved. Welcome to Catalyse!"
+          isOpen
+          onClose={() => dismissWelcome(welcome.notificationId)}
+        >
+          <p>
+            {welcome.emailConfirmed
+              ? 'Your application has been approved. Browse projects to find something you can help with, or pick up a Quick Task to get started.'
+              : 'Your application has been approved. One last step: confirm your email address, then you can browse projects and pick a first task.'}
+          </p>
+          <div className="mt-4 flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => dismissWelcome(welcome.notificationId)}>
+              Not now
+            </Button>
+            <Button
+              href={welcome.emailConfirmed ? '/projects' : '/verify-email'}
+              onClick={() => dismissWelcome(welcome.notificationId)}
+            >
+              {welcome.emailConfirmed ? 'Browse projects' : 'Confirm your email'}
+            </Button>
+          </div>
+        </Modal>
+      )}
       <main className="container py-5 pb-15">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 role="heading">Welcome back, {user.name}!</h1>

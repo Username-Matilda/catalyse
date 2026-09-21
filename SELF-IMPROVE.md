@@ -29,13 +29,14 @@ GitHub issue. An entry here is about the work itself: something in the code
 structure, tooling, tests, docs or diagnostics that made a task slower or more
 confusing than it needed to be, and that will do so again.
 
-## 1x
+## 2x
 
-- [ ] **A `null`-target guard written for a dialog's confirm handler is
-      unreachable, and 100% statement coverage only says so after a full
-      `check-all`.** Five call sites each needed rewriting once the coverage
-      gate rejected them, a wasted full run. The pattern that has no
-      unreachable line — render the dialog inside `{target && (…)}` and read
-      the target in the handler closure — belongs in `AGENTS.md` next to the
-      coverage rules, and in `components/ui/ConfirmDialog.tsx`'s own usage
-      note.
+- [ ] **A `null`-target guard written for a dialog's confirm or dismiss handler
+      is unreachable, and 100% statement coverage only says so after a full
+      unit run.** Five confirm-dialog call sites, then the approval welcome's
+      dismiss handler, each needed rewriting once the coverage gate rejected
+      them, and a handler wired only to Escape or the close button stays
+      uncovered until a test presses it. The pattern that has no unreachable
+      line — render the dialog inside `{target && (…)}` and read the target in
+      the handler closure — belongs in `AGENTS.md` next to the coverage rules,
+      and in `components/ui/ConfirmDialog.tsx`'s own usage note.

@@ -68,7 +68,7 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
     if (emailVerificationToken) {
       await confirmVolunteerEmail(baseUrl, emailVerificationToken)
     }
-    await approveVolunteer(baseUrl, volunteerId)
+    await approveVolunteer(baseUrl, volunteerId, auth_token)
 
     const context = await browser.newContext()
     await context.addInitScript((token: string) => {
@@ -149,7 +149,7 @@ export async function createPendingVolunteer(baseUrl: string): Promise<ApiVolunt
 
 export async function createApprovedVolunteer(baseUrl: string): Promise<ApiVolunteer> {
   const pending = await createPendingVolunteer(baseUrl)
-  await approveVolunteer(baseUrl, pending.id)
+  await approveVolunteer(baseUrl, pending.id, pending.token)
   return pending
 }
 
@@ -186,7 +186,7 @@ export async function createApprovedVolunteerNamed(
   if (emailVerificationToken) {
     await confirmVolunteerEmail(baseUrl, emailVerificationToken)
   }
-  await approveVolunteer(baseUrl, id)
+  await approveVolunteer(baseUrl, id, token)
   return { id, token, name, email }
 }
 
@@ -204,7 +204,13 @@ export async function rejectVolunteer(
   })
 }
 
-export async function approveVolunteer(baseUrl: string, volunteerId: number): Promise<void> {
+// Approval leaves an unread welcome that opens as a dialog over the dashboard. Passing the
+// volunteer's token marks it read, so tests that open the dashboard are not covered by it.
+export async function approveVolunteer(
+  baseUrl: string,
+  volunteerId: number,
+  volunteerToken?: string,
+): Promise<void> {
   const adminToken = readAdminToken(baseUrl)
   if (!adminToken) return
   const api = createApiClient(baseUrl, adminToken)
@@ -212,6 +218,7 @@ export async function approveVolunteer(baseUrl: string, volunteerId: number): Pr
     params: { id: volunteerId },
     body: { action: 'approve' },
   })
+  if (volunteerToken) await createApiClient(baseUrl, volunteerToken).notifications.readAll()
 }
 
 export async function requestMoreInfo(

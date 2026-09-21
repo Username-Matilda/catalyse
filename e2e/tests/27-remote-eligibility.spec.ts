@@ -86,7 +86,7 @@ async function createMatchingVolunteer(
     emailVerificationToken?: string
   }
   if (emailVerificationToken) await confirmVolunteerEmail(baseUrl, emailVerificationToken)
-  await approveVolunteer(baseUrl, id)
+  await approveVolunteer(baseUrl, id, token)
 
   const selfApi = createApiClient(baseUrl, token)
   const update = await selfApi.volunteers.updateMe({

@@ -63,7 +63,7 @@ async function signupApprovedVolunteer(
     emailVerificationToken?: string
   }
   if (emailVerificationToken) await confirmVolunteerEmail(baseUrl, emailVerificationToken)
-  await approveVolunteer(baseUrl, id)
+  await approveVolunteer(baseUrl, id, token)
   return { id, token, name: person.name }
 }
 
