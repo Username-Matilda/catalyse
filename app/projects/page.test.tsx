@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import {
   createVolunteer,
   createSuperAdmin,
+  createAdmin,
   createProject,
   createSkill,
   createTeam,
@@ -193,6 +194,20 @@ describe('projects directory', () => {
       within(notice.closest('[role=status]') as HTMLElement).getByLabelText('Dismiss'),
     )
     expect(screen.queryByText('That page is for admins.')).toBeNull()
+  })
+
+  it('says a super-admin page is for super admins, and only they are offered its link', async () => {
+    const admin = await createAdmin()
+    await createVolunteer({ approvalStatus: 'pending' })
+    await renderApp(<ProjectsPage />, { as: admin, url: '/projects?notice=super-admin-only' })
+    await screen.findByText('That page is for super admins.')
+    await waitFor(() => expect(window.location.search).toBe(''))
+    expect(screen.queryByText('That page is for admins.')).toBeNull()
+    // A regular admin is not offered the applications page they cannot open.
+    expect(screen.queryByRole('link', { name: /Review applications/ })).toBeNull()
+    cleanup()
+    await renderApp(<ProjectsPage />, { as: await createSuperAdmin(), url: '/projects' })
+    expect(await screen.findByRole('link', { name: /Review applications/ })).toBeInTheDocument()
   })
 
   it('keeps unapproved volunteers out, showing a loading state until they leave', async () => {

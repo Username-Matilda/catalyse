@@ -85,7 +85,7 @@ describe('auth gate hooks', () => {
     expect(navigation.replace).not.toHaveBeenCalled()
     navigation.reset()
     await settle('useRequireSuperAdmin', await createAdmin())
-    expect(navigation.replace).toHaveBeenCalledWith('/projects?notice=no-access')
+    expect(navigation.replace).toHaveBeenCalledWith('/projects?notice=super-admin-only')
     navigation.reset()
     await settle('useRequireSuperAdmin', await createAdmin({ email: 'admin@example.com' }))
     expect(navigation.replace).not.toHaveBeenCalled()

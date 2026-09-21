@@ -65,7 +65,13 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
   const [teamFilter, setTeamFilter] = useUrlParam('team')
   const [sortBy, setSortBy] = useUrlParam('sort')
   // Set when an admin page turned the viewer away (NO_ACCESS_NOTICE_URL).
-  const [noAccessNotice, dismissNoAccessNotice] = useOneTimeNotice('no-access')
+  const [adminOnlyNotice, dismissAdminOnlyNotice] = useOneTimeNotice('no-access')
+  const [superAdminOnlyNotice, dismissSuperAdminOnlyNotice] = useOneTimeNotice('super-admin-only')
+  const turnedAway = superAdminOnlyNotice
+    ? { text: 'That page is for super admins.', dismiss: dismissSuperAdminOnlyNotice }
+    : adminOnlyNotice
+      ? { text: 'That page is for admins.', dismiss: dismissAdminOnlyNotice }
+      : null
   const [pageParam, setPageParam] = useUrlParam('page')
   const page = Math.max(1, parseInt(pageParam, 10) || 1)
   const router = useRouter()
@@ -107,7 +113,7 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
 
   const { data: pendingApplicationsList = [] } = useQuery({
     ...orpc.admin.applications.list.queryOptions({ input: { filter: 'mine' } }),
-    enabled: !!user?.isAdmin,
+    enabled: !!user?.isSuperAdmin,
   })
   const pendingApplicationsCount = pendingApplicationsList.length
 
@@ -275,13 +281,13 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
           </div>
         </div>
 
-        {noAccessNotice && (
+        {turnedAway && (
           <div
             role="status"
             className="flex items-center justify-between gap-3 p-4 rounded-lg mb-5 bg-blue-100 text-blue-800 border border-blue-300 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-600"
           >
-            <span>That page is for admins.</span>
-            <Button variant="ghost" icon onClick={dismissNoAccessNotice} aria-label="Dismiss">
+            <span>{turnedAway.text}</span>
+            <Button variant="ghost" icon onClick={turnedAway.dismiss} aria-label="Dismiss">
               ×
             </Button>
           </div>
@@ -311,7 +317,7 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
             </Link>
           </div>
         )}
-        {user.isAdmin && pendingApplicationsCount > 0 && (
+        {user.isSuperAdmin && pendingApplicationsCount > 0 && (
           <div className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-violet-100 text-violet-800 border border-violet-300 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-600">
             <strong>
               {pendingApplicationsCount} application{pendingApplicationsCount !== 1 ? 's' : ''}{' '}

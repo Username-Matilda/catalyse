@@ -20,6 +20,9 @@ export const PENDING_URL = '/dashboard'
 /** Where someone lands from an admin page they may not open; see the projects page. */
 export const NO_ACCESS_NOTICE_URL = '/projects?notice=no-access'
 
+/** The same, from a page only super admins may open. */
+export const SUPER_ADMIN_NOTICE_URL = '/projects?notice=super-admin-only'
+
 /**
  * For pages only approved volunteers (and admins) may use. `user` stays null until the
  * volunteer is known to be approved, so the page shows its loading state rather than
@@ -71,7 +74,9 @@ export function useRequireSuperAdmin() {
   const auth = useAuth()
   useEffect(() => {
     if (!auth.loading && !auth.user) router.replace('/login')
-    if (!auth.loading && auth.user && !auth.user.isSuperAdmin) router.replace(NO_ACCESS_NOTICE_URL)
+    if (!auth.loading && auth.user && !auth.user.isSuperAdmin) {
+      router.replace(SUPER_ADMIN_NOTICE_URL)
+    }
   }, [auth.user, auth.loading, router])
   return auth
 }
