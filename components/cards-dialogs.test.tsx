@@ -91,20 +91,16 @@ describe('ProjectCard', () => {
     )
     expect(screen.getByText('weird state')).toBeInTheDocument()
     expect(screen.getByText('Seeking Owner')).toBeInTheDocument()
-    expect(screen.getByText('👤 No owner yet')).toBeInTheDocument()
+    expect(screen.getByText('👤 Seeking owner')).toBeInTheDocument()
     expect(screen.getByText('📋 other')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Act' })).toBeInTheDocument()
-    rerender(
-      <ProjectCard
-        project={{ ...base, owner: null, proposedBy: { id: 4, name: 'Pat' } }}
-        showProposer
-      />,
-    )
-    expect(screen.getByText('🧑‍💼 Proposed by: Pat · Would need to find owner')).toBeInTheDocument()
-    rerender(<ProjectCard project={{ ...base, isOrgProposed: true }} showProposer />)
-    expect(screen.getByText('🧑‍💼 Proposed by: PauseAI · Will be owner')).toBeInTheDocument()
-    rerender(<ProjectCard project={{ ...base, proposedBy: null }} showProposer />)
-    expect(screen.getByText('🧑‍💼 Proposed by: Unknown · Will be owner')).toBeInTheDocument()
+    // Who proposed a project is never shown on the card, whoever the viewer is.
+    rerender(<ProjectCard project={{ ...base, owner: null, proposedBy: { id: 4, name: 'Pat' } }} />)
+    expect(screen.queryByText(/Proposed by/)).toBeNull()
+    expect(screen.getByText('👤 Seeking owner')).toBeInTheDocument()
+    rerender(<ProjectCard project={{ ...base, isOrgProposed: true, owner: { name: 'Ola' } }} />)
+    expect(screen.queryByText(/Proposed by|Will be owner/)).toBeNull()
+    expect(screen.getByText('👤 Ola')).toBeInTheDocument()
     // Skills the viewer lacks are hidden when they have any skills at all.
     rerender(<ProjectCard project={base} userSkillIds={new Set([99])} />)
     expect(screen.queryByText('A')).toBeNull()
@@ -116,7 +112,7 @@ describe('ProjectCard', () => {
     const { container, rerender } = render(<ProjectList projects={[base, { ...base, id: 2 }]} />)
     expect(container.firstChild).toHaveClass('grid-cols-2')
     expect(screen.getAllByRole('link', { name: 'Rally' })).toHaveLength(2)
-    rerender(<ProjectList projects={[base]} single showProposer />)
+    rerender(<ProjectList projects={[base]} single />)
     expect(container.firstChild).toHaveClass('flex-col')
   })
 })

@@ -335,7 +335,6 @@ export default function TriagePage() {
                   <ProjectCard
                     key={p.id}
                     project={p}
-                    showProposer
                     action={
                       tab === 'drafts' ? (
                         <div className="flex gap-2">

@@ -443,11 +443,7 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
             {/* Grouped project cards */}
             {isFlatView ? (
               <>
-                <ProjectList
-                  projects={projects}
-                  userSkillIds={userSkillIds}
-                  showProposer={user.isAdmin}
-                />
+                <ProjectList projects={projects} userSkillIds={userSkillIds} />
                 {flatTotalPages > 1 && (
                   <div className="flex items-center justify-center gap-4 mt-6">
                     <Button
@@ -518,11 +514,7 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
                           key={String(completedOpen)}
                           className={isCompleted ? 'animate-fade-slide-in' : undefined}
                         >
-                          <ProjectList
-                            projects={g.projects}
-                            userSkillIds={userSkillIds}
-                            showProposer={user.isAdmin}
-                          />
+                          <ProjectList projects={g.projects} userSkillIds={userSkillIds} />
                           {overflow > 0 && g.viewAllHref && (
                             <div className="mt-3">
                               <Link href={g.viewAllHref} className="text-sm underline">

@@ -191,9 +191,9 @@ test.describe('Project ownership states', () => {
     ).toHaveAttribute('href', `/volunteers/${volunteer.id}`)
   })
 
-  // Browsing is where the missing name was first noticed. Admins triaging need to know who
-  // filed an ownerless project; a volunteer only needs to know that nobody owns it yet.
-  test('Browse cards name the proposer to admins and stay anonymous for volunteers', async ({
+  // A card says who owns a project, or that it is seeking an owner; who filed it is on the
+  // project's own page for admins.
+  test('Browse cards never name the proposer, for admins or volunteers', async ({
     adminPage,
     browser,
     baseUrl,
@@ -203,8 +203,8 @@ test.describe('Project ownership states', () => {
     await adminPage.goto(`${baseUrl}/projects`)
     const adminCard = adminPage.locator('.card').filter({ hasText: title })
     await expect(adminCard).toBeVisible({ timeout: 10_000 })
-    await expect(adminCard).toContainText('Proposed by: PauseAI')
-    await expect(adminCard).toContainText('Would need to find owner')
+    await expect(adminCard).not.toContainText('Proposed by')
+    await expect(adminCard).toContainText('Seeking owner')
 
     const volunteer = await createApprovedVolunteer(baseUrl)
     const ctx = await browser.newContext()
@@ -217,7 +217,7 @@ test.describe('Project ownership states', () => {
       await volunteerPage.goto(`${baseUrl}/projects`)
       const volunteerCard = volunteerPage.locator('.card').filter({ hasText: title })
       await expect(volunteerCard).toBeVisible({ timeout: 10_000 })
-      await expect(volunteerCard).toContainText('No owner yet')
+      await expect(volunteerCard).toContainText('Seeking owner')
       await expect(volunteerCard).not.toContainText('Proposer:')
 
       // Same on the project's own page: the empty state, not a name.

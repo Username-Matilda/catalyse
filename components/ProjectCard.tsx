@@ -4,10 +4,7 @@ import Button from '@/components/Button'
 import { Badge, badgeClasses, type BadgeVariant } from '@/components/Badge'
 import { matchGradeLabel } from '@/lib/matching'
 import { projectLocationParts } from '@/lib/filter-options'
-import {
-  PROJECT_STATUS_CONFIG as PROJECT_LIFECYCLE_CONFIG,
-  proposerDisplay,
-} from '@/lib/project-status'
+import { PROJECT_STATUS_CONFIG as PROJECT_LIFECYCLE_CONFIG } from '@/lib/project-status'
 
 export interface Project {
   id: number
@@ -77,21 +74,13 @@ export function ProjectCard({
   userSkillIds = new Set(),
   action,
   badge,
-  showProposer = false,
 }: {
   project: Project
   userSkillIds?: Set<number>
   action?: React.ReactNode
   /** An extra badge beside the status, such as where the viewer's application stands. */
   badge?: React.ReactNode
-  /**
-   * Show who proposed the project alongside whether it already has an owner. Admin-only
-   * by convention: volunteers browsing need to know a project has no owner yet, not who
-   * filed it.
-   */
-  showProposer?: boolean
 }) {
-  const proposer = showProposer ? proposerDisplay(p) : null
   // The grade says how well the viewer fits; these say why.
   const matchedRequired = (p.skills ?? [])
     .filter((s) => s.isRequired && userSkillIds.has(s.id))
@@ -122,15 +111,7 @@ export function ProjectCard({
         {badge}
       </div>
       <div className="row-start-3 flex items-center gap-3 flex-wrap text-xs text-text-light self-start">
-        {showProposer ? (
-          <span>
-            🧑‍💼 Proposed by: {proposer?.name ?? 'Unknown'}
-            {' · '}
-            {p.owner ? 'Will be owner' : 'Would need to find owner'}
-          </span>
-        ) : (
-          <span title="Owner">👤 {p.owner ? p.owner.name : 'No owner yet'}</span>
-        )}
+        <span title="Owner">👤 {p.owner ? p.owner.name : 'Seeking owner'}</span>
         {(() => {
           const parts = projectLocationParts(p.country, p.localGroup, p.remoteEligibility)
           return parts.length > 0 && <span title="Location">📍 {parts.join(' · ')}</span>
@@ -209,25 +190,17 @@ export function ProjectList<P extends Project>({
   projects,
   userSkillIds = new Set(),
   single = false,
-  showProposer = false,
   badgeFor,
 }: {
   projects: P[]
   userSkillIds?: Set<number>
   single?: boolean
-  showProposer?: boolean
   badgeFor?: (project: P) => React.ReactNode
 }) {
   return (
     <div className={single ? CARD_GRID_SINGLE_CLASSES : CARD_GRID_CLASSES}>
       {projects.map((p) => (
-        <ProjectCard
-          key={p.id}
-          project={p}
-          userSkillIds={userSkillIds}
-          showProposer={showProposer}
-          badge={badgeFor?.(p)}
-        />
+        <ProjectCard key={p.id} project={p} userSkillIds={userSkillIds} badge={badgeFor?.(p)} />
       ))}
     </div>
   )
