@@ -247,12 +247,15 @@ export const volunteersRouter = {
         }),
       ])
 
+      // A profile never carries the login address, whoever is looking: people reach the
+      // volunteer through the message relay, and admins read it on the admin page.
+      const { email: _email, ...profile } = redactVolunteer(vol, {
+        showContact,
+        skills,
+        endorsements,
+      })
       return {
-        ...redactVolunteer(vol, {
-          showContact,
-          skills,
-          endorsements,
-        }),
+        ...profile,
         projects: projects.map((p) => ({
           id: p.id,
           title: p.title,

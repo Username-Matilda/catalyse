@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import Script from 'next/script'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/lib/auth-context'
 import { useCookieConsent } from '@/lib/cookie-consent-context'
 import Button from '@/components/Button'
 import { orpc } from '@/lib/orpc'
+import { useToast } from '@/lib/toast'
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID
 
@@ -17,13 +18,27 @@ export default function CookieConsentBanner() {
   const { setBannerVisible } = useCookieConsent()
   const [consent, setConsent] = useState<ConsentState>(null)
   const [resolved, setResolved] = useState(false)
-  const updateMeMutation = useMutation({ ...orpc.volunteers.updateMe.mutationOptions() })
+  const showToast = useToast()
+  const queryClient = useQueryClient()
+  // The choice is already in force on this device, so a failed save only needs saying.
+  const updateMeMutation = useMutation({
+    ...orpc.volunteers.updateMe.mutationOptions(),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: orpc.auth.me.key() }),
+    onError: () =>
+      showToast(
+        "Your cookie choice applies on this device but couldn't be saved to your account. Set it in Settings to keep it.",
+        'error',
+      ),
+  })
 
   useEffect(() => {
     if (loading) return
 
     if (user) {
       if (user.cookieConsentAnalytics !== null) {
+        // The account's choice also governs this device after signing out, so a Decline
+        // made in Settings is not undone by an older answer to the banner.
+        localStorage.setItem('cookieConsent', String(user.cookieConsentAnalytics))
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setConsent(user.cookieConsentAnalytics)
         setResolved(true)

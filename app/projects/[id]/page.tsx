@@ -14,6 +14,7 @@ import { projectStatusVariant } from '@/components/ProjectCard'
 import { INTEREST_STATUS_LABELS } from '@/lib/status-labels'
 import { interestSentMessage, PROJECT_TASK_CLAIMED_MESSAGE } from '@/lib/action-messages'
 import CommentThread from '@/components/CommentThread'
+import MessageDialog from '@/components/MessageDialog'
 import Linkify from '@/components/Linkify'
 import Modal from '@/components/ui/Modal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
@@ -639,8 +640,6 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   // Contact owner
   const [showContactModal, setShowContactModal] = useState(false)
-  const [contactSubject, setContactSubject] = useState('')
-  const [contactBody, setContactBody] = useState('')
 
   // Decline interest
   // Declining a request and removing an accepted helper share one dialog and one status.
@@ -738,11 +737,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const volunteers = volunteersData?.volunteers ?? []
 
   const ownerId = project?.ownerId ?? null
-  const { data: ownerContactData } = useQuery({
+  const { data: ownerContact } = useQuery({
     ...orpc.volunteers.getById.queryOptions({ input: { id: ownerId ?? 0 } }),
     enabled: ownerId !== null && showContactModal,
   })
-  const ownerContact = ownerContactData
 
   // ── Mutations ────────────────────────────────────────────────────────────
 
@@ -910,32 +908,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       showToast(err instanceof Error ? err.message : 'Failed to submit review', 'error'),
   })
 
-  const sendMessageMutation = useMutation({
-    ...orpc.messages.send.mutationOptions(),
-    onSuccess: () => {
-      setShowContactModal(false)
-      setContactSubject('')
-      setContactBody('')
-      showToast(
-        "Message sent! They'll receive it by email and can reply directly to you.",
-        'success',
-      )
-    },
-    onError: (err: unknown) =>
-      showToast(err instanceof Error ? err.message : 'Failed to send message', 'error'),
-  })
-
   // ── Handlers ─────────────────────────────────────────────────────────────
-
-  function handleContactOwner(e: React.FormEvent, ownerId: number) {
-    e.preventDefault()
-    sendMessageMutation.mutate({
-      recipientId: ownerId,
-      subject: contactSubject.trim(),
-      message: contactBody.trim(),
-      relatedProjectId: parseInt(idParam, 10),
-    })
-  }
 
   if (loading || !user) return null
   if (loadingProject) {
@@ -1142,10 +1115,6 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
-
-  const hasDirectContact =
-    ownerContact &&
-    (ownerContact.discordHandle || ownerContact.signalNumber || ownerContact.whatsappNumber)
 
   return (
     <>
@@ -2104,78 +2073,16 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         }
       />
 
-      {/* Contact Owner modal */}
       {showContactModal && ownerId !== null && (
-        <Modal
+        <MessageDialog
           id="contact-owner"
           title="Contact Owner"
-          isOpen
+          recipientId={ownerId}
+          recipientName={project.owner?.name ?? 'The owner'}
+          relatedProjectId={project.id}
+          directContact={ownerContact}
           onClose={() => setShowContactModal(false)}
-        >
-          <p className="text-sm text-text-light mb-4">
-            {project.owner?.name ?? 'The owner'} will get this by email and in their notifications.
-            Your email address is shared so they can reply.
-          </p>
-          {/* Direct contact channels */}
-          {hasDirectContact && (
-            <div className="mb-5">
-              <p className="text-sm font-medium mb-2">Contact directly:</p>
-              <div className="flex flex-col gap-2">
-                {ownerContact!.discordHandle && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="text-text-light">Discord:</span>
-                    <span className="font-medium">{ownerContact!.discordHandle}</span>
-                  </div>
-                )}
-                {ownerContact!.signalNumber && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="text-text-light">Signal:</span>
-                    <span className="font-medium">{ownerContact!.signalNumber}</span>
-                  </div>
-                )}
-                {ownerContact!.whatsappNumber && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="text-text-light">WhatsApp:</span>
-                    <span className="font-medium">{ownerContact!.whatsappNumber}</span>
-                  </div>
-                )}
-              </div>
-              <hr className="my-4 border-brand-border" />
-              <p className="text-sm text-text-light mb-3">Or send a message via the platform:</p>
-            </div>
-          )}
-
-          <form onSubmit={(e) => handleContactOwner(e, ownerId)}>
-            <div className="mb-5">
-              <label htmlFor="contact-subject">Subject</label>
-              <input
-                id="contact-subject"
-                type="text"
-                value={contactSubject}
-                onChange={(e) => setContactSubject(e.target.value)}
-                required
-              />
-            </div>
-            <div className="mb-5">
-              <label htmlFor="contact-message">Message</label>
-              <textarea
-                id="contact-message"
-                rows={4}
-                value={contactBody}
-                onChange={(e) => setContactBody(e.target.value)}
-                required
-              />
-            </div>
-            <div className="flex gap-2 justify-end">
-              <Button type="button" variant="ghost" onClick={() => setShowContactModal(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={sendMessageMutation.isPending}>
-                {sendMessageMutation.isPending ? 'Sending…' : 'Send Message'}
-              </Button>
-            </div>
-          </form>
-        </Modal>
+        />
       )}
 
       {/* Decline interest modal */}

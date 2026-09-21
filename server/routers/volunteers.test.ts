@@ -66,6 +66,7 @@ describe('volunteers.getById', () => {
     const vol = await createVolunteer({
       consentContactableByProjectOwners: true,
       consentShareContactInfoWithProjectOwner: true,
+      discordHandle: 'vol#1',
       skills: { create: [{ skillId: skill.id }] },
     })
     await prisma.skillEndorsement.create({
@@ -87,7 +88,7 @@ describe('volunteers.getById', () => {
     })
 
     const view = await clientAs(me).volunteers.getById({ id: vol.id })
-    expect(view.email).toBe(vol.email)
+    expect(view.discordHandle).toBe('vol#1')
     expect(view.endorsements).toEqual([
       { skillId: skill.id, rating: 'strong', skillName: skill.name },
     ])
@@ -101,12 +102,24 @@ describe('volunteers.getById', () => {
       expect.objectContaining({ reviewRating: 'good', skillName: skill.name }),
     ])
 
-    const shy = await createVolunteer({ consentShareContactInfoWithProjectOwner: false })
-    expect((await clientAs(me).volunteers.getById({ id: shy.id })).email).toBeUndefined()
-    expect((await clientAs(shy).volunteers.getById({ id: shy.id })).email).toBe(shy.email)
-    expect((await clientAs(await createAdmin()).volunteers.getById({ id: shy.id })).email).toBe(
-      shy.email,
-    )
+    const shy = await createVolunteer({
+      consentShareContactInfoWithProjectOwner: false,
+      discordHandle: 'shy#1',
+    })
+    expect((await clientAs(me).volunteers.getById({ id: shy.id })).discordHandle).toBeUndefined()
+    expect((await clientAs(shy).volunteers.getById({ id: shy.id })).discordHandle).toBe('shy#1')
+    const admin = await createAdmin()
+    expect((await clientAs(admin).volunteers.getById({ id: shy.id })).discordHandle).toBe('shy#1')
+    // The login address stays off every profile, even for the volunteer and for admins.
+    for (const [viewer, target] of [
+      [me, vol],
+      [shy, shy],
+      [admin, shy],
+    ]) {
+      expect(await clientAs(viewer).volunteers.getById({ id: target.id })).not.toHaveProperty(
+        'email',
+      )
+    }
     await expect(clientAs(me).volunteers.getById({ id: 999_999 })).rejects.toMatchObject({
       code: 'NOT_FOUND',
     })

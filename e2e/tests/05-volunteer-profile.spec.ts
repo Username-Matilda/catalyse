@@ -215,8 +215,11 @@ test.describe('Volunteer Profile', () => {
       await expect(volunteer.page.locator('#volunteerSkills')).toContainText('Fundraising')
       // Endorsements section only appears if there are endorsements; not present for fresh volunteer
       await expect(volunteer.page.locator('#endorsementsSection')).not.toBeVisible()
-      // Contact info not shown because consent_share_contact_info_with_project_owner defaults to false
-      await expect(volunteer.page.locator('#contactInfo')).not.toBeVisible()
+      // A contactable volunteer's profile offers a message, never their login address.
+      const contact = volunteer.page.locator('#contactInfo')
+      await expect(contact).toContainText('Contact via message')
+      await expect(contact.getByRole('button', { name: 'Message' })).toBeVisible()
+      await expect(contact).not.toContainText(vol2.email)
     } finally {
       await ctx2.close()
     }

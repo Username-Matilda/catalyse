@@ -51,6 +51,9 @@ describe('CookieConsentBanner', () => {
     expect(await screen.findByTestId('ga-init')).toBeInTheDocument()
     expect(screen.queryByText('Accept')).toBeNull()
 
+    expect(localStorage.getItem('cookieConsent')).toBe('true')
+
+    localStorage.removeItem('cookieConsent')
     const undecided = await createVolunteer({ cookieConsentAnalytics: null })
     await renderApp(
       <CookieConsentProvider>
@@ -65,6 +68,36 @@ describe('CookieConsentBanner', () => {
           .cookieConsentAnalytics,
       ).toBe(true),
     )
+  })
+
+  it("keeps an account's Decline on the device, over an older answer to the banner", async () => {
+    localStorage.setItem('cookieConsent', 'true')
+    const declined = await createVolunteer({ cookieConsentAnalytics: false })
+    await renderApp(
+      <CookieConsentProvider>
+        <CookieConsentBanner />
+      </CookieConsentProvider>,
+      { as: declined },
+    )
+    await waitFor(() => expect(localStorage.getItem('cookieConsent')).toBe('false'))
+    expect(screen.queryByTestId('ga-init')).toBeNull()
+    expect(screen.queryByText('Decline')).toBeNull()
+  })
+
+  it('says so when the choice cannot be saved to the account, and keeps it on the device', async () => {
+    const undecided = await createVolunteer({ cookieConsentAnalytics: null })
+    await renderApp(
+      <CookieConsentProvider>
+        <CookieConsentBanner />
+      </CookieConsentProvider>,
+      { as: undecided },
+    )
+    const decline = await screen.findByText('Decline')
+    await prisma.volunteer.update({ where: { id: undecided.id }, data: { deletedAt: new Date() } })
+    await userEvent.click(decline)
+    await screen.findByText(/couldn't be saved to your account/)
+    expect(localStorage.getItem('cookieConsent')).toBe('false')
+    expect(screen.queryByText('Accept')).toBeNull()
   })
 })
 
