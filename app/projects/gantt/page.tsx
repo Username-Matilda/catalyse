@@ -135,8 +135,14 @@ export default function RoadmapPage() {
       )}
 
       <p className="text-text-light mt-2 text-xs">
-        Each bar spans a project&apos;s tasks (or its set duration). Drag to shift a project; drag
-        the dot onto another project to say &ldquo;this one comes after that one&rdquo;.
+        Each bar spans a project&apos;s tasks (or its set duration).
+        {user.isAdmin && (
+          <>
+            {' '}
+            Drag to shift a project; drag the dot onto another project to say &ldquo;this one comes
+            after that one&rdquo;.
+          </>
+        )}
       </p>
     </main>
   )
