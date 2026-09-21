@@ -40,8 +40,9 @@ async function setup() {
 }
 
 describe('teams list', () => {
-  it('shows each team with the right action, and applies/leaves', async () => {
+  it('shows each team with the right action, and applies', async () => {
     const { me, open, mine, led } = await setup()
+    await createTeam({ name: 'Failing Team' })
     await renderApp(<TeamsPage />, { as: me })
     const openCard = (await screen.findByRole('link', { name: 'Open Team' })).closest('article')!
     expect(
@@ -53,46 +54,25 @@ describe('teams list', () => {
     expect(ledCard).toHaveTextContent('Leader')
     expect(ledCard.querySelector(`a[href="/admin/teams/${led.id}"]`)).not.toBeNull()
     expect(screen.getByRole('button', { name: 'Application Pending' })).toBeDisabled()
-    await userEvent.click(screen.getByRole('button', { name: 'Apply to Join' }))
+    await userEvent.click(within(openCard).getByRole('button', { name: 'Apply to Join' }))
     await screen.findByText(
       /Sent to the leader of .+\. You'll get a notification when they reply\./,
     )
     expect(
       await prisma.teamJoinRequest.count({ where: { teamId: open.id, volunteerId: me.id } }),
     ).toBe(1)
-    await userEvent.click(screen.getByRole('button', { name: 'Leave' }))
-    await userEvent.click(
-      within(await screen.findByRole('dialog', { name: 'Leave My Team?' })).getByRole('button', {
-        name: 'Cancel',
-      }),
+    // A team the viewer is in offers a way to look at it, not a second Apply.
+    const mineCard = screen.getByRole('link', { name: 'My Team' }).closest('article')!
+    expect(within(mineCard).getByRole('link', { name: 'View team' })).toHaveAttribute(
+      'href',
+      `/teams/${mine.id}`,
     )
-    expect(
-      await prisma.teamMembership.count({ where: { teamId: mine.id, volunteerId: me.id } }),
-    ).toBe(1)
-    await userEvent.click(screen.getByRole('button', { name: 'Leave' }))
-    await confirmLeave()
-    await screen.findByText('Left team')
-    expect(
-      await prisma.teamMembership.count({ where: { teamId: mine.id, volunteerId: me.id } }),
-    ).toBe(0)
-    // The list refetches: "My Team" is now joinable. Failed actions are reported. Scoped to
-    // the card: the apply's refetch may still show "Open Team" as joinable for a moment.
-    const apply = await within(
-      screen.getByRole('link', { name: 'My Team' }).closest('article')!,
-    ).findByRole('button', { name: 'Apply to Join' })
-    // Applying is held off for a moment after leaving, so a click aimed at Leave cannot land on it.
-    await waitFor(() => expect(apply).toBeEnabled(), { timeout: 5000 })
+    expect(within(mineCard).queryByRole('button', { name: /Apply to Join|Leave/ })).toBeNull()
+    expect(within(openCard).queryByRole('link', { name: 'View team' })).toBeNull()
+    // Failed actions are reported.
     localStorage.setItem('authToken', 'stale')
-    await userEvent.click(apply)
-    await screen.findByText('Unauthorized')
-    cleanup()
-    localStorage.clear()
-    await prisma.teamMembership.create({ data: { teamId: mine.id, volunteerId: me.id } })
-    await renderApp(<TeamsPage />, { as: me })
-    const leave = await screen.findByRole('button', { name: 'Leave' })
-    localStorage.setItem('authToken', 'stale')
-    await userEvent.click(leave)
-    await confirmLeave()
+    const failing = screen.getByRole('link', { name: 'Failing Team' }).closest('article')!
+    await userEvent.click(within(failing).getByRole('button', { name: 'Apply to Join' }))
     await screen.findByText('Unauthorized')
   })
 

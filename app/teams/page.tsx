@@ -1,14 +1,11 @@
 'use client'
 
-import { useState } from 'react'
 import Link from 'next/link'
 import { useRequireAuth } from '@/lib/hooks/auth'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
-import { useCooldown } from '@/lib/hooks/useCooldown'
-import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { teamApplicationSentMessage } from '@/lib/action-messages'
 import Skeleton from '@/components/Skeleton'
 import EmptyState from '@/components/EmptyState'
@@ -32,21 +29,6 @@ export default function TeamsPage() {
     },
     onError: (err: unknown) => {
       showToast(err instanceof Error ? err.message : 'Failed to apply', 'error')
-    },
-  })
-
-  const [leaving, setLeaving] = useState<{ id: number; name: string } | null>(null)
-  const { isCooling, start: startCooldown } = useCooldown()
-
-  const leaveMutation = useMutation({
-    ...orpc.teams.leave.mutationOptions(),
-    onSuccess: (_data, variables) => {
-      showToast('Left team', 'success')
-      startCooldown(variables.id)
-      void invalidate()
-    },
-    onError: (err: unknown) => {
-      showToast(err instanceof Error ? err.message : 'Failed to leave team', 'error')
     },
   })
 
@@ -140,14 +122,11 @@ export default function TeamsPage() {
                       </Button>
                     </Link>
                   ) : isMember ? (
-                    <Button
-                      size="sm"
-                      variant="warning"
-                      disabled={leaveMutation.isPending}
-                      onClick={() => setLeaving({ id: team.id, name: team.name })}
-                    >
-                      Leave
-                    </Button>
+                    <Link href={`/teams/${team.id}`}>
+                      <Button size="sm" variant="secondary">
+                        View team
+                      </Button>
+                    </Link>
                   ) : team.viewerRequestStatus === 'pending' ? (
                     <Button size="sm" variant="secondary" disabled>
                       Application Pending
@@ -155,8 +134,7 @@ export default function TeamsPage() {
                   ) : (
                     <Button
                       size="sm"
-                      variant={isCooling(team.id) ? 'secondary' : 'primary'}
-                      disabled={applyMutation.isPending || isCooling(team.id)}
+                      disabled={applyMutation.isPending}
                       onClick={() => applyMutation.mutate({ id: team.id })}
                     >
                       Apply to Join
@@ -167,24 +145,6 @@ export default function TeamsPage() {
             )
           })}
         </div>
-      )}
-
-      {leaving && (
-        <ConfirmDialog
-          id="confirm-leave-team"
-          isOpen
-          title={`Leave ${leaving.name}?`}
-          body="You'll need to apply again and be approved to rejoin."
-          confirmLabel="Leave"
-          busyLabel="Leaving…"
-          danger
-          busy={leaveMutation.isPending}
-          onConfirm={() => {
-            leaveMutation.mutate({ id: leaving.id })
-            setLeaving(null)
-          }}
-          onClose={() => setLeaving(null)}
-        />
       )}
     </main>
   )
