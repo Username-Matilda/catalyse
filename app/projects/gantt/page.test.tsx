@@ -26,6 +26,21 @@ describe('roadmap page', () => {
     const me = await createVolunteer()
     await renderApp(<RoadmapPage />, { as: me })
     await screen.findByText(/No projects with a schedule/)
+    expect(screen.getByText(/Each bar is a project/)).toHaveTextContent(
+      'the number after a name is how many tasks it has',
+    )
+  })
+
+  it('is read-only for a volunteer, without the planning marks', async () => {
+    captured.onDragEnd = undefined
+    const me = await createVolunteer()
+    await createProject({ title: 'Road view', durationDays: 3 })
+    await renderApp(<RoadmapPage />, { as: me })
+    const bar = await screen.findByRole('button', { name: /^Road view:/ })
+    expect(bar.getAttribute('aria-label')).not.toMatch(/critical path|anchor/)
+    expect(screen.queryByText(/Drag a bar/)).toBeNull()
+    expect(screen.queryByText('Critical path', { selector: 'span span' })).toBeNull()
+    expect(captured.onDragEnd).toBeUndefined()
   })
 
   it('draws projects as bars, toggles status filters, and links/moves projects by drag', async () => {

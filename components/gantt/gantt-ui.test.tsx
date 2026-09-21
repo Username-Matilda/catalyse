@@ -159,6 +159,7 @@ describe('GanttChart', () => {
         rangeEnd={day('2026-09-02')}
         selectedId={1}
         onSelect={onSelect}
+        editable
       />,
     )
     expect(screen.getByText('Starts').nextSibling).toHaveTextContent('1 Jan 2025')
@@ -405,6 +406,17 @@ describe('GanttLegend / BaselineDialog', () => {
     expect(screen.getByText(/Drag a bar/)).toBeInTheDocument()
   })
 
+  it('leaves the planning marks out of a read-only legend', () => {
+    render(<GanttLegend editable={false} />)
+    for (const mark of ['Planned', 'Anchor', 'Critical path']) {
+      expect(screen.queryByText(mark, { selector: 'span span' })).toBeNull()
+    }
+    expect(screen.queryByText(/The fixed point the plan is built around/)).toBeNull()
+    expect(screen.queryByText(/Drag a bar/)).toBeNull()
+    expect(screen.getByText('Today')).toBeInTheDocument()
+    expect(screen.getByText('Past deadline')).toBeInTheDocument()
+  })
+
   it('explains first-time versus replacement baselines', async () => {
     const onConfirm = vi.fn()
     const onClose = vi.fn()
@@ -467,7 +479,8 @@ describe('GanttItemPanel', () => {
   it('shows the facts and chips read-only for a viewer', () => {
     render(<GanttItemPanel {...baseProps} canManage={false} />)
     expect(screen.getByText('In progress')).toBeInTheDocument()
-    expect(screen.getByText('Critical path')).toBeInTheDocument()
+    // Planning aids are for those who can change the plan.
+    expect(screen.queryByText('Critical path')).toBeNull()
     expect(screen.getByText('Past deadline')).toBeInTheDocument()
     expect(screen.getByText('Print them')).toBeInTheDocument()
     expect(screen.getByText('Deadline').nextSibling).toHaveTextContent('5 Jun 2026')
@@ -506,9 +519,9 @@ describe('GanttItemPanel', () => {
       />,
     )
     expect(screen.getByText('Milestone')).toBeInTheDocument()
-    expect(screen.getByText('★ Anchor')).toBeInTheDocument()
+    expect(screen.queryByText('★ Anchor')).toBeNull()
     expect(screen.getByText('2 hours of work')).toBeInTheDocument()
-    expect(screen.getByText(/No baseline set/)).toBeInTheDocument()
+    expect(screen.queryByText(/No baseline set/)).toBeNull()
     expect(screen.getByText(/Pinned earlier/)).toBeInTheDocument()
     expect(screen.getByText('Nothing — can start whenever.')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Open task →' })).toHaveAttribute('href', '/t/3')

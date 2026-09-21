@@ -67,13 +67,17 @@ export default function GanttLegend({ editable }: { editable: boolean }) {
       </div>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <Swatch label="Planned">
-          <span
-            className="block h-1 w-6 rounded-full"
-            style={{ background: 'var(--gantt-baseline)' }}
-            aria-hidden="true"
-          />
-        </Swatch>
+        {/* Planned, Anchor and Critical path are planning aids, drawn only for those who can
+            change the plan (see GanttRow). */}
+        {editable && (
+          <Swatch label="Planned">
+            <span
+              className="block h-1 w-6 rounded-full"
+              style={{ background: 'var(--gantt-baseline)' }}
+              aria-hidden="true"
+            />
+          </Swatch>
+        )}
         <Swatch label="Actual">
           <span
             className="block h-1 w-6 rounded-full"
@@ -81,21 +85,25 @@ export default function GanttLegend({ editable }: { editable: boolean }) {
             aria-hidden="true"
           />
         </Swatch>
-        <Swatch label="Anchor" hint={ANCHOR_HINT}>
-          <span aria-hidden="true" style={{ color: 'var(--gantt-anchor)' }}>
-            ★
-          </span>
-        </Swatch>
-        <Swatch label="Critical path" hint={CRITICAL_HINT}>
-          <span
-            className="block h-3 w-6 rounded-sm"
-            style={{
-              background: 'transparent',
-              boxShadow: 'inset 0 0 0 2px var(--gantt-critical)',
-            }}
-            aria-hidden="true"
-          />
-        </Swatch>
+        {editable && (
+          <>
+            <Swatch label="Anchor" hint={ANCHOR_HINT}>
+              <span aria-hidden="true" style={{ color: 'var(--gantt-anchor)' }}>
+                ★
+              </span>
+            </Swatch>
+            <Swatch label="Critical path" hint={CRITICAL_HINT}>
+              <span
+                className="block h-3 w-6 rounded-sm"
+                style={{
+                  background: 'transparent',
+                  boxShadow: 'inset 0 0 0 2px var(--gantt-critical)',
+                }}
+                aria-hidden="true"
+              />
+            </Swatch>
+          </>
+        )}
         <Swatch label="Today">
           <span
             className="block h-3 w-0.5"
@@ -129,22 +137,25 @@ export default function GanttLegend({ editable }: { editable: boolean }) {
 
       {/* Two markings carry a whole scheduling idea between them, so they get a sentence each
           rather than only a swatch. Everything else on the chart explains itself. */}
-      <dl className="border-brand-border m-0 grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 border-t pt-2">
-        <dt className="whitespace-nowrap" style={{ color: 'var(--gantt-anchor)' }}>
-          ★ Anchor
-        </dt>
-        <dd className="m-0">
-          The fixed point the plan is built around — the event date itself. Mark one by selecting a
-          bar and ticking <em>Anchor</em>. With none set, the last item to finish stands in for one.
-        </dd>
-        <dt className="whitespace-nowrap" style={{ color: 'var(--gantt-critical)' }}>
-          Critical path
-        </dt>
-        <dd className="m-0">
-          Zero slack: a one-day delay here delays the anchor by a day. Work that finishes with a gap
-          before whatever follows it has that many days spare, so it is not on the path.
-        </dd>
-      </dl>
+      {editable && (
+        <dl className="border-brand-border m-0 grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 border-t pt-2">
+          <dt className="whitespace-nowrap" style={{ color: 'var(--gantt-anchor)' }}>
+            ★ Anchor
+          </dt>
+          <dd className="m-0">
+            The fixed point the plan is built around — the event date itself. Mark one by selecting
+            a bar and ticking <em>Anchor</em>. With none set, the last item to finish stands in for
+            one.
+          </dd>
+          <dt className="whitespace-nowrap" style={{ color: 'var(--gantt-critical)' }}>
+            Critical path
+          </dt>
+          <dd className="m-0">
+            Zero slack: a one-day delay here delays the anchor by a day. Work that finishes with a
+            gap before whatever follows it has that many days spare, so it is not on the path.
+          </dd>
+        </dl>
+      )}
 
       {editable && (
         <p className="m-0">

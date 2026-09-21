@@ -82,6 +82,10 @@ export default function RoadmapPage() {
           ← All projects
         </Link>
       </div>
+      <p className="text-text-light mb-4">
+        Each bar is a project, placed by its planned dates; the number after a name is how many
+        tasks it has. Click a bar for details.
+      </p>
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <span className="text-text-light text-sm">Show</span>
@@ -110,7 +114,9 @@ export default function RoadmapPage() {
           edges={data!.dependencies}
           rangeStart={new Date(data!.scopeStart)}
           rangeEnd={new Date(data!.scopeEnd)}
-          editable
+          // The server lets only a project's manager move it; across the whole roadmap that
+          // is reliably true only for admins.
+          editable={Boolean(user.isAdmin)}
           onReschedule={(patch) =>
             reschedule.mutate({
               items: [

@@ -148,7 +148,7 @@ export default function GanttItemPanel({
             Milestone
           </span>
         )}
-        {p.isAnchor && (
+        {canManage && p.isAnchor && (
           <Tooltip content={ANCHOR_HINT}>
             <span
               className="rounded-full px-2 py-0.5"
@@ -158,7 +158,7 @@ export default function GanttItemPanel({
             </span>
           </Tooltip>
         )}
-        {p.isCritical && (
+        {canManage && p.isCritical && (
           <Tooltip content={CRITICAL_HINT}>
             <span
               className="rounded-full px-2 py-0.5"
@@ -215,7 +215,7 @@ export default function GanttItemPanel({
         )}
       </dl>
 
-      {!p.baseline && (
+      {canManage && !p.baseline && (
         <p className="text-text-light mt-2 mb-0 text-xs">No baseline set, so no variance yet.</p>
       )}
 
