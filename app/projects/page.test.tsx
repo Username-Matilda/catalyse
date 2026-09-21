@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { screen, waitFor, fireEvent, cleanup } from '@testing-library/react'
+import { screen, waitFor, fireEvent, cleanup, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { prisma } from '@/lib/prisma'
 import {
@@ -177,6 +177,17 @@ describe('projects directory', () => {
     await screen.findByText(/Email sent! You can request another in \d+s\./)
     expect(screen.getByRole('button', { name: 'Send it again' })).toBeDisabled()
     await waitFor(() => expect(emails.lastTo(unconfirmed.email!)).toBeDefined())
+  })
+
+  it('says once, dismissibly, that an admin page turned the viewer away', async () => {
+    const me = await createVolunteer()
+    await renderApp(<ProjectsPage />, { as: me, url: '/projects?notice=no-access' })
+    const notice = await screen.findByText('That page is for admins.')
+    await waitFor(() => expect(window.location.search).toBe(''))
+    await userEvent.click(
+      within(notice.closest('[role=status]') as HTMLElement).getByLabelText('Dismiss'),
+    )
+    expect(screen.queryByText('That page is for admins.')).toBeNull()
   })
 
   it('keeps unapproved volunteers out, showing a loading state until they leave', async () => {

@@ -48,13 +48,13 @@ describe('auth gate hooks', () => {
 
   it('useRequireAdmin / useRequireSuperAdmin send the wrong role to /projects', async () => {
     await settle('useRequireAdmin', await createVolunteer())
-    expect(navigation.replace).toHaveBeenCalledWith('/projects')
+    expect(navigation.replace).toHaveBeenCalledWith('/projects?notice=no-access')
     navigation.reset()
     await settle('useRequireAdmin', await createAdmin())
     expect(navigation.replace).not.toHaveBeenCalled()
     navigation.reset()
     await settle('useRequireSuperAdmin', await createAdmin())
-    expect(navigation.replace).toHaveBeenCalledWith('/projects')
+    expect(navigation.replace).toHaveBeenCalledWith('/projects?notice=no-access')
     navigation.reset()
     await settle('useRequireSuperAdmin', await createAdmin({ email: 'admin@example.com' }))
     expect(navigation.replace).not.toHaveBeenCalled()

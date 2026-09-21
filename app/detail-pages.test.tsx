@@ -195,6 +195,10 @@ describe('bug report detail', () => {
     await renderApp(<BugReportDetailPage params={Promise.resolve({ id: '999999' })} />, {
       as: admin,
     })
-    await screen.findByText(/not found/i)
+    await screen.findByRole('heading', { name: 'Report not found' })
+    expect(screen.getByRole('link', { name: 'Go to dashboard' })).toHaveAttribute(
+      'href',
+      '/dashboard',
+    )
   })
 })

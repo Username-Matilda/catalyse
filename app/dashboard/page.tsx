@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { useRequireAuth } from '@/lib/hooks/auth'
+import { useOneTimeNotice } from '@/lib/hooks/useOneTimeNotice'
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import Button from '@/components/Button'
@@ -92,21 +93,12 @@ export default function DashboardPage() {
   const [notificationPage, setNotificationPage] = useState(1)
   const [welcomeDismissed, setWelcomeDismissed] = useState(false)
   // Set when a page that needs approval sent the volunteer here (PENDING_NOTICE_URL).
-  const [pendingNotice] = useState(
-    () =>
-      typeof window !== 'undefined' &&
-      new URLSearchParams(window.location.search).get('notice') === 'pending',
-  )
+  const [pendingNotice] = useOneTimeNotice('pending')
 
   function setNotificationFilterAndResetPage(filter: NotificationFilter) {
     setNotificationFilter(filter)
     setNotificationPage(1)
   }
-
-  // Shown once: the notice leaves the address so a reload or a shared link doesn't repeat it.
-  useEffect(() => {
-    if (pendingNotice) history.replaceState(null, '', `/dashboard${window.location.hash}`)
-  }, [pendingNotice])
 
   useEffect(() => {
     function syncFromHash() {

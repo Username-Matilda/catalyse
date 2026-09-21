@@ -17,6 +17,9 @@ export function useRequireAuth() {
 /** Where a volunteer lands when a page needs approval they don't have yet; see the dashboard. */
 export const PENDING_NOTICE_URL = '/dashboard?notice=pending'
 
+/** Where someone lands from an admin page they may not open; see the projects page. */
+export const NO_ACCESS_NOTICE_URL = '/projects?notice=no-access'
+
 /**
  * For pages only approved volunteers (and admins) may use. `user` stays null until the
  * volunteer is known to be approved, so the page shows its loading state rather than
@@ -41,7 +44,7 @@ export function useRequireAdmin() {
   const auth = useAuth()
   useEffect(() => {
     if (!auth.loading && !auth.user) router.replace('/login')
-    if (!auth.loading && auth.user && !auth.user.isAdmin) router.replace('/projects')
+    if (!auth.loading && auth.user && !auth.user.isAdmin) router.replace(NO_ACCESS_NOTICE_URL)
   }, [auth.user, auth.loading, router])
   return auth
 }
@@ -51,7 +54,7 @@ export function useRequireSuperAdmin() {
   const auth = useAuth()
   useEffect(() => {
     if (!auth.loading && !auth.user) router.replace('/login')
-    if (!auth.loading && auth.user && !auth.user.isSuperAdmin) router.replace('/projects')
+    if (!auth.loading && auth.user && !auth.user.isSuperAdmin) router.replace(NO_ACCESS_NOTICE_URL)
   }, [auth.user, auth.loading, router])
   return auth
 }

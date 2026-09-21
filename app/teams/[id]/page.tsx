@@ -10,6 +10,7 @@ import { useToast } from '@/lib/toast'
 import { teamApplicationSentMessage } from '@/lib/action-messages'
 import { useCooldown } from '@/lib/hooks/useCooldown'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import NotFoundCard from '@/components/NotFoundCard'
 
 export default function TeamDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = use(params)
@@ -67,9 +68,10 @@ export default function TeamDetailPage({ params }: { params: Promise<{ id: strin
 
   if (!team) {
     return (
-      <main className="container py-5 pb-15">
-        <p className="text-text-light">Team not found.</p>
-      </main>
+      <NotFoundCard
+        title="Team not found"
+        message="This team doesn't exist, or it has been removed."
+      />
     )
   }
 

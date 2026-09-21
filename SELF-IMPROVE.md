@@ -51,3 +51,10 @@ confusing than it needed to be, and that will do so again.
       A shared helper in `test/` that finds a toast by text, clicks its Dismiss
       and waits for it to go (the `expectNotFound` helper in the Quick Tasks
       test) would let each step wait for a toast of its own.
+- [ ] **After a client-side redirect, `window.location` can still hold the old address
+      while the new page first renders, and jsdom tests never show it.** A `useState`
+      initializer that read `?notice=` passed every unit test and showed nothing in the
+      browser; only an e2e run caught it. The one note on this sat in a comment inside
+      `app/dashboard/page.tsx`. Reading query parameters through one hook
+      (`lib/hooks/useOneTimeNotice.ts` reads on mount) and a line in `AGENTS.md` would stop
+      the next page repeating it.

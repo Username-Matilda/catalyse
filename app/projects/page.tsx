@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { useRequireApproved } from '@/lib/hooks/auth'
+import { useOneTimeNotice } from '@/lib/hooks/useOneTimeNotice'
 import { useUrlParam, useUrlSearchInput } from '@/lib/hooks/url-filters'
 import { DIRECTORY_PAGE_SIZE as PAGE_SIZE } from '@/lib/pagination'
 import Link from 'next/link'
@@ -62,6 +63,8 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
   const [locationFilter, setLocationFilter] = useUrlParam('location')
   const [teamFilter, setTeamFilter] = useUrlParam('team')
   const [sortBy, setSortBy] = useUrlParam('sort')
+  // Set when an admin page turned the viewer away (NO_ACCESS_NOTICE_URL).
+  const [noAccessNotice, dismissNoAccessNotice] = useOneTimeNotice('no-access')
   const [pageParam, setPageParam] = useUrlParam('page')
   const page = Math.max(1, parseInt(pageParam, 10) || 1)
   const router = useRouter()
@@ -265,6 +268,18 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
             <Button href="/suggest">Propose a project</Button>
           </div>
         </div>
+
+        {noAccessNotice && (
+          <div
+            role="status"
+            className="flex items-center justify-between gap-3 p-4 rounded-lg mb-5 bg-blue-100 text-blue-800 border border-blue-300 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-600"
+          >
+            <span>That page is for admins.</span>
+            <Button variant="ghost" icon onClick={dismissNoAccessNotice} aria-label="Dismiss">
+              ×
+            </Button>
+          </div>
+        )}
 
         <div className="border-brand-border bg-surface mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4">
           <div>

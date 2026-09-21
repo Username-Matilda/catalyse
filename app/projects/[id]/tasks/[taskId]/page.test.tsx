@@ -183,6 +183,20 @@ describe('task detail page', () => {
     await screen.findByRole('link', { name: 'Back to Project' })
   })
 
+  it('shows the shared not-found card for a task that is gone', async () => {
+    const project = await createProject()
+    await mount(project.id, 999_999, await createAdmin())
+    await screen.findByRole('heading', { name: 'Task not found' })
+    expect(screen.getByRole('link', { name: 'Go to dashboard' })).toHaveAttribute(
+      'href',
+      '/dashboard',
+    )
+    expect(screen.getByRole('link', { name: 'Back to Project' })).toHaveAttribute(
+      'href',
+      `/projects/${project.id}`,
+    )
+  })
+
   it('reports dependency failures', async () => {
     const admin = await createAdmin()
     const project = await createProject({ title: 'Deps' })

@@ -193,14 +193,43 @@ describe('accept invite', () => {
       true,
     )
 
-    cleanup()
-    await renderApp(<AcceptInvitePage />, { url: '/accept-invite?token=bad', as: invitee })
-    await screen.findByText('Invite Error')
-    await screen.findByText('Invalid or expired invite')
-
-    cleanup()
-    await renderApp(<AcceptInvitePage />, { url: '/accept-invite', as: invitee })
-    await screen.findByText('Invite Error')
-    await screen.findByText('Failed to accept invite')
+    // Each way an invite can fail says which it was, with someone to ask.
+    const failsWith = async (token: string | null, message: string) => {
+      cleanup()
+      const url = token === null ? '/accept-invite' : `/accept-invite?token=${token}`
+      await renderApp(<AcceptInvitePage />, { url, as: invitee })
+      await screen.findByText('Invite not accepted')
+      expect(screen.getByText(message)).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'uk@pauseai.info' })).toHaveAttribute(
+        'href',
+        'mailto:uk@pauseai.info',
+      )
+    }
+    const invite = (inviteToken: string, data: object) =>
+      prisma.adminInvite.create({
+        data: {
+          email: 'invitee@example.com',
+          inviteToken,
+          invitedById: inviter.id,
+          expiresAt: new Date(Date.now() + 60_000),
+          ...data,
+        },
+      })
+    await invite('old-token', { expiresAt: new Date(Date.now() - 60_000) })
+    await invite('revoked-token', { status: 'revoked' })
+    await failsWith('good-token', 'This invite has already been used.')
+    await failsWith(
+      'old-token',
+      'This invite has expired. Ask the admin who invited you to send a new one.',
+    )
+    await failsWith('revoked-token', 'This invite has been withdrawn.')
+    await failsWith(
+      'bad',
+      "This invite link isn't valid. Check you opened the whole link from the email.",
+    )
+    await failsWith(
+      null,
+      'This link is missing its invite code. Open the link from your invite email again.',
+    )
   })
 })

@@ -95,7 +95,7 @@ describe('admin.admins', () => {
     )
     await expect(
       clientAs(invitee).admin.admins.acceptInvite({ inviteToken: token }),
-    ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: 'This invite has already been used.' })
 
     const second = await c.admin.admins.invite({ email: 'second@example.com' })
     const id = (await c.admin.admins.listInvites()).find(

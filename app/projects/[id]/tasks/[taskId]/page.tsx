@@ -17,6 +17,7 @@ import { TASK_STATUS_LABELS, TASK_STATUS_VARIANTS } from '@/lib/status-labels'
 import { PROJECT_TASK_CLAIMED_MESSAGE } from '@/lib/action-messages'
 import { TASK_INACTIVITY_RULE } from '@/lib/staleness'
 import PageLoading from '@/components/PageLoading'
+import NotFoundCard from '@/components/NotFoundCard'
 
 export default function TaskDetailPage({
   params,
@@ -166,14 +167,14 @@ export default function TaskDetailPage({
 
   if (!task) {
     return (
-      <main className="container py-5">
-        <p className="text-text-light">Task not found.</p>
-        <Link href={`/projects/${projectIdStr}`}>
-          <Button variant="secondary" size="sm">
-            Back to Project
-          </Button>
+      <NotFoundCard
+        title="Task not found"
+        message="This task doesn't exist, or it isn't one you can see."
+      >
+        <Link href={`/projects/${projectIdStr}`} className="text-sm">
+          Back to Project
         </Link>
-      </main>
+      </NotFoundCard>
     )
   }
 

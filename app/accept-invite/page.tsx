@@ -78,13 +78,23 @@ function AcceptInviteContent() {
     )
   }
 
-  const errorMsg =
-    mutation.error instanceof Error ? mutation.error.message : 'Failed to accept invite'
+  const errorMsg = !token
+    ? 'This link is missing its invite code. Open the link from your invite email again.'
+    : mutation.error instanceof Error
+      ? mutation.error.message
+      : 'Failed to accept invite'
 
   return (
     <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word text-center">
-      <h2>Invite Error</h2>
+      <h2>Invite not accepted</h2>
       <p className="my-4 text-error">{errorMsg}</p>
+      <p className="text-text-light text-sm mb-6">
+        Need help? Contact{' '}
+        <a href="mailto:uk@pauseai.info" className="underline">
+          uk@pauseai.info
+        </a>
+        .
+      </p>
       <Button href="/" variant="outline">
         Back to Home
       </Button>
