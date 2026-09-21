@@ -166,7 +166,6 @@ test.describe('Volunteer project drafts', () => {
     // Going to the form directly, the server still refuses the save.
     await volunteer.page.goto(`${baseUrl}/suggest/new`)
     await volunteer.page.getByLabel('Project Title').fill(fake.projectTitle())
-    await volunteer.page.getByRole('button', { name: 'Save draft' }).click()
     await expect(getAlert(volunteer.page)).toContainText('You already have 2 drafts', {
       timeout: 10_000,
     })

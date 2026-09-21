@@ -40,6 +40,28 @@ export async function openNewProjectForm(page: Page): Promise<void> {
   await expect(titleField).toBeVisible({ timeout: 10_000 })
 }
 
+// A new proposal saves itself once a title is written, and only then has an id. Adding the first
+// task works whether that has happened yet or not: it creates the draft if needed. The address
+// moves to the edit page without a navigation, so wait for it, and for the task to appear.
+async function addFirstTask(page: Page, taskTitle: string): Promise<number> {
+  await page.locator('#new-task-title').fill(taskTitle)
+  await page.getByRole('button', { name: 'Add Task' }).click()
+  await page.waitForURL(/\/projects\/\d+\/edit/, { timeout: 15_000 })
+  await expect(page.locator(`input[id^="task-title-"][value="${taskTitle}"]`)).toBeVisible({
+    timeout: 10_000,
+  })
+  return Number(new URL(page.url()).pathname.split('/')[2])
+}
+
+// Waits for the draft a new proposal saves by itself, and returns its id.
+async function waitForAutosavedDraft(page: Page, createPath: string): Promise<number> {
+  const response = await page.waitForResponse((resp) => resp.url().includes(createPath))
+  if (!response.ok()) throw new Error(`Draft save failed: ${await response.text()}`)
+  const { id } = (await response.json()).json as { id: number }
+  await page.waitForURL(new RegExp(`/projects/${id}/edit$`), { timeout: 15_000 })
+  return id
+}
+
 export async function proposeProject(
   baseUrl: string,
   page: Page,
@@ -59,17 +81,7 @@ export async function proposeProject(
       .click()
   }
   // A project has no tasks yet, so the add-task form is the only task input on the page.
-  await page.locator('#new-task-title').fill('Initial task')
-
-  // Adding the first task lazily creates the draft project it needs a parent id for.
-  const [response] = await Promise.all([
-    page.waitForResponse((resp) => resp.url().includes('/api/rpc/projects/create')),
-    page.getByRole('button', { name: 'Add Task' }).click(),
-  ])
-  if (!response.ok()) throw new Error(`Project creation failed: ${await response.text()}`)
-  const { id } = (await response.json()).json as { id: number }
-
-  await page.waitForURL(`${baseUrl}/projects/${id}/edit`, { timeout: 15_000 })
+  const id = await addFirstTask(page, 'Initial task')
   await page.getByRole('button', { name: 'Submit', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Submit draft for review?' })).toBeVisible({
     timeout: 10_000,
@@ -90,16 +102,7 @@ export async function adminCreateProject(
 
   await adminPage.getByLabel('Project Title').fill(title)
   await adminPage.getByLabel('Description').fill(description)
-  await adminPage.locator('#new-task-title').fill('Initial task')
-
-  const [response] = await Promise.all([
-    adminPage.waitForResponse((resp) => resp.url().includes('/api/rpc/admin/projects/create')),
-    adminPage.getByRole('button', { name: 'Add Task' }).click(),
-  ])
-  if (!response.ok()) throw new Error(`Project creation failed: ${await response.text()}`)
-  const { id } = (await response.json()).json as { id: number }
-
-  await adminPage.waitForURL(`${baseUrl}/projects/${id}/edit`, { timeout: 15_000 })
+  const id = await addFirstTask(adminPage, 'Initial task')
   await adminPage.getByRole('button', { name: 'Publish', exact: true }).click()
   await expect(adminPage.getByRole('heading', { name: 'Publish this project?' })).toBeVisible({
     timeout: 10_000,
@@ -155,16 +158,9 @@ export async function adminSaveProjectDraft(
   await adminPage.goto(`${baseUrl}/admin/projects/new`)
   await openNewProjectForm(adminPage)
 
+  const saved = waitForAutosavedDraft(adminPage, '/api/rpc/admin/projects/create')
   await adminPage.getByLabel('Project Title').fill(title)
-
-  const [response] = await Promise.all([
-    adminPage.waitForResponse((resp) => resp.url().includes('/api/rpc/admin/projects/create')),
-    adminPage.getByRole('button', { name: 'Save draft' }).click(),
-  ])
-  if (!response.ok()) throw new Error(`Draft save failed: ${await response.text()}`)
-  const { id } = (await response.json()).json as { id: number }
-  await adminPage.waitForURL(`${baseUrl}/projects/${id}/edit`, { timeout: 15_000 })
-  return id
+  return saved
 }
 
 export async function volunteerSaveProjectDraft(
@@ -175,16 +171,9 @@ export async function volunteerSaveProjectDraft(
   await page.goto(`${baseUrl}/suggest`)
   await openNewProjectForm(page)
 
+  const saved = waitForAutosavedDraft(page, '/api/rpc/projects/create')
   await page.getByLabel('Project Title').fill(title)
-
-  const [response] = await Promise.all([
-    page.waitForResponse((resp) => resp.url().includes('/api/rpc/projects/create')),
-    page.getByRole('button', { name: 'Save draft' }).click(),
-  ])
-  if (!response.ok()) throw new Error(`Draft save failed: ${await response.text()}`)
-  const { id } = (await response.json()).json as { id: number }
-  await page.waitForURL(`${baseUrl}/projects/${id}/edit`, { timeout: 15_000 })
-  return id
+  return saved
 }
 
 export async function addTaskFromEditPage(

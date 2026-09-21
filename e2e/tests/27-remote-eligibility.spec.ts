@@ -157,15 +157,12 @@ test.describe('Project form & settings: remote eligibility', () => {
       'Yes - remote OK, from any country',
     )
     await adminPage.locator('#new-task-title').fill('Initial task')
-
-    const [response] = await Promise.all([
-      adminPage.waitForResponse((resp) => resp.url().includes('/api/rpc/admin/projects/create')),
-      adminPage.getByRole('button', { name: 'Add Task' }).click(),
-    ])
-    if (!response.ok()) throw new Error(`Project creation failed: ${await response.text()}`)
-    const { id } = (await response.json()).json as { id: number }
-
-    await adminPage.waitForURL(`${baseUrl}/projects/${id}/edit`, { timeout: 15_000 })
+    await adminPage.getByRole('button', { name: 'Add Task' }).click()
+    await adminPage.waitForURL(/\/projects\/\d+\/edit/, { timeout: 15_000 })
+    const id = Number(new URL(adminPage.url()).pathname.split('/')[2])
+    await expect(adminPage.locator('input[id^="task-title-"][value="Initial task"]')).toBeVisible({
+      timeout: 10_000,
+    })
     await adminPage.getByRole('button', { name: 'Publish', exact: true }).click()
     await adminPage
       .getByRole('dialog')

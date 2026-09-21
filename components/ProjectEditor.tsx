@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { InferRouterInputs } from '@orpc/server'
@@ -18,6 +18,11 @@ import { useToast } from '@/lib/toast'
 import { toDateInputValue, fromDateInputValue } from '@/lib/format-date'
 import { orpc } from '@/lib/orpc'
 import type { AppRouter } from '@/server/router'
+
+// A new proposal starts saving itself once the title or the description has this much in it.
+const AUTOSAVE_MIN_TITLE = 3
+const AUTOSAVE_MIN_DESCRIPTION = 20
+const AUTOSAVE_DELAY_MS = 1500
 
 interface SelectedSkill {
   skillId: number
@@ -65,6 +70,8 @@ export default function ProjectEditor(props: ProjectEditorProps) {
 
   const [projectId, setProjectId] = useState<number | undefined>(props.projectId)
   const [creatingDraft, setCreatingDraft] = useState(false)
+  const [autosaveError, setAutosaveError] = useState<string | null>(null)
+  const creation = useRef<Promise<number | null> | null>(null)
   const [permissionChecked, setPermissionChecked] = useState(false)
   const [canEdit, setCanEdit] = useState(true)
   const [initialized, setInitialized] = useState(false)
@@ -264,6 +271,7 @@ export default function ProjectEditor(props: ProjectEditorProps) {
   })
 
   const isSaving =
+    creatingDraft ||
     updateMutation.isPending ||
     updateTaskMutation.isPending ||
     createTaskMutation.isPending ||
@@ -272,7 +280,7 @@ export default function ProjectEditor(props: ProjectEditorProps) {
   function buildCreatePayload(): CreateProjectInput {
     const [country, localGroup] = locationValue.split(':')
     return {
-      title: title.trim(),
+      title: title.trim() || 'Untitled draft',
       description: description.trim(),
       projectType: projectType || null,
       timeCommitmentHoursPerWeek: hoursPerWeek ? Number(hoursPerWeek) : null,
@@ -301,34 +309,54 @@ export default function ProjectEditor(props: ProjectEditorProps) {
     queryClient.invalidateQueries({ queryKey: orpc.admin.projects.myDrafts.key() })
   }
 
-  // Creates the project the first time it's needed — on an explicit "Save draft" click, or
-  // implicitly when the first task is added (a task needs a parent project id). A no-op
-  // once an id already exists.
+  // Creates the project the first time it's needed: once enough is written (see the autosave
+  // effect below), or when the first task is added (a task needs a parent project id). A no-op
+  // once an id already exists. A draft made this way leaves the form as it is, on screen, and
+  // only moves the address to the edit page, so nothing jumps under the volunteer's cursor.
   async function ensureProjectExists(): Promise<number | null> {
     if (projectId !== undefined) return projectId
-    if (!title.trim()) {
-      toast('A title is required, even for a draft.', 'error')
-      return null
-    }
+    // The timer and an Add Task click can both reach here before the first create lands.
+    if (creation.current) return creation.current
     setCreatingDraft(true)
-    try {
-      const mutation = initialVariant === 'admin' ? adminCreateMutation : volunteerCreateMutation
-      const result = await mutation.mutateAsync(buildCreatePayload())
-      setProjectId(result.id)
-      invalidateMyDrafts()
-      return result.id
-    } catch (err: unknown) {
-      toast(err instanceof Error ? err.message : 'Failed to save draft', 'error')
-      return null
-    } finally {
-      setCreatingDraft(false)
-    }
+    setAutosaveError(null)
+    const mutation = initialVariant === 'admin' ? adminCreateMutation : volunteerCreateMutation
+    creation.current = mutation
+      .mutateAsync(buildCreatePayload())
+      .then((result) => {
+        setProjectId(result.id)
+        // What is on screen is the truth; the copy just saved must not overwrite it.
+        setInitialized(true)
+        setPermissionChecked(true)
+        window.history.replaceState(null, '', `/projects/${result.id}/edit`)
+        invalidateMyDrafts()
+        return result.id
+      })
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : 'Failed to save draft'
+        toast(message, 'error')
+        setAutosaveError(message)
+        return null
+      })
+      .finally(() => {
+        creation.current = null
+        setCreatingDraft(false)
+      })
+    return creation.current
   }
 
-  async function handleSaveDraftClick() {
-    const id = await ensureProjectExists()
-    if (id !== null) router.replace(`/projects/${id}/edit`)
-  }
+  const readyToAutosave =
+    projectId === undefined &&
+    (title.trim().length >= AUTOSAVE_MIN_TITLE ||
+      description.trim().length >= AUTOSAVE_MIN_DESCRIPTION)
+  // Every field goes into the draft as it stands when the timer fires, so the timer restarts on
+  // any change to the payload, not just the two fields that start it.
+  const autosavePayloadKey = JSON.stringify(buildCreatePayload())
+  useEffect(() => {
+    if (!readyToAutosave || creatingDraft || autosaveError) return
+    const timer = setTimeout(() => void ensureProjectExists(), AUTOSAVE_DELAY_MS)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readyToAutosave, creatingDraft, autosaveError, autosavePayloadKey])
 
   // Checked before any draft is created, since the server refuses to publish a project with
   // no tasks. The count is read fresh: just after a first task is added, the cached project
@@ -360,7 +388,10 @@ export default function ProjectEditor(props: ProjectEditorProps) {
 
   async function handleAddTask(e: React.FormEvent) {
     e.preventDefault()
-    const wasNew = projectId === undefined
+    if (projectId === undefined && !title.trim()) {
+      toast('A title is required, even for a draft.', 'error')
+      return
+    }
     const id = await ensureProjectExists()
     if (id === null) return
     try {
@@ -376,7 +407,6 @@ export default function ProjectEditor(props: ProjectEditorProps) {
       // refetch an in-flight initial load, so cancel it first.
       await queryClient.cancelQueries({ queryKey: orpc.projects.getById.key() })
       void queryClient.invalidateQueries({ queryKey: orpc.projects.getById.key() })
-      if (wasNew) router.replace(`/projects/${id}/edit`)
     } catch {
       // createTaskMutation's onError already toasted.
     }
@@ -408,16 +438,27 @@ export default function ProjectEditor(props: ProjectEditorProps) {
     updateMutation.mutate({ id: projectId, ...patch })
   }
 
-  if (projectId !== undefined && loadingProject) {
+  if (projectId !== undefined && loadingProject && !initialized) {
     return <div className="text-center py-10 text-text-light">Loading project…</div>
   }
 
   return (
     <>
-      {projectId !== undefined && canEdit && (
+      {(projectId === undefined || canEdit) && (
         <p role="status" className="text-sm text-text-light mt-0 mb-4">
           {isSaving ? (
             'Saving…'
+          ) : autosaveError ? (
+            <>
+              <span className="text-error">Couldn&apos;t save.</span>{' '}
+              <button
+                type="button"
+                className="underline cursor-pointer"
+                onClick={() => setAutosaveError(null)}
+              >
+                Retry
+              </button>
+            </>
           ) : retrySave ? (
             <>
               <span className="text-error">Couldn&apos;t save.</span>{' '}
@@ -425,12 +466,27 @@ export default function ProjectEditor(props: ProjectEditorProps) {
                 Retry
               </button>
             </>
+          ) : projectId === undefined ? (
+            'Your draft saves automatically as you write.'
           ) : lastSavedAt ? (
             `Changes save automatically. Last saved ${lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`
           ) : (
             'Changes save automatically.'
           )}
         </p>
+      )}
+
+      {isSaving && (
+        <div
+          aria-hidden="true"
+          className="bg-surface border-brand-border text-text-light fixed bottom-4 left-6 z-[150] flex items-center gap-2 rounded-lg border px-3 py-2 text-sm shadow-lg"
+        >
+          <span
+            aria-hidden="true"
+            className="border-primary inline-block h-4 w-4 animate-spin rounded-full border-2 border-t-transparent"
+          />
+          Autosaving
+        </div>
       )}
 
       {permissionChecked && !canEdit && (
@@ -456,7 +512,7 @@ export default function ProjectEditor(props: ProjectEditorProps) {
             }}
             onBlur={() => {
               const next = title.trim()
-              if (next === (projectData?.title ?? '')) return
+              if (!next || next === (projectData?.title ?? '')) return
               commitField({ title: next })
             }}
             disabled={!canEdit}
@@ -896,17 +952,6 @@ export default function ProjectEditor(props: ProjectEditorProps) {
 
         <div className="flex gap-3 flex-wrap">
           {projectId === undefined && (
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={creatingDraft}
-              onClick={handleSaveDraftClick}
-            >
-              {creatingDraft ? 'Saving…' : 'Save draft'}
-            </Button>
-          )}
-
-          {projectId === undefined && (
             <Button type="button" onClick={handleOpenPublishModal} disabled={creatingDraft}>
               {isOrgDraft ? 'Publish' : 'Submit'}
             </Button>
@@ -915,10 +960,10 @@ export default function ProjectEditor(props: ProjectEditorProps) {
           {projectId === undefined && (
             <Button
               type="button"
-              variant="danger"
+              variant="secondary"
               onClick={props.onCancel ?? (() => router.back())}
             >
-              Delete
+              Cancel
             </Button>
           )}
 
