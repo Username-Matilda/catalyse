@@ -44,7 +44,9 @@ describe('teams list', () => {
     expect(ledCard.querySelector(`a[href="/admin/teams/${led.id}"]`)).not.toBeNull()
     expect(screen.getByRole('button', { name: 'Application Pending' })).toBeDisabled()
     await userEvent.click(screen.getByRole('button', { name: 'Apply to Join' }))
-    await screen.findByText('Application submitted, a team leader will review it')
+    await screen.findByText(
+      /Sent to the leader of .+\. You'll get a notification when they reply\./,
+    )
     expect(
       await prisma.teamJoinRequest.count({ where: { teamId: open.id, volunteerId: me.id } }),
     ).toBe(1)
@@ -101,7 +103,9 @@ describe('team detail', () => {
     await screen.findByRole('heading', { name: 'Open Team' })
     expect(screen.queryByRole('link', { name: 'Meeting calendar' })).toBeNull()
     await userEvent.click(screen.getByRole('button', { name: 'Apply to Join' }))
-    await screen.findByText('Application submitted, a team leader will review it')
+    await screen.findByText(
+      /Sent to the leader of .+\. You'll get a notification when they reply\./,
+    )
     await screen.findByRole('button', { name: 'Application Pending' })
     cleanup()
     await renderApp(<TeamDetailPage params={Promise.resolve({ id: String(led.id) })} />, { as: me })

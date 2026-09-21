@@ -287,7 +287,9 @@ test.describe('Project Tasks', () => {
       timeout: 10_000,
     })
     await volunteer.page.getByRole('button', { name: 'Claim' }).click()
-    await expect(getAlert(volunteer.page)).toContainText('Task claimed!', { timeout: 10_000 })
+    await expect(getAlert(volunteer.page)).toContainText('Task claimed. Post an update', {
+      timeout: 10_000,
+    })
 
     // Done button appears only for the assignee — confirms task is now assigned to this volunteer
     await expect(volunteer.page.getByRole('button', { name: 'Done' })).toBeVisible({
@@ -306,7 +308,9 @@ test.describe('Project Tasks', () => {
     await expect(volunteer.page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 })
 
     await volunteer.page.getByRole('button', { name: 'Claim' }).click()
-    await expect(getAlert(volunteer.page)).toContainText('Task claimed!', { timeout: 10_000 })
+    await expect(getAlert(volunteer.page)).toContainText('Task claimed. Post an update', {
+      timeout: 10_000,
+    })
 
     await volunteer.page.getByRole('button', { name: 'Done' }).click()
     await expect(getAlert(volunteer.page)).toContainText('Task completed!', { timeout: 10_000 })

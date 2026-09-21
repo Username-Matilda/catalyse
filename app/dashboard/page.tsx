@@ -10,6 +10,7 @@ import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import { ProjectList, statusBadgeClasses } from '@/components/ProjectCard'
 import { QUICK_TASK_STATUS_LABELS } from '@/lib/status-labels'
+import { QUICK_TASK_SUBMITTED_MESSAGE } from '@/lib/action-messages'
 import Tabs from '@/components/Tabs'
 import Modal from '@/components/ui/Modal'
 import type { InferRouterOutputs } from '@orpc/server'
@@ -111,7 +112,7 @@ export default function DashboardPage() {
   const submitTaskMutation = useMutation({
     ...orpc.quickTasks.submit.mutationOptions(),
     onSuccess: () => {
-      showToast('Task submitted for review!', 'success')
+      showToast(QUICK_TASK_SUBMITTED_MESSAGE, 'success')
       void queryClient.invalidateQueries({ queryKey: orpc.my.quickTasks.key() })
     },
     onError: (err: unknown) => {

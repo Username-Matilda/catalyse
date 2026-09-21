@@ -13,6 +13,7 @@ import { useToast } from '@/lib/toast'
 import { formatDate, toDateInputValue, fromDateInputValue } from '@/lib/format-date'
 import { TaskStatus } from '@/generated/prisma/enums'
 import { TASK_STATUS_LABELS, TASK_STATUS_VARIANTS } from '@/lib/status-labels'
+import { PROJECT_TASK_CLAIMED_MESSAGE } from '@/lib/action-messages'
 
 export default function TaskDetailPage({
   params,
@@ -58,8 +59,13 @@ export default function TaskDetailPage({
 
   const updateMutation = useMutation({
     ...orpc.projects.updateTask.mutationOptions(),
-    onSuccess: () => {
-      showToast('Task updated!', 'success')
+    onSuccess: (_data, variables) => {
+      showToast(
+        variables.data.status === TaskStatus.in_progress
+          ? PROJECT_TASK_CLAIMED_MESSAGE
+          : 'Task updated!',
+        'success',
+      )
       setIsEditing(false)
       void queryClient.invalidateQueries({ queryKey: orpc.projects.getTask.key() })
     },

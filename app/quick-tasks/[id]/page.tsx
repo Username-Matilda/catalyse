@@ -10,6 +10,7 @@ import Button from '@/components/Button'
 import { Badge } from '@/components/Badge'
 import CommentThread from '@/components/CommentThread'
 import { QUICK_TASK_STATUS_LABELS } from '@/lib/status-labels'
+import { QUICK_TASK_CLAIMED_MESSAGE, QUICK_TASK_SUBMITTED_MESSAGE } from '@/lib/action-messages'
 import { QuickTaskStatus } from '@/generated/prisma/enums'
 
 const REVIEW_RATING_LABELS: Record<string, string> = {
@@ -40,7 +41,7 @@ export default function QuickTaskDetailPage({ params }: { params: Promise<{ id: 
   const submitMutation = useMutation({
     ...orpc.quickTasks.submit.mutationOptions(),
     onSuccess: () => {
-      showToast('Task submitted for review!', 'success')
+      showToast(QUICK_TASK_SUBMITTED_MESSAGE, 'success')
       void queryClient.invalidateQueries({ queryKey: orpc.quickTasks.get.key() })
       void queryClient.invalidateQueries({ queryKey: orpc.my.quickTasks.key() })
     },
@@ -52,7 +53,7 @@ export default function QuickTaskDetailPage({ params }: { params: Promise<{ id: 
   const claimMutation = useMutation({
     ...orpc.quickTasks.claim.mutationOptions(),
     onSuccess: () => {
-      showToast('Task claimed!', 'success')
+      showToast(QUICK_TASK_CLAIMED_MESSAGE, 'success')
       void queryClient.invalidateQueries({ queryKey: orpc.quickTasks.get.key() })
       void queryClient.invalidateQueries({ queryKey: orpc.my.quickTasks.key() })
       void queryClient.invalidateQueries({ queryKey: orpc.quickTasks.available.key() })

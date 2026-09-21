@@ -12,6 +12,7 @@ import { Badge, badgeClasses, badgeColorClasses } from '@/components/Badge'
 import Tooltip from '@/components/Tooltip'
 import { projectStatusVariant } from '@/components/ProjectCard'
 import { INTEREST_STATUS_LABELS } from '@/lib/status-labels'
+import { interestSentMessage, PROJECT_TASK_CLAIMED_MESSAGE } from '@/lib/action-messages'
 import CommentThread from '@/components/CommentThread'
 import Modal from '@/components/ui/Modal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
@@ -760,7 +761,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     ...orpc.projects.updateTask.mutationOptions(),
     onSuccess: (_data, variables) => {
       if (variables.data.status === TaskStatus.in_progress) {
-        showToast('Task claimed!', 'success')
+        showToast(PROJECT_TASK_CLAIMED_MESSAGE, 'success')
       } else if (variables.data.status === TaskStatus.completed) {
         showToast('Task completed!', 'success')
       } else if (variables.data.status === TaskStatus.open) {
@@ -822,7 +823,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const expressInterestMutation = useMutation({
     ...orpc.projects.expressInterest.mutationOptions(),
     onSuccess: () => {
-      showToast('Interest expressed!', 'success')
+      showToast(interestSentMessage(projectRaw?.owner?.name ?? null), 'success')
       void invalidateProject()
     },
     onError: (err: unknown) =>

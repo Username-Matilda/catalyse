@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
+import { teamApplicationSentMessage } from '@/lib/action-messages'
 
 export default function TeamDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = use(params)
@@ -29,7 +30,7 @@ export default function TeamDetailPage({ params }: { params: Promise<{ id: strin
   const applyMutation = useMutation({
     ...orpc.teams.apply.mutationOptions(),
     onSuccess: () => {
-      showToast('Application submitted, a team leader will review it', 'success')
+      showToast(teamApplicationSentMessage(team?.name ?? 'this team'), 'success')
       void invalidate()
     },
     onError: (err: unknown) => {

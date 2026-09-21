@@ -26,7 +26,9 @@ test.describe('Quick Tasks: self-serve', () => {
     await expect(browseCard).toBeVisible({ timeout: 10_000 })
     await browseCard.getByRole('button', { name: 'Claim', exact: true }).click()
 
-    await expect(getAlert(volunteer.page)).toContainText('Task claimed!', { timeout: 10_000 })
+    await expect(getAlert(volunteer.page)).toContainText('Task claimed. Submit it for review', {
+      timeout: 10_000,
+    })
 
     // Moves out of the browse pool into "My Quick Tasks" — same title, now with a status
     // badge and no Claim button, proving it's no longer the open/unclaimed browse card.
@@ -53,7 +55,9 @@ test.describe('Quick Tasks: self-serve', () => {
     })
     await volunteer.page.getByRole('button', { name: 'Claim', exact: true }).click()
 
-    await expect(getAlert(volunteer.page)).toContainText('Task claimed!', { timeout: 10_000 })
+    await expect(getAlert(volunteer.page)).toContainText('Task claimed. Submit it for review', {
+      timeout: 10_000,
+    })
     await expect(volunteer.page.getByRole('button', { name: 'Mark as Complete' })).toBeVisible({
       timeout: 10_000,
     })
@@ -101,7 +105,9 @@ test.describe('Quick Tasks: self-serve', () => {
     // Claiming from Quick Tasks assigns the task and auto-adds the volunteer as an
     // accepted participant on the project, even though they never expressed interest.
     await card.getByRole('button', { name: 'Claim', exact: true }).click()
-    await expect(getAlert(volunteer.page)).toContainText('Task claimed!', { timeout: 10_000 })
+    await expect(getAlert(volunteer.page)).toContainText('Task claimed. Post an update', {
+      timeout: 10_000,
+    })
 
     // A claimed project task is not a QuickTask row, so it never lands in "My Quick
     // Tasks" — the volunteer is taken to the task itself rather than left on a page where

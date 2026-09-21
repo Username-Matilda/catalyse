@@ -79,7 +79,7 @@ describe('project page — visitor', () => {
     expect(screen.getByText('Olive Owner')).toBeInTheDocument()
 
     await userEvent.click(await screen.findByRole('button', { name: 'Claim' }))
-    await screen.findByText('Task claimed!')
+    await screen.findByText(/Task claimed\. Post an update/)
     await waitFor(async () => expect((await row(open.id)).assigneeId).toBe(me.id))
     await userEvent.click(await screen.findByRole('button', { name: 'Done' }))
     await screen.findByText('Task completed!')
@@ -92,7 +92,7 @@ describe('project page — visitor', () => {
     await screen.findByText('Interest withdrawn')
     await userEvent.type(await screen.findByLabelText('Message (optional)'), 'Pick me')
     await userEvent.click(screen.getByRole('button', { name: 'Express Interest' }))
-    await screen.findByText('Interest expressed!')
+    await screen.findByText(/You'll get a notification when they reply/)
 
     await userEvent.click(screen.getByRole('button', { name: /Contact/ }))
     await userEvent.type(screen.getByLabelText('Subject'), 'Hello')
@@ -127,7 +127,7 @@ describe('project page — visitor', () => {
     await screen.findByRole('heading', { name: 'Ownerless' })
     await userEvent.click(screen.getByLabelText(/I want to own/))
     await userEvent.click(screen.getByRole('button', { name: 'Express Interest' }))
-    await screen.findByText('Interest expressed!')
+    await screen.findByText(/You'll get a notification when they reply/)
     const interest = await prisma.workItemInterest.findFirstOrThrow({
       where: { workItemId: project.id, volunteerId: me.id },
     })
@@ -539,7 +539,7 @@ describe('project page — timeline tab', () => {
       expect(await prisma.workItemDependency.count({ where: { successorId: b.id } })).toBe(1),
     )
     await userEvent.click(within(panel()).getByRole('button', { name: 'Assign to me' }))
-    await screen.findByText('Task claimed!')
+    await screen.findByText(/Task claimed\. Post an update/)
     await waitFor(async () => expect((await row(b.id)).assigneeId).toBe(owner.id))
     await userEvent.click(await within(panel()).findByRole('button', { name: 'Unassign' }))
     await screen.findByText('Task unassigned!')

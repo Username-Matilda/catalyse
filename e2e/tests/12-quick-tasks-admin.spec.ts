@@ -64,7 +64,7 @@ async function submitQuickTask(
     timeout: 10_000,
   })
   await taskCard.getByRole('button', { name: 'Mark as Complete' }).click()
-  await expect(getAlert(volunteerPage)).toContainText('Task submitted for review!', {
+  await expect(getAlert(volunteerPage)).toContainText('Submitted. An admin will review it', {
     timeout: 10_000,
   })
 }
@@ -239,7 +239,7 @@ test.describe('Quick Tasks (admin)', () => {
       timeout: 10_000,
     })
     await taskCard.getByRole('button', { name: 'Mark as Complete' }).click()
-    await expect(getAlert(volunteer.page)).toContainText('Task submitted for review!', {
+    await expect(getAlert(volunteer.page)).toContainText('Submitted. An admin will review it', {
       timeout: 10_000,
     })
 

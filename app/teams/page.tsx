@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
+import { teamApplicationSentMessage } from '@/lib/action-messages'
 
 export default function TeamsPage() {
   const { user, loading } = useRequireAuth()
@@ -19,8 +20,9 @@ export default function TeamsPage() {
 
   const applyMutation = useMutation({
     ...orpc.teams.apply.mutationOptions(),
-    onSuccess: () => {
-      showToast('Application submitted, a team leader will review it', 'success')
+    onSuccess: (_data, variables) => {
+      const team = teams.find((t) => t.id === variables.id)
+      showToast(teamApplicationSentMessage(team?.name ?? 'this team'), 'success')
       void invalidate()
     },
     onError: (err: unknown) => {

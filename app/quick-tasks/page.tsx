@@ -12,6 +12,11 @@ import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import VolunteerSelect from '@/components/VolunteerSelect'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import {
+  PROJECT_TASK_CLAIMED_MESSAGE,
+  QUICK_TASK_CLAIMED_MESSAGE,
+  QUICK_TASK_SUBMITTED_MESSAGE,
+} from '@/lib/action-messages'
+import {
   QUICK_TASK_STATUS_LABELS,
   QUICK_TASK_STATUS_VARIANTS,
   TASK_STATUS_LABELS,
@@ -144,7 +149,7 @@ function VolunteerQuickTasksView({ user }: { user: ApprovedUser }) {
   const submitMutation = useMutation({
     ...orpc.quickTasks.submit.mutationOptions(),
     onSuccess: () => {
-      showToast('Task submitted for review!', 'success')
+      showToast(QUICK_TASK_SUBMITTED_MESSAGE, 'success')
       void queryClient.invalidateQueries({ queryKey: orpc.my.quickTasks.key() })
     },
     onError: (err: unknown) => {
@@ -160,7 +165,7 @@ function VolunteerQuickTasksView({ user }: { user: ApprovedUser }) {
   const claimQuickMutation = useMutation({
     ...orpc.quickTasks.claim.mutationOptions(),
     onSuccess: () => {
-      showToast('Task claimed!', 'success')
+      showToast(QUICK_TASK_CLAIMED_MESSAGE, 'success')
       invalidateAvailable()
     },
     onError: (err: unknown) =>
@@ -173,7 +178,7 @@ function VolunteerQuickTasksView({ user }: { user: ApprovedUser }) {
   const claimProjectTaskMutation = useMutation({
     ...orpc.projects.updateTask.mutationOptions(),
     onSuccess: (_data, variables) => {
-      showToast('Task claimed!', 'success')
+      showToast(PROJECT_TASK_CLAIMED_MESSAGE, 'success')
       invalidateAvailable()
       router.push(`/projects/${variables.projectId}/tasks/${variables.taskId}`)
     },

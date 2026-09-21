@@ -40,9 +40,9 @@ describe('quick task detail', () => {
       `/projects/${project.id}`,
     )
     await userEvent.click(screen.getByRole('button', { name: 'Claim' }))
-    await screen.findByText('Task claimed!')
+    await screen.findByText(/Task claimed\. Submit it for review/)
     await userEvent.click(await screen.findByRole('button', { name: 'Mark as Complete' }))
-    await screen.findByText('Task submitted for review!')
+    await screen.findByText(/Submitted\. An admin will review it/)
     await waitFor(async () => expect((await row(task.id)).status).toBe('under_review'))
     await screen.findAllByText(/Submitted for review/)
     await clientAs(await createAdmin()).quickTasks.review({

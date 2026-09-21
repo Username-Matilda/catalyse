@@ -55,7 +55,7 @@ describe('task detail page', () => {
     expect(within(depRow('Predecessor')).getByRole('spinbutton')).toBeDisabled()
     expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull()
     await userEvent.click(screen.getByRole('button', { name: 'Claim' }))
-    await screen.findByText('Task updated!')
+    await screen.findByText(/Task claimed\. Post an update/)
     await waitFor(async () => expect((await row(task.id)).assigneeId).toBe(me.id))
     await screen.findByText(`Assigned to ${me.name}`)
     await screen.findByText(/Started/)

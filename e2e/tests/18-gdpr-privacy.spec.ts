@@ -46,7 +46,10 @@ test.describe('GDPR & Privacy', () => {
       timeout: 10_000,
     })
     await volunteer.page.getByRole('button', { name: 'Express Interest' }).click()
-    await expect(getAlert(volunteer.page)).toContainText('Interest expressed!', { timeout: 10_000 })
+    await expect(getAlert(volunteer.page)).toContainText(
+      "You'll get a notification when they reply",
+      { timeout: 10_000 },
+    )
 
     // Sign up a second volunteer (vol2) — used as owner for the contact project and as the inbound sender
     const vol2 = fake.person()
