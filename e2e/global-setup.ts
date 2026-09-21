@@ -17,7 +17,7 @@ import {
 import { Client } from 'pg'
 import { buildNext } from '../scripts/next-build'
 import { createApiClient } from './client'
-import { resolveDbUrl } from '../lib/db-url'
+import { resolveTestDbUrl } from '../test/pg'
 
 const PROJECT_ROOT = path.resolve(__dirname, '..')
 const NEXT_BINARY = path.join(PROJECT_ROOT, 'node_modules', '.bin', 'next')
@@ -51,7 +51,7 @@ function generatePrismaClient(): void {
 }
 
 async function migrateWorkerDb(parallelIndex: number): Promise<void> {
-  const client = new Client({ connectionString: resolveDbUrl() })
+  const client = new Client({ connectionString: resolveTestDbUrl() })
   await client.connect()
   try {
     await client.query(`DROP SCHEMA IF EXISTS "${workerDbSchema(parallelIndex)}" CASCADE`)

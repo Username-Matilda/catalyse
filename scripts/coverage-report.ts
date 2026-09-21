@@ -54,11 +54,11 @@ export function report(summary: Summary, files: FileCoverage[], root = process.c
   return out.join('\n') + '\n'
 }
 
-function main(): void {
+/** The report for the coverage directory's current contents. */
+export function currentReport(): string {
   const summaryPath = path.join(dir, 'coverage-summary.json')
   if (!fs.existsSync(summaryPath)) {
-    console.log('## Unit test coverage\n\nNo coverage report was produced.\n')
-    return
+    return '## Unit test coverage\n\nNo coverage report was produced.\n'
   }
   const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf8')).total as Summary
   const files = Object.values(
@@ -67,9 +67,9 @@ function main(): void {
       FileCoverage
     >,
   )
-  process.stdout.write(report(summary, files))
+  return report(summary, files)
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  main()
+  process.stdout.write(currentReport())
 }
