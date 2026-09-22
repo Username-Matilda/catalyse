@@ -59,6 +59,12 @@ async function waitForAutosavedDraft(page: Page, createPath: string): Promise<nu
   if (!response.ok()) throw new Error(`Draft save failed: ${await response.text()}`)
   const { id } = (await response.json()).json as { id: number }
   await page.waitForURL(new RegExp(`/projects/${id}/edit$`), { timeout: 15_000 })
+  // The address moves without a navigation, so the page is still the proposal form; load
+  // the edit page proper for whatever the test does next.
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Edit Project' })).toBeVisible({
+    timeout: 10_000,
+  })
   return id
 }
 

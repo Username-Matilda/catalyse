@@ -1,4 +1,11 @@
-import { test, expect, getAlert, approveVolunteer, dismissCookieConsentScript } from '../fixtures'
+import {
+  test,
+  expect,
+  getAlert,
+  approveVolunteer,
+  confirmVolunteerEmail,
+  dismissCookieConsentScript,
+} from '../fixtures'
 import { adminCreateProjectViaApi, transferProjectOwnership } from '../actions/projects'
 import { fake } from '../fake'
 import { createApiClient } from '../client'
@@ -36,7 +43,9 @@ test.describe('Messaging', () => {
     })
     if (senderSignupResult.status !== 200)
       throw new Error(`Sender signup failed: ${JSON.stringify(senderSignupResult.body)}`)
-    const { id: senderId, token: senderToken } = senderSignupResult.body
+    const { id: senderId, token: senderToken, emailVerificationToken } = senderSignupResult.body
+    // A project page is closed to an unconfirmed email.
+    if (emailVerificationToken) await confirmVolunteerEmail(baseUrl, emailVerificationToken)
     await approveVolunteer(baseUrl, senderId, senderToken)
     const senderCtx = await browser.newContext()
     await senderCtx.addInitScript((token: string) => {
@@ -107,7 +116,9 @@ test.describe('Messaging', () => {
     })
     if (senderSignupResult.status !== 200)
       throw new Error(`Sender signup failed: ${JSON.stringify(senderSignupResult.body)}`)
-    const { id: senderId, token: senderToken } = senderSignupResult.body
+    const { id: senderId, token: senderToken, emailVerificationToken } = senderSignupResult.body
+    // A project page is closed to an unconfirmed email.
+    if (emailVerificationToken) await confirmVolunteerEmail(baseUrl, emailVerificationToken)
     await approveVolunteer(baseUrl, senderId, senderToken)
     const senderCtx = await browser.newContext()
     await senderCtx.addInitScript((token: string) => {
