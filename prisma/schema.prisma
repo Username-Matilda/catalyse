@@ -175,6 +175,9 @@ model BugReportComment {
   /// @zod.string.min(1, { message: "Content is required" })
   content     String
   createdAt   DateTime? @default(now()) @map("created_at")
+  editedAt    DateTime? @map("edited_at")
+  /// Soft delete: the row stays so the thread keeps its shape; the content is never served.
+  deletedAt   DateTime? @map("deleted_at")
   author      Volunteer @relation("BugReportCommentAuthor", fields: [authorId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   bugReport   BugReport @relation(fields: [bugReportId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
@@ -387,10 +390,18 @@ model WorkItemComment {
   /// @zod.string.min(1, { message: "Content is required" })
   content    String
   createdAt  DateTime?  @default(now()) @map("created_at")
+  /// A reply's top-level comment; replies are never nested deeper.
+  parentId   Int?       @map("parent_id")
+  editedAt   DateTime?  @map("edited_at")
+  /// Soft delete: the row stays so its replies keep their place; the content is never served.
+  deletedAt  DateTime?  @map("deleted_at")
   author     Volunteer? @relation("WorkItemCommentAuthor", fields: [authorId], references: [id], onUpdate: NoAction)
   workItem   WorkItem   @relation(fields: [workItemId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  parent     WorkItemComment?  @relation("WorkItemCommentReplies", fields: [parentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  replies    WorkItemComment[] @relation("WorkItemCommentReplies")
 
   @@index([workItemId, createdAt], map: "idx_work_item_comments_thread")
+  @@index([parentId], map: "idx_work_item_comments_parent")
   @@map("work_item_comments")
 }
 

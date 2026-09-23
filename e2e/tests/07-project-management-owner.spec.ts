@@ -1,5 +1,6 @@
 import { test, expect } from '../fixtures'
 import { proposeProject, adminApproveProject, transferProjectOwnership } from '../actions/projects'
+import { goToDashboardNotifications } from '../actions/dashboard'
 import { Page } from '@playwright/test'
 import { fake } from '../fake'
 
@@ -123,5 +124,45 @@ test.describe('Project Management (Owner)', () => {
     await adminPage.reload()
     await expect(adminPage.getByText(adminComment)).toBeVisible({ timeout: 10_000 })
     await expect(adminPage.getByText(volunteerReply)).toBeVisible({ timeout: 10_000 })
+  })
+
+  test('Discussion: owner replies with an @mention, edits the reply, then deletes it', async ({
+    adminPage,
+    volunteer,
+    baseUrl,
+  }) => {
+    const projectId = await setupOwnedProject(baseUrl, adminPage, volunteer)
+    const question = `admin question ${Date.now()}`
+    const page = volunteer.page
+
+    await adminPage.goto(`${baseUrl}/projects/${projectId}`)
+    await adminPage.getByLabel('Add a comment').fill(question)
+    await adminPage.getByRole('button', { name: 'Post Comment' }).click()
+    await expect(adminPage.getByText(question)).toBeVisible({ timeout: 10_000 })
+
+    // The admin has commented, so the owner can mention them.
+    await page.goto(`${baseUrl}/projects/${projectId}`)
+    await expect(page.getByText(question)).toBeVisible({ timeout: 10_000 })
+    await page.getByRole('button', { name: 'Reply' }).click()
+    const replyBox = page.getByLabel('Write a reply')
+    await replyBox.fill('Answered, ')
+    await replyBox.pressSequentially('@')
+    await page.getByRole('option').first().click()
+    await page.getByRole('button', { name: 'Reply' }).last().click()
+    await expect(page.getByText('Answered,')).toBeVisible({ timeout: 10_000 })
+
+    await page.getByRole('button', { name: 'Edit' }).click()
+    await page.getByLabel('Edit comment').fill('Answered in the doc')
+    await page.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByText('Answered in the doc')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText('(edited)')).toBeVisible()
+
+    await page.getByRole('button', { name: 'Delete' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click()
+    await expect(page.getByText('Comment removed')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText('Answered in the doc')).toHaveCount(0)
+
+    await goToDashboardNotifications(baseUrl, adminPage)
+    await expect(adminPage.getByText(/mentioned you on/).first()).toBeVisible({ timeout: 10_000 })
   })
 })

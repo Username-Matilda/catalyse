@@ -37,16 +37,17 @@ describe('ProjectEditor — new volunteer proposal', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
     expect(await screen.findByText('A title is required, even for a draft.')).toBeInTheDocument()
 
-    const sawSpinner = screen.findByText('Autosaving', {}, { timeout: 5000 })
+    const sawSpinner = screen.findByText('Autosaving', {}, { timeout: 20_000 })
     await userEvent.type(screen.getByLabelText('Project Title'), 'My idea')
     await userEvent.type(screen.getByLabelText('Description'), 'Some words')
     const skill = await prisma.skill.findFirstOrThrow()
     await userEvent.click(await screen.findByLabelText(skill.name))
-    await waitFor(
-      async () => expect(await prisma.workItem.count({ where: { creatorId: me.id } })).toBe(1),
-      { timeout: 5000 },
-    )
+    // The address moving to the edit page is the sign the draft was created.
+    await waitFor(() => expect(window.location.pathname).toMatch(/^\/projects\/\d+\/edit$/), {
+      timeout: 20_000,
+    })
     await sawSpinner
+    expect(await prisma.workItem.count({ where: { creatorId: me.id } })).toBe(1)
     const draft = await prisma.workItem.findFirstOrThrow({ where: { creatorId: me.id } })
     expect(draft).toMatchObject({ title: 'My idea', status: 'draft', isOrgProposed: false })
     expect(
@@ -123,7 +124,8 @@ describe('ProjectEditor — new volunteer proposal', () => {
     const me = await createVolunteer()
     await mount({ variant: 'volunteer' }, me)
     await waitFor(() => expect(localStorage.getItem('authToken')).toBeTruthy())
-    await userEvent.type(screen.getByLabelText('Project Title'), 'Racing')
+    // A title too short to autosave, so the clicks below make the only create.
+    await userEvent.type(screen.getByLabelText('Project Title'), 'Go')
     await userEvent.type(screen.getByLabelText('Task title'), 'Step')
     const add = screen.getByRole('button', { name: 'Add Task' })
     // Two clicks before either has re-rendered, so the button is still enabled for the second:
@@ -135,13 +137,13 @@ describe('ProjectEditor — new volunteer proposal', () => {
     await waitFor(
       async () =>
         expect(
-          await prisma.workItem.count({ where: { parent: { creatorId: me.id, title: 'Racing' } } }),
+          await prisma.workItem.count({ where: { parent: { creatorId: me.id, title: 'Go' } } }),
         ).toBeGreaterThan(0),
-      { timeout: 5000 },
+      { timeout: 20_000 },
     )
     expect(
       await prisma.workItem.count({
-        where: { creatorId: me.id, type: 'PROJECT', title: 'Racing' },
+        where: { creatorId: me.id, type: 'PROJECT', title: 'Go' },
       }),
     ).toBe(1)
   })

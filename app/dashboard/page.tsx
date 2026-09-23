@@ -398,7 +398,7 @@ export default function DashboardPage() {
                       <SubmitForReviewButton taskId={task.id} size="sm" />
                     )}
                     <div className="mt-3">
-                      <strong className="text-sm">Comments</strong>
+                      <strong className="text-sm">Discussion</strong>
                       <CommentThread workItemId={task.id} />
                     </div>
                   </div>

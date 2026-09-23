@@ -478,7 +478,11 @@ export default function TaskDetailPage({
       </div>
 
       <div className="bg-surface rounded-xl shadow p-6">
-        <h2 className="text-lg mb-4">Comments</h2>
+        <h2 className="text-lg mb-1">Discussion</h2>
+        <p className="text-sm text-text-light mb-4">
+          About this task only. For the whole project, use the{' '}
+          <Link href={`/projects/${projectId}#discussion`}>project discussion</Link>.
+        </p>
         <CommentThread workItemId={task.id} />
       </div>
     </main>

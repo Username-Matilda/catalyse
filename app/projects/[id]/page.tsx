@@ -1568,13 +1568,13 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 ))}
             </div>
 
-            {/* Project Updates */}
-            <div className={card}>
-              <h2>Project Updates</h2>
+            {/* Discussion */}
+            <div className={card} id="discussion">
+              <h2>Discussion</h2>
               <CommentThread
                 workItemId={project.id}
-                emptyText="No updates yet."
-                placeholder="Share a progress update…"
+                emptyText="No messages yet."
+                placeholder="Share an update or ask a question. Type @ to mention someone."
               />
             </div>
           </div>
