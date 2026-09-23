@@ -68,11 +68,16 @@ test.describe('Project Lifecycle', () => {
       timeout: 10_000,
     })
 
-    // Proposer receives a notification containing the feedback message
+    // Proposer receives a notification containing the feedback message, and Home lists the
+    // request as needing their attention.
     await goToDashboardNotifications(baseUrl, volunteer.page)
-    await expect(volunteer.page.locator('p').filter({ hasText: feedbackText })).toBeVisible({
-      timeout: 10_000,
-    })
+    const home = (name: RegExp) => volunteer.page.getByRole('region', { name })
+    await expect(
+      home(/^Notifications/)
+        .locator('p')
+        .filter({ hasText: feedbackText }),
+    ).toBeVisible({ timeout: 10_000 })
+    await expect(home(/^Needs your attention/)).toContainText(`Changes requested on "${title}"`)
 
     // The project page shows the request with a Resubmit button; resubmitting sends it
     // back to the triage queue.
