@@ -8,6 +8,7 @@ import {
 import { fake } from '../fake'
 import { createApiClient } from '../client'
 import { removeProjectOwner } from '../actions/projects'
+import { createSkillViaApi } from '../actions/skills'
 import { selectFilterDropdown } from '../actions/ui'
 
 // Whether a project wants an owner is derived from (status, assignee), never stored, and
@@ -292,13 +293,8 @@ test.describe('Project ownership states', () => {
   test('A proposal awaiting review is not suggested to matching volunteers', async ({
     baseUrl,
   }) => {
-    const api = createApiClient(baseUrl)
-    const skillsResult = await api.skills.list()
-    expect(skillsResult.status).toBe(200)
-    const allSkills = (skillsResult.body as Array<{ skills: Array<{ id: number }> }>).flatMap(
-      (c) => c.skills,
-    )
-    const skillIds = [allSkills[0].id]
+    // A skill of its own, so no other test's project competes for Home's few match slots.
+    const skillIds = [(await createSkillViaApi(baseUrl)).id]
 
     // A volunteer who proposes a project, and a second who matches its skills.
     const proposer = await createApprovedVolunteer(baseUrl)
@@ -330,8 +326,8 @@ test.describe('Project ownership states', () => {
 
     const beforeReview = await matcherApi.dashboard.get()
     expect(beforeReview.status).toBe(200)
-    const suggestedBefore = (beforeReview.body as { suggestedProjects: { id: number }[] })
-      .suggestedProjects
+    type Home = { find: { matches: { items: { id: number }[] } } }
+    const suggestedBefore = (beforeReview.body as Home).find.matches.items
     expect(suggestedBefore.map((p) => p.id)).not.toContain(projectId)
 
     // Once approved it goes live as `ready`, and the same volunteer should now see it.
@@ -342,8 +338,7 @@ test.describe('Project ownership states', () => {
 
     const afterReview = await matcherApi.dashboard.get()
     expect(afterReview.status).toBe(200)
-    const suggestedAfter = (afterReview.body as { suggestedProjects: { id: number }[] })
-      .suggestedProjects
+    const suggestedAfter = (afterReview.body as Home).find.matches.items
     expect(suggestedAfter.map((p) => p.id)).toContain(projectId)
   })
 })

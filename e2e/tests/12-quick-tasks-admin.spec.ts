@@ -46,21 +46,32 @@ async function assignQuickTask(
   await expect(getAlert(adminPage)).toBeVisible({ timeout: 10_000 })
 }
 
+/** The volunteer's row for a task in Home's "My work". */
+function myWorkRow(volunteerPage: Page, taskTitle: string) {
+  return volunteerPage
+    .getByRole('region', { name: 'My work' })
+    .getByRole('listitem')
+    .filter({ hasText: taskTitle })
+}
+
+/** Opens a claimed Quick Task from Home, landing on its own page. */
+async function openFromHome(baseUrl: string, volunteerPage: Page, taskTitle: string) {
+  await volunteerPage.goto(`${baseUrl}/dashboard`)
+  const row = myWorkRow(volunteerPage, taskTitle)
+  await expect(row).toBeVisible({ timeout: 10_000 })
+  await row.getByRole('link', { name: taskTitle }).click()
+  await expect(volunteerPage.getByRole('heading', { level: 1, name: taskTitle })).toBeVisible({
+    timeout: 10_000,
+  })
+}
+
 async function submitQuickTask(
   baseUrl: string,
   volunteerPage: Page,
   taskTitle: string,
 ): Promise<void> {
-  await volunteerPage.goto(`${baseUrl}/dashboard`)
-  await expect(volunteerPage.getByRole('heading', { name: /Welcome back/ })).toBeVisible({
-    timeout: 10_000,
-  })
-
-  const banner = volunteerPage.getByRole('region', { name: 'Your tasks' })
-  const taskCard = banner.getByRole('article').filter({ hasText: taskTitle })
-  await expect(taskCard).toBeVisible({ timeout: 10_000 })
-  await taskCard.getByText(taskTitle, { exact: true }).click()
-  await taskCard.getByRole('button', { name: 'Submit for review' }).click()
+  await openFromHome(baseUrl, volunteerPage, taskTitle)
+  await volunteerPage.getByRole('button', { name: 'Submit for review' }).click()
   await volunteerPage.getByRole('dialog').getByRole('button', { name: 'Submit for review' }).click()
   await expect(getAlert(volunteerPage)).toContainText('Submitted. An admin will review it', {
     timeout: 10_000,
@@ -173,16 +184,12 @@ test.describe('Quick Tasks (admin)', () => {
     await adminCard.getByRole('button', { name: 'Post Comment' }).click()
     await expect(adminCard.getByText(adminComment)).toBeVisible({ timeout: 10_000 })
 
-    // Assignee sees admin's comment on the dashboard and replies
-    await volunteer.page.goto(`${baseUrl}/dashboard`)
-    const volBanner = volunteer.page.getByRole('region', { name: 'Your tasks' })
-    const volCard = volBanner.getByRole('article').filter({ hasText: taskTitle })
-    await expect(volCard).toBeVisible({ timeout: 10_000 })
-    await volCard.getByText(taskTitle, { exact: true }).click()
-    await expect(volCard.getByText(adminComment)).toBeVisible({ timeout: 10_000 })
-    await volCard.getByLabel('Add a comment').fill(volunteerReply)
-    await volCard.getByRole('button', { name: 'Post Comment' }).click()
-    await expect(volCard.getByText(volunteerReply)).toBeVisible({ timeout: 10_000 })
+    // Assignee opens the task from Home, sees the admin's comment and replies
+    await openFromHome(baseUrl, volunteer.page, taskTitle)
+    await expect(volunteer.page.getByText(adminComment)).toBeVisible({ timeout: 10_000 })
+    await volunteer.page.getByLabel('Add a comment').fill(volunteerReply)
+    await volunteer.page.getByRole('button', { name: 'Post Comment' }).click()
+    await expect(volunteer.page.getByText(volunteerReply)).toBeVisible({ timeout: 10_000 })
 
     // Admin reloads and sees both messages in the thread
     await adminPage.goto(`${baseUrl}/quick-tasks`)
@@ -202,16 +209,11 @@ test.describe('Quick Tasks (admin)', () => {
     const taskTitle = await createOpenQuickTaskViaApi(baseUrl, skill)
     await assignQuickTask(baseUrl, adminPage, taskTitle, volunteer.name)
 
+    // Home's "My work" lists the assigned task with its status
     await volunteer.page.goto(`${baseUrl}/dashboard`)
-    await expect(volunteer.page.getByRole('heading', { name: /Welcome back/ })).toBeVisible({
-      timeout: 10_000,
-    })
-
-    // Quick task banner shows the assigned task with its details
-    const banner = volunteer.page.getByRole('region', { name: 'Your tasks' })
-    const taskCard = banner.getByRole('article').filter({ hasText: taskTitle })
-    await expect(taskCard).toBeVisible({ timeout: 10_000 })
-    await expect(taskCard.getByRole('status')).toContainText('In progress')
+    const row = myWorkRow(volunteer.page, taskTitle)
+    await expect(row).toBeVisible({ timeout: 10_000 })
+    await expect(row).toContainText('In progress')
   })
 
   test('Volunteer submits a completed quick task; task status becomes submitted and admin receives a notification', async ({
@@ -223,24 +225,8 @@ test.describe('Quick Tasks (admin)', () => {
     const taskTitle = await createOpenQuickTaskViaApi(baseUrl, skill)
     await assignQuickTask(baseUrl, adminPage, taskTitle, volunteer.name)
 
-    // Volunteer expands the task card and submits it
-    await volunteer.page.goto(`${baseUrl}/dashboard`)
-    await expect(volunteer.page.getByRole('heading', { name: /Welcome back/ })).toBeVisible({
-      timeout: 10_000,
-    })
-
-    const banner = volunteer.page.getByRole('region', { name: 'Your tasks' })
-    const taskCard = banner.getByRole('article').filter({ hasText: taskTitle })
-    await expect(taskCard).toBeVisible({ timeout: 10_000 })
-    await taskCard.getByText(taskTitle, { exact: true }).click()
-    await taskCard.getByRole('button', { name: 'Submit for review' }).click()
-    await volunteer.page
-      .getByRole('dialog')
-      .getByRole('button', { name: 'Submit for review' })
-      .click()
-    await expect(getAlert(volunteer.page)).toContainText('Submitted. An admin will review it', {
-      timeout: 10_000,
-    })
+    // Volunteer opens the task from Home and submits it
+    await submitQuickTask(baseUrl, volunteer.page, taskTitle)
 
     // Task status changes to 'under_review' on the admin page
     await adminPage.goto(`${baseUrl}/quick-tasks`)

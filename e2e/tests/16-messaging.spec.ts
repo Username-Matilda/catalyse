@@ -93,10 +93,10 @@ test.describe('Messaging', () => {
 
     // Confirm the recipient starts with no unread notifications.
     await volunteer.page.goto(`${baseUrl}/dashboard`)
-    await expect(volunteer.page.getByRole('heading', { name: /Welcome back/ })).toBeVisible({
+    await expect(volunteer.page.getByRole('heading', { level: 1, name: /^Hi / })).toBeVisible({
       timeout: 10_000,
     })
-    const notifTab = volunteer.page.getByRole('tab', { name: /^Notifications/ })
+    const notifTab = volunteer.page.locator('[data-tab="notifications"]')
     await expect(notifTab.locator('.notification-badge')).not.toBeVisible()
 
     // Sender sends the message.
@@ -143,14 +143,13 @@ test.describe('Messaging', () => {
 
     // Recipient refreshes the dashboard — the notification badge now shows 1.
     await volunteer.page.goto(`${baseUrl}/dashboard`)
-    await expect(volunteer.page.getByRole('heading', { name: /Welcome back/ })).toBeVisible({
+    await expect(volunteer.page.getByRole('heading', { level: 1, name: /^Hi / })).toBeVisible({
       timeout: 10_000,
     })
-    const notifTabAfter = volunteer.page.getByRole('tab', { name: /^Notifications/ })
+    const notifTabAfter = volunteer.page.locator('[data-tab="notifications"]')
     await expect(notifTabAfter.locator('.notification-badge')).toBeVisible({ timeout: 10_000 })
     await expect(notifTabAfter.locator('.notification-badge')).toContainText('1')
 
-    await notifTabAfter.click()
     await expect(volunteer.page.getByText(/Message from /)).toBeVisible({ timeout: 10_000 })
     await expect(volunteer.page.getByText(subject)).toBeVisible({ timeout: 10_000 })
     const viewLink = volunteer.page.getByRole('link', { name: 'View' }).first()

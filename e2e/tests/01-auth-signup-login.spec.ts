@@ -179,7 +179,7 @@ test.describe('Authentication: Signup & Login', () => {
       await expect(welcome).not.toBeVisible()
       await markedRead
       await page.reload()
-      await expect(page.getByRole('heading', { name: /Welcome back/ })).toBeVisible({
+      await expect(page.getByRole('heading', { level: 1, name: /^Hi / })).toBeVisible({
         timeout: 10_000,
       })
       await expect(welcome).not.toBeVisible()
