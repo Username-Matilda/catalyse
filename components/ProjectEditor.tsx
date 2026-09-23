@@ -13,6 +13,7 @@ import DescriptionTips from '@/components/DescriptionTips'
 import SkillPicker from '@/components/SkillPicker'
 import Modal from '@/components/ui/Modal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import ChangesRequestedBanner from '@/components/ChangesRequestedBanner'
 import { buildLocationOptions, type LocalGroupOption } from '@/lib/filter-options'
 import { useToast } from '@/lib/toast'
 import { toDateInputValue, fromDateInputValue } from '@/lib/format-date'
@@ -52,6 +53,22 @@ const REMOTE_ELIGIBILITY_OPTIONS = [
 type CreateProjectInput = InferRouterInputs<AppRouter>['projects']['create']
 type UpdateProjectInput = InferRouterInputs<AppRouter>['projects']['update']
 type FieldPatch = Partial<Omit<UpdateProjectInput, 'id'>>
+
+/** The fields that differ between two create payloads, as an update; null when none do. */
+function changedSince(
+  sent: CreateProjectInput,
+  now: CreateProjectInput,
+  userId: number | undefined,
+): FieldPatch | null {
+  const { tasks: _tasks, saveAsDraft: _saveAsDraft, wantToOwn, ...fields } = now
+  const patch: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(fields)) {
+    const before = sent[key as keyof CreateProjectInput]
+    if (JSON.stringify(value) !== JSON.stringify(before)) patch[key] = value
+  }
+  if (wantToOwn !== sent.wantToOwn) patch.assigneeId = wantToOwn ? (userId ?? null) : null
+  return Object.keys(patch).length > 0 ? (patch as FieldPatch) : null
+}
 
 type ProjectEditorProps =
   | { projectId: number; variant?: undefined; onCancel?: never }
@@ -320,8 +337,9 @@ export default function ProjectEditor(props: ProjectEditorProps) {
     setCreatingDraft(true)
     setAutosaveError(null)
     const mutation = initialVariant === 'admin' ? adminCreateMutation : volunteerCreateMutation
+    const sent = buildCreatePayload()
     creation.current = mutation
-      .mutateAsync(buildCreatePayload())
+      .mutateAsync(sent)
       .then((result) => {
         setProjectId(result.id)
         // What is on screen is the truth; the copy just saved must not overwrite it.
@@ -329,6 +347,9 @@ export default function ProjectEditor(props: ProjectEditorProps) {
         setPermissionChecked(true)
         window.history.replaceState(null, '', `/projects/${result.id}/edit`)
         invalidateMyDrafts()
+        // Edits made while the create was in flight had no project to save to.
+        const patch = changedSince(sent, latestPayload.current as CreateProjectInput, user?.id)
+        if (patch) updateMutation.mutate({ id: result.id, ...patch })
         return result.id
       })
       .catch((err: unknown) => {
@@ -351,6 +372,11 @@ export default function ProjectEditor(props: ProjectEditorProps) {
   // Every field goes into the draft as it stands when the timer fires, so the timer restarts on
   // any change to the payload, not just the two fields that start it.
   const autosavePayloadKey = JSON.stringify(buildCreatePayload())
+  // What a create would send now, for comparing with what an in-flight create did send.
+  const latestPayload = useRef<CreateProjectInput | null>(null)
+  useEffect(() => {
+    latestPayload.current = buildCreatePayload()
+  })
   useEffect(() => {
     if (!readyToAutosave || creatingDraft || autosaveError) return
     const timer = setTimeout(() => void ensureProjectExists(), AUTOSAVE_DELAY_MS)
@@ -444,6 +470,16 @@ export default function ProjectEditor(props: ProjectEditorProps) {
 
   return (
     <>
+      {projectId !== undefined && projectData && (
+        <ChangesRequestedBanner
+          projectId={projectId}
+          requests={projectData.reviewRequests}
+          canResubmit={
+            user !== null &&
+            (projectData.ownerId === user.id || projectData.proposedById === user.id)
+          }
+        />
+      )}
       {(projectId === undefined || canEdit) && (
         <p role="status" className="text-sm text-text-light mt-0 mb-4">
           {isSaving ? (

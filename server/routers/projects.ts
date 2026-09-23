@@ -784,6 +784,25 @@ export const projectsRouter = {
           interestType: h.interestType,
         }))
 
+      // Change requests are between the admins and whoever proposed or runs the project.
+      const canSeeReview =
+        isAssignee || project.creatorId === volunteer.id || Boolean(volunteer.isAdmin)
+      const reviewRequests = canSeeReview
+        ? (
+            await prisma.projectReviewRequest.findMany({
+              where: { projectId: input.id },
+              include: { requestedBy: { select: { name: true } } },
+              orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+            })
+          ).map((r) => ({
+            id: r.id,
+            message: r.message,
+            requestedByName: r.requestedBy?.name ?? null,
+            createdAt: r.createdAt,
+            resolvedAt: r.resolvedAt,
+          }))
+        : []
+
       return {
         ...base,
         tasks: mappedTasks,
@@ -792,7 +811,54 @@ export const projectsRouter = {
         myInterest,
         canClaimTasks,
         canCreateTasks,
+        reviewRequests,
       }
+    }),
+
+  resubmit: approvedProcedure
+    .input(z.object({ id: z.number().int() }))
+    .handler(async ({ input, context }) => {
+      const volunteer = context.volunteer
+      const project = await prisma.workItem.findFirst({
+        where: { id: input.id, type: WorkItemType.PROJECT },
+      })
+      if (!project) throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
+      if (project.creatorId !== volunteer.id && project.assigneeId !== volunteer.id) {
+        throw new ORPCError('FORBIDDEN', { message: 'Not authorized to resubmit this project' })
+      }
+      if (project.status !== ProjectStatus.needs_discussion) {
+        throw new ORPCError('BAD_REQUEST', { message: 'No changes have been requested' })
+      }
+
+      const open = await prisma.projectReviewRequest.findFirst({
+        where: { projectId: project.id, resolvedAt: null },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        include: { requestedBy: { select: { id: true, deletedAt: true } } },
+      })
+      await prisma.workItem.update({
+        where: { id: project.id },
+        data: { status: ProjectStatus.pending_review, updatedAt: new Date() },
+      })
+      await prisma.projectReviewRequest.updateMany({
+        where: { projectId: project.id, resolvedAt: null },
+        data: { resolvedAt: new Date() },
+      })
+      await clearNotifications('project_needs_discussion', project.id)
+
+      // The admin who asked hears back; with nobody to tell, every admin does.
+      const args = [
+        'project_resubmitted',
+        `Resubmitted: '${project.title}' is ready for another look`,
+        `${volunteer.name} made the changes you asked for`,
+        `/projects/${project.id}`,
+        undefined,
+        project.id,
+      ] as const
+      const requester = open?.requestedBy
+      if (requester && !requester.deletedAt) await notifyUser(requester.id, ...args)
+      else await notifyAdmins(...args)
+
+      return { message: 'Project resubmitted for review' }
     }),
 
   update: approvedProcedure

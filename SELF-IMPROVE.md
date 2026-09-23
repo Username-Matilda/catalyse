@@ -58,3 +58,12 @@ confusing than it needed to be, and that will do so again.
       `app/dashboard/page.tsx`. Reading query parameters through one hook
       (`lib/hooks/useOneTimeNotice.ts` reads on mount) and a line in `AGENTS.md` would stop
       the next page repeating it.
+- [ ] **Races that only show under full-suite load surface one per `check-all` run,
+      and each costs another run of up to ten minutes.** `ProjectEditor.test.tsx`
+      failed in three different ways across four runs (a 5 s database poll, a title
+      long enough to start autosave, then a real bug where edits made during the
+      first autosave were dropped), and e2e `01` reloaded before a background
+      mark-read landed. Each passed 8/8 when run alone. A script that reruns one
+      file under the same parallel load (for example all unit files at once with
+      only the suspect repeated) would find them in one pass instead of one per
+      full run.

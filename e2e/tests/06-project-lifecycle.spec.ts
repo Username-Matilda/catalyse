@@ -41,7 +41,12 @@ test.describe('Project Lifecycle', () => {
   }) => {
     const title = fake.projectTitle()
     const feedbackText = fake.feedbackText()
-    await proposeProject(baseUrl, volunteer.page, title, 'Test proposal for discussion')
+    const projectId = await proposeProject(
+      baseUrl,
+      volunteer.page,
+      title,
+      'Test proposal for discussion',
+    )
 
     await adminPage.goto(`${baseUrl}/admin/triage`)
     const projectCard = adminPage.locator('.card').filter({ hasText: title })
@@ -51,14 +56,14 @@ test.describe('Project Lifecycle', () => {
       timeout: 10_000,
     })
 
-    await adminPage.getByRole('radio', { name: /Needs Discussion/ }).click()
+    await adminPage.getByRole('radio', { name: /Ask for changes/ }).click()
     await adminPage.getByLabel('Message to Proposer').fill(feedbackText)
     await adminPage.getByRole('button', { name: 'Submit Review' }).click()
     await expect(getAlert(adminPage)).toBeVisible({ timeout: 10_000 })
 
-    // Project status becomes needs_discussion — visible in the triage "Needs Discussion" tab
+    // Project status becomes needs_discussion — visible in the triage "Needs Changes" tab
     await adminPage.goto(`${baseUrl}/admin/triage`)
-    await adminPage.getByRole('tab', { name: 'Needs Discussion' }).click()
+    await adminPage.getByRole('tab', { name: 'Needs Changes' }).click()
     await expect(adminPage.locator('.card').filter({ hasText: title })).toBeVisible({
       timeout: 10_000,
     })
@@ -66,6 +71,21 @@ test.describe('Project Lifecycle', () => {
     // Proposer receives a notification containing the feedback message
     await goToDashboardNotifications(baseUrl, volunteer.page)
     await expect(volunteer.page.locator('p').filter({ hasText: feedbackText })).toBeVisible({
+      timeout: 10_000,
+    })
+
+    // The project page shows the request with a Resubmit button; resubmitting sends it
+    // back to the triage queue.
+    await volunteer.page.goto(`${baseUrl}/projects/${projectId}`)
+    const banner = volunteer.page.getByRole('region', { name: /Changes requested/ })
+    await expect(banner).toContainText(feedbackText, { timeout: 10_000 })
+    await banner.getByRole('button', { name: 'Resubmit for review' }).click()
+    await expect(getAlert(volunteer.page)).toContainText('resubmitted', { timeout: 10_000 })
+    await expect(banner).toHaveCount(0)
+
+    await adminPage.goto(`${baseUrl}/admin/triage`)
+    await adminPage.getByRole('tab', { name: /^Pending Review/ }).click()
+    await expect(adminPage.locator('.card').filter({ hasText: title })).toBeVisible({
       timeout: 10_000,
     })
   })
@@ -87,7 +107,7 @@ test.describe('Project Lifecycle', () => {
     await expect(adminPage.getByRole('heading', { name: 'Review Project' })).toBeVisible({
       timeout: 10_000,
     })
-    await adminPage.getByRole('radio', { name: /Needs Discussion/ }).click()
+    await adminPage.getByRole('radio', { name: /Ask for changes/ }).click()
     await adminPage.getByLabel('Message to Proposer').fill(feedbackText)
     await adminPage.getByRole('button', { name: 'Submit Review' }).click()
     await expect(getAlert(adminPage)).toBeVisible({ timeout: 10_000 })
@@ -95,12 +115,14 @@ test.describe('Project Lifecycle', () => {
     // Proposer sees the review message as a comment on their project
     await volunteer.page.goto(`${baseUrl}/projects/${projectId}`)
     await expect(volunteer.page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 })
-    await expect(volunteer.page.getByText(feedbackText)).toBeVisible({ timeout: 10_000 })
+    await expect(volunteer.page.locator('#discussion').getByText(feedbackText)).toBeVisible({
+      timeout: 10_000,
+    })
 
     // Admin posts a follow-up reply via the triage modal thread
     const followUp = fake.feedbackText()
     await adminPage.goto(`${baseUrl}/admin/triage`)
-    await adminPage.getByRole('tab', { name: 'Needs Discussion' }).click()
+    await adminPage.getByRole('tab', { name: 'Needs Changes' }).click()
     const discussionCard = adminPage.locator('.card').filter({ hasText: title })
     await expect(discussionCard).toBeVisible({ timeout: 10_000 })
     await discussionCard.getByRole('link', { name: 'Review' }).click()

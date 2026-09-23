@@ -22,6 +22,7 @@ import {
   volunteerRemovedMessage,
 } from '@/lib/action-messages'
 import CommentThread from '@/components/CommentThread'
+import ChangesRequestedBanner from '@/components/ChangesRequestedBanner'
 import MessageDialog from '@/components/MessageDialog'
 import Linkify from '@/components/Linkify'
 import Modal from '@/components/ui/Modal'
@@ -909,7 +910,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     ...orpc.admin.projects.review.mutationOptions(),
     onSuccess: (_data, variables) => {
       showToast(
-        variables.status === 'approved' ? 'Project approved!' : 'Project sent for discussion.',
+        variables.status === 'approved' ? 'Project approved!' : 'Changes requested.',
         'success',
       )
       setReviewDone(true)
@@ -1147,6 +1148,13 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         >
           {/* Main column */}
           <div className={`min-w-0 ${taskView === 'timeline' ? '' : 'lg:col-span-2'}`}>
+            <ChangesRequestedBanner
+              projectId={project.id}
+              requests={project.reviewRequests}
+              canResubmit={isOwner || project.proposedById === user.id}
+              editHref={`/projects/${idParam}/edit`}
+            />
+
             {/* Main project card */}
             <div className={card}>
               <p className="whitespace-pre-wrap">
@@ -1918,7 +1926,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                           checked={reviewStatus === 'needs_discussion'}
                           onChange={() => setReviewStatus('needs_discussion')}
                         />
-                        Needs Discussion
+                        Ask for changes
                       </label>
                     </div>
                     {reviewStatus === 'needs_discussion' && (
@@ -1930,7 +1938,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                           rows={3}
                           value={reviewMessage}
                           onChange={(e) => setReviewMessage(e.target.value)}
-                          placeholder="What do you want to discuss?"
+                          placeholder="What needs to change before it goes live?"
                         />
                       </div>
                     )}

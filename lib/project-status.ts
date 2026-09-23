@@ -16,7 +16,7 @@ import { ProjectStatus } from '@/generated/prisma/enums'
 export const PROJECT_STATUS_CONFIG: Record<string, { label: string; variant: BadgeVariant }> = {
   draft: { label: 'Draft', variant: 'neutral' },
   pending_review: { label: 'Pending Review', variant: 'warning' },
-  needs_discussion: { label: 'Needs Discussion', variant: 'neutral' },
+  needs_discussion: { label: 'Needs Changes', variant: 'neutral' },
   ready: { label: 'Ready', variant: 'caution' },
   in_progress: { label: 'In Progress', variant: 'info' },
   on_hold: { label: 'On Hold', variant: 'neutral' },

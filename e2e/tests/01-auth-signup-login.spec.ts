@@ -170,8 +170,14 @@ test.describe('Authentication: Signup & Login', () => {
       // Approval is announced once, in a dialog that points at the next step.
       const welcome = page.getByRole('dialog', { name: /You're approved/ })
       await expect(welcome).toBeVisible({ timeout: 10_000 })
+      // The dialog closes at once; the read is saved in the background, so wait for it
+      // before reloading.
+      const markedRead = page.waitForResponse(
+        (resp) => resp.url().includes('/api/rpc/notifications/markRead') && resp.ok(),
+      )
       await welcome.getByRole('button', { name: 'Not now' }).click()
       await expect(welcome).not.toBeVisible()
+      await markedRead
       await page.reload()
       await expect(page.getByRole('heading', { name: /Welcome back/ })).toBeVisible({
         timeout: 10_000,

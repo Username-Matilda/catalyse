@@ -49,10 +49,18 @@ describe('ProjectEditor — new volunteer proposal', () => {
     await sawSpinner
     expect(await prisma.workItem.count({ where: { creatorId: me.id } })).toBe(1)
     const draft = await prisma.workItem.findFirstOrThrow({ where: { creatorId: me.id } })
-    expect(draft).toMatchObject({ title: 'My idea', status: 'draft', isOrgProposed: false })
-    expect(
-      await prisma.workItemSkill.count({ where: { workItemId: draft.id, skillId: skill.id } }),
-    ).toBe(1)
+    expect(draft).toMatchObject({ status: 'draft', isOrgProposed: false })
+    // Under load the draft can be created before the last keystrokes or the skill click,
+    // which then save onto it.
+    await waitFor(
+      async () => {
+        expect((await row(draft.id)).title).toBe('My idea')
+        expect(
+          await prisma.workItemSkill.count({ where: { workItemId: draft.id, skillId: skill.id } }),
+        ).toBe(1)
+      },
+      { timeout: 20_000 },
+    )
     // The address moves to the edit page without a navigation, so the form is never replaced.
     await waitFor(() => expect(window.location.pathname).toBe(`/projects/${draft.id}/edit`))
     expect(navigation.replace).not.toHaveBeenCalled()
@@ -146,6 +154,33 @@ describe('ProjectEditor — new volunteer proposal', () => {
         where: { creatorId: me.id, type: 'PROJECT', title: 'Go' },
       }),
     ).toBe(1)
+  })
+
+  it('saves edits made while the draft is still being created', async () => {
+    const me = await createVolunteer()
+    await mount({ variant: 'volunteer' }, me)
+    await waitFor(() => expect(localStorage.getItem('authToken')).toBeTruthy())
+    await userEvent.type(screen.getByLabelText('Project Title'), 'Go')
+    await userEvent.type(screen.getByLabelText('Task title'), 'Step')
+    const skill = await prisma.skill.findFirstOrThrow()
+    const skillBox = await screen.findByLabelText(skill.name)
+    // The create is sent on the click; the skill and ownership change before it lands.
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Add Task' }))
+      fireEvent.click(skillBox)
+      fireEvent.click(screen.getByLabelText(/I want to lead this project/))
+    })
+    await waitFor(
+      async () => {
+        const draft = await prisma.workItem.findFirstOrThrow({
+          where: { creatorId: me.id, type: 'PROJECT' },
+          include: { skills: true },
+        })
+        expect(draft.assigneeId).toBe(me.id)
+        expect(draft.skills.map((s) => s.skillId)).toEqual([skill.id])
+      },
+      { timeout: 20_000 },
+    )
   })
 
   it('adds no task when the draft it needs cannot be created', async () => {
