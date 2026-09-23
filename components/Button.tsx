@@ -9,8 +9,12 @@ const variants = {
   secondary: 'bg-secondary text-white hover:bg-secondary-dark',
   danger: 'bg-error text-white hover:bg-red-700',
   ghost: 'bg-transparent text-text-light hover:bg-accent hover:text-brand-text',
+  // --secondary is a fill; as text or border on the dark page it is grey on grey, so the
+  // outline is drawn in the text colours.
   outline:
-    'bg-transparent border-2 border-secondary text-secondary hover:bg-secondary hover:text-white',
+    'bg-transparent border-2 border-text-light text-brand-text hover:bg-secondary hover:text-white',
+  // An outline for actions that give something up, like leaving a team or withdrawing.
+  warning: 'bg-transparent border-2 border-error text-error hover:bg-error hover:text-white',
 }
 
 const activeVariants: Record<keyof typeof variants, string> = {
@@ -19,6 +23,7 @@ const activeVariants: Record<keyof typeof variants, string> = {
   danger: 'bg-red-700',
   ghost: 'bg-accent! text-brand-text!',
   outline: 'bg-secondary text-white',
+  warning: 'bg-error text-white',
 }
 
 const sizes = {

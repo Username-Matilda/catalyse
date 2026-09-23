@@ -6,6 +6,11 @@ import Button from '@/components/Button'
 import { useAuth } from '@/lib/auth-context'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
+import {
+  TASK_FINAL_WARNING_AFTER_DAYS,
+  TASK_RELEASE_AFTER_DAYS,
+  TASK_REMINDER_AFTER_DAYS,
+} from '@/lib/staleness'
 
 export default function PrivacyPage() {
   const { user, loading } = useAuth()
@@ -105,11 +110,13 @@ export default function PrivacyPage() {
               </li>
               <li>To send you notifications about your projects and interests</li>
               <li>
-                To send automated inactivity reminders if you are assigned to a task and have not
-                posted an update for a period of time, and to automatically unassign you from the
-                task after continued inactivity so that other volunteers can take it on. Project
-                owners and admins are notified when a volunteer is unassigned due to inactivity
-                (legitimate interest basis: keeping projects moving)
+                To send automated inactivity reminders if you have claimed a project task and have
+                not posted an update: a reminder after {TASK_REMINDER_AFTER_DAYS} days, a final
+                warning after {TASK_FINAL_WARNING_AFTER_DAYS}, and after {TASK_RELEASE_AFTER_DAYS}{' '}
+                days you are unassigned so that other volunteers can take it on. A comment on the
+                task or a change to it counts as an update. The project owner is told when a
+                volunteer is unassigned due to inactivity (legitimate interest basis: keeping
+                projects moving)
               </li>
               <li>
                 To notify project owners and admins when task updates are posted, so they can stay
@@ -159,9 +166,9 @@ export default function PrivacyPage() {
                 data via cookies. IP addresses are anonymised. Google Signals and ads
                 personalisation are disabled, so this data is never used for advertising. Google,
                 our analytics provider, processes this data on our behalf — we never sell it or
-                share it for any other purpose. Only loaded if you accept cookies via the consent
-                banner. You can withdraw consent at any time in Settings &gt; Privacy &amp; Data, or
-                by clearing your browser cookies. Data may be processed in the United States.
+                share it for any other purpose. It loads unless you have turned it off, and there is
+                no cookie banner. You can turn it off at any time in Settings &gt; Privacy &amp;
+                Data. Data may be processed in the United States.
               </li>
               <li>
                 <strong>Google Sign-In</strong> (authentication): if you choose to sign in with
@@ -201,8 +208,8 @@ export default function PrivacyPage() {
               </li>
               <li>
                 <strong>Analytics cookies</strong>: Google Analytics uses cookies to collect
-                anonymised usage data. These are only loaded after you accept the cookie consent
-                banner. You can decline or withdraw consent at any time.
+                anonymised usage data. These load unless you have turned analytics off in Settings
+                &gt; Privacy &amp; Data, which you can do at any time.
               </li>
             </ul>
 

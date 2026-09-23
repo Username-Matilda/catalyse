@@ -99,7 +99,7 @@ test.describe('Teams', () => {
 
     const item = volunteer.page.getByRole('article').filter({ hasText: teamName })
     await expect(item).toBeVisible({ timeout: 10_000 })
-    await expect(item).toContainText('Pending Review')
+    await expect(item).toContainText('Applied')
   })
 
   test('Admin accepts a suggestion; suggester becomes leader by default', async ({
@@ -203,7 +203,7 @@ test.describe('Teams', () => {
 
     await volunteer.page.goto(`${baseUrl}/teams`)
     const memberCard = volunteer.page.getByRole('article').filter({ hasText: teamName })
-    await expect(memberCard.getByRole('button', { name: 'Leave' })).toBeVisible({
+    await expect(memberCard.getByRole('link', { name: 'View team' })).toBeVisible({
       timeout: 10_000,
     })
   })
@@ -242,6 +242,7 @@ test.describe('Teams', () => {
 
     await leaveTeam(baseUrl, volunteer.page, teamName)
 
+    await volunteer.page.goto(`${baseUrl}/teams`)
     const card = volunteer.page.getByRole('article').filter({ hasText: teamName })
     await expect(card.getByRole('button', { name: 'Apply to Join' })).toBeVisible({
       timeout: 10_000,

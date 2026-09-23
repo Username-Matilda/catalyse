@@ -29,4 +29,32 @@ GitHub issue. An entry here is about the work itself: something in the code
 structure, tooling, tests, docs or diagnostics that made a task slower or more
 confusing than it needed to be, and that will do so again.
 
+## 2x
+
+- [ ] **A `null`-target guard written for a dialog's confirm or dismiss handler
+      is unreachable, and 100% statement coverage only says so after a full
+      unit run.** Five confirm-dialog call sites, then the approval welcome's
+      dismiss handler, each needed rewriting once the coverage gate rejected
+      them, and a handler wired only to Escape or the close button stays
+      uncovered until a test presses it. The pattern that has no unreachable
+      line — render the dialog inside `{target && (…)}` and read the target in
+      the handler closure — belongs in `AGENTS.md` next to the coverage rules,
+      and in `components/ui/ConfirmDialog.tsx`'s own usage note.
+
 ## 1x
+
+- [ ] **Component tests count error toasts (`getAllByText(msg).length`), and a
+      toast dismisses itself after 4 s, so the count never arrives when the
+      full suite runs slowly.** `app/quick-tasks/page.test.tsx` failed that way
+      in a `check-all` run and cost a second full run; the same pattern is in
+      `app/projects/[id]/page.test.tsx` and `components/ProjectEditor.test.tsx`.
+      A shared helper in `test/` that finds a toast by text, clicks its Dismiss
+      and waits for it to go (the `expectNotFound` helper in the Quick Tasks
+      test) would let each step wait for a toast of its own.
+- [ ] **After a client-side redirect, `window.location` can still hold the old address
+      while the new page first renders, and jsdom tests never show it.** A `useState`
+      initializer that read `?notice=` passed every unit test and showed nothing in the
+      browser; only an e2e run caught it. The one note on this sat in a comment inside
+      `app/dashboard/page.tsx`. Reading query parameters through one hook
+      (`lib/hooks/useOneTimeNotice.ts` reads on mount) and a line in `AGENTS.md` would stop
+      the next page repeating it.

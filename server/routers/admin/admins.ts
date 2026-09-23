@@ -147,17 +147,25 @@ export const adminAdminsRouter = {
     .input(z.object({ inviteToken: z.string().min(1) }))
     .handler(async ({ input, context }) => {
       const volunteer = context.volunteer
-      const now = new Date()
+      // Only someone holding the token learns which of these applies to it.
       const invite = await prisma.adminInvite.findFirst({
-        where: {
-          inviteToken: input.inviteToken,
-          status: InviteStatus.pending,
-          expiresAt: { gt: now },
-        },
+        where: { inviteToken: input.inviteToken },
       })
-
       if (!invite) {
-        throw new ORPCError('NOT_FOUND', { message: 'Invalid or expired invite' })
+        throw new ORPCError('NOT_FOUND', {
+          message: "This invite link isn't valid. Check you opened the whole link from the email.",
+        })
+      }
+      if (invite.status === InviteStatus.accepted) {
+        throw new ORPCError('BAD_REQUEST', { message: 'This invite has already been used.' })
+      }
+      if (invite.status === InviteStatus.revoked) {
+        throw new ORPCError('BAD_REQUEST', { message: 'This invite has been withdrawn.' })
+      }
+      if (invite.status === InviteStatus.expired || invite.expiresAt <= new Date()) {
+        throw new ORPCError('BAD_REQUEST', {
+          message: 'This invite has expired. Ask the admin who invited you to send a new one.',
+        })
       }
 
       if (invite.email.toLowerCase() !== (volunteer.email ?? '').toLowerCase()) {

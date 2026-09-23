@@ -35,6 +35,7 @@ import {
 } from './geometry'
 import { RANGES, windowDays, windowFor, type RangeKey } from './range'
 import { formatDateShort } from '@/lib/format-date'
+import { plural } from '@/lib/plural'
 import { patchFromDrag, type DragData, type ReschedulePatch } from './useGanttDrag'
 import type { GanttEdge, GanttRow as GanttRowData } from './types'
 
@@ -424,13 +425,11 @@ export default function GanttChart({
         </div>
         <div className="flex items-baseline gap-2">
           <dt className="text-text-light">Span</dt>
-          <dd className="m-0">{scopeDays} days</dd>
+          <dd className="m-0">{plural(scopeDays, 'day')}</dd>
         </div>
         <div className="flex items-baseline gap-2">
           <dt className="text-text-light">{daysToFinish >= 0 ? 'Remaining' : 'Overran by'}</dt>
-          <dd className="m-0">
-            {Math.abs(daysToFinish)} day{Math.abs(daysToFinish) === 1 ? '' : 's'}
-          </dd>
+          <dd className="m-0">{plural(Math.abs(daysToFinish), 'day')}</dd>
         </div>
       </dl>
 

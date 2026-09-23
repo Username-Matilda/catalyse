@@ -25,7 +25,7 @@ test.describe('Local Group Suggestions', () => {
     const item = volunteer.page.getByRole('article').filter({ hasText: groupName })
     await expect(item).toBeVisible({ timeout: 10_000 })
     await expect(item).toContainText('United Kingdom')
-    await expect(item).toContainText('Pending Review')
+    await expect(item).toContainText('Applied')
   })
 
   test('Submit button is disabled until name is filled (country prefills from profile)', async ({
@@ -249,7 +249,9 @@ test.describe('Local Group Suggestions', () => {
 
     await goToDashboardNotifications(baseUrl, volunteer.page)
     await expect(
-      volunteer.page.locator('strong').filter({ hasText: `"${groupName}" was accepted` }),
+      volunteer.page
+        .locator('strong')
+        .filter({ hasText: `Approved: your local group suggestion "${groupName}"` }),
     ).toBeVisible({ timeout: 10_000 })
     await volunteer.page.getByRole('link', { name: 'View' }).first().click()
 

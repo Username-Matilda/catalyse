@@ -7,44 +7,70 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import Button from '@/components/Button'
 import CommentThread from '@/components/CommentThread'
 import { orpc } from '@/lib/orpc'
-import { useToast } from '@/lib/toast'
-import { ProjectList, statusBadgeClasses, QUICK_TASK_STATUS_LABELS } from '@/components/ProjectCard'
+import { ProjectList, statusBadgeClasses } from '@/components/ProjectCard'
+import {
+  INTEREST_STATUS_LABELS,
+  QUICK_TASK_STATUS_LABELS,
+  TASK_STATUS_LABELS,
+} from '@/lib/status-labels'
+import { Badge } from '@/components/Badge'
+import { daysQuiet } from '@/lib/staleness'
+import Linkify from '@/components/Linkify'
+import SubmitForReviewButton from '@/components/SubmitForReviewButton'
 import Tabs from '@/components/Tabs'
-import type { InferRouterOutputs } from '@orpc/server'
-import type { AppRouter } from '@/server/router'
-import { ApprovalStatus, QuickTaskStatus } from '@/generated/prisma/enums'
+import Modal from '@/components/ui/Modal'
+import { ApprovalStatus, InterestStatus, QuickTaskStatus } from '@/generated/prisma/enums'
 import { ApprovalStepper } from '@/components/ApprovalStepper'
 import { friendlyDate } from '@/lib/format-date'
+import Skeleton from '@/components/Skeleton'
+
+function QuietNote({ updatedAt }: { updatedAt: string | Date | null }) {
+  const days = daysQuiet(updatedAt)
+  if (days === null) return null
+  return <div className="text-sm text-warning-text mt-1">No update for {days} days</div>
+}
 
 const NOTIFICATIONS_PAGE_SIZE = 20
 type NotificationFilter = 'all' | 'unread' | 'read'
 
-type Interest = InferRouterOutputs<AppRouter>['dashboard']['get']['myInterests'][number]
-
-type TabKey = 'owned' | 'interests' | 'proposed' | 'suggested' | 'notifications'
+// Current work first, discovery last.
+const TAB_ORDER = ['projects', 'applications', 'notifications', 'suggested'] as const
+type TabKey = (typeof TAB_ORDER)[number]
 
 const TAB_LABELS: Record<TabKey, string> = {
-  owned: 'Owned Projects',
-  interests: 'Interested Projects',
-  proposed: 'Proposed Projects',
-  suggested: 'Suggested for You',
+  projects: 'My projects',
+  applications: 'Applications',
   notifications: 'Notifications',
+  suggested: 'Suggested for You',
+}
+
+/** The tab a `#tab-<key>` hash asks for, or null when it names none. */
+function tabFromHash(hash: string): TabKey | null {
+  const key = hash.startsWith('#tab-') ? hash.slice('#tab-'.length) : ''
+  return TAB_ORDER.find((t) => t === key) ?? null
+}
+
+function TabCount({ count }: { count: number }) {
+  if (count === 0) return null
+  return (
+    <span className="bg-accent text-secondary-dark text-xs px-2 py-0.5 rounded-full ml-1 dark:bg-gray-700 dark:text-gray-300">
+      {count}
+    </span>
+  )
 }
 
 export default function DashboardPage() {
   const { user, loading } = useRequireAuth()
-  const showToast = useToast()
   const queryClient = useQueryClient()
-  const [activeTab, setActiveTab] = useState<TabKey>(() => {
-    if (typeof window === 'undefined') return 'owned'
-    const hash = window.location.hash
-    if (hash.startsWith('#tab-')) return (hash.slice('#tab-'.length) as TabKey) || 'owned'
-    return 'owned'
-  })
+  // The tab the hash names; without one the page picks a default from what the volunteer has.
+  const [requestedTab, setRequestedTab] = useState<TabKey | null>(() =>
+    typeof window === 'undefined' ? null : tabFromHash(window.location.hash),
+  )
   const [expandedTasks, setExpandedTasks] = useState<Set<number>>(new Set())
   const [emailBannerDismissed, setEmailBannerDismissed] = useState(false)
   const [notificationFilter, setNotificationFilter] = useState<NotificationFilter>('all')
   const [notificationPage, setNotificationPage] = useState(1)
+  const [welcomeDismissed, setWelcomeDismissed] = useState(false)
 
   function setNotificationFilterAndResetPage(filter: NotificationFilter) {
     setNotificationFilter(filter)
@@ -53,11 +79,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     function syncFromHash() {
-      const hash = window.location.hash
-      const tab: TabKey = hash.startsWith('#tab-')
-        ? (hash.slice('#tab-'.length) as TabKey) || 'owned'
-        : 'owned'
-      setActiveTab(tab)
+      setRequestedTab(tabFromHash(window.location.hash))
     }
     // Re-read the hash on mount too: Next.js client-side navigation does not
     // reliably reflect the new hash in window.location.hash by the time this
@@ -67,17 +89,44 @@ export default function DashboardPage() {
     return () => window.removeEventListener('hashchange', syncFromHash)
   }, [])
 
+  const { data, isPending: loadingData } = useQuery({
+    ...orpc.dashboard.get.queryOptions(),
+    enabled: !!user,
+  })
+
+  const unreadCount = data?.unreadNotificationCount ?? 0
+  const ownedProjects = data?.ownedProjects ?? []
+  const ownedIds = new Set(ownedProjects.map((p) => p.id))
+  const interests = data?.myInterests ?? []
+  const myProjects = [
+    ...ownedProjects,
+    ...interests.filter((i) => i.interestStatus === InterestStatus.accepted && !ownedIds.has(i.id)),
+  ]
+  const proposedProjects = data?.proposedProjects ?? []
+  const applications = interests.filter((i) => i.interestStatus !== InterestStatus.accepted)
+  const suggestedProjects = data?.suggestedProjects ?? []
+  // Until approved there are no projects to join or propose, so only notifications show.
+  const isMember = Boolean(
+    user && (user.approvalStatus === ApprovalStatus.approved || user.isAdmin),
+  )
+  const visibleTabs: readonly TabKey[] = isMember ? TAB_ORDER : ['notifications']
+  const defaultTab: TabKey = !isMember
+    ? 'notifications'
+    : myProjects.length + proposedProjects.length > 0
+      ? 'projects'
+      : applications.length > 0
+        ? 'applications'
+        : unreadCount > 0
+          ? 'notifications'
+          : 'suggested'
+  const activeTab = requestedTab && visibleTabs.includes(requestedTab) ? requestedTab : defaultTab
+
   useEffect(() => {
     document.title = `Catalyse | ${TAB_LABELS[activeTab]}`
     return () => {
       document.title = 'Catalyse | Dashboard'
     }
   }, [activeTab])
-
-  const { data, isPending: loadingData } = useQuery({
-    ...orpc.dashboard.get.queryOptions(),
-    enabled: !!user,
-  })
 
   const { data: quickTasksRaw = [] } = useQuery({
     ...orpc.my.quickTasks.queryOptions(),
@@ -86,6 +135,10 @@ export default function DashboardPage() {
   const quickTasks = quickTasksRaw.filter(
     (t) => t.status === QuickTaskStatus.in_progress || t.status === QuickTaskStatus.under_review,
   )
+  const { data: projectTasks = [] } = useQuery({
+    ...orpc.my.projectTasks.queryOptions(),
+    enabled: !!user,
+  })
 
   const { data: notificationsData } = useQuery({
     ...orpc.notifications.list.queryOptions({
@@ -104,17 +157,6 @@ export default function DashboardPage() {
     1,
     Math.ceil(notificationsTotal / NOTIFICATIONS_PAGE_SIZE),
   )
-
-  const submitTaskMutation = useMutation({
-    ...orpc.quickTasks.submit.mutationOptions(),
-    onSuccess: () => {
-      showToast('Task submitted for review!', 'success')
-      void queryClient.invalidateQueries({ queryKey: orpc.my.quickTasks.key() })
-    },
-    onError: (err: unknown) => {
-      showToast(err instanceof Error ? err.message : 'Failed to submit task', 'error')
-    },
-  })
 
   const readAllMutation = useMutation({
     ...orpc.notifications.readAll.mutationOptions(),
@@ -150,13 +192,8 @@ export default function DashboardPage() {
   }
 
   function handleTabClick(tab: TabKey) {
-    setActiveTab(tab)
-    if (tab === 'owned') {
-      history.replaceState(null, '', '/dashboard')
-      window.dispatchEvent(new HashChangeEvent('hashchange'))
-    } else {
-      window.location.hash = `tab-${tab}`
-    }
+    setRequestedTab(tab)
+    window.location.hash = `tab-${tab}`
   }
 
   if (loading || !user) return null
@@ -165,20 +202,45 @@ export default function DashboardPage() {
     return (
       <>
         <main className="container py-5 pb-15">
-          <div className="text-center py-10 text-text-light">Loading dashboard…</div>
+          <Skeleton label="Loading dashboard…" />
         </main>
       </>
     )
   }
 
-  const unreadCount = data?.unreadNotificationCount ?? 0
+  const welcome = welcomeDismissed ? null : (data?.approvalWelcome ?? null)
+
+  function dismissWelcome(notificationId: number) {
+    setWelcomeDismissed(true)
+    // Clear the cached welcome now, so coming back to the dashboard before the read has
+    // been confirmed does not show it again.
+    queryClient.setQueryData(orpc.dashboard.get.queryOptions().queryKey, (old) =>
+      old ? { ...old, approvalWelcome: null } : old,
+    )
+    markReadMutation.mutate({ id: notificationId })
+  }
+
   const showEmailBanner = !user.emailDigest && !emailBannerDismissed
 
   const tabs: { key: TabKey; label: React.ReactNode; 'data-tab'?: string }[] = [
-    { key: 'owned', label: TAB_LABELS.owned },
-    { key: 'interests', label: TAB_LABELS.interests },
-    { key: 'proposed', label: TAB_LABELS.proposed },
-    { key: 'suggested', label: TAB_LABELS.suggested },
+    {
+      key: 'projects',
+      label: (
+        <>
+          {TAB_LABELS.projects}
+          <TabCount count={myProjects.length + proposedProjects.length} />
+        </>
+      ),
+    },
+    {
+      key: 'applications',
+      label: (
+        <>
+          {TAB_LABELS.applications}
+          <TabCount count={applications.length} />
+        </>
+      ),
+    },
     {
       key: 'notifications',
       'data-tab': 'notifications',
@@ -186,10 +248,19 @@ export default function DashboardPage() {
         <>
           {TAB_LABELS.notifications}
           {unreadCount > 0 && (
-            <span className="notification-badge bg-primary text-secondary-dark text-xs px-2 py-0.5 rounded-full ml-1">
+            <span className="notification-badge bg-primary text-gray-900 text-xs px-2 py-0.5 rounded-full ml-1">
               {unreadCount}
             </span>
           )}
+        </>
+      ),
+    },
+    {
+      key: 'suggested',
+      label: (
+        <>
+          {TAB_LABELS.suggested}
+          <TabCount count={suggestedProjects.length} />
         </>
       ),
     },
@@ -197,10 +268,35 @@ export default function DashboardPage() {
 
   return (
     <>
+      {welcome && (
+        <Modal
+          id="approval-welcome"
+          title="You're approved. Welcome to Catalyse!"
+          isOpen
+          onClose={() => dismissWelcome(welcome.notificationId)}
+        >
+          <p>
+            {welcome.emailConfirmed
+              ? 'Your application has been approved. Browse projects to find something you can help with, or pick up a Quick Task to get started.'
+              : 'Your application has been approved. One last step: confirm your email address, then you can browse projects and pick a first task.'}
+          </p>
+          <div className="mt-4 flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => dismissWelcome(welcome.notificationId)}>
+              Not now
+            </Button>
+            <Button
+              href={welcome.emailConfirmed ? '/projects' : '/verify-email'}
+              onClick={() => dismissWelcome(welcome.notificationId)}
+            >
+              {welcome.emailConfirmed ? 'Browse projects' : 'Confirm your email'}
+            </Button>
+          </div>
+        </Modal>
+      )}
       <main className="container py-5 pb-15">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 role="heading">Welcome back, {user.name}!</h1>
-          <Button href="/suggest">Create Project</Button>
+          {isMember && <Button href="/suggest">Propose a project</Button>}
         </div>
 
         {/* Pending approval banner */}
@@ -246,10 +342,32 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Quick Tasks */}
-        {quickTasks.length > 0 && (
-          <section aria-label="Quick Tasks" className="mb-8">
-            <h2>Quick Tasks</h2>
+        {/* Quick Tasks and claimed project tasks */}
+        {quickTasks.length + projectTasks.length > 0 && (
+          <section aria-label="Your tasks" className="mb-8">
+            <h2>Your tasks</h2>
+            {projectTasks.map((task) => (
+              <div
+                key={`project-${task.id}`}
+                role="article"
+                className="bg-surface rounded-xl shadow p-6 mb-3 overflow-hidden wrap-break-word"
+              >
+                <div className="flex justify-between items-center gap-3">
+                  <div>
+                    <Link href={`/projects/${task.projectId}/tasks/${task.id}`}>
+                      <strong>{task.title}</strong>
+                    </Link>
+                    <span className="ml-2 text-sm text-text-light">
+                      in <Link href={`/projects/${task.projectId}`}>{task.projectTitle}</Link>
+                    </span>
+                    <QuietNote updatedAt={task.updatedAt} />
+                  </div>
+                  <span role="status" className={statusBadgeClasses(task.status)}>
+                    {TASK_STATUS_LABELS[task.status] ?? task.status}
+                  </span>
+                </div>
+              </div>
+            ))}
             {quickTasks.map((task) => (
               <div
                 key={task.id}
@@ -265,6 +383,7 @@ export default function DashboardPage() {
                     {task.skillName && (
                       <span className="ml-2 text-sm text-text-light">{task.skillName}</span>
                     )}
+                    <QuietNote updatedAt={task.updatedAt} />
                   </div>
                   <span role="status" className={statusBadgeClasses(task.status)}>
                     {QUICK_TASK_STATUS_LABELS[task.status] ?? task.status}
@@ -272,15 +391,11 @@ export default function DashboardPage() {
                 </div>
                 {expandedTasks.has(task.id) && (
                   <div className="mt-3">
-                    <p className="text-text-light text-sm mb-3">{task.description}</p>
+                    <p className="text-text-light text-sm mb-3 whitespace-pre-wrap">
+                      <Linkify text={task.description} />
+                    </p>
                     {task.status === QuickTaskStatus.in_progress && (
-                      <Button
-                        size="sm"
-                        disabled={submitTaskMutation.isPending}
-                        onClick={() => submitTaskMutation.mutate({ id: task.id })}
-                      >
-                        Mark as Complete
-                      </Button>
+                      <SubmitForReviewButton taskId={task.id} size="sm" />
                     )}
                     <div className="mt-3">
                       <strong className="text-sm">Comments</strong>
@@ -293,72 +408,68 @@ export default function DashboardPage() {
           </section>
         )}
 
-        {/* Quick stats */}
-        <div className="grid grid-cols-3 gap-5 mb-8 max-[900px]:grid-cols-2 max-[600px]:grid-cols-1">
-          {/* [test hook] card, stat-number classes used as test selectors */}
-          <div className="card bg-surface rounded-xl shadow p-6 text-center">
-            <div className="stat-number text-4xl font-bold text-primary mb-1">
-              {data?.ownedProjects.length ?? 0}
-            </div>
-            <div className="text-text-light text-sm">Owned Projects</div>
-          </div>
-          <div className="card bg-surface rounded-xl shadow p-6 text-center">
-            <div className="stat-number text-4xl font-bold text-primary mb-1">
-              {data?.myInterests.length ?? 0}
-            </div>
-            <div className="text-text-light text-sm">Active Interests</div>
-          </div>
-          <div className="card bg-surface rounded-xl shadow p-6 text-center">
-            <div className="stat-number text-4xl font-bold text-primary mb-1">{unreadCount}</div>
-            <div className="text-text-light text-sm">Unread Notifications</div>
-          </div>
-        </div>
-
         {/* Tabs */}
         {/* [test hook] active class added to active tab; notification-badge class used as test selector */}
-        <Tabs tabs={tabs} activeTab={activeTab} onChange={handleTabClick} />
+        <Tabs
+          tabs={tabs.filter((t) => visibleTabs.includes(t.key))}
+          activeTab={activeTab}
+          onChange={handleTabClick}
+        />
 
         {/* Tab content */}
-        {activeTab === 'owned' && (
+        {activeTab === 'projects' && (
           <div>
-            {!data?.ownedProjects.length ? (
-              <p className="text-text-light">You don&apos;t own any projects yet.</p>
+            {myProjects.length === 0 ? (
+              <p className="text-text-light">
+                You don&apos;t own or help on any projects yet.{' '}
+                <Link href="/projects">Browse projects that match your skills →</Link>
+              </p>
             ) : (
-              <ProjectList projects={data.ownedProjects} />
+              <ProjectList projects={myProjects} />
+            )}
+            {proposedProjects.length > 0 && (
+              <section aria-labelledby="proposed-projects" className="mt-8">
+                <h2 id="proposed-projects" className="text-lg">
+                  Projects you proposed
+                </h2>
+                <ProjectList projects={proposedProjects} />
+              </section>
             )}
           </div>
         )}
 
-        {activeTab === 'interests' && (
+        {activeTab === 'applications' && (
           <div>
-            {!data?.myInterests.length ? (
+            {applications.length === 0 ? (
               <p className="text-text-light">
-                You haven&apos;t expressed interest in any projects yet.
+                You haven&apos;t applied to any projects yet.{' '}
+                <Link href="/projects">Browse projects →</Link>
               </p>
             ) : (
               <ProjectList
-                projects={data.myInterests as unknown as Interest[]}
+                projects={applications}
                 userSkillIds={new Set(user.skills?.map((s) => s.id) ?? [])}
+                badgeFor={(a) => (
+                  <Badge variant="info">
+                    {INTEREST_STATUS_LABELS[a.interestStatus] ?? a.interestStatus}
+                  </Badge>
+                )}
               />
-            )}
-          </div>
-        )}
-
-        {activeTab === 'proposed' && (
-          <div>
-            {!data?.proposedProjects.length ? (
-              <p className="text-text-light">You haven&apos;t proposed any projects yet.</p>
-            ) : (
-              <ProjectList projects={data.proposedProjects} />
             )}
           </div>
         )}
 
         {activeTab === 'suggested' && (
           <div>
-            {!data?.suggestedProjects.length ? (
+            {!user.skills?.length ? (
               <p className="text-text-light">
-                No suggested projects matching your skills right now.
+                Add skills to your profile to get suggestions.{' '}
+                <Link href="/settings">Add skills →</Link>
+              </p>
+            ) : suggestedProjects.length === 0 ? (
+              <p className="text-text-light">
+                No suggested projects matching your skills right now.{' '}
+                <Link href="/quick-tasks">Browse Quick Tasks →</Link>
               </p>
             ) : (
               <>
@@ -366,7 +477,7 @@ export default function DashboardPage() {
                   Based on your skills, these projects might be a good fit:
                 </p>
                 <ProjectList
-                  projects={data.suggestedProjects}
+                  projects={suggestedProjects}
                   userSkillIds={new Set(user.skills?.map((s) => s.id) ?? [])}
                 />
               </>
@@ -414,51 +525,61 @@ export default function DashboardPage() {
               </p>
             ) : (
               <>
-                {notifications.map((n) => (
-                  <div
-                    key={n.id}
-                    className={`bg-surface rounded-xl shadow p-5 mb-3 wrap-break-word ${!n.readAt ? 'border-l-4 border-primary' : ''}`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <strong className={!n.readAt ? 'text-brand-text' : 'text-text-light'}>
-                        {n.title}
-                      </strong>
-                      <span className="text-xs text-text-light whitespace-nowrap">
-                        {n.createdAt ? friendlyDate(n.createdAt) : ''}
-                      </span>
-                    </div>
-                    <p className="text-sm mt-1 mb-0">{n.body}</p>
-                    <div className="flex items-center gap-3 mt-2">
-                      {n.link && (
-                        <Link
-                          href={n.link}
-                          className="text-sm underline"
-                          onClick={() => {
-                            if (!n.readAt) markReadMutation.mutate({ id: n.id })
-                          }}
-                        >
-                          View
-                        </Link>
+                {notifications.map((n, i) => (
+                  <React.Fragment key={n.id}>
+                    {notificationFilter === 'all' && i === 0 && !n.readAt && (
+                      <h3 className="text-sm text-text-light mb-2 mt-0">Unread</h3>
+                    )}
+                    {notificationFilter === 'all' &&
+                      n.readAt &&
+                      i > 0 &&
+                      !notifications[i - 1].readAt && (
+                        <h3 className="text-sm text-text-light mb-2 mt-4">Earlier</h3>
                       )}
-                      {n.readAt ? (
-                        <button
-                          type="button"
-                          className="text-sm underline text-text-light cursor-pointer bg-transparent border-0 p-0"
-                          onClick={() => markUnreadMutation.mutate({ id: n.id })}
-                        >
-                          Mark as unread
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          className="text-sm underline text-text-light cursor-pointer bg-transparent border-0 p-0"
-                          onClick={() => markReadMutation.mutate({ id: n.id })}
-                        >
-                          Mark as read
-                        </button>
-                      )}
+                    <div
+                      className={`bg-surface rounded-xl shadow p-5 mb-3 wrap-break-word ${!n.readAt ? 'border-l-4 border-primary' : ''}`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <strong className={!n.readAt ? 'text-brand-text' : 'text-text-light'}>
+                          {n.title}
+                        </strong>
+                        <span className="text-xs text-text-light whitespace-nowrap">
+                          {n.createdAt ? friendlyDate(n.createdAt) : ''}
+                        </span>
+                      </div>
+                      <p className="text-sm mt-1 mb-0">{n.body}</p>
+                      <div className="flex items-center gap-3 mt-2">
+                        {n.link && (
+                          <Link
+                            href={n.link}
+                            className="text-sm underline"
+                            onClick={() => {
+                              if (!n.readAt) markReadMutation.mutate({ id: n.id })
+                            }}
+                          >
+                            View
+                          </Link>
+                        )}
+                        {n.readAt ? (
+                          <button
+                            type="button"
+                            className="text-sm underline text-text-light cursor-pointer bg-transparent border-0 p-0"
+                            onClick={() => markUnreadMutation.mutate({ id: n.id })}
+                          >
+                            Mark as unread
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="text-sm underline text-text-light cursor-pointer bg-transparent border-0 p-0"
+                            onClick={() => markReadMutation.mutate({ id: n.id })}
+                          >
+                            Mark as read
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  </React.Fragment>
                 ))}
                 {notificationsTotalPages > 1 && (
                   <div className="flex items-center justify-center gap-4 mt-6">

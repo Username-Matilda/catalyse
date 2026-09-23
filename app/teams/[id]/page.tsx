@@ -1,12 +1,16 @@
 'use client'
 
-import { use } from 'react'
+import { use, useState } from 'react'
 import Link from 'next/link'
 import { useRequireAuth } from '@/lib/hooks/auth'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
+import { teamApplicationSentMessage } from '@/lib/action-messages'
+import { useCooldown } from '@/lib/hooks/useCooldown'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import NotFoundCard from '@/components/NotFoundCard'
 
 export default function TeamDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = use(params)
@@ -29,7 +33,7 @@ export default function TeamDetailPage({ params }: { params: Promise<{ id: strin
   const applyMutation = useMutation({
     ...orpc.teams.apply.mutationOptions(),
     onSuccess: () => {
-      showToast('Application submitted, a team leader will review it', 'success')
+      showToast(teamApplicationSentMessage(team?.name ?? 'this team'), 'success')
       void invalidate()
     },
     onError: (err: unknown) => {
@@ -37,10 +41,14 @@ export default function TeamDetailPage({ params }: { params: Promise<{ id: strin
     },
   })
 
+  const [confirmingLeave, setConfirmingLeave] = useState(false)
+  const { isCooling, start: startCooldown } = useCooldown()
+
   const leaveMutation = useMutation({
     ...orpc.teams.leave.mutationOptions(),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       showToast('Left team', 'success')
+      startCooldown(variables.id)
       void invalidate()
     },
     onError: (err: unknown) => {
@@ -60,9 +68,10 @@ export default function TeamDetailPage({ params }: { params: Promise<{ id: strin
 
   if (!team) {
     return (
-      <main className="container py-5 pb-15">
-        <p className="text-text-light">Team not found.</p>
-      </main>
+      <NotFoundCard
+        title="Team not found"
+        message="This team doesn't exist, or it has been removed."
+      />
     )
   }
 
@@ -70,7 +79,7 @@ export default function TeamDetailPage({ params }: { params: Promise<{ id: strin
 
   return (
     <main className="container py-5 pb-15 max-w-2xl">
-      <Link href="/teams" className="text-sm text-secondary-dark no-underline hover:text-primary">
+      <Link href="/teams" className="text-sm text-brand-text no-underline hover:text-primary">
         ← All Teams
       </Link>
 
@@ -92,9 +101,9 @@ export default function TeamDetailPage({ params }: { params: Promise<{ id: strin
         ) : isMember ? (
           <Button
             size="sm"
-            variant="secondary"
+            variant="warning"
             disabled={leaveMutation.isPending}
-            onClick={() => leaveMutation.mutate({ id: team.id })}
+            onClick={() => setConfirmingLeave(true)}
           >
             Leave
           </Button>
@@ -105,7 +114,8 @@ export default function TeamDetailPage({ params }: { params: Promise<{ id: strin
         ) : (
           <Button
             size="sm"
-            disabled={applyMutation.isPending}
+            variant={isCooling(team.id) ? 'secondary' : 'primary'}
+            disabled={applyMutation.isPending || isCooling(team.id)}
             onClick={() => applyMutation.mutate({ id: team.id })}
           >
             Apply to Join
@@ -127,7 +137,7 @@ export default function TeamDetailPage({ params }: { params: Promise<{ id: strin
               href={team.lumaUrl}
               target="_blank"
               rel="noreferrer"
-              className="text-secondary-dark no-underline hover:text-primary"
+              className="text-brand-text no-underline hover:text-primary"
             >
               Meeting calendar
             </a>
@@ -137,12 +147,30 @@ export default function TeamDetailPage({ params }: { params: Promise<{ id: strin
               href={team.docUrl}
               target="_blank"
               rel="noreferrer"
-              className="text-secondary-dark no-underline hover:text-primary"
+              className="text-brand-text no-underline hover:text-primary"
             >
               Team doc
             </a>
           )}
         </div>
+      )}
+
+      {confirmingLeave && (
+        <ConfirmDialog
+          id="confirm-leave-team"
+          isOpen
+          title={`Leave ${team.name}?`}
+          body="You'll need to apply again and be approved to rejoin."
+          confirmLabel="Leave"
+          busyLabel="Leaving…"
+          danger
+          busy={leaveMutation.isPending}
+          onConfirm={() => {
+            leaveMutation.mutate({ id: team.id })
+            setConfirmingLeave(false)
+          }}
+          onClose={() => setConfirmingLeave(false)}
+        />
       )}
     </main>
   )

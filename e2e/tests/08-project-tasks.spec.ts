@@ -287,7 +287,9 @@ test.describe('Project Tasks', () => {
       timeout: 10_000,
     })
     await volunteer.page.getByRole('button', { name: 'Claim' }).click()
-    await expect(getAlert(volunteer.page)).toContainText('Task claimed!', { timeout: 10_000 })
+    await expect(getAlert(volunteer.page)).toContainText('Task claimed. Post an update', {
+      timeout: 10_000,
+    })
 
     // Done button appears only for the assignee — confirms task is now assigned to this volunteer
     await expect(volunteer.page.getByRole('button', { name: 'Done' })).toBeVisible({
@@ -306,7 +308,9 @@ test.describe('Project Tasks', () => {
     await expect(volunteer.page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 })
 
     await volunteer.page.getByRole('button', { name: 'Claim' }).click()
-    await expect(getAlert(volunteer.page)).toContainText('Task claimed!', { timeout: 10_000 })
+    await expect(getAlert(volunteer.page)).toContainText('Task claimed. Post an update', {
+      timeout: 10_000,
+    })
 
     await volunteer.page.getByRole('button', { name: 'Done' }).click()
     await expect(getAlert(volunteer.page)).toContainText('Task completed!', { timeout: 10_000 })
@@ -373,7 +377,7 @@ test.describe('Project Tasks', () => {
       emailVerificationToken,
     } = signup.body as { id: number; token: string; emailVerificationToken?: string }
     if (emailVerificationToken) await confirmVolunteerEmail(baseUrl, emailVerificationToken)
-    await approveVolunteer(baseUrl, volId)
+    await approveVolunteer(baseUrl, volId, volToken)
     const volApi = createApiClient(baseUrl, volToken)
 
     const claim = await volApi.projects.updateTask({
@@ -428,8 +432,8 @@ test.describe('Project Tasks', () => {
     await expect(getAlert(adminPage)).toContainText('Task added!', { timeout: 10_000 })
 
     await adminPage.getByRole('button', { name: 'Task actions for Task to delete' }).click()
-    adminPage.once('dialog', (dialog) => dialog.accept())
     await adminPage.getByRole('menuitem', { name: 'Delete task' }).click()
+    await adminPage.getByRole('dialog').getByRole('button', { name: 'Delete task' }).click()
 
     await expect(getAlert(adminPage)).toContainText('Task deleted!', { timeout: 10_000 })
     await expect(adminPage.getByText('Task to delete')).not.toBeVisible({ timeout: 10_000 })

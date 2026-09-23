@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { useRequireApproved } from '@/lib/hooks/auth'
+import { useOneTimeNotice } from '@/lib/hooks/useOneTimeNotice'
 import { useUrlParam, useUrlSearchInput } from '@/lib/hooks/url-filters'
 import { DIRECTORY_PAGE_SIZE as PAGE_SIZE } from '@/lib/pagination'
 import Link from 'next/link'
@@ -11,14 +12,17 @@ import Button from '@/components/Button'
 import FilterDropdown from '@/components/FilterDropdown'
 import { buildLocationOptions, type LocalGroupOption } from '@/lib/filter-options'
 import { InferRouterInputs } from '@orpc/server'
-import { ORPCError } from '@orpc/client'
 import { orpc } from '@/lib/orpc'
 import { AppRouter } from '@/server/router'
 import { type Project, ProjectList, statusBadgeClasses } from '@/components/ProjectCard'
 import { badgeClasses } from '@/components/Badge'
+import PageLoading from '@/components/PageLoading'
+import ResendConfirmation from '@/components/ResendConfirmation'
+import Skeleton from '@/components/Skeleton'
+import EmptyState from '@/components/EmptyState'
 
 const STATUS_OPTIONS = [
-  { value: '', label: 'All Active' },
+  { value: '', label: 'All' },
   { value: 'ready', label: 'Ready' },
   { value: 'in_progress', label: 'In Progress' },
   { value: 'on_hold', label: 'On Hold' },
@@ -60,6 +64,14 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
   const [locationFilter, setLocationFilter] = useUrlParam('location')
   const [teamFilter, setTeamFilter] = useUrlParam('team')
   const [sortBy, setSortBy] = useUrlParam('sort')
+  // Set when an admin page turned the viewer away (NO_ACCESS_NOTICE_URL).
+  const [adminOnlyNotice, dismissAdminOnlyNotice] = useOneTimeNotice('no-access')
+  const [superAdminOnlyNotice, dismissSuperAdminOnlyNotice] = useOneTimeNotice('super-admin-only')
+  const turnedAway = superAdminOnlyNotice
+    ? { text: 'That page is for super admins.', dismiss: dismissSuperAdminOnlyNotice }
+    : adminOnlyNotice
+      ? { text: 'That page is for admins.', dismiss: dismissAdminOnlyNotice }
+      : null
   const [pageParam, setPageParam] = useUrlParam('page')
   const page = Math.max(1, parseInt(pageParam, 10) || 1)
   const router = useRouter()
@@ -70,7 +82,8 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
 
   const [completedOpen, setCompletedOpen] = useState(false)
 
-  const isFlatView = Boolean(statusFilter || needsFilter)
+  // A chosen sort needs one ordered list; the grouped overview has its own order.
+  const isFlatView = Boolean(statusFilter || needsFilter || sortBy)
 
   // Reset to page 1 whenever a filter changes, but not on the initial mount
   // (which would clobber a deep-linked ?page=N&status=... URL).
@@ -100,7 +113,7 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
 
   const { data: pendingApplicationsList = [] } = useQuery({
     ...orpc.admin.applications.list.queryOptions({ input: { filter: 'mine' } }),
-    enabled: !!user?.isAdmin,
+    enabled: !!user?.isSuperAdmin,
   })
   const pendingApplicationsCount = pendingApplicationsList.length
 
@@ -250,30 +263,49 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
   const seeking = groups.find((g) => g.key === 'seeking')?.projects ?? []
   const inProgress = groups.find((g) => g.key === 'in_progress')?.projects ?? []
 
+  // Nothing to search or filter until the email is confirmed; the card below says what to do.
+  const needsConfirmation = !user.emailConfirmed && !user.isAdmin
+
   return (
     <>
       <main className="container py-5 pb-15">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 role="heading">Projects</h1>
           <div className="flex items-center gap-4">
-            <Link href="/projects/gantt" className="text-primary-text text-sm underline">
-              Roadmap →
-            </Link>
-            <Button href="/suggest">Create Project</Button>
+            {!needsConfirmation && (
+              <Link href="/projects/gantt" className="text-primary-text text-sm underline">
+                Roadmap →
+              </Link>
+            )}
+            <Button href="/suggest">Propose a project</Button>
           </div>
         </div>
 
-        <div className="border-brand-border bg-surface mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4">
-          <div>
-            <h2 className="m-0 text-base">Project templates</h2>
-            <p className="text-text-light m-0 text-sm">
-              Templates for projects to help you replicate success in your area.
-            </p>
+        {turnedAway && (
+          <div
+            role="status"
+            className="flex items-center justify-between gap-3 p-4 rounded-lg mb-5 bg-blue-100 text-blue-800 border border-blue-300 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-600"
+          >
+            <span>{turnedAway.text}</span>
+            <Button variant="ghost" icon onClick={turnedAway.dismiss} aria-label="Dismiss">
+              ×
+            </Button>
           </div>
-          <Button href="/templates" variant="secondary" size="sm">
-            Browse templates
-          </Button>
-        </div>
+        )}
+
+        {!needsConfirmation && (
+          <div className="border-brand-border bg-surface mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4">
+            <div>
+              <h2 className="m-0 text-base">Project templates</h2>
+              <p className="text-text-light m-0 text-sm">
+                Templates for projects to help you replicate success in your area.
+              </p>
+            </div>
+            <Button href="/templates" variant="secondary" size="sm">
+              Browse templates
+            </Button>
+          </div>
+        )}
 
         {user.isAdmin && pendingCount > 0 && (
           <div className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-900 dark:text-amber-200 dark:border-amber-600">
@@ -285,7 +317,7 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
             </Link>
           </div>
         )}
-        {user.isAdmin && pendingApplicationsCount > 0 && (
+        {user.isSuperAdmin && pendingApplicationsCount > 0 && (
           <div className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-violet-100 text-violet-800 border border-violet-300 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-600">
             <strong>
               {pendingApplicationsCount} application{pendingApplicationsCount !== 1 ? 's' : ''}{' '}
@@ -297,86 +329,100 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
           </div>
         )}
 
-        {/* Filters */}
-        <div className="mb-5">
-          <div className="mb-3">
-            <label htmlFor="search-projects">Search</label>
-            <input
-              id="search-projects"
-              type="search"
-              aria-label="Search"
-              placeholder="Search projects…"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-            />
+        {!needsConfirmation && (
+          <>
+            {/* Filters */}
+            <div className="mb-5">
+              <div className="mb-3">
+                <label htmlFor="search-projects">Search</label>
+                <input
+                  id="search-projects"
+                  type="search"
+                  aria-label="Search"
+                  placeholder="Search projects…"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                />
+              </div>
+              <div className="flex gap-3 flex-wrap items-end">
+                <FilterDropdown
+                  id="status-filter"
+                  label="Status"
+                  ariaLabel="Status filter"
+                  value={statusFilter}
+                  options={STATUS_OPTIONS}
+                  onChange={setStatusFilter}
+                />
+                <FilterDropdown
+                  id="needs-filter"
+                  label="Needs"
+                  ariaLabel="Needs filter"
+                  value={needsFilter}
+                  options={NEEDS_OPTIONS}
+                  onChange={setNeedsFilter}
+                />
+                <FilterDropdown
+                  id="urgency-filter"
+                  label="Priority"
+                  ariaLabel="Priority filter"
+                  value={urgencyFilter}
+                  options={URGENCY_OPTIONS}
+                  onChange={setUrgencyFilter}
+                />
+
+                <FilterDropdown
+                  id="location-filter"
+                  label="Country/Group"
+                  ariaLabel="Country/Group filter"
+                  value={locationFilter}
+                  options={buildLocationOptions(localGroups)}
+                  onChange={setLocationFilter}
+                  searchable
+                />
+
+                {(user.isAdmin || myTeams.length > 0) && (
+                  <FilterDropdown
+                    id="team-filter"
+                    label="Team"
+                    ariaLabel="Team filter"
+                    value={teamFilter}
+                    options={teamOptions}
+                    onChange={setTeamFilter}
+                    searchable
+                  />
+                )}
+
+                <FilterDropdown
+                  id="sort-filter"
+                  label="Sort by"
+                  ariaLabel="Sort filter"
+                  value={sortBy}
+                  options={SORT_OPTIONS}
+                  onChange={setSortBy}
+                />
+
+                {hasFilters && (
+                  <Button variant="outline" size="lg" onClick={clearFilters}>
+                    Clear filters
+                  </Button>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+
+        {needsConfirmation ? (
+          // An unconfirmed email is a step to take, not a failure.
+          <div className="bg-surface rounded-xl shadow p-8 text-center max-w-lg mx-auto">
+            <h3>Confirm your email to browse projects</h3>
+            <p className="text-text-light">We sent a link to {user.email}.</p>
+            <ResendConfirmation email={user.email} />
+            <p className="text-sm mt-4 mb-0">
+              <Link href="/settings">Change email</Link>
+            </p>
           </div>
-          <div className="flex gap-3 flex-wrap items-end">
-            <FilterDropdown
-              id="status-filter"
-              label="Status"
-              ariaLabel="Status filter"
-              value={statusFilter}
-              options={STATUS_OPTIONS}
-              onChange={setStatusFilter}
-            />
-            <FilterDropdown
-              id="needs-filter"
-              label="Needs"
-              ariaLabel="Needs filter"
-              value={needsFilter}
-              options={NEEDS_OPTIONS}
-              onChange={setNeedsFilter}
-            />
-            <FilterDropdown
-              id="urgency-filter"
-              label="Priority"
-              ariaLabel="Priority filter"
-              value={urgencyFilter}
-              options={URGENCY_OPTIONS}
-              onChange={setUrgencyFilter}
-            />
-
-            <FilterDropdown
-              id="location-filter"
-              label="Country/Group"
-              ariaLabel="Country/Group filter"
-              value={locationFilter}
-              options={buildLocationOptions(localGroups)}
-              onChange={setLocationFilter}
-              searchable
-            />
-
-            {(user.isAdmin || myTeams.length > 0) && (
-              <FilterDropdown
-                id="team-filter"
-                label="Team"
-                ariaLabel="Team filter"
-                value={teamFilter}
-                options={teamOptions}
-                onChange={setTeamFilter}
-                searchable
-              />
-            )}
-
-            <FilterDropdown
-              id="sort-filter"
-              label="Sort by"
-              ariaLabel="Sort filter"
-              value={sortBy}
-              options={SORT_OPTIONS}
-              onChange={setSortBy}
-            />
-
-            {hasFilters && (
-              <Button variant="outline" size="lg" onClick={clearFilters}>
-                Clear filters
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {loadingProjects ? (
-          <div className="text-center py-10 text-text-light">Loading projects…</div>
+        ) : loadingProjects ? (
+          <Skeleton label="Loading projects…" />
         ) : projectsError ? (
           <div className="text-center py-15 px-5 text-text-light">
             <h3>Couldn&#39;t load projects</h3>
@@ -385,25 +431,13 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
                 ? projectsError.message
                 : 'Something went wrong loading projects.'}
             </p>
-            {projectsError instanceof ORPCError && projectsError.code === 'FORBIDDEN' && (
-              <p className="mt-2">
-                <Link href="/verify-email" className="underline">
-                  Confirm your email
-                </Link>
-              </p>
-            )}
           </div>
         ) : (isFlatView ? projects.length : groups.length) === 0 ? (
-          <div className="text-center py-15 px-5 text-text-light">
-            <h3>No projects found</h3>
-            <p>
-              Try adjusting your filters or{' '}
-              <Link href="/suggest" className="underline">
-                suggest a new project
-              </Link>
-              .
-            </p>
-          </div>
+          <EmptyState
+            title="No projects found"
+            body="Try adjusting your filters, or propose a project of your own."
+            action={<Button href="/suggest">Propose a project</Button>}
+          />
         ) : (
           <>
             {/* Status summary bar */}
@@ -425,11 +459,7 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
             {/* Grouped project cards */}
             {isFlatView ? (
               <>
-                <ProjectList
-                  projects={projects}
-                  userSkillIds={userSkillIds}
-                  showProposer={user.isAdmin}
-                />
+                <ProjectList projects={projects} userSkillIds={userSkillIds} />
                 {flatTotalPages > 1 && (
                   <div className="flex items-center justify-center gap-4 mt-6">
                     <Button
@@ -500,11 +530,7 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
                           key={String(completedOpen)}
                           className={isCompleted ? 'animate-fade-slide-in' : undefined}
                         >
-                          <ProjectList
-                            projects={g.projects}
-                            userSkillIds={userSkillIds}
-                            showProposer={user.isAdmin}
-                          />
+                          <ProjectList projects={g.projects} userSkillIds={userSkillIds} />
                           {overflow > 0 && g.viewAllHref && (
                             <div className="mt-3">
                               <Link href={g.viewAllHref} className="text-sm underline">
@@ -528,7 +554,7 @@ function ProjectsPageContent({ user }: { user: ApprovedUser }) {
 export default function ProjectsPage() {
   const { user, loading } = useRequireApproved()
 
-  if (loading || !user) return null
+  if (loading || !user) return <PageLoading />
 
   return (
     <Suspense>

@@ -3,6 +3,7 @@ import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
 import { redactVolunteer } from '@/lib/auth'
 import { UpdateVolunteerSchema } from '@/lib/schemas'
+import { projectScopeWhere } from '@/lib/work-item'
 import { approvedProcedure, authedProcedure } from '../procedures'
 import {
   ApprovalStatus,
@@ -163,7 +164,13 @@ export const volunteersRouter = {
                 interests: {
                   some: {
                     volunteerId: vol.id,
-                    status: { notIn: [InterestStatus.declined, InterestStatus.withdrawn] },
+                    status: {
+                      notIn: [
+                        InterestStatus.declined,
+                        InterestStatus.withdrawn,
+                        InterestStatus.removed,
+                      ],
+                    },
                   },
                 },
               },
@@ -210,6 +217,7 @@ export const volunteersRouter = {
           where: {
             type: WorkItemType.PROJECT,
             OR: [{ assigneeId: input.id }, { creatorId: input.id }],
+            AND: [projectScopeWhere(currentVolunteer)],
             status: {
               notIn: [
                 ProjectStatus.archived,
@@ -247,12 +255,15 @@ export const volunteersRouter = {
         }),
       ])
 
+      // A profile never carries the login address, whoever is looking: people reach the
+      // volunteer through the message relay, and admins read it on the admin page.
+      const { email: _email, ...profile } = redactVolunteer(vol, {
+        showContact,
+        skills,
+        endorsements,
+      })
       return {
-        ...redactVolunteer(vol, {
-          showContact,
-          skills,
-          endorsements,
-        }),
+        ...profile,
         projects: projects.map((p) => ({
           id: p.id,
           title: p.title,

@@ -166,6 +166,17 @@ test.describe('Authentication: Signup & Login', () => {
       await login(baseUrl, page, person.email, 'testpassword1')
       await expect(page).toHaveURL(`${baseUrl}/dashboard`)
       await expect(page.getByText('Your account is pending approval')).not.toBeVisible()
+
+      // Approval is announced once, in a dialog that points at the next step.
+      const welcome = page.getByRole('dialog', { name: /You're approved/ })
+      await expect(welcome).toBeVisible({ timeout: 10_000 })
+      await welcome.getByRole('button', { name: 'Not now' }).click()
+      await expect(welcome).not.toBeVisible()
+      await page.reload()
+      await expect(page.getByRole('heading', { name: /Welcome back/ })).toBeVisible({
+        timeout: 10_000,
+      })
+      await expect(welcome).not.toBeVisible()
     } finally {
       await ctx.close()
     }

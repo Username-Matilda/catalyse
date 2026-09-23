@@ -37,6 +37,27 @@ describe('notifications', () => {
     expect(unread.map((n) => n.title)).toEqual(['admin-only'])
   })
 
+  it('lists unread before read, paging across the boundary', async () => {
+    const vol = await createVolunteer()
+    const day = (d: number) => new Date(Date.UTC(2026, 0, d))
+    await prisma.notification.createMany({
+      data: [
+        { volunteerId: vol.id, type: 'a', title: 'read new', readAt: day(9), createdAt: day(5) },
+        { volunteerId: vol.id, type: 'a', title: 'unread old', createdAt: day(1) },
+        { volunteerId: vol.id, type: 'a', title: 'read old', readAt: day(9), createdAt: day(2) },
+        { volunteerId: vol.id, type: 'a', title: 'unread new', createdAt: day(4) },
+      ],
+    })
+    const c = clientAs(vol)
+    const titles = async (input: { limit?: number; offset?: number }) =>
+      (await c.notifications.list(input)).notifications.map((n) => n.title)
+    expect(await titles({})).toEqual(['unread new', 'unread old', 'read new', 'read old'])
+    expect(await titles({ limit: 3 })).toEqual(['unread new', 'unread old', 'read new'])
+    expect(await titles({ limit: 2, offset: 1 })).toEqual(['unread old', 'read new'])
+    expect(await titles({ limit: 2, offset: 3 })).toEqual(['read old'])
+    expect((await c.notifications.list({ limit: 1 })).total).toBe(4)
+  })
+
   it('marks one read/unread only for the owner, and readAll for a volunteer', async () => {
     const vol = await createVolunteer()
     const other = await createVolunteer()

@@ -10,11 +10,6 @@ const SEVERITY_LABELS: Record<string, string> = {
 }
 
 export async function openBugReportForm(page: Page): Promise<void> {
-  const cookieBanner = page.locator('.cookie-banner')
-  if (await cookieBanner.isVisible()) {
-    await cookieBanner.getByRole('button', { name: 'Accept' }).click()
-    await expect(cookieBanner).not.toBeVisible({ timeout: 5_000 })
-  }
   await page.getByRole('button', { name: 'Report a bug or give feedback' }).click()
   await expect(page.getByRole('dialog', { name: 'Report an Issue' })).toBeVisible({
     timeout: 10_000,

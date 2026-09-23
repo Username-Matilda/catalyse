@@ -393,7 +393,7 @@ export default function AdminLocalGroupsPage() {
                         Suggested by{' '}
                         <Link
                           href={`/admin/volunteers/${item.suggestedBy.id}`}
-                          className="text-secondary-dark no-underline hover:text-primary"
+                          className="text-brand-text no-underline hover:text-primary"
                         >
                           {item.suggestedBy.name}
                         </Link>
@@ -724,7 +724,7 @@ export default function AdminLocalGroupsPage() {
                         <li key={p.id}>
                           <Link
                             href={`/projects/${p.id}`}
-                            className="text-secondary-dark no-underline hover:text-primary"
+                            className="text-brand-text no-underline hover:text-primary"
                             target="_blank"
                           >
                             {p.title}

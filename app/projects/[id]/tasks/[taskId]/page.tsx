@@ -3,27 +3,21 @@
 import { use, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useRequireApproved } from '@/lib/hooks/auth'
+import { useRequireConfirmed } from '@/lib/hooks/auth'
 import { orpc } from '@/lib/orpc'
 import Button from '@/components/Button'
 import Checkbox from '@/components/Checkbox'
 import { Badge } from '@/components/Badge'
 import CommentThread from '@/components/CommentThread'
+import Linkify from '@/components/Linkify'
 import { useToast } from '@/lib/toast'
 import { formatDate, toDateInputValue, fromDateInputValue } from '@/lib/format-date'
 import { TaskStatus } from '@/generated/prisma/enums'
-
-const TASK_STATUS_LABELS: Record<string, string> = {
-  [TaskStatus.open]: 'Open',
-  [TaskStatus.in_progress]: 'In Progress',
-  [TaskStatus.completed]: 'Completed',
-}
-
-function statusVariant(status: string) {
-  if (status === TaskStatus.completed) return 'success'
-  if (status === TaskStatus.in_progress) return 'warning'
-  return 'neutral'
-}
+import { TASK_STATUS_LABELS, TASK_STATUS_VARIANTS } from '@/lib/status-labels'
+import { PROJECT_TASK_CLAIMED_MESSAGE } from '@/lib/action-messages'
+import { TASK_INACTIVITY_RULE } from '@/lib/staleness'
+import PageLoading from '@/components/PageLoading'
+import NotFoundCard from '@/components/NotFoundCard'
 
 export default function TaskDetailPage({
   params,
@@ -33,7 +27,7 @@ export default function TaskDetailPage({
   const { id: projectIdStr, taskId: taskIdStr } = use(params)
   const projectId = parseInt(projectIdStr, 10)
   const taskId = parseInt(taskIdStr, 10)
-  const { user, loading } = useRequireApproved()
+  const { user, loading } = useRequireConfirmed()
   const showToast = useToast()
   const queryClient = useQueryClient()
 
@@ -69,10 +63,18 @@ export default function TaskDetailPage({
 
   const updateMutation = useMutation({
     ...orpc.projects.updateTask.mutationOptions(),
-    onSuccess: () => {
-      showToast('Task updated!', 'success')
+    onSuccess: (_data, variables) => {
+      showToast(
+        variables.data.status === TaskStatus.in_progress
+          ? PROJECT_TASK_CLAIMED_MESSAGE
+          : variables.data.status === TaskStatus.completed
+            ? 'Task completed!'
+            : 'Task updated!',
+        'success',
+      )
       setIsEditing(false)
       void queryClient.invalidateQueries({ queryKey: orpc.projects.getTask.key() })
+      void queryClient.invalidateQueries({ queryKey: orpc.workItemComments.list.key() })
     },
     onError: (err: unknown) =>
       showToast(err instanceof Error ? err.message : 'Failed to update task', 'error'),
@@ -149,7 +151,11 @@ export default function TaskDetailPage({
     })
   }
 
-  if (loading || !user) return null
+  function handleDoneTask() {
+    updateMutation.mutate({ projectId, taskId, data: { status: TaskStatus.completed } })
+  }
+
+  if (loading || !user) return <PageLoading />
 
   if (isLoading) {
     return (
@@ -161,14 +167,14 @@ export default function TaskDetailPage({
 
   if (!task) {
     return (
-      <main className="container py-5">
-        <p className="text-text-light">Task not found.</p>
-        <Link href={`/projects/${projectIdStr}`}>
-          <Button variant="secondary" size="sm">
-            Back to Project
-          </Button>
+      <NotFoundCard
+        title="Task not found"
+        message="This task doesn't exist, or it isn't one you can see."
+      >
+        <Link href={`/projects/${projectIdStr}`} className="text-sm">
+          Back to Project
         </Link>
-      </main>
+      </NotFoundCard>
     )
   }
 
@@ -185,7 +191,7 @@ export default function TaskDetailPage({
         <div className="flex justify-between items-start mb-3 gap-4">
           <h1 className="m-0">{task.title}</h1>
           <div className="flex items-center gap-2 shrink-0">
-            <Badge variant={statusVariant(task.status)}>
+            <Badge variant={TASK_STATUS_VARIANTS[task.status] ?? 'neutral'}>
               {TASK_STATUS_LABELS[task.status] ?? task.status}
             </Badge>
             {canEdit && !isEditing && (
@@ -221,13 +227,20 @@ export default function TaskDetailPage({
           )}
           {task.startedAt && (
             <span className="text-text-light text-sm self-center">
-              Started {formatDate(task.startedAt)}
+              {task.status === TaskStatus.completed || task.assigneeHasPosted
+                ? 'Started'
+                : 'Claimed on'}{' '}
+              {formatDate(task.startedAt)}
               {task.completedAt && ` · finished ${formatDate(task.completedAt)}`}
             </span>
           )}
         </div>
 
-        {task.description && <p className="whitespace-pre-wrap mb-0">{task.description}</p>}
+        {task.description && (
+          <p className="whitespace-pre-wrap mb-0">
+            <Linkify text={task.description} />
+          </p>
+        )}
 
         {task.status === TaskStatus.open && task.canClaim && (
           <div className="mt-4">
@@ -239,6 +252,21 @@ export default function TaskDetailPage({
             >
               Claim
             </Button>
+            <p className="text-sm text-text-light mt-2 mb-0">{TASK_INACTIVITY_RULE}</p>
+          </div>
+        )}
+
+        {task.status === TaskStatus.in_progress && task.assignedToId === user.id && (
+          <div className="mt-4">
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={updateMutation.isPending}
+              onClick={handleDoneTask}
+            >
+              Mark done
+            </Button>
+            <p className="text-sm text-text-light mt-2 mb-0">{TASK_INACTIVITY_RULE}</p>
           </div>
         )}
 

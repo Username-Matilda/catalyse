@@ -180,6 +180,25 @@ describe('admin.applications.action', () => {
     await expect(c.admin.applications.action({ id: a.id, action: 'reject' })).rejects.toMatchObject(
       { message: 'Application already approved' },
     )
+    // Approval is announced once, and points at the projects once the email is confirmed.
+    await expect(
+      c.admin.applications.action({ id: a.id, action: 'approve' }),
+    ).rejects.toMatchObject({ message: 'Application already approved' })
+    expect(
+      await prisma.notification.findMany({
+        where: { volunteerId: a.id, type: 'application_approved' },
+      }),
+    ).toEqual([
+      expect.objectContaining({ title: 'Approved: welcome to Catalyse', link: '/projects' }),
+    ])
+    const unconfirmed = await createVolunteer({ approvalStatus: 'pending', emailConfirmed: false })
+    await c.admin.applications.action({ id: unconfirmed.id, action: 'approve' })
+    expect(
+      await prisma.notification.findFirstOrThrow({
+        where: { volunteerId: unconfirmed.id, type: 'application_approved' },
+      }),
+    ).toMatchObject({ link: '/verify-email' })
+    expect(await prisma.notification.count({ where: { type: 'application_approved' } })).toBe(2)
 
     const r = await createVolunteer({ approvalStatus: 'needs_info' })
     expect(
@@ -216,6 +235,7 @@ describe('admin.applications.action', () => {
     await c.admin.applications.action({ id: silent.id, action: 'reopen' })
     await c.admin.applications.action({ id: silent.id, action: 'approve' })
     expect(emails.sent.map((e) => e.subject)).toEqual([
+      subjects.approved,
       subjects.approved,
       subjects.rejected,
       subjects.reopened,

@@ -216,18 +216,12 @@ test.describe('Project Creation Requires At Least One Task', () => {
 
     await adminPage.goto(`${baseUrl}/projects/${projectId}/edit`)
     await adminPage.getByRole('button', { name: 'Publish', exact: true }).click()
-    await expect(adminPage.getByRole('heading', { name: 'Publish this project?' })).toBeVisible({
+
+    // Refused before the confirm dialog opens.
+    await expect(adminPage.getByText('Add at least one task before submitting.')).toBeVisible({
       timeout: 10_000,
     })
-    await adminPage
-      .getByRole('dialog')
-      .getByRole('button', { name: 'Publish', exact: true })
-      .click()
-
-    await expect(getAlert(adminPage)).toContainText(
-      'Add at least one task before submitting this draft for review',
-      { timeout: 10_000 },
-    )
+    await expect(adminPage.getByRole('heading', { name: 'Publish this project?' })).toHaveCount(0)
   })
 
   test('The API rejects a project proposal with no tasks', async ({ baseUrl }) => {

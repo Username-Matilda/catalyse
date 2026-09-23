@@ -18,6 +18,35 @@ const mount = (
   )
 
 describe('task detail page', () => {
+  it('lets the assignee mark a task done, and reads Claimed on until they post an update', async () => {
+    const me = await createVolunteer()
+    const someoneElse = await createVolunteer()
+    const project = await createProject({ status: 'in_progress' })
+    const task = await createTask(project.id, {
+      title: 'Mine',
+      status: 'in_progress',
+      assigneeId: me.id,
+      startedAt: new Date('2030-01-02T00:00:00Z'),
+    })
+    await mount(project.id, task.id, someoneElse)
+    await screen.findByRole('heading', { name: 'Mine' })
+    expect(screen.queryByRole('button', { name: 'Mark done' })).toBeNull()
+
+    cleanup()
+    await mount(project.id, task.id, me)
+    await screen.findByText(/Claimed on 2 January 2030/)
+    await prisma.workItemComment.create({
+      data: { workItemId: task.id, authorId: me.id, content: 'Going well' },
+    })
+    cleanup()
+    await mount(project.id, task.id, me)
+    await screen.findByText(/Started 2 January 2030/)
+    await userEvent.click(screen.getByRole('button', { name: 'Mark done' }))
+    await screen.findByText('Task completed!')
+    await waitFor(async () => expect((await row(task.id)).status).toBe('completed'))
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Mark done' })).toBeNull())
+  })
+
   it('shows a task, lets a volunteer claim it, and the owner edit it and manage dependencies', async () => {
     const owner = await createVolunteer({ name: 'Ola Owner' })
     const me = await createVolunteer()
@@ -54,11 +83,19 @@ describe('task detail page', () => {
     const depRow = (name: string) => screen.getByRole('link', { name }).closest('li') as HTMLElement
     expect(within(depRow('Predecessor')).getByRole('spinbutton')).toBeDisabled()
     expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull()
+    const rule =
+      "Post an update within 14 days. With no update we'll remind you at 14 days, warn you at 21, and release the task at 28."
+    expect(screen.getByText(rule)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Claim' }))
-    await screen.findByText('Task updated!')
+    await screen.findByText(
+      'Task claimed. Post an update within 14 days; after 28 days with none, the task is released.',
+    )
+    // The assignee keeps the rule in view beside Mark done.
+    await screen.findByRole('button', { name: 'Mark done' })
+    expect(screen.getByText(rule)).toBeInTheDocument()
     await waitFor(async () => expect((await row(task.id)).assigneeId).toBe(me.id))
     await screen.findByText(`Assigned to ${me.name}`)
-    await screen.findByText(/Started/)
+    await screen.findByText(/Claimed on/)
 
     cleanup()
     await mount(project.id, task.id, owner)
@@ -144,6 +181,20 @@ describe('task detail page', () => {
     cleanup()
     await mount('x', 'y', admin)
     await screen.findByRole('link', { name: 'Back to Project' })
+  })
+
+  it('shows the shared not-found card for a task that is gone', async () => {
+    const project = await createProject()
+    await mount(project.id, 999_999, await createAdmin())
+    await screen.findByRole('heading', { name: 'Task not found' })
+    expect(screen.getByRole('link', { name: 'Go to dashboard' })).toHaveAttribute(
+      'href',
+      '/dashboard',
+    )
+    expect(screen.getByRole('link', { name: 'Back to Project' })).toHaveAttribute(
+      'href',
+      `/projects/${project.id}`,
+    )
   })
 
   it('reports dependency failures', async () => {

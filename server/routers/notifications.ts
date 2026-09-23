@@ -14,22 +14,34 @@ export const notificationsRouter = {
       }),
     )
     .handler(async ({ input, context }) => {
-      const where = {
+      const mine = {
         volunteerId: context.volunteer.id,
         ...(context.volunteer.isAdmin ? { type: { notIn: ADMIN_NOTIFICATION_TYPES } } : {}),
-        ...(input.filter === 'unread' ? { readAt: null } : {}),
-        ...(input.filter === 'read' ? { readAt: { not: null } } : {}),
       }
+      const unreadWhere = { ...mine, readAt: null }
+      const readWhere = { ...mine, readAt: { not: null } }
+      const newestFirst = { createdAt: 'desc' } as const
 
-      const [notifications, total] = await Promise.all([
-        prisma.notification.findMany({
-          where,
-          orderBy: { createdAt: 'desc' },
-          take: input.limit,
-          skip: input.offset,
-        }),
-        prisma.notification.count({ where }),
+      // Every unread item precedes every read one, so the two are paged as one list.
+      const [unreadTotal, readTotal] = await Promise.all([
+        input.filter === 'read' ? 0 : prisma.notification.count({ where: unreadWhere }),
+        input.filter === 'unread' ? 0 : prisma.notification.count({ where: readWhere }),
       ])
+      const unreadPage = await prisma.notification.findMany({
+        where: unreadWhere,
+        orderBy: newestFirst,
+        skip: input.offset,
+        take: unreadTotal === 0 ? 0 : input.limit,
+      })
+      const readRoom = input.limit - unreadPage.length
+      const readPage = await prisma.notification.findMany({
+        where: readWhere,
+        orderBy: newestFirst,
+        skip: Math.max(0, input.offset - unreadTotal),
+        take: readTotal === 0 ? 0 : readRoom,
+      })
+      const notifications = [...unreadPage, ...readPage]
+      const total = unreadTotal + readTotal
 
       return {
         notifications: notifications.map((n) => ({

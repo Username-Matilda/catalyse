@@ -1,8 +1,30 @@
 import { prisma } from '@/lib/prisma'
 import { authedProcedure } from '../procedures'
-import { WorkItemType } from '@/generated/prisma/enums'
+import { TaskStatus, WorkItemType } from '@/generated/prisma/enums'
 
 export const myRouter = {
+  /** Project tasks the volunteer has claimed and not finished. */
+  projectTasks: authedProcedure.handler(async ({ context }) => {
+    const tasks = await prisma.workItem.findMany({
+      where: {
+        type: WorkItemType.TASK,
+        status: TaskStatus.in_progress,
+        assigneeId: context.volunteer.id,
+      },
+      include: { parent: { select: { title: true } } },
+      orderBy: { updatedAt: 'asc' },
+    })
+
+    return tasks.map((t) => ({
+      id: t.id,
+      projectId: t.parentId,
+      title: t.title,
+      projectTitle: t.parent?.title ?? null,
+      status: t.status,
+      updatedAt: t.updatedAt,
+    }))
+  }),
+
   quickTasks: authedProcedure.handler(async ({ context }) => {
     const tasks = await prisma.workItem.findMany({
       where: { type: WorkItemType.QUICK_TASK, assigneeId: context.volunteer.id },

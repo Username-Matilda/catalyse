@@ -17,6 +17,7 @@ import {
   bugReportPagePath,
   bugStatusLabel,
 } from '@/lib/bug-report-labels'
+import NotFoundCard from '@/components/NotFoundCard'
 
 export default function BugReportDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idStr } = use(params)
@@ -65,9 +66,10 @@ export default function BugReportDetailPage({ params }: { params: Promise<{ id: 
 
   if (!report) {
     return (
-      <main className="container py-5">
-        <p className="text-text-light">Bug report not found.</p>
-      </main>
+      <NotFoundCard
+        title="Report not found"
+        message="This report doesn't exist, or it isn't one you can see."
+      />
     )
   }
 

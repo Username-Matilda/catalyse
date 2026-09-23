@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { screen, waitFor, fireEvent, cleanup } from '@testing-library/react'
+import { screen, waitFor, fireEvent, cleanup, within, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { prisma } from '@/lib/prisma'
 import {
@@ -13,18 +13,11 @@ import {
 import { renderApp } from '@/test/render'
 import { navigation } from '@/test/next-navigation'
 import ProjectEditor from './ProjectEditor'
-import { CookieConsentProvider } from '@/lib/cookie-consent-context'
 
 const mount = (
   props: React.ComponentProps<typeof ProjectEditor>,
   as: Awaited<ReturnType<typeof createVolunteer>>,
-) =>
-  renderApp(
-    <CookieConsentProvider>
-      <ProjectEditor {...props} />
-    </CookieConsentProvider>,
-    { as },
-  )
+) => renderApp(<ProjectEditor {...props} />, { as })
 
 const row = (id: number) => prisma.workItem.findUniqueOrThrow({ where: { id } })
 const blur = (el: HTMLElement) => fireEvent.blur(el)
@@ -32,52 +25,81 @@ const blur = (el: HTMLElement) => fireEvent.blur(el)
 afterEach(() => vi.restoreAllMocks())
 
 describe('ProjectEditor — new volunteer proposal', () => {
-  it('requires a title before saving, then lazily creates a draft and moves to its edit page', async () => {
+  it('saves a draft by itself once enough is written, and leaves the form where it is', async () => {
     const me = await createVolunteer()
     await mount({ variant: 'volunteer' }, me)
     await waitFor(() => expect(localStorage.getItem('authToken')).toBeTruthy())
     expect(screen.getByText(/reviewed by PauseAI team leads/)).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Save draft' }))
-    expect(await screen.findByText('A title is required, even for a draft.')).toBeInTheDocument()
-    // Toasts expire on a timer, so clear this one and check Submit raises its own.
-    await userEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
-    await waitFor(() =>
-      expect(screen.queryByText('A title is required, even for a draft.')).toBeNull(),
-    )
+    expect(screen.getByRole('status')).toHaveTextContent('Your draft saves automatically')
+    // There is no Save draft step, and nothing to delete before a draft exists.
+    expect(screen.queryByRole('button', { name: 'Save draft' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull()
     await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
     expect(await screen.findByText('A title is required, even for a draft.')).toBeInTheDocument()
 
+    const sawSpinner = screen.findByText('Autosaving', {}, { timeout: 5000 })
     await userEvent.type(screen.getByLabelText('Project Title'), 'My idea')
     await userEvent.type(screen.getByLabelText('Description'), 'Some words')
     const skill = await prisma.skill.findFirstOrThrow()
     await userEvent.click(await screen.findByLabelText(skill.name))
-    await userEvent.click(screen.getByRole('button', { name: 'Save draft' }))
-    await waitFor(() =>
-      expect(navigation.replace).toHaveBeenCalledWith(
-        expect.stringMatching(/\/projects\/\d+\/edit/),
-      ),
+    await waitFor(
+      async () => expect(await prisma.workItem.count({ where: { creatorId: me.id } })).toBe(1),
+      { timeout: 5000 },
     )
+    await sawSpinner
     const draft = await prisma.workItem.findFirstOrThrow({ where: { creatorId: me.id } })
     expect(draft).toMatchObject({ title: 'My idea', status: 'draft', isOrgProposed: false })
     expect(
       await prisma.workItemSkill.count({ where: { workItemId: draft.id, skillId: skill.id } }),
     ).toBe(1)
-    // Once the draft exists the editor reloads it; fields then commit on blur.
+    // The address moves to the edit page without a navigation, so the form is never replaced.
+    await waitFor(() => expect(window.location.pathname).toBe(`/projects/${draft.id}/edit`))
+    expect(navigation.replace).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('Project Title')).toHaveValue('My idea')
+    // Once the draft exists, fields commit on blur.
     const hours = await screen.findByLabelText('Hours per Week')
     fireEvent.change(hours, { target: { value: '4' } })
     blur(hours)
     await waitFor(async () => expect((await row(draft.id)).timeCommitmentHoursPerWeek).toBe(4))
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Saved'))
-    await waitFor(() => expect(screen.queryByRole('status')).toBeNull(), { timeout: 4000 })
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/Last saved/))
+    expect(screen.getByRole('button', { name: 'Delete Draft' })).toBeInTheDocument()
   })
 
-  it('adding a task creates the draft first; the delete button cancels', async () => {
+  it('waits until there is something to save, and can start from the description alone', async () => {
+    const me = await createVolunteer()
+    await mount({ variant: 'volunteer' }, me)
+    await waitFor(() => expect(localStorage.getItem('authToken')).toBeTruthy())
+    await userEvent.type(screen.getByLabelText('Project Title'), 'Hi')
+    await new Promise((r) => setTimeout(r, 2000))
+    expect(await prisma.workItem.count({ where: { creatorId: me.id } })).toBe(0)
+
+    await userEvent.clear(screen.getByLabelText('Project Title'))
+    await userEvent.type(
+      screen.getByLabelText('Description'),
+      'A description long enough to start a draft.',
+    )
+    await waitFor(
+      async () =>
+        expect(
+          await prisma.workItem.findFirst({ where: { creatorId: me.id }, select: { title: true } }),
+        ).toEqual({ title: 'Untitled draft' }),
+      { timeout: 5000 },
+    )
+    // The blank title is not pushed over the placeholder when the field is left.
+    blur(screen.getByLabelText('Project Title'))
+    await new Promise((r) => setTimeout(r, 300))
+    expect((await prisma.workItem.findFirstOrThrow({ where: { creatorId: me.id } })).title).toBe(
+      'Untitled draft',
+    )
+  })
+
+  it('adding a task creates the draft first; Cancel leaves', async () => {
     const me = await createVolunteer()
     const onCancel = vi.fn()
     await mount({ variant: 'volunteer', onCancel }, me)
     await waitFor(() => expect(localStorage.getItem('authToken')).toBeTruthy())
     expect(screen.getByRole('button', { name: 'Add Task' })).toBeDisabled()
-    await userEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(onCancel).toHaveBeenCalled()
     await userEvent.type(screen.getByLabelText('Task title'), 'First task')
     await userEvent.click(screen.getByRole('button', { name: 'Add Task' }))
@@ -85,10 +107,11 @@ describe('ProjectEditor — new volunteer proposal', () => {
     await userEvent.type(screen.getByLabelText('Project Title'), 'With task')
     await userEvent.type(screen.getByLabelText('Details (optional)'), 'detail')
     await userEvent.click(screen.getByRole('button', { name: 'Add Task' }))
-    await waitFor(() => expect(navigation.replace).toHaveBeenCalled())
-    const draft = await prisma.workItem.findFirstOrThrow({
-      where: { creatorId: me.id, type: 'PROJECT' },
-    })
+    const draft = await waitFor(
+      async () =>
+        prisma.workItem.findFirstOrThrow({ where: { creatorId: me.id, type: 'PROJECT' } }),
+      { timeout: 5000 },
+    )
     await waitFor(async () =>
       expect(await prisma.workItem.count({ where: { parentId: draft.id } })).toBe(1),
     )
@@ -96,38 +119,114 @@ describe('ProjectEditor — new volunteer proposal', () => {
     await waitFor(() => expect(screen.getByDisplayValue('First task')).toBeInTheDocument())
   })
 
-  it('submits straight from new mode, creating and publishing in one go', async () => {
+  it('makes one draft when Add Task lands while a create is already in flight', async () => {
+    const me = await createVolunteer()
+    await mount({ variant: 'volunteer' }, me)
+    await waitFor(() => expect(localStorage.getItem('authToken')).toBeTruthy())
+    await userEvent.type(screen.getByLabelText('Project Title'), 'Racing')
+    await userEvent.type(screen.getByLabelText('Task title'), 'Step')
+    const add = screen.getByRole('button', { name: 'Add Task' })
+    // Two clicks before either has re-rendered, so the button is still enabled for the second:
+    // both reach the create together.
+    act(() => {
+      fireEvent.click(add)
+      fireEvent.click(add)
+    })
+    await waitFor(
+      async () =>
+        expect(
+          await prisma.workItem.count({ where: { parent: { creatorId: me.id, title: 'Racing' } } }),
+        ).toBeGreaterThan(0),
+      { timeout: 5000 },
+    )
+    expect(
+      await prisma.workItem.count({
+        where: { creatorId: me.id, type: 'PROJECT', title: 'Racing' },
+      }),
+    ).toBe(1)
+  })
+
+  it('adds no task when the draft it needs cannot be created', async () => {
+    const me = await createVolunteer()
+    for (let i = 0; i < 2; i++)
+      await createProject({ status: 'draft', creatorId: me.id, isOrgProposed: false })
+    await mount({ variant: 'volunteer' }, me)
+    await waitFor(() => expect(localStorage.getItem('authToken')).toBeTruthy())
+    await userEvent.type(screen.getByLabelText('Project Title'), 'One too many')
+    await userEvent.type(screen.getByLabelText('Task title'), 'Orphan')
+    await userEvent.click(screen.getByRole('button', { name: 'Add Task' }))
+    expect(
+      await screen.findByText(/already have 2 drafts/, {}, { timeout: 5000 }),
+    ).toBeInTheDocument()
+    expect(await prisma.workItem.count({ where: { title: 'Orphan' } })).toBe(0)
+  })
+
+  it('asks for a task before submitting', async () => {
     const me = await createVolunteer()
     await mount({ variant: 'volunteer' }, me)
     await waitFor(() => expect(localStorage.getItem('authToken')).toBeTruthy())
     await userEvent.type(screen.getByLabelText('Project Title'), 'One click')
     await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
-    expect(await screen.findByText('Submit draft for review?')).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Add at least one task before submitting.',
+    )
+    expect(screen.queryByText('Submit draft for review?')).toBeNull()
+
+    // The error stays until a task exists, and then submitting works.
+    await userEvent.type(screen.getByLabelText('Task title'), 'First step')
+    await userEvent.click(screen.getByRole('button', { name: 'Add Task' }))
+    await waitFor(() =>
+      expect(screen.queryByText('Add at least one task before submitting.')).toBeNull(),
+    )
+    // Once the new draft has loaded, Submit is the draft's own button.
+    await userEvent.click(await screen.findByRole('button', { name: 'Submit' }))
+    await screen.findByText('Submit draft for review?')
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Submit for Review' }))
-    // No tasks yet → the publish is refused and reported.
-    expect(await screen.findByText(/Add at least one task/)).toBeInTheDocument()
+    await screen.findByText('Submit draft for review?')
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByText('Submit draft for review?')).toBeNull())
+    await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Submit for Review' }))
+    await screen.findByText('Draft submitted for review!')
     const draft = await prisma.workItem.findFirstOrThrow({
       where: { creatorId: me.id, type: 'PROJECT' },
     })
-    expect(draft.status).toBe('draft')
+    expect(draft.status).toBe('pending_review')
   })
 
-  it('falls back to router.back() without onCancel, and admins publish org projects directly', async () => {
+  it('keeps a start date and duration typed before the draft is first saved', async () => {
+    const me = await createVolunteer()
+    await mount({ variant: 'volunteer' }, me)
+    await waitFor(() => expect(localStorage.getItem('authToken')).toBeTruthy())
+    await userEvent.type(screen.getByLabelText('Project Title'), 'Dated')
+    fireEvent.change(screen.getByLabelText('Start date'), { target: { value: '2026-07-01' } })
+    fireEvent.change(screen.getByLabelText('Duration (days)'), { target: { value: '10' } })
+    await waitFor(
+      async () => expect(await prisma.workItem.count({ where: { creatorId: me.id } })).toBe(1),
+      { timeout: 5000 },
+    )
+    expect(await prisma.workItem.findFirstOrThrow({ where: { creatorId: me.id } })).toMatchObject({
+      startDate: new Date('2026-07-01T00:00:00Z'),
+      durationDays: 10,
+    })
+  })
+
+  it('Cancel falls back to router.back() without onCancel, and admins publish org projects directly', async () => {
     const admin = await createAdmin()
     await mount({ variant: 'admin' }, admin)
     await waitFor(() => expect(localStorage.getItem('authToken')).toBeTruthy())
     expect(screen.queryByText(/reviewed by PauseAI/)).toBeNull()
-    await userEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(navigation.back).toHaveBeenCalled()
     await userEvent.type(screen.getByLabelText('Project Title'), 'Org thing')
     await userEvent.type(screen.getByLabelText('Task title'), 'T1')
     await userEvent.click(screen.getByRole('button', { name: 'Add Task' }))
-    await waitFor(() => expect(navigation.replace).toHaveBeenCalled())
-    const draft = await prisma.workItem.findFirstOrThrow({
-      where: { creatorId: admin.id, type: 'PROJECT' },
-    })
+    const draft = await waitFor(
+      async () =>
+        prisma.workItem.findFirstOrThrow({ where: { creatorId: admin.id, type: 'PROJECT' } }),
+      { timeout: 5000 },
+    )
     expect(draft.isOrgProposed).toBe(true)
     await userEvent.click(await screen.findByRole('button', { name: 'Publish' }))
     expect(await screen.findByText('Publish this project?')).toBeInTheDocument()
@@ -137,6 +236,36 @@ describe('ProjectEditor — new volunteer proposal', () => {
     await waitFor(() => expect(navigation.push).toHaveBeenCalledWith(`/projects/${draft.id}`), {
       timeout: 3000,
     })
+  })
+})
+
+describe('ProjectEditor — autosave line', () => {
+  it('says when changes last saved, task changes included, and retries a failed save', async () => {
+    const me = await createVolunteer()
+    const project = await createProject({ creatorId: me.id, status: 'draft', title: 'Autosaved' })
+    await mount({ projectId: project.id }, me)
+    const title = await screen.findByDisplayValue('Autosaved')
+    const line = () => screen.getByRole('status')
+    expect(line()).toHaveTextContent('Changes save automatically.')
+    expect(line()).not.toHaveTextContent('Last saved')
+
+    await userEvent.type(screen.getByLabelText('Task title'), 'New task')
+    await userEvent.click(screen.getByRole('button', { name: 'Add Task' }))
+    await waitFor(() => expect(line()).toHaveTextContent(/Last saved \d/))
+
+    // A save that fails says so and can be retried once the cause is gone.
+    const someoneElse = await createVolunteer()
+    await prisma.workItem.update({
+      where: { id: project.id },
+      data: { creatorId: someoneElse.id },
+    })
+    fireEvent.change(title, { target: { value: 'Renamed' } })
+    blur(title)
+    await waitFor(() => expect(line()).toHaveTextContent("Couldn't save."))
+    await prisma.workItem.update({ where: { id: project.id }, data: { creatorId: me.id } })
+    await userEvent.click(within(line()).getByRole('button', { name: 'Retry' }))
+    await waitFor(async () => expect((await row(project.id)).title).toBe('Renamed'))
+    await waitFor(() => expect(line()).toHaveTextContent(/Last saved/))
   })
 })
 
@@ -256,11 +385,16 @@ describe('ProjectEditor — editing an existing project', () => {
     fireEvent.change(taskTitle, { target: { value: 'New title' } })
     blur(taskDesc)
     await waitFor(async () => expect((await row(task.id)).description).toBe('more'))
-    vi.spyOn(window, 'confirm').mockReturnValueOnce(false)
-    await userEvent.click(screen.getByRole('button', { name: 'Delete task' }))
+    const deleteTaskButton = screen.getByRole('button', { name: 'Delete task' })
+    await userEvent.click(deleteTaskButton)
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancel' }),
+    )
     expect(await row(task.id)).toBeTruthy()
-    vi.spyOn(window, 'confirm').mockReturnValueOnce(true)
-    await userEvent.click(screen.getByRole('button', { name: 'Delete task' }))
+    await userEvent.click(deleteTaskButton)
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete task' }),
+    )
     await waitFor(async () =>
       expect(await prisma.workItem.count({ where: { id: task.id } })).toBe(0),
     )
@@ -316,9 +450,9 @@ describe('ProjectEditor — editing an existing project', () => {
     await mount({ projectId: draft.id }, me)
     await screen.findByDisplayValue('Submit me')
     await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Submit for Review' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Submit for Review' }))
     await waitFor(async () => expect((await row(draft.id)).status).toBe('pending_review'))
-    await waitFor(() => expect(navigation.push).toHaveBeenCalledWith('/dashboard#tab-proposed'), {
+    await waitFor(() => expect(navigation.push).toHaveBeenCalledWith('/dashboard#tab-projects'), {
       timeout: 3000,
     })
   })
@@ -335,8 +469,10 @@ describe('ProjectEditor — editing an existing project', () => {
     fireEvent.change(taskTitle, { target: { value: 'T2' } })
     blur(taskTitle)
     expect(await screen.findByText('Project or task not found')).toBeInTheDocument()
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     await userEvent.click(screen.getByRole('button', { name: 'Delete task' }))
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete task' }),
+    )
     expect(await screen.findByText('Project not found')).toBeInTheDocument()
     await userEvent.type(screen.getByLabelText('Task title', { selector: '#new-task-title' }), 'N')
     await userEvent.click(screen.getByRole('button', { name: 'Add Task' }))
@@ -344,10 +480,26 @@ describe('ProjectEditor — editing an existing project', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Delete Draft' }))
     await userEvent.click(screen.getAllByRole('button', { name: 'Delete Draft' })[1])
     expect(await screen.findByText('Draft not found')).toBeInTheDocument()
+    // Submitting checks the draft first, and says it has gone.
+    for (const dismiss of screen.queryAllByLabelText('Dismiss')) await userEvent.click(dismiss)
+    await waitFor(() => expect(screen.queryByText('Project not found')).toBeNull())
     await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Submit for Review' }))
-    await waitFor(() => expect(screen.getAllByText('Draft not found').length).toBeGreaterThan(1))
+    expect(await screen.findByText('Project not found')).toBeInTheDocument()
+    expect(screen.queryByText('Submit draft for review?')).toBeNull()
     void task
+  })
+
+  it('reports a submit the server refuses', async () => {
+    const me = await createVolunteer()
+    const draft = await createProject({ status: 'draft', creatorId: me.id, title: 'Moved on' })
+    await createTask(draft.id)
+    await mount({ projectId: draft.id }, me)
+    await screen.findByDisplayValue('Moved on')
+    // Submitted from another tab meanwhile.
+    await prisma.workItem.update({ where: { id: draft.id }, data: { status: 'pending_review' } })
+    await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Submit for Review' }))
+    expect(await screen.findByText('Not authorized to publish this draft')).toBeInTheDocument()
   })
 
   it('reports a failed create and a failed live delete', async () => {
@@ -367,13 +519,15 @@ describe('ProjectEditor — editing an existing project', () => {
     await mount({ variant: 'volunteer' }, me)
     await waitFor(() => expect(localStorage.getItem('authToken')).toBeTruthy())
     await userEvent.type(screen.getByLabelText('Project Title'), 'Third')
-    await userEvent.click(screen.getByRole('button', { name: 'Save draft' }))
-    expect(await screen.findByText(/already have 2 drafts/)).toBeInTheDocument()
-    // The same failure short-circuits a one-click submit.
-    await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
-    await userEvent.keyboard('{Escape}')
-    await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Submit for Review' }))
-    await waitFor(() => expect(screen.getAllByText(/already have 2 drafts/)).toHaveLength(2))
+    expect(
+      await screen.findByText(/already have 2 drafts/, {}, { timeout: 5000 }),
+    ).toBeInTheDocument()
+    // The status line says so and stops trying until Retry is pressed.
+    expect(screen.getByRole('status')).toHaveTextContent("Couldn't save.")
+    await userEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    await waitFor(() => expect(screen.getAllByText(/already have 2 drafts/)).toHaveLength(2), {
+      timeout: 5000,
+    })
+    expect(await prisma.workItem.count({ where: { creatorId: me.id, type: 'PROJECT' } })).toBe(2)
   })
 })

@@ -3,9 +3,21 @@ import { screen, waitFor, cleanup, act } from '@testing-library/react'
 import { createVolunteer, createAdmin } from '@/test/factories'
 import { renderApp } from '@/test/render'
 import { navigation } from '@/test/next-navigation'
-import { useRequireAuth, useRequireApproved, useRequireAdmin, useRequireSuperAdmin } from './auth'
+import {
+  useRequireAuth,
+  useRequireApproved,
+  useRequireConfirmed,
+  useRequireAdmin,
+  useRequireSuperAdmin,
+} from './auth'
 
-const hooks = { useRequireAuth, useRequireApproved, useRequireAdmin, useRequireSuperAdmin }
+const hooks = {
+  useRequireAuth,
+  useRequireApproved,
+  useRequireConfirmed,
+  useRequireAdmin,
+  useRequireSuperAdmin,
+}
 type HookName = keyof typeof hooks
 
 function Probe({ hook }: { hook: HookName }) {
@@ -35,23 +47,45 @@ describe('auth gate hooks', () => {
     expect(navigation.replace).not.toHaveBeenCalled()
   })
 
-  it('useRequireApproved sends unapproved non-admins to the dashboard', async () => {
-    await settle('useRequireApproved', await createVolunteer({ approvalStatus: 'pending' }))
+  it('useRequireApproved sends unapproved non-admins to the dashboard, with a notice', async () => {
+    const pending = await createVolunteer({ approvalStatus: 'pending' })
+    await settle('useRequireApproved', pending)
     expect(navigation.replace).toHaveBeenCalledWith('/dashboard')
+    // The page never gets the user, so it cannot render anything for them meanwhile.
+    expect(screen.getByText('anon')).toBeInTheDocument()
     navigation.reset()
     await settle('useRequireApproved', await createAdmin({ approvalStatus: 'pending' }))
     expect(navigation.replace).not.toHaveBeenCalled()
   })
 
+  it('useRequireConfirmed sends an unconfirmed email to /verify-email, admins excepted', async () => {
+    const unconfirmed = await createVolunteer({ emailConfirmed: false })
+    await settle('useRequireConfirmed', unconfirmed)
+    expect(navigation.replace).toHaveBeenCalledWith('/verify-email')
+    expect(screen.getByText('anon')).toBeInTheDocument()
+    navigation.reset()
+    await settle('useRequireConfirmed', await createAdmin({ emailConfirmed: false }))
+    expect(navigation.replace).not.toHaveBeenCalled()
+    navigation.reset()
+    await settle('useRequireConfirmed', await createVolunteer())
+    expect(navigation.replace).not.toHaveBeenCalled()
+    navigation.reset()
+    await settle(
+      'useRequireConfirmed',
+      await createVolunteer({ approvalStatus: 'pending', emailConfirmed: false }),
+    )
+    expect(navigation.replace).toHaveBeenCalledWith('/dashboard')
+  })
+
   it('useRequireAdmin / useRequireSuperAdmin send the wrong role to /projects', async () => {
     await settle('useRequireAdmin', await createVolunteer())
-    expect(navigation.replace).toHaveBeenCalledWith('/projects')
+    expect(navigation.replace).toHaveBeenCalledWith('/projects?notice=no-access')
     navigation.reset()
     await settle('useRequireAdmin', await createAdmin())
     expect(navigation.replace).not.toHaveBeenCalled()
     navigation.reset()
     await settle('useRequireSuperAdmin', await createAdmin())
-    expect(navigation.replace).toHaveBeenCalledWith('/projects')
+    expect(navigation.replace).toHaveBeenCalledWith('/projects?notice=super-admin-only')
     navigation.reset()
     await settle('useRequireSuperAdmin', await createAdmin({ email: 'admin@example.com' }))
     expect(navigation.replace).not.toHaveBeenCalled()

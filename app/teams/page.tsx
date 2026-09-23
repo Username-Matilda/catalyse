@@ -6,6 +6,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
+import { teamApplicationSentMessage } from '@/lib/action-messages'
+import Skeleton from '@/components/Skeleton'
+import EmptyState from '@/components/EmptyState'
 
 export default function TeamsPage() {
   const { user, loading } = useRequireAuth()
@@ -19,23 +22,13 @@ export default function TeamsPage() {
 
   const applyMutation = useMutation({
     ...orpc.teams.apply.mutationOptions(),
-    onSuccess: () => {
-      showToast('Application submitted, a team leader will review it', 'success')
+    onSuccess: (_data, variables) => {
+      const team = teams.find((t) => t.id === variables.id)
+      showToast(teamApplicationSentMessage(team?.name ?? 'this team'), 'success')
       void invalidate()
     },
     onError: (err: unknown) => {
       showToast(err instanceof Error ? err.message : 'Failed to apply', 'error')
-    },
-  })
-
-  const leaveMutation = useMutation({
-    ...orpc.teams.leave.mutationOptions(),
-    onSuccess: () => {
-      showToast('Left team', 'success')
-      void invalidate()
-    },
-    onError: (err: unknown) => {
-      showToast(err instanceof Error ? err.message : 'Failed to leave team', 'error')
     },
   })
 
@@ -52,14 +45,19 @@ export default function TeamsPage() {
         </Link>
       </div>
       <p className="text-text-light mb-6">
-        Teams are standing groups of volunteers with a recurring meeting and shared doc, apply to
-        join any number of teams alongside your local group. A team leader reviews applications.
+        Teams are groups that collaborate on a particular kind of project, such as a country or
+        region, or a function like communications. Joining a team lets you see its projects and work
+        with its members. Apply to any number of teams; a team leader reviews each application.
       </p>
 
       {isLoading ? (
-        <div className="text-center py-10 text-text-light">Loading…</div>
+        <Skeleton label="Loading teams…" />
       ) : teams.length === 0 ? (
-        <p className="text-text-light">No teams yet.</p>
+        <EmptyState
+          title="No teams yet."
+          body="Suggest one for a group that collaborates on a kind of project."
+          action={<Button href="/suggest-team">Suggest a Team</Button>}
+        />
       ) : (
         <div className="space-y-4">
           {teams.map((team) => {
@@ -73,7 +71,7 @@ export default function TeamsPage() {
                   <p className="font-semibold m-0">
                     <Link
                       href={`/teams/${team.id}`}
-                      className="text-secondary-dark no-underline hover:text-primary"
+                      className="text-brand-text no-underline hover:text-primary"
                     >
                       {team.name}
                     </Link>
@@ -99,7 +97,7 @@ export default function TeamsPage() {
                         href={team.lumaUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-secondary-dark no-underline hover:text-primary"
+                        className="text-brand-text no-underline hover:text-primary"
                       >
                         Meeting calendar
                       </a>
@@ -109,7 +107,7 @@ export default function TeamsPage() {
                         href={team.docUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-secondary-dark no-underline hover:text-primary"
+                        className="text-brand-text no-underline hover:text-primary"
                       >
                         Team doc
                       </a>
@@ -124,14 +122,11 @@ export default function TeamsPage() {
                       </Button>
                     </Link>
                   ) : isMember ? (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      disabled={leaveMutation.isPending}
-                      onClick={() => leaveMutation.mutate({ id: team.id })}
-                    >
-                      Leave
-                    </Button>
+                    <Link href={`/teams/${team.id}`}>
+                      <Button size="sm" variant="secondary">
+                        View team
+                      </Button>
+                    </Link>
                   ) : team.viewerRequestStatus === 'pending' ? (
                     <Button size="sm" variant="secondary" disabled>
                       Application Pending

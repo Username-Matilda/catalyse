@@ -1,12 +1,12 @@
 'use client'
 
 import { use } from 'react'
-import { useRequireAuth } from '@/lib/hooks/auth'
+import { useRequireConfirmed } from '@/lib/hooks/auth'
 import ProjectEditor from '@/components/ProjectEditor'
 
 export default function EditProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = use(params)
-  const { user, loading } = useRequireAuth()
+  const { user, loading } = useRequireConfirmed()
 
   if (loading || !user) return null
 

@@ -23,6 +23,7 @@ describe('quick tasks — volunteer view', () => {
     const project = await createProject({ title: 'Host project' })
     const mine = await createQuickTask({
       title: 'Mine in progress',
+      description: 'Post drafts at https://example.org/drafts.',
       assigneeId: me.id,
       status: 'in_progress',
       skillId: skill.id,
@@ -52,18 +53,37 @@ describe('quick tasks — volunteer view', () => {
     await within(myList).findByText('Mine in progress')
     expect(within(myList).getByText('Related: Host project')).toBeInTheDocument()
     expect(within(myList).getByText('~2h')).toBeInTheDocument()
+    // The shared vocabulary, on every screen that shows one of these.
+    const myCard = (title: string) =>
+      within(within(myList).getByText(title).closest('[role=article]')!)
+    expect(myCard('Mine in progress').getByRole('status')).toHaveTextContent('In progress')
+    expect(myCard('Mine done').getByRole('status')).toHaveTextContent('Done')
     const browse = screen.getByText('Browse Quick Tasks').closest('section')!
     await within(browse).findByText('Open quick')
+    expect(
+      within(within(browse).getByText('Open quick').closest('[role=article]')!).getByRole('status'),
+    ).toHaveTextContent('Open')
+    expect(
+      within(within(browse).getByText('Featured task').closest('[role=article]')!).getByRole(
+        'status',
+      ),
+    ).toHaveTextContent('Not started')
     expect(within(browse).getByRole('link', { name: 'Host project' })).toBeInTheDocument()
 
-    await userEvent.click(within(myList).getByRole('button', { name: 'Mark as Complete' }))
-    await screen.findByText('Task submitted for review!')
+    expect(
+      myCard('Mine in progress').getByRole('link', { name: 'https://example.org/drafts' }),
+    ).toHaveAttribute('target', '_blank')
+    await userEvent.click(within(myList).getByRole('button', { name: 'Submit for review' }))
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Submit for review' }),
+    )
+    await screen.findByText(/Submitted\. An admin will review it/)
     await waitFor(async () => expect((await row(mine.id)).status).toBe('under_review'))
 
     const cardFor = (title: string) =>
       within(browse).getByText(title).closest('[role=article]') as HTMLElement
     await userEvent.click(within(cardFor('Open quick')).getByRole('button', { name: 'Claim' }))
-    await screen.findByText('Task claimed!')
+    await screen.findByText(/Task claimed\. Submit it for review/)
     await waitFor(async () => expect((await row(open.id)).assigneeId).toBe(me.id))
     await userEvent.click(within(cardFor('Featured task')).getByRole('button', { name: 'Claim' }))
     await waitFor(() =>
@@ -102,8 +122,12 @@ describe('quick tasks — volunteer view', () => {
     await userEvent.click(within(cardFor('Gone')).getByRole('button', { name: 'Claim' }))
     await screen.findByText('Project or task not found')
     await prisma.workItem.delete({ where: { id: mine.id } })
-    await userEvent.click(screen.getByRole('button', { name: 'Mark as Complete' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Submit for review' }))
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Submit for review' }),
+    )
     await screen.findByText('Task not found or not assigned to you')
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 })
 
@@ -201,10 +225,15 @@ describe('quick tasks — admin view', () => {
     fireEvent.submit(screen.getByLabelText('Internal Notes (admin only)').closest('form')!)
     await screen.findByText('Task reviewed!')
 
-    vi.spyOn(window, 'confirm').mockReturnValueOnce(false)
     await userEvent.click(within(editedCard()).getByRole('button', { name: 'Delete' }))
-    vi.spyOn(window, 'confirm').mockReturnValueOnce(true)
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancel' }),
+    )
+    expect(await prisma.workItem.count({ where: { id: fresh.id } })).toBe(1)
     await userEvent.click(within(editedCard()).getByRole('button', { name: 'Delete' }))
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete task' }),
+    )
     await screen.findByText('Task deleted')
     expect(await prisma.workItem.count({ where: { id: fresh.id } })).toBe(0)
   })
@@ -291,23 +320,33 @@ describe('quick tasks — admin view', () => {
     )
     await userEvent.click(await screen.findByRole('option', { name: 'Xena Helper' }))
     await prisma.workItem.delete({ where: { id: openQt.id } })
+    // Each failure is dismissed once seen, so the next step waits for a toast of its own;
+    // counting toasts instead races their auto-dismiss when the suite runs slowly.
+    const expectNotFound = async () => {
+      const toast = (await screen.findByText('Task not found', {}, { timeout: 5000 })).closest(
+        '[role=alert]',
+      ) as HTMLElement
+      await userEvent.click(within(toast).getByLabelText('Dismiss'))
+      await waitFor(() => expect(screen.queryByText('Task not found')).toBeNull())
+    }
     await userEvent.click(within(openCard()).getByRole('button', { name: 'Assign' }))
-    await screen.findByText('Task not found')
-    const errors = () => screen.getAllByText('Task not found').length
+    await expectNotFound()
     await userEvent.click(within(card()).getByRole('button', { name: 'Edit' }))
     await prisma.workItem.delete({ where: { id: qt.id } })
     fireEvent.submit(screen.getByLabelText('Title').closest('form')!)
-    await waitFor(() => expect(errors()).toBe(2))
+    await expectNotFound()
     fireEvent.click(screen.getByRole('dialog').parentElement!)
     await userEvent.click(within(card()).getByRole('button', { name: 'Unassign' }))
-    await waitFor(() => expect(errors()).toBe(3))
+    await expectNotFound()
     await userEvent.click(within(card()).getByRole('button', { name: 'Review' }))
     fireEvent.submit(screen.getByLabelText('Internal Notes (admin only)').closest('form')!)
-    await waitFor(() => expect(errors()).toBe(4))
+    await expectNotFound()
     fireEvent.click(screen.getByRole('dialog').parentElement!)
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     await userEvent.click(within(card()).getByRole('button', { name: 'Delete' }))
-    await waitFor(() => expect(errors()).toBe(5))
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete task' }),
+    )
+    await expectNotFound()
     await userEvent.click(screen.getByRole('button', { name: 'Create Task' }))
     localStorage.setItem('authToken', 'stale')
     await userEvent.type(screen.getByLabelText('Title'), 'x')

@@ -26,6 +26,30 @@ describe('roadmap page', () => {
     const me = await createVolunteer()
     await renderApp(<RoadmapPage />, { as: me })
     await screen.findByText(/No projects with a schedule/)
+    expect(screen.getByText(/Each bar is a project/)).toHaveTextContent(
+      'the number after a name is how many tasks it has',
+    )
+  })
+
+  it('gives a one-day plan as "1 day", not "1 days"', async () => {
+    const me = await createVolunteer()
+    await createProject({ title: 'Road one', durationDays: 1 })
+    await renderApp(<RoadmapPage />, { as: me })
+    await screen.findByRole('button', { name: /^Road one:/ })
+    expect(screen.getByText('Span').nextElementSibling).toHaveTextContent(/^1 day$/)
+  })
+
+  it('is read-only for a volunteer, without the planning marks', async () => {
+    captured.onDragEnd = undefined
+    const me = await createVolunteer()
+    await createProject({ title: 'Road view', durationDays: 3 })
+    await renderApp(<RoadmapPage />, { as: me })
+    const bar = await screen.findByRole('button', { name: /^Road view:/ })
+    expect(bar.getAttribute('aria-label')).not.toMatch(/critical path|anchor/)
+    expect(screen.queryByText(/Drag a bar/)).toBeNull()
+    expect(screen.getByText(/Each bar spans a project/)).not.toHaveTextContent(/Drag to shift/)
+    expect(screen.queryByText('Critical path', { selector: 'span span' })).toBeNull()
+    expect(captured.onDragEnd).toBeUndefined()
   })
 
   it('draws projects as bars, toggles status filters, and links/moves projects by drag', async () => {
@@ -37,6 +61,7 @@ describe('roadmap page', () => {
     const done = await createProject({ title: 'Road done', status: 'completed', durationDays: 1 })
     await renderApp(<RoadmapPage />, { as: admin })
     await screen.findByRole('button', { name: /^Road A:/ })
+    expect(screen.getByText(/Each bar spans a project/)).toHaveTextContent(/Drag to shift/)
     expect(screen.getByRole('link', { name: 'Road B (2)' })).toHaveAttribute(
       'href',
       `/projects/${b.id}`,

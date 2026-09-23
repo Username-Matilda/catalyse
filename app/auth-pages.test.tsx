@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { prisma } from '@/lib/prisma'
 import { createVolunteer, createSuperAdmin, TEST_PASSWORD } from '@/test/factories'
 import { renderApp } from '@/test/render'
+import { emails } from '@/test/fakes/email'
 import { navigation } from '@/test/next-navigation'
 import { anon } from '@/test/rpc'
 import LoginPage from './login/page'
@@ -148,6 +149,21 @@ describe('verify email', () => {
     vi.useRealTimers()
     expect(screen.getByText('Email sent! Check your inbox.')).toBeInTheDocument()
   })
+
+  it('resends to the address of a signed-in volunteer without asking for it', async () => {
+    const me = await createVolunteer({ emailConfirmed: false, email: 'waiting@example.org' })
+    await renderApp(<VerifyEmailPage />, { as: me, url: '/verify-email' })
+    await screen.findByText('waiting@example.org')
+    expect(screen.queryByPlaceholderText('Your email address')).toBeNull()
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    fireEvent.click(screen.getByRole('button', { name: 'Send it again' }))
+    await vi.waitFor(() => expect(screen.getByText(/request another in 60s/)).toBeInTheDocument())
+    for (let i = 0; i < 60; i++) act(() => vi.advanceTimersByTime(1000))
+    vi.useRealTimers()
+    expect(screen.getByText('Email sent! Check your inbox.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Send it again' })).toBeEnabled()
+    await vi.waitFor(() => expect(emails.lastTo('waiting@example.org')).toBeDefined())
+  })
 })
 
 describe('accept invite', () => {
@@ -177,14 +193,43 @@ describe('accept invite', () => {
       true,
     )
 
-    cleanup()
-    await renderApp(<AcceptInvitePage />, { url: '/accept-invite?token=bad', as: invitee })
-    await screen.findByText('Invite Error')
-    await screen.findByText('Invalid or expired invite')
-
-    cleanup()
-    await renderApp(<AcceptInvitePage />, { url: '/accept-invite', as: invitee })
-    await screen.findByText('Invite Error')
-    await screen.findByText('Failed to accept invite')
+    // Each way an invite can fail says which it was, with someone to ask.
+    const failsWith = async (token: string | null, message: string) => {
+      cleanup()
+      const url = token === null ? '/accept-invite' : `/accept-invite?token=${token}`
+      await renderApp(<AcceptInvitePage />, { url, as: invitee })
+      await screen.findByText('Invite not accepted')
+      expect(screen.getByText(message)).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'uk@pauseai.info' })).toHaveAttribute(
+        'href',
+        'mailto:uk@pauseai.info',
+      )
+    }
+    const invite = (inviteToken: string, data: object) =>
+      prisma.adminInvite.create({
+        data: {
+          email: 'invitee@example.com',
+          inviteToken,
+          invitedById: inviter.id,
+          expiresAt: new Date(Date.now() + 60_000),
+          ...data,
+        },
+      })
+    await invite('old-token', { expiresAt: new Date(Date.now() - 60_000) })
+    await invite('revoked-token', { status: 'revoked' })
+    await failsWith('good-token', 'This invite has already been used.')
+    await failsWith(
+      'old-token',
+      'This invite has expired. Ask the admin who invited you to send a new one.',
+    )
+    await failsWith('revoked-token', 'This invite has been withdrawn.')
+    await failsWith(
+      'bad',
+      "This invite link isn't valid. Check you opened the whole link from the email.",
+    )
+    await failsWith(
+      null,
+      'This link is missing its invite code. Open the link from your invite email again.',
+    )
   })
 })

@@ -134,9 +134,13 @@ export default function GanttRow({
   const barTop = midY - barHeight / 2
 
   // Selection wins over the critical-path ring so the ring never hides which bar you picked.
+  // Anchor, critical path and the planned baseline are planning aids, shown only to those
+  // who can change the plan.
+  const isAnchor = editable && placement.isAnchor
+  const isCritical = editable && placement.isCritical
   const ring = selected
     ? '0 0 0 2px var(--color-brand-text)'
-    : placement.isCritical
+    : isCritical
       ? 'inset 0 0 0 2px var(--gantt-critical)'
       : undefined
 
@@ -161,7 +165,7 @@ export default function GanttRow({
     >
       {/* Planned baseline — a thin rule above the bar, so the plan reads as a reference rather
           than as work. */}
-      {placement.baseline && baselineMark?.visible && (
+      {editable && placement.baseline && baselineMark?.visible && (
         <div
           className="pointer-events-none absolute rounded-full"
           style={{
@@ -184,14 +188,14 @@ export default function GanttRow({
         {...(draggable ? moveListeners : {})}
         {...(draggable ? moveAttrs : {})}
         onClick={onSelect ? () => onSelect(row.id) : undefined}
-        aria-label={`${row.label}: ${milestone ? `milestone on ${rangeLabel}` : rangeLabel}${variance ? `, ${variance}` : ''}${placement.isAnchor ? ', anchor' : ''}${placement.isCritical ? ', on the critical path' : ''}${offWindow ? ', outside the visible range' : ''}`}
+        aria-label={`${row.label}: ${milestone ? `milestone on ${rangeLabel}` : rangeLabel}${variance ? `, ${variance}` : ''}${isAnchor ? ', anchor' : ''}${isCritical ? ', on the critical path' : ''}${offWindow ? ', outside the visible range' : ''}`}
         aria-pressed={selected}
         title={[
           row.label,
           milestone ? `Milestone — ${rangeLabel}` : rangeLabel,
           variance,
-          placement.isAnchor && '★ Anchor — the plan is built around this date',
-          placement.isCritical &&
+          isAnchor && '★ Anchor — the plan is built around this date',
+          isCritical &&
             'Critical path — zero slack, so a day late here is a day late for the anchor',
           offWindow && 'Outside the visible range',
         ]
@@ -225,7 +229,7 @@ export default function GanttRow({
             }}
           />
         )}
-        {placement.isAnchor && !offWindow && (
+        {isAnchor && !offWindow && (
           <span
             aria-hidden="true"
             className="pointer-events-none absolute leading-none"

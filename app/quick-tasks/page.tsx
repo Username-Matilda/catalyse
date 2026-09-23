@@ -10,10 +10,23 @@ import Button from '@/components/Button'
 import CommentThread from '@/components/CommentThread'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import VolunteerSelect from '@/components/VolunteerSelect'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import Linkify from '@/components/Linkify'
+import SubmitForReviewButton from '@/components/SubmitForReviewButton'
+import { PROJECT_TASK_CLAIMED_MESSAGE, QUICK_TASK_CLAIMED_MESSAGE } from '@/lib/action-messages'
+import {
+  QUICK_TASK_STATUS_LABELS,
+  QUICK_TASK_STATUS_VARIANTS,
+  TASK_STATUS_LABELS,
+  TASK_STATUS_VARIANTS,
+} from '@/lib/status-labels'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import { formatDate } from '@/lib/format-date'
 import { QuickTaskStatus, TaskStatus } from '@/generated/prisma/enums'
+import PageLoading from '@/components/PageLoading'
+import Skeleton from '@/components/Skeleton'
+import EmptyState from '@/components/EmptyState'
 
 interface Skill {
   id: number
@@ -50,24 +63,9 @@ interface FeaturedProjectTask {
   createdAt: string
 }
 
-const STATUS_VARIANTS: Record<string, BadgeVariant> = {
-  open: 'warning',
-  in_progress: 'info',
-  under_review: 'caution',
-  completed: 'success',
-}
-
-// Project tasks use TaskStatus (open/in_progress/completed), not QuickTaskStatus —
-// no under_review here, since submitting for review is a quick-task-only concept.
-const PROJECT_TASK_STATUS_VARIANTS: Record<string, BadgeVariant> = {
-  open: 'warning',
-  in_progress: 'info',
-  completed: 'success',
-}
-
 const RATING_CLASSES: Record<string, string> = {
   excellent: 'text-success',
-  good: 'text-secondary',
+  good: 'text-text-light',
   needs_improvement: 'text-error',
 }
 
@@ -75,12 +73,6 @@ const RATING_LABELS: Record<string, string> = {
   excellent: 'Excellent',
   good: 'Good',
   needs_improvement: 'Needs improvement',
-}
-
-const STATUS_LABELS: Record<string, string> = {
-  in_progress: 'Assigned',
-  under_review: 'Submitted, awaiting review',
-  completed: 'Completed',
 }
 
 const SKILL_CHIP_CLASSES =
@@ -126,7 +118,11 @@ function QuickTaskCard({
       {meta && meta.some(Boolean) && (
         <div className="flex gap-2 mb-3 flex-wrap items-center">{meta}</div>
       )}
-      {description && <p className="whitespace-pre-wrap mb-4">{description}</p>}
+      {description && (
+        <p className="whitespace-pre-wrap mb-4">
+          <Linkify text={description} />
+        </p>
+      )}
       {children}
     </div>
   )
@@ -135,7 +131,7 @@ function QuickTaskCard({
 export default function QuickTasksPage() {
   const { user, loading } = useRequireApproved()
 
-  if (loading || !user) return null
+  if (loading || !user) return <PageLoading />
 
   return user.isAdmin ? <AdminQuickTasksView /> : <VolunteerQuickTasksView user={user} />
 }
@@ -155,17 +151,6 @@ function VolunteerQuickTasksView({ user }: { user: ApprovedUser }) {
     ...orpc.quickTasks.available.queryOptions(),
   })
 
-  const submitMutation = useMutation({
-    ...orpc.quickTasks.submit.mutationOptions(),
-    onSuccess: () => {
-      showToast('Task submitted for review!', 'success')
-      void queryClient.invalidateQueries({ queryKey: orpc.my.quickTasks.key() })
-    },
-    onError: (err: unknown) => {
-      showToast(err instanceof Error ? err.message : 'Failed to submit task', 'error')
-    },
-  })
-
   const invalidateAvailable = () => {
     void queryClient.invalidateQueries({ queryKey: orpc.quickTasks.available.key() })
     void queryClient.invalidateQueries({ queryKey: orpc.my.quickTasks.key() })
@@ -174,7 +159,7 @@ function VolunteerQuickTasksView({ user }: { user: ApprovedUser }) {
   const claimQuickMutation = useMutation({
     ...orpc.quickTasks.claim.mutationOptions(),
     onSuccess: () => {
-      showToast('Task claimed!', 'success')
+      showToast(QUICK_TASK_CLAIMED_MESSAGE, 'success')
       invalidateAvailable()
     },
     onError: (err: unknown) =>
@@ -187,7 +172,7 @@ function VolunteerQuickTasksView({ user }: { user: ApprovedUser }) {
   const claimProjectTaskMutation = useMutation({
     ...orpc.projects.updateTask.mutationOptions(),
     onSuccess: (_data, variables) => {
-      showToast('Task claimed!', 'success')
+      showToast(PROJECT_TASK_CLAIMED_MESSAGE, 'success')
       invalidateAvailable()
       router.push(`/projects/${variables.projectId}/tasks/${variables.taskId}`)
     },
@@ -208,15 +193,17 @@ function VolunteerQuickTasksView({ user }: { user: ApprovedUser }) {
           </p>
 
           {loadingTasks ? (
-            <div className="text-center py-10 text-text-light">Loading tasks…</div>
+            <Skeleton label="Loading tasks…" count={1} />
           ) : tasks.length === 0 ? (
-            <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word text-center">
-              <h3>No tasks assigned yet</h3>
-              <p className="text-text-light">
-                Check back soon, or browse <Link href="/projects">projects</Link> to find other ways
-                to contribute.
-              </p>
-            </div>
+            <EmptyState
+              title="No tasks assigned yet"
+              body="Claim one from the list below, or browse projects for other ways to contribute."
+              action={
+                <Button href="/projects" variant="outline">
+                  Browse projects
+                </Button>
+              }
+            />
           ) : (
             tasks.map((task) => (
               <QuickTaskCard
@@ -225,8 +212,8 @@ function VolunteerQuickTasksView({ user }: { user: ApprovedUser }) {
                 title={task.title}
                 titleHref={`/quick-tasks/${task.id}`}
                 status={task.status}
-                statusVariant={task.status === QuickTaskStatus.completed ? 'success' : 'warning'}
-                statusLabel={STATUS_LABELS[task.status] ?? task.status}
+                statusVariant={QUICK_TASK_STATUS_VARIANTS[task.status] ?? 'neutral'}
+                statusLabel={QUICK_TASK_STATUS_LABELS[task.status] ?? task.status}
                 description={task.description}
                 meta={[
                   task.skillName && (
@@ -247,14 +234,7 @@ function VolunteerQuickTasksView({ user }: { user: ApprovedUser }) {
                 ]}
               >
                 {task.status === QuickTaskStatus.in_progress && (
-                  <Button
-                    onClick={() => submitMutation.mutate({ id: task.id })}
-                    disabled={submitMutation.isPending && submitMutation.variables?.id === task.id}
-                  >
-                    {submitMutation.isPending && submitMutation.variables?.id === task.id
-                      ? 'Submitting…'
-                      : 'Mark as Complete'}
-                  </Button>
+                  <SubmitForReviewButton taskId={task.id} />
                 )}
               </QuickTaskCard>
             ))
@@ -270,12 +250,17 @@ function VolunteerQuickTasksView({ user }: { user: ApprovedUser }) {
           </p>
 
           {loadingAvailable ? (
-            <div className="text-center py-10 text-text-light">Loading tasks…</div>
+            <Skeleton label="Loading tasks…" />
           ) : availableTasks.length === 0 ? (
-            <div className="bg-surface rounded-xl shadow p-6 mb-4 overflow-hidden wrap-break-word text-center">
-              <h3>No open Quick Tasks right now</h3>
-              <p className="text-text-light">Check back soon.</p>
-            </div>
+            <EmptyState
+              title="No open Quick Tasks right now"
+              body="Check back soon, or find a project that needs a hand."
+              action={
+                <Button href="/projects" variant="outline">
+                  Browse projects
+                </Button>
+              }
+            />
           ) : (
             availableTasks.map((task) =>
               task.kind === 'quick' ? (
@@ -284,8 +269,8 @@ function VolunteerQuickTasksView({ user }: { user: ApprovedUser }) {
                   title={task.title}
                   titleHref={`/quick-tasks/${task.id}`}
                   status="open"
-                  statusVariant="warning"
-                  statusLabel="Open"
+                  statusVariant={QUICK_TASK_STATUS_VARIANTS.open}
+                  statusLabel={QUICK_TASK_STATUS_LABELS.open}
                   description={task.description}
                   meta={[
                     task.skillName && (
@@ -317,8 +302,8 @@ function VolunteerQuickTasksView({ user }: { user: ApprovedUser }) {
                   title={task.title}
                   titleHref={`/projects/${task.projectId}/tasks/${task.id}`}
                   status="open"
-                  statusVariant="warning"
-                  statusLabel="Open"
+                  statusVariant={TASK_STATUS_VARIANTS.open}
+                  statusLabel={TASK_STATUS_LABELS.open}
                   description={task.description}
                   meta={[
                     task.projectTitle && (
@@ -407,6 +392,7 @@ function AdminQuickTasksView() {
 
   // Review modal
   const [reviewModal, setReviewModal] = useState<AdminQuickTask | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<AdminQuickTask | null>(null)
   const [reviewRating, setReviewRating] = useState<'excellent' | 'good' | 'needs_improvement'>(
     'good',
   )
@@ -608,11 +594,6 @@ function AdminQuickTasksView() {
     })
   }
 
-  function deleteTask(task: AdminQuickTask) {
-    if (!confirm(`Delete "${task.title}"? This cannot be undone.`)) return
-    deleteTaskMutation.mutate({ id: task.id })
-  }
-
   async function copyLink(path: string) {
     const url = `${window.location.origin}${path}`
     try {
@@ -672,7 +653,8 @@ function AdminQuickTasksView() {
               anchorId={`task-${task.id}`}
               title={task.title}
               status={task.status}
-              statusVariant={STATUS_VARIANTS[task.status] ?? 'neutral'}
+              statusVariant={QUICK_TASK_STATUS_VARIANTS[task.status] ?? 'neutral'}
+              statusLabel={QUICK_TASK_STATUS_LABELS[task.status] ?? task.status}
               description={task.description}
               meta={[
                 task.skillName && (
@@ -748,7 +730,7 @@ function AdminQuickTasksView() {
                   <Button variant="secondary" size="sm" onClick={() => openEdit(task)}>
                     Edit
                   </Button>
-                  <Button variant="danger" size="sm" onClick={() => deleteTask(task)}>
+                  <Button variant="danger" size="sm" onClick={() => setDeleteTarget(task)}>
                     Delete
                   </Button>
                   {task.assignedToId && (
@@ -792,7 +774,8 @@ function AdminQuickTasksView() {
                 title={task.title}
                 titleHref={`/projects/${task.projectId}/tasks/${task.id}`}
                 status={task.status}
-                statusVariant={PROJECT_TASK_STATUS_VARIANTS[task.status] ?? 'neutral'}
+                statusVariant={TASK_STATUS_VARIANTS[task.status] ?? 'neutral'}
+                statusLabel={TASK_STATUS_LABELS[task.status] ?? task.status}
                 description={task.description}
                 meta={[
                   task.projectTitle && (
@@ -1121,6 +1104,24 @@ function AdminQuickTasksView() {
             </div>
           </div>
         </div>
+      )}
+
+      {deleteTarget && (
+        <ConfirmDialog
+          id="confirm-delete-quick-task"
+          isOpen
+          title="Delete this task?"
+          body={`"${deleteTarget.title}" and its comments are removed for everyone. This cannot be undone.`}
+          confirmLabel="Delete task"
+          busyLabel="Deleting…"
+          danger
+          busy={deleteTaskMutation.isPending}
+          onConfirm={() => {
+            deleteTaskMutation.mutate({ id: deleteTarget.id })
+            setDeleteTarget(null)
+          }}
+          onClose={() => setDeleteTarget(null)}
+        />
       )}
     </>
   )

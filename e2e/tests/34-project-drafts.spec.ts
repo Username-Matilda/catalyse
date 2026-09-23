@@ -6,7 +6,6 @@ import {
   addTaskFromEditPage,
   publishDraftFromEditPage,
   deleteDraftFromEditPage,
-  openNewProjectForm,
 } from '../actions/projects'
 
 test.describe('Admin project drafts', () => {
@@ -141,23 +140,32 @@ test.describe('Volunteer project drafts', () => {
     const title = fake.projectTitle()
     const projectId = await volunteerSaveProjectDraft(baseUrl, volunteer.page, title)
 
-    await publishDraftFromEditPage(baseUrl, volunteer.page, projectId)
+    await volunteer.page.goto(`${baseUrl}/projects/${projectId}/edit`)
+    await volunteer.page.getByRole('button', { name: 'Submit', exact: true }).click()
 
-    await expect(getAlert(volunteer.page)).toContainText(
-      'Add at least one task before submitting this draft for review',
-      { timeout: 10_000 },
-    )
+    // Refused before the confirm dialog opens.
+    await expect(volunteer.page.getByText('Add at least one task before submitting.')).toBeVisible({
+      timeout: 10_000,
+    })
+    await expect(
+      volunteer.page.getByRole('heading', { name: 'Submit draft for review?' }),
+    ).toHaveCount(0)
   })
 
   test('A volunteer is blocked from saving a third draft', async ({ volunteer, baseUrl }) => {
     await volunteerSaveProjectDraft(baseUrl, volunteer.page, fake.projectTitle())
     await volunteerSaveProjectDraft(baseUrl, volunteer.page, fake.projectTitle())
 
+    // The drafts page says so instead of offering a form that would refuse.
     await volunteer.page.goto(`${baseUrl}/suggest`)
-    await openNewProjectForm(volunteer.page)
-    await volunteer.page.getByLabel('Project Title').fill(fake.projectTitle())
-    await volunteer.page.getByRole('button', { name: 'Save draft' }).click()
+    await expect(
+      volunteer.page.getByText('You have 2 drafts. Finish or delete one first.'),
+    ).toBeVisible({ timeout: 10_000 })
+    await expect(volunteer.page.getByRole('link', { name: 'Propose a project' })).toHaveCount(0)
 
+    // Going to the form directly, the server still refuses the save.
+    await volunteer.page.goto(`${baseUrl}/suggest/new`)
+    await volunteer.page.getByLabel('Project Title').fill(fake.projectTitle())
     await expect(getAlert(volunteer.page)).toContainText('You already have 2 drafts', {
       timeout: 10_000,
     })

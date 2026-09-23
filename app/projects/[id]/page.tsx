@@ -2,7 +2,7 @@
 
 import React, { use, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useRequireApproved } from '@/lib/hooks/auth'
+import { useRequireConfirmed } from '@/lib/hooks/auth'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -10,9 +10,22 @@ import Button from '@/components/Button'
 import Checkbox from '@/components/Checkbox'
 import { Badge, badgeClasses, badgeColorClasses } from '@/components/Badge'
 import Tooltip from '@/components/Tooltip'
-import { INTEREST_STATUS_LABELS, projectStatusVariant } from '@/components/ProjectCard'
+import { projectStatusVariant } from '@/components/ProjectCard'
+import { INTEREST_STATUS_LABELS, interestHistoryLabel } from '@/lib/status-labels'
+import {
+  interestSentMessage,
+  PROJECT_TASK_CLAIMED_MESSAGE,
+  VOLUNTEER_ADDED_MESSAGE,
+  INTEREST_WITHDRAWN_MESSAGE,
+  INTEREST_ACCEPTED_MESSAGE,
+  INTEREST_DECLINED_MESSAGE,
+  volunteerRemovedMessage,
+} from '@/lib/action-messages'
 import CommentThread from '@/components/CommentThread'
+import MessageDialog from '@/components/MessageDialog'
+import Linkify from '@/components/Linkify'
 import Modal from '@/components/ui/Modal'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import VolunteerSelect from '@/components/VolunteerSelect'
 import Tabs from '@/components/Tabs'
@@ -53,6 +66,7 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import PageLoading from '@/components/PageLoading'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -149,6 +163,7 @@ function ActionMenu({
           setPos({ top: r.bottom + window.scrollY + 6, left: r.right + window.scrollX - 256 })
           setOpen((o) => !o)
         }}
+        title={ariaLabel}
         className="w-7 h-7 flex items-center justify-center rounded-md text-base font-bold text-brand-text bg-brand-bg hover:bg-brand-border transition-colors cursor-pointer"
       >
         ⋯
@@ -209,8 +224,9 @@ function SortableTaskItem({
       <span
         {...(draggable ? attributes : {})}
         {...(draggable ? listeners : {})}
-        className={`w-4 shrink-0 leading-none text-text-light text-center text-base opacity-60 group-hover:opacity-100 transition-opacity mt-1 ${draggable ? 'cursor-grab' : ''}`}
+        className={`w-4 shrink-0 leading-none text-text-light text-center text-base mt-1 ${draggable ? 'cursor-grab' : ''}`}
         title={draggable ? 'Drag to reorder' : undefined}
+        aria-label={draggable ? `Drag to reorder ${task.title}` : undefined}
       >
         {draggable ? '⠿' : ''}
       </span>
@@ -546,7 +562,7 @@ function TaskTimeline({
 export default function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = use(params)
   const router = useRouter()
-  const { user, loading } = useRequireApproved()
+  const { user, loading } = useRequireConfirmed()
   const queryClient = useQueryClient()
 
   const showToast = useToast()
@@ -635,12 +651,21 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   // Contact owner
   const [showContactModal, setShowContactModal] = useState(false)
-  const [contactSubject, setContactSubject] = useState('')
-  const [contactBody, setContactBody] = useState('')
 
   // Decline interest
-  const [declineInterestId, setDeclineInterestId] = useState<number | null>(null)
+  // Declining a request and removing an accepted helper share one dialog and one status.
+  const [declineTarget, setDeclineTarget] = useState<{
+    id: number
+    name: string
+    accepted: boolean
+  } | null>(null)
   const [declineMessage, setDeclineMessage] = useState('')
+
+  // Confirmations
+  const [deleteTaskId, setDeleteTaskId] = useState<number | null>(null)
+  const [withdrawAccepted, setWithdrawAccepted] = useState<boolean | null>(null)
+  const [showTransferConfirm, setShowTransferConfirm] = useState(false)
+  const [showRemoveOwnerConfirm, setShowRemoveOwnerConfirm] = useState(false)
 
   // ── Queries ──────────────────────────────────────────────────────────────
 
@@ -679,11 +704,18 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     (t) => t.startDate !== null || t.durationDays !== null,
   ).length
 
-  // Sync orderedTasks when project data loads/changes
+  // Sync orderedTasks when project data loads/changes. Rows already on screen keep their
+  // place, so a task that changes status does not slide under the cursor (the server puts
+  // finished tasks last); new tasks are added at the end and the next load uses server order.
   useEffect(() => {
     if (project?.tasks) {
+      const fresh = new Map(project.tasks.map((t) => [t.id, t]))
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setOrderedTasks(project.tasks)
+      setOrderedTasks((current) => {
+        const kept = current.flatMap((t) => fresh.get(t.id) ?? [])
+        const seen = new Set(kept.map((t) => t.id))
+        return [...kept, ...project.tasks.filter((t) => !seen.has(t.id))]
+      })
     }
   }, [project?.tasks])
 
@@ -716,20 +748,22 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const volunteers = volunteersData?.volunteers ?? []
 
   const ownerId = project?.ownerId ?? null
-  const { data: ownerContactData } = useQuery({
+  const { data: ownerContact } = useQuery({
     ...orpc.volunteers.getById.queryOptions({ input: { id: ownerId ?? 0 } }),
     enabled: ownerId !== null && showContactModal,
   })
-  const ownerContact = ownerContactData
 
   // ── Mutations ────────────────────────────────────────────────────────────
 
   // Task writes change both the list view (getById) and the timeline (listTasks); the panel
   // on the Timeline tab reads assignment from the latter, so both are refreshed together.
+  // Who may post depends on being an accepted helper, so the comment lists refresh with the
+  // project whenever interest or assignment changes.
   const invalidateProject = () =>
     Promise.all([
       queryClient.invalidateQueries({ queryKey: orpc.projects.getById.key() }),
       queryClient.invalidateQueries({ queryKey: orpc.projects.listTasks.key() }),
+      queryClient.invalidateQueries({ queryKey: orpc.workItemComments.list.key() }),
     ])
 
   const createTaskMutation = useMutation({
@@ -752,7 +786,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     ...orpc.projects.updateTask.mutationOptions(),
     onSuccess: (_data, variables) => {
       if (variables.data.status === TaskStatus.in_progress) {
-        showToast('Task claimed!', 'success')
+        showToast(PROJECT_TASK_CLAIMED_MESSAGE, 'success')
       } else if (variables.data.status === TaskStatus.completed) {
         showToast('Task completed!', 'success')
       } else if (variables.data.status === TaskStatus.open) {
@@ -814,7 +848,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const expressInterestMutation = useMutation({
     ...orpc.projects.expressInterest.mutationOptions(),
     onSuccess: () => {
-      showToast('Interest expressed!', 'success')
+      showToast(interestSentMessage(projectRaw?.owner?.name ?? null), 'success')
       void invalidateProject()
     },
     onError: (err: unknown) =>
@@ -824,7 +858,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const withdrawInterestMutation = useMutation({
     ...orpc.projects.withdrawInterest.mutationOptions(),
     onSuccess: () => {
-      showToast('Interest withdrawn', 'success')
+      showToast(INTEREST_WITHDRAWN_MESSAGE, 'success')
       void invalidateProject()
     },
     onError: (err: unknown) =>
@@ -835,10 +869,14 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     ...orpc.projects.respondToInterest.mutationOptions(),
     onSuccess: (_data, variables) => {
       showToast(
-        variables.status === InterestStatus.accepted ? 'Interest accepted' : 'Interest declined',
+        variables.status === InterestStatus.accepted
+          ? INTEREST_ACCEPTED_MESSAGE
+          : declineTarget?.accepted
+            ? volunteerRemovedMessage(declineTarget.name)
+            : INTEREST_DECLINED_MESSAGE,
         'success',
       )
-      setDeclineInterestId(null)
+      setDeclineTarget(null)
       setDeclineMessage('')
       void invalidateProject()
     },
@@ -849,7 +887,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const assignMutation = useMutation({
     ...orpc.projects.assign.mutationOptions(),
     onSuccess: () => {
-      showToast('Volunteer assigned!', 'success')
+      showToast(VOLUNTEER_ADDED_MESSAGE, 'success')
+      setAssignTo('')
       void invalidateProject()
     },
     onError: (err: unknown) =>
@@ -880,34 +919,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       showToast(err instanceof Error ? err.message : 'Failed to submit review', 'error'),
   })
 
-  const sendMessageMutation = useMutation({
-    ...orpc.messages.send.mutationOptions(),
-    onSuccess: () => {
-      setShowContactModal(false)
-      setContactSubject('')
-      setContactBody('')
-      showToast(
-        "Message sent! They'll receive it by email and can reply directly to you.",
-        'success',
-      )
-    },
-    onError: (err: unknown) =>
-      showToast(err instanceof Error ? err.message : 'Failed to send message', 'error'),
-  })
-
   // ── Handlers ─────────────────────────────────────────────────────────────
 
-  function handleContactOwner(e: React.FormEvent, ownerId: number) {
-    e.preventDefault()
-    sendMessageMutation.mutate({
-      recipientId: ownerId,
-      subject: contactSubject.trim(),
-      message: contactBody.trim(),
-      relatedProjectId: parseInt(idParam, 10),
-    })
-  }
-
-  if (loading || !user) return null
+  if (loading || !user) return <PageLoading />
   if (loadingProject) {
     return (
       <>
@@ -951,7 +965,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     (i) => i.volunteerId !== project.ownerId,
   )
   const interestedVolunteers = volunteerInterests.filter(
-    (i) => i.status !== InterestStatus.declined && i.status !== InterestStatus.withdrawn,
+    (i) => i.status === InterestStatus.pending || i.status === InterestStatus.accepted,
   )
   const interestedVolunteerIds = new Set(interestedVolunteers.map((i) => i.volunteerId))
   const assignVolunteerOptions = [
@@ -1033,11 +1047,6 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     })
   }
 
-  function handleDeleteTask(taskId: number) {
-    if (!window.confirm('Delete this task?')) return
-    deleteTaskMutation.mutate({ projectId: parseInt(idParam, 10), taskId })
-  }
-
   function handleSelectStatus(value: string) {
     const validStatuses = Object.values(ProjectStatus)
     const status = validStatuses.find((s) => s === value)
@@ -1060,12 +1069,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     })
   }
 
-  function handleWithdrawInterest(isAccepted: boolean) {
-    const message = isAccepted
-      ? 'Withdraw from this project? Any tasks you hold on it will be released back to open.'
-      : 'Withdraw your interest?'
-    if (!window.confirm(message)) return
+  function confirmWithdrawInterest() {
     withdrawInterestMutation.mutate({ projectId: parseInt(idParam, 10) })
+    setWithdrawAccepted(null)
   }
 
   function handleAcceptInterest(interestId: number) {
@@ -1076,8 +1082,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     })
   }
 
-  function handleDeclineInterest(interestId: number) {
-    setDeclineInterestId(interestId)
+  function handleDeclineInterest(interestId: number, name: string, accepted: boolean) {
+    setDeclineTarget({ id: interestId, name, accepted })
     setDeclineMessage('')
   }
 
@@ -1121,10 +1127,6 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  const hasDirectContact =
-    ownerContact &&
-    (ownerContact.discordHandle || ownerContact.signalNumber || ownerContact.whatsappNumber)
-
   return (
     <>
       {/* The timeline wants every pixel it can get, so the page drops its reading-width cap
@@ -1147,7 +1149,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           <div className={`min-w-0 ${taskView === 'timeline' ? '' : 'lg:col-span-2'}`}>
             {/* Main project card */}
             <div className={card}>
-              <p className="whitespace-pre-wrap">{project.description}</p>
+              <p className="whitespace-pre-wrap">
+                <Linkify text={project.description} />
+              </p>
 
               {project.skills.length > 0 && (
                 <div className="mt-3">
@@ -1419,7 +1423,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                               chips={
                                 <>
                                   {task.status === TaskStatus.completed && (
-                                    <span className="text-success text-sm font-semibold">done</span>
+                                    <span className="text-success text-sm font-semibold">
+                                      <span aria-hidden="true">✓</span> <span>done</span>
+                                    </span>
                                   )}
                                   {task.featuredAsQuickTask && (
                                     <span
@@ -1541,7 +1547,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                             role="menuitem"
                                             className={`w-full text-left px-3 py-2 text-sm text-red-700 dark:text-red-400 hover:bg-accent transition-colors cursor-pointer ${canAssign || canUnassign ? 'border-t border-brand-border mt-1' : ''}`}
                                             onClick={() => {
-                                              handleDeleteTask(task.id)
+                                              setDeleteTaskId(task.id)
                                               close()
                                             }}
                                           >
@@ -1707,11 +1713,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                               size="sm"
                               disabled={!transferTo || updateProjectMutation.isPending}
                               onClick={() => {
-                                if (!window.confirm('Transfer ownership to this volunteer?')) return
-                                updateProjectMutation.mutate({
-                                  id: parseInt(idParam, 10),
-                                  assigneeId: parseInt(transferTo, 10),
-                                })
+                                setShowTransferConfirm(true)
                                 close()
                               }}
                             >
@@ -1723,12 +1725,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                               role="menuitem"
                               className="w-full text-left px-3 py-2 text-sm text-red-700 dark:text-red-400 hover:bg-accent transition-colors cursor-pointer border-t border-brand-border mt-1"
                               onClick={() => {
-                                if (!window.confirm('Remove the current owner from this project?'))
-                                  return
-                                updateProjectMutation.mutate({
-                                  id: parseInt(idParam, 10),
-                                  assigneeId: null,
-                                })
+                                setShowRemoveOwnerConfirm(true)
                                 close()
                               }}
                             >
@@ -1812,9 +1809,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                     ? interest.interestType === 'want_to_own'
                                       ? 'wants to own'
                                       : 'wants to help'
-                                    : interest.interestType === 'want_to_own'
-                                      ? 'wanted to own'
-                                      : 'wanted to help'}
+                                    : interestHistoryLabel(interest.origin, interest.status)}
                               </div>
                             </div>
                             {interest.status === InterestStatus.pending ? (
@@ -1825,7 +1820,13 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                 <Button
                                   variant="secondary"
                                   size="sm"
-                                  onClick={() => handleDeclineInterest(interest.id)}
+                                  onClick={() =>
+                                    handleDeclineInterest(
+                                      interest.id,
+                                      interest.volunteerName,
+                                      false,
+                                    )
+                                  }
                                 >
                                   Decline
                                 </Button>
@@ -1838,16 +1839,14 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                 <Button
                                   variant="secondary"
                                   size="sm"
-                                  onClick={() => handleDeclineInterest(interest.id)}
+                                  onClick={() =>
+                                    handleDeclineInterest(interest.id, interest.volunteerName, true)
+                                  }
                                 >
                                   Remove
                                 </Button>
                               </div>
-                            ) : (
-                              <Badge variant={projectStatusVariant(interest.status)}>
-                                {INTEREST_STATUS_LABELS[interest.status] ?? interest.status}
-                              </Badge>
-                            )}
+                            ) : null}
                             {interest.message && interest.status !== InterestStatus.accepted && (
                               <p className="text-sm text-text-light w-full m-0">
                                 {interest.message}
@@ -1881,6 +1880,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                           {assignMutation.isPending ? 'Assigning…' : 'Assign'}
                         </Button>
                       </form>
+                    )}
+                    {volunteers.length > 0 && (
+                      <p className="text-xs text-text-light mt-1 mb-0">
+                        They are added straight away and get a notification.
+                      </p>
                     )}
                   </div>
                 )}
@@ -1973,7 +1977,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             {/* Interest section */}
             {canSeeInterest && (
               <div className={card}>
-                <h2>Interested in this project?</h2>
+                <h2>
+                  {project.myInterest?.origin === 'added'
+                    ? 'Your place on this project'
+                    : 'Interested in this project?'}
+                </h2>
                 {!project.myInterest ? (
                   <form onSubmit={handleExpressInterest}>
                     <div className="mb-5">
@@ -2015,12 +2023,19 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 ) : (
                   <div>
                     <p>
-                      Your interest status:{' '}
+                      {project.myInterest.origin === 'added'
+                        ? 'Your place:'
+                        : 'Your interest status:'}{' '}
                       <span aria-label="interest status" className="font-semibold">
                         {INTEREST_STATUS_LABELS[project.myInterest.status] ??
                           project.myInterest.status}
                       </span>
                     </p>
+                    {project.myInterest.status === InterestStatus.removed && (
+                      <p className="text-text-light text-sm">
+                        Contact the owner if you would like to rejoin.
+                      </p>
+                    )}
                     {project.myInterest.responseMessage && (
                       <p className="text-text-light text-sm">
                         {project.myInterest.responseMessage}
@@ -2029,10 +2044,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     {(project.myInterest.status === InterestStatus.pending ||
                       project.myInterest.status === InterestStatus.accepted) && (
                       <Button
-                        variant="secondary"
+                        variant="warning"
                         className="mt-2"
                         onClick={() =>
-                          handleWithdrawInterest(
+                          setWithdrawAccepted(
                             project.myInterest?.status === InterestStatus.accepted,
                           )
                         }
@@ -2072,107 +2087,31 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         }
       />
 
-      {/* Contact Owner modal */}
       {showContactModal && ownerId !== null && (
-        <div
-          className="fixed inset-0 bg-[rgba(29,53,87,0.5)] flex items-center justify-center z-1000 p-5"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowContactModal(false)
-          }}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Contact Owner"
-            className="bg-surface rounded-xl shadow-lg max-w-125 w-full max-h-[90vh] overflow-y-auto"
-          >
-            <div className="px-6 py-5 border-b border-brand-border flex justify-between items-center">
-              <h2 className="m-0 text-xl">Contact Owner</h2>
-              <Button
-                variant="ghost"
-                icon
-                onClick={() => setShowContactModal(false)}
-                aria-label="Close"
-              >
-                ×
-              </Button>
-            </div>
-            <div className="p-6">
-              {/* Direct contact channels */}
-              {hasDirectContact && (
-                <div className="mb-5">
-                  <p className="text-sm font-medium mb-2">Contact directly:</p>
-                  <div className="flex flex-col gap-2">
-                    {ownerContact!.discordHandle && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <span className="text-text-light">Discord:</span>
-                        <span className="font-medium">{ownerContact!.discordHandle}</span>
-                      </div>
-                    )}
-                    {ownerContact!.signalNumber && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <span className="text-text-light">Signal:</span>
-                        <span className="font-medium">{ownerContact!.signalNumber}</span>
-                      </div>
-                    )}
-                    {ownerContact!.whatsappNumber && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <span className="text-text-light">WhatsApp:</span>
-                        <span className="font-medium">{ownerContact!.whatsappNumber}</span>
-                      </div>
-                    )}
-                  </div>
-                  <hr className="my-4 border-brand-border" />
-                  <p className="text-sm text-text-light mb-3">
-                    Or send a message via the platform:
-                  </p>
-                </div>
-              )}
-
-              <form onSubmit={(e) => handleContactOwner(e, ownerId)}>
-                <div className="mb-5">
-                  <label htmlFor="contact-subject">Subject</label>
-                  <input
-                    id="contact-subject"
-                    type="text"
-                    value={contactSubject}
-                    onChange={(e) => setContactSubject(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="mb-5">
-                  <label htmlFor="contact-message">Message</label>
-                  <textarea
-                    id="contact-message"
-                    rows={4}
-                    value={contactBody}
-                    onChange={(e) => setContactBody(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="flex gap-2 justify-end">
-                  <Button type="button" variant="ghost" onClick={() => setShowContactModal(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={sendMessageMutation.isPending}>
-                    {sendMessageMutation.isPending ? 'Sending…' : 'Send Message'}
-                  </Button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
+        <MessageDialog
+          id="contact-owner"
+          title="Contact Owner"
+          recipientId={ownerId}
+          recipientName={project.owner?.name ?? 'The owner'}
+          relatedProjectId={project.id}
+          directContact={ownerContact}
+          onClose={() => setShowContactModal(false)}
+        />
       )}
 
       {/* Decline interest modal */}
-      {declineInterestId !== null && (
+      {declineTarget && (
         <Modal
           id="decline-interest"
-          title="Decline Volunteer"
+          title={
+            declineTarget.accepted
+              ? `Remove ${declineTarget.name} from this project?`
+              : 'Decline Volunteer'
+          }
           isOpen
-          onClose={() => setDeclineInterestId(null)}
+          onClose={() => setDeclineTarget(null)}
         >
-          <form onSubmit={(e) => confirmDeclineInterest(e, declineInterestId)}>
+          <form onSubmit={(e) => confirmDeclineInterest(e, declineTarget.id)}>
             <div className="mb-5">
               <label htmlFor="decline-message">Optional message for the volunteer</label>
               <textarea
@@ -2184,16 +2123,91 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               />
             </div>
             <div className="flex gap-2 justify-end">
-              <Button type="button" variant="secondary" onClick={() => setDeclineInterestId(null)}>
+              <Button type="button" variant="secondary" onClick={() => setDeclineTarget(null)}>
                 Cancel
               </Button>
               <Button type="submit" disabled={respondToInterestMutation.isPending}>
-                {respondToInterestMutation.isPending ? 'Declining…' : 'Decline'}
+                {respondToInterestMutation.isPending
+                  ? declineTarget.accepted
+                    ? 'Removing…'
+                    : 'Declining…'
+                  : declineTarget.accepted
+                    ? 'Remove'
+                    : 'Decline'}
               </Button>
             </div>
           </form>
         </Modal>
       )}
+
+      {deleteTaskId !== null && (
+        <ConfirmDialog
+          id="confirm-delete-project-task"
+          isOpen
+          title="Delete this task?"
+          body="The task and anything posted on it are removed for everyone. This cannot be undone."
+          confirmLabel="Delete task"
+          busyLabel="Deleting…"
+          danger
+          busy={deleteTaskMutation.isPending}
+          onConfirm={() => {
+            deleteTaskMutation.mutate({ projectId: parseInt(idParam, 10), taskId: deleteTaskId })
+            setDeleteTaskId(null)
+          }}
+          onClose={() => setDeleteTaskId(null)}
+        />
+      )}
+
+      <ConfirmDialog
+        id="confirm-withdraw-interest"
+        isOpen={withdrawAccepted !== null}
+        title={withdrawAccepted ? 'Withdraw from this project?' : 'Withdraw your interest?'}
+        body={
+          withdrawAccepted
+            ? 'Tasks you claimed will be released. You would need to express interest again to rejoin.'
+            : 'The owner will no longer see your request. You can express interest again later.'
+        }
+        confirmLabel="Withdraw"
+        busyLabel="Withdrawing…"
+        danger
+        busy={withdrawInterestMutation.isPending}
+        onConfirm={confirmWithdrawInterest}
+        onClose={() => setWithdrawAccepted(null)}
+      />
+
+      <ConfirmDialog
+        id="confirm-transfer-ownership"
+        isOpen={showTransferConfirm}
+        title="Transfer ownership to this volunteer?"
+        body="They take over the project and you lose the owner's controls on it."
+        confirmLabel="Transfer"
+        busyLabel="Transferring…"
+        busy={updateProjectMutation.isPending}
+        onConfirm={() => {
+          updateProjectMutation.mutate({
+            id: parseInt(idParam, 10),
+            assigneeId: parseInt(transferTo, 10),
+          })
+          setShowTransferConfirm(false)
+        }}
+        onClose={() => setShowTransferConfirm(false)}
+      />
+
+      <ConfirmDialog
+        id="confirm-remove-owner"
+        isOpen={showRemoveOwnerConfirm}
+        title="Remove the current owner from this project?"
+        body="The project is left without an owner until someone else takes it on."
+        confirmLabel="Remove ownership"
+        busyLabel="Removing…"
+        danger
+        busy={updateProjectMutation.isPending}
+        onConfirm={() => {
+          updateProjectMutation.mutate({ id: parseInt(idParam, 10), assigneeId: null })
+          setShowRemoveOwnerConfirm(false)
+        }}
+        onClose={() => setShowRemoveOwnerConfirm(false)}
+      />
     </>
   )
 }

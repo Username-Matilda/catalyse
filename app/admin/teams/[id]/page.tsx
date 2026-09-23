@@ -8,8 +8,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ORPCError } from '@orpc/client'
 import Button from '@/components/Button'
 import VolunteerSelect from '@/components/VolunteerSelect'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
+import PageLoading from '@/components/PageLoading'
 
 interface TeamMember {
   id: number
@@ -53,6 +55,7 @@ export default function AdminTeamDetailPage({ params }: { params: Promise<{ id: 
   }, [team, initialized])
 
   const [assignVolunteerId, setAssignVolunteerId] = useState('')
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
   const { data: joinRequestsData } = useQuery({
     ...orpc.teams.listJoinRequests.queryOptions({ input: { teamId } }),
@@ -94,8 +97,8 @@ export default function AdminTeamDetailPage({ params }: { params: Promise<{ id: 
     }
   }
 
-  function handleDelete() {
-    if (!window.confirm('Delete this team? This cannot be undone.')) return
+  function confirmDelete() {
+    setShowDeleteDialog(false)
     deleteTeamMutation.mutate(
       { id: teamId },
       {
@@ -157,7 +160,7 @@ export default function AdminTeamDetailPage({ params }: { params: Promise<{ id: 
 
   const backHref = user?.isAdmin ? '/admin/teams' : '/teams'
 
-  if (loading || !user) return null
+  if (loading || !user) return <PageLoading />
 
   if (isLoading) {
     return (
@@ -171,7 +174,7 @@ export default function AdminTeamDetailPage({ params }: { params: Promise<{ id: 
     return (
       <main className="container py-5 pb-15">
         <p className="text-text-light">Only this team&apos;s leader or an admin can manage it.</p>
-        <Link href={backHref} className="text-secondary-dark no-underline hover:text-primary">
+        <Link href={backHref} className="text-brand-text no-underline hover:text-primary">
           ← Back to Teams
         </Link>
       </main>
@@ -182,7 +185,7 @@ export default function AdminTeamDetailPage({ params }: { params: Promise<{ id: 
     return (
       <main className="container py-5 pb-15">
         <p className="text-text-light">Team not found.</p>
-        <Link href={backHref} className="text-secondary-dark no-underline hover:text-primary">
+        <Link href={backHref} className="text-brand-text no-underline hover:text-primary">
           ← Back to Teams
         </Link>
       </main>
@@ -191,7 +194,7 @@ export default function AdminTeamDetailPage({ params }: { params: Promise<{ id: 
 
   return (
     <main className="container py-5 pb-15 max-w-2xl">
-      <Link href={backHref} className="text-sm text-secondary-dark no-underline hover:text-primary">
+      <Link href={backHref} className="text-sm text-brand-text no-underline hover:text-primary">
         ← All Teams
       </Link>
       <h1 className="mt-3 mb-6">{team.name}</h1>
@@ -243,7 +246,7 @@ export default function AdminTeamDetailPage({ params }: { params: Promise<{ id: 
               {updateTeamMutation.isPending ? 'Saving…' : 'Save Changes'}
             </Button>
             {user.isAdmin && (
-              <Button type="button" variant="danger" onClick={handleDelete}>
+              <Button type="button" variant="danger" onClick={() => setShowDeleteDialog(true)}>
                 Delete Team
               </Button>
             )}
@@ -331,6 +334,19 @@ export default function AdminTeamDetailPage({ params }: { params: Promise<{ id: 
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        id="confirm-delete-team"
+        isOpen={showDeleteDialog}
+        title="Delete this team?"
+        body="Its members lose access to the projects scoped to it. This cannot be undone."
+        confirmLabel="Delete Team"
+        busyLabel="Deleting…"
+        danger
+        busy={deleteTeamMutation.isPending}
+        onConfirm={confirmDelete}
+        onClose={() => setShowDeleteDialog(false)}
+      />
     </main>
   )
 }

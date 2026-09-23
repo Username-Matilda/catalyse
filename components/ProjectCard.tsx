@@ -4,10 +4,7 @@ import Button from '@/components/Button'
 import { Badge, badgeClasses, type BadgeVariant } from '@/components/Badge'
 import { matchGradeLabel } from '@/lib/matching'
 import { projectLocationParts } from '@/lib/filter-options'
-import {
-  PROJECT_STATUS_CONFIG as PROJECT_LIFECYCLE_CONFIG,
-  proposerDisplay,
-} from '@/lib/project-status'
+import { PROJECT_STATUS_CONFIG as PROJECT_LIFECYCLE_CONFIG } from '@/lib/project-status'
 
 export interface Project {
   id: number
@@ -50,6 +47,7 @@ export const PROJECT_STATUS_CONFIG: Record<string, { label: string; variant: Bad
   accepted: { label: 'Accepted', variant: 'success' },
   declined: { label: 'Declined', variant: 'neutral' },
   withdrawn: { label: 'Withdrawn', variant: 'neutral' },
+  removed: { label: 'Removed', variant: 'neutral' },
 }
 
 export const STATUS_LABELS: Record<string, string> = Object.fromEntries(
@@ -61,20 +59,6 @@ const PROJECT_TYPE_LABELS: Record<string, string> = {
   container: 'Time-boxed',
   ongoing: 'Ongoing',
   one_off: 'One-off',
-}
-
-export const INTEREST_STATUS_LABELS: Record<string, string> = {
-  pending: 'Pending',
-  accepted: 'Accepted',
-  declined: 'Declined',
-  withdrawn: 'Withdrawn',
-}
-
-export const QUICK_TASK_STATUS_LABELS: Record<string, string> = {
-  open: 'Open',
-  in_progress: 'In Progress',
-  under_review: 'Under Review',
-  completed: 'Completed',
 }
 
 export function projectStatusVariant(status: string): BadgeVariant {
@@ -89,19 +73,19 @@ export function ProjectCard({
   project: p,
   userSkillIds = new Set(),
   action,
-  showProposer = false,
+  badge,
 }: {
   project: Project
   userSkillIds?: Set<number>
   action?: React.ReactNode
-  /**
-   * Show who proposed the project alongside whether it already has an owner. Admin-only
-   * by convention: volunteers browsing need to know a project has no owner yet, not who
-   * filed it.
-   */
-  showProposer?: boolean
+  /** An extra badge beside the status, such as where the viewer's application stands. */
+  badge?: React.ReactNode
 }) {
-  const proposer = showProposer ? proposerDisplay(p) : null
+  // The grade says how well the viewer fits; these say why.
+  const matchedRequired = (p.skills ?? [])
+    .filter((s) => s.isRequired && userSkillIds.has(s.id))
+    .slice(0, 3)
+    .map((s) => s.name)
   return (
     <div
       className={`card bg-surface rounded-xl shadow px-5 pt-5 pb-4 overflow-hidden wrap-break-word grid grid-rows-subgrid row-span-6 gap-y-2 relative min-w-0 ${p.isMyTeam ? 'border-l-4 border-primary' : ''}`}
@@ -110,7 +94,7 @@ export function ProjectCard({
         <Link
           role="link"
           href={`/projects/${p.id}`}
-          className="font-heading text-lg font-bold text-secondary-dark no-underline hover:text-primary transition-colors"
+          className="font-heading text-lg font-bold text-brand-text no-underline hover:text-primary transition-colors"
         >
           {p.title}
         </Link>
@@ -124,25 +108,22 @@ export function ProjectCard({
         {p.isSeekingOwner && <Badge variant="caution">Seeking Owner</Badge>}
         {p.isSeekingHelp && <Badge variant="caution">Seeking Help</Badge>}
         {p.needsTasks && <Badge variant="warning">Needs Tasks</Badge>}
+        {badge}
       </div>
       <div className="row-start-3 flex items-center gap-3 flex-wrap text-xs text-text-light self-start">
-        {showProposer ? (
-          <span>
-            🧑‍💼 Proposed by: {proposer?.name ?? 'Unknown'}
-            {' · '}
-            {p.owner ? 'Will be owner' : 'Would need to find owner'}
-          </span>
-        ) : (
-          <span>👤 {p.owner ? p.owner.name : 'No owner yet'}</span>
-        )}
+        <span title="Owner">👤 {p.owner ? p.owner.name : 'Seeking owner'}</span>
         {(() => {
           const parts = projectLocationParts(p.country, p.localGroup, p.remoteEligibility)
-          return parts.length > 0 && <span>📍 {parts.join(' · ')}</span>
+          return parts.length > 0 && <span title="Location">📍 {parts.join(' · ')}</span>
         })()}
-        {p.team && <span>🧑‍🤝‍🧑 {p.team.name}</span>}
-        {p.projectType && <span>📋 {PROJECT_TYPE_LABELS[p.projectType] ?? p.projectType}</span>}
-        {p.timeCommitmentHoursPerWeek && <span>🕐 {p.timeCommitmentHoursPerWeek}h/week</span>}
-        {p.urgency && <span>⚡ {p.urgency} priority</span>}
+        {p.team && <span title="Team">🧑‍🤝‍🧑 {p.team.name}</span>}
+        {p.projectType && (
+          <span title="Type">📋 {PROJECT_TYPE_LABELS[p.projectType] ?? p.projectType}</span>
+        )}
+        {p.timeCommitmentHoursPerWeek && (
+          <span title="Hours per week">🕐 {p.timeCommitmentHoursPerWeek}h/week</span>
+        )}
+        {p.urgency && <span title="Priority">⚡ {p.urgency} priority</span>}
       </div>
       <p className="row-start-4 min-w-0 text-text-light text-sm m-0 wrap-break-word">
         {p.description
@@ -179,9 +160,14 @@ export function ProjectCard({
         (p.skills?.length ?? 0) > 0 &&
         userSkillIds.size > 0 &&
         matchGradeLabel(p.match.matchedRequiredCount) ? (
-          <span className="text-xs font-semibold text-primary-text">
-            {matchGradeLabel(p.match.matchedRequiredCount)}
-          </span>
+          <div className="text-xs">
+            <span className="font-semibold text-primary-text">
+              {matchGradeLabel(p.match.matchedRequiredCount)}
+            </span>
+            {matchedRequired.length > 0 && (
+              <div className="text-text-light">Matches: {matchedRequired.join(', ')}</div>
+            )}
+          </div>
         ) : (
           <div />
         )}
@@ -200,26 +186,21 @@ export function ProjectCard({
 export const CARD_GRID_CLASSES = 'grid grid-cols-2 gap-x-5 gap-y-5 max-[600px]:grid-cols-1'
 export const CARD_GRID_SINGLE_CLASSES = 'flex flex-col gap-5'
 
-export function ProjectList({
+export function ProjectList<P extends Project>({
   projects,
   userSkillIds = new Set(),
   single = false,
-  showProposer = false,
+  badgeFor,
 }: {
-  projects: Project[]
+  projects: P[]
   userSkillIds?: Set<number>
   single?: boolean
-  showProposer?: boolean
+  badgeFor?: (project: P) => React.ReactNode
 }) {
   return (
     <div className={single ? CARD_GRID_SINGLE_CLASSES : CARD_GRID_CLASSES}>
       {projects.map((p) => (
-        <ProjectCard
-          key={p.id}
-          project={p}
-          userSkillIds={userSkillIds}
-          showProposer={showProposer}
-        />
+        <ProjectCard key={p.id} project={p} userSkillIds={userSkillIds} badge={badgeFor?.(p)} />
       ))}
     </div>
   )

@@ -7,10 +7,13 @@ import Toggle from './Toggle'
 import Radio from './Radio'
 import Checkbox from './Checkbox'
 import Alert from './ui/Alert'
+import ConfirmDialog from './ui/ConfirmDialog'
 import DescriptionTips from './DescriptionTips'
 import Tooltip from './Tooltip'
 import { ApprovalStepper } from './ApprovalStepper'
 import Tabs from './Tabs'
+import Skeleton from './Skeleton'
+import EmptyState from './EmptyState'
 import Providers from './Providers'
 import LandingCTA from './LandingCTA'
 import { renderApp } from '@/test/render'
@@ -33,7 +36,7 @@ describe('Button', () => {
     expect(screen.getByRole('button', { name: 'Plain' })).toHaveClass('bg-primary')
     const link = screen.getByRole('link', { name: 'Link' })
     expect(link).toHaveAttribute('href', '/x')
-    expect(link).toHaveClass('border-secondary', 'bg-secondary', 'px-3')
+    expect(link).toHaveClass('border-text-light', 'bg-secondary', 'px-3')
     expect(screen.getByRole('button', { name: '×' })).toHaveClass('size-11', 'extra')
   })
 })
@@ -89,6 +92,37 @@ describe('Alert', () => {
     expect(screen.getByRole('alert')).toHaveClass('toast-info')
     expect(screen.queryByLabelText('Dismiss')).toBeNull()
     vi.useRealTimers()
+  })
+})
+
+describe('ConfirmDialog', () => {
+  it('renders nothing when closed, and confirms, cancels or closes when open', async () => {
+    const onConfirm = vi.fn()
+    const onClose = vi.fn()
+    const props = { title: 'Delete it?', body: 'Gone for good.', confirmLabel: 'Delete', onConfirm }
+    const { rerender } = render(
+      <ConfirmDialog {...props} isOpen={false} onClose={onClose} danger busy />,
+    )
+    expect(screen.queryByRole('dialog')).toBeNull()
+
+    rerender(
+      <ConfirmDialog {...props} isOpen onClose={onClose} danger busy busyLabel="Deleting…" />,
+    )
+    const dialog = screen.getByRole('dialog', { name: 'Delete it?' })
+    expect(dialog).toHaveTextContent('Gone for good.')
+    const confirm = screen.getByRole('button', { name: 'Deleting…' })
+    expect(confirm).toBeDisabled()
+    expect(confirm).toHaveClass('bg-error')
+    await userEvent.click(confirm)
+    expect(onConfirm).not.toHaveBeenCalled()
+
+    rerender(<ConfirmDialog {...props} isOpen onClose={onClose} busy cancelLabel="Keep it" />)
+    expect(screen.getByRole('button', { name: 'Delete' })).toHaveClass('bg-primary')
+    rerender(<ConfirmDialog {...props} isOpen onClose={onClose} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(onClose).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -162,5 +196,27 @@ describe('Providers / LandingCTA', () => {
     await waitFor(() =>
       expect(screen.getByRole('link', { name: 'Browse projects' })).toBeInTheDocument(),
     )
+  })
+})
+
+describe('Skeleton', () => {
+  it('holds the layout with placeholder shapes and a label for screen readers', () => {
+    const { container, rerender } = render(<Skeleton label="Loading things…" />)
+    const status = screen.getByRole('status')
+    expect(status).toHaveAttribute('aria-busy', 'true')
+    expect(status).toHaveTextContent('Loading things…')
+    expect(container.querySelectorAll('[aria-hidden="true"]')).toHaveLength(3)
+    rerender(<Skeleton label="Loading rows…" variant="row" count={2} className="loading" />)
+    expect(screen.getByRole('status')).toHaveClass('loading')
+    expect(container.querySelectorAll('[aria-hidden="true"]')).toHaveLength(2)
+  })
+})
+
+describe('EmptyState', () => {
+  it('names the empty list and offers the next step', () => {
+    render(<EmptyState title="Nothing here" body="Try elsewhere." action={<a href="/x">Go</a>} />)
+    expect(screen.getByRole('heading', { name: 'Nothing here' })).toBeInTheDocument()
+    expect(screen.getByText('Try elsewhere.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Go' })).toHaveAttribute('href', '/x')
   })
 })

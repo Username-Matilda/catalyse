@@ -164,8 +164,8 @@ test.describe('Admin: Admin Team Management', () => {
     const adminCard = adminPage.locator('#adminList .card').filter({ hasText: volunteer.email })
     await expect(adminCard).toBeVisible({ timeout: 10_000 })
 
-    adminPage.once('dialog', (dialog) => dialog.accept())
     await adminCard.getByRole('button', { name: 'Revoke Access' }).click()
+    await adminPage.getByRole('dialog').getByRole('button', { name: 'Revoke access' }).click()
 
     await expect(getAlert(adminPage)).toContainText('Admin access revoked', { timeout: 10_000 })
     await expect(adminCard).not.toBeVisible({ timeout: 10_000 })

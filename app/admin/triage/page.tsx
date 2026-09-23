@@ -120,7 +120,7 @@ export default function TriagePage() {
                 <>
                   {`Pending Review`}
                   {pending.length > 0 && (
-                    <span className="bg-primary text-secondary-dark text-xs px-2 py-0.5 rounded-full ml-2">
+                    <span className="bg-primary text-gray-900 text-xs px-2 py-0.5 rounded-full ml-2">
                       {pending.length}
                     </span>
                   )}
@@ -133,7 +133,7 @@ export default function TriagePage() {
                 <>
                   {`Needs Discussion`}
                   {discussion.length > 0 && (
-                    <span className="bg-primary text-secondary-dark text-xs px-2 py-0.5 rounded-full ml-2">
+                    <span className="bg-primary text-gray-900 text-xs px-2 py-0.5 rounded-full ml-2">
                       {discussion.length}
                     </span>
                   )}
@@ -146,7 +146,7 @@ export default function TriagePage() {
                 <>
                   {`No Open Tasks`}
                   {stale.length > 0 && (
-                    <span className="bg-primary text-secondary-dark text-xs px-2 py-0.5 rounded-full ml-2">
+                    <span className="bg-primary text-gray-900 text-xs px-2 py-0.5 rounded-full ml-2">
                       {stale.length}
                     </span>
                   )}
@@ -159,7 +159,7 @@ export default function TriagePage() {
                 <>
                   {`Drafts`}
                   {drafts.length > 0 && (
-                    <span className="bg-primary text-secondary-dark text-xs px-2 py-0.5 rounded-full ml-2">
+                    <span className="bg-primary text-gray-900 text-xs px-2 py-0.5 rounded-full ml-2">
                       {drafts.length}
                     </span>
                   )}
@@ -172,7 +172,7 @@ export default function TriagePage() {
                 <>
                   Volunteer Interests
                   {pendingInterests.length > 0 && (
-                    <span className="bg-primary text-secondary-dark text-xs px-2 py-0.5 rounded-full ml-2">
+                    <span className="bg-primary text-gray-900 text-xs px-2 py-0.5 rounded-full ml-2">
                       {pendingInterests.length}
                     </span>
                   )}
@@ -213,7 +213,7 @@ export default function TriagePage() {
                         <p className="font-semibold m-0">
                           <Link
                             href={`/admin/volunteers/${i.volunteerId}`}
-                            className="text-secondary-dark no-underline hover:text-primary"
+                            className="text-brand-text no-underline hover:text-primary"
                           >
                             {i.volunteerName}
                           </Link>
@@ -335,7 +335,6 @@ export default function TriagePage() {
                   <ProjectCard
                     key={p.id}
                     project={p}
-                    showProposer
                     action={
                       tab === 'drafts' ? (
                         <div className="flex gap-2">

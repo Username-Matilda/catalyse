@@ -13,11 +13,14 @@
   --background: #fafafa;
   --surface: #ffffff;
   --text: #1a202c;
+  --heading: #1a202c;
   --text-light: #4a5568;
   --border: #e2e8f0;
-  --success: #38a169;
+  --success: #276749;
   --warning: #ecc94b;
-  --error: #e53e3e;
+  /* --warning is a fill behind dark text; this is the same colour for text on a light page. */
+  --warning-text: #975a16;
+  --error: #c53030;
 
   /* PauseAI Brand Fonts */
   --font-heading: var(--font-saira), 'Saira Condensed', sans-serif;
@@ -61,10 +64,12 @@
   --color-surface: var(--surface);
   --color-brand-bg: var(--background);
   --color-brand-text: var(--text);
+  --color-heading: var(--heading);
   --color-text-light: var(--text-light);
   --color-brand-border: var(--border);
   --color-success: var(--success);
   --color-warning: var(--warning);
+  --color-warning-text: var(--warning-text);
   --color-error: var(--error);
   --font-family-heading: var(--font-heading);
   --font-family-display: var(--font-display);
@@ -81,10 +86,12 @@
   --background: #111827;
   --surface: #1f2937;
   --text: #f3f4f6;
+  --heading: #f3f4f6;
   --text-light: #9ca3af;
   --border: #374151;
   --success: #4ade80;
   --warning: #facc15;
+  --warning-text: #facc15;
   --error: #f87171;
   --shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.4);
@@ -141,7 +148,7 @@ h2,
 h3 {
   font-family: var(--font-heading);
   font-weight: 700;
-  color: var(--secondary-dark);
+  color: var(--heading);
 }
 
 h1 {

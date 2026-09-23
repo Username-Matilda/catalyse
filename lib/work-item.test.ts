@@ -1,11 +1,14 @@
 import { describe, it, expect } from 'vitest'
 import { prisma } from '@/lib/prisma'
-import { createVolunteer, createProject, createTeam } from '@/test/factories'
+import { createVolunteer, createProject, createTask, createTeam } from '@/test/factories'
 import {
   canViewWorkItem,
   canPostComment,
   canManageProject,
   resolveTeamPrivy,
+  resolveProjectPrivy,
+  canSeeProjectScope,
+  isOutsideCountry,
   withProjectExtras,
   serializeTask,
   serializeStarterTask,
@@ -14,13 +17,15 @@ import {
   type EnrichedProject,
 } from './work-item'
 
-const admin = { id: 1, isAdmin: true, isApproved: true }
-const owner = { id: 2, isAdmin: false, isApproved: true }
-const creator = { id: 3, isAdmin: false, isApproved: true }
-const other = { id: 4, isAdmin: false, isApproved: true }
-const pending = { id: 5, isAdmin: false, isApproved: false }
+const admin = { id: 1, isAdmin: true, isApproved: true, country: null }
+const owner = { id: 2, isAdmin: false, isApproved: true, country: null }
+const creator = { id: 3, isAdmin: false, isApproved: true, country: null }
+const other = { id: 4, isAdmin: false, isApproved: true, country: null }
+const pending = { id: 5, isAdmin: false, isApproved: false, country: null }
 
-const project = { type: 'PROJECT', status: 'ready', creatorId: 3, assigneeId: 2 }
+// Where a work item is: no country, so no country scope.
+const anywhere = { country: null, remoteEligibility: 'NONE' }
+const project = { type: 'PROJECT', status: 'ready', creatorId: 3, assigneeId: 2, ...anywhere }
 
 describe('canViewWorkItem', () => {
   it('shows a live project to everyone, a hidden one to admins and its creator', () => {
@@ -35,21 +40,40 @@ describe('canViewWorkItem', () => {
   it('restricts a team project to participants and team-privy viewers', () => {
     const teamProject = { ...project, teamId: 9 }
     expect(canViewWorkItem(teamProject, other)).toBe(false)
-    expect(canViewWorkItem(teamProject, other, undefined, true)).toBe(true)
+    expect(canViewWorkItem(teamProject, other, undefined, { team: true, country: true })).toBe(true)
     expect(canViewWorkItem(teamProject, owner)).toBe(true)
     expect(canViewWorkItem(teamProject, admin)).toBe(true)
     expect(canViewWorkItem(teamProject, null)).toBe(false)
   })
 
+  it('keeps a country-scoped project to its country, its participants and the privy', () => {
+    const swedish = { ...project, country: 'SE', remoteEligibility: 'NONE' }
+    const inUk = { ...other, country: 'UK' }
+    expect(canViewWorkItem(swedish, inUk)).toBe(false)
+    expect(canViewWorkItem(swedish, { ...other, country: 'SE' })).toBe(true)
+    // No country given: not held to the rule.
+    expect(canViewWorkItem(swedish, other)).toBe(true)
+    expect(canViewWorkItem(swedish, { ...owner, country: 'UK' })).toBe(true)
+    expect(canViewWorkItem(swedish, { ...admin, country: 'UK' })).toBe(true)
+    expect(canViewWorkItem(swedish, inUk, undefined, { team: false, country: true })).toBe(true)
+    // Remote within Sweden is still Sweden's; remote anywhere is everyone's.
+    expect(canViewWorkItem({ ...swedish, remoteEligibility: 'COUNTRY' }, inUk)).toBe(false)
+    expect(canViewWorkItem({ ...swedish, remoteEligibility: 'GLOBAL' }, inUk)).toBe(true)
+    const task = { type: 'TASK', status: 'open', creatorId: 2, assigneeId: null, ...anywhere }
+    expect(canViewWorkItem(task, inUk, swedish)).toBe(false)
+    expect(isOutsideCountry(swedish, 'UK')).toBe(true)
+    expect(isOutsideCountry(swedish, null)).toBe(false)
+  })
+
   it('a task follows its parent project, or is admin-only without one', () => {
-    const task = { type: 'TASK', status: 'open', creatorId: 2, assigneeId: null }
+    const task = { type: 'TASK', status: 'open', creatorId: 2, assigneeId: null, ...anywhere }
     expect(canViewWorkItem(task, other, project)).toBe(true)
     expect(canViewWorkItem(task, other, null)).toBe(false)
     expect(canViewWorkItem(task, admin)).toBe(true)
   })
 
   it('open unclaimed quick tasks are visible to approved volunteers only; claimed ones to participants', () => {
-    const open = { type: 'QUICK_TASK', status: 'open', creatorId: 3, assigneeId: null }
+    const open = { type: 'QUICK_TASK', status: 'open', creatorId: 3, assigneeId: null, ...anywhere }
     expect(canViewWorkItem(open, other)).toBe(true)
     expect(canViewWorkItem(open, pending)).toBe(false)
     expect(canViewWorkItem(open, null)).toBe(false)
@@ -60,7 +84,7 @@ describe('canViewWorkItem', () => {
   })
 
   it('unknown types are admin-only', () => {
-    const weird = { type: 'OTHER', status: 'x', creatorId: null, assigneeId: null }
+    const weird = { type: 'OTHER', status: 'x', creatorId: null, assigneeId: null, ...anywhere }
     expect(canViewWorkItem(weird, admin)).toBe(true)
     expect(canViewWorkItem(weird, other)).toBe(false)
   })
@@ -75,14 +99,20 @@ describe('canPostComment', () => {
     expect(canPostComment(project, other, { isAcceptedHelper: true })).toBe(true)
   })
   it('task: assignee, project owner or accepted helper', () => {
-    const task = { type: 'TASK', status: 'open', creatorId: 3, assigneeId: 4 }
+    const task = { type: 'TASK', status: 'open', creatorId: 3, assigneeId: 4, ...anywhere }
     expect(canPostComment(task, other)).toBe(true)
     expect(canPostComment(task, owner, { parent: project })).toBe(true)
     expect(canPostComment(task, creator)).toBe(false)
     expect(canPostComment(task, creator, { isAcceptedHelper: true })).toBe(true)
   })
   it('quick task: assignee only; unknown types never', () => {
-    const qt = { type: 'QUICK_TASK', status: 'in_progress', creatorId: 3, assigneeId: 4 }
+    const qt = {
+      type: 'QUICK_TASK',
+      status: 'in_progress',
+      creatorId: 3,
+      assigneeId: 4,
+      ...anywhere,
+    }
     expect(canPostComment(qt, other)).toBe(true)
     expect(canPostComment(qt, creator)).toBe(false)
     expect(canPostComment({ ...qt, type: 'OTHER' }, other)).toBe(false)
@@ -113,6 +143,46 @@ describe('resolveTeamPrivy', () => {
     const member = await createVolunteer()
     await prisma.teamMembership.create({ data: { teamId: team.id, volunteerId: member.id } })
     expect(await resolveTeamPrivy(team.id, proj.id, member.id)).toBe(true)
+  })
+})
+
+describe('resolveProjectPrivy and canSeeProjectScope', () => {
+  it('exempt from the country rule: anyone who applied, was added, holds a task, or is in the team', async () => {
+    const owner = await createVolunteer({ country: 'SE' })
+    const outsider = await createVolunteer({ country: 'UK' })
+    const proj = await createProject({ country: 'SE', assigneeId: owner.id })
+    const viewer = { id: outsider.id, isAdmin: false, country: 'UK' }
+    expect(await resolveProjectPrivy(proj, viewer)).toEqual({ team: false, country: false })
+    expect(await canSeeProjectScope(proj, viewer)).toBe(false)
+    expect(await canSeeProjectScope(proj, { ...viewer, country: 'SE' })).toBe(true)
+    expect(await canSeeProjectScope(proj, { ...viewer, isAdmin: true })).toBe(true)
+    expect(await canSeeProjectScope(proj, { id: owner.id, isAdmin: false, country: 'UK' })).toBe(
+      true,
+    )
+
+    await prisma.workItemInterest.create({
+      data: { workItemId: proj.id, volunteerId: outsider.id, interestType: 'help' },
+    })
+    expect(await canSeeProjectScope(proj, viewer)).toBe(true)
+
+    const tasked = await createVolunteer({ country: 'UK' })
+    await createTask(proj.id, { assigneeId: tasked.id })
+    expect(await canSeeProjectScope(proj, { id: tasked.id, isAdmin: false, country: 'UK' })).toBe(
+      true,
+    )
+
+    const team = await createTeam()
+    const teamProj = await createProject({ country: 'SE', teamId: team.id })
+    const member = await createVolunteer({ country: 'UK' })
+    const memberView = { id: member.id, isAdmin: false, country: 'UK' }
+    expect(await canSeeProjectScope(teamProj, memberView)).toBe(false)
+    await prisma.teamMembership.create({ data: { teamId: team.id, volunteerId: member.id } })
+    expect(await resolveProjectPrivy(teamProj, memberView)).toEqual({ team: true, country: true })
+    expect(await canSeeProjectScope(teamProj, memberView)).toBe(true)
+    // In the right country but not in the team.
+    expect(
+      await canSeeProjectScope(teamProj, { id: outsider.id, isAdmin: false, country: 'SE' }),
+    ).toBe(false)
   })
 })
 

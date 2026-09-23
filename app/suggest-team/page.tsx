@@ -1,19 +1,14 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRequireAuth } from '@/lib/hooks/auth'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import { formatDate } from '@/lib/format-date'
-
-const STATUS_LABELS: Record<string, string> = {
-  pending: 'Pending Review',
-  accepted: 'Accepted',
-  on_hold: 'Under Review',
-  declined: 'Declined',
-}
+import { SUGGESTION_STATUS_LABELS } from '@/lib/status-labels'
 
 const STATUS_CLASSES: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
@@ -60,9 +55,13 @@ export default function SuggestTeamPage() {
   return (
     <main className="container py-5 pb-15">
       <h1>Suggest a Team</h1>
-      <p className="text-text-light mb-6">
+      <p className="text-text-light mb-2">
         Don&apos;t see a team for what you&apos;re working on? Suggest one and an admin will review
         it.
+      </p>
+      <p className="text-text-light mb-6">
+        A team is for a group that collaborates on a kind of project, such as a country, a region or
+        a function. For a one-off goal, <Link href="/suggest">propose a project</Link> instead.
       </p>
 
       <div className="max-w-xl">
@@ -126,7 +125,7 @@ export default function SuggestTeamPage() {
                   <span
                     className={`text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap ${STATUS_CLASSES[s.status] ?? ''}`}
                   >
-                    {STATUS_LABELS[s.status] ?? s.status}
+                    {SUGGESTION_STATUS_LABELS[s.status] ?? s.status}
                   </span>
                 </article>
               ))}

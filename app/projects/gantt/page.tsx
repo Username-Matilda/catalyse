@@ -3,13 +3,14 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useRequireApproved } from '@/lib/hooks/auth'
+import { useRequireConfirmed } from '@/lib/hooks/auth'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import Button from '@/components/Button'
 import GanttChart from '@/components/gantt/GanttChart'
 import type { GanttRow as GanttRowData } from '@/components/gantt/types'
 import { ProjectStatus } from '@/generated/prisma/enums'
+import PageLoading from '@/components/PageLoading'
 
 const STATUS_FILTERS: { key: string; label: string }[] = [
   { key: ProjectStatus.ready, label: 'Ready' },
@@ -21,7 +22,7 @@ const STATUS_FILTERS: { key: string; label: string }[] = [
 const DEFAULT_STATUSES = [ProjectStatus.ready, ProjectStatus.in_progress, ProjectStatus.on_hold]
 
 export default function RoadmapPage() {
-  const { user, loading } = useRequireApproved()
+  const { user, loading } = useRequireConfirmed()
   const showToast = useToast()
   const queryClient = useQueryClient()
   const [statuses, setStatuses] = useState<string[]>(DEFAULT_STATUSES)
@@ -67,7 +68,7 @@ export default function RoadmapPage() {
     )
   }, [data])
 
-  if (loading || !user) return null
+  if (loading || !user) return <PageLoading />
 
   function toggleStatus(key: string) {
     setStatuses((cur) => (cur.includes(key) ? cur.filter((s) => s !== key) : [...cur, key]))
@@ -81,6 +82,10 @@ export default function RoadmapPage() {
           ← All projects
         </Link>
       </div>
+      <p className="text-text-light mb-4">
+        Each bar is a project, placed by its planned dates; the number after a name is how many
+        tasks it has. Click a bar for details.
+      </p>
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <span className="text-text-light text-sm">Show</span>
@@ -109,7 +114,9 @@ export default function RoadmapPage() {
           edges={data!.dependencies}
           rangeStart={new Date(data!.scopeStart)}
           rangeEnd={new Date(data!.scopeEnd)}
-          editable
+          // The server lets only a project's manager move it; across the whole roadmap that
+          // is reliably true only for admins.
+          editable={Boolean(user.isAdmin)}
           onReschedule={(patch) =>
             reschedule.mutate({
               items: [
@@ -128,8 +135,14 @@ export default function RoadmapPage() {
       )}
 
       <p className="text-text-light mt-2 text-xs">
-        Each bar spans a project&apos;s tasks (or its set duration). Drag to shift a project; drag
-        the dot onto another project to say &ldquo;this one comes after that one&rdquo;.
+        Each bar spans a project&apos;s tasks (or its set duration).
+        {user.isAdmin && (
+          <>
+            {' '}
+            Drag to shift a project; drag the dot onto another project to say &ldquo;this one comes
+            after that one&rdquo;.
+          </>
+        )}
       </p>
     </main>
   )

@@ -124,7 +124,10 @@ describe('team management', () => {
         await prisma.notification.findFirst({
           where: { volunteerId: vol.id, type: 'team_join_request_reviewed' },
         }),
-      ).toMatchObject({ title: expect.stringContaining("You're in") }),
+      ).toMatchObject({
+        title: `Approved: you've joined ${team.name}`,
+        link: `/teams/${team.id}`,
+      }),
     )
     await expect(c.teams.apply({ id: team.id })).rejects.toMatchObject({
       message: 'Already a member of this team',
@@ -145,9 +148,12 @@ describe('team management', () => {
     await vi.waitFor(async () =>
       expect(
         await prisma.notification.findFirst({
-          where: { volunteerId: vol.id, title: { contains: 'declined' } },
+          where: { volunteerId: vol.id, title: { startsWith: 'Declined' } },
         }),
-      ).not.toBeNull(),
+      ).toMatchObject({
+        title: `Declined: your request to join ${lonely.name}`,
+        link: `/teams/${lonely.id}`,
+      }),
     )
   })
 

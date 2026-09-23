@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { screen, fireEvent, cleanup } from '@testing-library/react'
+import { screen, fireEvent, cleanup, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { prisma } from '@/lib/prisma'
 import {
@@ -12,6 +12,7 @@ import {
 } from '@/test/factories'
 import { renderApp } from '@/test/render'
 import { navigation } from '@/test/next-navigation'
+import { emails } from '@/test/fakes/email'
 import VolunteersPage from './page'
 import VolunteerDetailPage from './[id]/page'
 
@@ -74,6 +75,7 @@ describe('volunteer profile', () => {
     const skill = await createSkill()
     const vol = await createVolunteer({
       name: 'Profiled',
+      email: 'profiled@example.org',
       location: 'Leeds',
       localGroup: 'North',
       otherSkills: 'juggling',
@@ -106,11 +108,12 @@ describe('volunteer profile', () => {
       as: me,
     })
     await screen.findByRole('heading', { name: 'Profiled' })
-    expect(screen.getByText('Leeds · North')).toBeInTheDocument()
+    expect(screen.getByText('📍 Leeds · North')).toBeInTheDocument()
     expect(screen.getByText(`${skill.name} ✓`)).toBeInTheDocument()
     expect(screen.getByText('juggling')).toBeInTheDocument()
     expect(screen.getByText('3 hours/week')).toBeInTheDocument()
-    expect(screen.getByText(`Email: ${vol.email}`)).toBeInTheDocument()
+    // The login address is never on a profile, even for an admin.
+    expect(screen.queryByText(/profiled@example\.org/)).toBeNull()
     expect(screen.getByText('Discord: d#1')).toBeInTheDocument()
     expect(screen.getByText('evenings')).toBeInTheDocument()
     expect(screen.getByText('Verified Skills')).toBeInTheDocument()
@@ -120,19 +123,62 @@ describe('volunteer profile', () => {
     expect(screen.getByText('Proposer')).toBeInTheDocument()
   })
 
+  it('offers a message to a contactable volunteer, but not to themselves', async () => {
+    const me = await createVolunteer({ name: 'Sender' })
+    const vol = await createVolunteer({
+      name: 'Reachable',
+      email: 'reachable@example.org',
+      consentShareContactInfoWithProjectOwner: false,
+    })
+    await renderApp(<VolunteerDetailPage params={Promise.resolve({ id: String(vol.id) })} />, {
+      as: me,
+    })
+    await screen.findByRole('heading', { name: 'Reachable' })
+    expect(screen.getByText('Contact via message')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Message' }))
+    const dialog = screen.getByRole('dialog', { name: 'Message Reachable' })
+    expect(dialog).toHaveTextContent('Reachable will get this by email and in their notifications.')
+    await userEvent.type(within(dialog).getByLabelText('Subject'), 'Hello')
+    await userEvent.type(within(dialog).getByLabelText('Message'), 'Can we talk?')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Send Message' }))
+    await screen.findByText(/Message sent!/)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    await waitFor(() =>
+      expect(emails.lastTo('reachable@example.org')?.html).toContain('Can we talk?'),
+    )
+    expect(
+      await prisma.message.findFirstOrThrow({ where: { toVolunteerId: vol.id } }),
+    ).toMatchObject({ fromVolunteerId: me.id, subject: 'Hello', relatedWorkItemId: null })
+
+    // Cancel closes without sending.
+    await userEvent.click(screen.getByRole('button', { name: 'Message' }))
+    await userEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }),
+    )
+    expect(screen.queryByRole('dialog')).toBeNull()
+    cleanup()
+
+    await renderApp(<VolunteerDetailPage params={Promise.resolve({ id: String(vol.id) })} />, {
+      as: vol,
+    })
+    await screen.findByRole('heading', { name: 'Reachable' })
+    expect(screen.queryByRole('button', { name: 'Message' })).toBeNull()
+  })
+
   it('shows a minimal profile, and a not-found state', async () => {
     const me = await createVolunteer()
     const bare = await createVolunteer({
       name: 'Bare',
       location: null,
       availabilityHoursPerWeek: null,
+      consentContactableByProjectOwners: false,
       consentShareContactInfoWithProjectOwner: false,
     })
     await renderApp(<VolunteerDetailPage params={Promise.resolve({ id: String(bare.id) })} />, {
       as: me,
     })
     await screen.findByRole('heading', { name: 'Bare' })
-    expect(screen.queryByText(/Email:/)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Message' })).toBeNull()
     expect(screen.queryByText('Verified Skills')).toBeNull()
     cleanup()
     await renderApp(<VolunteerDetailPage params={Promise.resolve({ id: '999999' })} />, { as: me })

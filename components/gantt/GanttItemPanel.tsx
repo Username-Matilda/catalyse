@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Button from '@/components/Button'
+import Linkify from '@/components/Linkify'
 import Tooltip from '@/components/Tooltip'
 import { formatDateShort, toDateInputValue, fromDateInputValue } from '@/lib/format-date'
 import { barFill, barTone, TONE_LABELS } from './palette'
@@ -147,7 +148,7 @@ export default function GanttItemPanel({
             Milestone
           </span>
         )}
-        {p.isAnchor && (
+        {canManage && p.isAnchor && (
           <Tooltip content={ANCHOR_HINT}>
             <span
               className="rounded-full px-2 py-0.5"
@@ -157,7 +158,7 @@ export default function GanttItemPanel({
             </span>
           </Tooltip>
         )}
-        {p.isCritical && (
+        {canManage && p.isCritical && (
           <Tooltip content={CRITICAL_HINT}>
             <span
               className="rounded-full px-2 py-0.5"
@@ -177,7 +178,11 @@ export default function GanttItemPanel({
         )}
       </div>
 
-      {description && <p className="mb-3 text-sm whitespace-pre-wrap">{description}</p>}
+      {description && (
+        <p className="mb-3 text-sm whitespace-pre-wrap">
+          <Linkify text={description} />
+        </p>
+      )}
 
       {/* Derived facts only. Anything editable is stated once, by its own control below — the
           panel should never print a value and then offer the field for it half a screen away. */}
@@ -199,7 +204,9 @@ export default function GanttItemPanel({
             "On plan". */}
         {p.baseline && (
           <Fact label="Variance">
-            <span className={p.startVarianceDays ? 'text-warning' : undefined}>{variance}</span>
+            <span className={p.startVarianceDays ? 'text-warning-text' : undefined}>
+              {variance}
+            </span>
           </Fact>
         )}
         {p.actual && (
@@ -210,7 +217,7 @@ export default function GanttItemPanel({
         )}
       </dl>
 
-      {!p.baseline && (
+      {canManage && !p.baseline && (
         <p className="text-text-light mt-2 mb-0 text-xs">No baseline set, so no variance yet.</p>
       )}
 

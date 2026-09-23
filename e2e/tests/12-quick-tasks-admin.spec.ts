@@ -56,15 +56,13 @@ async function submitQuickTask(
     timeout: 10_000,
   })
 
-  const banner = volunteerPage.getByRole('region', { name: 'Quick Tasks' })
+  const banner = volunteerPage.getByRole('region', { name: 'Your tasks' })
   const taskCard = banner.getByRole('article').filter({ hasText: taskTitle })
   await expect(taskCard).toBeVisible({ timeout: 10_000 })
   await taskCard.getByText(taskTitle, { exact: true }).click()
-  await expect(taskCard.getByRole('button', { name: 'Mark as Complete' })).toBeVisible({
-    timeout: 10_000,
-  })
-  await taskCard.getByRole('button', { name: 'Mark as Complete' }).click()
-  await expect(getAlert(volunteerPage)).toContainText('Task submitted for review!', {
+  await taskCard.getByRole('button', { name: 'Submit for review' }).click()
+  await volunteerPage.getByRole('dialog').getByRole('button', { name: 'Submit for review' }).click()
+  await expect(getAlert(volunteerPage)).toContainText('Submitted. An admin will review it', {
     timeout: 10_000,
   })
 }
@@ -94,7 +92,7 @@ test.describe('Quick Tasks (admin)', () => {
     // Task appears in the list with status 'open'
     const taskCard = adminPage.getByRole('article').filter({ hasText: taskTitle })
     await expect(taskCard).toBeVisible({ timeout: 10_000 })
-    await expect(taskCard.getByRole('status')).toContainText('open')
+    await expect(taskCard.getByRole('status')).toContainText('Open')
   })
 
   test('Admin assigns a quick task to a volunteer; task status becomes assigned and volunteer receives a notification', async ({
@@ -123,12 +121,12 @@ test.describe('Quick Tasks (admin)', () => {
     await taskCard.getByRole('button', { name: 'Assign', exact: true }).click()
 
     await expect(getAlert(adminPage)).toContainText('Task assigned!', { timeout: 10_000 })
-    await expect(taskCard.getByRole('status')).toContainText('in_progress', { timeout: 10_000 })
+    await expect(taskCard.getByRole('status')).toContainText('In progress', { timeout: 10_000 })
 
     // Volunteer receives an assignment notification
     await goToDashboardNotifications(baseUrl, volunteer.page)
     await expect(
-      volunteer.page.locator('strong').filter({ hasText: "You've been assigned a Quick Task" }),
+      volunteer.page.locator('strong').filter({ hasText: 'Assigned: Quick Task' }),
     ).toBeVisible({ timeout: 10_000 })
   })
 
@@ -177,7 +175,7 @@ test.describe('Quick Tasks (admin)', () => {
 
     // Assignee sees admin's comment on the dashboard and replies
     await volunteer.page.goto(`${baseUrl}/dashboard`)
-    const volBanner = volunteer.page.getByRole('region', { name: 'Quick Tasks' })
+    const volBanner = volunteer.page.getByRole('region', { name: 'Your tasks' })
     const volCard = volBanner.getByRole('article').filter({ hasText: taskTitle })
     await expect(volCard).toBeVisible({ timeout: 10_000 })
     await volCard.getByText(taskTitle, { exact: true }).click()
@@ -210,10 +208,10 @@ test.describe('Quick Tasks (admin)', () => {
     })
 
     // Quick task banner shows the assigned task with its details
-    const banner = volunteer.page.getByRole('region', { name: 'Quick Tasks' })
+    const banner = volunteer.page.getByRole('region', { name: 'Your tasks' })
     const taskCard = banner.getByRole('article').filter({ hasText: taskTitle })
     await expect(taskCard).toBeVisible({ timeout: 10_000 })
-    await expect(taskCard.getByRole('status')).toContainText('In Progress')
+    await expect(taskCard.getByRole('status')).toContainText('In progress')
   })
 
   test('Volunteer submits a completed quick task; task status becomes submitted and admin receives a notification', async ({
@@ -231,15 +229,16 @@ test.describe('Quick Tasks (admin)', () => {
       timeout: 10_000,
     })
 
-    const banner = volunteer.page.getByRole('region', { name: 'Quick Tasks' })
+    const banner = volunteer.page.getByRole('region', { name: 'Your tasks' })
     const taskCard = banner.getByRole('article').filter({ hasText: taskTitle })
     await expect(taskCard).toBeVisible({ timeout: 10_000 })
     await taskCard.getByText(taskTitle, { exact: true }).click()
-    await expect(taskCard.getByRole('button', { name: 'Mark as Complete' })).toBeVisible({
-      timeout: 10_000,
-    })
-    await taskCard.getByRole('button', { name: 'Mark as Complete' }).click()
-    await expect(getAlert(volunteer.page)).toContainText('Task submitted for review!', {
+    await taskCard.getByRole('button', { name: 'Submit for review' }).click()
+    await volunteer.page
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Submit for review' })
+      .click()
+    await expect(getAlert(volunteer.page)).toContainText('Submitted. An admin will review it', {
       timeout: 10_000,
     })
 
@@ -249,7 +248,7 @@ test.describe('Quick Tasks (admin)', () => {
       timeout: 10_000,
     })
     const adminTaskCard = adminPage.getByRole('article').filter({ hasText: taskTitle })
-    await expect(adminTaskCard.getByRole('status')).toContainText('under_review', {
+    await expect(adminTaskCard.getByRole('status')).toContainText('Submitted for review', {
       timeout: 10_000,
     })
 
@@ -293,12 +292,12 @@ test.describe('Quick Tasks (admin)', () => {
     await expect(getAlert(adminPage)).toContainText('Task reviewed!', { timeout: 10_000 })
 
     // Task status becomes 'completed'
-    await expect(taskCard.getByRole('status')).toContainText('completed', { timeout: 10_000 })
+    await expect(taskCard.getByRole('status')).toContainText('Done', { timeout: 10_000 })
 
     // Volunteer receives a feedback notification
     await goToDashboardNotifications(baseUrl, volunteer.page)
     await expect(
-      volunteer.page.locator('strong').filter({ hasText: 'Your Quick Task was reviewed' }),
+      volunteer.page.locator('strong').filter({ hasText: 'Reviewed: your Quick Task' }),
     ).toBeVisible({ timeout: 10_000 })
 
     // Skill endorsement is auto-created; navigate to admin volunteer detail via the task card link
@@ -344,12 +343,12 @@ test.describe('Quick Tasks (admin)', () => {
     await expect(getAlert(adminPage)).toContainText('Task reviewed!', { timeout: 10_000 })
 
     // Task status becomes 'completed'
-    await expect(taskCard.getByRole('status')).toContainText('completed', { timeout: 10_000 })
+    await expect(taskCard.getByRole('status')).toContainText('Done', { timeout: 10_000 })
 
     // Volunteer receives a feedback notification
     await goToDashboardNotifications(baseUrl, volunteer.page)
     await expect(
-      volunteer.page.locator('strong').filter({ hasText: 'Your Quick Task was reviewed' }),
+      volunteer.page.locator('strong').filter({ hasText: 'Reviewed: your Quick Task' }),
     ).toBeVisible({ timeout: 10_000 })
 
     // No skill endorsement created; navigate to admin volunteer detail to confirm
@@ -381,8 +380,8 @@ test.describe('Quick Tasks (admin)', () => {
       timeout: 10_000,
     })
 
-    adminPage.once('dialog', (dialog) => dialog.accept())
     await taskCard.getByRole('button', { name: 'Delete', exact: true }).click()
+    await adminPage.getByRole('dialog').getByRole('button', { name: 'Delete task' }).click()
 
     await expect(getAlert(adminPage)).toContainText('Task deleted', { timeout: 10_000 })
     await expect(taskCard).not.toBeVisible({ timeout: 10_000 })

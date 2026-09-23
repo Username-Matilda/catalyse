@@ -1,16 +1,18 @@
 import { describe, it, expect } from 'vitest'
-import { screen, waitFor, fireEvent, cleanup } from '@testing-library/react'
+import { screen, waitFor, fireEvent, cleanup, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { prisma } from '@/lib/prisma'
 import {
   createVolunteer,
   createSuperAdmin,
+  createAdmin,
   createProject,
   createSkill,
   createTeam,
 } from '@/test/factories'
 import { renderApp } from '@/test/render'
 import { navigation } from '@/test/next-navigation'
+import { emails } from '@/test/fakes/email'
 import ProjectsPage from './page'
 
 describe('projects directory', () => {
@@ -93,7 +95,7 @@ describe('projects directory', () => {
     await waitFor(() => expect(screen.getByText('No projects found')).toBeInTheDocument())
 
     await userEvent.click(screen.getByRole('button', { name: 'Status filter' }))
-    await userEvent.click(screen.getByRole('option', { name: 'All Active' }))
+    await userEvent.click(screen.getByRole('option', { name: 'All' }))
     await userEvent.click(screen.getByRole('button', { name: 'Needs filter' }))
     await userEvent.click(screen.getByRole('option', { name: 'Looking for People' }))
     await screen.findByRole('link', { name: 'Urgent UK' })
@@ -122,6 +124,29 @@ describe('projects directory', () => {
     expect(screen.getByLabelText('Search')).toHaveValue('')
   })
 
+  it('leaves the grouped overview for one ordered list when a sort is chosen', async () => {
+    const me = await createVolunteer()
+    const owner = await createVolunteer()
+    const made = (title: string, day: number) =>
+      createProject({
+        title,
+        assigneeId: owner.id,
+        status: 'in_progress',
+        isSeekingHelp: false,
+        createdAt: new Date(Date.UTC(2026, 0, day)),
+      })
+    await made('Sorted older', 1)
+    await made('Sorted newer', 2)
+    await renderApp(<ProjectsPage />, { as: me, url: '/projects?q=Sorted' })
+    await screen.findByRole('link', { name: 'Sorted older' })
+    expect(screen.getByText('In Progress: 2 projects')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Sort filter' }))
+    await userEvent.click(screen.getByRole('option', { name: 'Newest first' }))
+    await waitFor(() => expect(screen.queryByText('In Progress: 2 projects')).toBeNull())
+    const links = screen.getAllByRole('link', { name: /^Sorted/ }).map((l) => l.textContent)
+    expect(links).toEqual(['Sorted newer', 'Sorted older'])
+  })
+
   it('shows admin alerts, the all-teams filter, and the email confirmation error', async () => {
     const admin = await createSuperAdmin()
     await createProject({ status: 'pending_review' })
@@ -144,13 +169,52 @@ describe('projects directory', () => {
     cleanup()
     const unconfirmed = await createVolunteer({ emailConfirmed: false })
     await renderApp(<ProjectsPage />, { as: unconfirmed, url: '/projects?status=ready' })
-    await screen.findByText("Couldn't load projects")
-    expect(screen.getByRole('link', { name: 'Confirm your email' })).toBeInTheDocument()
+    // An unconfirmed email is a step to take, not an error.
+    await screen.findByRole('heading', { name: 'Confirm your email to browse projects' })
+    expect(screen.queryByText("Couldn't load projects")).toBeNull()
+    // No search or filters, templates or roadmap while there is nothing to search.
+    expect(screen.queryByLabelText('Search')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Status filter' })).toBeNull()
+    expect(screen.queryByText('Project templates')).toBeNull()
+    expect(screen.queryByRole('link', { name: /Roadmap/ })).toBeNull()
+    expect(screen.getByText(`We sent a link to ${unconfirmed.email}.`)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Change email' })).toHaveAttribute('href', '/settings')
+    await userEvent.click(screen.getByRole('button', { name: 'Send it again' }))
+    await screen.findByText(/Email sent! You can request another in \d+s\./)
+    expect(screen.getByRole('button', { name: 'Send it again' })).toBeDisabled()
+    await waitFor(() => expect(emails.lastTo(unconfirmed.email!)).toBeDefined())
   })
 
-  it('keeps unapproved volunteers out', async () => {
+  it('says once, dismissibly, that an admin page turned the viewer away', async () => {
+    const me = await createVolunteer()
+    await renderApp(<ProjectsPage />, { as: me, url: '/projects?notice=no-access' })
+    const notice = await screen.findByText('That page is for admins.')
+    await waitFor(() => expect(window.location.search).toBe(''))
+    await userEvent.click(
+      within(notice.closest('[role=status]') as HTMLElement).getByLabelText('Dismiss'),
+    )
+    expect(screen.queryByText('That page is for admins.')).toBeNull()
+  })
+
+  it('says a super-admin page is for super admins, and only they are offered its link', async () => {
+    const admin = await createAdmin()
+    await createVolunteer({ approvalStatus: 'pending' })
+    await renderApp(<ProjectsPage />, { as: admin, url: '/projects?notice=super-admin-only' })
+    await screen.findByText('That page is for super admins.')
+    await waitFor(() => expect(window.location.search).toBe(''))
+    expect(screen.queryByText('That page is for admins.')).toBeNull()
+    // A regular admin is not offered the applications page they cannot open.
+    expect(screen.queryByRole('link', { name: /Review applications/ })).toBeNull()
+    cleanup()
+    await renderApp(<ProjectsPage />, { as: await createSuperAdmin(), url: '/projects' })
+    expect(await screen.findByRole('link', { name: /Review applications/ })).toBeInTheDocument()
+  })
+
+  it('keeps unapproved volunteers out, showing a loading state until they leave', async () => {
     const pending = await createVolunteer({ approvalStatus: 'pending' })
     await renderApp(<ProjectsPage />, { as: pending, url: '/projects' })
     await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith('/dashboard'))
+    expect(screen.getByRole('status')).toHaveTextContent('Loading…')
+    expect(screen.queryByRole('heading', { name: 'Projects' })).toBeNull()
   })
 })

@@ -14,7 +14,6 @@ import AdminCreateProjectPage from './admin/projects/new/page'
 import ProjectImportPage from './projects/[id]/import/page'
 import sitemap from './sitemap'
 import robots from './robots'
-import { CookieConsentProvider } from '@/lib/cookie-consent-context'
 
 describe('static pages', () => {
   it('error page logs and offers a retry', async () => {
@@ -49,29 +48,18 @@ describe('editor host pages', () => {
   it('render nothing until signed in, then mount the editor', async () => {
     const me = await createVolunteer()
     const project = await createProject({ creatorId: me.id, status: 'draft', title: 'Hosted' })
-    await renderApp(
-      <CookieConsentProvider>
-        <EditProjectPage params={Promise.resolve({ id: String(project.id) })} />
-      </CookieConsentProvider>,
-      { as: me },
-    )
+    await renderApp(<EditProjectPage params={Promise.resolve({ id: String(project.id) })} />, {
+      as: me,
+    })
     await waitFor(() => expect(document.body.textContent).toContain('Edit Project'))
     expect(await screen.findByDisplayValue('Hosted')).toBeInTheDocument()
 
-    await renderApp(
-      <CookieConsentProvider>
-        <SuggestNewProjectPage />
-      </CookieConsentProvider>,
-      { as: me },
-    )
-    expect(await screen.findByRole('heading', { name: 'Suggest a Project' })).toBeInTheDocument()
+    await renderApp(<SuggestNewProjectPage />, { as: me })
+    expect(await screen.findByRole('heading', { name: 'Propose a project' })).toBeInTheDocument()
 
-    await renderApp(
-      <CookieConsentProvider>
-        <ProjectImportPage params={Promise.resolve({ id: String(project.id) })} />
-      </CookieConsentProvider>,
-      { as: me },
-    )
+    await renderApp(<ProjectImportPage params={Promise.resolve({ id: String(project.id) })} />, {
+      as: me,
+    })
     expect(await screen.findByRole('heading', { name: 'Export and import' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Back to project' })).toHaveAttribute(
       'href',
@@ -79,14 +67,9 @@ describe('editor host pages', () => {
     )
 
     const admin = await createAdmin()
-    await renderApp(
-      <CookieConsentProvider>
-        <AdminCreateProjectPage />
-      </CookieConsentProvider>,
-      { as: admin },
-    )
+    await renderApp(<AdminCreateProjectPage />, { as: admin })
     expect(await screen.findByRole('heading', { name: 'Org Projects' })).toBeInTheDocument()
-    await userEvent.click(screen.getAllByRole('button', { name: 'Delete' }).at(-1)!)
+    await userEvent.click(screen.getAllByRole('button', { name: 'Cancel' }).at(-1)!)
     await waitFor(() => expect(navigation.push).toHaveBeenCalledWith('/admin/projects'))
   })
 })

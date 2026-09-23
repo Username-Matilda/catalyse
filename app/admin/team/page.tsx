@@ -5,6 +5,7 @@ import { useRequireAdmin } from '@/lib/hooks/auth'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import Tabs from '@/components/Tabs'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import { formatDate } from '@/lib/format-date'
@@ -18,6 +19,7 @@ export default function AdminTeamPage() {
   const [showInviteDialog, setShowInviteDialog] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteSuccess, setInviteSuccess] = useState('')
+  const [revokeTarget, setRevokeTarget] = useState<{ id: number; name: string } | null>(null)
   const dialogRef = useRef<HTMLDivElement>(null)
 
   const { data: admins = [], isLoading: loadingAdmins } = useQuery({
@@ -100,11 +102,6 @@ export default function AdminTeamPage() {
     revokeInviteMutation.mutate({ id })
   }
 
-  function revokeAdmin(id: number, name: string) {
-    if (!confirm(`Revoke admin access for ${name}?`)) return
-    revokeAdminMutation.mutate({ id })
-  }
-
   if (loading || !user) return null
 
   return (
@@ -171,7 +168,7 @@ export default function AdminTeamPage() {
                             <Button
                               variant="danger"
                               size="sm"
-                              onClick={() => revokeAdmin(a.id, a.name)}
+                              onClick={() => setRevokeTarget({ id: a.id, name: a.name })}
                             >
                               Revoke Access
                             </Button>
@@ -271,6 +268,24 @@ export default function AdminTeamPage() {
           </div>
         )}
       </main>
+
+      {revokeTarget && (
+        <ConfirmDialog
+          id="confirm-revoke-admin"
+          isOpen
+          title={`Revoke admin access for ${revokeTarget.name}?`}
+          body="They keep their volunteer account but lose every admin page and action."
+          confirmLabel="Revoke access"
+          busyLabel="Revoking…"
+          danger
+          busy={revokeAdminMutation.isPending}
+          onConfirm={() => {
+            revokeAdminMutation.mutate({ id: revokeTarget.id })
+            setRevokeTarget(null)
+          }}
+          onClose={() => setRevokeTarget(null)}
+        />
+      )}
     </>
   )
 }

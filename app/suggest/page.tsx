@@ -5,7 +5,9 @@ import { useRequireAuth } from '@/lib/hooks/auth'
 import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import Button from '@/components/Button'
+import PageLoading from '@/components/PageLoading'
 import { orpc } from '@/lib/orpc'
+import { MAX_VOLUNTEER_DRAFTS } from '@/lib/project-status'
 
 export default function SuggestPage() {
   const router = useRouter()
@@ -22,11 +24,14 @@ export default function SuggestPage() {
     if (!draftsPending && drafts.length === 0) router.replace('/suggest/new')
   }, [draftsPending, drafts.length, router])
 
-  if (loading || !user || draftsPending || drafts.length === 0) return null
+  if (loading || !user || draftsPending || drafts.length === 0) return <PageLoading />
+
+  // Admins are not held to the draft limit; see projects.create.
+  const atDraftLimit = !user.isAdmin && drafts.length >= MAX_VOLUNTEER_DRAFTS
 
   return (
     <main className="container py-5 pb-15">
-      <h1 role="heading">Suggest a Project</h1>
+      <h1 role="heading">Propose a project</h1>
       <p>
         Have an idea for something PauseAI should do? Propose it here! Our team will review it and,
         if approved, it&apos;ll be visible to all volunteers.
@@ -49,7 +54,13 @@ export default function SuggestPage() {
         </ul>
       </div>
 
-      <Button href="/suggest/new">New Project</Button>
+      {atDraftLimit ? (
+        <p className="text-text-light">
+          You have {drafts.length} drafts. Finish or delete one first.
+        </p>
+      ) : (
+        <Button href="/suggest/new">Propose a project</Button>
+      )}
     </main>
   )
 }

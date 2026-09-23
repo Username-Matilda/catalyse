@@ -12,7 +12,7 @@ import { APPLICATION_ANONYMISATION_MS } from '@/lib/applications'
 import { ApplicationActionSchema } from '@/lib/schemas'
 import { superAdminProcedure } from '../../procedures'
 import { ApprovalStatus } from '@/generated/prisma/enums'
-import { clearNotifications } from '@/lib/notify'
+import { clearNotifications, createNotification } from '@/lib/notify'
 
 export const adminApplicationsRouter = {
   list: superAdminProcedure
@@ -226,6 +226,7 @@ export const adminApplicationsRouter = {
           id: true,
           name: true,
           email: true,
+          emailConfirmed: true,
           approvalStatus: true,
           applicationAdminNotes: true,
           applicationApplicantNotes: true,
@@ -361,6 +362,16 @@ export const adminApplicationsRouter = {
             applicantNotes: resolvedApplicantNotes,
           }).catch((e) => console.error('[APPLICATIONS] Rejected email failed:', e))
         }
+      }
+
+      if (action === 'approve') {
+        await createNotification(
+          volunteer.id,
+          'application_approved',
+          'Approved: welcome to Catalyse',
+          'Next: confirm your email and pick a first task.',
+          volunteer.emailConfirmed ? '/projects' : '/verify-email',
+        )
       }
 
       await clearNotifications('new_volunteer_signup', input.id)

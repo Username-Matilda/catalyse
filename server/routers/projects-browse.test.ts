@@ -117,6 +117,37 @@ describe('projects.list', () => {
     ).toEqual([weak.id])
     expect((await clientAs(noSkills).projects.list(q)).projects).toHaveLength(1)
   })
+
+  it('orders by newest or most urgent when asked, seeking-first otherwise', async () => {
+    const me = await createVolunteer()
+    // Owned, so that only the seeking-help flag marks one as looking for people.
+    const assigneeId = (await createVolunteer()).id
+    const day = (n: number) => new Date(Date.UTC(2026, 0, n))
+    const oldUrgent = await createProject({
+      title: 'ordersort old urgent',
+      assigneeId,
+      urgency: 'high',
+      createdAt: day(1),
+    })
+    const newCalm = await createProject({
+      title: 'ordersort new calm',
+      assigneeId,
+      urgency: 'low',
+      createdAt: day(3),
+    })
+    const seeking = await createProject({
+      title: 'ordersort seeking',
+      assigneeId,
+      urgency: 'medium',
+      isSeekingHelp: true,
+      createdAt: day(2),
+    })
+    const order = async (sortBy?: string) =>
+      (await clientAs(me).projects.list({ search: 'ordersort', sortBy })).projects.map((p) => p.id)
+    expect(await order('created_at')).toEqual([newCalm.id, seeking.id, oldUrgent.id])
+    expect(await order('urgency')).toEqual([oldUrgent.id, seeking.id, newCalm.id])
+    expect(await order()).toEqual([seeking.id, oldUrgent.id, newCalm.id])
+  })
 })
 
 describe('projects.listGrouped', () => {
@@ -424,5 +455,30 @@ describe('projects.getById', () => {
     expect((await clientAs(await createAdmin()).projects.getById({ id: draft.id })).id).toBe(
       draft.id,
     )
+  })
+})
+
+describe('direct links', () => {
+  it('keeps a direct link to a project, its tasks or the roadmap closed to an unconfirmed email', async () => {
+    const project = await createProject({ title: 'Direct link' })
+    const task = await createTask(project.id)
+    const unconfirmed = clientAs(await createVolunteer({ emailConfirmed: false }))
+    const refused = { code: 'FORBIDDEN', message: /confirm your email/ }
+    await expect(unconfirmed.projects.getById({ id: project.id })).rejects.toMatchObject(refused)
+    await expect(unconfirmed.projects.listTasks({ projectId: project.id })).rejects.toMatchObject(
+      refused,
+    )
+    await expect(
+      unconfirmed.projects.getTask({ projectId: project.id, taskId: task.id }),
+    ).rejects.toMatchObject(refused)
+    await expect(unconfirmed.projects.ganttOverview({})).rejects.toMatchObject(refused)
+    await expect(
+      unconfirmed.projects.expressInterest({
+        projectId: project.id,
+        interestType: 'want_to_contribute',
+      }),
+    ).rejects.toMatchObject(refused)
+    const admin = clientAs(await createAdmin({ emailConfirmed: false }))
+    expect((await admin.projects.getById({ id: project.id })).id).toBe(project.id)
   })
 })

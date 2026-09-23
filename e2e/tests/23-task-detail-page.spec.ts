@@ -63,7 +63,7 @@ async function signupApprovedVolunteer(
     emailVerificationToken?: string
   }
   if (emailVerificationToken) await confirmVolunteerEmail(baseUrl, emailVerificationToken)
-  await approveVolunteer(baseUrl, id)
+  await approveVolunteer(baseUrl, id, token)
   return { id, token, name: person.name }
 }
 
@@ -82,7 +82,9 @@ test.describe('Task Detail Page', () => {
     ).toBeVisible({ timeout: 10_000 })
 
     await volunteer.page.getByRole('button', { name: 'Claim' }).click()
-    await expect(getAlert(volunteer.page)).toContainText('Task updated!', { timeout: 10_000 })
+    await expect(getAlert(volunteer.page)).toContainText('Task claimed. Post an update', {
+      timeout: 10_000,
+    })
     await expect(volunteer.page.getByText(`Assigned to ${volunteer.name}`)).toBeVisible({
       timeout: 10_000,
     })

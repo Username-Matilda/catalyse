@@ -12,12 +12,17 @@ import FilterDropdown from '@/components/FilterDropdown'
 import DescriptionTips from '@/components/DescriptionTips'
 import SkillPicker from '@/components/SkillPicker'
 import Modal from '@/components/ui/Modal'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { buildLocationOptions, type LocalGroupOption } from '@/lib/filter-options'
 import { useToast } from '@/lib/toast'
 import { toDateInputValue, fromDateInputValue } from '@/lib/format-date'
-import { useCookieConsent } from '@/lib/cookie-consent-context'
 import { orpc } from '@/lib/orpc'
 import type { AppRouter } from '@/server/router'
+
+// A new proposal starts saving itself once the title or the description has this much in it.
+const AUTOSAVE_MIN_TITLE = 3
+const AUTOSAVE_MIN_DESCRIPTION = 20
+const AUTOSAVE_DELAY_MS = 1500
 
 interface SelectedSkill {
   skillId: number
@@ -57,7 +62,6 @@ export default function ProjectEditor(props: ProjectEditorProps) {
   const toast = useToast()
   const queryClient = useQueryClient()
   const { user } = useRequireAuth()
-  const { bannerVisible } = useCookieConsent()
 
   // Which variant created this screen — only meaningful before a project id exists, to
   // pick the create endpoint and review-notice wording. Once an id exists (from the
@@ -66,12 +70,18 @@ export default function ProjectEditor(props: ProjectEditorProps) {
 
   const [projectId, setProjectId] = useState<number | undefined>(props.projectId)
   const [creatingDraft, setCreatingDraft] = useState(false)
+  const [autosaveError, setAutosaveError] = useState<string | null>(null)
+  const creation = useRef<Promise<number | null> | null>(null)
   const [permissionChecked, setPermissionChecked] = useState(false)
   const [canEdit, setCanEdit] = useState(true)
   const [initialized, setInitialized] = useState(false)
   const [showPublishModal, setShowPublishModal] = useState(false)
   const [showDeleteDraftModal, setShowDeleteDraftModal] = useState(false)
   const [showDeleteProjectModal, setShowDeleteProjectModal] = useState(false)
+  const [deleteTaskTarget, setDeleteTaskTarget] = useState<{
+    projectId: number
+    taskId: number
+  } | null>(null)
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [newTaskDescription, setNewTaskDescription] = useState('')
   const [taskDrafts, setTaskDrafts] = useState<
@@ -88,6 +98,8 @@ export default function ProjectEditor(props: ProjectEditorProps) {
   const [remoteEligibility, setRemoteEligibility] = useState<'NONE' | 'COUNTRY' | 'GLOBAL'>('NONE')
   const [duration, setDuration] = useState('')
   const [startDate, setStartDate] = useState('')
+  // Set by a Submit with no tasks; the error under Tasks shows until one is added.
+  const [submitWithoutTasks, setSubmitWithoutTasks] = useState(false)
   const [durationDays, setDurationDays] = useState('')
   const [collaborationLink, setCollaborationLink] = useState('')
   const [skills, setSkills] = useState<SelectedSkill[]>([])
@@ -106,6 +118,7 @@ export default function ProjectEditor(props: ProjectEditorProps) {
   })
 
   const isDraft = projectId === undefined ? true : projectData?.status === 'draft'
+  const taskCount = projectData?.tasks.length ?? 0
   // Org-proposed AND template-originated drafts both skip review and publish straight live —
   // see the self-publish gate in server/routers/projects.ts:publishDraft. A template-originated
   // draft can't exist before a project id does, so `initialVariant` never needs to cover it.
@@ -160,13 +173,26 @@ export default function ProjectEditor(props: ProjectEditorProps) {
   const volunteerCreateMutation = useMutation(orpc.projects.create.mutationOptions())
   const adminCreateMutation = useMutation(orpc.admin.projects.create.mutationOptions())
 
+  // The autosave line under the title: when the last save landed, or how to retry a failed one.
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
+  const [retrySave, setRetrySave] = useState<(() => void) | null>(null)
+  function saveSucceeded() {
+    setLastSavedAt(new Date())
+    setRetrySave(null)
+  }
+  function saveFailed<V>(mutate: (variables: V) => void, variables: V) {
+    setRetrySave(() => () => mutate(variables))
+  }
+
   const updateMutation = useMutation({
     ...orpc.projects.update.mutationOptions(),
     onSuccess: () => {
+      saveSucceeded()
       queryClient.invalidateQueries({ queryKey: orpc.projects.getById.key() })
     },
-    onError: (err: unknown) => {
+    onError: (err: unknown, variables) => {
       toast(err instanceof Error ? err.message : 'Failed to save changes', 'error')
+      saveFailed(updateMutation.mutate, variables)
     },
   })
 
@@ -181,15 +207,12 @@ export default function ProjectEditor(props: ProjectEditorProps) {
 
   const publishMutation = useMutation({
     ...orpc.projects.publishDraft.mutationOptions(),
-    // Uses `variables.id` rather than the closed-over `projectId` state — when this
-    // mutation follows a same-click lazy create, the id wasn't known yet when this render's
-    // callback closures were captured.
     onSuccess: (_data, variables) => {
       toast(isOrgDraft ? 'Project published!' : 'Draft submitted for review!', 'success')
       setShowPublishModal(false)
       queryClient.invalidateQueries({ queryKey: orpc.projects.getById.key() })
       invalidateMyDrafts()
-      const destination = isOrgDraft ? `/projects/${variables.id}` : '/dashboard#tab-proposed'
+      const destination = isOrgDraft ? `/projects/${variables.id}` : '/dashboard#tab-projects'
       setTimeout(() => router.push(destination), 1500)
     },
     onError: (err: unknown) => {
@@ -213,50 +236,51 @@ export default function ProjectEditor(props: ProjectEditorProps) {
 
   const createTaskMutation = useMutation({
     ...orpc.projects.createTask.mutationOptions(),
-    onError: (err: unknown) => {
+    onSuccess: () => {
+      saveSucceeded()
+      queryClient.invalidateQueries({ queryKey: orpc.projects.getById.key() })
+    },
+    onError: (err: unknown, variables) => {
       toast(err instanceof Error ? err.message : 'Failed to create task', 'error')
+      saveFailed(createTaskMutation.mutate, variables)
     },
   })
 
   const deleteTaskMutation = useMutation({
     ...orpc.projects.deleteTask.mutationOptions(),
     onSuccess: () => {
+      saveSucceeded()
       queryClient.invalidateQueries({ queryKey: orpc.projects.getById.key() })
     },
-    onError: (err: unknown) => {
+    onError: (err: unknown, variables) => {
       toast(err instanceof Error ? err.message : 'Failed to delete task', 'error')
+      saveFailed(deleteTaskMutation.mutate, variables)
     },
   })
 
   const updateTaskMutation = useMutation({
     ...orpc.projects.updateTask.mutationOptions(),
     onSuccess: () => {
+      saveSucceeded()
       queryClient.invalidateQueries({ queryKey: orpc.projects.getById.key() })
     },
-    onError: (err: unknown) => {
+    onError: (err: unknown, variables) => {
       toast(err instanceof Error ? err.message : 'Failed to update task', 'error')
+      saveFailed(updateTaskMutation.mutate, variables)
     },
   })
 
-  // Drives the fixed autosave indicator — covers the silent field/task-field saves, not
-  // create/delete task (those already show their own button-level "Adding…"/disabled state).
-  const isSaving = updateMutation.isPending || updateTaskMutation.isPending
-  const [showSaved, setShowSaved] = useState(false)
-  const wasSavingRef = useRef(false)
-  useEffect(() => {
-    if (wasSavingRef.current && !isSaving) {
-      setShowSaved(true)
-      const timer = setTimeout(() => setShowSaved(false), 2000)
-      wasSavingRef.current = isSaving
-      return () => clearTimeout(timer)
-    }
-    wasSavingRef.current = isSaving
-  }, [isSaving])
+  const isSaving =
+    creatingDraft ||
+    updateMutation.isPending ||
+    updateTaskMutation.isPending ||
+    createTaskMutation.isPending ||
+    deleteTaskMutation.isPending
 
   function buildCreatePayload(): CreateProjectInput {
     const [country, localGroup] = locationValue.split(':')
     return {
-      title: title.trim(),
+      title: title.trim() || 'Untitled draft',
       description: description.trim(),
       projectType: projectType || null,
       timeCommitmentHoursPerWeek: hoursPerWeek ? Number(hoursPerWeek) : null,
@@ -267,6 +291,8 @@ export default function ProjectEditor(props: ProjectEditorProps) {
       remoteEligibility: remoteEligibility as CreateProjectInput['remoteEligibility'],
       estimatedDuration: duration.trim() || null,
       collaborationLink: collaborationLink.trim() || null,
+      startDate: fromDateInputValue(startDate),
+      durationDays: durationDays ? parseInt(durationDays, 10) : null,
       skillIds: skills.map((s) => s.skillId),
       skillRequiredMap: Object.fromEntries(skills.map((s) => [s.skillId, true])),
       isSeekingHelp: seekingHelp,
@@ -283,54 +309,89 @@ export default function ProjectEditor(props: ProjectEditorProps) {
     queryClient.invalidateQueries({ queryKey: orpc.admin.projects.myDrafts.key() })
   }
 
-  // Creates the project the first time it's needed — on an explicit "Save draft" click, or
-  // implicitly when the first task is added (a task needs a parent project id). A no-op
-  // once an id already exists.
+  // Creates the project the first time it's needed: once enough is written (see the autosave
+  // effect below), or when the first task is added (a task needs a parent project id). A no-op
+  // once an id already exists. A draft made this way leaves the form as it is, on screen, and
+  // only moves the address to the edit page, so nothing jumps under the volunteer's cursor.
   async function ensureProjectExists(): Promise<number | null> {
     if (projectId !== undefined) return projectId
-    if (!title.trim()) {
-      toast('A title is required, even for a draft.', 'error')
-      return null
-    }
+    // The timer and an Add Task click can both reach here before the first create lands.
+    if (creation.current) return creation.current
     setCreatingDraft(true)
-    try {
-      const mutation = initialVariant === 'admin' ? adminCreateMutation : volunteerCreateMutation
-      const result = await mutation.mutateAsync(buildCreatePayload())
-      setProjectId(result.id)
-      invalidateMyDrafts()
-      return result.id
-    } catch (err: unknown) {
-      toast(err instanceof Error ? err.message : 'Failed to save draft', 'error')
-      return null
-    } finally {
-      setCreatingDraft(false)
-    }
+    setAutosaveError(null)
+    const mutation = initialVariant === 'admin' ? adminCreateMutation : volunteerCreateMutation
+    creation.current = mutation
+      .mutateAsync(buildCreatePayload())
+      .then((result) => {
+        setProjectId(result.id)
+        // What is on screen is the truth; the copy just saved must not overwrite it.
+        setInitialized(true)
+        setPermissionChecked(true)
+        window.history.replaceState(null, '', `/projects/${result.id}/edit`)
+        invalidateMyDrafts()
+        return result.id
+      })
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : 'Failed to save draft'
+        toast(message, 'error')
+        setAutosaveError(message)
+        return null
+      })
+      .finally(() => {
+        creation.current = null
+        setCreatingDraft(false)
+      })
+    return creation.current
   }
 
-  async function handleSaveDraftClick() {
-    const id = await ensureProjectExists()
-    if (id !== null) router.replace(`/projects/${id}/edit`)
-  }
+  const readyToAutosave =
+    projectId === undefined &&
+    (title.trim().length >= AUTOSAVE_MIN_TITLE ||
+      description.trim().length >= AUTOSAVE_MIN_DESCRIPTION)
+  // Every field goes into the draft as it stands when the timer fires, so the timer restarts on
+  // any change to the payload, not just the two fields that start it.
+  const autosavePayloadKey = JSON.stringify(buildCreatePayload())
+  useEffect(() => {
+    if (!readyToAutosave || creatingDraft || autosaveError) return
+    const timer = setTimeout(() => void ensureProjectExists(), AUTOSAVE_DELAY_MS)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readyToAutosave, creatingDraft, autosaveError, autosavePayloadKey])
 
-  function handleOpenPublishModal() {
+  // Checked before any draft is created, since the server refuses to publish a project with
+  // no tasks. The count is read fresh: just after a first task is added, the cached project
+  // can still be the copy loaded before it existed.
+  async function handleOpenPublishModal() {
     if (projectId === undefined && !title.trim()) {
       toast('A title is required, even for a draft.', 'error')
+      return
+    }
+    let tasks = 0
+    if (projectId !== undefined) {
+      try {
+        const fresh = await queryClient.fetchQuery({
+          ...orpc.projects.getById.queryOptions({ input: { id: projectId } }),
+          staleTime: 0,
+        })
+        tasks = fresh.tasks.length
+      } catch (err: unknown) {
+        toast(err instanceof Error ? err.message : 'Failed to load project', 'error')
+        return
+      }
+    }
+    if (tasks === 0) {
+      setSubmitWithoutTasks(true)
       return
     }
     setShowPublishModal(true)
   }
 
-  // In new mode this lazily creates the draft first (same as Save draft/Add Task), then
-  // publishes it immediately — a one-click shortcut past the separate draft-editing step.
-  async function handleConfirmPublish() {
-    const id = await ensureProjectExists()
-    if (id === null) return
-    publishMutation.mutate({ id })
-  }
-
   async function handleAddTask(e: React.FormEvent) {
     e.preventDefault()
-    const wasNew = projectId === undefined
+    if (projectId === undefined && !title.trim()) {
+      toast('A title is required, even for a draft.', 'error')
+      return
+    }
     const id = await ensureProjectExists()
     if (id === null) return
     try {
@@ -346,15 +407,9 @@ export default function ProjectEditor(props: ProjectEditorProps) {
       // refetch an in-flight initial load, so cancel it first.
       await queryClient.cancelQueries({ queryKey: orpc.projects.getById.key() })
       void queryClient.invalidateQueries({ queryKey: orpc.projects.getById.key() })
-      if (wasNew) router.replace(`/projects/${id}/edit`)
     } catch {
       // createTaskMutation's onError already toasted.
     }
-  }
-
-  function handleDeleteTask(projectId: number, taskId: number) {
-    if (!window.confirm('Delete this task?')) return
-    deleteTaskMutation.mutate({ projectId, taskId })
   }
 
   // Saves a task's title/description on blur, only if it actually changed from what's
@@ -383,12 +438,57 @@ export default function ProjectEditor(props: ProjectEditorProps) {
     updateMutation.mutate({ id: projectId, ...patch })
   }
 
-  if (projectId !== undefined && loadingProject) {
+  if (projectId !== undefined && loadingProject && !initialized) {
     return <div className="text-center py-10 text-text-light">Loading project…</div>
   }
 
   return (
     <>
+      {(projectId === undefined || canEdit) && (
+        <p role="status" className="text-sm text-text-light mt-0 mb-4">
+          {isSaving ? (
+            'Saving…'
+          ) : autosaveError ? (
+            <>
+              <span className="text-error">Couldn&apos;t save.</span>{' '}
+              <button
+                type="button"
+                className="underline cursor-pointer"
+                onClick={() => setAutosaveError(null)}
+              >
+                Retry
+              </button>
+            </>
+          ) : retrySave ? (
+            <>
+              <span className="text-error">Couldn&apos;t save.</span>{' '}
+              <button type="button" className="underline cursor-pointer" onClick={retrySave}>
+                Retry
+              </button>
+            </>
+          ) : projectId === undefined ? (
+            'Your draft saves automatically as you write.'
+          ) : lastSavedAt ? (
+            `Changes save automatically. Last saved ${lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`
+          ) : (
+            'Changes save automatically.'
+          )}
+        </p>
+      )}
+
+      {isSaving && (
+        <div
+          aria-hidden="true"
+          className="bg-surface border-brand-border text-text-light fixed bottom-4 left-6 z-[150] flex items-center gap-2 rounded-lg border px-3 py-2 text-sm shadow-lg"
+        >
+          <span
+            aria-hidden="true"
+            className="border-primary inline-block h-4 w-4 animate-spin rounded-full border-2 border-t-transparent"
+          />
+          Autosaving
+        </div>
+      )}
+
       {permissionChecked && !canEdit && (
         <div
           role="alert"
@@ -412,7 +512,7 @@ export default function ProjectEditor(props: ProjectEditorProps) {
             }}
             onBlur={() => {
               const next = title.trim()
-              if (next === (projectData?.title ?? '')) return
+              if (!next || next === (projectData?.title ?? '')) return
               commitField({ title: next })
             }}
             disabled={!canEdit}
@@ -733,11 +833,18 @@ export default function ProjectEditor(props: ProjectEditorProps) {
 
         {isDraft && canEdit && (
           <div className="mb-5">
-            <label>Tasks</label>
+            <label>
+              Tasks <span className="text-error">*</span>
+            </label>
             <p className="text-sm text-text-light mt-0 mb-2">
               Break the project into concrete tasks. This helps contributors understand the scope
               and gives them something to pick up.
             </p>
+            {submitWithoutTasks && taskCount === 0 && (
+              <p role="alert" className="text-sm text-error mt-0 mb-2">
+                Add at least one task before submitting.
+              </p>
+            )}
             {projectId !== undefined &&
               projectData?.tasks.map((task) => {
                 const draft = taskDrafts[task.id] ?? {
@@ -790,7 +897,7 @@ export default function ProjectEditor(props: ProjectEditorProps) {
                         type="button"
                         variant="danger"
                         size="sm"
-                        onClick={() => handleDeleteTask(projectId, task.id)}
+                        onClick={() => setDeleteTaskTarget({ projectId, taskId: task.id })}
                         disabled={deleteTaskMutation.isPending}
                       >
                         Delete task
@@ -837,7 +944,7 @@ export default function ProjectEditor(props: ProjectEditorProps) {
         )}
 
         {isDraft && !isOrgDraft && (
-          <div className="flex items-center gap-3 p-4 rounded-lg mb-5 bg-[#DBEAFE] text-[#1E40AF] border border-[#93C5FD] dark:bg-[#1E3A5F] dark:text-[#93C5FD] dark:border-[#2563EB]">
+          <div className="flex items-center gap-3 p-4 rounded-lg mb-5 bg-blue-100 text-blue-800 border border-blue-300 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-600">
             Your project will be reviewed by PauseAI team leads before being published. We&apos;ll
             reach out if we have questions or suggestions.
           </div>
@@ -845,22 +952,7 @@ export default function ProjectEditor(props: ProjectEditorProps) {
 
         <div className="flex gap-3 flex-wrap">
           {projectId === undefined && (
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={creatingDraft}
-              onClick={handleSaveDraftClick}
-            >
-              {creatingDraft ? 'Saving…' : 'Save draft'}
-            </Button>
-          )}
-
-          {projectId === undefined && (
-            <Button
-              type="button"
-              onClick={handleOpenPublishModal}
-              disabled={creatingDraft || publishMutation.isPending}
-            >
+            <Button type="button" onClick={handleOpenPublishModal} disabled={creatingDraft}>
               {isOrgDraft ? 'Publish' : 'Submit'}
             </Button>
           )}
@@ -868,10 +960,10 @@ export default function ProjectEditor(props: ProjectEditorProps) {
           {projectId === undefined && (
             <Button
               type="button"
-              variant="danger"
+              variant="secondary"
               onClick={props.onCancel ?? (() => router.back())}
             >
-              Delete
+              Cancel
             </Button>
           )}
 
@@ -884,7 +976,7 @@ export default function ProjectEditor(props: ProjectEditorProps) {
           {projectId !== undefined && isDraft && canEdit && (
             <Button
               type="button"
-              onClick={() => setShowPublishModal(true)}
+              onClick={handleOpenPublishModal}
               disabled={publishMutation.isPending}
             >
               {isOrgDraft ? 'Publish' : 'Submit'}
@@ -915,105 +1007,105 @@ export default function ProjectEditor(props: ProjectEditorProps) {
         </div>
       </div>
 
-      <Modal
-        id="confirm-publish-draft"
-        title={isOrgDraft ? 'Publish this project?' : 'Submit draft for review?'}
-        isOpen={showPublishModal}
-        onClose={() => setShowPublishModal(false)}
-      >
-        <p>
-          {isOrgDraft ? (
-            <>
-              This will publish <strong className="italic">{title || 'this project'}</strong>{' '}
-              immediately. It will be visible to volunteers straight away.
-            </>
-          ) : (
-            <>
-              This will submit <strong className="italic">{title || 'this project'}</strong> to
-              PauseAI team leads for review.
-            </>
-          )}
-        </p>
-        <div className="mt-4 flex justify-end gap-2">
-          <Button variant="secondary" onClick={() => setShowPublishModal(false)}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleConfirmPublish}
-            disabled={creatingDraft || publishMutation.isPending}
-          >
-            {isOrgDraft
-              ? creatingDraft || publishMutation.isPending
-                ? 'Publishing…'
-                : 'Publish'
-              : creatingDraft || publishMutation.isPending
-                ? 'Submitting…'
-                : 'Submit for Review'}
-          </Button>
-        </div>
-      </Modal>
+      {/* Opens only once a task exists, so the draft does too. */}
+      {projectId !== undefined && (
+        <Modal
+          id="confirm-publish-draft"
+          title={isOrgDraft ? 'Publish this project?' : 'Submit draft for review?'}
+          isOpen={showPublishModal}
+          onClose={() => setShowPublishModal(false)}
+        >
+          <p>
+            {isOrgDraft ? (
+              <>
+                This will publish <strong className="italic">{title || 'this project'}</strong>{' '}
+                immediately. It will be visible to volunteers straight away.
+              </>
+            ) : (
+              <>
+                This will submit <strong className="italic">{title || 'this project'}</strong> to
+                PauseAI team leads for review.
+              </>
+            )}
+          </p>
+          <div className="mt-4 flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setShowPublishModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => publishMutation.mutate({ id: projectId })}
+              disabled={publishMutation.isPending}
+            >
+              {isOrgDraft
+                ? publishMutation.isPending
+                  ? 'Publishing…'
+                  : 'Publish'
+                : publishMutation.isPending
+                  ? 'Submitting…'
+                  : 'Submit for Review'}
+            </Button>
+          </div>
+        </Modal>
+      )}
 
       {projectId !== undefined && (
         <>
-          <Modal
+          <ConfirmDialog
             id="confirm-delete-project"
             title="Delete this project?"
             isOpen={showDeleteProjectModal}
+            body={
+              <p>
+                This will permanently delete{' '}
+                <strong className="italic">{title || 'this project'}</strong>, including its tasks,
+                comments, and interest history. This cannot be undone.
+              </p>
+            }
+            confirmLabel="Delete Project"
+            busyLabel="Deleting…"
+            danger
+            busy={deleteMutation.isPending}
+            onConfirm={() => deleteMutation.mutate({ id: projectId })}
             onClose={() => setShowDeleteProjectModal(false)}
-          >
-            <p>
-              This will permanently delete{' '}
-              <strong className="italic">{title || 'this project'}</strong>, including its tasks,
-              comments, and interest history. This cannot be undone.
-            </p>
-            <div className="mt-4 flex justify-end gap-2">
-              <Button variant="secondary" onClick={() => setShowDeleteProjectModal(false)}>
-                Cancel
-              </Button>
-              <Button
-                variant="danger"
-                onClick={() => deleteMutation.mutate({ id: projectId })}
-                disabled={deleteMutation.isPending}
-              >
-                {deleteMutation.isPending ? 'Deleting…' : 'Delete Project'}
-              </Button>
-            </div>
-          </Modal>
+          />
 
-          <Modal
+          <ConfirmDialog
             id="confirm-delete-draft"
             title="Delete this draft?"
             isOpen={showDeleteDraftModal}
+            body={
+              <p>
+                This will permanently delete{' '}
+                <strong className="italic">{title || 'this draft'}</strong>, including any tasks
+                you&apos;ve added. This cannot be undone.
+              </p>
+            }
+            confirmLabel="Delete Draft"
+            busyLabel="Deleting…"
+            danger
+            busy={deleteDraftMutation.isPending}
+            onConfirm={() => deleteDraftMutation.mutate({ id: projectId })}
             onClose={() => setShowDeleteDraftModal(false)}
-          >
-            <p>
-              This will permanently delete{' '}
-              <strong className="italic">{title || 'this draft'}</strong>, including any tasks
-              you&apos;ve added. This cannot be undone.
-            </p>
-            <div className="mt-4 flex justify-end gap-2">
-              <Button variant="secondary" onClick={() => setShowDeleteDraftModal(false)}>
-                Cancel
-              </Button>
-              <Button
-                variant="danger"
-                onClick={() => deleteDraftMutation.mutate({ id: projectId })}
-                disabled={deleteDraftMutation.isPending}
-              >
-                {deleteDraftMutation.isPending ? 'Deleting…' : 'Delete Draft'}
-              </Button>
-            </div>
-          </Modal>
+          />
         </>
       )}
 
-      {projectId !== undefined && (isSaving || showSaved) && (
-        <div
-          role="status"
-          className={`fixed left-4 z-[200] px-3 py-2 rounded-lg shadow-lg border border-brand-border bg-surface text-sm text-text-light ${bannerVisible ? 'bottom-20' : 'bottom-4'}`}
-        >
-          {isSaving ? 'Saving…' : 'Saved'}
-        </div>
+      {deleteTaskTarget && (
+        <ConfirmDialog
+          id="confirm-delete-editor-task"
+          title="Delete this task?"
+          isOpen
+          body="The task and anything posted on it are removed. This cannot be undone."
+          confirmLabel="Delete task"
+          busyLabel="Deleting…"
+          danger
+          busy={deleteTaskMutation.isPending}
+          onConfirm={() => {
+            deleteTaskMutation.mutate(deleteTaskTarget)
+            setDeleteTaskTarget(null)
+          }}
+          onClose={() => setDeleteTaskTarget(null)}
+        />
       )}
     </>
   )

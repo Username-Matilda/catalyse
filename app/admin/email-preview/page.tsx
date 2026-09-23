@@ -216,7 +216,7 @@ function EmailRow({
                     <td className="py-1 pr-2 pl-0 text-gray-500 whitespace-nowrap align-top">
                       {key}
                     </td>
-                    <td className="py-1 text-secondary break-words">
+                    <td className="py-1 text-brand-text break-words">
                       {typeof val === 'boolean' ? (val ? 'true' : 'false') : String(val)}
                     </td>
                   </tr>
@@ -228,7 +228,7 @@ function EmailRow({
         <div>
           {preview?.subject && (
             <p className="text-[13px] text-gray-500 mb-2 italic">
-              Subject: <strong className="text-secondary">{preview.subject}</strong>
+              Subject: <strong className="text-brand-text">{preview.subject}</strong>
             </p>
           )}
           <div className="border border-brand-border rounded-lg overflow-hidden bg-white">

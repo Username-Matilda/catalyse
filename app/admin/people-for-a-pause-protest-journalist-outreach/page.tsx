@@ -318,7 +318,7 @@ export default function AdminJournalistOutreachPage() {
                         <div className="text-text-light">{r.leaningConfidence.toLowerCase()}</div>
                       )}
                       {r.sentLeaning && r.sentLeaning !== r.leaning && (
-                        <div className="text-warning">sent as {r.sentLeaning[0]}</div>
+                        <div className="text-warning-text">sent as {r.sentLeaning[0]}</div>
                       )}
                     </td>
                     <td className="py-2">

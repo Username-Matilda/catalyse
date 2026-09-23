@@ -34,10 +34,17 @@ describe('/suggest', () => {
       'href',
       `/projects/${draft.id}/edit`,
     )
-    expect(screen.getByRole('link', { name: 'New Project' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Propose a project' })).toHaveAttribute(
       'href',
       '/suggest/new',
     )
+    cleanup()
+
+    // At the draft limit the page says so instead of offering a form that would refuse.
+    await createProject({ status: 'draft', creatorId: me.id, isOrgProposed: false })
+    await renderApp(<SuggestPage />, { as: me })
+    await screen.findByText('You have 2 drafts. Finish or delete one first.')
+    expect(screen.queryByRole('link', { name: 'Propose a project' })).toBeNull()
   })
 })
 
@@ -60,8 +67,12 @@ describe('/suggest-team', () => {
     })
     await renderApp(<SuggestTeamPage />, { as: me })
     await screen.findByText('(merged into Existing)')
+    expect(screen.getByRole('link', { name: 'propose a project' })).toHaveAttribute(
+      'href',
+      '/suggest',
+    )
     expect(screen.getByText('Same thing')).toBeInTheDocument()
-    expect(screen.getByText('Under Review')).toBeInTheDocument()
+    expect(screen.getByText('Under review')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Submit Suggestion' })).toBeDisabled()
     await userEvent.type(screen.getByLabelText('Team Name'), 'Comms')
     await userEvent.type(screen.getByLabelText(/Description/), 'Talking to press')
@@ -145,5 +156,8 @@ describe('/privacy', () => {
     await renderApp(<PrivacyPage />)
     expect(screen.queryByRole('button', { name: 'Download My Data' })).toBeNull()
     expect(screen.getByRole('heading', { name: 'Privacy & Data' })).toBeInTheDocument()
+    expect(
+      screen.getByText(/a reminder after 14 days, a final warning after 21, and after 28 days/),
+    ).toBeInTheDocument()
   })
 })

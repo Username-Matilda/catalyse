@@ -49,7 +49,9 @@ describe('admin landing', () => {
     cleanup()
     const vol = await createVolunteer()
     await renderApp(<AdminLandingPage />, { as: vol })
-    await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith('/projects'))
+    await waitFor(() =>
+      expect(navigation.replace).toHaveBeenCalledWith('/projects?notice=no-access'),
+    )
   })
 })
 

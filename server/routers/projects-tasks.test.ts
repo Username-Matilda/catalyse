@@ -91,7 +91,24 @@ describe('projects.listTasks / getTask', () => {
       featuredAsQuickTask: true,
       assignedToName: null,
       createdByName: null,
+      assigneeHasPosted: false,
     })
+    // Only the assignee's own comments count as an update.
+    await prisma.workItem.update({ where: { id: b.id }, data: { assigneeId: me.id } })
+    await prisma.workItemComment.create({
+      data: { workItemId: b.id, authorId: owner.id, content: 'How is it going?' },
+    })
+    expect(
+      (await clientAs(me).projects.getTask({ projectId: project.id, taskId: b.id }))
+        .assigneeHasPosted,
+    ).toBe(false)
+    await prisma.workItemComment.create({
+      data: { workItemId: b.id, authorId: me.id, content: 'Started on it' },
+    })
+    expect(
+      (await clientAs(me).projects.getTask({ projectId: project.id, taskId: b.id }))
+        .assigneeHasPosted,
+    ).toBe(true)
     expect(view.predecessors).toEqual([
       expect.objectContaining({ predecessorId: a.id, predecessorTitle: a.title, lagDays: 0 }),
     ])
@@ -466,8 +483,15 @@ describe('projects.assignTask', () => {
     expect(first).toMatchObject({ assigneeId: vol.id, status: 'in_progress' })
     await vi.waitFor(async () =>
       expect(
-        await prisma.notification.count({ where: { volunteerId: vol.id, type: 'task_assigned' } }),
-      ).toBe(1),
+        await prisma.notification.findMany({
+          where: { volunteerId: vol.id, type: 'task_assigned' },
+        }),
+      ).toEqual([
+        expect.objectContaining({
+          title: `Assigned: a task on '${project.title}'`,
+          link: `/projects/${project.id}`,
+        }),
+      ]),
     )
     await c.projects.assignTask({ projectId: project.id, taskId: t.id, assigneeId: other.id })
     expect((await task(t.id)).startedAt).toEqual(first.startedAt)

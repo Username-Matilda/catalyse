@@ -164,10 +164,15 @@ describe('admin.projects.review', () => {
     expect(notifyTeamOfProject).toHaveBeenCalledWith(team.id, unowned.id, unowned.title)
     await vi.waitFor(async () =>
       expect(
-        await prisma.notification.count({
+        await prisma.notification.findMany({
           where: { volunteerId: creator.id, type: 'project_approved' },
         }),
-      ).toBe(1),
+      ).toEqual([
+        expect.objectContaining({
+          title: `Approved: '${unowned.title}' is now visible to volunteers`,
+          link: `/projects/${unowned.id}`,
+        }),
+      ]),
     )
     expect(
       await prisma.notification.count({
@@ -217,7 +222,11 @@ describe('admin.projects.review', () => {
         await prisma.notification.findFirst({
           where: { volunteerId: creator.id, type: 'project_needs_discussion' },
         }),
-      ).toMatchObject({ body: 'Please expand' }),
+      ).toMatchObject({
+        title: `Changes requested: '${p.title}'`,
+        body: 'Please expand',
+        link: `/projects/${p.id}`,
+      }),
     )
     const orphan = await createProject({ status: 'pending_review' })
     await c.admin.projects.review({ id: orphan.id, status: 'needs_discussion' })

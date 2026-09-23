@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { screen, waitFor, cleanup, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { prisma } from '@/lib/prisma'
@@ -19,7 +19,6 @@ describe('admin team', () => {
         expiresAt: new Date(Date.now() + 86400000),
       },
     })
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
     await renderApp(<AdminTeamPage />, { as: sa })
     const card = (await screen.findByText('Olly Other')).closest<HTMLElement>('.card')!
     expect(within(card).getByRole('checkbox', { name: 'Notify of bug reports' })).toBeChecked()
@@ -35,9 +34,16 @@ describe('admin team', () => {
     )
 
     await userEvent.click(within(card).getByRole('button', { name: 'Revoke Access' }))
-    expect(confirm).toHaveBeenCalledWith('Revoke admin access for Olly Other?')
-    confirm.mockReturnValue(true)
+    const revokeDialog = await screen.findByRole('dialog', {
+      name: 'Revoke admin access for Olly Other?',
+    })
+    await userEvent.click(within(revokeDialog).getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+
     await userEvent.click(within(card).getByRole('button', { name: 'Revoke Access' }))
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Revoke access' }),
+    )
     await screen.findByText('Admin access revoked')
     await waitFor(() => expect(screen.queryByText('Olly Other')).toBeNull())
 
@@ -100,13 +106,15 @@ describe('admin team', () => {
         expiresAt: new Date(Date.now() + 86400000),
       },
     })
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     await renderApp(<AdminTeamPage />, { as: sa })
     const card = (await screen.findByText('Rob Revoked')).closest<HTMLElement>('.card')!
     await prisma.volunteer.delete({ where: { id: other.id } })
     await userEvent.click(within(card).getByRole('checkbox'))
     await screen.findByText(/not found/i)
     await userEvent.click(within(card).getByRole('button', { name: 'Revoke Access' }))
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Revoke access' }),
+    )
     await screen.findAllByText(/not found/i)
     cleanup()
     await renderApp(<AdminTeamPage />, { as: sa })

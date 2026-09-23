@@ -3,6 +3,7 @@
 import { useEffect, useState, FormEvent, Suspense } from 'react'
 import { useRequireAuth } from '@/lib/hooks/auth'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import Link from 'next/link'
 import Button from '@/components/Button'
 import Checkbox from '@/components/Checkbox'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
@@ -180,7 +181,7 @@ function SettingsPageContent() {
     setConsentMakeProfileVisibleInDirectory(!!me.consentMakeProfileVisibleInDirectory)
     setConsentContactableByProjectOwners(!!me.consentContactableByProjectOwners)
     setConsentShareContactInfoWithProjectOwner(!!me.consentShareContactInfoWithProjectOwner)
-    setConsentAnalytics(!!me.cookieConsentAnalytics)
+    setConsentAnalytics(me.cookieConsentAnalytics !== false)
     setSkills(
       ((me.skills ?? []) as { id: number; proficiencyLevel?: string | null }[]).map((s) => ({
         skillId: s.id,
@@ -758,14 +759,7 @@ function SettingsPageContent() {
 
             <h3 className="mt-6 mb-2">Analytics</h3>
             <p className="text-sm text-text-light mb-3">
-              Current status:{' '}
-              <strong>
-                {me?.cookieConsentAnalytics === null
-                  ? 'not yet decided'
-                  : me?.cookieConsentAnalytics
-                    ? 'accepted'
-                    : 'declined'}
-              </strong>
+              Current status: <strong>{me?.cookieConsentAnalytics === false ? 'off' : 'on'}</strong>
             </p>
             <div className="mb-5">
               <Checkbox
@@ -803,9 +797,9 @@ function SettingsPageContent() {
             <p className="text-text-light mb-4">
               Read our full data practices, GDPR rights, and third-party processor information.
             </p>
-            <Button href="/privacy" variant="outline">
+            <Link href="/privacy" className="underline font-medium">
               Read Privacy Policy
-            </Button>
+            </Link>
           </div>
         </div>
       )}

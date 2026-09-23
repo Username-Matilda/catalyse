@@ -3,7 +3,8 @@
 import { use } from 'react'
 import Link from 'next/link'
 import ProjectPorting from '@/components/ProjectPorting'
-import { useRequireApproved } from '@/lib/hooks/auth'
+import { useRequireConfirmed } from '@/lib/hooks/auth'
+import PageLoading from '@/components/PageLoading'
 
 /**
  * A linkable home for the export/import round trip. The same flow is available as a modal from
@@ -13,9 +14,9 @@ import { useRequireApproved } from '@/lib/hooks/auth'
 export default function ProjectImportPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = use(params)
   const projectId = parseInt(idParam, 10)
-  const { user, loading } = useRequireApproved()
+  const { user, loading } = useRequireConfirmed()
 
-  if (loading || !user) return null
+  if (loading || !user) return <PageLoading />
 
   return (
     <main className="container py-5 pb-15">

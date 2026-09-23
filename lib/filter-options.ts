@@ -90,6 +90,21 @@ export function countryLabel(value: string | null | undefined): string {
   return BASE_LOCATION_OPTIONS.find((o) => o.value === value)?.label ?? value
 }
 
+/**
+ * A volunteer's location as one line, the same on their directory card and their profile:
+ * town, local group and country, each once, e.g. "Manchester · United Kingdom".
+ */
+export function volunteerLocation(v: {
+  location: string | null
+  localGroup: string | null
+  country: string | null
+}): string {
+  const parts = [v.location, v.localGroup, countryLabel(v.country)].filter((p): p is string =>
+    Boolean(p),
+  )
+  return [...new Set(parts)].join(' · ')
+}
+
 // Builds the parts of a project's location line, e.g. ['Remote', 'Global', 'United Kingdom', 'London']
 // for a worldwide-remote project, or ['United Kingdom', 'London'] for an in-person one.
 // Join with ' · ' and prefix with 📍 to render.

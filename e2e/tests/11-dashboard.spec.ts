@@ -21,12 +21,6 @@ async function createNotificationForVolunteer(
 const notificationBadge = (page: Page) =>
   page.locator('[data-tab="notifications"] .notification-badge')
 
-const unreadNotificationCount = (page: Page) =>
-  page
-    .locator('.card')
-    .filter({ has: page.getByText('Unread Notifications', { exact: true }) })
-    .locator('.stat-number')
-
 test.describe('Dashboard', () => {
   test('Volunteer views their dashboard', async ({ volunteer, baseUrl }) => {
     await volunteer.page.goto(`${baseUrl}/dashboard`)
@@ -34,20 +28,17 @@ test.describe('Dashboard', () => {
       timeout: 10_000,
     })
 
-    // Owned Projects tab is active by default
-    await expect(volunteer.page.getByRole('tab', { name: 'Owned Projects' })).toHaveClass(
-      /\bactive\b/,
-    )
-
-    // Interested Projects tab
-    await volunteer.page.getByRole('tab', { name: 'Interested Projects' }).click()
-    await expect(volunteer.page.getByRole('tab', { name: 'Interested Projects' })).toHaveClass(
-      /\bactive\b/,
-    )
-
-    // Suggested for You tab
-    await volunteer.page.getByRole('tab', { name: 'Suggested for You' }).click()
+    // A new volunteer has no projects, applications or unread notifications, so the
+    // dashboard opens on suggestions.
     await expect(volunteer.page.getByRole('tab', { name: 'Suggested for You' })).toHaveClass(
+      /\bactive\b/,
+    )
+
+    await volunteer.page.getByRole('tab', { name: 'My projects' }).click()
+    await expect(volunteer.page.getByRole('tab', { name: 'My projects' })).toHaveClass(/\bactive\b/)
+
+    await volunteer.page.getByRole('tab', { name: 'Applications' }).click()
+    await expect(volunteer.page.getByRole('tab', { name: 'Applications' })).toHaveClass(
       /\bactive\b/,
     )
   })
@@ -62,7 +53,6 @@ test.describe('Dashboard', () => {
     })
 
     await expect(notificationBadge(volunteer.page)).toBeVisible({ timeout: 10_000 })
-    await expect(unreadNotificationCount(volunteer.page)).not.toHaveText('0')
   })
 
   test('Volunteer marks all notifications as read', async ({ adminPage, volunteer, baseUrl }) => {
@@ -86,7 +76,6 @@ test.describe('Dashboard', () => {
     await volunteer.page.getByRole('button', { name: 'Mark all as read' }).click()
 
     await expect(notificationBadge(volunteer.page)).not.toBeVisible({ timeout: 10_000 })
-    await expect(unreadNotificationCount(volunteer.page)).toHaveText('0', { timeout: 10_000 })
     await expect(volunteer.page.getByRole('button', { name: 'Mark all as read' })).not.toBeVisible({
       timeout: 10_000,
     })

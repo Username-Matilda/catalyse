@@ -2,12 +2,7 @@ import { z } from 'zod'
 import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
 import { DependencyBodySchema } from '@/lib/schemas'
-import {
-  canManageProject,
-  canViewWorkItem,
-  resolveTeamPrivy,
-  type WorkItemForAccess,
-} from '@/lib/work-item'
+import { canManageProject, canViewWorkItem, resolveProjectPrivy } from '@/lib/work-item'
 import { loadProjectEdges, loadTaskEdges } from '@/lib/project-schedule'
 import { findDependencyCycle, type ScheduleEdge } from '@/lib/schedule'
 import { approvedProcedure } from '../procedures'
@@ -22,6 +17,8 @@ const ENDPOINT_SELECT = {
   creatorId: true,
   assigneeId: true,
   teamId: true,
+  country: true,
+  remoteEligibility: true,
 } as const
 
 type Endpoint = {
@@ -33,9 +30,11 @@ type Endpoint = {
   creatorId: number | null
   assigneeId: number | null
   teamId: number | null
+  country: string | null
+  remoteEligibility: string
 }
 
-type Viewer = { id: number; isAdmin: boolean; isApproved: boolean }
+type Viewer = { id: number; isAdmin: boolean; isApproved: boolean; country: string | null }
 
 /**
  * Resolves the two work items a link would join and proves the caller may create it.
@@ -50,7 +49,12 @@ type Viewer = { id: number; isAdmin: boolean; isApproved: boolean }
 async function resolveLink(
   predecessorId: number,
   successorId: number,
-  volunteer: { id: number; isAdmin: boolean | null; approvalStatus: string },
+  volunteer: {
+    id: number
+    isAdmin: boolean | null
+    approvalStatus: string
+    country: string | null
+  },
 ): Promise<{ predecessor: Endpoint; successor: Endpoint }> {
   if (predecessorId === successorId) {
     throw new ORPCError('BAD_REQUEST', { message: 'A task cannot depend on itself' })
@@ -84,6 +88,7 @@ async function resolveLink(
     id: volunteer.id,
     isAdmin: Boolean(volunteer.isAdmin),
     isApproved: volunteer.approvalStatus === ApprovalStatus.approved,
+    country: volunteer.country,
   }
 
   if (predecessor.type === WorkItemType.TASK) {
@@ -106,8 +111,8 @@ async function resolveLink(
         message: 'Only the owner or an admin of the dependent project can add this link',
       })
     }
-    const isTeamPrivy = await resolveTeamPrivy(predecessor.teamId, predecessor.id, volunteer.id)
-    if (!canViewWorkItem(predecessor as WorkItemForAccess, viewer, undefined, isTeamPrivy)) {
+    const privy = await resolveProjectPrivy(predecessor, viewer)
+    if (!canViewWorkItem(predecessor, viewer, undefined, privy)) {
       throw new ORPCError('NOT_FOUND', { message: 'One or both items were not found' })
     }
   }
@@ -125,7 +130,12 @@ async function edgesInScope(endpoint: Endpoint): Promise<ScheduleEdge[]> {
 /** Loads a dependency row and re-proves manage rights on it. */
 async function loadManageableDependency(
   dependencyId: number,
-  volunteer: { id: number; isAdmin: boolean | null; approvalStatus: string },
+  volunteer: {
+    id: number
+    isAdmin: boolean | null
+    approvalStatus: string
+    country: string | null
+  },
 ) {
   const dep = await prisma.workItemDependency.findUnique({ where: { id: dependencyId } })
   if (!dep) throw new ORPCError('NOT_FOUND', { message: 'Dependency not found' })

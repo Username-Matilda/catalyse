@@ -8,6 +8,7 @@ import {
   createQuickTask,
   createSkill,
   createLocalGroup,
+  createTask,
 } from '@/test/factories'
 import { clientAs, anon } from '@/test/rpc'
 
@@ -93,6 +94,41 @@ describe('admin.overview.counts', () => {
       pendingApplications: 1,
       openBugReports: 1,
       unreadNotifications: 1,
+    })
+  })
+})
+
+describe('my.projectTasks', () => {
+  it('lists only my claimed, unfinished project tasks, longest quiet first', async () => {
+    const me = await createVolunteer()
+    const other = await createVolunteer()
+    const project = await createProject({ title: 'Host' })
+    const recent = await createTask(project.id, {
+      title: 'Recent',
+      status: 'in_progress',
+      assigneeId: me.id,
+    })
+    const quiet = await createTask(project.id, {
+      title: 'Quiet',
+      status: 'in_progress',
+      assigneeId: me.id,
+    })
+    await prisma.workItem.update({
+      where: { id: quiet.id },
+      data: { updatedAt: new Date('2020-01-01T00:00:00Z') },
+    })
+    await createTask(project.id, { title: 'Done', status: 'completed', assigneeId: me.id })
+    await createTask(project.id, { title: 'Open', status: 'open' })
+    await createTask(project.id, { title: 'Theirs', status: 'in_progress', assigneeId: other.id })
+    await createQuickTask({ assigneeId: me.id, status: 'in_progress' })
+
+    const tasks = await clientAs(me).my.projectTasks()
+    expect(tasks.map((t) => t.id)).toEqual([quiet.id, recent.id])
+    expect(tasks[0]).toMatchObject({
+      title: 'Quiet',
+      projectId: project.id,
+      projectTitle: 'Host',
+      status: 'in_progress',
     })
   })
 })

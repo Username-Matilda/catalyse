@@ -58,12 +58,20 @@ describe('project page — visitor', () => {
       title: 'Open task',
       estimatedHours: 2,
       deadline: new Date('2020-01-01'),
+      sortOrder: 1,
+    })
+    await createTask(project.id, {
+      title: 'Ongoing task',
+      status: 'in_progress',
+      assigneeId: owner.id,
+      sortOrder: 2,
     })
     await createTask(project.id, {
       title: 'Done task',
       status: 'completed',
       featuredAsQuickTask: true,
       deadline: new Date('2030-01-01'),
+      sortOrder: 3,
     })
     await prisma.workItemComment.create({
       data: { workItemId: open.id, authorId: owner.id, content: 'c' },
@@ -78,21 +86,49 @@ describe('project page — visitor', () => {
     expect(screen.getByLabelText('1 comment')).toBeInTheDocument()
     expect(screen.getByText('Olive Owner')).toBeInTheDocument()
 
+    // Only people on the project can post, so there is no comment box until the claim.
+    expect(screen.queryByLabelText('Add a comment')).toBeNull()
     await userEvent.click(await screen.findByRole('button', { name: 'Claim' }))
-    await screen.findByText('Task claimed!')
+    await screen.findByText(/Task claimed\. Post an update/)
     await waitFor(async () => expect((await row(open.id)).assigneeId).toBe(me.id))
+    const taskOrder = () =>
+      screen
+        .getAllByRole('link')
+        .filter((l) => /\/tasks\/\d+$/.test(l.getAttribute('href') ?? ''))
+        .map((l) => l.textContent)
+        .filter((t) => t?.endsWith(' task'))
+    expect(taskOrder()).toEqual(['Open task', 'Ongoing task', 'Done task'])
     await userEvent.click(await screen.findByRole('button', { name: 'Done' }))
     await screen.findByText('Task completed!')
+    // The finished task stays where it was; the server's order applies on the next load.
+    await waitFor(() => expect(screen.getAllByText('done')).toHaveLength(2))
+    expect(taskOrder()).toEqual(['Open task', 'Ongoing task', 'Done task'])
+    expect(await screen.findByLabelText('Add a comment')).toBeInTheDocument()
 
-    // Interest: the claim made me an accepted helper; withdrawing releases that.
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    // Interest: the claim made me an accepted helper; withdrawing releases that, and the
+    // comment box goes with it.
     await userEvent.click(await screen.findByRole('button', { name: 'Withdraw Interest' }))
-    await screen.findByText('Interest withdrawn')
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Withdraw' }),
+    )
+    await screen.findByText(/You've left the project/)
+    await waitFor(() => expect(screen.queryByLabelText('Add a comment')).toBeNull())
     await userEvent.type(await screen.findByLabelText('Message (optional)'), 'Pick me')
     await userEvent.click(screen.getByRole('button', { name: 'Express Interest' }))
-    await screen.findByText('Interest expressed!')
+    await screen.findByText(/You'll get a notification when they reply/)
 
-    await userEvent.click(screen.getByRole('button', { name: /Contact/ }))
+    const contact = screen.getByRole('button', { name: /Contact/ })
+    await userEvent.click(contact)
+    // It says how the message is delivered, and Escape closes it with focus back on the button.
+    expect(
+      within(screen.getByRole('dialog', { name: 'Contact Owner' })).getByText(
+        `${owner.name} will get this by email and in their notifications. Your email address is shared so they can reply.`,
+      ),
+    ).toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog', { name: 'Contact Owner' })).toBeNull()
+    expect(contact).toHaveFocus()
+    await userEvent.click(contact)
     await userEvent.type(screen.getByLabelText('Subject'), 'Hello')
     await userEvent.type(screen.getByLabelText('Message'), 'Can I help?')
     fireEvent.submit(screen.getByLabelText('Subject').closest('form')!)
@@ -125,7 +161,7 @@ describe('project page — visitor', () => {
     await screen.findByRole('heading', { name: 'Ownerless' })
     await userEvent.click(screen.getByLabelText(/I want to own/))
     await userEvent.click(screen.getByRole('button', { name: 'Express Interest' }))
-    await screen.findByText('Interest expressed!')
+    await screen.findByText(/You'll get a notification when they reply/)
     const interest = await prisma.workItemInterest.findFirstOrThrow({
       where: { workItemId: project.id, volunteerId: me.id },
     })
@@ -147,9 +183,37 @@ describe('project page — visitor', () => {
     await mount(project.id, me)
     const withdraw = await screen.findByRole('button', { name: 'Withdraw Interest' })
     localStorage.setItem('authToken', 'stale')
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     await userEvent.click(withdraw)
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Withdraw' }),
+    )
     await screen.findByText('Unauthorized')
+  })
+
+  it('calls the panel "Your place" for someone the owner added, and says what to do once removed', async () => {
+    const me = await createVolunteer()
+    const project = await createProject({ title: 'Added to it', status: 'ready' })
+    const interest = await prisma.workItemInterest.create({
+      data: {
+        workItemId: project.id,
+        volunteerId: me.id,
+        interestType: 'want_to_contribute',
+        origin: 'added',
+        status: 'accepted',
+      },
+    })
+    await mount(project.id, me)
+    await screen.findByRole('heading', { name: 'Your place on this project' })
+    expect(screen.getByText(/Your place:/)).toBeInTheDocument()
+    expect(screen.queryByText(/Your interest status/)).toBeNull()
+    cleanup()
+    await prisma.workItemInterest.update({
+      where: { id: interest.id },
+      data: { status: 'removed' },
+    })
+    await mount(project.id, me)
+    await screen.findByText('Contact the owner if you would like to rejoin.')
+    expect(screen.queryByRole('button', { name: 'Withdraw Interest' })).toBeNull()
   })
 })
 
@@ -201,7 +265,7 @@ describe('project page — owner', () => {
     await userEvent.click(
       within(interestCard('Hana Helper')).getByRole('button', { name: 'Accept' }),
     )
-    await screen.findByText('Interest accepted')
+    await screen.findByText(/^Accepted\. They're on the project/)
     await userEvent.click(
       await within(interestCard('Otto Other')).findByRole('button', { name: 'Decline' }),
     )
@@ -215,7 +279,7 @@ describe('project page — owner', () => {
     )
     await userEvent.type(screen.getByLabelText('Optional message for the volunteer'), 'Not now')
     fireEvent.submit(screen.getByLabelText('Optional message for the volunteer').closest('form')!)
-    await screen.findByText('Interest declined')
+    await screen.findByText(/^Declined\. They've been notified/)
     await waitFor(async () =>
       expect(
         (await prisma.workItemInterest.findFirstOrThrow({ where: { volunteerId: other.id } }))
@@ -223,6 +287,12 @@ describe('project page — owner', () => {
       ).toBe('Not now'),
     )
 
+    // The drag handle and the task menu say what they are.
+    expect(screen.getByLabelText('Drag to reorder First task')).toBeInTheDocument()
+    expect(screen.getByLabelText('Task actions for First task')).toHaveAttribute(
+      'title',
+      'Task actions for First task',
+    )
     // Assign a task to the accepted helper via the task menu, then unassign it.
     await userEvent.click(screen.getByLabelText('Task actions for First task'))
     await userEvent.click(
@@ -235,12 +305,20 @@ describe('project page — owner', () => {
     await userEvent.click(screen.getByLabelText('Task actions for First task'))
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Unassign' }))
     await screen.findByText('Task unassigned!')
-    // An accepted helper can be removed again (declined).
+    // The owner sees how each person came and went.
+    expect(interestCard('Otto Other')).toHaveTextContent('Applied, declined')
+    expect(interestCard('Otto Other')).not.toHaveTextContent('wanted to')
+    // An accepted helper is removed, not declined, and the dialog and toast say so.
     await userEvent.click(
       within(interestCard('Hana Helper')).getByRole('button', { name: 'Remove' }),
     )
+    const removeDialog = await screen.findByRole('dialog', {
+      name: 'Remove Hana Helper from this project?',
+    })
+    expect(within(removeDialog).queryByRole('button', { name: 'Decline' })).toBeNull()
     fireEvent.submit(screen.getByLabelText('Optional message for the volunteer').closest('form')!)
-    await waitFor(() => expect(screen.getAllByText('Interest declined')).toHaveLength(2))
+    await screen.findByText("Removed Hana Helper. They've been notified.")
+    await waitFor(() => expect(interestCard('Hana Helper')).toHaveTextContent('Applied, removed'))
     // Clicking outside closes the menu.
     await userEvent.click(screen.getByLabelText('Task actions for First task'))
     fireEvent.mouseDown(document.body)
@@ -251,13 +329,17 @@ describe('project page — owner', () => {
     act(() => listDrag()({ active: { id: t2.id }, over: null } as never))
     act(() => listDrag()({ active: { id: t2.id }, over: { id: t2.id } } as DragEndEvent))
 
-    vi.spyOn(window, 'confirm').mockReturnValueOnce(false)
     await userEvent.click(screen.getByLabelText('Task actions for Second task'))
     await userEvent.click(screen.getByRole('menuitem', { name: 'Delete task' }))
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancel' }),
+    )
     expect(await prisma.workItem.count({ where: { id: t2.id } })).toBe(1)
-    vi.spyOn(window, 'confirm').mockReturnValueOnce(true)
     await userEvent.click(screen.getByLabelText('Task actions for Second task'))
     await userEvent.click(screen.getByRole('menuitem', { name: 'Delete task' }))
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete task' }),
+    )
     await screen.findByText('Task deleted!')
 
     await userEvent.click(screen.getByRole('button', { name: 'project status' }))
@@ -274,7 +356,16 @@ describe('project page — owner', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Volunteer to assign' }))
     await userEvent.click(await screen.findByRole('option', { name: 'Otto Other' }))
     fireEvent.submit(screen.getByRole('button', { name: 'Volunteer to assign' }).closest('form')!)
-    await screen.findByText('Volunteer assigned!')
+    await screen.findByText(/^Added to the project\./)
+    // The picker empties once the volunteer is added, and says what adding does.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Volunteer to assign' })).not.toHaveTextContent(
+        'Otto Other',
+      ),
+    )
+    expect(
+      screen.getByText('They are added straight away and get a notification.'),
+    ).toBeInTheDocument()
 
     expect(screen.getByRole('link', { name: /Edit/ })).toHaveAttribute(
       'href',
@@ -301,7 +392,6 @@ describe('project page — owner', () => {
     await mount(project.id, owner)
     await screen.findByRole('heading', { name: 'Fragile' })
     await prisma.workItem.delete({ where: { id: t1.id } })
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     await userEvent.click(screen.getByLabelText('Task actions for Doomed task'))
     await userEvent.click(
       await screen.findByRole('button', { name: 'Assign volunteer to Doomed task' }),
@@ -311,6 +401,9 @@ describe('project page — owner', () => {
     await screen.findByText('Project or task not found')
     await userEvent.click(screen.getByLabelText('Task actions for Doomed task'))
     await userEvent.click(screen.getByRole('menuitem', { name: 'Delete task' }))
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete task' }),
+    )
     await screen.findByText('Task not found')
     await userEvent.click(screen.getByRole('button', { name: 'Add Task' }))
     await userEvent.type(screen.getByLabelText('Task title'), 'x')
@@ -360,14 +453,22 @@ describe('project page — admin', () => {
     await userEvent.click(await screen.findByLabelText('Ownership actions'))
     await userEvent.click(screen.getByRole('button', { name: 'Transfer to' }))
     await userEvent.click(await screen.findByRole('option', { name: 'Nina New' }))
-    vi.spyOn(window, 'confirm').mockReturnValueOnce(false)
     await userEvent.click(screen.getByRole('button', { name: 'Transfer' }))
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancel' }),
+    )
+    await userEvent.click(screen.getByLabelText('Ownership actions'))
     await userEvent.click(screen.getByRole('button', { name: 'Transfer' }))
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Transfer' }),
+    )
     await screen.findByText('Ownership transferred!')
     await waitFor(async () => expect((await row(pending.id)).assigneeId).toBe(newOwner.id))
     await userEvent.click(screen.getByLabelText('Ownership actions'))
     await userEvent.click(await screen.findByRole('menuitem', { name: /Remove/ }))
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Remove ownership' }),
+    )
     await waitFor(async () => expect((await row(pending.id)).assigneeId).toBeNull())
 
     // Outcome on a completed project (admin-only status pick first).
@@ -521,7 +622,7 @@ describe('project page — timeline tab', () => {
       expect(await prisma.workItemDependency.count({ where: { successorId: b.id } })).toBe(1),
     )
     await userEvent.click(within(panel()).getByRole('button', { name: 'Assign to me' }))
-    await screen.findByText('Task claimed!')
+    await screen.findByText(/Task claimed\. Post an update/)
     await waitFor(async () => expect((await row(b.id)).assigneeId).toBe(owner.id))
     await userEvent.click(await within(panel()).findByRole('button', { name: 'Unassign' }))
     await screen.findByText('Task unassigned!')
@@ -641,8 +742,10 @@ describe('project page — remaining edges', () => {
     await userEvent.click(screen.getByRole('option', { name: 'Archived' }))
     await userEvent.keyboard('{Escape}')
     await userEvent.click(await screen.findByLabelText('Ownership actions'))
-    vi.spyOn(window, 'confirm').mockReturnValue(false)
     await userEvent.click(await screen.findByRole('menuitem', { name: /Remove/ }))
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancel' }),
+    )
     expect((await row(project.id)).assigneeId).toBe(owner.id)
 
     cleanup()
@@ -673,7 +776,6 @@ describe('project page — remaining edges', () => {
     await screen.findByRole('heading', { name: 'Interest edges' })
     await userEvent.click(screen.getByLabelText(/I want to own/))
     await userEvent.click(screen.getByLabelText(/contribute|help/i))
-    vi.spyOn(window, 'confirm').mockReturnValue(false)
     // Claiming a task that no longer exists, then declining the withdraw confirmation.
     const gone = await createTask(project.id, { title: 'Gone task' })
     cleanup()
@@ -688,6 +790,9 @@ describe('project page — remaining edges', () => {
     cleanup()
     await mount(project.id, me)
     await userEvent.click(await screen.findByRole('button', { name: 'Withdraw Interest' }))
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancel' }),
+    )
     expect(
       (await prisma.workItemInterest.findFirstOrThrow({ where: { volunteerId: me.id } })).status,
     ).toBe('pending')

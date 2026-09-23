@@ -213,9 +213,16 @@ describe('settings — notifications and privacy tabs', () => {
     })
 
     await userEvent.click(screen.getByRole('tab', { name: 'Privacy & Data' }))
+    expect(screen.getByRole('link', { name: 'Read Privacy Policy' })).toHaveAttribute(
+      'href',
+      '/privacy',
+    )
     await userEvent.click(screen.getByLabelText(/visible in the volunteer directory/i))
     await userEvent.click(screen.getByLabelText(/Share my contact/i))
     await userEvent.click(screen.getByLabelText(/contact me about/i))
+    // Analytics is on until it is turned off, so an account that never chose starts ticked.
+    expect(screen.getByLabelText(/Allow Google Analytics/)).toBeChecked()
+    expect(screen.getByText('Current status:')).toHaveTextContent('on')
     await userEvent.click(screen.getByLabelText(/Allow Google Analytics/))
     await userEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
     await waitFor(() => expect(screen.getAllByText('Profile updated!')).toHaveLength(2))
@@ -223,8 +230,9 @@ describe('settings — notifications and privacy tabs', () => {
       consentMakeProfileVisibleInDirectory: false,
       consentContactableByProjectOwners: false,
       consentShareContactInfoWithProjectOwner: true,
-      cookieConsentAnalytics: true,
+      cookieConsentAnalytics: false,
     })
+    expect(screen.getByText('Current status:')).toHaveTextContent('off')
     await userEvent.click(screen.getByRole('button', { name: 'Download My Data' }))
     await screen.findByText('Data exported successfully!')
     expect(click).toHaveBeenCalled()

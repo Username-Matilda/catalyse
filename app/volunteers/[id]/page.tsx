@@ -1,17 +1,20 @@
 'use client'
 
-import { use } from 'react'
+import { use, useState } from 'react'
 import { useRequireAuth } from '@/lib/hooks/auth'
 import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import Button from '@/components/Button'
 import { Badge } from '@/components/Badge'
 import { STATUS_LABELS, projectStatusVariant } from '@/components/ProjectCard'
+import MessageDialog from '@/components/MessageDialog'
+import { volunteerLocation } from '@/lib/filter-options'
 import { orpc } from '@/lib/orpc'
 
 export default function VolunteerDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const { user, loading } = useRequireAuth()
+  const [messaging, setMessaging] = useState(false)
 
   const {
     data: volunteer,
@@ -50,8 +53,10 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
   const skills = volunteer.skills ?? []
   const endorsements = volunteer.endorsements ?? []
   const endorsedSkillIds = new Set(endorsements.map((e) => e.skillId))
+  const canMessage =
+    volunteer.id !== user.id && Boolean(volunteer.consentContactableByProjectOwners)
   const hasContact =
-    volunteer.email || volunteer.discordHandle || volunteer.signalNumber || volunteer.whatsappNumber
+    canMessage || volunteer.discordHandle || volunteer.signalNumber || volunteer.whatsappNumber
 
   return (
     <>
@@ -68,10 +73,8 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
               {volunteer.name}
             </h1>
 
-            {(volunteer.location || volunteer.localGroup) && (
-              <p className="text-text-light mb-4 text-sm">
-                {[volunteer.location, volunteer.localGroup].filter(Boolean).join(' · ')}
-              </p>
+            {volunteerLocation(volunteer) && (
+              <p className="text-text-light mb-4 text-sm">📍 {volunteerLocation(volunteer)}</p>
             )}
 
             <div id="volunteerBio" className="whitespace-pre-wrap mb-5">
@@ -113,13 +116,20 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
               <div id="contactInfo" className={hasContact ? 'block' : 'hidden'}>
                 <h4 className="text-text-light">Contact</h4>
                 <div>
-                  {volunteer.email && <div>Email: {volunteer.email}</div>}
                   {volunteer.discordHandle && <div>Discord: {volunteer.discordHandle}</div>}
                   {volunteer.signalNumber && <div>Signal: {volunteer.signalNumber}</div>}
                   {volunteer.whatsappNumber && <div>WhatsApp: {volunteer.whatsappNumber}</div>}
                   {volunteer.contactNotes && (
                     <div>
                       <em>{volunteer.contactNotes}</em>
+                    </div>
+                  )}
+                  {canMessage && (
+                    <div className="mt-2">
+                      <p className="text-sm text-text-light mb-2">Contact via message</p>
+                      <Button variant="secondary" size="sm" onClick={() => setMessaging(true)}>
+                        Message
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -143,7 +153,7 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
                     className={`inline-flex items-center px-3 py-1 bg-accent text-secondary-dark rounded-full text-sm font-medium dark:bg-gray-700 dark:text-gray-300 border-l-[3px] ${e.rating === 'strong' ? 'border-l-success' : 'border-l-secondary'}`}
                   >
                     {e.skillName}{' '}
-                    <small className={e.rating === 'strong' ? 'text-success' : 'text-secondary'}>
+                    <small className={e.rating === 'strong' ? 'text-success' : 'text-text-light'}>
                       {e.rating}
                     </small>
                   </span>
@@ -160,7 +170,7 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
                   <div className="flex justify-between items-center">
                     <strong>{t.title}</strong>
                     <span
-                      className={`text-sm font-medium ${t.reviewRating === 'excellent' ? 'text-success' : 'text-secondary'}`}
+                      className={`text-sm font-medium ${t.reviewRating === 'excellent' ? 'text-success' : 'text-text-light'}`}
                     >
                       {t.reviewRating}
                     </span>
@@ -197,6 +207,15 @@ export default function VolunteerDetailPage({ params }: { params: Promise<{ id: 
           )}
         </div>
       </main>
+      {messaging && (
+        <MessageDialog
+          id="message-volunteer"
+          title={`Message ${volunteer.name}`}
+          recipientId={volunteer.id}
+          recipientName={volunteer.name}
+          onClose={() => setMessaging(false)}
+        />
+      )}
     </>
   )
 }

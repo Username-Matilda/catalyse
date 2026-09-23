@@ -6,6 +6,12 @@ import {
   sendTaskSurrenderedAssigneeEmail,
   isEmailConfigured,
 } from '@/lib/email'
+import { createNotification } from '@/lib/notify'
+import {
+  TASK_FINAL_WARNING_AFTER_DAYS,
+  TASK_RELEASE_AFTER_DAYS,
+  TASK_REMINDER_AFTER_DAYS,
+} from '@/lib/staleness'
 import { TaskStatus, WorkItemType } from '@/generated/prisma/enums'
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -29,7 +35,7 @@ export async function runNudgesJob(): Promise<Record<string, unknown>> {
       type: WorkItemType.TASK,
       status: TaskStatus.in_progress,
       assigneeId: { not: null },
-      updatedAt: { lt: daysAgo(14) },
+      updatedAt: { lt: daysAgo(TASK_REMINDER_AFTER_DAYS) },
       assignee: { email: { not: null }, deletedAt: null },
     },
     include: {
@@ -50,7 +56,7 @@ export async function runNudgesJob(): Promise<Record<string, unknown>> {
     const daysInactive = Math.floor((now.getTime() - updatedAt.getTime()) / DAY_MS)
     const lastActivityDate = formatDate(updatedAt)
 
-    if (daysInactive >= 28) {
+    if (daysInactive >= TASK_RELEASE_AFTER_DAYS) {
       await prisma.workItem.update({
         where: { id: task.id },
         data: {
@@ -61,6 +67,14 @@ export async function runNudgesJob(): Promise<Record<string, unknown>> {
           finalWarningSentAt: null,
         },
       })
+      await createNotification(
+        assignee.id,
+        'task_released',
+        `Released: ${task.title}`,
+        `No update for ${TASK_RELEASE_AFTER_DAYS} days, so the task is open for others. Claim it again if you are still working on it.`,
+        `/projects/${task.parentId}/tasks/${task.id}`,
+        task.id,
+      )
       await sendTaskSurrenderedAssigneeEmail({
         to: assignee.email!,
         name: assignee.name,
@@ -80,8 +94,10 @@ export async function runNudgesJob(): Promise<Record<string, unknown>> {
       }
       surrendered++
       console.log(`[CRON NUDGES] Surrendered task ${task.id} (${daysInactive} days inactive)`)
-    } else if (daysInactive >= 21 && !task.finalWarningSentAt) {
-      const surrenderDate = formatDate(new Date(updatedAt.getTime() + 28 * DAY_MS))
+    } else if (daysInactive >= TASK_FINAL_WARNING_AFTER_DAYS && !task.finalWarningSentAt) {
+      const surrenderDate = formatDate(
+        new Date(updatedAt.getTime() + TASK_RELEASE_AFTER_DAYS * DAY_MS),
+      )
       const sent = await sendTaskFinalWarningEmail({
         to: assignee.email!,
         name: assignee.name,
@@ -102,7 +118,11 @@ export async function runNudgesJob(): Promise<Record<string, unknown>> {
         warningsSent++
         console.log(`[CRON NUDGES] Final warning sent for task ${task.id} (${daysInactive} days)`)
       }
-    } else if (daysInactive >= 14 && !task.nudgeSentAt) {
+    } else if (
+      daysInactive >= TASK_REMINDER_AFTER_DAYS &&
+      !task.nudgeSentAt &&
+      !task.finalWarningSentAt
+    ) {
       const sent = await sendTaskNudgeEmail({
         to: assignee.email!,
         name: assignee.name,

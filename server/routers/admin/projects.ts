@@ -155,8 +155,8 @@ export const adminProjectsRouter = {
           await notifyUser(
             project.creatorId,
             'project_approved',
-            `Your project '${project.title}' has been approved!`,
-            "It's now visible to other volunteers.",
+            `Approved: '${project.title}' is now visible to volunteers`,
+            null,
             `/projects/${input.id}`,
             {
               message:
@@ -198,7 +198,7 @@ export const adminProjectsRouter = {
           await notifyUser(
             project.creatorId,
             'project_needs_discussion',
-            `Let's discuss your project '${project.title}'`,
+            `Changes requested: '${project.title}'`,
             feedback,
             `/projects/${input.id}`,
             {

@@ -20,7 +20,7 @@ async function fillRequired(opts: { country?: boolean } = {}) {
   await type('Confirm Password', 'a-long-password')
   await type('Your Application', 'I want to help with campaigns and policy work.')
   await type('About You', 'A biography that comfortably passes twenty characters.')
-  await type('Hours per Week', '5')
+  await type('Hours per week you can give (1–40)', '5')
   if (opts.country !== false) {
     await userEvent.click(screen.getByRole('button', { name: 'Select country' }))
     await userEvent.click(await screen.findByRole('option', { name: 'United Kingdom' }))
@@ -28,6 +28,15 @@ async function fillRequired(opts: { country?: boolean } = {}) {
 }
 
 describe('signup with email and password', () => {
+  it('fills Contact Email from the sign-up email, and says so while it is empty', async () => {
+    await renderApp(<SignupPage />)
+    const contact = await screen.findByLabelText('Contact Email')
+    expect(contact).toBeDisabled()
+    expect(contact).toHaveAttribute('placeholder', 'The email you sign up with')
+    await type('Email', 'ann.applicant@example.com')
+    expect(contact).toHaveValue('ann.applicant@example.com')
+  })
+
   it('validates client-side before submitting', async () => {
     await renderApp(<SignupPage />)
     await screen.findByLabelText('Your Name')
@@ -86,8 +95,20 @@ describe('signup with email and password', () => {
     await userEvent.click(
       screen.getByLabelText('Allow Google Analytics to help us improve the platform'),
     )
+    // Hints describe their field and are not themselves something to fill in.
+    expect(screen.getByLabelText('Your Application')).toHaveAccessibleDescription(
+      /Only admins read this/,
+    )
+    expect(screen.getByLabelText('Your Application')).toHaveAttribute(
+      'placeholder',
+      expect.stringContaining('e.g.'),
+    )
     submit()
     await screen.findByText('Check your email')
+    const done = screen.getByRole('status')
+    expect(done).toHaveTextContent('ann.applicant@example.com')
+    expect(done).toHaveTextContent('Open the link in that email to confirm your address.')
+    expect(done).toHaveTextContent('A member of the team reviews your application.')
     const row = await prisma.volunteer.findFirstOrThrow({
       where: { email: 'ann.applicant@example.com' },
       include: { skills: true },
@@ -257,7 +278,7 @@ describe('signup with Google', () => {
     await userEvent.click(await screen.findByRole('option', { name: 'United Kingdom' }))
     fireEvent.submit(form())
     expect(await screen.findByRole('alert')).toHaveTextContent('Availability is required')
-    await type('Hours per Week', '3')
+    await type('Hours per week you can give (1–40)', '3')
     await type('Your Application', 'I want to help with campaigns and policy work.')
     await userEvent.click(await screen.findByRole('button', { name: 'Select local group' }))
     await userEvent.click(await screen.findByRole('option', { name: 'Google Town' }))
@@ -299,6 +320,9 @@ describe('signup with Google', () => {
     )
     fireEvent.submit(form())
     await screen.findByText('Application submitted')
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'A member of the team reviews your application.',
+    )
     const row = await prisma.volunteer.findFirstOrThrow({ where: { email: 'stub@example.com' } })
     expect(row).toMatchObject({
       name: 'Stub User',
@@ -329,7 +353,7 @@ describe('signup with Google', () => {
       await screen.findByRole('option', { name: "None of these, I'll enter my city" }),
     )
     await type('City / Area', 'Leeds')
-    await type('Hours per Week', '3')
+    await type('Hours per week you can give (1–40)', '3')
     await type('Your Application', 'I want to help with campaigns and policy work.')
     fireEvent.submit(screen.getByLabelText('Your Name').closest('form')!)
     expect(await screen.findByRole('alert')).toHaveTextContent('Email already registered')
@@ -345,7 +369,7 @@ describe('signup with Google', () => {
     await type('About You', 'A biography that comfortably passes twenty characters.')
     await userEvent.click(screen.getByRole('button', { name: 'Select country' }))
     await userEvent.click(await screen.findByRole('option', { name: 'United Kingdom' }))
-    await type('Hours per Week', '3')
+    await type('Hours per week you can give (1–40)', '3')
     await type('Your Application', 'I want to help with campaigns and policy work.')
     fireEvent.submit(screen.getByLabelText('Your Name').closest('form')!)
     await waitFor(() => expect(navigation.push).toHaveBeenCalledWith('/dashboard'))

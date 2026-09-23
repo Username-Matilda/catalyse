@@ -1,5 +1,12 @@
 import { readFileSync } from 'fs'
-import { test, expect, getAlert, approveVolunteer, dismissCookieConsentScript } from '../fixtures'
+import {
+  test,
+  expect,
+  getAlert,
+  approveVolunteer,
+  confirmVolunteerEmail,
+  dismissCookieConsentScript,
+} from '../fixtures'
 import { fake } from '../fake'
 import { createSkillViaApi } from '../actions/skills'
 import { adminCreateProjectViaApi, transferProjectOwnership } from '../actions/projects'
@@ -46,7 +53,10 @@ test.describe('GDPR & Privacy', () => {
       timeout: 10_000,
     })
     await volunteer.page.getByRole('button', { name: 'Express Interest' }).click()
-    await expect(getAlert(volunteer.page)).toContainText('Interest expressed!', { timeout: 10_000 })
+    await expect(getAlert(volunteer.page)).toContainText(
+      "You'll get a notification when they reply",
+      { timeout: 10_000 },
+    )
 
     // Sign up a second volunteer (vol2) — used as owner for the contact project and as the inbound sender
     const vol2 = fake.person()
@@ -65,8 +75,14 @@ test.describe('GDPR & Privacy', () => {
     })
     if (vol2SignupResult.status !== 200)
       throw new Error(`vol2 signup failed: ${JSON.stringify(vol2SignupResult.body)}`)
-    const { id: vol2Id, token: vol2Token } = vol2SignupResult.body
-    await approveVolunteer(baseUrl, vol2Id)
+    const {
+      id: vol2Id,
+      token: vol2Token,
+      emailVerificationToken: vol2EmailToken,
+    } = vol2SignupResult.body
+    // A project page is closed to an unconfirmed email.
+    if (vol2EmailToken) await confirmVolunteerEmail(baseUrl, vol2EmailToken)
+    await approveVolunteer(baseUrl, vol2Id, vol2Token)
 
     // Admin creates a project and transfers ownership to vol2 so it has a contactable owner
     const contactProjectId = await adminCreateProjectViaApi(
@@ -162,7 +178,7 @@ test.describe('GDPR & Privacy', () => {
     if (signupResult.status !== 200)
       throw new Error(`vol2 signup failed: ${JSON.stringify(signupResult.body)}`)
     const { id: vol2Id, token: vol2Token } = signupResult.body
-    await approveVolunteer(baseUrl, vol2Id)
+    await approveVolunteer(baseUrl, vol2Id, vol2Token)
     const ctx2 = await browser.newContext()
     await ctx2.addInitScript((token: string) => {
       localStorage.setItem('authToken', token)
@@ -189,21 +205,21 @@ test.describe('GDPR & Privacy', () => {
       await page2.getByRole('button', { name: 'Save Changes' }).click()
       await expect(getAlert(page2)).toContainText('Profile updated!', { timeout: 10_000 })
 
-      await volunteer.page.goto(`${baseUrl}/volunteers`)
       // The results list keeps re-rendering (debounced search refetch) for a bit after
-      // the link appears, and can occasionally swallow a click mid-render. Retry the
-      // whole search+click as a unit rather than assume a single click always lands.
+      // the link appears, and can occasionally swallow a click mid-render or land it on a
+      // neighbouring row. Retry the whole visit, search, click and check as a unit rather than
+      // assume a single click always opens the right profile.
       await expect(async () => {
+        await volunteer.page.goto(`${baseUrl}/volunteers`)
         await volunteer.page.getByLabel('Search').fill(vol2.name)
         const link = volunteer.page.getByRole('link', { name: vol2.name })
         await expect(link).toBeVisible({ timeout: 10_000 })
         await link.click()
         await expect(volunteer.page).toHaveURL(/\/volunteers\/\d+$/, { timeout: 3_000 })
-      }).toPass({ timeout: 30_000 })
-
-      await expect(volunteer.page.getByRole('heading', { name: vol2.name, level: 1 })).toBeVisible({
-        timeout: 20_000,
-      })
+        await expect(
+          volunteer.page.getByRole('heading', { name: vol2.name, level: 1 }),
+        ).toBeVisible({ timeout: 5_000 })
+      }).toPass({ timeout: 60_000 })
 
       await expect(volunteer.page.getByText(discordHandle)).not.toBeVisible()
       await expect(volunteer.page.getByText(signalNumber)).not.toBeVisible()
