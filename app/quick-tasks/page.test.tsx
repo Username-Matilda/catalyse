@@ -58,6 +58,10 @@ describe('quick tasks — volunteer view', () => {
       within(within(myList).getByText(title).closest('[role=article]')!)
     expect(myCard('Mine in progress').getByRole('status')).toHaveTextContent('In progress')
     expect(myCard('Mine done').getByRole('status')).toHaveTextContent('Done')
+    // Opens on my own tasks; the open pool is the other tab.
+    expect(screen.getByRole('tab', { name: 'Mine (2)' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByText('Browse Quick Tasks')).toBeNull()
+    await userEvent.click(await screen.findByRole('tab', { name: 'Open (2)' }))
     const browse = screen.getByText('Browse Quick Tasks').closest('section')!
     await within(browse).findByText('Open quick')
     expect(
@@ -69,22 +73,36 @@ describe('quick tasks — volunteer view', () => {
       ),
     ).toHaveTextContent('Not started')
     expect(within(browse).getByRole('link', { name: 'Host project' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('tab', { name: /^Mine/ }))
+    const mineAgain = (await screen.findByRole('heading', { name: 'My Quick Tasks' })).closest(
+      'section',
+    )!
+    const myCard2 = (title: string) =>
+      within(within(mineAgain).getByText(title).closest('[role=article]')!)
 
     expect(
-      myCard('Mine in progress').getByRole('link', { name: 'https://example.org/drafts' }),
+      myCard2('Mine in progress').getByRole('link', { name: 'https://example.org/drafts' }),
     ).toHaveAttribute('target', '_blank')
-    await userEvent.click(within(myList).getByRole('button', { name: 'Submit for review' }))
+    await userEvent.click(within(mineAgain).getByRole('button', { name: 'Submit for review' }))
     await userEvent.click(
       within(await screen.findByRole('dialog')).getByRole('button', { name: 'Submit for review' }),
     )
     await screen.findByText(/Submitted\. An admin will review it/)
     await waitFor(async () => expect((await row(mine.id)).status).toBe('under_review'))
 
+    const openTab = () => screen.getByRole('tab', { name: /^Open/ })
+    await userEvent.click(openTab())
     const cardFor = (title: string) =>
-      within(browse).getByText(title).closest('[role=article]') as HTMLElement
+      within(screen.getByText('Browse Quick Tasks').closest('section')!)
+        .getByText(title)
+        .closest('[role=article]') as HTMLElement
     await userEvent.click(within(cardFor('Open quick')).getByRole('button', { name: 'Claim' }))
     await screen.findByText(/Task claimed\. Submit it for review/)
     await waitFor(async () => expect((await row(open.id)).assigneeId).toBe(me.id))
+    // A claim shows the task in my list.
+    expect(screen.getByRole('tab', { name: /^Mine/ })).toHaveAttribute('aria-selected', 'true')
+    await screen.findByRole('heading', { name: 'My Quick Tasks' })
+    await userEvent.click(openTab())
     await userEvent.click(within(cardFor('Featured task')).getByRole('button', { name: 'Claim' }))
     await waitFor(() =>
       expect(navigation.push).toHaveBeenCalledWith(`/projects/${project.id}/tasks/${featured.id}`),
@@ -95,7 +113,10 @@ describe('quick tasks — volunteer view', () => {
   it('shows empty states and reports failures', async () => {
     const me = await createVolunteer()
     await renderApp(<QuickTasksPage />, { as: me })
+    await screen.findByText('No open Quick Tasks right now')
+    await userEvent.click(screen.getByRole('tab', { name: 'Mine' }))
     await screen.findByText('No tasks assigned yet')
+    await userEvent.click(screen.getByRole('button', { name: 'See open tasks' }))
     await screen.findByText('No open Quick Tasks right now')
     cleanup()
     const mine = await createQuickTask({
@@ -107,6 +128,7 @@ describe('quick tasks — volunteer view', () => {
     const project = await createProject()
     const featured = await createTask(project.id, { title: 'Gone', featuredAsQuickTask: true })
     await renderApp(<QuickTasksPage />, { as: me })
+    await userEvent.click(await screen.findByRole('tab', { name: /^Open \(/ }))
     await screen.findByText('Taken')
     const rival = await createVolunteer()
     await prisma.workItem.update({
@@ -122,7 +144,8 @@ describe('quick tasks — volunteer view', () => {
     await userEvent.click(within(cardFor('Gone')).getByRole('button', { name: 'Claim' }))
     await screen.findByText('Project or task not found')
     await prisma.workItem.delete({ where: { id: mine.id } })
-    await userEvent.click(screen.getByRole('button', { name: 'Submit for review' }))
+    await userEvent.click(screen.getByRole('tab', { name: /^Mine/ }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Submit for review' }))
     await userEvent.click(
       within(await screen.findByRole('dialog')).getByRole('button', { name: 'Submit for review' }),
     )

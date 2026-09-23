@@ -21,6 +21,7 @@ import { CARD_GRID_CLASSES } from '@/components/ProjectCard'
 import Tooltip from '@/components/Tooltip'
 import Skeleton from '@/components/Skeleton'
 import EmptyState from '@/components/EmptyState'
+import ViewSwitch, { PEOPLE_VIEWS } from '@/components/ViewSwitch'
 
 type SkillCategory = InferRouterOutputs<AppRouter>['skills']['list'][number]
 type FlatSkill = SkillCategory['skills'][number] & { categoryName: string }
@@ -96,6 +97,7 @@ function VolunteersPageContent({ user }: { user: AuthUser }) {
     <>
       <main className="container py-5 pb-15">
         <h1>Volunteer Directory</h1>
+        <ViewSwitch label="People" views={PEOPLE_VIEWS} current="/volunteers" />
 
         <div className="mb-5">
           <div className="mb-3">

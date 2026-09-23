@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { screen, waitFor, fireEvent, act } from '@testing-library/react'
+import { screen, waitFor, fireEvent, act, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { prisma } from '@/lib/prisma'
 import { createVolunteer, createAdmin, createSuperAdmin } from '@/test/factories'
@@ -48,11 +48,11 @@ describe('Header', () => {
     await prisma.notification.create({ data: { volunteerId: admin.id, type: 'x', title: 't' } })
     await mount(admin, '/projects')
     const nameButton = await screen.findByRole('button', { name: new RegExp(admin.name) })
-    await waitFor(() =>
-      expect(screen.getByRole('link', { name: /Notifications/ })).toHaveTextContent('1'),
-    )
+    await waitFor(() => expect(screen.getByRole('link', { name: /^Inbox/ })).toHaveTextContent('1'))
     expect(screen.getByRole('link', { name: 'Projects' })).toHaveClass('bg-primary')
-    expect(screen.getByRole('link', { name: 'Teams' })).not.toHaveClass('bg-primary')
+    expect(screen.getByRole('link', { name: 'Projects' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: 'People' })).not.toHaveClass('bg-primary')
+    expect(screen.getByRole('link', { name: 'Catalyse' })).toHaveAttribute('href', '/dashboard')
     expect(screen.queryByText('Confirm your location')).toBeNull()
     await userEvent.click(nameButton)
     expect(screen.getByRole('link', { name: 'Superadmin panel' })).toHaveAttribute('href', '/admin')
@@ -86,19 +86,50 @@ describe('Header', () => {
     await waitFor(() => expect(navigation.push).toHaveBeenCalledWith('/login'))
   })
 
-  it('always links to Notifications, with a count only while something is unread', async () => {
+  it('shows five items, always linking to the Inbox, with a count only while something is unread', async () => {
     const vol = await createVolunteer({ locationConfirmedAt: new Date() })
     await mount(vol, '/projects')
-    const link = await screen.findByRole('link', { name: /Notifications/ })
+    const nav = await screen.findByRole('navigation', { name: 'Main' })
+    await waitFor(() =>
+      expect(
+        within(nav)
+          .getAllByRole('link')
+          .map((l) => l.textContent),
+      ).toEqual(['Home', 'Projects', 'Tasks', 'People', 'Inbox']),
+    )
+    const link = within(nav).getByRole('link', { name: 'Inbox' })
     expect(link).toHaveAttribute('href', '/dashboard#tab-notifications')
-    expect(link).toHaveTextContent(/^Notifications$/)
     await userEvent.click(screen.getByLabelText('Open menu'))
-    const links = screen.getAllByRole('link', { name: /Notifications/ })
+    const links = screen.getAllByRole('link', { name: /^Inbox/ })
     expect(links).toHaveLength(2)
     expect(links[1]).toHaveAttribute('href', '/dashboard#tab-notifications')
   })
 
-  it('links to my own profile and to Privacy & Data from both menus', async () => {
+  it.each([
+    ['/quick-tasks/5', 'Tasks'],
+    ['/teams/2', 'People'],
+    ['/suggest-team', 'People'],
+    ['/templates', 'Projects'],
+    ['/projects/gantt', 'Projects'],
+    ['/volunteers', 'People'],
+  ])('marks the right item active on %s', async (url, label) => {
+    const vol = await createVolunteer({ locationConfirmedAt: new Date() })
+    await mount(vol, url)
+    const nav = await screen.findByRole('navigation', { name: 'Main' })
+    await waitFor(() =>
+      expect(within(nav).getByRole('link', { name: label })).toHaveAttribute(
+        'aria-current',
+        'page',
+      ),
+    )
+    expect(
+      within(nav)
+        .getAllByRole('link')
+        .filter((l) => l.hasAttribute('aria-current')),
+    ).toHaveLength(1)
+  })
+
+  it('links to my own profile and Settings from both menus, and Privacy only from Settings', async () => {
     const vol = await createVolunteer({ locationConfirmedAt: new Date() })
     await mount(vol, '/projects')
     await userEvent.click(await screen.findByRole('button', { name: vol.name }))
@@ -112,7 +143,7 @@ describe('Header', () => {
       'href',
       `/volunteers/${vol.id}`,
     )
-    expect(screen.getByRole('link', { name: 'Privacy & Data' })).toHaveAttribute('href', '/privacy')
+    expect(screen.queryByRole('link', { name: 'Privacy & Data' })).toBeNull()
   })
 
   it('shows a plain admin panel link for non-super admins', async () => {
@@ -125,26 +156,30 @@ describe('Header', () => {
     expect(screen.getAllByRole('link', { name: 'Admin panel' })).toHaveLength(2)
   })
 
-  it('switches dashboard tabs via the hash without a navigation', async () => {
+  it('moves between Home and Inbox via the hash without a navigation', async () => {
     const vol = await createVolunteer({ locationConfirmedAt: new Date() })
     await prisma.notification.create({ data: { volunteerId: vol.id, type: 'x', title: 't' } })
+    window.scrollTo = vi.fn()
     await mount(vol, '/dashboard')
-    const myProjects = await screen.findByRole('link', { name: 'My Projects' })
-    expect(myProjects).toHaveClass('bg-primary')
-    await userEvent.click(await screen.findByRole('link', { name: /Notifications/ }))
+    const home = await screen.findByRole('link', { name: 'Home' })
+    expect(home).toHaveClass('bg-primary')
+    await userEvent.click(await screen.findByRole('link', { name: /^Inbox/ }))
     act(() => window.dispatchEvent(new HashChangeEvent('hashchange')))
     expect(window.location.hash).toBe('#tab-notifications')
     await waitFor(() =>
-      expect(screen.getByRole('link', { name: /Notifications/ })).toHaveClass('bg-primary'),
+      expect(screen.getByRole('link', { name: /^Inbox/ })).toHaveClass('bg-primary'),
     )
-    await userEvent.click(myProjects)
+    await userEvent.click(home)
     expect(window.location.hash).toBe('')
-    await waitFor(() => expect(myProjects).toHaveClass('bg-primary'))
-    // Off the dashboard the buttons are plain links and the menu closes on navigation.
+    expect(window.scrollTo).toHaveBeenCalledWith({ top: 0 })
+    await waitFor(() => expect(home).toHaveClass('bg-primary'))
+    // Links to other pages navigate as usual.
+    fireEvent.click(screen.getByRole('link', { name: 'Projects' }))
+    // Off Home the items are plain links and the menu closes on navigation.
     await userEvent.click(screen.getByLabelText('Open menu'))
     act(() => navigation.push('/projects'))
     await waitFor(() => expect(screen.queryByLabelText('Close menu')).toBeNull())
-    fireEvent.click(screen.getByRole('link', { name: 'My Projects' }))
-    expect(screen.getByRole('link', { name: 'My Projects' })).not.toHaveClass('bg-primary')
+    fireEvent.click(screen.getByRole('link', { name: 'Home' }))
+    expect(screen.getByRole('link', { name: 'Home' })).not.toHaveClass('bg-primary')
   })
 })

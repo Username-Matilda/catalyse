@@ -40,73 +40,78 @@ function MobileNavSection({ children, admin }: { children: React.ReactNode; admi
   )
 }
 
-function DashboardNavButtons({ unreadCount }: { unreadCount: number }) {
+const INBOX_HASH = '#tab-notifications'
+
+/** `path` is `base` or a page below it. */
+const under = (path: string, base: string) => path === base || path.startsWith(`${base}/`)
+
+type NavItem = { href: string; label: string; active: (path: string, hash: string) => boolean }
+
+// The Inbox is Home's notifications section until it has a page of its own.
+const NAV_ITEMS: NavItem[] = [
+  { href: '/dashboard', label: 'Home', active: (p, h) => p === '/dashboard' && h !== INBOX_HASH },
+  {
+    href: '/projects',
+    label: 'Projects',
+    active: (p) => under(p, '/projects') || under(p, '/templates') || under(p, '/suggest'),
+  },
+  { href: '/quick-tasks', label: 'Tasks', active: (p) => under(p, '/quick-tasks') },
+  {
+    href: '/volunteers',
+    label: 'People',
+    active: (p) => under(p, '/volunteers') || under(p, '/teams') || under(p, '/suggest-team'),
+  },
+  {
+    href: `/dashboard${INBOX_HASH}`,
+    label: 'Inbox',
+    active: (p, h) => p === '/dashboard' && h === INBOX_HASH,
+  },
+]
+
+/** The address hash, which the router does not track. */
+function useHash(): string {
   const pathname = usePathname()
   const [hash, setHash] = useState(() =>
     typeof window !== 'undefined' ? window.location.hash : '',
   )
-
   useEffect(() => {
-    function onHashChange() {
-      setHash(window.location.hash)
-    }
+    const onHashChange = () => setHash(window.location.hash)
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
-
-  // Sync hash when pathname changes (navigating to/from dashboard)
+  // Re-read after a client navigation, which does not fire hashchange.
   useEffect(() => {
-    // Re-reads window.location.hash after Next.js client navigation — the router does not track the hash fragment.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setHash(typeof window !== 'undefined' ? window.location.hash : '')
+    setHash(window.location.hash)
   }, [pathname])
+  return hash
+}
 
-  const onDashboard = pathname === '/dashboard'
-  const activeTab = onDashboard && hash.startsWith('#tab-') ? hash.slice('#tab-'.length) : ''
-
-  function goToTab(tab: string) {
-    if (tab) {
-      window.location.hash = `tab-${tab}`
+/**
+ * Home and Inbox are one page, so between them only the hash changes: set it directly
+ * rather than navigating, and let the page scroll to the section.
+ */
+function onSamePage(href: string, pathname: string) {
+  return (e: React.MouseEvent) => {
+    if (pathname !== '/dashboard' || !href.startsWith('/dashboard')) return
+    e.preventDefault()
+    if (href.includes('#')) {
+      window.location.hash = href.slice(href.indexOf('#'))
     } else {
       history.pushState(null, '', '/dashboard')
       window.dispatchEvent(new HashChangeEvent('hashchange'))
+      window.scrollTo({ top: 0 })
     }
   }
+}
 
+function UnreadBadge({ count }: { count: number }) {
+  if (count === 0) return null
   return (
-    <>
-      <Button
-        href="/dashboard"
-        variant={onDashboard && activeTab !== 'notifications' ? 'primary' : 'ghost'}
-        size="sm"
-        onClick={(e) => {
-          if (onDashboard) {
-            e.preventDefault()
-            goToTab('')
-          }
-        }}
-      >
-        My Projects
-      </Button>
-      <Button
-        href="/dashboard#tab-notifications"
-        variant={activeTab === 'notifications' ? 'primary' : 'ghost'}
-        size="sm"
-        onClick={(e) => {
-          if (onDashboard) {
-            e.preventDefault()
-            goToTab('notifications')
-          }
-        }}
-      >
-        Notifications
-        {unreadCount > 0 && (
-          <span className="bg-primary text-[#111827] text-xs px-2 py-0.5 rounded-full ml-1">
-            {unreadCount}
-          </span>
-        )}
-      </Button>
-    </>
+    <span className="bg-primary text-[#111827] text-xs px-2 py-0.5 rounded-full ml-1">
+      <span className="sr-only">, unread: </span>
+      {count}
+    </span>
   )
 }
 
@@ -155,17 +160,11 @@ export default function Header() {
     setMobileMenuOpen(false)
   }, [pathname])
 
-  const navLinks = [
-    { href: '/projects', label: 'Projects' },
-    { href: '/teams', label: 'Teams' },
-    { href: '/volunteers', label: 'Volunteers' },
-    { href: '/quick-tasks', label: 'Quick Tasks' },
-    { href: '/templates', label: 'Templates' },
-  ]
+  const hash = useHash()
 
-  // Signed-in volunteers expect the wordmark to take them into the app; signed-out
-  // visitors should land on the public explainer at /.
-  const homeHref = user ? '/projects' : '/'
+  // Signed-in volunteers expect the wordmark to take them Home; signed-out visitors
+  // should land on the public explainer at /.
+  const homeHref = user ? '/dashboard' : '/'
 
   return (
     <>
@@ -178,22 +177,23 @@ export default function Header() {
             Catalyse
           </Link>
 
-          <nav className="hidden xl:flex gap-2 flex-wrap">
-            {mounted && !loading && user && (
-              <>
-                {navLinks.map(({ href, label }) => (
-                  <Button
-                    key={href}
-                    href={href}
-                    variant={pathname === href ? 'primary' : 'ghost'}
-                    size="sm"
-                  >
-                    {label}
-                  </Button>
-                ))}
-                <DashboardNavButtons unreadCount={unreadCount} />
-              </>
-            )}
+          <nav aria-label="Main" className="hidden xl:flex gap-2 flex-wrap">
+            {mounted &&
+              !loading &&
+              user &&
+              NAV_ITEMS.map(({ href, label, active }) => (
+                <Button
+                  key={href}
+                  href={href}
+                  variant={active(pathname, hash) ? 'primary' : 'ghost'}
+                  aria-current={active(pathname, hash) ? 'page' : undefined}
+                  size="sm"
+                  onClick={onSamePage(href, pathname)}
+                >
+                  {label}
+                  {label === 'Inbox' && <UnreadBadge count={unreadCount} />}
+                </Button>
+              ))}
           </nav>
 
           <div className="hidden xl:flex gap-2 items-center">
@@ -235,12 +235,6 @@ export default function Header() {
                         className="block px-4 py-3 text-brand-text no-underline"
                       >
                         Settings
-                      </Link>
-                      <Link
-                        href="/privacy"
-                        className="block px-4 py-3 text-brand-text no-underline"
-                      >
-                        Privacy &amp; Data
                       </Link>
                       {user.isAdmin && (
                         <Link
@@ -371,9 +365,10 @@ export default function Header() {
           {/* Nav links */}
           <div className="flex-1 overflow-y-auto">
             {user &&
-              navLinks.map(({ href, label }) => (
-                <MobileNavLink key={href} href={href} active={pathname === href}>
+              NAV_ITEMS.map(({ href, label, active }) => (
+                <MobileNavLink key={href} href={href} active={active(pathname, hash)}>
                   {label}
+                  {label === 'Inbox' && <UnreadBadge count={unreadCount} />}
                 </MobileNavLink>
               ))}
 
@@ -393,18 +388,8 @@ export default function Header() {
                       Confirm your location
                     </button>
                   )}
-                  <MobileNavLink href="/dashboard">Dashboard</MobileNavLink>
-                  <MobileNavLink href="/dashboard#tab-notifications">
-                    Notifications
-                    {unreadCount > 0 && (
-                      <span className="bg-primary text-[#111827] text-xs px-2 py-0.5 rounded-full ml-1">
-                        {unreadCount}
-                      </span>
-                    )}
-                  </MobileNavLink>
                   <MobileNavLink href={`/volunteers/${user.id}`}>My profile</MobileNavLink>
                   <MobileNavLink href="/settings">Settings</MobileNavLink>
-                  <MobileNavLink href="/privacy">Privacy &amp; Data</MobileNavLink>
 
                   {user.isAdmin && (
                     <>
