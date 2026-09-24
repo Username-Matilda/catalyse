@@ -29,6 +29,21 @@ GitHub issue. An entry here is about the work itself: something in the code
 structure, tooling, tests, docs or diagnostics that made a task slower or more
 confusing than it needed to be, and that will do so again.
 
+## 3x
+
+- [ ] **Races that only show under full-suite load surface one per `check-all` run,
+      and each costs another run of up to ten minutes.** `ProjectEditor.test.tsx`
+      failed in three different ways across four runs (a 5 s database poll, a title
+      long enough to start autosave, then a real bug where edits made during the
+      first autosave were dropped), and e2e `01` reloaded before a background
+      mark-read landed. R-06's run hit e2e `16`, which read a reply's text on screen
+      as proof it was saved while the draft was still in the box, and R-09's hit
+      `ProjectEditor.test.tsx` again (a button that follows a refetch, read with `getBy…`). Each passed 8/8
+      when run alone. A script that reruns one
+      file under the same parallel load (for example all unit files at once with
+      only the suspect repeated) would find them in one pass instead of one per
+      full run.
+
 ## 2x
 
 - [ ] **A `null`-target guard written for a dialog's confirm or dismiss handler
@@ -40,17 +55,6 @@ confusing than it needed to be, and that will do so again.
       line — render the dialog inside `{target && (…)}` and read the target in
       the handler closure — belongs in `AGENTS.md` next to the coverage rules,
       and in `components/ui/ConfirmDialog.tsx`'s own usage note.
-- [ ] **Races that only show under full-suite load surface one per `check-all` run,
-      and each costs another run of up to ten minutes.** `ProjectEditor.test.tsx`
-      failed in three different ways across four runs (a 5 s database poll, a title
-      long enough to start autosave, then a real bug where edits made during the
-      first autosave were dropped), and e2e `01` reloaded before a background
-      mark-read landed. R-06's run hit e2e `16`, which read a reply's text on screen
-      as proof it was saved while the draft was still in the box. Each passed 8/8
-      when run alone. A script that reruns one
-      file under the same parallel load (for example all unit files at once with
-      only the suspect repeated) would find them in one pass instead of one per
-      full run.
 
 ## 1x
 

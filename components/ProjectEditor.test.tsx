@@ -71,7 +71,10 @@ describe('ProjectEditor — new volunteer proposal', () => {
     blur(hours)
     await waitFor(async () => expect((await row(draft.id)).timeCommitmentHoursPerWeek).toBe(4))
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/Last saved/))
-    expect(screen.getByRole('button', { name: 'Delete Draft' })).toBeInTheDocument()
+    // Delete Draft follows the refetched project, not the save itself.
+    expect(
+      await screen.findByRole('button', { name: 'Delete Draft' }, { timeout: 20_000 }),
+    ).toBeInTheDocument()
   })
 
   it('waits until there is something to save, and can start from the description alone', async () => {

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import ResendConfirmation from '@/components/ResendConfirmation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRequireAuth } from '@/lib/hooks/auth'
 import { orpc } from '@/lib/orpc'
@@ -51,7 +52,13 @@ function Count({ n }: { n: number }) {
   )
 }
 
-function GettingStarted({ steps }: { steps: NonNullable<Home['gettingStarted']> }) {
+function GettingStarted({
+  steps,
+  email,
+}: {
+  steps: NonNullable<Home['gettingStarted']>
+  email: string | null
+}) {
   const items = [
     {
       done: steps.approved,
@@ -106,6 +113,12 @@ function GettingStarted({ steps }: { steps: NonNullable<Home['gettingStarted']> 
           </li>
         ))}
       </ol>
+      {!steps.emailConfirmed && email && (
+        <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
+          <span className="text-text-light">No confirmation email from us yet?</span>
+          <ResendConfirmation email={email} />
+        </div>
+      )}
     </section>
   )
 }
@@ -283,7 +296,9 @@ export default function HomePage() {
           </div>
         )}
 
-        {data.gettingStarted && <GettingStarted steps={data.gettingStarted} />}
+        {data.gettingStarted && (
+          <GettingStarted steps={data.gettingStarted} email={user.email ?? null} />
+        )}
 
         {isMember && (
           <section aria-labelledby="attention" className="mb-8">

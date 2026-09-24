@@ -11,6 +11,7 @@ import {
   createTeam,
 } from '@/test/factories'
 import { renderApp } from '@/test/render'
+import { emails } from '@/test/fakes/email'
 import { navigation } from '@/test/next-navigation'
 import HomePage from './page'
 
@@ -37,6 +38,10 @@ describe('home', () => {
       'href',
       '/verify-email',
     )
+    // The confirmation email can be sent again from here.
+    await userEvent.click(within(checklist).getByRole('button', { name: 'Send it again' }))
+    await within(checklist).findByText(/Email sent!/)
+    await vi.waitFor(() => expect(emails.lastTo(pending.email!)).toBeTruthy())
     // No first task to pick until approved.
     expect(within(checklist).queryByRole('link', { name: 'Pick a first task' })).toBeNull()
     expect(within(checklist).getByText('Pick a first task')).toBeInTheDocument()
