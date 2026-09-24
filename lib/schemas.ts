@@ -186,9 +186,25 @@ const PROJECT_INPUT_FIELDS = {
   ...SCHEDULE_INPUT_FIELDS,
 } as const
 
+const HTTP_URL_RE = /^https?:\/\/\S+$/i
+
+/** A link the app will render as an href: http(s) only, so it can never run script. */
+export const isHttpUrl = (value: string | null | undefined): value is string =>
+  typeof value === 'string' && HTTP_URL_RE.test(value)
+
+/** A user-supplied link, empty allowed; the caller decides whether empty means null. */
+export const HttpUrlSchema = z
+  .string()
+  .trim()
+  .max(2000)
+  .refine((u) => u === '' || isHttpUrl(u), {
+    message: 'The link must start with http:// or https://',
+  })
+
 export const CreateProjectSchema = WorkItemSchema.pick(PROJECT_INPUT_FIELDS)
   .partial({ remoteEligibility: true, teamId: true, ...SCHEDULE_INPUT_FIELDS })
   .extend({
+    collaborationLink: HttpUrlSchema.nullable(),
     tasks: z.array(TaskInputSchema).optional().default([]),
     wantToOwn: z.boolean().optional().default(false),
     skillIds: z.array(z.number().int()).optional().default([]),
@@ -206,6 +222,7 @@ export const UpdateProjectSchema = WorkItemSchema.pick({
 })
   .partial()
   .extend({
+    collaborationLink: HttpUrlSchema.nullable().optional(),
     skillIds: z.array(z.number().int()).optional(),
     skillRequiredMap: z.record(z.string(), z.boolean()).optional(),
   })
@@ -416,15 +433,7 @@ export const AssignQuickTaskSchema = z.object({
 /** Handing in a task. At least one of the two is required; `submissionData` checks that. */
 export const SubmitWorkSchema = z.object({
   note: z.string().trim().max(5000).optional().nullable(),
-  url: z
-    .string()
-    .trim()
-    .max(2000)
-    .refine((u) => u === '' || /^https?:\/\/\S+$/i.test(u), {
-      message: 'The link must start with http:// or https://',
-    })
-    .optional()
-    .nullable(),
+  url: HttpUrlSchema.optional().nullable(),
 })
 
 export const RequestChangesSchema = z.object({

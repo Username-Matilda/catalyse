@@ -681,10 +681,21 @@ describe('projects.submitTask / acceptTask / requestTaskChanges', () => {
     expect((await task(b.id)).status).toBe('in_progress')
   })
 
-  it('lets the owner switch auto-accept off', async () => {
+  it('lets the owner switch auto-accept off, but not a proposer who does not run the project', async () => {
     const owner = await createVolunteer()
-    const project = await createProject({ assigneeId: owner.id, status: 'in_progress' })
+    const proposer = await createVolunteer()
+    const project = await createProject({
+      creatorId: proposer.id,
+      assigneeId: owner.id,
+      status: 'in_progress',
+    })
     expect(project.autoAcceptTasks).toBe(true)
+    await expect(
+      clientAs(proposer).projects.update({ id: project.id, autoAcceptTasks: false }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    // Posting the current value back, as the edit form does, is not a change.
+    await clientAs(proposer).projects.update({ id: project.id, autoAcceptTasks: true })
+    expect((await task(project.id)).autoAcceptTasks).toBe(true)
     await clientAs(owner).projects.update({ id: project.id, autoAcceptTasks: false })
     expect((await task(project.id)).autoAcceptTasks).toBe(false)
     expect((await clientAs(owner).projects.getById({ id: project.id })).autoAcceptTasks).toBe(false)

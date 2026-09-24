@@ -779,8 +779,8 @@ export default function ProjectEditor(props: ProjectEditorProps) {
           <label htmlFor="collaboration-link">Collaboration Doc / Link (optional)</label>
           <input
             id="collaboration-link"
-            type="text"
-            placeholder="e.g., https://docs.google.com/… or 'Will create a shared doc once team forms'"
+            type="url"
+            placeholder="e.g., https://docs.google.com/…"
             value={collaborationLink}
             onChange={(e) => {
               setCollaborationLink(e.target.value)
@@ -793,7 +793,7 @@ export default function ProjectEditor(props: ProjectEditorProps) {
             disabled={!canEdit}
           />
           <p className="text-sm text-text-light mt-1">
-            A URL to a planning doc or workspace, or just describe your plans for collaboration
+            A link (starting with https://) to a planning doc or workspace
           </p>
         </div>
 

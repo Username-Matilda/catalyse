@@ -1147,7 +1147,15 @@ export const projectsRouter = {
       }
 
       if (body.isSeekingHelp !== undefined) data.isSeekingHelp = body.isSeekingHelp
-      if (body.autoAcceptTasks !== undefined) data.autoAcceptTasks = body.autoAcceptTasks
+      // Whether helpers' work needs the owner's review is the owner's call, not the proposer's.
+      if (body.autoAcceptTasks !== undefined && body.autoAcceptTasks !== project.autoAcceptTasks) {
+        if (!canReassign) {
+          throw new ORPCError('FORBIDDEN', {
+            message: 'Only the project owner or an admin can change how submitted work is accepted',
+          })
+        }
+        data.autoAcceptTasks = body.autoAcceptTasks
+      }
 
       // Gaining an owner starts the work. Losing one leaves the status as it is: the work is
       // still where it was, and the derived isSeekingOwner shows the project needs an owner.
@@ -1366,6 +1374,12 @@ export const projectsRouter = {
         include: { volunteer: { select: { approvalStatus: true, name: true } } },
       })
       if (!interest) throw new ORPCError('NOT_FOUND', { message: 'Interest not found' })
+      // An invite is the invitee's to answer; only an admin puts someone on a project unasked.
+      if (interest.status === InterestStatus.invited) {
+        throw new ORPCError('BAD_REQUEST', {
+          message: 'They have been invited and have not answered yet. Cancel the invite instead.',
+        })
+      }
       if (
         input.status === InterestStatus.accepted &&
         interest.volunteer.approvalStatus !== ApprovalStatus.approved

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { sendRelayMessage, isEmailConfigured } from '@/lib/email'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { canReach } from '@/lib/contact'
+import { projectScopeWhere } from '@/lib/work-item'
 import { authedProcedure, approvedProcedure } from '../procedures'
 import { WorkItemType } from '@/generated/prisma/enums'
 import type { Context } from '../context'
@@ -237,11 +238,16 @@ export const messagesRouter = {
     let projectTitle: string | null = null
     if (input.relatedProjectId) {
       const project = await prisma.workItem.findFirst({
-        where: { id: input.relatedProjectId, type: WorkItemType.PROJECT },
+        where: {
+          id: input.relatedProjectId,
+          type: WorkItemType.PROJECT,
+          AND: [projectScopeWhere(sender)],
+        },
         select: { title: true },
       })
       // The id is written as a foreign key below, so an unknown one must be refused here
-      // rather than surfacing as a constraint violation.
+      // rather than surfacing as a constraint violation. The title goes to the recipient and
+      // back to the sender in the thread, so only a project the sender may see qualifies.
       if (!project) throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
       projectTitle = project.title
     }

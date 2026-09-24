@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { prisma } from '@/lib/prisma'
-import { createVolunteer, createProject, connect } from '@/test/factories'
+import { createVolunteer, createProject, createTeam, connect } from '@/test/factories'
 import { clientAs } from '@/test/rpc'
 import { rateLimit } from '@/test/fakes/rate-limit'
 import { env } from '@/lib/env'
@@ -50,6 +50,22 @@ describe('messages.send', () => {
         relatedProjectId: 999_999,
       }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND', message: 'Project not found' })
+
+    // So is a project the sender cannot see: its title would otherwise reach both parties.
+    const team = await createTeam()
+    const hidden = await createProject({ title: 'Team secret', teamId: team.id })
+    await expect(
+      c.messages.send({
+        recipientId: recipient.id,
+        subject: 'Four',
+        message: 'x',
+        relatedProjectId: hidden.id,
+      }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND', message: 'Project not found' })
+    expect(emails.sent.some((e) => e.html.includes('Team secret'))).toBe(false)
+    expect(
+      (await c.messages.threads()).map((t) => t.relatedProject?.title).filter(Boolean),
+    ).toEqual([project.title])
   })
 
   it('refuses self, unknown recipients and people the sender does not work with, and rate limits', async () => {

@@ -30,6 +30,7 @@ import MessageDialog from '@/components/MessageDialog'
 import Linkify from '@/components/Linkify'
 import SubmitWorkButton from '@/components/SubmitWorkButton'
 import { awaitsOwnerReview } from '@/lib/task-review'
+import { isHttpUrl } from '@/lib/schemas'
 import { TASK_STATUS_LABELS, TASK_STATUS_VARIANTS } from '@/lib/status-labels'
 import Modal from '@/components/ui/Modal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
@@ -1625,7 +1626,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     </p>
                   )}
 
-                  {project.collaborationLink && (
+                  {isHttpUrl(project.collaborationLink) && (
                     <p className="mt-2 text-sm">
                       <a
                         href={project.collaborationLink}

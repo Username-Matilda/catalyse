@@ -180,9 +180,15 @@ describe('project page — visitor', () => {
       expect(navigation.replace).toHaveBeenCalledWith(`/projects/${draft.id}/edit`),
     )
     cleanup()
-    const project = await createProject({ title: 'Ownerless', status: 'ready' })
+    // A doc link that is not http(s), however it got into the row, is never rendered.
+    const project = await createProject({
+      title: 'Ownerless',
+      status: 'ready',
+      collaborationLink: 'javascript:alert(1)',
+    })
     await mount(project.id, me)
     await screen.findByRole('heading', { name: 'Ownerless' })
+    expect(screen.queryByRole('link', { name: 'Open Project Doc →' })).toBeNull()
     await userEvent.click(screen.getByRole('button', { name: 'Join this project' }))
     await userEvent.click(screen.getByLabelText('Lead the project'))
     await userEvent.click(screen.getByLabelText('Help out on the project'))

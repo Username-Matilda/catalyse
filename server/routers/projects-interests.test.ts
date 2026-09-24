@@ -441,6 +441,16 @@ describe('projects.invite / respondToInvite / cancelInvite', () => {
     await expect(
       v.projects.expressInterest({ projectId: p.id, interestType: 'want_to_contribute' }),
     ).rejects.toMatchObject({ message: expect.stringContaining('accept the invite instead') })
+    // Nor can the owner answer on their behalf: an invite waits on the invitee.
+    for (const status of ['accepted', 'declined'] as const) {
+      await expect(
+        o.projects.respondToInterest({ projectId: p.id, interestId: row.id, status }),
+      ).rejects.toMatchObject({
+        code: 'BAD_REQUEST',
+        message: expect.stringContaining('Cancel the invite instead'),
+      })
+    }
+    expect((await interestRow(vol.id, p.id)).status).toBe('invited')
 
     await expect(
       clientAs(other).projects.respondToInvite({ projectId: p.id, accept: true }),
