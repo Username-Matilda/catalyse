@@ -281,6 +281,19 @@ describe('what a deputy can do', () => {
         interestType: 'want_to_contribute',
       }),
     ).rejects.toMatchObject(forbidden)
+    const task = await createTask(project.id)
+    await expect(
+      deputy.projects.updateTask({
+        projectId: project.id,
+        taskId: task.id,
+        data: { isAnchor: true },
+      }),
+    ).rejects.toMatchObject({ message: 'Only the project owner can set the key date' })
+    await clientAs(owner).projects.updateTask({
+      projectId: project.id,
+      taskId: task.id,
+      data: { isAnchor: true },
+    })
     await expect(deputy.projects.setBaseline({ projectId: project.id })).rejects.toMatchObject(
       forbidden,
     )

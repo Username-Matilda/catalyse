@@ -279,12 +279,13 @@ describe('projects awaiting triage', () => {
       }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' })
 
-    // An interest recorded before the project went back to review hands over ownership
-    // when accepted, but the status stays with the admins.
+    // On an ownerless proposal, an interest recorded before it went back to review hands
+    // over ownership when accepted, but the status stays with the admins.
+    await prisma.workItem.update({ where: { id: project.id }, data: { assigneeId: null } })
     const interest = await prisma.workItemInterest.create({
       data: { workItemId: project.id, volunteerId: friend.id, interestType: 'want_to_own' },
     })
-    await clientAs(proposer).projects.respondToInterest({
+    await clientAs(await createAdmin()).projects.respondToInterest({
       projectId: project.id,
       interestId: interest.id,
       status: 'accepted',

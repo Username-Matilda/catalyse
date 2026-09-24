@@ -31,12 +31,16 @@ test.describe('Inbox', () => {
 
     await inboxButton(page).click()
     const popover = page.getByRole('dialog', { name: 'Recent notifications' })
-    await expect(popover).toContainText(`${applicant.name} wants to`, { timeout: 10_000 })
+    await expect(popover).toContainText(`${applicant.name} asked to help out`, {
+      timeout: 10_000,
+    })
     await popover.getByRole('link', { name: 'Open inbox →' }).click()
     await expect(page).toHaveURL(`${baseUrl}/inbox`)
 
     // The Inbox opens on Needs action, where it can be answered in place.
-    const row = page.getByRole('listitem').filter({ hasText: `${applicant.name} wants to` })
+    const row = page
+      .getByRole('listitem')
+      .filter({ hasText: `${applicant.name} asked to help out` })
     await row.getByRole('button', { name: 'Accept' }).click()
     await expect(row).toHaveCount(0, { timeout: 10_000 })
     await expect(inboxButton(page)).toHaveText('Inbox', { timeout: 10_000 })

@@ -91,6 +91,10 @@ export default function SignupPage() {
   const router = useRouter()
   const { user, loading, setToken } = useAuth()
   const [error, setError] = useState('')
+  // The error shows above the form, so pressing Next at the bottom would otherwise hide it.
+  useEffect(() => {
+    if (error) document.getElementById('signup-error')?.scrollIntoView({ block: 'center' })
+  }, [error])
   const [submitting, setSubmitting] = useState(false)
   const [googleClientId, setGoogleClientId] = useState('')
   const [googleStub, setGoogleStub] = useState(false)
@@ -555,7 +559,7 @@ export default function SignupPage() {
 
         <h3 className="mt-6">Contact Preferences</h3>
         <p className="text-sm text-text-light mt-1 mb-4">
-          Add ways for project owners to reach you. All optional.
+          Add ways for the people you work with to reach you. All optional.
         </p>
 
         <div className="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-5">
@@ -711,6 +715,7 @@ export default function SignupPage() {
 
   const errorAlert = error && (
     <div
+      id="signup-error"
       role="alert"
       className="flex items-center gap-3 p-4 rounded-lg mb-4 bg-red-100 text-red-800 border border-red-300 dark:bg-red-900 dark:text-red-300 dark:border-red-600"
     >
@@ -1001,7 +1006,7 @@ export default function SignupPage() {
                 </div>
               </div>
               <p className="text-sm text-text-light mt-3">
-                The owners of projects you join can always reach you. You can change these settings
+                People on the projects you join can always reach you. You can change these settings
                 or delete your account at any time.{' '}
                 <Link href="/privacy" target="_blank">
                   Read our privacy policy

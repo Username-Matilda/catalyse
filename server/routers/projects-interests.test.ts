@@ -65,7 +65,9 @@ describe('projects.expressInterest / withdrawInterest', () => {
         message: 'pick me',
       }),
     ).toEqual({ message: 'Interest expressed successfully' })
-    await notified(owner.id, 'new_interest')
+    await notified(owner.id, 'new_interest', {
+      body: `${me.name} asked to help out on the project`,
+    })
     await expect(
       c.projects.expressInterest({ projectId: p.id, interestType: 'want_to_contribute' }),
     ).rejects.toMatchObject({ message: "You've already expressed interest" })
@@ -194,6 +196,25 @@ describe('projects.respondToInterest', () => {
       assigneeId: helper.id,
       status: 'in_progress',
     })
+
+    // A project that already has an owner keeps them: the would-be lead joins as a helper.
+    await clientAs(other).projects.expressInterest({ projectId: p.id, interestType: 'want_to_own' })
+    await vi.waitFor(async () =>
+      expect(
+        await prisma.notification.count({
+          where: { volunteerId: owner.id, body: `${other.name} asked to lead the project` },
+        }),
+      ).toBe(1),
+    )
+    await c.projects.respondToInterest({
+      projectId: p.id,
+      interestId: (await interestRow(other.id, p.id)).id,
+      status: 'accepted',
+    })
+    expect((await interestRow(other.id, p.id)).status).toBe('accepted')
+    expect((await prisma.workItem.findUniqueOrThrow({ where: { id: p.id } })).assigneeId).toBe(
+      owner.id,
+    )
   })
 })
 

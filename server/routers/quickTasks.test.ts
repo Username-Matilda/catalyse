@@ -370,6 +370,11 @@ describe('quickTasks.requestChanges', () => {
     })
 
     await clientAs(vol).quickTasks.submit({ id: q.id, note: 'With sources' })
+    expect(
+      await prisma.notification.count({
+        where: { type: 'task_changes_requested', entityId: q.id },
+      }),
+    ).toBe(0)
     await c.quickTasks.review({ id: q.id, reviewRating: 'good' })
     expect(await prisma.workItem.findUniqueOrThrow({ where: { id: q.id } })).toMatchObject({
       status: 'completed',

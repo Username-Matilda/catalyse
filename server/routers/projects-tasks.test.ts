@@ -648,6 +648,8 @@ describe('projects.submitTask / acceptTask / requestTaskChanges', () => {
       submissionNote: null,
       changesRequestedNote: null,
     })
+    // Handing the work back in deals with the request, so it leaves the Inbox.
+    expect(await notices(me.id, 'task_changes_requested')).toEqual([])
     expect((await c.projects.getTask(ids)).submission).toMatchObject({
       note: null,
       url: 'https://example.org/v2',

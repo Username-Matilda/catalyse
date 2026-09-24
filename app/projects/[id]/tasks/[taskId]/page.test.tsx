@@ -51,10 +51,10 @@ describe('task detail page', () => {
     const again = await screen.findByRole('dialog', { name: 'Submit your work' })
     await userEvent.click(within(again).getByRole('button', { name: 'Submit work' }))
     expect(within(again).getByText('Say what you did or add a link to it.')).toBeInTheDocument()
-    await userEvent.type(
-      within(again).getByLabelText('Link to your work (optional)'),
-      'https://x.org',
-    )
+    await userEvent.type(within(again).getByLabelText('Link to your work (optional)'), 'x.org')
+    expect(within(again).queryByText('Say what you did or add a link to it.')).toBeNull()
+    await userEvent.click(within(again).getByRole('button', { name: 'Submit work' }))
+    expect(within(again).getByText('A link starts with https:// or http://')).toBeInTheDocument()
     await userEvent.clear(within(again).getByLabelText('Link to your work (optional)'))
     await userEvent.type(within(again).getByLabelText('What did you do?'), 'Wrote it up')
     expect(within(again).queryByText('Say what you did or add a link to it.')).toBeNull()

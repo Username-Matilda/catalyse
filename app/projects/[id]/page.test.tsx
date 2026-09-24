@@ -185,6 +185,8 @@ describe('project page — visitor', () => {
     await screen.findByRole('heading', { name: 'Ownerless' })
     await userEvent.click(screen.getByRole('button', { name: 'Join this project' }))
     await userEvent.click(screen.getByLabelText('Lead the project'))
+    await userEvent.click(screen.getByLabelText('Help out on the project'))
+    await userEvent.click(screen.getByLabelText('Lead the project'))
     await userEvent.click(screen.getByRole('button', { name: 'Send request' }))
     await screen.findByText(/You'll get a notification when they reply/)
     const interest = await prisma.workItemInterest.findFirstOrThrow({
@@ -661,6 +663,8 @@ describe('project page — deputies', () => {
       `/projects/${project.id}/tasks/${waiting.id}`,
     )
     expect(screen.getByText('Deputy')).toBeInTheDocument()
+    // The Manage panel is the owner's: a deputy has no project-level controls.
+    expect(screen.queryByText('Manage')).toBeNull()
 
     await openTab(/^People/)
     expect(screen.queryByRole('button', { name: 'Make deputy' })).toBeNull()
@@ -1113,7 +1117,21 @@ describe('project page — remaining edges', () => {
     await screen.findByText('Project not found')
   })
 
-  it('a visitor can switch interest type back to contribute, and sees errors for interest, contact and outcome', async () => {
+  it('shows the owner of a proposal its status without a control until an admin approves it', async () => {
+    const owner = await createVolunteer()
+    const project = await createProject({
+      title: 'Under review',
+      status: 'needs_discussion',
+      assigneeId: owner.id,
+      creatorId: owner.id,
+    })
+    await mount(project.id, owner)
+    await screen.findByRole('heading', { name: 'Under review' })
+    expect(screen.getByLabelText('project status')).toHaveTextContent('Needs Changes')
+    expect(screen.queryByRole('button', { name: 'project status' })).toBeNull()
+  })
+
+  it('a visitor can only ask to help on an owned project, and sees errors for interest, contact and outcome', async () => {
     const me = await createVolunteer()
     const owner = await createVolunteer()
     await connect(me, owner)
@@ -1126,8 +1144,9 @@ describe('project page — remaining edges', () => {
     await mount(project.id, me)
     await screen.findByRole('heading', { name: 'Interest edges' })
     await userEvent.click(screen.getByRole('button', { name: 'Join this project' }))
-    await userEvent.click(screen.getByLabelText('Lead the project'))
-    await userEvent.click(screen.getByLabelText('Help out on the project'))
+    // It has an owner, so there is no lead to ask to be.
+    expect(screen.getByLabelText('Help out on the project')).toBeChecked()
+    expect(screen.queryByLabelText('Lead the project')).toBeNull()
     await userEvent.keyboard('{Escape}')
     // Claiming a task that no longer exists, then declining the withdraw confirmation.
     const gone = await createTask(project.id, { title: 'Gone task' })

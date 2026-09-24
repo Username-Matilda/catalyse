@@ -98,6 +98,16 @@ export default function Header() {
   const [inboxOpen, setInboxOpen] = useState(false)
   const closeInbox = useCallback(() => setInboxOpen(false), [])
 
+  // Acting on something (accepting work, answering an invite) can clear what the badge counts.
+  useEffect(() => {
+    if (!user) return
+    return queryClient.getMutationCache().subscribe((event) => {
+      if (event.type === 'updated' && event.action.type === 'success') {
+        void queryClient.invalidateQueries({ queryKey: orpc.notifications.counts.key() })
+      }
+    })
+  }, [user, queryClient])
+
   useEffect(() => {
     if (user) void queryClient.invalidateQueries({ queryKey: orpc.notifications.counts.key() })
     // Following a link out of the popover closes it.
@@ -280,7 +290,7 @@ export default function Header() {
               aria-label="Open menu"
               onClick={() => setMobileMenuOpen(true)}
             >
-              {mounted && !loading && user && !user.locationConfirmedAt && (
+              {mounted && !loading && user && (!user.locationConfirmedAt || waiting > 0) && (
                 <span
                   className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-primary"
                   aria-hidden="true"

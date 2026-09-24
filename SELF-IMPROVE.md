@@ -83,3 +83,15 @@ confusing than it needed to be, and that will do so again.
       a debugging round in R-06 and two more in R-08 (the owner's buttons, then the
       "waiting" count). `renderApp` could start each mount with an empty query cache, or
       `test/render.tsx` could say to use `findBy…` after a remount.
+- [ ] **Browser QA as several users at once has no working setup: pages on
+      `127.0.0.1:3000`, `[::1]:3000` or `*.localhost:3000` render blank under
+      `next dev`.** Separate hosts would give each account its own `localStorage`
+      token, but the dev server only hydrates `localhost`, so the Phase 2 QA fell
+      back to swapping `authToken` by hand in one tab. `allowedDevOrigins` in
+      `next.config.ts` (e.g. `['*.localhost']`) plus a line in `CLAUDE.local.md`
+      would give one tab per account.
+- [ ] **Seeded dev accounts are hidden from the directory, so they can't be
+      invited to a project or sent a contact request.** `scripts/seed-dev-accounts.ts`
+      sets `consent_make_profile_visible_in_directory` false, and the invite picker
+      and Request contact both need it true; QA needed a hand-run `UPDATE`. The seed
+      should set it true.

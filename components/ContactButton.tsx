@@ -95,6 +95,11 @@ export default function ContactButton({
               onChange={(e) => setNote(e.target.value)}
               placeholder="Say who you are and what you'd like to talk about (at least 20 characters)"
             />
+            {note.trim().length > 0 && note.trim().length < 20 && (
+              <p className="text-xs text-text-light mt-1 mb-0">
+                {20 - note.trim().length} more characters to go
+              </p>
+            )}
           </div>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="secondary" onClick={close}>

@@ -343,6 +343,7 @@ export const quickTasksRouter = {
         where: { id: input.id },
         data: { ...submission, status: QuickTaskStatus.under_review, updatedAt: new Date() },
       })
+      await clearNotifications('task_changes_requested', input.id)
 
       // A task someone claimed has no creator, so any admin may review it.
       const notice = [

@@ -1,7 +1,9 @@
 import { describe, it, expect, vi } from 'vitest'
 import { screen, waitFor, fireEvent, act, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MutationObserver } from '@tanstack/react-query'
 import { prisma } from '@/lib/prisma'
+import { queryClient } from '@/lib/query-client'
 import { createVolunteer, createAdmin, createSuperAdmin } from '@/test/factories'
 import { renderApp } from '@/test/render'
 import { navigation } from '@/test/next-navigation'
@@ -106,6 +108,17 @@ describe('Header', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /^Inbox/ })).toHaveTextContent(
         'Inbox, waiting for you: 2',
+      ),
+    )
+    // On mobile the menu button carries a dot while something is waiting.
+    expect(screen.getByLabelText('Open menu').querySelector('span')).not.toBeNull()
+
+    // Acting on something anywhere on the page refreshes the count.
+    await prisma.notification.deleteMany({ where: { volunteerId: vol.id, type: 'mention' } })
+    await act(() => new MutationObserver(queryClient, { mutationFn: async () => null }).mutate())
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /^Inbox/ })).toHaveTextContent(
+        'Inbox, waiting for you: 1',
       ),
     )
   })

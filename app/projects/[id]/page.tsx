@@ -52,6 +52,7 @@ import {
   ADMIN_ONLY_STATUSES,
   OWNER_ALLOWED_STATUSES,
   TERMINAL_STATUSES,
+  UNAPPROVED_STATUSES,
   projectStatusLabel,
   proposerDisplay,
 } from '@/lib/project-status'
@@ -1000,8 +1001,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   // A deputy runs the project's tasks and nothing else about it.
   const canRunTasks = isOwnerOrAdmin || isDeputy
   // A draft has no owner yet, so its creator manages its own tasks until they publish it.
-  const canManageTasks =
-    canRunTasks || (project.status === 'draft' && project.proposedById === user.id)
+  const isDraftCreator = project.status === 'draft' && project.proposedById === user.id
+  const canManageProject = isOwnerOrAdmin || isDraftCreator
+  const canManageTasks = canRunTasks || isDraftCreator
   const deputyIds = new Set(
     (project.helpers ?? []).filter((h) => h.isDeputy).map((h) => h.volunteerId),
   )
@@ -1020,6 +1022,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     (project.isSeekingHelp || project.isSeekingOwner) &&
     !TERMINAL_STATUSES.includes(project.status)
 
+  // Until an admin approves it, a proposal's status is the admins' to change.
+  const canPickStatus = isAdmin || (isOwner && !UNAPPROVED_STATUSES.includes(project.status))
   const pickableStatuses = isAdmin ? [...OWNER_STATUSES, ...ADMIN_EXTRA_STATUSES] : OWNER_STATUSES
   // Every status is pickable by someone now, but an owner viewing a project an admin put
   // into an admin-only status still needs the control to show its real current value.
@@ -1501,16 +1505,18 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               />
               Help out on the project
             </label>
-            <label className="flex items-center gap-2 cursor-pointer font-normal">
-              <input
-                type="radio"
-                name="interest_type"
-                value="want_to_own"
-                checked={interestType === 'want_to_own'}
-                onChange={() => setInterestType('want_to_own')}
-              />
-              Lead the project
-            </label>
+            {project.isSeekingOwner && (
+              <label className="flex items-center gap-2 cursor-pointer font-normal">
+                <input
+                  type="radio"
+                  name="interest_type"
+                  value="want_to_own"
+                  checked={interestType === 'want_to_own'}
+                  onChange={() => setInterestType('want_to_own')}
+                />
+                Lead the project
+              </label>
+            )}
           </fieldset>
           <div className="mb-5">
             <label htmlFor="interest-message">Message (optional)</label>
@@ -1662,7 +1668,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 <div className="flex justify-between items-center mb-3">
                   <h2 className="m-0">{tab === 'timeline' ? 'Timeline' : 'Tasks'}</h2>
                   <div className="flex items-center gap-2">
-                    {tab === 'timeline' && canManageTasks && (
+                    {tab === 'timeline' && canManageProject && (
                       <>
                         {baselineSetAt && (
                           <span className="text-text-light text-xs">
@@ -2055,7 +2061,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             {/* Status */}
             <div className={card}>
               <h2 className="mb-3">Status</h2>
-              {isOwnerOrAdmin ? (
+              {canPickStatus ? (
                 <StatusSplitButton
                   value={shownStatus}
                   options={statusOptions}
@@ -2228,7 +2234,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               </div>
             </div>
 
-            {canManageTasks && (
+            {canManageProject && (
               <details className={card}>
                 <summary className="cursor-pointer font-semibold">Manage</summary>
                 <div className="flex flex-col items-start gap-2 mt-3">

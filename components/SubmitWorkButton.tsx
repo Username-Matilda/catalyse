@@ -36,7 +36,7 @@ export default function SubmitWorkButton({
   const close = () => setOpen(false)
   const [note, setNote] = useState('')
   const [url, setUrl] = useState('')
-  const [missing, setMissing] = useState(false)
+  const [problem, setProblem] = useState<string | null>(null)
   const showToast = useToast()
   const queryClient = useQueryClient()
   const id = `submit-work-${target.taskId}`
@@ -73,7 +73,11 @@ export default function SubmitWorkButton({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!note.trim() && !url.trim()) {
-      setMissing(true)
+      setProblem('Say what you did or add a link to it.')
+      return
+    }
+    if (url.trim() && !/^https?:\/\//i.test(url.trim())) {
+      setProblem('A link starts with https:// or http://')
       return
     }
     const work = { note: note.trim() || null, url: url.trim() || null }
@@ -101,7 +105,7 @@ export default function SubmitWorkButton({
               value={note}
               onChange={(e) => {
                 setNote(e.target.value)
-                setMissing(false)
+                setProblem(null)
               }}
             />
           </div>
@@ -114,13 +118,13 @@ export default function SubmitWorkButton({
               value={url}
               onChange={(e) => {
                 setUrl(e.target.value)
-                setMissing(false)
+                setProblem(null)
               }}
             />
           </div>
-          {missing && (
+          {problem && (
             <p role="alert" className="text-sm text-error mt-0 mb-4">
-              Say what you did or add a link to it.
+              {problem}
             </p>
           )}
           <div className="flex justify-end gap-2">

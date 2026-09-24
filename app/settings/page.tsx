@@ -454,8 +454,8 @@ function SettingsPageContent() {
 
           <h3 className="mt-6 mb-4">Contact Information</h3>
           <aside className="bg-brand-bg border border-brand-border rounded-lg px-4 py-3 mb-4 text-sm text-text-light">
-            Always visible to you and admins. Shared with other volunteers and project owners only
-            if you enable both consent checkboxes in the Privacy &amp; Data tab.
+            Always visible to you and admins. Shared with the people you work with on a project, and
+            with anyone whose contact request you accept.
           </aside>
           <div className="grid grid-cols-2 gap-5 mb-5 max-sm:grid-cols-1">
             <div>
@@ -739,7 +739,7 @@ function SettingsPageContent() {
             </div>
             <p className="text-sm text-text-light mt-1 ml-7">
               Everything still arrives in your Inbox. Messages from other volunteers are always
-              emailed, since that is how they reach you.
+              emailed as well.
             </p>
           </fieldset>
           {saveButton}

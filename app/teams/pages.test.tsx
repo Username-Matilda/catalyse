@@ -232,10 +232,12 @@ describe('team detail — messaging a leader', () => {
     expect(row('Shy').queryByRole('button')).toBeNull()
     await userEvent.click(row('Stranger Lead').getByRole('button', { name: 'Request contact' }))
     const ask = await screen.findByRole('dialog', { name: 'Connect with Stranger Lead' })
-    await userEvent.type(
-      within(ask).getByLabelText('Why would you like to connect?'),
-      'I run the Leeds stall and would like to join forces.',
-    )
+    const note = within(ask).getByLabelText('Why would you like to connect?')
+    await userEvent.type(note, 'I run the Leeds')
+    expect(within(ask).getByText('5 more characters to go')).toBeInTheDocument()
+    expect(within(ask).getByRole('button', { name: 'Send request' })).toBeDisabled()
+    await userEvent.type(note, ' and would like to join forces.')
+    expect(within(ask).queryByText(/more characters to go/)).toBeNull()
     await userEvent.click(within(ask).getByRole('button', { name: 'Send request' }))
     await screen.findByText('Request sent. Stranger Lead will answer in their Inbox.')
     await waitFor(() => expect(row('Stranger Lead').getByText('Request sent')).toBeInTheDocument())

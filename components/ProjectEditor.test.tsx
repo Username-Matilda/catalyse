@@ -195,9 +195,7 @@ describe('ProjectEditor — new volunteer proposal', () => {
     await userEvent.type(screen.getByLabelText('Project Title'), 'One too many')
     await userEvent.type(screen.getByLabelText('Task title'), 'Orphan')
     await userEvent.click(screen.getByRole('button', { name: 'Add Task' }))
-    expect(
-      await screen.findByText(/already have 2 drafts/, {}, { timeout: 5000 }),
-    ).toBeInTheDocument()
+    expect(await screen.findByText(/already have 2 drafts/)).toBeInTheDocument()
     expect(await prisma.workItem.count({ where: { title: 'Orphan' } })).toBe(0)
   })
 
@@ -561,15 +559,11 @@ describe('ProjectEditor — editing an existing project', () => {
     await mount({ variant: 'volunteer' }, me)
     await waitFor(() => expect(localStorage.getItem('authToken')).toBeTruthy())
     await userEvent.type(screen.getByLabelText('Project Title'), 'Third')
-    expect(
-      await screen.findByText(/already have 2 drafts/, {}, { timeout: 5000 }),
-    ).toBeInTheDocument()
+    expect(await screen.findByText(/already have 2 drafts/)).toBeInTheDocument()
     // The status line says so and stops trying until Retry is pressed.
     expect(screen.getByRole('status')).toHaveTextContent("Couldn't save.")
     await userEvent.click(screen.getByRole('button', { name: 'Retry' }))
-    await waitFor(() => expect(screen.getAllByText(/already have 2 drafts/)).toHaveLength(2), {
-      timeout: 5000,
-    })
+    await waitFor(() => expect(screen.getAllByText(/already have 2 drafts/)).toHaveLength(2))
     expect(await prisma.workItem.count({ where: { creatorId: me.id, type: 'PROJECT' } })).toBe(2)
   })
 })

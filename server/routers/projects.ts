@@ -144,15 +144,15 @@ async function notifyOwnerOfInterest(
   interestId: number,
 ): Promise<void> {
   if (!project.assigneeId) return
-  const interestLabel = interestType === 'want_to_own' ? 'own / lead' : 'contribute to'
+  const role = interestType === 'want_to_own' ? 'lead' : 'help out on'
   await notifyUser(
     project.assigneeId,
     'new_interest',
     `Someone's interested in '${project.title}'!`,
-    `${volunteer.name} wants to ${interestLabel}`,
+    `${volunteer.name} asked to ${role} the project`,
     `/projects/${project.id}`,
     {
-      subject: `${volunteer.name} wants to ${interestLabel} '${project.title}'`,
+      subject: `${volunteer.name} wants to ${role} '${project.title}'`,
       message: html`<strong>${volunteer.name}</strong> has expressed interest in your project
         <strong>${project.title}</strong>.`,
       projectTitle: project.title,
@@ -1402,7 +1402,12 @@ export const projectsRouter = {
         await releaseTasksHeldBy(input.projectId, interest.volunteerId)
       }
 
-      if (input.status === InterestStatus.accepted && interest.interestType === 'want_to_own') {
+      // A project that already has an owner changes hands only through a transfer.
+      if (
+        input.status === InterestStatus.accepted &&
+        interest.interestType === 'want_to_own' &&
+        project.assigneeId === null
+      ) {
         await prisma.workItem.update({
           where: { id: input.projectId },
           data: {
@@ -2161,6 +2166,10 @@ export const projectsRouter = {
         throw new ORPCError('FORBIDDEN', { message: 'Not authorized to update this task' })
       }
 
+      if (input.data.isAnchor !== undefined && !canManageProject(project, volunteer)) {
+        throw new ORPCError('FORBIDDEN', { message: 'Only the project owner can set the key date' })
+      }
+
       if (isSelfClaim && !isAssignee && !volunteer.isAdmin) {
         if (await isBlockedFromClaiming(input.projectId, volunteer.id)) {
           throw new ORPCError('FORBIDDEN', {
@@ -2328,6 +2337,7 @@ export const projectsRouter = {
           finalWarningSentAt: null,
         },
       })
+      await clearNotifications('task_changes_requested', task.id)
 
       const link = `/projects/${project.id}/tasks/${task.id}`
       const said = submission.submissionNote ?? submission.submissionUrl
