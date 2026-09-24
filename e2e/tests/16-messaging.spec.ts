@@ -180,6 +180,8 @@ test.describe('Messaging', () => {
     await expect(page.getByText('Are you coming on Saturday?')).toBeVisible({ timeout: 10_000 })
     await page.getByLabel('Write a reply').fill('Yes, see you there')
     await page.getByRole('button', { name: 'Send reply' }).click()
+    // The box empties only once the reply is saved; the text alone could still be the draft.
+    await expect(page.getByLabel('Write a reply')).toHaveValue('', { timeout: 10_000 })
     await expect(page.getByText('Yes, see you there')).toBeVisible({ timeout: 10_000 })
 
     const theirs = await createApiClient(baseUrl, other.token).messages.thread({
