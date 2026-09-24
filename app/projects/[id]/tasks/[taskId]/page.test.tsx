@@ -372,10 +372,10 @@ describe('task detail page', () => {
 })
 
 describe('task detail page — messaging the assignee', () => {
-  it('offers Message to others when the assignee accepts messages', async () => {
+  it('offers Message to people on the project, not to outsiders or yourself', async () => {
     const owner = await createVolunteer()
     const assignee = await createVolunteer({ name: 'Ann' })
-    const shy = await createVolunteer({ name: 'Shy', consentContactableByProjectOwners: false })
+    const outsider = await createVolunteer()
     const project = await createProject({ assigneeId: owner.id, status: 'in_progress' })
     const task = await createTask(project.id, { assigneeId: assignee.id, status: 'in_progress' })
     await mount(project.id, task.id, owner)
@@ -392,14 +392,14 @@ describe('task detail page — messaging the assignee', () => {
     ).toMatchObject({ subject: 'Progress', relatedWorkItemId: project.id })
     cleanup()
 
-    // Not to yourself, and not to someone who doesn't accept messages.
+    // Not to yourself, and not from someone who does not work on the project.
     await mount(project.id, task.id, assignee)
     await screen.findByText('Assigned to Ann')
     expect(screen.queryByRole('button', { name: /^Message/ })).toBeNull()
     cleanup()
-    const other = await createTask(project.id, { assigneeId: shy.id, status: 'in_progress' })
-    await mount(project.id, other.id, owner)
-    await screen.findByText('Assigned to Shy')
-    expect(screen.queryByRole('button', { name: /^Message/ })).toBeNull()
+    await mount(project.id, task.id, outsider)
+    await screen.findByText('Assigned to Ann')
+    // The remount first shows the previous viewer's cached answer.
+    await waitFor(() => expect(screen.queryByRole('button', { name: /^Message/ })).toBeNull())
   })
 })

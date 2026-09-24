@@ -20,6 +20,7 @@ const NEEDS_ACTION_TYPES = [
   'task_submitted',
   'task_changes_requested',
   'project_invite',
+  'contact_request',
   // Admin-only (hidden from the Inbox, but their emails follow this category).
   'new_volunteer_signup',
   'new_project_proposal',
@@ -54,6 +55,6 @@ export type MutableEmailCategory = (typeof MUTABLE_EMAIL_CATEGORIES)[number]
 
 export const EMAIL_CATEGORY_LABELS: Record<MutableEmailCategory, string> = {
   needs_action:
-    'Things that need me: applicants, invites, join requests, mentions, changes requested',
+    'Things that need me: applicants, invites, contact and join requests, mentions, changes requested',
   update: 'Updates: approvals, status changes, comments and replies',
 }

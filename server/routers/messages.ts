@@ -3,6 +3,7 @@ import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
 import { sendRelayMessage, isEmailConfigured } from '@/lib/email'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { canReach } from '@/lib/contact'
 import { authedProcedure, approvedProcedure } from '../procedures'
 import { WorkItemType } from '@/generated/prisma/enums'
 import type { Context } from '../context'
@@ -223,12 +224,13 @@ export const messagesRouter = {
     }
 
     const recipient = await prisma.volunteer.findFirst({
-      where: { id: input.recipientId, deletedAt: null, consentContactableByProjectOwners: true },
+      where: { id: input.recipientId, deletedAt: null },
       select: { id: true, name: true, email: true },
     })
-    if (!recipient) {
-      throw new ORPCError('NOT_FOUND', {
-        message: "Volunteer not found or doesn't accept messages",
+    if (!recipient) throw new ORPCError('NOT_FOUND', { message: 'Volunteer not found' })
+    if (!(await canReach(sender, recipient.id))) {
+      throw new ORPCError('FORBIDDEN', {
+        message: 'You can message people you work with. Send them a contact request first.',
       })
     }
 

@@ -5,7 +5,14 @@ import { clearNotifications, notifyUser } from '@/lib/notify'
 import { html } from '@/lib/email'
 import { TeamBodySchema } from '@/lib/schemas'
 import { authedProcedure, approvedProcedure } from '../procedures'
-import { TeamMembershipRole, TeamJoinRequestStatus } from '@/generated/prisma/enums'
+import { contactRelations, type ContactRelations } from '@/lib/contact'
+import { ADVERTISABLE_STATUSES } from '@/lib/project-status'
+import { TeamMembershipRole, TeamJoinRequestStatus, WorkItemType } from '@/generated/prisma/enums'
+
+const leaderIds = (teams: { members: { volunteerId: number; role: TeamMembershipRole }[] }[]) =>
+  teams.flatMap((t) =>
+    t.members.filter((m) => m.role === TeamMembershipRole.leader).map((m) => m.volunteerId),
+  )
 
 function serializeTeam(
   team: {
@@ -17,9 +24,11 @@ function serializeTeam(
     members: {
       volunteerId: number
       role: TeamMembershipRole
-      volunteer: { id: number; name: string; consentContactableByProjectOwners: boolean | null }
+      volunteer: { id: number; name: string; consentMakeProfileVisibleInDirectory: boolean | null }
     }[]
+    workItems?: { id: number; title: string; status: string }[]
   },
+  relations: ContactRelations,
   viewerId?: number,
   viewerRequestStatus?: TeamJoinRequestStatus | null,
   viewerIsAdmin?: boolean,
@@ -42,8 +51,18 @@ function serializeTeam(
       .map((m) => ({
         id: m.volunteer.id,
         name: m.volunteer.name,
-        contactable: Boolean(m.volunteer.consentContactableByProjectOwners),
+        canMessage: m.volunteer.id !== viewerId && relations.reachable.has(m.volunteer.id),
+        canRequestContact:
+          m.volunteer.id !== viewerId &&
+          !relations.reachable.has(m.volunteer.id) &&
+          Boolean(m.volunteer.consentMakeProfileVisibleInDirectory),
+        contactRequested: relations.requested.has(m.volunteer.id),
       })),
+    // Who is in the team and what it runs are for its members and admins.
+    members: isPrivy
+      ? team.members.map((m) => ({ id: m.volunteer.id, name: m.volunteer.name, role: m.role }))
+      : [],
+    projects: isPrivy ? (team.workItems ?? []) : [],
     viewerRole: viewerMembership?.role ?? null,
     viewerRequestStatus: viewerRequestStatus ?? null,
   }
@@ -71,7 +90,7 @@ export const teamsRouter = {
         members: {
           include: {
             volunteer: {
-              select: { id: true, name: true, consentContactableByProjectOwners: true },
+              select: { id: true, name: true, consentMakeProfileVisibleInDirectory: true },
             },
           },
         },
@@ -86,9 +105,10 @@ export const teamsRouter = {
       : []
     const pendingByTeam = new Map(pendingRequests.map((r) => [r.teamId, r.status]))
     const viewerIsAdmin = Boolean(context.volunteer?.isAdmin)
+    const relations = await contactRelations(context.volunteer, leaderIds(teams))
     return {
       teams: teams.map((t) =>
-        serializeTeam(t, viewerId, pendingByTeam.get(t.id) ?? null, viewerIsAdmin),
+        serializeTeam(t, relations, viewerId, pendingByTeam.get(t.id) ?? null, viewerIsAdmin),
       ),
     }
   }),
@@ -102,9 +122,14 @@ export const teamsRouter = {
           members: {
             include: {
               volunteer: {
-                select: { id: true, name: true, consentContactableByProjectOwners: true },
+                select: { id: true, name: true, consentMakeProfileVisibleInDirectory: true },
               },
             },
+          },
+          workItems: {
+            where: { type: WorkItemType.PROJECT, status: { in: ADVERTISABLE_STATUSES } },
+            select: { id: true, title: true, status: true },
+            orderBy: { title: 'asc' },
           },
         },
       })
@@ -121,6 +146,7 @@ export const teamsRouter = {
         : null
       return serializeTeam(
         team,
+        await contactRelations(context.volunteer, leaderIds([team])),
         viewerId,
         pending?.status ?? null,
         Boolean(context.volunteer?.isAdmin),

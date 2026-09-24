@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { prisma } from '@/lib/prisma'
-import { createProject, createTeam, createVolunteer } from '@/test/factories'
+import { connect, createProject, createTeam, createVolunteer } from '@/test/factories'
 import { renderApp } from '@/test/render'
 import { clientAs } from '@/test/rpc'
 import InboxPage from './page'
@@ -168,6 +168,26 @@ describe('inbox', () => {
     await waitFor(() => expect(screen.queryByText('Invited: help')).toBeNull())
   })
 
+  it('answers a contact request in place', async () => {
+    const me = await createVolunteer()
+    const asker = await createVolunteer({ name: 'Ada Asker' })
+    await clientAs(asker).contacts.request({
+      toVolunteerId: me.id,
+      message: 'Hello, could we talk about the Leeds stall?',
+    })
+    await renderApp(<InboxPage />, { as: me, url: '/inbox' })
+    const row = (await screen.findByText(/Ada Asker would like to connect/)).closest(
+      'li',
+    ) as HTMLElement
+    await userEvent.click(within(row).getByRole('button', { name: 'Accept' }))
+    await waitFor(async () =>
+      expect(
+        (await prisma.contactRequest.findFirstOrThrow({ where: { fromVolunteerId: asker.id } }))
+          .status,
+      ).toBe('accepted'),
+    )
+  })
+
   it('reports an answer the server refuses', async () => {
     const me = await createVolunteer()
     const project = await createProject({ assigneeId: me.id })
@@ -282,6 +302,8 @@ describe('inbox messages', () => {
     const ann = await createVolunteer({ name: 'Ann' })
     const bob = await createVolunteer({ name: 'Bob' })
     const project = await createProject({ title: 'Stall' })
+    await connect(ann, me)
+    await connect(me, bob)
     await clientAs(ann).messages.send({
       recipientId: me.id,
       subject: 'Banners',

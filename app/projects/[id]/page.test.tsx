@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import type { DragEndEvent } from '@dnd-kit/core'
 import { prisma } from '@/lib/prisma'
 import {
+  connect,
   createVolunteer,
   createAdmin,
   createProject,
@@ -36,6 +37,8 @@ describe('project page — visitor', () => {
   it('shows the project, lets a volunteer express then withdraw interest, and claim tasks', async () => {
     const me = await createVolunteer()
     const owner = await createVolunteer({ name: 'Olive Owner' })
+    // Connected earlier, so I can message the owner whatever my place on the project.
+    await connect(me, owner)
     const skill = await createSkill()
     const team = await createTeam({ name: 'Crew' })
     await prisma.teamMembership.create({ data: { teamId: team.id, volunteerId: me.id } })
@@ -1004,6 +1007,7 @@ describe('project page — remaining edges', () => {
   it('a visitor can switch interest type back to contribute, and sees errors for interest, contact and outcome', async () => {
     const me = await createVolunteer()
     const owner = await createVolunteer()
+    await connect(me, owner)
     const project = await createProject({
       title: 'Interest edges',
       assigneeId: owner.id,
@@ -1046,12 +1050,10 @@ describe('project page — remaining edges', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Message owner' }))
     await userEvent.type(screen.getByLabelText('Subject'), 'Hi')
     await userEvent.type(screen.getByLabelText('Message'), 'There')
-    await prisma.volunteer.update({
-      where: { id: owner.id },
-      data: { consentContactableByProjectOwners: false },
-    })
+    // The connection is gone by the time the message is sent.
+    await prisma.contactRequest.deleteMany({ where: { fromVolunteerId: me.id } })
     fireEvent.submit(screen.getByLabelText('Subject').closest('form')!)
-    await screen.findByText(/doesn't accept messages/)
+    await screen.findByText(/Send them a contact request first/)
 
     cleanup()
     const admin = await createAdmin()
@@ -1075,9 +1077,8 @@ describe('project page — remaining edges', () => {
       discordHandle: 'own#1',
       signalNumber: '+1',
       whatsappNumber: '+2',
-      consentContactableByProjectOwners: true,
-      consentShareContactInfoWithProjectOwner: true,
     })
+    await connect(me, owner)
     const project = await createProject({
       title: 'Contact edge',
       assigneeId: owner.id,

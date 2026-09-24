@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { screen, waitFor, cleanup, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { prisma } from '@/lib/prisma'
-import { createProject, createVolunteer } from '@/test/factories'
+import { connect, createProject, createVolunteer } from '@/test/factories'
 import { clientAs } from '@/test/rpc'
 import { renderApp } from '@/test/render'
 import { emails } from '@/test/fakes/email'
@@ -19,6 +19,7 @@ describe('conversation page', () => {
     const ann = await createVolunteer({ name: 'Ann' })
     const bob = await createVolunteer({ name: 'Bob' })
     const project = await createProject({ title: 'Stall' })
+    await connect(ann, bob)
     const { threadId } = await clientAs(ann).messages.send({
       recipientId: bob.id,
       subject: 'Banners',
@@ -62,6 +63,7 @@ describe('conversation page', () => {
   it('says when the other person has left, and reports a refused reply', async () => {
     const ann = await createVolunteer({ name: 'Ann' })
     const bob = await createVolunteer()
+    await connect(ann, bob)
     const { threadId } = await clientAs(ann).messages.send({
       recipientId: bob.id,
       subject: 'S',
@@ -85,6 +87,7 @@ describe('conversation page', () => {
     const ann = await createVolunteer()
     const bob = await createVolunteer()
     const eve = await createVolunteer()
+    await connect(ann, bob)
     const { threadId } = await clientAs(ann).messages.send({
       recipientId: bob.id,
       subject: 'Private',

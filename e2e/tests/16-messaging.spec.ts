@@ -11,6 +11,7 @@ import { adminCreateProjectViaApi, transferProjectOwnership } from '../actions/p
 import { fake } from '../fake'
 import { createApiClient } from '../client'
 import { goToInbox } from '../actions/dashboard'
+import { connectVolunteers } from '../actions/contacts'
 
 test.describe('Messaging', () => {
   test('Volunteer sends a contact message to another volunteer', async ({
@@ -49,6 +50,10 @@ test.describe('Messaging', () => {
     // A project page is closed to an unconfirmed email.
     if (emailVerificationToken) await confirmVolunteerEmail(baseUrl, emailVerificationToken)
     await approveVolunteer(baseUrl, senderId, senderToken)
+    // Messaging needs a working relationship or an accepted contact request.
+    await volunteer.page.goto(`${baseUrl}/dashboard`)
+    const ownerToken = await volunteer.page.evaluate(() => localStorage.getItem('authToken'))
+    await connectVolunteers(baseUrl, senderToken, ownerToken!)
     const senderCtx = await browser.newContext()
     await senderCtx.addInitScript((token: string) => {
       localStorage.setItem('authToken', token)
@@ -121,6 +126,10 @@ test.describe('Messaging', () => {
     // A project page is closed to an unconfirmed email.
     if (emailVerificationToken) await confirmVolunteerEmail(baseUrl, emailVerificationToken)
     await approveVolunteer(baseUrl, senderId, senderToken)
+    // Messaging needs a working relationship or an accepted contact request.
+    await volunteer.page.goto(`${baseUrl}/dashboard`)
+    const ownerToken = await volunteer.page.evaluate(() => localStorage.getItem('authToken'))
+    await connectVolunteers(baseUrl, senderToken, ownerToken!)
     const senderCtx = await browser.newContext()
     await senderCtx.addInitScript((token: string) => {
       localStorage.setItem('authToken', token)
@@ -169,6 +178,7 @@ test.describe('Messaging', () => {
     const token = await volunteer.page.evaluate(() => localStorage.getItem('authToken'))
     const me = await createApiClient(baseUrl, token).auth.me()
     const volunteerId = (me.body as { id: number }).id
+    await connectVolunteers(baseUrl, other.token, token!)
     const sent = await createApiClient(baseUrl, other.token).messages.send({
       body: { recipientId: volunteerId, subject, message: 'Are you coming on Saturday?' },
     })

@@ -798,6 +798,8 @@ model Volunteer {
   whatsappNumber                          String?                  @map("whatsapp_number")
   contactPreference                       String?                  @map("contact_preference") // TODO: enum — email, discord, signal, whatsapp (others unknown)
   contactNotes                            String?                  @map("contact_notes")
+  /// Last day the volunteer used the site; written at most once a day.
+  lastActiveAt                            DateTime?                @map("last_active_at")
   availabilityHoursPerWeek                Int?                     @map("availability_hours_per_week")
   location                                String?
   otherSkills                             String?                  @map("other_skills")
@@ -851,6 +853,8 @@ model Volunteer {
   bugReportsAssigned                      BugReport[]              @relation("BugReportAssignee")
   bugReportComments                       BugReportComment[]       @relation("BugReportCommentAuthor")
   messagesSent                            Message[]                @relation("MessageFrom")
+  contactRequestsSent                     ContactRequest[]         @relation("ContactRequestFrom")
+  contactRequestsReceived                 ContactRequest[]         @relation("ContactRequestTo")
   messagesReceived                        Message[]                @relation("MessageTo")
   notifications                           Notification[]
   emailVerificationTokens                 EmailVerificationToken[]
@@ -1033,4 +1037,28 @@ model ExperimentalJournalist {
 
   @@index([contactedAt, claimedAt], map: "idx_experimental_journalists_status")
   @@map("experimental_journalists")
+}
+
+enum ContactRequestStatus {
+  pending
+  accepted
+  declined
+}
+
+/// One volunteer asking another, who does not work with them, to connect. Accepting lets the
+/// two see each other's contact details and message each other.
+model ContactRequest {
+  id              Int                  @id @default(autoincrement())
+  fromVolunteerId Int                  @map("from_volunteer_id")
+  toVolunteerId   Int                  @map("to_volunteer_id")
+  message         String
+  status          ContactRequestStatus @default(pending)
+  createdAt       DateTime             @default(now()) @map("created_at")
+  respondedAt     DateTime?            @map("responded_at")
+  from            Volunteer            @relation("ContactRequestFrom", fields: [fromVolunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  to              Volunteer            @relation("ContactRequestTo", fields: [toVolunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([fromVolunteerId, createdAt], map: "idx_contact_requests_from")
+  @@index([toVolunteerId, status], map: "idx_contact_requests_to")
+  @@map("contact_requests")
 }

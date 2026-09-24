@@ -10,6 +10,7 @@ import {
 import { daysQuiet } from '@/lib/staleness'
 import {
   ApprovalStatus,
+  ContactRequestStatus,
   InterestStatus,
   ProjectStatus,
   QuickTaskStatus,
@@ -28,6 +29,7 @@ export type AttentionKind =
   | 'mention'
   | 'submission'
   | 'invite'
+  | 'contact_request'
 
 export type AttentionItem = {
   key: string
@@ -70,7 +72,7 @@ function taskHref(t: { id: number; type: string; parentId: number | null }): str
 }
 
 async function attentionFor(viewer: Viewer): Promise<AttentionItem[]> {
-  const [applicants, changes, quietTasks, mentions, submissions, sentBack, invites] =
+  const [applicants, changes, quietTasks, mentions, submissions, sentBack, invites, connects] =
     await Promise.all([
       prisma.workItemInterest.findMany({
         where: {
@@ -148,6 +150,10 @@ async function attentionFor(viewer: Viewer): Promise<AttentionItem[]> {
           invitedBy: { select: { name: true } },
         },
       }),
+      prisma.contactRequest.findMany({
+        where: { toVolunteerId: viewer.id, status: ContactRequestStatus.pending },
+        include: { from: { select: { id: true, name: true } } },
+      }),
     ])
 
   const items: AttentionItem[] = []
@@ -181,6 +187,19 @@ async function attentionFor(viewer: Viewer): Promise<AttentionItem[]> {
       action: 'Open',
       notificationId: null,
       at: r.createdAt,
+    })
+  }
+
+  for (const c of connects) {
+    items.push({
+      key: `contact-${c.id}`,
+      kind: 'contact_request',
+      title: `${c.from.name} would like to connect`,
+      detail: c.message,
+      href: `/volunteers/${c.from.id}`,
+      action: 'See profile',
+      notificationId: null,
+      at: c.createdAt,
     })
   }
 

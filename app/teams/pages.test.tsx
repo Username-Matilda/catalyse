@@ -2,7 +2,14 @@ import { describe, it, expect } from 'vitest'
 import { screen, waitFor, cleanup, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { prisma } from '@/lib/prisma'
-import { createVolunteer, createAdmin, createTeam, createLocalGroup } from '@/test/factories'
+import {
+  connect,
+  createVolunteer,
+  createAdmin,
+  createProject,
+  createTeam,
+  createLocalGroup,
+} from '@/test/factories'
 import { renderApp } from '@/test/render'
 import { navigation } from '@/test/next-navigation'
 import TeamsPage from './page'
@@ -200,26 +207,56 @@ describe('local group adoption', () => {
 })
 
 describe('team detail — messaging a leader', () => {
-  it('offers Message for each leader who accepts messages, but not yourself', async () => {
-    const { me, open, led } = await setup()
-    const shy = await createVolunteer({ name: 'Shy', consentContactableByProjectOwners: false })
-    await prisma.teamMembership.create({
-      data: { teamId: open.id, volunteerId: shy.id, role: 'leader' },
+  it('offers each leader Message or Request contact, and shows members and projects to members', async () => {
+    const { me, leader, open, led } = await setup()
+    await connect(me, leader)
+    const hidden = await createVolunteer({
+      name: 'Shy',
+      consentMakeProfileVisibleInDirectory: false,
+    })
+    const stranger = await createVolunteer({ name: 'Stranger Lead' })
+    await prisma.teamMembership.createMany({
+      data: [
+        { teamId: open.id, volunteerId: hidden.id, role: 'leader' },
+        { teamId: open.id, volunteerId: stranger.id, role: 'leader' },
+      ],
     })
     await renderApp(<TeamDetailPage params={Promise.resolve({ id: String(open.id) })} />, {
       as: me,
     })
-    await userEvent.click(await screen.findByRole('button', { name: 'Message Lead Person' }))
-    expect(screen.queryByRole('button', { name: 'Message Shy' })).toBeNull()
+    const leaders = await screen.findByRole('list', { name: 'Leaders' })
+    const row = (name: string) => within(within(leaders).getByText(name).closest('li')!)
+    await userEvent.click(row('Lead Person').getByRole('button', { name: 'Message' }))
     const dialog = await screen.findByRole('dialog', { name: 'Message Lead Person' })
     await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
-    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(row('Shy').queryByRole('button')).toBeNull()
+    await userEvent.click(row('Stranger Lead').getByRole('button', { name: 'Request contact' }))
+    const ask = await screen.findByRole('dialog', { name: 'Connect with Stranger Lead' })
+    await userEvent.type(
+      within(ask).getByLabelText('Why would you like to connect?'),
+      'I run the Leeds stall and would like to join forces.',
+    )
+    await userEvent.click(within(ask).getByRole('button', { name: 'Send request' }))
+    await screen.findByText('Request sent. Stranger Lead will answer in their Inbox.')
+    await waitFor(() => expect(row('Stranger Lead').getByText('Request sent')).toBeInTheDocument())
+    // Not a member: no member list or projects.
+    expect(screen.queryByRole('heading', { name: 'Members' })).toBeNull()
     cleanup()
 
+    const teamProject = await createProject({
+      title: 'Team stall',
+      teamId: led.id,
+      status: 'in_progress',
+    })
     await renderApp(<TeamDetailPage params={Promise.resolve({ id: String(led.id) })} />, {
       as: me,
     })
     await screen.findByRole('heading', { name: /Led Team/ })
-    expect(screen.queryByRole('button', { name: /^Message/ })).toBeNull()
+    expect(screen.queryByRole('list', { name: 'Leaders' })).toBeNull()
+    expect(await screen.findByRole('heading', { name: 'Members' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Team stall' })).toHaveAttribute(
+      'href',
+      `/projects/${teamProject.id}`,
+    )
   })
 })

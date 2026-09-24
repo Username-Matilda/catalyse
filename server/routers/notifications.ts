@@ -10,7 +10,12 @@ import {
   typesIn,
   type NotificationCategory,
 } from '@/lib/notification-categories'
-import { InterestStatus, TeamJoinRequestStatus, TeamMembershipRole } from '@/generated/prisma/enums'
+import {
+  ContactRequestStatus,
+  InterestStatus,
+  TeamJoinRequestStatus,
+  TeamMembershipRole,
+} from '@/generated/prisma/enums'
 import type { Prisma } from '@/generated/prisma/client'
 
 type Viewer = { id: number; isAdmin: boolean | null }
@@ -28,11 +33,12 @@ export type NotificationAction =
   | { kind: 'interest'; projectId: number; interestId: number }
   | { kind: 'join_request'; requestId: number }
   | { kind: 'invite'; projectId: number }
+  | { kind: 'contact_request'; requestId: number }
 
 /**
  * What can be answered from the Inbox itself: an applicant still waiting on a project the
  * viewer runs, a team join request still waiting on a team they lead, or an invite to the
- * viewer still unanswered.
+ * viewer or a request to connect with them, still unanswered.
  */
 async function actionsFor(
   viewer: Viewer,
@@ -40,7 +46,7 @@ async function actionsFor(
 ): Promise<Map<number, NotificationAction>> {
   const ids = (type: string) =>
     rows.filter((r) => r.type === type && r.entityId !== null).map((r) => r.entityId as number)
-  const [interests, requests, invites] = await Promise.all([
+  const [interests, requests, invites, contactRequests] = await Promise.all([
     prisma.workItemInterest.findMany({
       where: {
         id: { in: ids('new_interest') },
@@ -71,7 +77,16 @@ async function actionsFor(
       },
       select: { id: true, workItemId: true },
     }),
+    prisma.contactRequest.findMany({
+      where: {
+        id: { in: ids('contact_request') },
+        toVolunteerId: viewer.id,
+        status: ContactRequestStatus.pending,
+      },
+      select: { id: true },
+    }),
   ])
+  const contactRequestIds = new Set(contactRequests.map((r) => r.id))
   const inviteById = new Map(invites.map((i) => [i.id, i]))
   const interestById = new Map(interests.map((i) => [i.id, i]))
   const requestIds = new Set(requests.map((r) => r.id))
@@ -89,6 +104,8 @@ async function actionsFor(
       actions.set(r.id, { kind: 'join_request', requestId: r.entityId as number })
     } else if (invite) {
       actions.set(r.id, { kind: 'invite', projectId: invite.workItemId })
+    } else if (r.type === 'contact_request' && contactRequestIds.has(r.entityId as number)) {
+      actions.set(r.id, { kind: 'contact_request', requestId: r.entityId as number })
     }
   }
   return actions

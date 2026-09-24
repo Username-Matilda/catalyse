@@ -99,9 +99,6 @@ function SettingsPageContent() {
   const [emailMutedCategories, setEmailMutedCategories] = useState<MutableEmailCategory[]>([])
   const [consentMakeProfileVisibleInDirectory, setConsentMakeProfileVisibleInDirectory] =
     useState(true)
-  const [consentContactableByProjectOwners, setConsentContactableByProjectOwners] = useState(true)
-  const [consentShareContactInfoWithProjectOwner, setConsentShareContactInfoWithProjectOwner] =
-    useState(false)
   const [consentAnalytics, setConsentAnalytics] = useState(false)
   const [syncedUpdatedAt, setSyncedUpdatedAt] = useState<string | null>(null)
 
@@ -188,8 +185,6 @@ function SettingsPageContent() {
     )
     setOtherSkills(me.otherSkills ?? '')
     setConsentMakeProfileVisibleInDirectory(!!me.consentMakeProfileVisibleInDirectory)
-    setConsentContactableByProjectOwners(!!me.consentContactableByProjectOwners)
-    setConsentShareContactInfoWithProjectOwner(!!me.consentShareContactInfoWithProjectOwner)
     setConsentAnalytics(me.cookieConsentAnalytics !== false)
     setSkills(
       ((me.skills ?? []) as { id: number; proficiencyLevel?: string | null }[]).map((s) => ({
@@ -311,8 +306,6 @@ function SettingsPageContent() {
       otherSkills: otherSkills.trim() || null,
       skillIds: skills.map((s) => s.skillId),
       consentMakeProfileVisibleInDirectory,
-      consentContactableByProjectOwners,
-      consentShareContactInfoWithProjectOwner,
       cookieConsentAnalytics: consentAnalytics,
     }
   }
@@ -766,28 +759,12 @@ function SettingsPageContent() {
                 checked={consentMakeProfileVisibleInDirectory}
                 onChange={(e) => setConsentMakeProfileVisibleInDirectory(e.target.checked)}
               >
-                Make my profile visible in the volunteer directory
+                Show me in the volunteer directory
               </Checkbox>
-              <Checkbox
-                id="consent_contactable_by_project_owners"
-                checked={consentContactableByProjectOwners}
-                onChange={(e) => setConsentContactableByProjectOwners(e.target.checked)}
-              >
-                Allow project owners to contact me about opportunities
-              </Checkbox>
-              <div className="ml-7">
-                <Checkbox
-                  id="consent_share_contact_info_with_project_owner"
-                  checked={consentShareContactInfoWithProjectOwner}
-                  disabled={!consentContactableByProjectOwners}
-                  onChange={(e) => setConsentShareContactInfoWithProjectOwner(e.target.checked)}
-                >
-                  <span className={consentContactableByProjectOwners ? '' : 'opacity-50'}>
-                    Share my contact info directly with project owners (otherwise they use the
-                    contact form)
-                  </span>
-                </Checkbox>
-              </div>
+              <p className="text-sm text-text-light m-0 ml-7">
+                Other volunteers can find you and ask to see your contact details; you choose
+                whether to accept. People on your projects can always reach you.
+              </p>
             </div>
 
             <h3 className="mt-6 mb-2">Analytics</h3>

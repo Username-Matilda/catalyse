@@ -30,6 +30,7 @@ import {
 import { notifyMatchingVolunteers } from '@/lib/project-match-notify'
 import { html } from '@/lib/email'
 import { awaitsOwnerReview } from '@/lib/task-review'
+import { canReach } from '@/lib/contact'
 import {
   CreateProjectSchema,
   UpdateProjectSchema,
@@ -913,6 +914,10 @@ export const projectsRouter = {
         canClaimTasks,
         canCreateTasks,
         isMember,
+        canMessageOwner:
+          project.assigneeId !== null &&
+          project.assigneeId !== volunteer.id &&
+          (await canReach(volunteer, project.assigneeId)),
         reviewRequests,
       }
     }),
@@ -1753,7 +1758,7 @@ export const projectsRouter = {
       const task = await prisma.workItem.findFirst({
         where: { id: input.taskId, parentId: input.projectId, type: WorkItemType.TASK },
         include: {
-          assignee: { select: { name: true, consentContactableByProjectOwners: true } },
+          assignee: { select: { name: true } },
           creator: { select: { name: true } },
           reviewedBy: { select: { name: true } },
           requestedBy: { select: { name: true } },
@@ -1819,7 +1824,8 @@ export const projectsRouter = {
         canClaim,
         canManage,
         assignedToName: task.assignee?.name ?? null,
-        assigneeContactable: task.assignee?.consentContactableByProjectOwners ?? false,
+        assigneeContactable:
+          task.assigneeId !== null && (await canReach(volunteer, task.assigneeId)),
         createdByName: task.creator?.name ?? null,
         requestedByName: task.requestedBy?.name ?? null,
         featuredAsQuickTask: task.featuredAsQuickTask ?? false,

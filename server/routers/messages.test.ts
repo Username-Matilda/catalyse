@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { prisma } from '@/lib/prisma'
-import { createVolunteer, createProject } from '@/test/factories'
+import { createVolunteer, createProject, connect } from '@/test/factories'
 import { clientAs } from '@/test/rpc'
 import { rateLimit } from '@/test/fakes/rate-limit'
 import { env } from '@/lib/env'
@@ -10,6 +10,7 @@ describe('messages.send', () => {
   it('starts a conversation, tells the recipient in the Inbox, and emails a copy', async () => {
     const sender = await createVolunteer()
     const recipient = await createVolunteer()
+    await connect(sender, recipient)
     const project = await createProject()
     const c = clientAs(sender)
     const res = await c.messages.send({
@@ -51,30 +52,38 @@ describe('messages.send', () => {
     ).rejects.toMatchObject({ code: 'NOT_FOUND', message: 'Project not found' })
   })
 
-  it('refuses self, unknown or uncontactable recipients, and rate limits', async () => {
+  it('refuses self, unknown recipients and people the sender does not work with, and rate limits', async () => {
     const sender = await createVolunteer()
     const c = clientAs(sender)
     await expect(
       c.messages.send({ recipientId: sender.id, subject: 's', message: 'm' }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
-    const closed = await createVolunteer({ consentContactableByProjectOwners: false })
     await expect(
-      c.messages.send({ recipientId: closed.id, subject: 's', message: 'm' }),
+      c.messages.send({ recipientId: 999_999, subject: 's', message: 'm' }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    const stranger = await createVolunteer()
+    await expect(
+      c.messages.send({ recipientId: stranger.id, subject: 's', message: 'm' }),
+    ).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+      message: expect.stringContaining('contact request'),
+    })
     rateLimit.denyNext(5)
     await expect(
-      c.messages.send({ recipientId: closed.id, subject: 's', message: 'm' }),
+      c.messages.send({ recipientId: stranger.id, subject: 's', message: 'm' }),
     ).rejects.toMatchObject({ code: 'TOO_MANY_REQUESTS' })
   })
 
   it('reaches someone without an email in the Inbox alone, and logs a failed relay', async () => {
     const sender = await createVolunteer()
     const noEmail = await createVolunteer({ email: null })
+    await connect(sender, noEmail)
     await clientAs(sender).messages.send({ recipientId: noEmail.id, subject: 's', message: 'm' })
     expect(emails.sent).toEqual([])
     expect(await prisma.notification.count({ where: { volunteerId: noEmail.id } })).toBe(1)
 
     const recipient = await createVolunteer()
+    await connect(recipient, sender)
     emails.setConfigured(false)
     await clientAs(sender).messages.send({ recipientId: recipient.id, subject: 's', message: 'm' })
     expect(emails.sent).toEqual([])
@@ -90,6 +99,7 @@ describe('message threads', () => {
   it('lists conversations, shows a thread, and reading it clears the unread', async () => {
     const ann = await createVolunteer({ name: 'Ann' })
     const bob = await createVolunteer({ name: 'Bob' })
+    await connect(ann, bob)
     const project = await createProject({ title: 'Stall' })
     const { threadId } = await clientAs(ann).messages.send({
       recipientId: bob.id,
@@ -146,6 +156,7 @@ describe('message threads', () => {
     const ann = await createVolunteer()
     const bob = await createVolunteer()
     const eve = await createVolunteer()
+    await connect(ann, bob)
     const { threadId } = await clientAs(ann).messages.send({
       recipientId: bob.id,
       subject: 's',

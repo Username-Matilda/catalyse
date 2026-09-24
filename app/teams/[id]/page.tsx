@@ -11,7 +11,7 @@ import { teamApplicationSentMessage } from '@/lib/action-messages'
 import { useCooldown } from '@/lib/hooks/useCooldown'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import NotFoundCard from '@/components/NotFoundCard'
-import MessageDialog from '@/components/MessageDialog'
+import ContactButton from '@/components/ContactButton'
 
 export default function TeamDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = use(params)
@@ -43,7 +43,6 @@ export default function TeamDetailPage({ params }: { params: Promise<{ id: strin
   })
 
   const [confirmingLeave, setConfirmingLeave] = useState(false)
-  const [messaging, setMessaging] = useState<{ id: number; name: string } | null>(null)
   const { isCooling, start: startCooldown } = useCooldown()
 
   const leaveMutation = useMutation({
@@ -131,16 +130,54 @@ export default function TeamDetailPage({ params }: { params: Promise<{ id: strin
         {team.memberCount} member{team.memberCount === 1 ? '' : 's'}
         {team.leaders.length > 0 && ` · Led by ${team.leaders.map((l) => l.name).join(', ')}`}
       </p>
-      {team.leaders.some((l) => l.contactable && l.id !== user.id) && (
-        <div className="flex flex-wrap gap-2 mb-4">
+      {team.leaders.some((l) => l.id !== user.id) && (
+        <ul aria-label="Leaders" className="list-none p-0 m-0 mb-4 flex flex-col gap-2">
           {team.leaders
-            .filter((l) => l.contactable && l.id !== user.id)
+            .filter((l) => l.id !== user.id)
             .map((l) => (
-              <Button key={l.id} size="sm" variant="secondary" onClick={() => setMessaging(l)}>
-                Message {l.name}
-              </Button>
+              <li key={l.id} className="flex items-center gap-3 flex-wrap">
+                <Link href={`/volunteers/${l.id}`}>{l.name}</Link>
+                <ContactButton
+                  volunteerId={l.id}
+                  name={l.name}
+                  canMessage={l.canMessage}
+                  canRequestContact={l.canRequestContact}
+                  contactRequested={l.contactRequested}
+                />
+              </li>
             ))}
-        </div>
+        </ul>
+      )}
+
+      {team.members.length > 0 && (
+        <section aria-labelledby="team-members" className="mb-4">
+          <h2 id="team-members" className="text-lg">
+            Members
+          </h2>
+          <ul className="list-none p-0 m-0 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+            {team.members.map((m) => (
+              <li key={m.id}>
+                <Link href={`/volunteers/${m.id}`}>{m.name}</Link>
+                {m.role === 'leader' && <span className="text-text-light"> (leader)</span>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {team.projects.length > 0 && (
+        <section aria-labelledby="team-projects" className="mb-4">
+          <h2 id="team-projects" className="text-lg">
+            Projects
+          </h2>
+          <ul className="list-none p-0 m-0 flex flex-col gap-1 text-sm">
+            {team.projects.map((p) => (
+              <li key={p.id}>
+                <Link href={`/projects/${p.id}`}>{p.title}</Link>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       {(team.lumaUrl || team.docUrl) && (
@@ -183,15 +220,6 @@ export default function TeamDetailPage({ params }: { params: Promise<{ id: strin
             setConfirmingLeave(false)
           }}
           onClose={() => setConfirmingLeave(false)}
-        />
-      )}
-      {messaging && (
-        <MessageDialog
-          id="message-leader"
-          title={`Message ${messaging.name}`}
-          recipientId={messaging.id}
-          recipientName={messaging.name}
-          onClose={() => setMessaging(null)}
         />
       )}
     </main>
