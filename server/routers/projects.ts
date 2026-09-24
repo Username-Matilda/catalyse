@@ -15,6 +15,8 @@ import {
   serializeTask,
   applyScheduleWrite,
   canManageProject,
+  canManageProjectTasks,
+  isProjectDeputy,
   submissionData,
   CLEARED_SUBMISSION,
   canCreateProjectTask,
@@ -202,18 +204,62 @@ async function findProjectTask(projectId: number, taskId: number) {
   return { project, task }
 }
 
-/** A submitted task the volunteer may accept or send back: the project's owner or an admin. */
+/** A submitted task the volunteer may accept or send back: the project's owner, a deputy or an admin. */
 async function findTaskToReview(
   projectId: number,
   taskId: number,
   volunteer: { id: number; isAdmin: boolean | null },
 ) {
   const found = await findProjectTask(projectId, taskId)
-  assertCanManageProject(found.project, volunteer, 'Only the project owner can review this task')
+  const isDeputy = await isProjectDeputy(projectId, volunteer.id)
+  if (!canManageProjectTasks(found.project, volunteer, isDeputy)) {
+    throw new ORPCError('FORBIDDEN', {
+      message: 'Only the project owner or a deputy can review this task',
+    })
+  }
   if (found.task.status !== TaskStatus.under_review) {
     throw new ORPCError('BAD_REQUEST', { message: 'This task is not waiting for review' })
   }
-  return found
+  return { ...found, isDeputy }
+}
+
+/** How a person is named on something they did as a manager: a deputy says so. */
+function actorLabel(volunteer: { name: string }, isDeputy: boolean): string {
+  return isDeputy ? `${volunteer.name} (deputy)` : volunteer.name
+}
+
+/** Accepted helpers the owner has made deputies, minus `exceptId`. */
+async function deputyIdsOf(projectId: number, exceptId: number | null = null): Promise<number[]> {
+  const rows = await prisma.projectDeputy.findMany({
+    where: {
+      projectId,
+      volunteer: {
+        workItemInterests: { some: { workItemId: projectId, status: InterestStatus.accepted } },
+      },
+    },
+    select: { volunteerId: true },
+  })
+  return rows.map((r) => r.volunteerId).filter((id) => id !== exceptId)
+}
+
+/** A helper who leaves or is removed stops being a deputy; the owner is told. */
+async function endDeputyRole(
+  project: { id: number; title: string; assigneeId: number | null },
+  volunteerId: number,
+  volunteerName: string,
+): Promise<void> {
+  const removed = await prisma.projectDeputy.deleteMany({
+    where: { projectId: project.id, volunteerId },
+  })
+  if (removed.count > 0 && project.assigneeId !== null) {
+    await notifyUser(
+      project.assigneeId,
+      'deputy_removed',
+      `${volunteerName} is no longer a deputy on '${project.title}'`,
+      'They are no longer a helper on the project.',
+      `/projects/${project.id}#people`,
+    )
+  }
 }
 
 // Unfinished tasks share a bucket so claiming, assigning or submitting a task doesn't
@@ -877,6 +923,7 @@ export const projectsRouter = {
         include: { volunteer: { select: { name: true } } },
         orderBy: { respondedAt: 'asc' },
       })
+      const deputyIds = new Set(await deputyIdsOf(input.id))
       const helpers = helperRows
         .filter((h) => h.volunteerId !== project.assigneeId)
         .map((h) => ({
@@ -884,7 +931,10 @@ export const projectsRouter = {
           volunteerId: h.volunteerId,
           volunteerName: h.volunteer.name,
           interestType: h.interestType,
+          isDeputy: deputyIds.has(h.volunteerId),
         }))
+      const isDeputy = deputyIds.has(volunteer.id)
+      const canManageTasks = canManageProjectTasks(project, volunteer, isDeputy)
 
       // Change requests are between the admins and whoever proposed or runs the project.
       const canSeeReview =
@@ -913,6 +963,8 @@ export const projectsRouter = {
         myInterest,
         canClaimTasks,
         canCreateTasks,
+        canManageTasks,
+        isDeputy,
         isMember,
         canMessageOwner:
           project.assigneeId !== null &&
@@ -1281,6 +1333,11 @@ export const projectsRouter = {
       if (result.count === 0) throw new ORPCError('NOT_FOUND', { message: 'No interest found' })
 
       await releaseTasksHeldBy(input.projectId, context.volunteer.id)
+      const project = await prisma.workItem.findFirst({
+        where: { id: input.projectId, type: WorkItemType.PROJECT },
+        select: { id: true, title: true, assigneeId: true },
+      })
+      if (project) await endDeputyRole(project, context.volunteer.id, context.volunteer.name)
 
       return { message: 'Interest withdrawn' }
     }),
@@ -1306,7 +1363,7 @@ export const projectsRouter = {
 
       const interest = await prisma.workItemInterest.findFirst({
         where: { id: input.interestId, workItemId: input.projectId },
-        include: { volunteer: { select: { approvalStatus: true } } },
+        include: { volunteer: { select: { approvalStatus: true, name: true } } },
       })
       if (!interest) throw new ORPCError('NOT_FOUND', { message: 'Interest not found' })
       if (
@@ -1334,6 +1391,10 @@ export const projectsRouter = {
       })
 
       await clearNotifications('new_interest', input.interestId)
+
+      if (status === InterestStatus.removed) {
+        await endDeputyRole(project, interest.volunteerId, interest.volunteer.name)
+      }
 
       if (status === InterestStatus.accepted) {
         await assignHeldTasks(input.projectId, interest.volunteerId)
@@ -1736,7 +1797,11 @@ export const projectsRouter = {
         scopeEnd: schedule.end,
         // Sent so the client can recompute this exact schedule while a drag is in flight.
         scopeOrigin: origin,
-        canManageTasks: canManageProject(project, volunteer),
+        canManageTasks: canManageProjectTasks(
+          project,
+          volunteer,
+          await isProjectDeputy(project.id, volunteer.id),
+        ),
         canCreateTasks: canCreateProjectTask(
           project,
           volunteer,
@@ -1806,11 +1871,25 @@ export const projectsRouter = {
         }),
       ])
 
-      const canManage = canManageProject(project, volunteer)
+      const canManage = canManageProjectTasks(
+        project,
+        volunteer,
+        await isProjectDeputy(project.id, volunteer.id),
+      )
       // A reviewer's request for changes is between them and the assignee.
       const changesRequested =
         task.changesRequestedNote !== null && (canManage || task.assigneeId === volunteer.id)
-          ? { message: task.changesRequestedNote, byName: task.reviewedBy?.name ?? null }
+          ? {
+              message: task.changesRequestedNote,
+              byName: task.reviewedBy
+                ? actorLabel(
+                    task.reviewedBy,
+                    task.reviewedById !== null &&
+                      task.reviewedById !== project.assigneeId &&
+                      (await isProjectDeputy(project.id, task.reviewedById)),
+                  )
+                : null,
+            }
           : null
 
       return {
@@ -1902,7 +1981,13 @@ export const projectsRouter = {
       })
       if (!project) throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
 
-      assertCanManageProject(project, volunteer, 'Only project owner or admin can reorder tasks')
+      if (
+        !canManageProjectTasks(project, volunteer, await isProjectDeputy(project.id, volunteer.id))
+      ) {
+        throw new ORPCError('FORBIDDEN', {
+          message: 'Only the project owner, a deputy or an admin can reorder tasks',
+        })
+      }
 
       await prisma.$transaction(
         input.items.map(({ id, sortOrder }) =>
@@ -2047,7 +2132,8 @@ export const projectsRouter = {
       if (!project || !task)
         throw new ORPCError('NOT_FOUND', { message: 'Project or task not found' })
 
-      const isAssignee = project.assigneeId === volunteer.id
+      const isAssignee =
+        project.assigneeId === volunteer.id || (await isProjectDeputy(project.id, volunteer.id))
 
       const newStatus = input.data.status
       const newAssigneeId = input.data.assigneeId
@@ -2229,7 +2315,7 @@ export const projectsRouter = {
       const reviewerId = project.assigneeId
       const accepted = !awaitsOwnerReview(
         { autoAcceptTasks: project.autoAcceptTasks, ownerId: reviewerId },
-        canManageProject(project, volunteer),
+        canManageProjectTasks(project, volunteer, await isProjectDeputy(project.id, volunteer.id)),
       )
       await prisma.workItem.update({
         where: { id: task.id },
@@ -2243,10 +2329,10 @@ export const projectsRouter = {
         },
       })
 
-      if (reviewerId !== null && reviewerId !== volunteer.id) {
-        const link = `/projects/${project.id}/tasks/${task.id}`
-        const said = submission.submissionNote ?? submission.submissionUrl
-        if (accepted) {
+      const link = `/projects/${project.id}/tasks/${task.id}`
+      const said = submission.submissionNote ?? submission.submissionUrl
+      if (accepted) {
+        if (reviewerId !== null && reviewerId !== volunteer.id) {
           notifyUser(
             reviewerId,
             'task_done',
@@ -2254,9 +2340,15 @@ export const projectsRouter = {
             `${volunteer.name}: ${said}`,
             link,
           )
-        } else {
+        }
+      } else {
+        const reviewers = [
+          ...(reviewerId === null ? [] : [reviewerId]),
+          ...(await deputyIdsOf(project.id)),
+        ].filter((id) => id !== volunteer.id)
+        for (const id of new Set(reviewers)) {
           await notifyUser(
-            reviewerId,
+            id,
             'task_submitted',
             `Submitted for review: '${task.title}'`,
             `${volunteer.name}: ${said}`,
@@ -2282,7 +2374,7 @@ export const projectsRouter = {
     .input(z.object({ projectId: z.number().int(), taskId: z.number().int() }))
     .handler(async ({ input, context }) => {
       const volunteer = context.volunteer
-      const { task } = await findTaskToReview(input.projectId, input.taskId, volunteer)
+      const { task, isDeputy } = await findTaskToReview(input.projectId, input.taskId, volunteer)
       const now = new Date()
       await prisma.workItem.update({
         where: { id: task.id },
@@ -2301,7 +2393,7 @@ export const projectsRouter = {
           task.assigneeId,
           'task_accepted',
           `Accepted: '${task.title}'`,
-          `${volunteer.name} accepted your work`,
+          `${actorLabel(volunteer, isDeputy)} accepted your work`,
           `/projects/${input.projectId}/tasks/${task.id}`,
         )
       }
@@ -2316,7 +2408,7 @@ export const projectsRouter = {
     )
     .handler(async ({ input, context }) => {
       const volunteer = context.volunteer
-      const { task } = await findTaskToReview(input.projectId, input.taskId, volunteer)
+      const { task, isDeputy } = await findTaskToReview(input.projectId, input.taskId, volunteer)
       const now = new Date()
       await prisma.workItem.update({
         where: { id: task.id },
@@ -2333,7 +2425,9 @@ export const projectsRouter = {
         notifyUser(
           task.assigneeId,
           'task_changes_requested',
-          `Changes requested: '${task.title}'`,
+          isDeputy
+            ? `Changes requested by ${actorLabel(volunteer, isDeputy)}: '${task.title}'`
+            : `Changes requested: '${task.title}'`,
           input.message,
           `/projects/${input.projectId}/tasks/${task.id}`,
           undefined,
@@ -2362,8 +2456,11 @@ export const projectsRouter = {
       if (!project || !task)
         throw new ORPCError('NOT_FOUND', { message: 'Project or task not found' })
 
-      if (project.assigneeId !== volunteer.id && !volunteer.isAdmin) {
-        throw new ORPCError('FORBIDDEN', { message: 'Only project owner or admin can assign' })
+      const isDeputy = await isProjectDeputy(project.id, volunteer.id)
+      if (project.assigneeId !== volunteer.id && !volunteer.isAdmin && !isDeputy) {
+        throw new ORPCError('FORBIDDEN', {
+          message: 'Only the project owner, a deputy or an admin can assign',
+        })
       }
       if (task.status === TaskStatus.completed) {
         throw new ORPCError('BAD_REQUEST', { message: 'Cannot assign a completed task' })
@@ -2396,7 +2493,9 @@ export const projectsRouter = {
       await notifyUser(
         input.assigneeId,
         'task_assigned',
-        `Assigned: a task on '${project.title}'`,
+        isDeputy
+          ? `Assigned by ${actorLabel(volunteer, isDeputy)}: a task on '${project.title}'`
+          : `Assigned: a task on '${project.title}'`,
         task.title,
         `/projects/${input.projectId}`,
         {
@@ -2425,9 +2524,11 @@ export const projectsRouter = {
       })
       if (!task) throw new ORPCError('NOT_FOUND', { message: 'Task not found' })
 
-      if (!canDeleteProjectTask(project, task, volunteer)) {
+      const isDeputy = await isProjectDeputy(project.id, volunteer.id)
+      if (!canDeleteProjectTask(project, task, volunteer, isDeputy)) {
         throw new ORPCError('FORBIDDEN', {
-          message: 'Only project owner, admin, or the task creator can delete this task',
+          message:
+            'Only the project owner, a deputy, an admin or the task creator can delete this task',
         })
       }
 
@@ -2436,5 +2537,97 @@ export const projectsRouter = {
       })
       if (deleted.count === 0) throw new ORPCError('NOT_FOUND', { message: 'Task not found' })
       return { message: 'Task deleted' }
+    }),
+
+  /** The owner (or an admin) hands an accepted helper the management of the project's tasks. */
+  appointDeputy: approvedProcedure
+    .input(z.object({ projectId: z.number().int(), volunteerId: z.number().int() }))
+    .handler(async ({ input, context }) => {
+      const volunteer = context.volunteer
+      const project = await prisma.workItem.findFirst({
+        where: { id: input.projectId, type: WorkItemType.PROJECT },
+      })
+      if (!project || (project.assigneeId !== volunteer.id && !volunteer.isAdmin)) {
+        throw new ORPCError('FORBIDDEN', { message: 'Only the project owner can appoint a deputy' })
+      }
+      const helper = await prisma.workItemInterest.findFirst({
+        where: {
+          workItemId: input.projectId,
+          volunteerId: input.volunteerId,
+          status: InterestStatus.accepted,
+        },
+      })
+      if (!helper || input.volunteerId === project.assigneeId) {
+        throw new ORPCError('BAD_REQUEST', { message: 'Only an accepted helper can be a deputy' })
+      }
+      const existing = await prisma.projectDeputy.findFirst({
+        where: { projectId: input.projectId, volunteerId: input.volunteerId },
+      })
+      if (existing) throw new ORPCError('BAD_REQUEST', { message: 'They are already a deputy' })
+
+      await prisma.projectDeputy.create({
+        data: {
+          projectId: input.projectId,
+          volunteerId: input.volunteerId,
+          appointedById: volunteer.id,
+        },
+      })
+      await notifyUser(
+        input.volunteerId,
+        'deputy_appointed',
+        `${volunteer.name} made you a deputy on '${project.title}'`,
+        'You can now manage its tasks.',
+        `/projects/${project.id}#tasks`,
+      )
+      return { message: 'Deputy appointed' }
+    }),
+
+  removeDeputy: approvedProcedure
+    .input(z.object({ projectId: z.number().int(), volunteerId: z.number().int() }))
+    .handler(async ({ input, context }) => {
+      const volunteer = context.volunteer
+      const project = await prisma.workItem.findFirst({
+        where: { id: input.projectId, type: WorkItemType.PROJECT },
+      })
+      if (!project || (project.assigneeId !== volunteer.id && !volunteer.isAdmin)) {
+        throw new ORPCError('FORBIDDEN', { message: 'Only the project owner can remove a deputy' })
+      }
+      const removed = await prisma.projectDeputy.deleteMany({
+        where: { projectId: input.projectId, volunteerId: input.volunteerId },
+      })
+      if (removed.count === 0) throw new ORPCError('NOT_FOUND', { message: 'Deputy not found' })
+      await notifyUser(
+        input.volunteerId,
+        'deputy_removed',
+        `You are no longer a deputy on '${project.title}'`,
+        `${volunteer.name} took back the management of its tasks.`,
+        `/projects/${project.id}`,
+      )
+      return { message: 'Deputy removed' }
+    }),
+
+  stepDownAsDeputy: approvedProcedure
+    .input(z.object({ projectId: z.number().int() }))
+    .handler(async ({ input, context }) => {
+      const volunteer = context.volunteer
+      const project = await prisma.workItem.findFirst({
+        where: { id: input.projectId, type: WorkItemType.PROJECT },
+      })
+      const removed = await prisma.projectDeputy.deleteMany({
+        where: { projectId: input.projectId, volunteerId: volunteer.id },
+      })
+      if (!project || removed.count === 0) {
+        throw new ORPCError('NOT_FOUND', { message: 'You are not a deputy on this project' })
+      }
+      if (project.assigneeId !== null) {
+        await notifyUser(
+          project.assigneeId,
+          'deputy_removed',
+          `${volunteer.name} stepped down as a deputy on '${project.title}'`,
+          null,
+          `/projects/${project.id}#people`,
+        )
+      }
+      return { message: 'You are no longer a deputy' }
     }),
 }

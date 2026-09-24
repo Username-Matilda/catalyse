@@ -389,6 +389,7 @@ model WorkItem {
   reviewRequests       ProjectReviewRequest[]
   skills               WorkItemSkill[]
   interests            WorkItemInterest[]
+  deputies             ProjectDeputy[]        @relation("ProjectDeputies")
   adminNotes           AdminNote[]
   messages             Message[]
   templatesSourcedFrom Template[]             @relation("TemplateSourceProject")
@@ -480,6 +481,23 @@ model WorkItemSkill {
   @@id([workItemId, skillId])
   @@index([skillId], map: "idx_work_item_skills_skill")
   @@map("work_item_skills")
+}
+
+/// An accepted helper the owner has delegated a project's task management to. The row goes
+/// when the person stops being an accepted helper.
+model ProjectDeputy {
+  id            Int        @id @default(autoincrement())
+  projectId     Int        @map("project_id")
+  volunteerId   Int        @map("volunteer_id")
+  appointedById Int?       @map("appointed_by_id")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  project       WorkItem   @relation("ProjectDeputies", fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  volunteer     Volunteer  @relation("DeputyVolunteer", fields: [volunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  appointedBy   Volunteer? @relation("DeputyAppointedBy", fields: [appointedById], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@unique([projectId, volunteerId], map: "uq_project_deputies_project_volunteer")
+  @@index([volunteerId], map: "idx_project_deputies_volunteer")
+  @@map("project_deputies")
 }
 
 model WorkItemInterest {
@@ -861,6 +879,8 @@ model Volunteer {
   passwordResetTokens                     PasswordResetToken[]
   workItemInterests                       WorkItemInterest[]       @relation("InterestVolunteer")
   interestInvitesSent                     WorkItemInterest[]       @relation("InterestInvitedBy")
+  deputyRoles                             ProjectDeputy[]          @relation("DeputyVolunteer")
+  deputiesAppointed                       ProjectDeputy[]          @relation("DeputyAppointedBy")
   workItemComments                        WorkItemComment[]        @relation("WorkItemCommentAuthor")
   projectReviewRequests                   ProjectReviewRequest[]
   workItemsCreated                        WorkItem[]               @relation("WorkItemCreator")

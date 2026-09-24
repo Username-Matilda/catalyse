@@ -50,7 +50,7 @@ export type WorkRow = {
   kind: WorkKind
   title: string
   href: string
-  role: 'Lead' | 'Helper' | 'Proposed' | 'Task' | 'Member'
+  role: 'Lead' | 'Deputy' | 'Helper' | 'Proposed' | 'Task' | 'Member'
   status: string | null
   /** The project a task belongs to. */
   context: string | null
@@ -111,7 +111,8 @@ async function attentionFor(viewer: Viewer): Promise<AttentionItem[]> {
         where: { volunteerId: viewer.id, type: 'mention', readAt: null },
         orderBy: { createdAt: 'desc' },
       }),
-      // Quick Tasks I set, or any nobody set when I'm an admin; tasks on projects I own.
+      // Quick Tasks I set, or any nobody set when I'm an admin; tasks on projects I own or
+      // am a deputy on.
       prisma.workItem.findMany({
         where: {
           status: QuickTaskStatus.under_review,
@@ -120,7 +121,12 @@ async function attentionFor(viewer: Viewer): Promise<AttentionItem[]> {
               type: WorkItemType.QUICK_TASK,
               OR: [{ creatorId: viewer.id }, ...(viewer.isAdmin ? [{ creatorId: null }] : [])],
             },
-            { type: WorkItemType.TASK, parent: { assigneeId: viewer.id } },
+            {
+              type: WorkItemType.TASK,
+              parent: {
+                OR: [{ assigneeId: viewer.id }, { deputies: { some: { volunteerId: viewer.id } } }],
+              },
+            },
           ],
         },
         select: { id: true, type: true, title: true, parentId: true, submittedAt: true },
@@ -275,7 +281,7 @@ async function attentionFor(viewer: Viewer): Promise<AttentionItem[]> {
 
 async function workFor(viewer: Viewer): Promise<WorkRow[]> {
   const projectSelect = { id: true, title: true, status: true, updatedAt: true } as const
-  const [owned, interests, proposed, tasks, memberships] = await Promise.all([
+  const [owned, interests, proposed, tasks, memberships, deputyRows] = await Promise.all([
     prisma.workItem.findMany({
       where: { type: WorkItemType.PROJECT, assigneeId: viewer.id },
       select: projectSelect,
@@ -318,9 +324,15 @@ async function workFor(viewer: Viewer): Promise<WorkRow[]> {
       include: { team: { select: { id: true, name: true } } },
       orderBy: { joinedAt: 'desc' },
     }),
+    prisma.projectDeputy.findMany({
+      where: { volunteerId: viewer.id },
+      select: { projectId: true },
+    }),
   ])
+  const deputyOf = new Set(deputyRows.map((d) => d.projectId))
 
-  // A project appears once, under the closest tie: leading, helping, proposing, applying.
+  // A project appears once, under the closest tie: leading, deputising, helping, proposing,
+  // applying.
   const projects = new Map<number, WorkRow & { updatedAt: Date | null }>()
   const addProject = (
     p: { id: number; title: string; status: string; updatedAt: Date | null },
@@ -342,7 +354,11 @@ async function workFor(viewer: Viewer): Promise<WorkRow[]> {
   }
   for (const p of owned) addProject(p, 'Lead', projectStatusLabel(p.status))
   for (const i of interests.filter((i) => i.status === InterestStatus.accepted)) {
-    addProject(i.workItem, 'Helper', projectStatusLabel(i.workItem.status))
+    addProject(
+      i.workItem,
+      deputyOf.has(i.workItem.id) ? 'Deputy' : 'Helper',
+      projectStatusLabel(i.workItem.status),
+    )
   }
   for (const p of proposed) addProject(p, 'Proposed', projectStatusLabel(p.status))
   for (const i of interests.filter((i) => i.status === InterestStatus.pending)) {

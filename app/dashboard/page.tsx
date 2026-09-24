@@ -29,6 +29,7 @@ type WorkFilter = (typeof WORK_FILTERS)[number]['key']
 
 const ROLE_VARIANTS: Record<WorkRow['role'], BadgeVariant> = {
   Lead: 'success',
+  Deputy: 'success',
   Helper: 'info',
   Proposed: 'warning',
   Task: 'caution',

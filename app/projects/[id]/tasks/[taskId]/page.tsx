@@ -41,7 +41,7 @@ export default function TaskDetailPage({
     enabled: !!user && !isNaN(projectId) && !isNaN(taskId),
   })
 
-  const canEdit = !!user && !!task && (user.isAdmin || task.projectOwnerId === user.id)
+  const canEdit = !!user && !!task && task.canManage
 
   const [editTitle, setEditTitle] = useState('')
   const [editDescription, setEditDescription] = useState('')

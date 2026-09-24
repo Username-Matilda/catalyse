@@ -565,6 +565,8 @@ const HASH_TABS: ProjectTab[] = ['tasks', 'timeline', 'discussion', 'people']
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
+type DeputyAction = { kind: 'appoint' | 'remove' | 'step_down'; volunteerId: number; name: string }
+
 export default function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = use(params)
   const router = useRouter()
@@ -672,6 +674,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   // Confirmations
   const [deleteTaskId, setDeleteTaskId] = useState<number | null>(null)
   const [withdrawAccepted, setWithdrawAccepted] = useState<boolean | null>(null)
+  const [deputyAction, setDeputyAction] = useState<DeputyAction | null>(null)
   const [showJoin, setShowJoin] = useState(false)
   const [showTransferConfirm, setShowTransferConfirm] = useState(false)
   const [showRemoveOwnerConfirm, setShowRemoveOwnerConfirm] = useState(false)
@@ -752,7 +755,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   const { data: volunteersData } = useQuery({
     ...orpc.volunteers.list.queryOptions({ input: { limit: 100 } }),
-    enabled: !!project && (!!user?.isAdmin || project.ownerId === user?.id),
+    enabled: !!project && (!!user?.isAdmin || project.ownerId === user?.id || project.isDeputy),
   })
   const volunteers = volunteersData?.volunteers ?? []
 
@@ -928,6 +931,27 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       showToast(err instanceof Error ? err.message : 'Failed to cancel the invite', 'error'),
   })
 
+  const deputyResult = {
+    onSuccess: (data: { message: string }) => {
+      showToast(data.message, 'success')
+      void invalidateProject()
+    },
+    onError: (err: unknown) =>
+      showToast(err instanceof Error ? err.message : 'Failed to change the deputy', 'error'),
+  }
+  const appointDeputyMutation = useMutation({
+    ...orpc.projects.appointDeputy.mutationOptions(),
+    ...deputyResult,
+  })
+  const removeDeputyMutation = useMutation({
+    ...orpc.projects.removeDeputy.mutationOptions(),
+    ...deputyResult,
+  })
+  const stepDownMutation = useMutation({
+    ...orpc.projects.stepDownAsDeputy.mutationOptions(),
+    ...deputyResult,
+  })
+
   const setOutcomeMutation = useMutation({
     ...orpc.admin.projects.setOutcome.mutationOptions(),
     onSuccess: () => {
@@ -972,9 +996,15 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   // Org-proposed projects are attributed to the org, not to the admin who filed them.
   const proposer = proposerDisplay(project)
   const isOwnerOrAdmin = isOwner || isAdmin
+  const isDeputy = project.isDeputy
+  // A deputy runs the project's tasks and nothing else about it.
+  const canRunTasks = isOwnerOrAdmin || isDeputy
   // A draft has no owner yet, so its creator manages its own tasks until they publish it.
   const canManageTasks =
-    isOwnerOrAdmin || (project.status === 'draft' && project.proposedById === user.id)
+    canRunTasks || (project.status === 'draft' && project.proposedById === user.id)
+  const deputyIds = new Set(
+    (project.helpers ?? []).filter((h) => h.isDeputy).map((h) => h.volunteerId),
+  )
   // Members (accepted helpers / team members) may add tasks even though they can't manage
   // the project's schedule/baseline — server-computed in getById, see canCreateProjectTask.
   const canCreateTasks = canManageTasks || project.canCreateTasks
@@ -1043,7 +1073,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           {interest.status === InterestStatus.accepted
             ? interest.interestType === 'want_to_own'
               ? 'Owner'
-              : 'Helper'
+              : deputyIds.has(interest.volunteerId)
+                ? 'Deputy'
+                : 'Helper'
             : interest.status === InterestStatus.pending
               ? interest.interestType === 'want_to_own'
                 ? 'wants to own'
@@ -1071,6 +1103,19 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           <Badge variant={projectStatusVariant(interest.status)}>
             {INTEREST_STATUS_LABELS[interest.status] ?? interest.status}
           </Badge>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() =>
+              setDeputyAction({
+                kind: deputyIds.has(interest.volunteerId) ? 'remove' : 'appoint',
+                volunteerId: interest.volunteerId,
+                name: interest.volunteerName,
+              })
+            }
+          >
+            {deputyIds.has(interest.volunteerId) ? 'Remove deputy' : 'Make deputy'}
+          </Button>
           <Button
             variant="secondary"
             size="sm"
@@ -1190,6 +1235,15 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     })
   }
 
+  function confirmDeputyAction(action: DeputyAction) {
+    const projectId = parseInt(idParam, 10)
+    const { volunteerId } = action
+    if (action.kind === 'appoint') appointDeputyMutation.mutate({ projectId, volunteerId })
+    else if (action.kind === 'remove') removeDeputyMutation.mutate({ projectId, volunteerId })
+    else stepDownMutation.mutate({ projectId })
+    setDeputyAction(null)
+  }
+
   function confirmWithdrawInterest() {
     withdrawInterestMutation.mutate({ projectId: parseInt(idParam, 10) })
     setWithdrawAccepted(null)
@@ -1285,9 +1339,28 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   <div className="flex-1 min-w-0">
                     <div className="truncate">{helper.volunteerName}</div>
                     <div className="text-text-light text-xs">
-                      {helper.interestType === 'want_to_own' ? 'Owner' : 'Helper'}
+                      {helper.interestType === 'want_to_own'
+                        ? 'Owner'
+                        : helper.isDeputy
+                          ? 'Deputy'
+                          : 'Helper'}
                     </div>
                   </div>
+                  {helper.volunteerId === user.id && helper.isDeputy && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() =>
+                        setDeputyAction({
+                          kind: 'step_down',
+                          volunteerId: user.id,
+                          name: helper.volunteerName,
+                        })
+                      }
+                    >
+                      Step down
+                    </Button>
+                  )}
                 </li>
               ))}
             </ul>
@@ -1394,6 +1467,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             You&apos;re on this project
             {project.myInterest?.interestType === 'want_to_own' ? ' as its lead' : ''}
           </span>
+          {isDeputy && <Badge variant="success">Deputy</Badge>}
           <Button variant="secondary" size="sm" onClick={() => setWithdrawAccepted(true)}>
             Leave project
           </Button>
@@ -1757,11 +1831,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                               // eslint-disable-next-line react-hooks/purity -- wall-clock comparison for overdue display
                               new Date(task.deadline).getTime() < Date.now()
                             const canAssign =
-                              isOwnerOrAdmin &&
+                              canRunTasks &&
                               task.status !== TaskStatus.completed &&
                               volunteers.length > 0
                             const canUnassign =
-                              isOwnerOrAdmin &&
+                              canRunTasks &&
                               task.assignedToId !== null &&
                               task.status === TaskStatus.in_progress
 
@@ -1867,7 +1941,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                             taskId: task.id,
                                           }}
                                           reviewer={
-                                            awaitsOwnerReview(project, isOwnerOrAdmin)
+                                            awaitsOwnerReview(project, canRunTasks)
                                               ? 'The project owner'
                                               : null
                                           }
@@ -1875,7 +1949,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                           variant="secondary"
                                         />
                                       )}
-                                    {task.status === TaskStatus.under_review && isOwnerOrAdmin && (
+                                    {task.status === TaskStatus.under_review && canRunTasks && (
                                       <Button
                                         variant="secondary"
                                         size="sm"
@@ -2354,6 +2428,42 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             setDeleteTaskId(null)
           }}
           onClose={() => setDeleteTaskId(null)}
+        />
+      )}
+
+      {deputyAction !== null && (
+        <ConfirmDialog
+          id="confirm-deputy"
+          isOpen
+          title={
+            deputyAction.kind === 'appoint'
+              ? `Make ${deputyAction.name} a deputy?`
+              : deputyAction.kind === 'remove'
+                ? `Remove ${deputyAction.name} as a deputy?`
+                : 'Step down as a deputy?'
+          }
+          body={
+            deputyAction.kind === 'appoint'
+              ? 'A deputy can create, edit, assign and delete tasks, change their deadlines and dependencies, and review submitted work. They cannot edit the project, change its status, manage people, set the key date, project deadline or original plan, or appoint deputies.'
+              : deputyAction.kind === 'remove'
+                ? 'They stay on the project as a helper but can no longer manage its tasks.'
+                : 'You stay on the project as a helper but can no longer manage its tasks.'
+          }
+          confirmLabel={
+            deputyAction.kind === 'appoint'
+              ? 'Make deputy'
+              : deputyAction.kind === 'remove'
+                ? 'Remove deputy'
+                : 'Step down'
+          }
+          busyLabel="Saving…"
+          busy={
+            appointDeputyMutation.isPending ||
+            removeDeputyMutation.isPending ||
+            stepDownMutation.isPending
+          }
+          onConfirm={() => confirmDeputyAction(deputyAction)}
+          onClose={() => setDeputyAction(null)}
         />
       )}
 

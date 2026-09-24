@@ -314,6 +314,35 @@ export function canManageProject(
 }
 
 /**
+ * May `viewer` manage this project's tasks: create, edit, assign, reorder, link, replan and
+ * review them? Whoever manages the project, plus a deputy. Project-level checks (editing the
+ * project, its people, status, key date, deadline and original plan) stay on
+ * `canManageProject`.
+ */
+export function canManageProjectTasks(
+  project: { creatorId: number | null; assigneeId: number | null; status: string },
+  viewer: { id: number; isAdmin: boolean | null },
+  isDeputy: boolean,
+): boolean {
+  return canManageProject(project, viewer) || isDeputy
+}
+
+/** Has the owner made `volunteerId` a deputy on this project, and are they still a helper? */
+export async function isProjectDeputy(projectId: number, volunteerId: number): Promise<boolean> {
+  const deputy = await prisma.projectDeputy.findFirst({
+    where: {
+      projectId,
+      volunteerId,
+      volunteer: {
+        workItemInterests: { some: { workItemId: projectId, status: InterestStatus.accepted } },
+      },
+    },
+    select: { id: true },
+  })
+  return deputy !== null
+}
+
+/**
  * May `viewer` add a task to this project? Anyone who can manage the project, plus any
  * member — team membership or an accepted `WorkItemInterest` (the same signal as
  * `resolveTeamPrivy`). Members were previously blocked from adding tasks at all; this was
@@ -337,8 +366,9 @@ export function canDeleteProjectTask(
   project: { creatorId: number | null; assigneeId: number | null; status: string },
   task: { creatorId: number | null },
   viewer: { id: number; isAdmin: boolean | null },
+  isDeputy: boolean,
 ): boolean {
-  return canManageProject(project, viewer) || task.creatorId === viewer.id
+  return canManageProjectTasks(project, viewer, isDeputy) || task.creatorId === viewer.id
 }
 
 export type WorkItemSkillWithRelations = {

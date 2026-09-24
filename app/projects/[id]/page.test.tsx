@@ -570,6 +570,115 @@ describe('project page — owner', () => {
   })
 })
 
+describe('project page — deputies', () => {
+  async function deputyProject() {
+    const owner = await createVolunteer({ name: 'Owen Owner' })
+    const helper = await createVolunteer({ name: 'Hana Helper' })
+    const project = await createProject({
+      title: 'Shared project',
+      assigneeId: owner.id,
+      status: 'in_progress',
+      autoAcceptTasks: false,
+    })
+    await prisma.workItemInterest.create({
+      data: {
+        workItemId: project.id,
+        volunteerId: helper.id,
+        interestType: 'want_to_contribute',
+        status: 'accepted',
+      },
+    })
+    return { owner, helper, project }
+  }
+  const personCard = (name: string) =>
+    within(screen.getByRole('region', { name: 'People on this project' }))
+      .getByText(name)
+      .closest('li') as HTMLElement
+
+  it('lets the owner make a helper a deputy and take it back', async () => {
+    const { owner, helper, project } = await deputyProject()
+    await mount(project.id, owner, '#people')
+    await userEvent.click(
+      await within(
+        await screen.findByRole('region', { name: 'People on this project' }),
+      ).findByRole('button', { name: 'Make deputy' }),
+    )
+    const dialog = await screen.findByRole('dialog', { name: 'Make Hana Helper a deputy?' })
+    expect(within(dialog).getByText(/cannot edit the project/)).toBeInTheDocument()
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Make deputy' }))
+    await screen.findByText('Deputy appointed')
+    await waitFor(() => expect(personCard('Hana Helper')).toHaveTextContent('Deputy'))
+    expect(await prisma.projectDeputy.count({ where: { volunteerId: helper.id } })).toBe(1)
+
+    await userEvent.click(
+      within(personCard('Hana Helper')).getByRole('button', { name: 'Remove deputy' }),
+    )
+    const removeDialog = await screen.findByRole('dialog', {
+      name: 'Remove Hana Helper as a deputy?',
+    })
+    await userEvent.click(within(removeDialog).getByRole('button', { name: 'Remove deputy' }))
+    await screen.findByText('Deputy removed')
+    await waitFor(() => expect(personCard('Hana Helper')).toHaveTextContent('Helper'))
+  })
+
+  it('shows why a deputy change failed, and lets the owner back out of the dialog', async () => {
+    const { owner, helper, project } = await deputyProject()
+    await prisma.projectDeputy.create({ data: { projectId: project.id, volunteerId: helper.id } })
+    await mount(project.id, owner, '#people')
+    const remove = await within(
+      await screen.findByRole('region', { name: 'People on this project' }),
+    ).findByRole('button', { name: 'Remove deputy' })
+    await userEvent.click(remove)
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancel' }),
+    )
+    expect(screen.queryByRole('dialog')).toBeNull()
+
+    await prisma.projectDeputy.deleteMany({ where: { projectId: project.id } })
+    await userEvent.click(remove)
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Remove deputy' }),
+    )
+    await screen.findByText('Deputy not found')
+  })
+
+  it('gives a deputy the task controls but not the people ones, and lets them step down', async () => {
+    const { owner, helper, project } = await deputyProject()
+    await prisma.projectDeputy.create({ data: { projectId: project.id, volunteerId: helper.id } })
+    const worker = await createVolunteer()
+    await createTask(project.id, { title: 'Open one', sortOrder: 1 })
+    const waiting = await createTask(project.id, {
+      title: 'Waiting one',
+      sortOrder: 2,
+      status: 'under_review',
+      assigneeId: worker.id,
+    })
+    await mount(project.id, helper, '#tasks')
+    expect(await screen.findByLabelText('Drag to reorder Open one')).toBeInTheDocument()
+    expect(screen.getByLabelText('Task actions for Open one')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Review' })).toHaveAttribute(
+      'href',
+      `/projects/${project.id}/tasks/${waiting.id}`,
+    )
+    expect(screen.getByText('Deputy')).toBeInTheDocument()
+
+    await openTab(/^People/)
+    expect(screen.queryByRole('button', { name: 'Make deputy' })).toBeNull()
+    expect(screen.queryByText('+ Invite')).toBeNull()
+    expect(within(personCard('Hana Helper')).getByText('Deputy')).toBeInTheDocument()
+    await userEvent.click(
+      within(personCard('Hana Helper')).getByRole('button', { name: 'Step down' }),
+    )
+    const dialog = await screen.findByRole('dialog', { name: 'Step down as a deputy?' })
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Step down' }))
+    await screen.findByText('You are no longer a deputy')
+    expect(await prisma.projectDeputy.count({ where: { projectId: project.id } })).toBe(0)
+    expect((await prisma.notification.findMany({ where: { volunteerId: owner.id } })).length).toBe(
+      1,
+    )
+  })
+})
+
 describe('project page — invites', () => {
   it('lets an admin add someone straight away, and reports a failed add', async () => {
     const admin = await createAdmin()
