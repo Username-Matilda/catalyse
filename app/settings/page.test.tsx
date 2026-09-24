@@ -205,11 +205,20 @@ describe('settings — notifications and privacy tabs', () => {
     )
     await userEvent.click(screen.getByRole('option', { name: 'Send me a fortnightly digest' }))
     await userEvent.click(screen.getByLabelText(/remote/i))
+    // Both email categories start on; turn updates off, then needs-action off and on again.
+    const needs = screen.getByLabelText(/^Things that need me/)
+    const updates = screen.getByLabelText(/^Updates:/)
+    expect(needs).toBeChecked()
+    expect(updates).toBeChecked()
+    await userEvent.click(updates)
+    await userEvent.click(needs)
+    await userEvent.click(needs)
     await userEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
     await screen.findByText('Profile updated!')
     expect(await me(vol.id)).toMatchObject({
       emailDigest: 'fortnightly',
       notifyRemoteProjects: true,
+      emailMutedCategories: ['update'],
     })
 
     await userEvent.click(screen.getByRole('tab', { name: 'Privacy & Data' }))
@@ -217,9 +226,10 @@ describe('settings — notifications and privacy tabs', () => {
       'href',
       '/privacy',
     )
-    await userEvent.click(screen.getByLabelText(/visible in the volunteer directory/i))
-    await userEvent.click(screen.getByLabelText(/Share my contact/i))
-    await userEvent.click(screen.getByLabelText(/contact me about/i))
+    await userEvent.click(screen.getByLabelText('Show me in the volunteer directory'))
+    // People on your projects can always reach you, so there is nothing to choose about it.
+    expect(screen.queryByLabelText(/contact me about/i)).toBeNull()
+    expect(screen.queryByLabelText(/Share my contact/i)).toBeNull()
     // Analytics is on until it is turned off, so an account that never chose starts ticked.
     expect(screen.getByLabelText(/Allow Google Analytics/)).toBeChecked()
     expect(screen.getByText('Current status:')).toHaveTextContent('on')
@@ -228,8 +238,6 @@ describe('settings — notifications and privacy tabs', () => {
     await waitFor(() => expect(screen.getAllByText('Profile updated!')).toHaveLength(2))
     expect(await me(vol.id)).toMatchObject({
       consentMakeProfileVisibleInDirectory: false,
-      consentContactableByProjectOwners: false,
-      consentShareContactInfoWithProjectOwner: true,
       cookieConsentAnalytics: false,
     })
     expect(screen.getByText('Current status:')).toHaveTextContent('off')

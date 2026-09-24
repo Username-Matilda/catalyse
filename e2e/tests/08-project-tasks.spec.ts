@@ -11,6 +11,7 @@ import { fake } from '../fake'
 import { proposeProject, adminCreateProjectViaApi, adminApproveProject } from '../actions/projects'
 import { Page } from '@playwright/test'
 import { createApiClient } from '../client'
+import { selectFilterDropdown } from '../actions/ui'
 
 // Produces an in_progress project with one open task ("Initial task") proposed by the volunteer
 async function setupInProgressProject(
@@ -75,7 +76,7 @@ test.describe('Project Tasks', () => {
     })
     expect(accepted.status).toBe(200)
 
-    await adminPage.goto(`${baseUrl}/projects/${projectId}`)
+    await adminPage.goto(`${baseUrl}/projects/${projectId}#tasks`)
     // Accepting the owner started the work, empty backlog or not.
     await expect(adminPage.getByLabel('project status')).toContainText('In Progress', {
       timeout: 10_000,
@@ -280,31 +281,47 @@ test.describe('Project Tasks', () => {
   test('A volunteer can claim an open task', async ({ adminPage, volunteer, baseUrl }) => {
     const projectId = await setupInProgressProject(baseUrl, adminPage, volunteer)
 
-    await volunteer.page.goto(`${baseUrl}/projects/${projectId}`)
+    await volunteer.page.goto(`${baseUrl}/projects/${projectId}#tasks`)
     await expect(volunteer.page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 })
 
-    await expect(volunteer.page.getByRole('button', { name: 'Claim' })).toBeVisible({
+    // Not on the project yet: claiming asks to join and holds the task meanwhile.
+    await volunteer.page.getByRole('button', { name: 'Join and claim' }).click()
+    await expect(getAlert(volunteer.page)).toContainText('Requested. The task is held for you', {
       timeout: 10_000,
     })
-    await volunteer.page.getByRole('button', { name: 'Claim' }).click()
-    await expect(getAlert(volunteer.page)).toContainText('Task claimed. Post an update', {
+    await expect(volunteer.page.getByText('Held for you: waiting for the owner')).toBeVisible({
       timeout: 10_000,
     })
 
-    // Done button appears only for the assignee — confirms task is now assigned to this volunteer
-    await expect(volunteer.page.getByRole('button', { name: 'Done' })).toBeVisible({
+    // Accepting the request hands over the held task. The admin may already be on this
+    // project, where a new hash alone would not refetch it.
+    await adminPage.goto(`${baseUrl}/projects/${projectId}#people`)
+    await adminPage.reload()
+    const card = adminPage.locator('.interest-card').filter({ hasText: volunteer.name })
+    await card.getByRole('button', { name: 'Accept' }).click()
+    await expect(getAlert(adminPage)).toContainText('Accepted. They', { timeout: 10_000 })
+
+    // Submit work appears only for the assignee — confirms task is now assigned to this volunteer
+    await volunteer.page.reload()
+    await expect(volunteer.page.getByRole('button', { name: 'Submit work' })).toBeVisible({
       timeout: 10_000,
     })
   })
 
-  test('A volunteer can mark their claimed task as done', async ({
+  test('A volunteer submits their claimed task, which the project auto-accepts', async ({
     adminPage,
     volunteer,
     baseUrl,
   }) => {
     const projectId = await setupInProgressProject(baseUrl, adminPage, volunteer)
 
-    await volunteer.page.goto(`${baseUrl}/projects/${projectId}`)
+    // An admin puts the volunteer on the project, so their claim is immediate.
+    await adminPage.goto(`${baseUrl}/projects/${projectId}#people`)
+    await selectFilterDropdown(adminPage, 'Volunteer to invite', volunteer.name)
+    await adminPage.getByRole('button', { name: 'Add now', exact: true }).click()
+    await expect(getAlert(adminPage)).toContainText('Added to the project.', { timeout: 10_000 })
+
+    await volunteer.page.goto(`${baseUrl}/projects/${projectId}#tasks`)
     await expect(volunteer.page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 })
 
     await volunteer.page.getByRole('button', { name: 'Claim' }).click()
@@ -312,10 +329,13 @@ test.describe('Project Tasks', () => {
       timeout: 10_000,
     })
 
-    await volunteer.page.getByRole('button', { name: 'Done' }).click()
-    await expect(getAlert(volunteer.page)).toContainText('Task completed!', { timeout: 10_000 })
+    await volunteer.page.getByRole('button', { name: 'Submit work' }).click()
+    const dialog = volunteer.page.getByRole('dialog', { name: 'Submit your work' })
+    await dialog.getByLabel('What did you do?').fill('Finished the first pass')
+    await dialog.getByRole('button', { name: 'Submit work' }).click()
+    await expect(getAlert(volunteer.page)).toContainText('Task done.', { timeout: 10_000 })
 
-    await expect(volunteer.page.getByRole('button', { name: 'Done' })).not.toBeVisible({
+    await expect(volunteer.page.getByRole('button', { name: 'Submit work' })).not.toBeVisible({
       timeout: 10_000,
     })
     await expect(volunteer.page.getByText('done', { exact: true })).toBeVisible({ timeout: 10_000 })
@@ -380,8 +400,8 @@ test.describe('Project Tasks', () => {
     await approveVolunteer(baseUrl, volId, volToken)
     const volApi = createApiClient(baseUrl, volToken)
 
-    const claim = await volApi.projects.updateTask({
-      body: { projectId, taskId, data: { status: 'in_progress', assigneeId: volId } },
+    const claim = await adminApi.projects.assignTask({
+      body: { projectId, taskId, assigneeId: volId },
     })
     expect(claim.status).toBe(200)
 
@@ -423,7 +443,7 @@ test.describe('Project Tasks', () => {
       fake.projectTitle(),
       'Project for task deletion test',
     )
-    await adminPage.goto(`${baseUrl}/projects/${projectId}`)
+    await adminPage.goto(`${baseUrl}/projects/${projectId}#tasks`)
     await expect(adminPage.locator('#projectContent')).toBeVisible({ timeout: 10_000 })
 
     await adminPage.getByRole('button', { name: 'Add Task' }).click()

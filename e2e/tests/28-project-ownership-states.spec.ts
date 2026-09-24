@@ -8,6 +8,7 @@ import {
 import { fake } from '../fake'
 import { createApiClient } from '../client'
 import { removeProjectOwner } from '../actions/projects'
+import { createSkillViaApi } from '../actions/skills'
 import { selectFilterDropdown } from '../actions/ui'
 
 // Whether a project wants an owner is derived from (status, assignee), never stored, and
@@ -120,7 +121,7 @@ test.describe('Project ownership states', () => {
 
   // Regression: removing the owner left the project In Progress with nobody on it and no
   // "seeking owner" flag, so nothing browsing for a project to lead could ever find it.
-  test('Removing the owner returns the project to Ready and re-advertises it', async ({
+  test('Removing the owner keeps the status and re-advertises the project for an owner', async ({
     adminPage,
     baseUrl,
   }) => {
@@ -139,7 +140,9 @@ test.describe('Project ownership states', () => {
 
     await removeProjectOwner(baseUrl, adminPage, id)
 
-    await expect(adminPage.getByLabel('project status')).toContainText('Ready', { timeout: 10_000 })
+    // The work is still where it was; a Seeking Owner badge says it needs a lead.
+    await expect(adminPage.getByText('Seeking Owner')).toBeVisible({ timeout: 10_000 })
+    await expect(adminPage.getByLabel('project status')).toContainText('In Progress')
     const project = await getProject(baseUrl, adminToken, id)
     expect(project.ownerId).toBeNull()
     expect(project.isSeekingOwner).toBe(true)
@@ -292,13 +295,8 @@ test.describe('Project ownership states', () => {
   test('A proposal awaiting review is not suggested to matching volunteers', async ({
     baseUrl,
   }) => {
-    const api = createApiClient(baseUrl)
-    const skillsResult = await api.skills.list()
-    expect(skillsResult.status).toBe(200)
-    const allSkills = (skillsResult.body as Array<{ skills: Array<{ id: number }> }>).flatMap(
-      (c) => c.skills,
-    )
-    const skillIds = [allSkills[0].id]
+    // A skill of its own, so no other test's project competes for Home's few match slots.
+    const skillIds = [(await createSkillViaApi(baseUrl)).id]
 
     // A volunteer who proposes a project, and a second who matches its skills.
     const proposer = await createApprovedVolunteer(baseUrl)
@@ -330,8 +328,8 @@ test.describe('Project ownership states', () => {
 
     const beforeReview = await matcherApi.dashboard.get()
     expect(beforeReview.status).toBe(200)
-    const suggestedBefore = (beforeReview.body as { suggestedProjects: { id: number }[] })
-      .suggestedProjects
+    type Home = { find: { matches: { items: { id: number }[] } } }
+    const suggestedBefore = (beforeReview.body as Home).find.matches.items
     expect(suggestedBefore.map((p) => p.id)).not.toContain(projectId)
 
     // Once approved it goes live as `ready`, and the same volunteer should now see it.
@@ -342,8 +340,7 @@ test.describe('Project ownership states', () => {
 
     const afterReview = await matcherApi.dashboard.get()
     expect(afterReview.status).toBe(200)
-    const suggestedAfter = (afterReview.body as { suggestedProjects: { id: number }[] })
-      .suggestedProjects
+    const suggestedAfter = (afterReview.body as Home).find.matches.items
     expect(suggestedAfter.map((p) => p.id)).toContain(projectId)
   })
 })
