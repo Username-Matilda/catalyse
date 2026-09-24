@@ -137,6 +137,37 @@ describe('inbox', () => {
     await waitFor(() => expect(screen.queryByText('Sam applied to join')).toBeNull())
   })
 
+  it('accepts an invite in place', async () => {
+    const me = await createVolunteer()
+    const project = await createProject({ assigneeId: (await createVolunteer()).id })
+    const invite = await prisma.workItemInterest.create({
+      data: {
+        workItemId: project.id,
+        volunteerId: me.id,
+        interestType: 'want_to_contribute',
+        status: 'invited',
+        origin: 'invited',
+      },
+    })
+    await prisma.notification.create({
+      data: {
+        volunteerId: me.id,
+        type: 'project_invite',
+        title: 'Invited: help',
+        entityId: invite.id,
+      },
+    })
+    await renderApp(<InboxPage />, { as: me, url: '/inbox' })
+    const row = (await screen.findByText('Invited: help')).closest('li') as HTMLElement
+    await userEvent.click(within(row).getByRole('button', { name: 'Accept' }))
+    await waitFor(async () =>
+      expect(
+        (await prisma.workItemInterest.findUniqueOrThrow({ where: { id: invite.id } })).status,
+      ).toBe('accepted'),
+    )
+    await waitFor(() => expect(screen.queryByText('Invited: help')).toBeNull())
+  })
+
   it('reports an answer the server refuses', async () => {
     const me = await createVolunteer()
     const project = await createProject({ assigneeId: me.id })

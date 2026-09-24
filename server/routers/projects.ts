@@ -718,6 +718,7 @@ export const projectsRouter = {
             responseMessage: string | null
             createdAt: Date | null
             respondedAt: Date | null
+            invitedByName: string | null
             volunteerName: string
             volunteerBio: string | null
             volunteerSkills: Array<{
@@ -734,6 +735,7 @@ export const projectsRouter = {
         const rawInterests = await prisma.workItemInterest.findMany({
           where: { workItemId: input.id },
           include: {
+            invitedBy: { select: { name: true } },
             volunteer: {
               select: {
                 id: true,
@@ -756,6 +758,7 @@ export const projectsRouter = {
           responseMessage: i.responseMessage,
           createdAt: i.createdAt,
           respondedAt: i.respondedAt,
+          invitedByName: i.invitedBy?.name ?? null,
           volunteerName: i.volunteer.name,
           volunteerBio: i.volunteer.bio,
           volunteerSkills: i.volunteer.skills.map((vs) => ({
@@ -773,6 +776,7 @@ export const projectsRouter = {
           volunteerId: volunteer.id,
           status: { not: InterestStatus.withdrawn },
         },
+        include: { invitedBy: { select: { name: true } } },
       })
       const myInterest = rawMyInterest
         ? {
@@ -786,6 +790,7 @@ export const projectsRouter = {
             responseMessage: rawMyInterest.responseMessage,
             createdAt: rawMyInterest.createdAt,
             respondedAt: rawMyInterest.respondedAt,
+            invitedByName: rawMyInterest.invitedBy?.name ?? null,
           }
         : null
 
@@ -1149,7 +1154,18 @@ export const projectsRouter = {
       const existing = await prisma.workItemInterest.findFirst({
         where: { workItemId: input.projectId, volunteerId: volunteer.id },
       })
-      if (existing && existing.status !== InterestStatus.withdrawn) {
+      if (existing?.status === InterestStatus.invited) {
+        throw new ORPCError('BAD_REQUEST', {
+          message: "You've been invited to this project: accept the invite instead",
+        })
+      }
+      // Withdrawing, or turning down or losing an invite, leaves the way open to apply.
+      const canApplyAgain =
+        existing?.status === InterestStatus.withdrawn ||
+        (existing?.origin === InterestOrigin.invited &&
+          (existing.status === InterestStatus.declined ||
+            existing.status === InterestStatus.cancelled))
+      if (existing && !canApplyAgain) {
         throw new ORPCError('BAD_REQUEST', { message: "You've already expressed interest" })
       }
 
@@ -1167,6 +1183,7 @@ export const projectsRouter = {
               origin: InterestOrigin.applied,
               respondedAt: null,
               responseMessage: null,
+              invitedById: null,
             },
           })
         : await prisma.workItemInterest.create({
@@ -1324,6 +1341,177 @@ export const projectsRouter = {
       return { message: `Interest ${status}` }
     }),
 
+  /**
+   * The owner or an admin asks a volunteer to help. They are not on the project until they
+   * accept. Someone who already applied has said yes, so they are simply accepted.
+   */
+  invite: authedProcedure
+    .input(
+      z.object({
+        projectId: z.number().int(),
+        volunteerId: z.number().int(),
+        message: z.string().trim().max(1000).optional().nullable(),
+      }),
+    )
+    .handler(async ({ input, context }) => {
+      const inviter = context.volunteer
+      const project = await prisma.workItem.findFirst({
+        where: { id: input.projectId, type: WorkItemType.PROJECT },
+      })
+      if (!project) throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
+      if (project.assigneeId !== inviter.id && !inviter.isAdmin) {
+        throw new ORPCError('FORBIDDEN', {
+          message: 'Only the project owner or an admin can invite volunteers',
+        })
+      }
+      if (input.volunteerId === project.assigneeId) {
+        throw new ORPCError('BAD_REQUEST', { message: 'They already own this project' })
+      }
+      const target = await prisma.volunteer.findFirst({
+        where: { id: input.volunteerId, deletedAt: null },
+      })
+      if (!target) throw new ORPCError('BAD_REQUEST', { message: 'Volunteer not found' })
+      if (target.approvalStatus !== ApprovalStatus.approved) {
+        throw new ORPCError('BAD_REQUEST', {
+          message: 'Cannot invite a volunteer who is not yet approved',
+        })
+      }
+
+      const existing = await prisma.workItemInterest.findFirst({
+        where: { workItemId: input.projectId, volunteerId: input.volunteerId },
+      })
+      if (existing?.status === InterestStatus.accepted) {
+        throw new ORPCError('BAD_REQUEST', { message: 'They are already on this project' })
+      }
+      if (existing?.status === InterestStatus.invited) {
+        throw new ORPCError('BAD_REQUEST', { message: 'They have already been invited' })
+      }
+      const link = `/projects/${input.projectId}`
+
+      if (existing?.status === InterestStatus.pending) {
+        await prisma.workItemInterest.update({
+          where: { id: existing.id },
+          data: { status: InterestStatus.accepted, respondedAt: new Date() },
+        })
+        await clearNotifications('new_interest', existing.id)
+        await notifyUser(
+          input.volunteerId,
+          'interest_accepted',
+          `Accepted: your interest in '${project.title}'`,
+          null,
+          link,
+        )
+        return { message: 'They had already applied, so they are now on the project' }
+      }
+
+      const note = input.message || null
+      const data = {
+        status: InterestStatus.invited,
+        origin: InterestOrigin.invited,
+        interestType: 'want_to_contribute',
+        message: note,
+        invitedById: inviter.id,
+        respondedAt: null,
+        responseMessage: null,
+      }
+      const interest = existing
+        ? await prisma.workItemInterest.update({ where: { id: existing.id }, data })
+        : await prisma.workItemInterest.create({
+            data: { ...data, volunteerId: input.volunteerId, workItemId: input.projectId },
+          })
+
+      await notifyUser(
+        input.volunteerId,
+        'project_invite',
+        `Invited: help on '${project.title}'`,
+        note ?? `${inviter.name} would like you to help`,
+        link,
+        {
+          subject: `${inviter.name} invited you to help on '${project.title}'`,
+          message: html`<strong>${inviter.name}</strong> has invited you to help on the project
+            <strong>${project.title}</strong>. Accept or decline from your Inbox or the project
+            page.`,
+          projectTitle: project.title,
+          projectId: input.projectId,
+          extraHtml: note
+            ? html`<div
+                style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"
+              >
+                <strong>Their note:</strong> ${note}
+              </div>`
+            : undefined,
+        },
+        interest.id,
+      )
+      return { message: 'Invite sent' }
+    }),
+
+  /** The invited volunteer says yes or no; whoever invited them is told. */
+  respondToInvite: authedProcedure
+    .input(z.object({ projectId: z.number().int(), accept: z.boolean() }))
+    .handler(async ({ input, context }) => {
+      const me = context.volunteer
+      const interest = await prisma.workItemInterest.findFirst({
+        where: {
+          workItemId: input.projectId,
+          volunteerId: me.id,
+          status: InterestStatus.invited,
+        },
+        include: { workItem: { select: { title: true, assigneeId: true } } },
+      })
+      if (!interest) throw new ORPCError('NOT_FOUND', { message: 'No invite found' })
+
+      await prisma.workItemInterest.update({
+        where: { id: interest.id },
+        data: {
+          status: input.accept ? InterestStatus.accepted : InterestStatus.declined,
+          respondedAt: new Date(),
+        },
+      })
+      await clearNotifications('project_invite', interest.id)
+
+      const tell = interest.invitedById ?? interest.workItem.assigneeId
+      if (tell !== null) {
+        const title = interest.workItem.title
+        notifyUser(
+          tell,
+          input.accept ? 'invite_accepted' : 'invite_declined',
+          input.accept
+            ? `Accepted: ${me.name} joined '${title}'`
+            : `Declined: ${me.name} won't join '${title}'`,
+          null,
+          `/projects/${input.projectId}`,
+        )
+      }
+      return { message: input.accept ? "You're on the project" : 'Invite declined' }
+    }),
+
+  /** The owner or an admin takes back an invite nobody has answered yet. */
+  cancelInvite: authedProcedure
+    .input(z.object({ projectId: z.number().int(), interestId: z.number().int() }))
+    .handler(async ({ input, context }) => {
+      const volunteer = context.volunteer
+      const project = await prisma.workItem.findFirst({
+        where: { id: input.projectId, type: WorkItemType.PROJECT },
+      })
+      if (!project || (project.assigneeId !== volunteer.id && !volunteer.isAdmin)) {
+        throw new ORPCError('FORBIDDEN', { message: 'Not authorized' })
+      }
+      const cancelled = await prisma.workItemInterest.updateMany({
+        where: {
+          id: input.interestId,
+          workItemId: input.projectId,
+          status: InterestStatus.invited,
+        },
+        data: { status: InterestStatus.cancelled, respondedAt: new Date() },
+      })
+      if (cancelled.count === 0) {
+        throw new ORPCError('BAD_REQUEST', { message: 'This invite has already been answered' })
+      }
+      await clearNotifications('project_invite', input.interestId)
+      return { message: 'Invite cancelled' }
+    }),
+
   assign: authedProcedure
     .input(
       z.object({
@@ -1339,9 +1527,10 @@ export const projectsRouter = {
       })
       if (!project) throw new ORPCError('NOT_FOUND', { message: 'Project not found' })
 
-      if (project.assigneeId !== volunteer.id && !volunteer.isAdmin) {
+      // Owners invite (see `invite`); only an admin puts someone on a project without asking.
+      if (!volunteer.isAdmin) {
         throw new ORPCError('FORBIDDEN', {
-          message: 'Only project owner or admin can assign volunteers',
+          message: 'Only an admin can add a volunteer directly; invite them instead',
         })
       }
 
@@ -1370,7 +1559,10 @@ export const projectsRouter = {
           data: { status: InterestStatus.accepted, respondedAt: new Date() },
         })
       } else if (existing) {
-        // Declined, removed or withdrawn earlier: this time the owner added them.
+        // Declined, removed, withdrawn or invited earlier: this time an admin added them.
+        if (existing.status === InterestStatus.invited) {
+          await clearNotifications('project_invite', existing.id)
+        }
         await prisma.workItemInterest.update({
           where: { id: existing.id },
           data: {

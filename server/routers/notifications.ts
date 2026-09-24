@@ -27,10 +27,12 @@ function mineWhere(viewer: Viewer, category?: NotificationCategory): Prisma.Noti
 export type NotificationAction =
   | { kind: 'interest'; projectId: number; interestId: number }
   | { kind: 'join_request'; requestId: number }
+  | { kind: 'invite'; projectId: number }
 
 /**
  * What can be answered from the Inbox itself: an applicant still waiting on a project the
- * viewer runs, or a team join request still waiting on a team they lead.
+ * viewer runs, a team join request still waiting on a team they lead, or an invite to the
+ * viewer still unanswered.
  */
 async function actionsFor(
   viewer: Viewer,
@@ -38,7 +40,7 @@ async function actionsFor(
 ): Promise<Map<number, NotificationAction>> {
   const ids = (type: string) =>
     rows.filter((r) => r.type === type && r.entityId !== null).map((r) => r.entityId as number)
-  const [interests, requests] = await Promise.all([
+  const [interests, requests, invites] = await Promise.all([
     prisma.workItemInterest.findMany({
       where: {
         id: { in: ids('new_interest') },
@@ -61,12 +63,22 @@ async function actionsFor(
       },
       select: { id: true },
     }),
+    prisma.workItemInterest.findMany({
+      where: {
+        id: { in: ids('project_invite') },
+        volunteerId: viewer.id,
+        status: InterestStatus.invited,
+      },
+      select: { id: true, workItemId: true },
+    }),
   ])
+  const inviteById = new Map(invites.map((i) => [i.id, i]))
   const interestById = new Map(interests.map((i) => [i.id, i]))
   const requestIds = new Set(requests.map((r) => r.id))
   const actions = new Map<number, NotificationAction>()
   for (const r of rows) {
     const interest = r.type === 'new_interest' ? interestById.get(r.entityId as number) : undefined
+    const invite = r.type === 'project_invite' ? inviteById.get(r.entityId as number) : undefined
     if (interest) {
       actions.set(r.id, {
         kind: 'interest',
@@ -75,6 +87,8 @@ async function actionsFor(
       })
     } else if (r.type === 'team_join_request' && requestIds.has(r.entityId as number)) {
       actions.set(r.id, { kind: 'join_request', requestId: r.entityId as number })
+    } else if (invite) {
+      actions.set(r.id, { kind: 'invite', projectId: invite.workItemId })
     }
   }
   return actions

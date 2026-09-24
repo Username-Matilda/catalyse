@@ -210,6 +210,41 @@ describe('dashboard.get', () => {
     expect(attention.some((a) => a.title.includes('Theirs'))).toBe(false)
   })
 
+  it('lists an open invite for the person invited', async () => {
+    const owner = await createVolunteer({ name: 'Ola Owner' })
+    const me = await createVolunteer()
+    const p = await createProject({ assigneeId: owner.id, title: 'Invited P' })
+    const orphan = await createProject({ title: 'Orphan P' })
+    await prisma.workItemInterest.createMany({
+      data: [
+        {
+          workItemId: p.id,
+          volunteerId: me.id,
+          interestType: 'want_to_contribute',
+          status: 'invited',
+          message: 'Leaflets?',
+          invitedById: owner.id,
+        },
+        {
+          workItemId: orphan.id,
+          volunteerId: me.id,
+          interestType: 'want_to_contribute',
+          status: 'invited',
+        },
+      ],
+    })
+    const invites = (await clientAs(me).dashboard.get()).attention.filter(
+      (a) => a.kind === 'invite',
+    )
+    expect(invites.map((a) => [a.title, a.detail, a.href, a.action]).sort()).toEqual([
+      ['Ola Owner invited you to help on "Invited P"', 'Leaflets?', `/projects/${p.id}`, 'Answer'],
+      ['The owner invited you to help on "Orphan P"', null, `/projects/${orphan.id}`, 'Answer'],
+    ])
+    // Not a member yet, so not in My work.
+    const { work } = await clientAs(me).dashboard.get()
+    expect(work.some((w) => w.title === 'Invited P')).toBe(false)
+  })
+
   it('lists submitted work for its reviewer, and work sent back for its assignee', async () => {
     const me = await createVolunteer()
     const helper = await createVolunteer()

@@ -214,7 +214,7 @@ test.describe('Project Interests and Assignment', () => {
     })
   })
 
-  test('Admin directly assigns a volunteer to a project', async ({
+  test('Admin adds a volunteer to a project straight away', async ({
     adminPage,
     volunteer,
     baseUrl,
@@ -225,8 +225,8 @@ test.describe('Project Interests and Assignment', () => {
     await expect(adminPage.getByRole('heading', { name: 'Volunteers' })).toBeVisible({
       timeout: 10_000,
     })
-    await selectFilterDropdown(adminPage, 'Volunteer to assign', volunteer.name)
-    await adminPage.getByRole('button', { name: 'Assign', exact: true }).click()
+    await selectFilterDropdown(adminPage, 'Volunteer to invite', volunteer.name)
+    await adminPage.getByRole('button', { name: 'Add now', exact: true }).click()
     await expect(getAlert(adminPage)).toContainText('Added to the project.', { timeout: 10_000 })
 
     // Volunteer's interest record appears as accepted, labeled as a role
@@ -243,12 +243,40 @@ test.describe('Project Interests and Assignment', () => {
     ).toBeVisible({ timeout: 10_000 })
   })
 
+  test('A volunteer is invited, and is on the project only once they accept', async ({
+    adminPage,
+    volunteer,
+    baseUrl,
+  }) => {
+    const projectId = await setupSeekingProject(baseUrl)
+
+    await adminPage.goto(`${baseUrl}/projects/${projectId}`)
+    await selectFilterDropdown(adminPage, 'Volunteer to invite', volunteer.name)
+    await adminPage.getByLabel('Note with the invite (optional)').fill('Could you do the leaflets?')
+    await adminPage.getByRole('button', { name: 'Invite', exact: true }).click()
+    await expect(getAlert(adminPage)).toContainText('Invite sent', { timeout: 10_000 })
+    const card = adminPage.locator('.interest-card').filter({ hasText: volunteer.name })
+    await expect(card).toContainText('Invited by', { timeout: 10_000 })
+    await expect(card.getByRole('button', { name: 'Cancel invite' })).toBeVisible()
+
+    // The volunteer answers from the Inbox.
+    await goToInbox(baseUrl, volunteer.page)
+    const row = volunteer.page.getByRole('listitem').filter({ hasText: 'Invited: help on' })
+    await expect(row).toContainText('Could you do the leaflets?', { timeout: 10_000 })
+    await row.getByRole('button', { name: 'Accept' }).click()
+    await expect(getAlert(volunteer.page)).toContainText('Answer sent', { timeout: 10_000 })
+
+    await adminPage.reload()
+    await expect(card).toContainText('Helper', { timeout: 10_000 })
+    await expect(card.getByRole('button', { name: 'Remove' })).toBeVisible()
+  })
+
   test('Owner removes an already-accepted volunteer', async ({ adminPage, volunteer, baseUrl }) => {
     const projectId = await setupSeekingProject(baseUrl)
 
     await adminPage.goto(`${baseUrl}/projects/${projectId}`)
-    await selectFilterDropdown(adminPage, 'Volunteer to assign', volunteer.name)
-    await adminPage.getByRole('button', { name: 'Assign', exact: true }).click()
+    await selectFilterDropdown(adminPage, 'Volunteer to invite', volunteer.name)
+    await adminPage.getByRole('button', { name: 'Add now', exact: true }).click()
     await expect(getAlert(adminPage)).toContainText('Added to the project.', { timeout: 10_000 })
 
     const volunteerCard = adminPage.locator('.interest-card').filter({ hasText: volunteer.name })

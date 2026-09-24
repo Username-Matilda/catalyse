@@ -12,6 +12,7 @@ import {
   createTeam,
 } from '@/test/factories'
 import { renderApp } from '@/test/render'
+import { clientAs } from '@/test/rpc'
 import { navigation } from '@/test/next-navigation'
 import ProjectDetailPage from './page'
 import { queryClient } from '@/lib/query-client'
@@ -395,21 +396,29 @@ describe('project page — owner', () => {
     await screen.findByText('Status updated!')
     await waitFor(async () => expect((await row(project.id)).status).toBe('on_hold'))
 
-    // Enter submits the assign form even while its button is disabled.
-    fireEvent.submit(screen.getByRole('button', { name: 'Volunteer to assign' }).closest('form')!)
-    await userEvent.click(screen.getByRole('button', { name: 'Volunteer to assign' }))
+    // Enter submits the invite form even while its button is disabled.
+    const picker = () => screen.getByRole('button', { name: 'Volunteer to invite' })
+    fireEvent.submit(picker().closest('form')!)
+    await userEvent.click(picker())
     await userEvent.click(await screen.findByRole('option', { name: 'Otto Other' }))
-    fireEvent.submit(screen.getByRole('button', { name: 'Volunteer to assign' }).closest('form')!)
-    await screen.findByText(/^Added to the project\./)
-    // The picker empties once the volunteer is added, and says what adding does.
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Volunteer to assign' })).not.toHaveTextContent(
-        'Otto Other',
-      ),
-    )
+    await userEvent.type(screen.getByLabelText('Note with the invite (optional)'), 'Leaflets?')
+    await userEvent.click(screen.getByRole('button', { name: 'Invite' }))
+    await screen.findByText('Invite sent')
+    // The picker empties, and the person waits under Invited until they answer.
+    await waitFor(() => expect(picker()).not.toHaveTextContent('Otto Other'))
     expect(
-      screen.getByText('They are added straight away and get a notification.'),
+      screen.getByText('They get an invite and join once they accept.', { exact: false }),
     ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Add now' })).toBeNull()
+    const invited = await screen.findByRole('region', { name: 'Invited' })
+    expect(within(invited).getByText('Invited by Owen Owner')).toBeInTheDocument()
+    expect(within(invited).getByText('Leaflets?')).toBeInTheDocument()
+    await userEvent.click(within(invited).getByRole('button', { name: 'Cancel invite' }))
+    await screen.findByText('Invite cancelled.')
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Invited' })).toBeNull())
+    // Everyone who has left sits folded away under Past.
+    expect(screen.getByText(/^Past \(/)).toBeInTheDocument()
+    expect(interestCard('Otto Other')).toHaveTextContent('Invited, cancelled')
 
     expect(screen.getByRole('link', { name: /Edit/ })).toHaveAttribute(
       'href',
@@ -432,6 +441,14 @@ describe('project page — owner', () => {
     const t1 = await createTask(project.id, { title: 'Doomed task' })
     await prisma.workItemInterest.create({
       data: { workItemId: project.id, volunteerId: helper.id, interestType: 'want_to_contribute' },
+    })
+    await prisma.workItemInterest.create({
+      data: {
+        workItemId: project.id,
+        volunteerId: (await createVolunteer()).id,
+        interestType: 'want_to_contribute',
+        status: 'invited',
+      },
     })
     await mount(project.id, owner)
     await screen.findByRole('heading', { name: 'Fragile' })
@@ -457,15 +474,107 @@ describe('project page — owner', () => {
     await screen.findByText('Project not found')
     await userEvent.click(screen.getByRole('button', { name: 'Accept' }))
     await screen.findByText('Not authorized')
-    await userEvent.click(screen.getByRole('button', { name: 'Volunteer to assign' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel invite' }))
+    await waitFor(() => expect(screen.getAllByText('Not authorized')).toHaveLength(2))
+    await userEvent.click(screen.getByRole('button', { name: 'Volunteer to invite' }))
     await userEvent.click((await screen.findAllByRole('option', { name: 'Hana Helper' }))[0])
-    fireEvent.submit(screen.getByRole('button', { name: 'Volunteer to assign' }).closest('form')!)
+    fireEvent.submit(screen.getByRole('button', { name: 'Volunteer to invite' }).closest('form')!)
     await waitFor(() => expect(screen.getAllByText('Project not found').length).toBeGreaterThan(1))
     await userEvent.click(screen.getByRole('button', { name: 'project status' }))
     await userEvent.click(screen.getByRole('option', { name: 'Completed' }))
     await userEvent.click(screen.getByRole('button', { name: 'Confirm' }))
     await waitFor(() => expect(screen.getAllByText('Project not found').length).toBeGreaterThan(2))
     act(() => listDrag()({ active: { id: t1.id }, over: { id: t1.id + 1 } } as DragEndEvent))
+  })
+})
+
+describe('project page — invites', () => {
+  it('lets an admin add someone straight away, and reports a failed add', async () => {
+    const admin = await createAdmin()
+    const owner = await createVolunteer()
+    const vol = await createVolunteer({ name: 'Addie Added' })
+    const gone = await createVolunteer({ name: 'Gina Gone' })
+    const project = await createProject({ assigneeId: owner.id, status: 'in_progress' })
+    await mount(project.id, admin)
+    const picker = () => screen.getByRole('button', { name: 'Volunteer to invite' })
+    await userEvent.click(await screen.findByRole('button', { name: 'Volunteer to invite' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'Addie Added' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Add now' }))
+    await screen.findByText(/^Added to the project\./)
+    await waitFor(async () =>
+      expect(
+        (await prisma.workItemInterest.findFirstOrThrow({ where: { volunteerId: vol.id } })).status,
+      ).toBe('accepted'),
+    )
+    await userEvent.click(picker())
+    await userEvent.click(await screen.findByRole('option', { name: 'Gina Gone' }))
+    await prisma.volunteer.update({ where: { id: gone.id }, data: { deletedAt: new Date() } })
+    await userEvent.click(screen.getByRole('button', { name: 'Add now' }))
+    await screen.findByText('Volunteer not found')
+  })
+
+  it('shows an invite to the person invited, who accepts or declines it there', async () => {
+    const owner = await createVolunteer({ name: 'Ola Owner' })
+    const me = await createVolunteer()
+    const project = await createProject({
+      title: 'Invite project',
+      assigneeId: owner.id,
+      status: 'in_progress',
+      isSeekingHelp: true,
+    })
+    await clientAs(owner).projects.invite({
+      projectId: project.id,
+      volunteerId: me.id,
+      message: 'See https://example.org/brief',
+    })
+    await mount(project.id, me)
+    const banner = await screen.findByRole('region', {
+      name: 'Ola Owner invited you to help on this project',
+    })
+    expect(within(banner).getByRole('link', { name: 'https://example.org/brief' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Express Interest' })).toBeNull()
+    await userEvent.click(within(banner).getByRole('button', { name: 'Decline' }))
+    await screen.findByText('Invite declined.')
+    // Declining leaves the way open to apply.
+    await screen.findByRole('button', { name: 'Express Interest' })
+    expect(screen.queryByRole('region', { name: /invited you/ })).toBeNull()
+
+    await clientAs(owner).projects.invite({ projectId: project.id, volunteerId: me.id })
+    cleanup()
+    await mount(project.id, me)
+    const again = await screen.findByRole('region', {
+      name: 'Ola Owner invited you to help on this project',
+    })
+    await userEvent.click(within(again).getByRole('button', { name: 'Accept' }))
+    await screen.findByText("You're on the project. Welcome!")
+    await waitFor(async () =>
+      expect(
+        (await prisma.workItemInterest.findFirstOrThrow({ where: { volunteerId: me.id } })).status,
+      ).toBe('accepted'),
+    )
+  })
+
+  it('reports an invite that has gone, and names the owner when the inviter is unknown', async () => {
+    const me = await createVolunteer()
+    const project = await createProject({ assigneeId: (await createVolunteer()).id })
+    const invite = await prisma.workItemInterest.create({
+      data: {
+        workItemId: project.id,
+        volunteerId: me.id,
+        interestType: 'want_to_contribute',
+        status: 'invited',
+      },
+    })
+    await mount(project.id, me)
+    const banner = await screen.findByRole('region', {
+      name: 'The owner invited you to help on this project',
+    })
+    await prisma.workItemInterest.update({
+      where: { id: invite.id },
+      data: { status: 'cancelled' },
+    })
+    await userEvent.click(within(banner).getByRole('button', { name: 'Accept' }))
+    await screen.findByText('No invite found')
   })
 })
 

@@ -23,6 +23,7 @@ import {
 } from '@/lib/action-messages'
 import CommentThread from '@/components/CommentThread'
 import ChangesRequestedBanner from '@/components/ChangesRequestedBanner'
+import ProjectInviteBanner from '@/components/ProjectInviteBanner'
 import MessageDialog from '@/components/MessageDialog'
 import Linkify from '@/components/Linkify'
 import SubmitWorkButton from '@/components/SubmitWorkButton'
@@ -630,6 +631,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   // Direct assign
   const [assignTo, setAssignTo] = useState('')
+  const [inviteNote, setInviteNote] = useState('')
 
   // Record outcome
   const {
@@ -891,10 +893,33 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     onSuccess: () => {
       showToast(VOLUNTEER_ADDED_MESSAGE, 'success')
       setAssignTo('')
+      setInviteNote('')
       void invalidateProject()
     },
     onError: (err: unknown) =>
       showToast(err instanceof Error ? err.message : 'Failed to assign volunteer', 'error'),
+  })
+
+  const inviteMutation = useMutation({
+    ...orpc.projects.invite.mutationOptions(),
+    onSuccess: (data) => {
+      showToast(data.message, 'success')
+      setAssignTo('')
+      setInviteNote('')
+      void invalidateProject()
+    },
+    onError: (err: unknown) =>
+      showToast(err instanceof Error ? err.message : 'Failed to send the invite', 'error'),
+  })
+
+  const cancelInviteMutation = useMutation({
+    ...orpc.projects.cancelInvite.mutationOptions(),
+    onSuccess: () => {
+      showToast('Invite cancelled.', 'success')
+      void invalidateProject()
+    },
+    onError: (err: unknown) =>
+      showToast(err instanceof Error ? err.message : 'Failed to cancel the invite', 'error'),
   })
 
   const setOutcomeMutation = useMutation({
@@ -948,6 +973,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   // the project's schedule/baseline — server-computed in getById, see canCreateProjectTask.
   const canCreateTasks = canManageTasks || project.canCreateTasks
 
+  // Turning down or losing an invite leaves the way open to apply.
+  const canApplyAgain =
+    project.myInterest?.origin === 'invited' &&
+    (project.myInterest.status === InterestStatus.declined ||
+      project.myInterest.status === InterestStatus.cancelled)
+
   const canSeeInterest =
     !isOwnerOrAdmin &&
     (project.isSeekingHelp || project.isSeekingOwner) &&
@@ -968,6 +999,96 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   )
   const interestedVolunteers = volunteerInterests.filter(
     (i) => i.status === InterestStatus.pending || i.status === InterestStatus.accepted,
+  )
+  const peopleGroups = [
+    {
+      key: 'requested',
+      title: 'Requested',
+      rows: volunteerInterests.filter((i) => i.status === InterestStatus.pending),
+    },
+    {
+      key: 'invited',
+      title: 'Invited',
+      rows: volunteerInterests.filter((i) => i.status === InterestStatus.invited),
+    },
+    {
+      key: 'helpers',
+      title: 'Helpers',
+      rows: volunteerInterests.filter((i) => i.status === InterestStatus.accepted),
+    },
+  ]
+  const pastPeople = volunteerInterests.filter((i) => !peopleGroups.some((g) => g.rows.includes(i)))
+  const renderPerson = (interest: (typeof volunteerInterests)[number]) => (
+    // [test hook] interest-card class used as test selector
+    <li
+      key={interest.id}
+      className="interest-card flex items-center gap-2 py-2 border-b border-brand-border last:border-0 flex-wrap"
+    >
+      <TaskAvatar name={interest.volunteerName} />
+      <div className="flex-1 min-w-0">
+        {isAdmin || interestedVolunteerIds.has(interest.volunteerId) ? (
+          <Link href={`/volunteers/${interest.volunteerId}`} className="underline truncate block">
+            {interest.volunteerName}
+          </Link>
+        ) : (
+          <div className="truncate">{interest.volunteerName}</div>
+        )}
+        <div className="text-text-light text-xs">
+          {interest.status === InterestStatus.accepted
+            ? interest.interestType === 'want_to_own'
+              ? 'Owner'
+              : 'Helper'
+            : interest.status === InterestStatus.pending
+              ? interest.interestType === 'want_to_own'
+                ? 'wants to own'
+                : 'wants to help'
+              : interest.status === InterestStatus.invited
+                ? `Invited${interest.invitedByName ? ` by ${interest.invitedByName}` : ''}`
+                : interestHistoryLabel(interest.origin, interest.status)}
+        </div>
+      </div>
+      {interest.status === InterestStatus.pending ? (
+        <div className="flex gap-2 shrink-0">
+          <Button size="sm" onClick={() => handleAcceptInterest(interest.id)}>
+            Accept
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => handleDeclineInterest(interest.id, interest.volunteerName, false)}
+          >
+            Decline
+          </Button>
+        </div>
+      ) : interest.status === InterestStatus.accepted ? (
+        <div className="flex items-center gap-2 shrink-0">
+          <Badge variant={projectStatusVariant(interest.status)}>
+            {INTEREST_STATUS_LABELS[interest.status] ?? interest.status}
+          </Badge>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => handleDeclineInterest(interest.id, interest.volunteerName, true)}
+          >
+            Remove
+          </Button>
+        </div>
+      ) : interest.status === InterestStatus.invited ? (
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={cancelInviteMutation.isPending}
+          onClick={() =>
+            cancelInviteMutation.mutate({ projectId: project.id, interestId: interest.id })
+          }
+        >
+          Cancel invite
+        </Button>
+      ) : null}
+      {interest.message && interest.status !== InterestStatus.accepted && (
+        <p className="text-sm text-text-light w-full m-0">{interest.message}</p>
+      )}
+    </li>
   )
   const interestedVolunteerIds = new Set(interestedVolunteers.map((i) => i.volunteerId))
   const assignVolunteerOptions = [
@@ -1091,9 +1212,17 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     })
   }
 
-  function handleAssign(e: React.FormEvent) {
+  function handleInvite(e: React.FormEvent) {
     e.preventDefault()
     if (!assignTo) return
+    inviteMutation.mutate({
+      projectId: parseInt(idParam, 10),
+      volunteerId: parseInt(assignTo, 10),
+      message: inviteNote.trim() || null,
+    })
+  }
+
+  function handleAddNow() {
     assignMutation.mutate({
       projectId: parseInt(idParam, 10),
       volunteerId: parseInt(assignTo, 10),
@@ -1147,6 +1276,13 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               canResubmit={isOwner || project.proposedById === user.id}
               editHref={`/projects/${idParam}/edit`}
             />
+            {project.myInterest?.status === InterestStatus.invited && (
+              <ProjectInviteBanner
+                projectId={project.id}
+                invitedByName={project.myInterest.invitedByName}
+                note={project.myInterest.message}
+              />
+            )}
 
             {/* Main project card */}
             <div className={card}>
@@ -1800,113 +1936,77 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   <div className="mt-4 pt-4 border-t border-brand-border">
                     <h3 className="text-sm mb-2">Volunteers</h3>
 
-                    {volunteerInterests.length === 0 ? (
+                    {volunteerInterests.length === 0 && (
                       <p className="text-text-light text-sm">No interests yet.</p>
-                    ) : (
-                      <ul className="list-none p-0 m-0">
-                        {volunteerInterests.map((interest) => (
-                          // [test hook] interest-card class used as test selector
-                          <li
-                            key={interest.id}
-                            className="interest-card flex items-center gap-2 py-2 border-b border-brand-border last:border-0 flex-wrap"
-                          >
-                            <TaskAvatar name={interest.volunteerName} />
-                            <div className="flex-1 min-w-0">
-                              {isAdmin || interestedVolunteerIds.has(interest.volunteerId) ? (
-                                <Link
-                                  href={`/volunteers/${interest.volunteerId}`}
-                                  className="underline truncate block"
-                                >
-                                  {interest.volunteerName}
-                                </Link>
-                              ) : (
-                                <div className="truncate">{interest.volunteerName}</div>
-                              )}
-                              <div className="text-text-light text-xs">
-                                {interest.status === InterestStatus.accepted
-                                  ? interest.interestType === 'want_to_own'
-                                    ? 'Owner'
-                                    : 'Helper'
-                                  : interest.status === InterestStatus.pending
-                                    ? interest.interestType === 'want_to_own'
-                                      ? 'wants to own'
-                                      : 'wants to help'
-                                    : interestHistoryLabel(interest.origin, interest.status)}
-                              </div>
-                            </div>
-                            {interest.status === InterestStatus.pending ? (
-                              <div className="flex gap-2 shrink-0">
-                                <Button size="sm" onClick={() => handleAcceptInterest(interest.id)}>
-                                  Accept
-                                </Button>
-                                <Button
-                                  variant="secondary"
-                                  size="sm"
-                                  onClick={() =>
-                                    handleDeclineInterest(
-                                      interest.id,
-                                      interest.volunteerName,
-                                      false,
-                                    )
-                                  }
-                                >
-                                  Decline
-                                </Button>
-                              </div>
-                            ) : interest.status === InterestStatus.accepted ? (
-                              <div className="flex items-center gap-2 shrink-0">
-                                <Badge variant={projectStatusVariant(interest.status)}>
-                                  {INTEREST_STATUS_LABELS[interest.status] ?? interest.status}
-                                </Badge>
-                                <Button
-                                  variant="secondary"
-                                  size="sm"
-                                  onClick={() =>
-                                    handleDeclineInterest(interest.id, interest.volunteerName, true)
-                                  }
-                                >
-                                  Remove
-                                </Button>
-                              </div>
-                            ) : null}
-                            {interest.message && interest.status !== InterestStatus.accepted && (
-                              <p className="text-sm text-text-light w-full m-0">
-                                {interest.message}
-                              </p>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
+                    )}
+                    {peopleGroups
+                      .filter((g) => g.rows.length > 0)
+                      .map((g) => (
+                        <section key={g.key} aria-label={g.title} className="mb-2">
+                          <h4 className="text-xs uppercase text-text-light m-0 mt-2">
+                            {g.title} ({g.rows.length})
+                          </h4>
+                          <ul className="list-none p-0 m-0">{g.rows.map(renderPerson)}</ul>
+                        </section>
+                      ))}
+                    {pastPeople.length > 0 && (
+                      <details className="mt-2">
+                        <summary className="text-xs uppercase text-text-light cursor-pointer">
+                          Past ({pastPeople.length})
+                        </summary>
+                        <ul className="list-none p-0 m-0">{pastPeople.map(renderPerson)}</ul>
+                      </details>
                     )}
 
                     {volunteers.length > 0 && (
                       <form
-                        onSubmit={handleAssign}
-                        className="flex gap-2 items-center flex-wrap mt-3 pt-3 border-t border-brand-border"
+                        onSubmit={handleInvite}
+                        className="flex flex-col gap-2 mt-3 pt-3 border-t border-brand-border"
                       >
-                        <span className="text-text-light text-sm shrink-0">+ Add</span>
-                        <div className="flex-1 min-w-40">
-                          <VolunteerSelect
-                            id="assign-volunteer"
-                            label=""
-                            ariaLabel="Volunteer to assign"
-                            value={assignTo}
-                            onChange={(v) => setAssignTo(v)}
-                          />
+                        <div className="flex gap-2 items-center flex-wrap">
+                          <span className="text-text-light text-sm shrink-0">+ Invite</span>
+                          <div className="flex-1 min-w-40">
+                            <VolunteerSelect
+                              id="assign-volunteer"
+                              label=""
+                              ariaLabel="Volunteer to invite"
+                              value={assignTo}
+                              onChange={(v) => setAssignTo(v)}
+                            />
+                          </div>
                         </div>
-                        <Button
-                          type="submit"
-                          size="sm"
-                          disabled={!assignTo || assignMutation.isPending}
-                        >
-                          {assignMutation.isPending ? 'Assigning…' : 'Assign'}
-                        </Button>
+                        <input
+                          type="text"
+                          aria-label="Note with the invite (optional)"
+                          placeholder="Note with the invite (optional)"
+                          value={inviteNote}
+                          onChange={(e) => setInviteNote(e.target.value)}
+                        />
+                        <div className="flex gap-2 flex-wrap">
+                          <Button
+                            type="submit"
+                            size="sm"
+                            disabled={!assignTo || inviteMutation.isPending}
+                          >
+                            {inviteMutation.isPending ? 'Inviting…' : 'Invite'}
+                          </Button>
+                          {isAdmin && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="secondary"
+                              disabled={!assignTo || assignMutation.isPending}
+                              onClick={handleAddNow}
+                            >
+                              {assignMutation.isPending ? 'Adding…' : 'Add now'}
+                            </Button>
+                          )}
+                        </div>
+                        <p className="text-xs text-text-light m-0">
+                          They get an invite and join once they accept.
+                          {isAdmin && ' Add now puts them on the project straight away.'}
+                        </p>
                       </form>
-                    )}
-                    {volunteers.length > 0 && (
-                      <p className="text-xs text-text-light mt-1 mb-0">
-                        They are added straight away and get a notification.
-                      </p>
                     )}
                   </div>
                 )}
@@ -2004,7 +2104,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     ? 'Your place on this project'
                     : 'Interested in this project?'}
                 </h2>
-                {!project.myInterest ? (
+                {!project.myInterest || canApplyAgain ? (
                   <form onSubmit={handleExpressInterest}>
                     <div className="mb-5">
                       <label className="flex items-center gap-2 cursor-pointer mb-2 font-normal">

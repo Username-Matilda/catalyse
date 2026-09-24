@@ -169,6 +169,7 @@ export const volunteersRouter = {
                         InterestStatus.declined,
                         InterestStatus.withdrawn,
                         InterestStatus.removed,
+                        InterestStatus.cancelled,
                       ],
                     },
                   },

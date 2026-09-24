@@ -27,6 +27,7 @@ export type AttentionKind =
   | 'quiet_task'
   | 'mention'
   | 'submission'
+  | 'invite'
 
 export type AttentionItem = {
   key: string
@@ -69,77 +70,85 @@ function taskHref(t: { id: number; type: string; parentId: number | null }): str
 }
 
 async function attentionFor(viewer: Viewer): Promise<AttentionItem[]> {
-  const [applicants, changes, quietTasks, mentions, submissions, sentBack] = await Promise.all([
-    prisma.workItemInterest.findMany({
-      where: {
-        status: InterestStatus.pending,
-        workItem: { type: WorkItemType.PROJECT, assigneeId: viewer.id },
-      },
-      include: {
-        volunteer: { select: { name: true } },
-        workItem: { select: { id: true, title: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-    }),
-    prisma.projectReviewRequest.findMany({
-      where: {
-        resolvedAt: null,
-        project: {
-          status: ProjectStatus.needs_discussion,
-          OR: [{ creatorId: viewer.id }, { assigneeId: viewer.id }],
+  const [applicants, changes, quietTasks, mentions, submissions, sentBack, invites] =
+    await Promise.all([
+      prisma.workItemInterest.findMany({
+        where: {
+          status: InterestStatus.pending,
+          workItem: { type: WorkItemType.PROJECT, assigneeId: viewer.id },
         },
-      },
-      include: { project: { select: { id: true, title: true } } },
-      orderBy: { createdAt: 'desc' },
-    }),
-    prisma.workItem.findMany({
-      where: {
-        assigneeId: viewer.id,
-        changesRequestedNote: null,
-        OR: [
-          { type: WorkItemType.TASK, status: TaskStatus.in_progress },
-          { type: WorkItemType.QUICK_TASK, status: QuickTaskStatus.in_progress },
-        ],
-      },
-      select: { id: true, type: true, title: true, parentId: true, updatedAt: true },
-    }),
-    prisma.notification.findMany({
-      where: { volunteerId: viewer.id, type: 'mention', readAt: null },
-      orderBy: { createdAt: 'desc' },
-    }),
-    // Quick Tasks I set, or any nobody set when I'm an admin; tasks on projects I own.
-    prisma.workItem.findMany({
-      where: {
-        status: QuickTaskStatus.under_review,
-        OR: [
-          {
-            type: WorkItemType.QUICK_TASK,
-            OR: [{ creatorId: viewer.id }, ...(viewer.isAdmin ? [{ creatorId: null }] : [])],
+        include: {
+          volunteer: { select: { name: true } },
+          workItem: { select: { id: true, title: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.projectReviewRequest.findMany({
+        where: {
+          resolvedAt: null,
+          project: {
+            status: ProjectStatus.needs_discussion,
+            OR: [{ creatorId: viewer.id }, { assigneeId: viewer.id }],
           },
-          { type: WorkItemType.TASK, parent: { assigneeId: viewer.id } },
-        ],
-      },
-      select: { id: true, type: true, title: true, parentId: true, submittedAt: true },
-    }),
-    prisma.workItem.findMany({
-      where: {
-        assigneeId: viewer.id,
-        changesRequestedNote: { not: null },
-        OR: [
-          { type: WorkItemType.TASK, status: TaskStatus.in_progress },
-          { type: WorkItemType.QUICK_TASK, status: QuickTaskStatus.in_progress },
-        ],
-      },
-      select: {
-        id: true,
-        type: true,
-        title: true,
-        parentId: true,
-        changesRequestedNote: true,
-        reviewedAt: true,
-      },
-    }),
-  ])
+        },
+        include: { project: { select: { id: true, title: true } } },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.workItem.findMany({
+        where: {
+          assigneeId: viewer.id,
+          changesRequestedNote: null,
+          OR: [
+            { type: WorkItemType.TASK, status: TaskStatus.in_progress },
+            { type: WorkItemType.QUICK_TASK, status: QuickTaskStatus.in_progress },
+          ],
+        },
+        select: { id: true, type: true, title: true, parentId: true, updatedAt: true },
+      }),
+      prisma.notification.findMany({
+        where: { volunteerId: viewer.id, type: 'mention', readAt: null },
+        orderBy: { createdAt: 'desc' },
+      }),
+      // Quick Tasks I set, or any nobody set when I'm an admin; tasks on projects I own.
+      prisma.workItem.findMany({
+        where: {
+          status: QuickTaskStatus.under_review,
+          OR: [
+            {
+              type: WorkItemType.QUICK_TASK,
+              OR: [{ creatorId: viewer.id }, ...(viewer.isAdmin ? [{ creatorId: null }] : [])],
+            },
+            { type: WorkItemType.TASK, parent: { assigneeId: viewer.id } },
+          ],
+        },
+        select: { id: true, type: true, title: true, parentId: true, submittedAt: true },
+      }),
+      prisma.workItem.findMany({
+        where: {
+          assigneeId: viewer.id,
+          changesRequestedNote: { not: null },
+          OR: [
+            { type: WorkItemType.TASK, status: TaskStatus.in_progress },
+            { type: WorkItemType.QUICK_TASK, status: QuickTaskStatus.in_progress },
+          ],
+        },
+        select: {
+          id: true,
+          type: true,
+          title: true,
+          parentId: true,
+          changesRequestedNote: true,
+          reviewedAt: true,
+        },
+      }),
+      prisma.workItemInterest.findMany({
+        where: { volunteerId: viewer.id, status: InterestStatus.invited },
+        include: {
+          workItem: { select: { id: true, title: true } },
+          invitedBy: { select: { name: true } },
+        },
+      }),
+    ])
 
   const items: AttentionItem[] = []
 
@@ -172,6 +181,19 @@ async function attentionFor(viewer: Viewer): Promise<AttentionItem[]> {
       action: 'Open',
       notificationId: null,
       at: r.createdAt,
+    })
+  }
+
+  for (const i of invites) {
+    items.push({
+      key: `invite-${i.id}`,
+      kind: 'invite',
+      title: `${i.invitedBy?.name ?? 'The owner'} invited you to help on "${i.workItem.title}"`,
+      detail: i.message,
+      href: `/projects/${i.workItem.id}`,
+      action: 'Answer',
+      notificationId: null,
+      at: i.createdAt,
     })
   }
 

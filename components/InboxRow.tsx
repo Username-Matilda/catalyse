@@ -61,7 +61,11 @@ export default function InboxRow({
     ...orpc.teams.reviewJoinRequest.mutationOptions(),
     ...handlers('Answer sent'),
   })
-  const busy = respond.isPending || review.isPending
+  const invite = useMutation({
+    ...orpc.projects.respondToInvite.mutationOptions(),
+    ...handlers('Answer sent'),
+  })
+  const busy = respond.isPending || review.isPending || invite.isPending
 
   function answer(accept: boolean) {
     const action = n.action as NonNullable<InboxNotification['action']>
@@ -71,6 +75,8 @@ export default function InboxRow({
         interestId: action.interestId,
         status: accept ? 'accepted' : 'declined',
       })
+    } else if (action.kind === 'invite') {
+      invite.mutate({ projectId: action.projectId, accept })
     } else {
       review.mutate({ id: action.requestId, action: accept ? 'accept' : 'decline' })
     }

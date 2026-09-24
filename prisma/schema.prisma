@@ -72,12 +72,18 @@ enum InterestStatus {
   withdrawn
   // A helper the owner took off the project after they were on it.
   removed
+  // Asked by the owner or an admin; not on the project until they accept.
+  invited
+  // An invite the owner or an admin took back before it was answered.
+  cancelled
 }
 
 /// How someone came to be on a project's interest list.
 enum InterestOrigin {
   applied
+  // Put on the project by an admin, with no say.
   added
+  invited
 }
 
 enum ApprovalStatus {
@@ -368,20 +374,20 @@ model WorkItem {
   createdAt         DateTime?         @default(now()) @map("created_at")
   updatedAt         DateTime?         @default(now()) @map("updated_at")
 
-  creator              Volunteer?         @relation("WorkItemCreator", fields: [creatorId], references: [id], onUpdate: NoAction)
-  templateOrigin       Template?          @relation("WorkItemTemplateOrigin", fields: [templateOriginId], references: [id], onDelete: SetNull, onUpdate: NoAction)
-  assignee             Volunteer?         @relation("WorkItemAssignee", fields: [assigneeId], references: [id], onUpdate: NoAction)
-  stakeholder          Volunteer?         @relation("WorkItemStakeholder", fields: [stakeholderId], references: [id], onUpdate: NoAction)
-  reviewedBy           Volunteer?         @relation("WorkItemReviewedBy", fields: [reviewedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  skill                Skill?             @relation(fields: [skillId], references: [id], onUpdate: NoAction)
-  team                 Team?              @relation(fields: [teamId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  creator              Volunteer?             @relation("WorkItemCreator", fields: [creatorId], references: [id], onUpdate: NoAction)
+  templateOrigin       Template?              @relation("WorkItemTemplateOrigin", fields: [templateOriginId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  assignee             Volunteer?             @relation("WorkItemAssignee", fields: [assigneeId], references: [id], onUpdate: NoAction)
+  stakeholder          Volunteer?             @relation("WorkItemStakeholder", fields: [stakeholderId], references: [id], onUpdate: NoAction)
+  reviewedBy           Volunteer?             @relation("WorkItemReviewedBy", fields: [reviewedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  skill                Skill?                 @relation(fields: [skillId], references: [id], onUpdate: NoAction)
+  team                 Team?                  @relation(fields: [teamId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   comments             WorkItemComment[]
   reviewRequests       ProjectReviewRequest[]
   skills               WorkItemSkill[]
   interests            WorkItemInterest[]
   adminNotes           AdminNote[]
   messages             Message[]
-  templatesSourcedFrom Template[]         @relation("TemplateSourceProject")
+  templatesSourcedFrom Template[]             @relation("TemplateSourceProject")
 
   dependenciesAsPredecessor WorkItemDependency[] @relation("WorkItemDependencyPredecessor")
   dependenciesAsSuccessor   WorkItemDependency[] @relation("WorkItemDependencySuccessor")
@@ -417,19 +423,19 @@ model ProjectReviewRequest {
 }
 
 model WorkItemComment {
-  id         Int        @id @default(autoincrement())
-  workItemId Int        @map("work_item_id")
-  authorId   Int?       @map("author_id")
+  id         Int               @id @default(autoincrement())
+  workItemId Int               @map("work_item_id")
+  authorId   Int?              @map("author_id")
   /// @zod.string.min(1, { message: "Content is required" })
   content    String
-  createdAt  DateTime?  @default(now()) @map("created_at")
+  createdAt  DateTime?         @default(now()) @map("created_at")
   /// A reply's top-level comment; replies are never nested deeper.
-  parentId   Int?       @map("parent_id")
-  editedAt   DateTime?  @map("edited_at")
+  parentId   Int?              @map("parent_id")
+  editedAt   DateTime?         @map("edited_at")
   /// Soft delete: the row stays so its replies keep their place; the content is never served.
-  deletedAt  DateTime?  @map("deleted_at")
-  author     Volunteer? @relation("WorkItemCommentAuthor", fields: [authorId], references: [id], onUpdate: NoAction)
-  workItem   WorkItem   @relation(fields: [workItemId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  deletedAt  DateTime?         @map("deleted_at")
+  author     Volunteer?        @relation("WorkItemCommentAuthor", fields: [authorId], references: [id], onUpdate: NoAction)
+  workItem   WorkItem          @relation(fields: [workItemId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   parent     WorkItemComment?  @relation("WorkItemCommentReplies", fields: [parentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   replies    WorkItemComment[] @relation("WorkItemCommentReplies")
 
@@ -477,14 +483,17 @@ model WorkItemInterest {
   volunteerId     Int            @map("volunteer_id")
   workItemId      Int            @map("work_item_id")
   interestType    String         @map("interest_type") // TODO: enum — want_to_contribute, want_to_own
+  /// The applicant's message, or the inviter's note on an invite.
   message         String?
   status          InterestStatus @default(pending)
   origin          InterestOrigin @default(applied)
   responseMessage String?        @map("response_message")
   createdAt       DateTime?      @default(now()) @map("created_at")
   respondedAt     DateTime?      @map("responded_at")
+  invitedById     Int?           @map("invited_by_id")
   workItem        WorkItem       @relation(fields: [workItemId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  volunteer       Volunteer      @relation(fields: [volunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  volunteer       Volunteer      @relation("InterestVolunteer", fields: [volunteerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  invitedBy       Volunteer?     @relation("InterestInvitedBy", fields: [invitedById], references: [id], onDelete: SetNull, onUpdate: NoAction)
 
   @@unique([volunteerId, workItemId], map: "uq_work_item_interests_volunteer_item")
   @@index([volunteerId], map: "idx_work_item_interests_volunteer")
@@ -808,7 +817,7 @@ model Volunteer {
   emailChangeCount                        Int                      @default(0) @map("email_change_count")
   /// @zod.custom.omit([model])
   emailChangeWindowStart                  DateTime?                @map("email_change_window_start")
-  isAdmin                                Boolean?                 @default(false) @map("is_admin")
+  isAdmin                                 Boolean?                 @default(false) @map("is_admin")
   isTechnicalAdmin                        Boolean?                 @default(false) @map("is_technical_admin")
   createdAt                               DateTime?                @default(now()) @map("created_at")
   updatedAt                               DateTime?                @default(now()) @map("updated_at")
@@ -842,7 +851,8 @@ model Volunteer {
   notifications                           Notification[]
   emailVerificationTokens                 EmailVerificationToken[]
   passwordResetTokens                     PasswordResetToken[]
-  workItemInterests                       WorkItemInterest[]
+  workItemInterests                       WorkItemInterest[]       @relation("InterestVolunteer")
+  interestInvitesSent                     WorkItemInterest[]       @relation("InterestInvitedBy")
   workItemComments                        WorkItemComment[]        @relation("WorkItemCommentAuthor")
   projectReviewRequests                   ProjectReviewRequest[]
   workItemsCreated                        WorkItem[]               @relation("WorkItemCreator")

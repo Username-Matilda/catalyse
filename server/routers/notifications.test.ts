@@ -177,4 +177,31 @@ describe('notifications by category', () => {
     expect(await actionOf(owner, 'interest')).toBeNull()
     expect(await actionOf(owner, 'join')).toBeNull()
   })
+
+  it('offers Accept/Decline on an invite only to the invitee, while it is open', async () => {
+    const owner = await createVolunteer()
+    const invitee = await createVolunteer()
+    const project = await createProject({ assigneeId: owner.id })
+    const invite = await prisma.workItemInterest.create({
+      data: {
+        workItemId: project.id,
+        volunteerId: invitee.id,
+        interestType: 'want_to_contribute',
+        status: 'invited',
+        origin: 'invited',
+      },
+    })
+    for (const v of [invitee, owner]) {
+      await prisma.notification.create({
+        data: { volunteerId: v.id, type: 'project_invite', title: 'invite', entityId: invite.id },
+      })
+    }
+    const actionOf = async (who: typeof owner) =>
+      (await clientAs(who).notifications.list({})).notifications.find((n) => n.title === 'invite')
+        ?.action
+    expect(await actionOf(invitee)).toEqual({ kind: 'invite', projectId: project.id })
+    expect(await actionOf(owner)).toBeNull()
+    await prisma.workItemInterest.update({ where: { id: invite.id }, data: { status: 'accepted' } })
+    expect(await actionOf(invitee)).toBeNull()
+  })
 })

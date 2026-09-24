@@ -86,7 +86,7 @@ describe('country-scoped projects', () => {
 
   it('stay visible to someone the owner added, or who holds one of its tasks', async () => {
     const { owner, inUk, swedish, task } = await setup()
-    await clientAs(owner).projects.assign({ projectId: swedish.id, volunteerId: inUk.id })
+    await clientAs(owner).projects.invite({ projectId: swedish.id, volunteerId: inUk.id })
     const uk = clientAs(inUk)
     expect((await uk.projects.getById({ id: swedish.id })).title).toBe('Scope Swedish')
     expect(titles((await uk.projects.list({ search: 'Scope' })).projects)).toContain(
