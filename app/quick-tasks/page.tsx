@@ -16,7 +16,11 @@ import SubmitWorkButton from '@/components/SubmitWorkButton'
 import SubmittedWork, { type Submission } from '@/components/SubmittedWork'
 import RequestChangesButton from '@/components/RequestChangesButton'
 import QuickTaskReviewDialog from '@/components/QuickTaskReviewDialog'
-import { PROJECT_TASK_CLAIMED_MESSAGE, QUICK_TASK_CLAIMED_MESSAGE } from '@/lib/action-messages'
+import {
+  PROJECT_TASK_CLAIMED_MESSAGE,
+  QUICK_TASK_CLAIMED_MESSAGE,
+  TASK_REQUESTED_MESSAGE,
+} from '@/lib/action-messages'
 import {
   QUICK_TASK_STATUS_LABELS,
   QUICK_TASK_STATUS_VARIANTS,
@@ -183,8 +187,8 @@ function VolunteerQuickTasksView({ user }: { user: ApprovedUser }) {
   // page where the thing they just claimed has silently vanished.
   const claimProjectTaskMutation = useMutation({
     ...orpc.projects.updateTask.mutationOptions(),
-    onSuccess: (_data, variables) => {
-      showToast(PROJECT_TASK_CLAIMED_MESSAGE, 'success')
+    onSuccess: (data, variables) => {
+      showToast(data.requested ? TASK_REQUESTED_MESSAGE : PROJECT_TASK_CLAIMED_MESSAGE, 'success')
       invalidateAvailable()
       router.push(`/projects/${variables.projectId}/tasks/${variables.taskId}`)
     },

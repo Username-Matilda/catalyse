@@ -102,10 +102,10 @@ test.describe('Quick Tasks: self-serve', () => {
       `/projects/${projectId}/tasks/${taskId}`,
     )
 
-    // Claiming from Quick Tasks assigns the task and auto-adds the volunteer as an
-    // accepted participant on the project, even though they never expressed interest.
+    // Claiming from Quick Tasks when not on the project asks the owner to accept the
+    // volunteer, and holds the task for them meanwhile.
     await card.getByRole('button', { name: 'Claim', exact: true }).click()
-    await expect(getAlert(volunteer.page)).toContainText('Task claimed. Post an update', {
+    await expect(getAlert(volunteer.page)).toContainText('Requested. The task is held for you', {
       timeout: 10_000,
     })
 
@@ -123,9 +123,8 @@ test.describe('Quick Tasks: self-serve', () => {
         interests: { volunteerId: number; status: string; message: string | null }[]
       }
     ).interests
-    const autoInterest = interests.find((i) => i.volunteerId && i.status === 'accepted')
-    expect(autoInterest).toBeTruthy()
-    expect(autoInterest?.message).toContain(taskTitle)
+    const request = interests.find((i) => i.volunteerId && i.status === 'pending')
+    expect(request?.message).toContain(taskTitle)
   })
 
   test('A superadmin sees a featured project task on the Quick Tasks admin page', async ({

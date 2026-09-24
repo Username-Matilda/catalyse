@@ -121,7 +121,7 @@ test.describe('Project Lifecycle', () => {
     await expect(getAlert(adminPage)).toBeVisible({ timeout: 10_000 })
 
     // Proposer sees the review message as a comment on their project
-    await volunteer.page.goto(`${baseUrl}/projects/${projectId}`)
+    await volunteer.page.goto(`${baseUrl}/projects/${projectId}#discussion`)
     await expect(volunteer.page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 })
     await expect(volunteer.page.locator('#discussion').getByText(feedbackText)).toBeVisible({
       timeout: 10_000,
@@ -137,12 +137,13 @@ test.describe('Project Lifecycle', () => {
     await expect(adminPage.getByRole('heading', { name: 'Review Project' })).toBeVisible({
       timeout: 10_000,
     })
+    await adminPage.getByRole('tab', { name: 'Discussion' }).click()
     await adminPage.getByLabel('Add a comment').fill(followUp)
     await adminPage.getByRole('button', { name: 'Post Comment' }).click()
     await expect(getAlert(adminPage)).toContainText('Comment added', { timeout: 10_000 })
 
-    // Proposer sees the follow-up too
-    await volunteer.page.goto(`${baseUrl}/projects/${projectId}`)
+    // Proposer sees the follow-up too (the page is already at this address, so reload it)
+    await volunteer.page.reload()
     await expect(volunteer.page.getByText(followUp)).toBeVisible({ timeout: 10_000 })
   })
 

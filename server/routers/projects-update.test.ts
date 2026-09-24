@@ -169,14 +169,15 @@ describe('projects.update fields and status', () => {
       expect(notified[0].title).toBe(`'${project.title}' is now On Hold`)
     })
 
-    // Dropping the owner sends it back to ready; giving a ready project an owner starts it.
+    // Dropping the owner keeps the status; giving a ready project an owner starts it.
     expect(
       (await clientAs(admin).projects.update({ id: project.id, assigneeId: null })).status,
-    ).toBe('ready')
+    ).toBe('on_hold')
     await expect(
       clientAs(admin).projects.update({ id: project.id, status: 'in_progress' }),
     ).rejects.toMatchObject({ message: expect.stringContaining('without at least one open task') })
     await createTask(project.id)
+    await prisma.workItem.update({ where: { id: project.id }, data: { status: 'ready' } })
     expect(
       (await clientAs(admin).projects.update({ id: project.id, assigneeId: owner.id })).status,
     ).toBe('in_progress')

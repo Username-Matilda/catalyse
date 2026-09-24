@@ -111,6 +111,10 @@ async function isBlockedFromClaiming(projectId: number, volunteerId: number): Pr
  */
 async function releaseTasksHeldBy(projectId: number, volunteerId: number): Promise<void> {
   await prisma.workItem.updateMany({
+    where: { parentId: projectId, type: WorkItemType.TASK, requestedById: volunteerId },
+    data: { requestedById: null },
+  })
+  await prisma.workItem.updateMany({
     where: {
       parentId: projectId,
       type: WorkItemType.TASK,
@@ -124,6 +128,64 @@ async function releaseTasksHeldBy(projectId: number, volunteerId: number): Promi
       nudgeSentAt: null,
       finalWarningSentAt: null,
       ...CLEARED_SUBMISSION,
+    },
+  })
+}
+
+/** Tells a project's owner that someone wants to help or lead it. */
+async function notifyOwnerOfInterest(
+  project: { id: number; title: string; assigneeId: number | null },
+  volunteer: { name: string },
+  interestType: string,
+  message: string | null,
+  interestId: number,
+): Promise<void> {
+  if (!project.assigneeId) return
+  const interestLabel = interestType === 'want_to_own' ? 'own / lead' : 'contribute to'
+  await notifyUser(
+    project.assigneeId,
+    'new_interest',
+    `Someone's interested in '${project.title}'!`,
+    `${volunteer.name} wants to ${interestLabel}`,
+    `/projects/${project.id}`,
+    {
+      subject: `${volunteer.name} wants to ${interestLabel} '${project.title}'`,
+      message: html`<strong>${volunteer.name}</strong> has expressed interest in your project
+        <strong>${project.title}</strong>.`,
+      projectTitle: project.title,
+      projectId: project.id,
+      extraHtml: message
+        ? html`<div style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;">
+            <strong>Their message:</strong> ${message}
+          </div>`
+        : undefined,
+    },
+    interestId,
+  )
+}
+
+/**
+ * Hands someone the tasks held for them while their request to join waited, now that they
+ * are on the project.
+ */
+async function assignHeldTasks(projectId: number, volunteerId: number): Promise<void> {
+  const now = new Date()
+  await prisma.workItem.updateMany({
+    where: {
+      parentId: projectId,
+      type: WorkItemType.TASK,
+      requestedById: volunteerId,
+      status: TaskStatus.open,
+      assigneeId: null,
+    },
+    data: {
+      assigneeId: volunteerId,
+      status: TaskStatus.in_progress,
+      requestedById: null,
+      startedAt: now,
+      updatedAt: now,
+      nudgeSentAt: null,
+      finalWarningSentAt: null,
     },
   })
 }
@@ -685,6 +747,7 @@ export const projectsRouter = {
         include: {
           assignee: { select: { name: true } },
           creator: { select: { name: true } },
+          requestedBy: { select: { name: true } },
           _count: { select: { comments: true } },
         },
       })
@@ -701,6 +764,7 @@ export const projectsRouter = {
         ...serializeTask(t),
         assignedToName: t.assignee?.name ?? null,
         createdByName: t.creator?.name ?? null,
+        requestedByName: t.requestedBy?.name ?? null,
         sortOrder: t.sortOrder,
         commentCount: t._count.comments,
         featuredAsQuickTask: t.featuredAsQuickTask ?? false,
@@ -848,6 +912,7 @@ export const projectsRouter = {
         myInterest,
         canClaimTasks,
         canCreateTasks,
+        isMember,
         reviewRequests,
       }
     }),
@@ -1027,21 +1092,16 @@ export const projectsRouter = {
       if (body.isSeekingHelp !== undefined) data.isSeekingHelp = body.isSeekingHelp
       if (body.autoAcceptTasks !== undefined) data.autoAcceptTasks = body.autoAcceptTasks
 
-      // Gaining an owner starts the work; losing one hands the project back to `ready`
-      // rather than leaving it in_progress with nobody on it. isSeekingOwner needs no
-      // maintenance here — it is derived from exactly these two fields.
+      // Gaining an owner starts the work. Losing one leaves the status as it is: the work is
+      // still where it was, and the derived isSeekingOwner shows the project needs an owner.
       const resultingAssigneeId =
         body.assigneeId !== undefined ? body.assigneeId : project.assigneeId
-      if (data.status === undefined && !TERMINAL_STATUSES.includes(project.status)) {
-        if (resultingAssigneeId !== null && project.status === ProjectStatus.ready) {
-          data.status = ProjectStatus.in_progress
-        } else if (
-          resultingAssigneeId === null &&
-          project.status !== ProjectStatus.ready &&
-          !UNAPPROVED_STATUSES.includes(project.status)
-        ) {
-          data.status = ProjectStatus.ready
-        }
+      if (
+        data.status === undefined &&
+        resultingAssigneeId !== null &&
+        project.status === ProjectStatus.ready
+      ) {
+        data.status = ProjectStatus.in_progress
       }
 
       if (TERMINAL_STATUSES.includes(data.status as string)) {
@@ -1197,32 +1257,7 @@ export const projectsRouter = {
             },
           })
 
-      const interestLabel = interestType === 'want_to_own' ? 'own / lead' : 'contribute to'
-
-      if (project.assigneeId) {
-        await notifyUser(
-          project.assigneeId,
-          'new_interest',
-          `Someone's interested in '${project.title}'!`,
-          `${volunteer.name} wants to ${interestLabel}`,
-          `/projects/${input.projectId}`,
-          {
-            subject: `${volunteer.name} wants to ${interestLabel} '${project.title}'`,
-            message: html`<strong>${volunteer.name}</strong> has expressed interest in your project
-              <strong>${project.title}</strong>.`,
-            projectTitle: project.title,
-            projectId: input.projectId,
-            extraHtml: message
-              ? html`<div
-                  style="padding: 12px; background: #f7fafc; border-radius: 8px; margin: 16px 0;"
-                >
-                  <strong>Their message:</strong> ${message}
-                </div>`
-              : undefined,
-          },
-          interest.id,
-        )
-      }
+      await notifyOwnerOfInterest(project, volunteer, interestType, message, interest.id)
 
       return { message: 'Interest expressed successfully' }
     }),
@@ -1295,7 +1330,9 @@ export const projectsRouter = {
 
       await clearNotifications('new_interest', input.interestId)
 
-      if (status !== InterestStatus.accepted) {
+      if (status === InterestStatus.accepted) {
+        await assignHeldTasks(input.projectId, interest.volunteerId)
+      } else {
         await releaseTasksHeldBy(input.projectId, interest.volunteerId)
       }
 
@@ -1394,6 +1431,7 @@ export const projectsRouter = {
           data: { status: InterestStatus.accepted, respondedAt: new Date() },
         })
         await clearNotifications('new_interest', existing.id)
+        await assignHeldTasks(input.projectId, input.volunteerId)
         await notifyUser(
           input.volunteerId,
           'interest_accepted',
@@ -1585,6 +1623,8 @@ export const projectsRouter = {
         })
       }
 
+      await assignHeldTasks(input.projectId, input.volunteerId)
+
       // Assigning someone as owner has to actually set the owner. This previously only
       // cleared the (now derived) isSeekingOwner flag, leaving the project ownerless and
       // no longer advertising for one — unlike respondToInterest, which took the same
@@ -1716,6 +1756,7 @@ export const projectsRouter = {
           assignee: { select: { name: true, consentContactableByProjectOwners: true } },
           creator: { select: { name: true } },
           reviewedBy: { select: { name: true } },
+          requestedBy: { select: { name: true } },
         },
       })
       if (!task) throw new ORPCError('NOT_FOUND', { message: 'Task not found' })
@@ -1780,6 +1821,7 @@ export const projectsRouter = {
         assignedToName: task.assignee?.name ?? null,
         assigneeContactable: task.assignee?.consentContactableByProjectOwners ?? false,
         createdByName: task.creator?.name ?? null,
+        requestedByName: task.requestedBy?.name ?? null,
         featuredAsQuickTask: task.featuredAsQuickTask ?? false,
         predecessors: predecessorRows.map((r) => ({
           dependencyId: r.id,
@@ -2037,6 +2079,50 @@ export const projectsRouter = {
         if (!(await canReachProject(project, volunteer))) {
           throw new ORPCError('NOT_FOUND', { message: 'Project or task not found' })
         }
+        const interest = await prisma.workItemInterest.findFirst({
+          where: { workItemId: input.projectId, volunteerId: volunteer.id },
+        })
+        if (interest?.status === InterestStatus.invited) {
+          // Claiming answers the invite: they have said yes.
+          await prisma.workItemInterest.update({
+            where: { id: interest.id },
+            data: { status: InterestStatus.accepted, respondedAt: new Date() },
+          })
+          await clearNotifications('project_invite', interest.id)
+        } else if (!(await resolveProjectMembership(project.teamId, project.id, volunteer.id))) {
+          // Not on the project yet: ask the owner, and hold the task until they answer.
+          const held = await prisma.workItem.updateMany({
+            where: {
+              id: input.taskId,
+              status: TaskStatus.open,
+              assigneeId: null,
+              requestedById: null,
+            },
+            data: { requestedById: volunteer.id, updatedAt: new Date() },
+          })
+          if (held.count === 0) {
+            throw new ORPCError('BAD_REQUEST', { message: 'This task has already been claimed' })
+          }
+          if (interest?.status !== InterestStatus.pending) {
+            const message = `Asked to take '${task.title}'`
+            const request = {
+              interestType: 'want_to_contribute',
+              message,
+              status: InterestStatus.pending,
+              origin: InterestOrigin.applied,
+              respondedAt: null,
+              responseMessage: null,
+              invitedById: null,
+            }
+            const row = interest
+              ? await prisma.workItemInterest.update({ where: { id: interest.id }, data: request })
+              : await prisma.workItemInterest.create({
+                  data: { ...request, volunteerId: volunteer.id, workItemId: input.projectId },
+                })
+            await notifyOwnerOfInterest(project, volunteer, 'want_to_contribute', message, row.id)
+          }
+          return { message: 'Task requested', requested: true }
+        }
       }
 
       const data: Record<string, unknown> = {}
@@ -2057,6 +2143,7 @@ export const projectsRouter = {
           if (task.startedAt === null) data.startedAt = new Date()
         } else if (input.data.status === TaskStatus.open) {
           data.assigneeId = null
+          data.requestedById = null
           data.completedAt = null
           // Back to unstarted: the actuals and any submission describe work that is no
           // longer claimed.
@@ -2073,7 +2160,12 @@ export const projectsRouter = {
         // Two volunteers hitting claim at once must not both win — only the update that
         // still sees the task open and unheld takes it.
         const claimed = await prisma.workItem.updateMany({
-          where: { id: input.taskId, status: TaskStatus.open, assigneeId: null },
+          where: {
+            id: input.taskId,
+            status: TaskStatus.open,
+            assigneeId: null,
+            requestedById: null,
+          },
           data,
         })
         if (claimed.count === 0) {
@@ -2101,7 +2193,7 @@ export const projectsRouter = {
         }
       }
 
-      return { message: 'Task updated' }
+      return { message: 'Task updated', requested: false }
     }),
 
   /**
@@ -2285,6 +2377,7 @@ export const projectsRouter = {
         where: { id: input.taskId },
         data: {
           assigneeId: input.assigneeId,
+          requestedById: null,
           status: TaskStatus.in_progress,
           updatedAt: new Date(),
           nudgeSentAt: null,

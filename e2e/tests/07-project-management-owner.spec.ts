@@ -88,7 +88,7 @@ test.describe('Project Management (Owner)', () => {
     const projectId = await setupOwnedProject(baseUrl, adminPage, volunteer)
     const updateText = fake.progressUpdate()
 
-    await volunteer.page.goto(`${baseUrl}/projects/${projectId}`)
+    await volunteer.page.goto(`${baseUrl}/projects/${projectId}#discussion`)
     await expect(volunteer.page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 })
 
     await volunteer.page.getByLabel('Add a comment').fill(updateText)
@@ -107,14 +107,14 @@ test.describe('Project Management (Owner)', () => {
     const volunteerReply = `volunteer reply ${Date.now()}`
 
     // Admin posts the opening comment
-    await adminPage.goto(`${baseUrl}/projects/${projectId}`)
+    await adminPage.goto(`${baseUrl}/projects/${projectId}#discussion`)
     await expect(adminPage.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 })
     await adminPage.getByLabel('Add a comment').fill(adminComment)
     await adminPage.getByRole('button', { name: 'Post Comment' }).click()
     await expect(adminPage.getByText(adminComment)).toBeVisible({ timeout: 10_000 })
 
     // Owner sees admin's comment and replies
-    await volunteer.page.goto(`${baseUrl}/projects/${projectId}`)
+    await volunteer.page.goto(`${baseUrl}/projects/${projectId}#discussion`)
     await expect(volunteer.page.getByText(adminComment)).toBeVisible({ timeout: 10_000 })
     await volunteer.page.getByLabel('Add a comment').fill(volunteerReply)
     await volunteer.page.getByRole('button', { name: 'Post Comment' }).click()
@@ -135,13 +135,13 @@ test.describe('Project Management (Owner)', () => {
     const question = `admin question ${Date.now()}`
     const page = volunteer.page
 
-    await adminPage.goto(`${baseUrl}/projects/${projectId}`)
+    await adminPage.goto(`${baseUrl}/projects/${projectId}#discussion`)
     await adminPage.getByLabel('Add a comment').fill(question)
     await adminPage.getByRole('button', { name: 'Post Comment' }).click()
     await expect(adminPage.getByText(question)).toBeVisible({ timeout: 10_000 })
 
     // The admin has commented, so the owner can mention them.
-    await page.goto(`${baseUrl}/projects/${projectId}`)
+    await page.goto(`${baseUrl}/projects/${projectId}#discussion`)
     await expect(page.getByText(question)).toBeVisible({ timeout: 10_000 })
     await page.getByRole('button', { name: 'Reply' }).click()
     const replyBox = page.getByLabel('Write a reply')

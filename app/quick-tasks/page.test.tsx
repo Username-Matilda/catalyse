@@ -116,7 +116,9 @@ describe('quick tasks — volunteer view', () => {
     await waitFor(() =>
       expect(navigation.push).toHaveBeenCalledWith(`/projects/${project.id}/tasks/${featured.id}`),
     )
-    expect((await row(featured.id)).assigneeId).toBe(me.id)
+    // Not on the project yet, so the task is held for me until the owner accepts me.
+    await screen.findByText(/^Requested\. The task is held for you/)
+    expect(await row(featured.id)).toMatchObject({ assigneeId: null, requestedById: me.id })
   })
 
   it('shows empty states and reports failures', async () => {

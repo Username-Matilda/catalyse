@@ -115,6 +115,7 @@ export const quickTasksRouter = {
           type: WorkItemType.TASK,
           status: TaskStatus.open,
           assigneeId: null,
+          requestedById: null,
           featuredAsQuickTask: true,
           parentId: { not: null, notIn: blockedProjectIds },
         },

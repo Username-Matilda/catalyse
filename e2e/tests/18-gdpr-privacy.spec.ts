@@ -9,7 +9,11 @@ import {
 } from '../fixtures'
 import { fake } from '../fake'
 import { createSkillViaApi } from '../actions/skills'
-import { adminCreateProjectViaApi, transferProjectOwnership } from '../actions/projects'
+import {
+  adminCreateProjectViaApi,
+  transferProjectOwnership,
+  joinProject,
+} from '../actions/projects'
 import { createApiClient } from '../client'
 
 test.describe('GDPR & Privacy', () => {
@@ -49,10 +53,7 @@ test.describe('GDPR & Privacy', () => {
       'GDPR test seeking-help project',
     )
     await volunteer.page.goto(`${baseUrl}/projects/${seekingProjectId}`)
-    await expect(volunteer.page.getByRole('button', { name: 'Express Interest' })).toBeVisible({
-      timeout: 10_000,
-    })
-    await volunteer.page.getByRole('button', { name: 'Express Interest' }).click()
+    await joinProject(volunteer.page)
     await expect(getAlert(volunteer.page)).toContainText(
       "You'll get a notification when they reply",
       { timeout: 10_000 },

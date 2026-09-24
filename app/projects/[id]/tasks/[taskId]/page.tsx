@@ -15,7 +15,7 @@ import { useToast } from '@/lib/toast'
 import { formatDate, toDateInputValue, fromDateInputValue } from '@/lib/format-date'
 import { TaskStatus } from '@/generated/prisma/enums'
 import { TASK_STATUS_LABELS, TASK_STATUS_VARIANTS } from '@/lib/status-labels'
-import { PROJECT_TASK_CLAIMED_MESSAGE } from '@/lib/action-messages'
+import { PROJECT_TASK_CLAIMED_MESSAGE, TASK_REQUESTED_MESSAGE } from '@/lib/action-messages'
 import { TASK_INACTIVITY_RULE } from '@/lib/staleness'
 import { awaitsOwnerReview } from '@/lib/task-review'
 import PageLoading from '@/components/PageLoading'
@@ -69,11 +69,13 @@ export default function TaskDetailPage({
 
   const updateMutation = useMutation({
     ...orpc.projects.updateTask.mutationOptions(),
-    onSuccess: (_data, variables) => {
+    onSuccess: (data, variables) => {
       showToast(
-        variables.data.status === TaskStatus.in_progress
-          ? PROJECT_TASK_CLAIMED_MESSAGE
-          : 'Task updated!',
+        data.requested
+          ? TASK_REQUESTED_MESSAGE
+          : variables.data.status === TaskStatus.in_progress
+            ? PROJECT_TASK_CLAIMED_MESSAGE
+            : 'Task updated!',
         'success',
       )
       setIsEditing(false)
@@ -259,7 +261,15 @@ export default function TaskDetailPage({
           </p>
         )}
 
-        {task.status === TaskStatus.open && task.canClaim && (
+        {task.requestedById !== null && (
+          <p className="text-sm text-text-light mt-4 mb-0">
+            {task.requestedById === user.id
+              ? 'Held for you until the owner accepts you onto the project.'
+              : `Requested by ${task.requestedByName}, waiting for the owner.`}
+          </p>
+        )}
+
+        {task.status === TaskStatus.open && task.requestedById === null && task.canClaim && (
           <div className="mt-4">
             <Button
               variant="secondary"

@@ -519,6 +519,7 @@ export type TaskLike = ScheduleFieldsLike & {
   description: string | null
   assigneeId: number | null
   creatorId: number | null
+  requestedById: number | null
   status: string
   estimatedHours: number | null
   deadline: Date | null
@@ -571,6 +572,7 @@ export function serializeTask(t: TaskLike) {
     description: t.description,
     assignedToId: t.assigneeId,
     createdById: t.creatorId,
+    requestedById: t.requestedById,
     status: t.status,
     estimatedHours: t.estimatedHours,
     deadline: t.deadline,

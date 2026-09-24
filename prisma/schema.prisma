@@ -301,6 +301,9 @@ model WorkItem {
   // People roles
   creatorId     Int? @map("creator_id")
   assigneeId    Int? @map("assignee_id")
+  // A task someone not yet on the project asked to take: held for them until the owner
+  // answers their join request (TASK only).
+  requestedById Int? @map("requested_by_id")
   stakeholderId Int? @map("stakeholder_id")
 
   // Review
@@ -377,6 +380,7 @@ model WorkItem {
   creator              Volunteer?             @relation("WorkItemCreator", fields: [creatorId], references: [id], onUpdate: NoAction)
   templateOrigin       Template?              @relation("WorkItemTemplateOrigin", fields: [templateOriginId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   assignee             Volunteer?             @relation("WorkItemAssignee", fields: [assigneeId], references: [id], onUpdate: NoAction)
+  requestedBy          Volunteer?             @relation("WorkItemRequestedBy", fields: [requestedById], references: [id], onDelete: SetNull, onUpdate: NoAction)
   stakeholder          Volunteer?             @relation("WorkItemStakeholder", fields: [stakeholderId], references: [id], onUpdate: NoAction)
   reviewedBy           Volunteer?             @relation("WorkItemReviewedBy", fields: [reviewedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
   skill                Skill?                 @relation(fields: [skillId], references: [id], onUpdate: NoAction)
@@ -857,6 +861,7 @@ model Volunteer {
   projectReviewRequests                   ProjectReviewRequest[]
   workItemsCreated                        WorkItem[]               @relation("WorkItemCreator")
   workItemsAssigned                       WorkItem[]               @relation("WorkItemAssignee")
+  workItemsRequested                      WorkItem[]               @relation("WorkItemRequestedBy")
   workItemsStakeholder                    WorkItem[]               @relation("WorkItemStakeholder")
   workItemsReviewed                       WorkItem[]               @relation("WorkItemReviewedBy")
   workItemDependenciesCreated             WorkItemDependency[]     @relation("WorkItemDependencyCreator")

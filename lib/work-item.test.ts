@@ -255,6 +255,7 @@ describe('serializers', () => {
       description: null,
       assigneeId: 3,
       creatorId: 4,
+      requestedById: null,
       status: 'open',
       estimatedHours: 1.5,
       deadline: null,

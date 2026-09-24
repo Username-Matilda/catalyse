@@ -69,3 +69,13 @@ confusing than it needed to be, and that will do so again.
       `app/dashboard/page.tsx`. Reading query parameters through one hook
       (`lib/hooks/useOneTimeNotice.ts` reads on mount) and a line in `AGENTS.md` would stop
       the next page repeating it.
+- [ ] **`npm run new-migration` always writes an unrelated `ALTER TABLE "schema_migrations"`
+      line that must be deleted by hand, and if `npm run migrate` runs first it is applied
+      and recorded.** In R-08 a failed rename let migrate apply it; undoing it needed a
+      hand-run `psql` from the owner, because editing an applied migration is blocked.
+      `scripts/new-migration.ts` should strip that statement from the diff it writes.
+- [ ] **Component tests that remount a page as a different user read the previous user's
+      cached query first, so a `getBy…` right after the remount sees stale data.** It cost
+      a debugging round in R-06 and two more in R-08 (the owner's buttons, then the
+      "waiting" count). `renderApp` could start each mount with an empty query cache, or
+      `test/render.tsx` could say to use `findBy…` after a remount.

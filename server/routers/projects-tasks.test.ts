@@ -349,11 +349,18 @@ describe('projects.updateTask', () => {
     })
   })
 
-  it('allows self-claim, but nothing more, for non-owners', async () => {
+  it('allows self-claim, but nothing more, for members who are not owners', async () => {
     const owner = await createVolunteer()
     const me = await createVolunteer()
     const rival = await createVolunteer()
-    const project = await createProject({ assigneeId: owner.id, status: 'in_progress' })
+    // A member of the project's team is on the project, so claiming is immediate.
+    const crew = await createTeam()
+    await prisma.teamMembership.create({ data: { teamId: crew.id, volunteerId: me.id } })
+    const project = await createProject({
+      assigneeId: owner.id,
+      status: 'in_progress',
+      teamId: crew.id,
+    })
     const t = await createTask(project.id)
     const c = clientAs(me)
     await expect(
@@ -372,7 +379,7 @@ describe('projects.updateTask', () => {
         taskId: t.id,
         data: { status: 'in_progress', assigneeId: me.id },
       }),
-    ).toEqual({ message: 'Task updated' })
+    ).toEqual({ message: 'Task updated', requested: false })
     expect(await task(t.id)).toMatchObject({ assigneeId: me.id, status: 'in_progress' })
     expect(
       await prisma.workItemInterest.findFirst({
@@ -433,12 +440,13 @@ describe('projects.updateTask', () => {
       }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' })
 
-    // Claim race: the guarded update finds the task already taken.
-    const t4 = await createTask(project.id)
+    // Claim race: the guarded hold finds the task already taken.
+    const open = await createProject({ assigneeId: owner.id, status: 'in_progress' })
+    const t4 = await createTask(open.id)
     const spy = vi.spyOn(prisma.workItem, 'updateMany').mockResolvedValueOnce({ count: 0 })
     await expect(
       clientAs(rival).projects.updateTask({
-        projectId: project.id,
+        projectId: open.id,
         taskId: t4.id,
         data: { status: 'in_progress', assigneeId: rival.id },
       }),
@@ -705,5 +713,169 @@ describe('projects.submitTask / acceptTask / requestTaskChanges', () => {
       submissionNote: null,
       submittedAt: null,
     })
+  })
+})
+
+describe('claiming before joining', () => {
+  const claim = (
+    who: Awaited<ReturnType<typeof createVolunteer>>,
+    projectId: number,
+    taskId: number,
+  ) =>
+    clientAs(who).projects.updateTask({
+      projectId,
+      taskId,
+      data: { status: 'in_progress', assigneeId: who.id },
+    })
+
+  it('holds the task and asks the owner, who hands it over by accepting', async () => {
+    const owner = await createVolunteer()
+    const me = await createVolunteer({ name: 'Nell New' })
+    const member = await createVolunteer()
+    const project = await createProject({ assigneeId: owner.id, status: 'in_progress' })
+    await prisma.workItemInterest.create({
+      data: {
+        workItemId: project.id,
+        volunteerId: member.id,
+        interestType: 'want_to_contribute',
+        status: 'accepted',
+      },
+    })
+    const t = await createTask(project.id, { title: 'Poster' })
+
+    expect(await claim(me, project.id, t.id)).toEqual({
+      message: 'Task requested',
+      requested: true,
+    })
+    expect(await task(t.id)).toMatchObject({
+      requestedById: me.id,
+      assigneeId: null,
+      status: 'open',
+    })
+    const interest = await prisma.workItemInterest.findFirstOrThrow({
+      where: { workItemId: project.id, volunteerId: me.id },
+    })
+    expect(interest).toMatchObject({ status: 'pending', message: "Asked to take 'Poster'" })
+    await vi.waitFor(async () =>
+      expect(
+        await prisma.notification.findFirst({
+          where: { volunteerId: owner.id, type: 'new_interest' },
+        }),
+      ).toMatchObject({ entityId: interest.id }),
+    )
+    // Held: nobody else can take it, and it is not offered on the Quick Tasks page.
+    await expect(claim(member, project.id, t.id)).rejects.toMatchObject({
+      message: 'This task has already been claimed',
+    })
+    const listed = await clientAs(owner).projects.getById({ id: project.id })
+    expect(listed.tasks.find((x) => x.id === t.id)).toMatchObject({
+      requestedById: me.id,
+      requestedByName: 'Nell New',
+    })
+
+    // A second task asks nothing new of the owner.
+    const t2 = await createTask(project.id, { title: 'Flyer' })
+    await claim(me, project.id, t2.id)
+    expect(
+      await prisma.notification.count({ where: { volunteerId: owner.id, type: 'new_interest' } }),
+    ).toBe(1)
+
+    await clientAs(owner).projects.respondToInterest({
+      projectId: project.id,
+      interestId: interest.id,
+      status: 'accepted',
+    })
+    for (const id of [t.id, t2.id]) {
+      const after = await task(id)
+      expect(after).toMatchObject({ assigneeId: me.id, status: 'in_progress', requestedById: null })
+      expect(after.startedAt).not.toBeNull()
+    }
+    // Once on the project, claiming is immediate.
+    const t3 = await createTask(project.id)
+    expect(await claim(me, project.id, t3.id)).toEqual({
+      message: 'Task updated',
+      requested: false,
+    })
+  })
+
+  it('frees a held task when the request is declined or withdrawn, or the owner assigns it', async () => {
+    const owner = await createVolunteer()
+    const me = await createVolunteer()
+    const other = await createVolunteer()
+    const project = await createProject({ assigneeId: owner.id, status: 'in_progress' })
+    const a = await createTask(project.id)
+    await claim(me, project.id, a.id)
+    const row = await prisma.workItemInterest.findFirstOrThrow({ where: { volunteerId: me.id } })
+    await clientAs(owner).projects.respondToInterest({
+      projectId: project.id,
+      interestId: row.id,
+      status: 'declined',
+    })
+    expect((await task(a.id)).requestedById).toBeNull()
+
+    const b = await createTask(project.id)
+    await claim(other, project.id, b.id)
+    await clientAs(other).projects.withdrawInterest({ projectId: project.id })
+    expect((await task(b.id)).requestedById).toBeNull()
+
+    const c = await createTask(project.id)
+    await claim(await createVolunteer(), project.id, c.id)
+    await clientAs(owner).projects.assignTask({
+      projectId: project.id,
+      taskId: c.id,
+      assigneeId: owner.id,
+    })
+    expect(await task(c.id)).toMatchObject({ assigneeId: owner.id, requestedById: null })
+    await clientAs(owner).projects.updateTask({
+      projectId: project.id,
+      taskId: c.id,
+      data: { status: 'open' },
+    })
+    expect(await task(c.id)).toMatchObject({ assigneeId: null, requestedById: null })
+  })
+
+  it('treats a claim by someone invited as accepting the invite, and an admin add as accepting', async () => {
+    const owner = await createVolunteer()
+    const invitee = await createVolunteer()
+    const asker = await createVolunteer()
+    const project = await createProject({ assigneeId: owner.id, status: 'in_progress' })
+    await clientAs(owner).projects.invite({ projectId: project.id, volunteerId: invitee.id })
+    const t = await createTask(project.id)
+    expect(await claim(invitee, project.id, t.id)).toMatchObject({ requested: false })
+    expect(await task(t.id)).toMatchObject({ assigneeId: invitee.id, status: 'in_progress' })
+    expect(
+      await prisma.workItemInterest.findFirstOrThrow({ where: { volunteerId: invitee.id } }),
+    ).toMatchObject({ status: 'accepted' })
+    expect(
+      await prisma.notification.count({
+        where: { volunteerId: invitee.id, type: 'project_invite' },
+      }),
+    ).toBe(0)
+
+    // Someone who applied and is then invited, or added by an admin, gets their held task.
+    const t2 = await createTask(project.id)
+    await claim(asker, project.id, t2.id)
+    await clientAs(owner).projects.invite({ projectId: project.id, volunteerId: asker.id })
+    expect(await task(t2.id)).toMatchObject({ assigneeId: asker.id, requestedById: null })
+    const late = await createVolunteer()
+    const t3 = await createTask(project.id)
+    await claim(late, project.id, t3.id)
+    await clientAs(await createAdmin()).projects.assign({
+      projectId: project.id,
+      volunteerId: late.id,
+    })
+    expect(await task(t3.id)).toMatchObject({ assigneeId: late.id, requestedById: null })
+  })
+})
+
+describe('project status rules', () => {
+  it('keeps the status when the owner steps down, and keeps Ready for admins', async () => {
+    const owner = await createVolunteer()
+    const project = await createProject({ assigneeId: owner.id, status: 'in_progress' })
+    await clientAs(owner).projects.update({ id: project.id, status: 'ready' })
+    expect((await task(project.id)).status).toBe('in_progress')
+    await clientAs(owner).projects.update({ id: project.id, assigneeId: null })
+    const after = await clientAs(await createAdmin()).projects.getById({ id: project.id })
+    expect(after).toMatchObject({ status: 'in_progress', ownerId: null, isSeekingOwner: true })
   })
 })

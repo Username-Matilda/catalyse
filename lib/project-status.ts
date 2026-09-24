@@ -32,9 +32,11 @@ export function projectStatusLabel(status: string): string {
   return PROJECT_STATUS_LABELS[status] ?? status.replace(/_/g, ' ')
 }
 
-/** Statuses a project owner may set directly. Admins may set any status. */
+/**
+ * Statuses a project owner may set directly. Admins may set any status. Ready (approved, not
+ * started) is an admin's: a project leaves it by itself when it gains an owner.
+ */
 export const OWNER_ALLOWED_STATUSES: ProjectStatus[] = [
-  ProjectStatus.ready,
   ProjectStatus.in_progress,
   ProjectStatus.on_hold,
   ProjectStatus.completed,

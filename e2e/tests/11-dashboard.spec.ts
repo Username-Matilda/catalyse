@@ -99,6 +99,9 @@ test.describe('Home', () => {
 
     const helper = await createApprovedVolunteerNamed(baseUrl, fake.person().name)
     const helperApi = createApiClient(baseUrl, helper.token)
+    // On the project first, so the claim takes the task straight away.
+    await ownerApi.projects.invite({ body: { projectId, volunteerId: helper.id } })
+    await helperApi.projects.respondToInvite({ body: { projectId, accept: true } })
     await helperApi.projects.updateTask({
       body: { projectId, taskId, data: { status: 'in_progress', assigneeId: helper.id } },
     })

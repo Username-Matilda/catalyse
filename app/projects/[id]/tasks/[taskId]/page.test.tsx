@@ -189,7 +189,26 @@ describe('task detail page', () => {
     await prisma.workItemDependency.create({
       data: { predecessorId: pred.id, successorId: task.id, lagDays: 1 },
     })
+    // Someone not on the project asks for a task: it is held for them, not given.
+    const newcomer = await createVolunteer({ name: 'Nia Newcomer' })
+    await mount(project.id, other.id, newcomer)
+    await userEvent.click(await screen.findByRole('button', { name: 'Claim' }))
+    await screen.findByText(/^Requested\. The task is held for you/)
+    await screen.findByText('Held for you until the owner accepts you onto the project.')
+    expect(screen.queryByRole('button', { name: 'Claim' })).toBeNull()
+    cleanup()
+    await mount(project.id, other.id, owner)
+    await screen.findByText('Requested by Nia Newcomer, waiting for the owner.')
+    cleanup()
 
+    await prisma.workItemInterest.create({
+      data: {
+        workItemId: project.id,
+        volunteerId: me.id,
+        interestType: 'want_to_contribute',
+        status: 'accepted',
+      },
+    })
     await mount(project.id, task.id, me)
     await screen.findByRole('heading', { name: 'The task' })
     expect(screen.getByRole('link', { name: '← Back to Parent' })).toHaveAttribute(
