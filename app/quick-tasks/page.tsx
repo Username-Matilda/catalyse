@@ -12,7 +12,10 @@ import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
 import VolunteerSelect from '@/components/VolunteerSelect'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import Linkify from '@/components/Linkify'
-import SubmitForReviewButton from '@/components/SubmitForReviewButton'
+import SubmitWorkButton from '@/components/SubmitWorkButton'
+import SubmittedWork, { type Submission } from '@/components/SubmittedWork'
+import RequestChangesButton from '@/components/RequestChangesButton'
+import QuickTaskReviewDialog from '@/components/QuickTaskReviewDialog'
 import { PROJECT_TASK_CLAIMED_MESSAGE, QUICK_TASK_CLAIMED_MESSAGE } from '@/lib/action-messages'
 import {
   QUICK_TASK_STATUS_LABELS,
@@ -49,6 +52,9 @@ interface AdminQuickTask {
   reviewNotes: string | null
   estimatedHours: number | null
   createdAt: string
+  submission: Submission | null
+  changesRequested: string | null
+  reviewedByName: string | null
 }
 
 interface FeaturedProjectTask {
@@ -256,7 +262,17 @@ function VolunteerQuickTasksView({ user }: { user: ApprovedUser }) {
                   ]}
                 >
                   {task.status === QuickTaskStatus.in_progress && (
-                    <SubmitForReviewButton taskId={task.id} />
+                    <>
+                      {task.changesRequested && (
+                        <p className="text-sm mt-0 mb-3">
+                          <strong>Changes requested:</strong> {task.changesRequested}
+                        </p>
+                      )}
+                      <SubmitWorkButton
+                        target={{ kind: 'quick', taskId: task.id }}
+                        reviewer="An admin"
+                      />
+                    </>
                   )}
                 </QuickTaskCard>
               ))
@@ -418,11 +434,6 @@ function AdminQuickTasksView() {
   // Review modal
   const [reviewModal, setReviewModal] = useState<AdminQuickTask | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<AdminQuickTask | null>(null)
-  const [reviewRating, setReviewRating] = useState<'excellent' | 'good' | 'needs_improvement'>(
-    'good',
-  )
-  const [reviewFeedback, setReviewFeedback] = useState('')
-  const [reviewNotes, setReviewNotes] = useState('')
 
   const { data: tasksRaw = [], isPending: loadingData } = useQuery({
     ...orpc.quickTasks.list.queryOptions({
@@ -552,17 +563,6 @@ function AdminQuickTasksView() {
       toast(err instanceof Error ? err.message : 'Failed to delete task', 'error'),
   })
 
-  const reviewTaskMutation = useMutation({
-    ...orpc.quickTasks.review.mutationOptions(),
-    onSuccess: () => {
-      toast('Task reviewed!', 'success')
-      setReviewModal(null)
-      void queryClient.invalidateQueries({ queryKey: orpc.quickTasks.list.key() })
-    },
-    onError: (err: unknown) =>
-      toast(err instanceof Error ? err.message : 'Failed to review', 'error'),
-  })
-
   function openEdit(task: AdminQuickTask) {
     setEditModal(task)
     setEditTitle(task.title)
@@ -627,16 +627,6 @@ function AdminQuickTasksView() {
     } catch {
       toast('Could not copy the link', 'error')
     }
-  }
-
-  function reviewTask(e: React.FormEvent, task: AdminQuickTask) {
-    e.preventDefault()
-    reviewTaskMutation.mutate({
-      id: task.id,
-      reviewRating,
-      comment: reviewFeedback || null,
-      reviewNotes: reviewNotes || null,
-    })
   }
 
   return (
@@ -712,6 +702,17 @@ function AdminQuickTasksView() {
               )}
 
               <div className="mb-3">
+                <SubmittedWork
+                  submission={task.submission}
+                  changesRequested={
+                    task.changesRequested
+                      ? { message: task.changesRequested, byName: task.reviewedByName }
+                      : null
+                  }
+                />
+              </div>
+
+              <div className="mb-3">
                 <strong className="text-sm">Discussion</strong>
                 <CommentThread workItemId={task.id} />
               </div>
@@ -769,17 +770,16 @@ function AdminQuickTasksView() {
                     </Button>
                   )}
                   {task.status === QuickTaskStatus.under_review && (
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        setReviewModal(task)
-                        setReviewRating('good')
-                        setReviewFeedback('')
-                        setReviewNotes('')
-                      }}
-                    >
-                      Review
-                    </Button>
+                    <>
+                      <RequestChangesButton
+                        target={{ kind: 'quick', taskId: task.id }}
+                        assigneeName={task.assignedToName}
+                        size="sm"
+                      />
+                      <Button size="sm" onClick={() => setReviewModal(task)}>
+                        Review
+                      </Button>
+                    </>
                   )}
                 </div>
               </div>
@@ -1052,83 +1052,8 @@ function AdminQuickTasksView() {
         </div>
       )}
 
-      {/* Review Task Modal */}
       {reviewModal !== null && (
-        <div
-          className="fixed inset-0 bg-[rgba(29,53,87,0.5)] flex items-center justify-center z-1000 p-5"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setReviewModal(null)
-          }}
-        >
-          <div
-            role="dialog"
-            aria-labelledby="review-dialog-title"
-            className="bg-surface rounded-xl shadow-lg max-w-150 w-full max-h-[90vh] overflow-y-auto"
-          >
-            <div className="px-6 py-5 border-b border-brand-border flex justify-between items-center">
-              <h2 id="review-dialog-title">Review Task</h2>
-            </div>
-            <div className="p-6">
-              <h3 className="mb-1">{reviewModal.title}</h3>
-              {reviewModal.assignedToName && (
-                <p className="text-text-light mb-4">Submitted by: {reviewModal.assignedToName}</p>
-              )}
-              <form onSubmit={(e) => reviewTask(e, reviewModal)}>
-                <div className="mb-5">
-                  <label>Rating</label>
-                  <div className="flex flex-col gap-2 mt-2">
-                    {(['excellent', 'good', 'needs_improvement'] as const).map((r) => (
-                      <label key={r} className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="radio"
-                          value={r}
-                          checked={reviewRating === r}
-                          onChange={() => setReviewRating(r)}
-                        />
-                        <span>
-                          <strong>{RATING_LABELS[r]}</strong>
-                          {r === 'excellent'
-                            ? ': Exceeded expectations'
-                            : r === 'good'
-                              ? ': Met expectations'
-                              : ': Not quite there yet'}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <div className="mb-5">
-                  <label htmlFor="rv-notes">Internal Notes (admin only)</label>
-                  <textarea
-                    id="rv-notes"
-                    rows={2}
-                    value={reviewNotes}
-                    onChange={(e) => setReviewNotes(e.target.value)}
-                    placeholder="Your assessment…"
-                  />
-                </div>
-                <div className="mb-5">
-                  <label htmlFor="rv-feedback">{"Feedback to Volunteer (they'll see this)"}</label>
-                  <textarea
-                    id="rv-feedback"
-                    rows={3}
-                    value={reviewFeedback}
-                    onChange={(e) => setReviewFeedback(e.target.value)}
-                    placeholder="Constructive feedback…"
-                  />
-                </div>
-                <div className="px-0 py-4 border-t border-brand-border flex gap-3 justify-end">
-                  <Button type="button" variant="secondary" onClick={() => setReviewModal(null)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={reviewTaskMutation.isPending}>
-                    Submit Review
-                  </Button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
+        <QuickTaskReviewDialog task={reviewModal} onClose={() => setReviewModal(null)} />
       )}
 
       {deleteTarget && (

@@ -8,6 +8,7 @@ import {
   createTeam,
 } from '@/test/factories'
 import { clientAs } from '@/test/rpc'
+import { emails } from '@/test/fakes/email'
 
 const task = (id: number) => prisma.workItem.findUniqueOrThrow({ where: { id } })
 
@@ -333,11 +334,22 @@ describe('projects.updateTask', () => {
       data: { status: 'completed' },
     })
     expect((await task(t.id)).completedAt).not.toBeNull()
+    await prisma.workItem.update({
+      where: { id: t.id },
+      data: { submissionNote: 'Did it', submittedAt: new Date(), changesRequestedNote: 'More' },
+    })
     await c.projects.updateTask({ projectId: project.id, taskId: t.id, data: { status: 'open' } })
-    expect(await task(t.id)).toMatchObject({ assigneeId: null, completedAt: null, startedAt: null })
+    expect(await task(t.id)).toMatchObject({
+      assigneeId: null,
+      completedAt: null,
+      startedAt: null,
+      submissionNote: null,
+      submittedAt: null,
+      changesRequestedNote: null,
+    })
   })
 
-  it('allows self-claim and marking done, but nothing more, for non-owners', async () => {
+  it('allows self-claim, but nothing more, for non-owners', async () => {
     const owner = await createVolunteer()
     const me = await createVolunteer()
     const rival = await createVolunteer()
@@ -375,20 +387,10 @@ describe('projects.updateTask', () => {
         data: { status: 'in_progress', assigneeId: rival.id },
       }),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' })
-    // Marking done is allowed for the task assignee only.
+    // The assignee finishes by submitting their work (projects.submitTask), not by setting it.
     await expect(
-      clientAs(rival).projects.updateTask({
-        projectId: project.id,
-        taskId: t.id,
-        data: { status: 'completed' },
-      }),
+      c.projects.updateTask({ projectId: project.id, taskId: t.id, data: { status: 'completed' } }),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' })
-    await c.projects.updateTask({
-      projectId: project.id,
-      taskId: t.id,
-      data: { status: 'completed' },
-    })
-    expect((await task(t.id)).status).toBe('completed')
 
     // A second self-claim on another task reuses the existing interest row.
     const t2 = await createTask(project.id)
@@ -499,5 +501,209 @@ describe('projects.assignTask', () => {
     await expect(
       c.projects.assignTask({ projectId: project.id, taskId: t.id, assigneeId: vol.id }),
     ).rejects.toMatchObject({ message: 'Cannot assign a completed task' })
+  })
+})
+
+describe('projects.submitTask / acceptTask / requestTaskChanges', () => {
+  const notices = (volunteerId: number, type: string) =>
+    prisma.notification.findMany({ where: { volunteerId, type } })
+
+  it('finishes a task on an auto-accepting project and tells the owner what was done', async () => {
+    const owner = await createVolunteer()
+    const me = await createVolunteer()
+    const project = await createProject({ assigneeId: owner.id, status: 'in_progress' })
+    const t = await createTask(project.id, { assigneeId: me.id, status: 'in_progress' })
+    const c = clientAs(me)
+
+    await expect(
+      c.projects.submitTask({ projectId: project.id, taskId: 999_999, note: 'x' }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    await expect(
+      clientAs(owner).projects.submitTask({ projectId: project.id, taskId: t.id, note: 'x' }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    await expect(
+      c.projects.submitTask({ projectId: project.id, taskId: t.id, note: ' ', url: '' }),
+    ).rejects.toMatchObject({ message: 'Say what you did or add a link to it' })
+    await expect(
+      c.projects.submitTask({ projectId: project.id, taskId: t.id, url: 'javascript:alert(1)' }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+
+    expect(
+      await c.projects.submitTask({
+        projectId: project.id,
+        taskId: t.id,
+        note: 'Wrote the leaflet',
+        url: 'https://example.org/leaflet',
+      }),
+    ).toEqual({ message: 'Task done', status: 'completed' })
+    const after = await task(t.id)
+    expect(after).toMatchObject({
+      status: 'completed',
+      submissionNote: 'Wrote the leaflet',
+      submissionUrl: 'https://example.org/leaflet',
+    })
+    expect(after.completedAt).toEqual(after.submittedAt)
+    await vi.waitFor(async () =>
+      expect(await notices(owner.id, 'task_done')).toEqual([
+        expect.objectContaining({
+          title: `Done: '${t.title}'`,
+          body: `${me.name}: Wrote the leaflet`,
+          link: `/projects/${project.id}/tasks/${t.id}`,
+        }),
+      ]),
+    )
+
+    await expect(
+      c.projects.submitTask({ projectId: project.id, taskId: t.id, note: 'again' }),
+    ).rejects.toMatchObject({ message: 'Only a task in progress can be submitted' })
+
+    // The owner finishing their own task, or a task on a project with no owner, is not queued.
+    const own = await createTask(project.id, { assigneeId: owner.id, status: 'in_progress' })
+    await prisma.workItem.update({ where: { id: project.id }, data: { autoAcceptTasks: false } })
+    expect(
+      await clientAs(owner).projects.submitTask({
+        projectId: project.id,
+        taskId: own.id,
+        note: 'ok',
+      }),
+    ).toMatchObject({ status: 'completed' })
+    const orphan = await createProject({ status: 'ready', autoAcceptTasks: false })
+    const ot = await createTask(orphan.id, { assigneeId: me.id, status: 'in_progress' })
+    expect(
+      await c.projects.submitTask({ projectId: orphan.id, taskId: ot.id, url: 'https://x.org' }),
+    ).toMatchObject({ status: 'completed' })
+  })
+
+  it('queues work for the owner, who accepts it or asks for changes', async () => {
+    const owner = await createVolunteer()
+    const me = await createVolunteer()
+    const other = await createVolunteer()
+    const project = await createProject({
+      assigneeId: owner.id,
+      status: 'in_progress',
+      autoAcceptTasks: false,
+    })
+    const t = await createTask(project.id, { assigneeId: me.id, status: 'in_progress' })
+    const c = clientAs(me)
+    const o = clientAs(owner)
+    const ids = { projectId: project.id, taskId: t.id }
+
+    await expect(o.projects.acceptTask(ids)).rejects.toMatchObject({
+      message: 'This task is not waiting for review',
+    })
+    expect(await c.projects.submitTask({ ...ids, note: 'First go' })).toEqual({
+      message: 'Task submitted for review',
+      status: 'under_review',
+    })
+    expect(await task(t.id)).toMatchObject({ status: 'under_review', completedAt: null })
+    const [submitted] = await notices(owner.id, 'task_submitted')
+    expect(submitted).toMatchObject({
+      title: `Submitted for review: '${t.title}'`,
+      body: `${me.name}: First go`,
+      entityId: t.id,
+    })
+    await vi.waitFor(() =>
+      expect(emails.lastTo(owner.email!)?.html).toContain('submitted the task'),
+    )
+
+    await expect(
+      clientAs(other).projects.requestTaskChanges({ ...ids, message: 'no' }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    await expect(o.projects.requestTaskChanges({ ...ids, message: ' ' })).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    })
+    expect(await o.projects.requestTaskChanges({ ...ids, message: 'Add the sources' })).toEqual({
+      message: 'Changes requested',
+    })
+    expect(await task(t.id)).toMatchObject({
+      status: 'in_progress',
+      changesRequestedNote: 'Add the sources',
+      reviewedById: owner.id,
+    })
+    expect(await notices(owner.id, 'task_submitted')).toEqual([])
+    await vi.waitFor(async () =>
+      expect(await notices(me.id, 'task_changes_requested')).toEqual([
+        expect.objectContaining({ body: 'Add the sources', entityId: t.id }),
+      ]),
+    )
+
+    // The assignee sees the request; someone else on the project does not.
+    expect((await c.projects.getTask(ids)).changesRequested).toEqual({
+      message: 'Add the sources',
+      byName: owner.name,
+    })
+    expect((await clientAs(other).projects.getTask(ids)).changesRequested).toBeNull()
+
+    await c.projects.submitTask({ ...ids, url: 'https://example.org/v2' })
+    expect(await task(t.id)).toMatchObject({
+      status: 'under_review',
+      submissionNote: null,
+      changesRequestedNote: null,
+    })
+    expect((await c.projects.getTask(ids)).submission).toMatchObject({
+      note: null,
+      url: 'https://example.org/v2',
+    })
+    expect(await o.projects.acceptTask(ids)).toEqual({ message: 'Task accepted' })
+    const done = await task(t.id)
+    expect(done).toMatchObject({ status: 'completed', reviewedById: owner.id })
+    expect(done.completedAt).not.toBeNull()
+    await vi.waitFor(async () =>
+      expect(await notices(me.id, 'task_accepted')).toEqual([
+        expect.objectContaining({ title: `Accepted: '${t.title}'` }),
+      ]),
+    )
+  })
+
+  it('reviews a task whose assignee has since gone without notifying anyone', async () => {
+    const owner = await createVolunteer()
+    const admin = await createAdmin()
+    const project = await createProject({ assigneeId: owner.id, status: 'in_progress' })
+    const a = await createTask(project.id, { status: 'under_review' })
+    const b = await createTask(project.id, { status: 'under_review' })
+    await clientAs(admin).projects.acceptTask({ projectId: project.id, taskId: a.id })
+    await clientAs(admin).projects.requestTaskChanges({
+      projectId: project.id,
+      taskId: b.id,
+      message: 'Redo',
+    })
+    expect((await task(a.id)).status).toBe('completed')
+    expect((await task(b.id)).status).toBe('in_progress')
+  })
+
+  it('lets the owner switch auto-accept off', async () => {
+    const owner = await createVolunteer()
+    const project = await createProject({ assigneeId: owner.id, status: 'in_progress' })
+    expect(project.autoAcceptTasks).toBe(true)
+    await clientAs(owner).projects.update({ id: project.id, autoAcceptTasks: false })
+    expect((await task(project.id)).autoAcceptTasks).toBe(false)
+    expect((await clientAs(owner).projects.getById({ id: project.id })).autoAcceptTasks).toBe(false)
+  })
+
+  it('releases a submission with the task when its assignee leaves the project', async () => {
+    const owner = await createVolunteer()
+    const me = await createVolunteer()
+    const project = await createProject({
+      assigneeId: owner.id,
+      status: 'in_progress',
+      autoAcceptTasks: false,
+    })
+    await prisma.workItemInterest.create({
+      data: {
+        workItemId: project.id,
+        volunteerId: me.id,
+        status: 'accepted',
+        interestType: 'want_to_contribute',
+      },
+    })
+    const t = await createTask(project.id, { assigneeId: me.id, status: 'in_progress' })
+    await clientAs(me).projects.submitTask({ projectId: project.id, taskId: t.id, note: 'Half' })
+    await clientAs(me).projects.withdrawInterest({ projectId: project.id })
+    expect(await task(t.id)).toMatchObject({
+      status: 'open',
+      assigneeId: null,
+      submissionNote: null,
+      submittedAt: null,
+    })
   })
 })

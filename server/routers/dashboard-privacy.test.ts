@@ -59,6 +59,7 @@ describe('dashboard.get', () => {
       data: { type: 'TASK', status: 'in_progress', title: 'Loose', assigneeId: me.id },
     })
     const qt = await createQuickTask({ assigneeId: me.id, status: 'under_review', title: 'QT1' })
+    await createTask(lead.id, { assigneeId: me.id, status: 'under_review', title: 'T2' })
     const team = await createTeam({ name: 'Comms' })
     const ledTeam = await createTeam({ name: 'Leads' })
     await prisma.teamMembership.createMany({
@@ -90,6 +91,7 @@ describe('dashboard.get', () => {
       context: 'Lead P',
       href: `/projects/${lead.id}/tasks/${task.id}`,
     })
+    expect(byTitle['T2']).toMatchObject({ status: 'Submitted for review' })
     expect(byTitle['Loose']).toMatchObject({
       context: null,
       href: '/dashboard',
@@ -206,6 +208,66 @@ describe('dashboard.get', () => {
       expect.objectContaining({ href: `/quick-tasks/${submitted.id}`, action: 'Review' }),
     ])
     expect(attention.some((a) => a.title.includes('Theirs'))).toBe(false)
+  })
+
+  it('lists submitted work for its reviewer, and work sent back for its assignee', async () => {
+    const me = await createVolunteer()
+    const helper = await createVolunteer()
+    const admin = await createAdmin()
+    const mine = await createProject({ assigneeId: me.id, title: 'Mine' })
+    const theirs = await createProject({ assigneeId: helper.id, title: 'Theirs' })
+    const submittedAt = new Date(Date.now() - DAY)
+    const toReview = await createTask(mine.id, {
+      assigneeId: helper.id,
+      status: 'under_review',
+      title: 'Poster',
+      submittedAt,
+    })
+    await createTask(theirs.id, { assigneeId: me.id, status: 'under_review', title: 'Not mine' })
+    // Sent back to me: listed as a change request, not as a quiet task.
+    const sentBack = await createTask(theirs.id, {
+      assigneeId: me.id,
+      status: 'in_progress',
+      title: 'Flyer',
+      changesRequestedNote: 'Bigger font',
+      updatedAt: new Date(Date.now() - 10 * DAY),
+    })
+    const sentBackQt = await createQuickTask({
+      assigneeId: me.id,
+      status: 'in_progress',
+      title: 'Tweet',
+      changesRequestedNote: 'Shorter',
+    })
+    const unset = await createQuickTask({ status: 'under_review', title: 'Claimed QT' })
+
+    const mineNow = (await clientAs(me).dashboard.get()).attention
+    expect(mineNow.filter((a) => a.kind === 'submission')).toEqual([
+      expect.objectContaining({
+        title: '"Poster" is submitted for review',
+        href: `/projects/${mine.id}/tasks/${toReview.id}`,
+        at: submittedAt,
+      }),
+    ])
+    expect(
+      mineNow
+        .filter((a) => a.kind === 'changes_requested')
+        .map((a) => [a.title, a.detail, a.href])
+        .sort(),
+    ).toEqual([
+      [
+        'Changes requested on "Flyer"',
+        'Bigger font',
+        `/projects/${theirs.id}/tasks/${sentBack.id}`,
+      ],
+      ['Changes requested on "Tweet"', 'Shorter', `/quick-tasks/${sentBackQt.id}`],
+    ])
+    expect(mineNow.some((a) => a.kind === 'quiet_task')).toBe(false)
+
+    // A Quick Task nobody set is any admin's to review.
+    const adminNow = (await clientAs(admin).dashboard.get()).attention
+    expect(adminNow.filter((a) => a.kind === 'submission').map((a) => a.href)).toContain(
+      `/quick-tasks/${unset.id}`,
+    )
   })
 
   it('offers discovery by skill, country and Quick Tasks, skipping my own', async () => {

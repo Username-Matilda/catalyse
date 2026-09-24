@@ -121,6 +121,7 @@ export default function ProjectEditor(props: ProjectEditorProps) {
   const [collaborationLink, setCollaborationLink] = useState('')
   const [skills, setSkills] = useState<SelectedSkill[]>([])
   const [seekingHelp, setSeekingHelp] = useState(true)
+  const [autoAccept, setAutoAccept] = useState(true)
   const [wantToOwn, setWantToOwn] = useState(false)
 
   const { data: localGroupsData } = useQuery(orpc.localGroups.list.queryOptions({ input: {} }))
@@ -165,6 +166,7 @@ export default function ProjectEditor(props: ProjectEditorProps) {
     setStartDate(toDateInputValue(data.startDate))
     setDurationDays(data.durationDays !== null ? String(data.durationDays) : '')
     setSeekingHelp(data.isSeekingHelp ?? false)
+    setAutoAccept(data.autoAcceptTasks)
     setWantToOwn(data.ownerId === user?.id)
     const isOwner = data.ownerId === user?.id || data.proposedById === user?.id
     setCanEdit(isOwner || (user?.isAdmin ?? false))
@@ -831,6 +833,26 @@ export default function ProjectEditor(props: ProjectEditorProps) {
             </Checkbox>
           </div>
         </div>
+
+        {projectId !== undefined && (
+          <div className="mb-5">
+            <p className="font-medium mb-2">Finished tasks:</p>
+            <Checkbox
+              checked={autoAccept}
+              onChange={(e) => {
+                setAutoAccept(e.target.checked)
+                commitField({ autoAcceptTasks: e.target.checked })
+              }}
+              disabled={!canEdit}
+            >
+              Accept submitted work automatically
+            </Checkbox>
+            <p className="text-sm text-text-light mt-1 mb-0">
+              Helpers always say what they did. Turn this off to check each task before it counts as
+              done.
+            </p>
+          </div>
+        )}
 
         {/* Ownership is only settable here while it's still a draft. Once live, it's
             changed from the project page's owner menu instead. */}

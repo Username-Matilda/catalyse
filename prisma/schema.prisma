@@ -53,6 +53,7 @@ enum RemoteEligibility {
 enum TaskStatus {
   open
   in_progress
+  under_review
   completed
 }
 
@@ -302,6 +303,14 @@ model WorkItem {
   reviewNotes  String?   @map("review_notes")
   reviewRating String?   @map("review_rating") // QUICK_TASK only
 
+  // Submitted work (TASK and QUICK_TASK): what the assignee says they did, at least one of
+  // the two. `changesRequestedNote` is the reviewer's latest "ask for changes", shown to the
+  // assignee until they submit again; `reviewedById`/`reviewedAt` above record who asked.
+  submissionNote       String?   @map("submission_note")
+  submissionUrl        String?   @map("submission_url")
+  submittedAt          DateTime? @map("submitted_at")
+  changesRequestedNote String?   @map("changes_requested_note")
+
   // Project-specific (nullable for TASK/QUICK_TASK)
   projectType                String?   @map("project_type") // TODO: enum — sprint, container, ongoing, one_off
   urgency                    String?   @default("medium") // TODO: enum — low, medium, high
@@ -312,6 +321,8 @@ model WorkItem {
   // No `is_seeking_owner` column: it is derived from (status, assigneeId). See
   // isSeekingOwner() in lib/project-status.ts.
   isSeekingHelp              Boolean?  @default(false) @map("is_seeking_help")
+  // Submitted tasks go straight to Done instead of waiting for the owner to accept them.
+  autoAcceptTasks            Boolean   @default(true) @map("auto_accept_tasks")
   outcome                    String? // TODO: enum — successful, partial, not_completed, ongoing
   outcomeNotes               String?   @map("outcome_notes")
   completedAt                DateTime? @map("completed_at")

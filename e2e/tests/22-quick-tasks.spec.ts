@@ -58,7 +58,7 @@ test.describe('Quick Tasks: self-serve', () => {
     await expect(getAlert(volunteer.page)).toContainText('Task claimed. Submit it for review', {
       timeout: 10_000,
     })
-    await expect(volunteer.page.getByRole('button', { name: 'Submit for review' })).toBeVisible({
+    await expect(volunteer.page.getByRole('button', { name: 'Submit work' })).toBeVisible({
       timeout: 10_000,
     })
   })

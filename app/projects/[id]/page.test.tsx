@@ -98,8 +98,12 @@ describe('project page — visitor', () => {
         .map((l) => l.textContent)
         .filter((t) => t?.endsWith(' task'))
     expect(taskOrder()).toEqual(['Open task', 'Ongoing task', 'Done task'])
-    await userEvent.click(await screen.findByRole('button', { name: 'Done' }))
-    await screen.findByText('Task completed!')
+    await userEvent.click(await screen.findByRole('button', { name: 'Submit work' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Submit your work' })
+    expect(within(dialog).getByText(/This marks the task done/)).toBeInTheDocument()
+    await userEvent.type(within(dialog).getByLabelText('What did you do?'), 'Did it')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Submit work' }))
+    await screen.findByText('Task done. What you did is saved on the task.')
     // The finished task stays where it was; the server's order applies on the next load.
     await waitFor(() => expect(screen.getAllByText('done')).toHaveLength(2))
     expect(taskOrder()).toEqual(['Open task', 'Ongoing task', 'Done task'])
@@ -214,6 +218,46 @@ describe('project page — visitor', () => {
     await mount(project.id, me)
     await screen.findByText('Contact the owner if you would like to rejoin.')
     expect(screen.queryByRole('button', { name: 'Withdraw Interest' })).toBeNull()
+  })
+})
+
+describe('project page — submitted work', () => {
+  it('names the owner as reviewer, and shows the owner what is waiting', async () => {
+    const owner = await createVolunteer()
+    const me = await createVolunteer()
+    const project = await createProject({
+      title: 'Reviewed project',
+      assigneeId: owner.id,
+      status: 'in_progress',
+      autoAcceptTasks: false,
+    })
+    await prisma.workItemInterest.create({
+      data: {
+        workItemId: project.id,
+        volunteerId: me.id,
+        interestType: 'want_to_contribute',
+        status: 'accepted',
+      },
+    })
+    await createTask(project.id, { title: 'Mine', status: 'in_progress', assigneeId: me.id })
+    const waiting = await createTask(project.id, {
+      title: 'Waiting',
+      status: 'under_review',
+      assigneeId: me.id,
+    })
+    await mount(project.id, me)
+    await userEvent.click(await screen.findByRole('button', { name: 'Submit work' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Submit your work' })
+    expect(within(dialog).getByText(/The project owner will look at it/)).toBeInTheDocument()
+    expect(screen.getByText('Submitted for review')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Review' })).toBeNull()
+
+    cleanup()
+    await mount(project.id, owner)
+    expect(await screen.findByRole('link', { name: 'Review' })).toHaveAttribute(
+      'href',
+      `/projects/${project.id}/tasks/${waiting.id}`,
+    )
   })
 })
 

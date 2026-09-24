@@ -15,6 +15,8 @@ import {
   serializeTask,
   applyScheduleWrite,
   canManageProject,
+  submissionData,
+  CLEARED_SUBMISSION,
   canCreateProjectTask,
   canDeleteProjectTask,
   resolveProjectMembership,
@@ -27,12 +29,15 @@ import {
 } from '@/lib/project-schedule'
 import { notifyMatchingVolunteers } from '@/lib/project-match-notify'
 import { html } from '@/lib/email'
+import { awaitsOwnerReview } from '@/lib/task-review'
 import {
   CreateProjectSchema,
   UpdateProjectSchema,
   ProjectInterestBodySchema,
   CreateProjectTaskSchema,
   UpdateProjectTaskSchema,
+  SubmitWorkSchema,
+  RequestChangesSchema,
 } from '@/lib/schemas'
 import {
   authedProcedure,
@@ -118,15 +123,42 @@ async function releaseTasksHeldBy(projectId: number, volunteerId: number): Promi
       updatedAt: new Date(),
       nudgeSentAt: null,
       finalWarningSentAt: null,
+      ...CLEARED_SUBMISSION,
     },
   })
 }
 
-// open and in_progress share a bucket so claiming/assigning a task doesn't
+async function findProjectTask(projectId: number, taskId: number) {
+  const [project, task] = await Promise.all([
+    prisma.workItem.findFirst({ where: { id: projectId, type: WorkItemType.PROJECT } }),
+    prisma.workItem.findFirst({
+      where: { id: taskId, parentId: projectId, type: WorkItemType.TASK },
+    }),
+  ])
+  if (!project || !task) throw new ORPCError('NOT_FOUND', { message: 'Project or task not found' })
+  return { project, task }
+}
+
+/** A submitted task the volunteer may accept or send back: the project's owner or an admin. */
+async function findTaskToReview(
+  projectId: number,
+  taskId: number,
+  volunteer: { id: number; isAdmin: boolean | null },
+) {
+  const found = await findProjectTask(projectId, taskId)
+  assertCanManageProject(found.project, volunteer, 'Only the project owner can review this task')
+  if (found.task.status !== TaskStatus.under_review) {
+    throw new ORPCError('BAD_REQUEST', { message: 'This task is not waiting for review' })
+  }
+  return found
+}
+
+// Unfinished tasks share a bucket so claiming, assigning or submitting a task doesn't
 // disturb its priority position — only completed tasks sink to the bottom.
 const TASK_ORDER: Record<string, number> = {
   [TaskStatus.open]: 0,
   [TaskStatus.in_progress]: 0,
+  [TaskStatus.under_review]: 0,
   [TaskStatus.completed]: 1,
 }
 
@@ -988,6 +1020,7 @@ export const projectsRouter = {
       }
 
       if (body.isSeekingHelp !== undefined) data.isSeekingHelp = body.isSeekingHelp
+      if (body.autoAcceptTasks !== undefined) data.autoAcceptTasks = body.autoAcceptTasks
 
       // Gaining an owner starts the work; losing one hands the project back to `ready`
       // rather than leaving it in_progress with nobody on it. isSeekingOwner needs no
@@ -1490,6 +1523,7 @@ export const projectsRouter = {
         include: {
           assignee: { select: { name: true, consentContactableByProjectOwners: true } },
           creator: { select: { name: true } },
+          reviewedBy: { select: { name: true } },
         },
       })
       if (!task) throw new ORPCError('NOT_FOUND', { message: 'Task not found' })
@@ -1534,14 +1568,23 @@ export const projectsRouter = {
         }),
       ])
 
+      const canManage = canManageProject(project, volunteer)
+      // A reviewer's request for changes is between them and the assignee.
+      const changesRequested =
+        task.changesRequestedNote !== null && (canManage || task.assigneeId === volunteer.id)
+          ? { message: task.changesRequestedNote, byName: task.reviewedBy?.name ?? null }
+          : null
+
       return {
         ...serializeTask(task),
         // The assignee has said something on the task, so it reads as under way.
         assigneeHasPosted: assigneeUpdates > 0,
+        changesRequested,
+        autoAcceptTasks: project.autoAcceptTasks,
         projectTitle: project.title,
         projectOwnerId: project.assigneeId,
         canClaim,
-        canManage: canManageProject(project, volunteer),
+        canManage,
         assignedToName: task.assignee?.name ?? null,
         assigneeContactable: task.assignee?.consentContactableByProjectOwners ?? false,
         createdByName: task.creator?.name ?? null,
@@ -1765,7 +1808,6 @@ export const projectsRouter = {
         throw new ORPCError('NOT_FOUND', { message: 'Project or task not found' })
 
       const isAssignee = project.assigneeId === volunteer.id
-      const isTaskAssignee = task.assigneeId === volunteer.id
 
       const newStatus = input.data.status
       const newAssigneeId = input.data.assigneeId
@@ -1786,15 +1828,10 @@ export const projectsRouter = {
         newStatus === TaskStatus.in_progress &&
         newAssigneeId === volunteer.id &&
         task.status === TaskStatus.open
-      const isMarkingDone =
-        onlyTouchesStatusAndAssignee &&
-        newStatus === TaskStatus.completed &&
-        isTaskAssignee &&
-        task.status === TaskStatus.in_progress
 
       const isDraftCreator =
         project.creatorId === volunteer.id && project.status === ProjectStatus.draft
-      if (!isAssignee && !volunteer.isAdmin && !isSelfClaim && !isMarkingDone && !isDraftCreator) {
+      if (!isAssignee && !volunteer.isAdmin && !isSelfClaim && !isDraftCreator) {
         throw new ORPCError('FORBIDDEN', { message: 'Not authorized to update this task' })
       }
 
@@ -1829,8 +1866,10 @@ export const projectsRouter = {
         } else if (input.data.status === TaskStatus.open) {
           data.assigneeId = null
           data.completedAt = null
-          // Back to unstarted: the actuals describe work that is no longer claimed.
+          // Back to unstarted: the actuals and any submission describe work that is no
+          // longer claimed.
           data.startedAt = null
+          Object.assign(data, CLEARED_SUBMISSION)
         }
       }
       if (input.data.assigneeId !== undefined) data.assigneeId = input.data.assigneeId
@@ -1871,6 +1910,147 @@ export const projectsRouter = {
       }
 
       return { message: 'Task updated' }
+    }),
+
+  /**
+   * The assignee hands in their work. It waits for the owner as Submitted for review, unless
+   * the project auto-accepts, has no owner to review it, or the submitter could accept it.
+   */
+  submitTask: approvedProcedure
+    .input(
+      z.object({ projectId: z.number().int(), taskId: z.number().int() }).merge(SubmitWorkSchema),
+    )
+    .handler(async ({ input, context }) => {
+      const volunteer = context.volunteer
+      const { project, task } = await findProjectTask(input.projectId, input.taskId)
+      if (task.assigneeId !== volunteer.id) {
+        throw new ORPCError('FORBIDDEN', {
+          message: 'Only the person doing this task can submit it',
+        })
+      }
+      if (task.status !== TaskStatus.in_progress) {
+        throw new ORPCError('BAD_REQUEST', { message: 'Only a task in progress can be submitted' })
+      }
+      const submission = submissionData(input)
+      if (!submission) {
+        throw new ORPCError('BAD_REQUEST', { message: 'Say what you did or add a link to it' })
+      }
+
+      const reviewerId = project.assigneeId
+      const accepted = !awaitsOwnerReview(
+        { autoAcceptTasks: project.autoAcceptTasks, ownerId: reviewerId },
+        canManageProject(project, volunteer),
+      )
+      await prisma.workItem.update({
+        where: { id: task.id },
+        data: {
+          ...submission,
+          status: accepted ? TaskStatus.completed : TaskStatus.under_review,
+          ...(accepted ? { completedAt: submission.submittedAt } : {}),
+          updatedAt: new Date(),
+          nudgeSentAt: null,
+          finalWarningSentAt: null,
+        },
+      })
+
+      if (reviewerId !== null && reviewerId !== volunteer.id) {
+        const link = `/projects/${project.id}/tasks/${task.id}`
+        const said = submission.submissionNote ?? submission.submissionUrl
+        if (accepted) {
+          notifyUser(
+            reviewerId,
+            'task_done',
+            `Done: '${task.title}'`,
+            `${volunteer.name}: ${said}`,
+            link,
+          )
+        } else {
+          await notifyUser(
+            reviewerId,
+            'task_submitted',
+            `Submitted for review: '${task.title}'`,
+            `${volunteer.name}: ${said}`,
+            link,
+            {
+              message: html`${volunteer.name} submitted the task <strong>${task.title}</strong> on
+                <strong>${project.title}</strong> for your review.`,
+              projectTitle: project.title,
+              projectId: project.id,
+            },
+            task.id,
+          )
+        }
+      }
+
+      return {
+        message: accepted ? 'Task done' : 'Task submitted for review',
+        status: accepted ? TaskStatus.completed : TaskStatus.under_review,
+      }
+    }),
+
+  acceptTask: approvedProcedure
+    .input(z.object({ projectId: z.number().int(), taskId: z.number().int() }))
+    .handler(async ({ input, context }) => {
+      const volunteer = context.volunteer
+      const { task } = await findTaskToReview(input.projectId, input.taskId, volunteer)
+      const now = new Date()
+      await prisma.workItem.update({
+        where: { id: task.id },
+        data: {
+          status: TaskStatus.completed,
+          completedAt: now,
+          reviewedById: volunteer.id,
+          reviewedAt: now,
+          changesRequestedNote: null,
+          updatedAt: now,
+        },
+      })
+      await clearNotifications('task_submitted', task.id)
+      if (task.assigneeId !== null) {
+        notifyUser(
+          task.assigneeId,
+          'task_accepted',
+          `Accepted: '${task.title}'`,
+          `${volunteer.name} accepted your work`,
+          `/projects/${input.projectId}/tasks/${task.id}`,
+        )
+      }
+      return { message: 'Task accepted' }
+    }),
+
+  requestTaskChanges: approvedProcedure
+    .input(
+      z
+        .object({ projectId: z.number().int(), taskId: z.number().int() })
+        .merge(RequestChangesSchema),
+    )
+    .handler(async ({ input, context }) => {
+      const volunteer = context.volunteer
+      const { task } = await findTaskToReview(input.projectId, input.taskId, volunteer)
+      const now = new Date()
+      await prisma.workItem.update({
+        where: { id: task.id },
+        data: {
+          status: TaskStatus.in_progress,
+          changesRequestedNote: input.message,
+          reviewedById: volunteer.id,
+          reviewedAt: now,
+          updatedAt: now,
+        },
+      })
+      await clearNotifications('task_submitted', task.id)
+      if (task.assigneeId !== null) {
+        notifyUser(
+          task.assigneeId,
+          'task_changes_requested',
+          `Changes requested: '${task.title}'`,
+          input.message,
+          `/projects/${input.projectId}/tasks/${task.id}`,
+          undefined,
+          task.id,
+        )
+      }
+      return { message: 'Changes requested' }
     }),
 
   assignTask: approvedProcedure

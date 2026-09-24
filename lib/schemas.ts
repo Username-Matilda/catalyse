@@ -202,6 +202,7 @@ export const UpdateProjectSchema = WorkItemSchema.pick({
   assigneeId: true,
   outcome: true,
   outcomeNotes: true,
+  autoAcceptTasks: true,
 })
   .partial()
   .extend({
@@ -410,6 +411,24 @@ export const CreateQuickTaskSchema = WorkItemSchema.pick({
 
 export const AssignQuickTaskSchema = z.object({
   volunteerId: z.number().int({ message: 'volunteerId is required' }),
+})
+
+/** Handing in a task. At least one of the two is required; `submissionData` checks that. */
+export const SubmitWorkSchema = z.object({
+  note: z.string().trim().max(5000).optional().nullable(),
+  url: z
+    .string()
+    .trim()
+    .max(2000)
+    .refine((u) => u === '' || /^https?:\/\/\S+$/i.test(u), {
+      message: 'The link must start with http:// or https://',
+    })
+    .optional()
+    .nullable(),
+})
+
+export const RequestChangesSchema = z.object({
+  message: z.string().trim().min(1, { message: 'Say what needs changing' }).max(5000),
 })
 
 export const ReviewQuickTaskSchema = z.object({

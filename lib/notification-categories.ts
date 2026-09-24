@@ -17,6 +17,8 @@ const NEEDS_ACTION_TYPES = [
   'project_resubmitted',
   'mention',
   'quick_task_submitted',
+  'task_submitted',
+  'task_changes_requested',
   // Admin-only (hidden from the Inbox, but their emails follow this category).
   'new_volunteer_signup',
   'new_project_proposal',

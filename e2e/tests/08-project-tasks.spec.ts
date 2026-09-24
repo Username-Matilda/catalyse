@@ -291,13 +291,13 @@ test.describe('Project Tasks', () => {
       timeout: 10_000,
     })
 
-    // Done button appears only for the assignee — confirms task is now assigned to this volunteer
-    await expect(volunteer.page.getByRole('button', { name: 'Done' })).toBeVisible({
+    // Submit work appears only for the assignee — confirms task is now assigned to this volunteer
+    await expect(volunteer.page.getByRole('button', { name: 'Submit work' })).toBeVisible({
       timeout: 10_000,
     })
   })
 
-  test('A volunteer can mark their claimed task as done', async ({
+  test('A volunteer submits their claimed task, which the project auto-accepts', async ({
     adminPage,
     volunteer,
     baseUrl,
@@ -312,10 +312,13 @@ test.describe('Project Tasks', () => {
       timeout: 10_000,
     })
 
-    await volunteer.page.getByRole('button', { name: 'Done' }).click()
-    await expect(getAlert(volunteer.page)).toContainText('Task completed!', { timeout: 10_000 })
+    await volunteer.page.getByRole('button', { name: 'Submit work' }).click()
+    const dialog = volunteer.page.getByRole('dialog', { name: 'Submit your work' })
+    await dialog.getByLabel('What did you do?').fill('Finished the first pass')
+    await dialog.getByRole('button', { name: 'Submit work' }).click()
+    await expect(getAlert(volunteer.page)).toContainText('Task done.', { timeout: 10_000 })
 
-    await expect(volunteer.page.getByRole('button', { name: 'Done' })).not.toBeVisible({
+    await expect(volunteer.page.getByRole('button', { name: 'Submit work' })).not.toBeVisible({
       timeout: 10_000,
     })
     await expect(volunteer.page.getByText('done', { exact: true })).toBeVisible({ timeout: 10_000 })

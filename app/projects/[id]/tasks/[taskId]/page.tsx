@@ -17,8 +17,12 @@ import { TaskStatus } from '@/generated/prisma/enums'
 import { TASK_STATUS_LABELS, TASK_STATUS_VARIANTS } from '@/lib/status-labels'
 import { PROJECT_TASK_CLAIMED_MESSAGE } from '@/lib/action-messages'
 import { TASK_INACTIVITY_RULE } from '@/lib/staleness'
+import { awaitsOwnerReview } from '@/lib/task-review'
 import PageLoading from '@/components/PageLoading'
 import NotFoundCard from '@/components/NotFoundCard'
+import SubmitWorkButton from '@/components/SubmitWorkButton'
+import SubmittedWork from '@/components/SubmittedWork'
+import RequestChangesButton from '@/components/RequestChangesButton'
 
 export default function TaskDetailPage({
   params,
@@ -69,9 +73,7 @@ export default function TaskDetailPage({
       showToast(
         variables.data.status === TaskStatus.in_progress
           ? PROJECT_TASK_CLAIMED_MESSAGE
-          : variables.data.status === TaskStatus.completed
-            ? 'Task completed!'
-            : 'Task updated!',
+          : 'Task updated!',
         'success',
       )
       setIsEditing(false)
@@ -84,6 +86,16 @@ export default function TaskDetailPage({
 
   const invalidateTask = () =>
     queryClient.invalidateQueries({ queryKey: orpc.projects.getTask.key() })
+
+  const acceptMutation = useMutation({
+    ...orpc.projects.acceptTask.mutationOptions(),
+    onSuccess: () => {
+      showToast('Accepted. The task is done.', 'success')
+      void invalidateTask()
+    },
+    onError: (err: unknown) =>
+      showToast(err instanceof Error ? err.message : 'Failed to accept', 'error'),
+  })
 
   const addDependencyMutation = useMutation({
     ...orpc.dependencies.add.mutationOptions(),
@@ -151,10 +163,6 @@ export default function TaskDetailPage({
       taskId,
       data: { status: TaskStatus.in_progress, assigneeId },
     })
-  }
-
-  function handleDoneTask() {
-    updateMutation.mutate({ projectId, taskId, data: { status: TaskStatus.completed } })
   }
 
   if (loading || !user) return <PageLoading />
@@ -265,16 +273,38 @@ export default function TaskDetailPage({
           </div>
         )}
 
+        <SubmittedWork submission={task.submission} changesRequested={task.changesRequested} />
+
+        {task.status === TaskStatus.under_review && task.canManage && (
+          <div className="flex flex-wrap gap-2 mt-4">
+            <Button
+              disabled={acceptMutation.isPending}
+              onClick={() => acceptMutation.mutate({ projectId, taskId })}
+            >
+              Accept
+            </Button>
+            <RequestChangesButton
+              target={{ kind: 'project', projectId, taskId }}
+              assigneeName={task.assignedToName}
+            />
+          </div>
+        )}
+
         {task.status === TaskStatus.in_progress && task.assignedToId === user.id && (
           <div className="mt-4">
-            <Button
-              variant="secondary"
+            <SubmitWorkButton
+              target={{ kind: 'project', projectId, taskId }}
+              reviewer={
+                awaitsOwnerReview(
+                  { autoAcceptTasks: task.autoAcceptTasks, ownerId: task.projectOwnerId },
+                  task.canManage,
+                )
+                  ? 'The project owner'
+                  : null
+              }
               size="sm"
-              disabled={updateMutation.isPending}
-              onClick={handleDoneTask}
-            >
-              Mark done
-            </Button>
+              variant="secondary"
+            />
             <p className="text-sm text-text-light mt-2 mb-0">{TASK_INACTIVITY_RULE}</p>
           </div>
         )}

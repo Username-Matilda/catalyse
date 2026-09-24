@@ -373,6 +373,7 @@ export type EnrichedProject = ScheduleFieldsLike & {
   reviewedById: number | null
   reviewedAt: Date | null
   collaborationLink: string | null
+  autoAcceptTasks: boolean
   outcome: string | null
   outcomeNotes: string | null
   completedAt: Date | null
@@ -428,6 +429,7 @@ export function withProjectExtras(
     updatedAt: p.updatedAt,
     country: p.country,
     isSeekingHelp: p.isSeekingHelp,
+    autoAcceptTasks: p.autoAcceptTasks,
     // Derived, not stored — see isSeekingOwner() in lib/project-status.ts.
     isSeekingOwner: isSeekingOwner(p),
     // An owned project with an empty backlog. Surfaced as a badge rather than a status:
@@ -523,6 +525,42 @@ export type TaskLike = ScheduleFieldsLike & {
   completedAt: Date | null
   createdAt: Date | null
   updatedAt: Date | null
+} & SubmissionLike
+
+type SubmissionLike = {
+  submissionNote: string | null
+  submissionUrl: string | null
+  submittedAt: Date | null
+}
+
+/** What the assignee handed in, or null before they first submit. */
+export function serializeSubmission(t: SubmissionLike) {
+  if (t.submittedAt === null) return null
+  return { note: t.submissionNote, url: t.submissionUrl, submittedAt: t.submittedAt }
+}
+
+/** Writes that forget a submission, for a task going back to nobody's. */
+export const CLEARED_SUBMISSION = {
+  submissionNote: null,
+  submissionUrl: null,
+  submittedAt: null,
+  changesRequestedNote: null,
+} as const
+
+/**
+ * The columns a submission writes, or null when it holds neither a note nor a link. Blank
+ * strings count as absent.
+ */
+export function submissionData(input: { note?: string | null; url?: string | null }) {
+  const note = input.note?.trim() || null
+  const url = input.url?.trim() || null
+  if (note === null && url === null) return null
+  return {
+    submissionNote: note,
+    submissionUrl: url,
+    submittedAt: new Date(),
+    changesRequestedNote: null,
+  }
 }
 
 export function serializeTask(t: TaskLike) {
@@ -539,6 +577,7 @@ export function serializeTask(t: TaskLike) {
     completedAt: t.completedAt,
     createdAt: t.createdAt,
     updatedAt: t.updatedAt,
+    submission: serializeSubmission(t),
     ...serializeScheduleFields(t),
   }
 }
@@ -587,7 +626,8 @@ export type StarterTaskLike = {
   estimatedHours: number | null
   createdAt: Date | null
   updatedAt: Date | null
-}
+  changesRequestedNote: string | null
+} & SubmissionLike
 
 export function serializeStarterTask(t: StarterTaskLike) {
   return {
@@ -606,5 +646,7 @@ export function serializeStarterTask(t: StarterTaskLike) {
     estimatedHours: t.estimatedHours,
     createdAt: t.createdAt,
     updatedAt: t.updatedAt,
+    submission: serializeSubmission(t),
+    changesRequested: t.changesRequestedNote,
   }
 }

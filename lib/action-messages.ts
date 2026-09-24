@@ -16,6 +16,11 @@ export function teamApplicationSentMessage(teamName: string): string {
 export const QUICK_TASK_SUBMITTED_MESSAGE =
   "Submitted. An admin will review it and you'll get a notification."
 
+export const TASK_SUBMITTED_MESSAGE =
+  "Submitted. The project owner will review it and you'll get a notification."
+
+export const TASK_DONE_MESSAGE = 'Task done. What you did is saved on the task.'
+
 export const QUICK_TASK_CLAIMED_MESSAGE = "Task claimed. Submit it for review when it's done."
 
 export const PROJECT_TASK_CLAIMED_MESSAGE = `Task claimed. Post an update within ${TASK_REMINDER_AFTER_DAYS} days; after ${TASK_RELEASE_AFTER_DAYS} days with none, the task is released.`

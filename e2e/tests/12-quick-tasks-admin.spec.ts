@@ -71,8 +71,10 @@ async function submitQuickTask(
   taskTitle: string,
 ): Promise<void> {
   await openFromHome(baseUrl, volunteerPage, taskTitle)
-  await volunteerPage.getByRole('button', { name: 'Submit for review' }).click()
-  await volunteerPage.getByRole('dialog').getByRole('button', { name: 'Submit for review' }).click()
+  await volunteerPage.getByRole('button', { name: 'Submit work' }).click()
+  const dialog = volunteerPage.getByRole('dialog', { name: 'Submit your work' })
+  await dialog.getByLabel('What did you do?').fill('Done, notes in the doc')
+  await dialog.getByRole('button', { name: 'Submit work' }).click()
   await expect(getAlert(volunteerPage)).toContainText('Submitted. An admin will review it', {
     timeout: 10_000,
   })
@@ -241,7 +243,7 @@ test.describe('Quick Tasks (admin)', () => {
     // Admin receives a notification (admins are also volunteers and can view their dashboard)
     await goToInbox(baseUrl, adminPage)
     await expect(
-      adminPage.locator('strong').filter({ hasText: `${volunteer.name} submitted:` }),
+      adminPage.locator('strong').filter({ hasText: `Submitted for review: '${taskTitle}'` }),
     ).toBeVisible({ timeout: 10_000 })
   })
 
@@ -273,9 +275,11 @@ test.describe('Quick Tasks (admin)', () => {
     await expect(reviewDialog).toBeVisible({ timeout: 10_000 })
     await reviewDialog.getByRole('radio', { name: /Excellent/ }).click()
     await reviewDialog.getByLabel("Feedback to Volunteer (they'll see this)").fill('Great work!')
-    await reviewDialog.getByRole('button', { name: 'Submit Review' }).click()
+    await reviewDialog.getByRole('button', { name: 'Accept' }).click()
 
-    await expect(getAlert(adminPage)).toContainText('Task reviewed!', { timeout: 10_000 })
+    await expect(getAlert(adminPage)).toContainText('Accepted. The task is done.', {
+      timeout: 10_000,
+    })
 
     // Task status becomes 'completed'
     await expect(taskCard.getByRole('status')).toContainText('Done', { timeout: 10_000 })
@@ -324,9 +328,11 @@ test.describe('Quick Tasks (admin)', () => {
     await reviewDialog
       .getByLabel("Feedback to Volunteer (they'll see this)")
       .fill('Please try again.')
-    await reviewDialog.getByRole('button', { name: 'Submit Review' }).click()
+    await reviewDialog.getByRole('button', { name: 'Accept' }).click()
 
-    await expect(getAlert(adminPage)).toContainText('Task reviewed!', { timeout: 10_000 })
+    await expect(getAlert(adminPage)).toContainText('Accepted. The task is done.', {
+      timeout: 10_000,
+    })
 
     // Task status becomes 'completed'
     await expect(taskCard.getByRole('status')).toContainText('Done', { timeout: 10_000 })

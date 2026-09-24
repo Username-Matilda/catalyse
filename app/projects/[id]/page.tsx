@@ -25,6 +25,9 @@ import CommentThread from '@/components/CommentThread'
 import ChangesRequestedBanner from '@/components/ChangesRequestedBanner'
 import MessageDialog from '@/components/MessageDialog'
 import Linkify from '@/components/Linkify'
+import SubmitWorkButton from '@/components/SubmitWorkButton'
+import { awaitsOwnerReview } from '@/lib/task-review'
+import { TASK_STATUS_LABELS, TASK_STATUS_VARIANTS } from '@/lib/status-labels'
 import Modal from '@/components/ui/Modal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import FilterDropdown, { useFilterOptions } from '@/components/FilterDropdown'
@@ -788,8 +791,6 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     onSuccess: (_data, variables) => {
       if (variables.data.status === TaskStatus.in_progress) {
         showToast(PROJECT_TASK_CLAIMED_MESSAGE, 'success')
-      } else if (variables.data.status === TaskStatus.completed) {
-        showToast('Task completed!', 'success')
       } else if (variables.data.status === TaskStatus.open) {
         showToast('Task unassigned!', 'success')
       }
@@ -1029,14 +1030,6 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       projectId: parseInt(idParam, 10),
       taskId,
       data: { status: TaskStatus.in_progress, assigneeId: user!.id },
-    })
-  }
-
-  function handleDoneTask(taskId: number) {
-    updateTaskMutation.mutate({
-      projectId: parseInt(idParam, 10),
-      taskId,
-      data: { status: TaskStatus.completed },
     })
   }
 
@@ -1435,6 +1428,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                       <span aria-hidden="true">✓</span> <span>done</span>
                                     </span>
                                   )}
+                                  {task.status === TaskStatus.under_review && (
+                                    <Badge variant={TASK_STATUS_VARIANTS.under_review}>
+                                      {TASK_STATUS_LABELS.under_review}
+                                    </Badge>
+                                  )}
                                   {task.featuredAsQuickTask && (
                                     <span
                                       className="text-xs whitespace-nowrap"
@@ -1491,14 +1489,30 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                   )}
                                   {task.status === TaskStatus.in_progress &&
                                     task.assignedToId === user.id && (
-                                      <Button
-                                        variant="secondary"
+                                      <SubmitWorkButton
+                                        target={{
+                                          kind: 'project',
+                                          projectId: project.id,
+                                          taskId: task.id,
+                                        }}
+                                        reviewer={
+                                          awaitsOwnerReview(project, isOwnerOrAdmin)
+                                            ? 'The project owner'
+                                            : null
+                                        }
                                         size="sm"
-                                        onClick={() => handleDoneTask(task.id)}
-                                      >
-                                        Done
-                                      </Button>
+                                        variant="secondary"
+                                      />
                                     )}
+                                  {task.status === TaskStatus.under_review && isOwnerOrAdmin && (
+                                    <Button
+                                      variant="secondary"
+                                      size="sm"
+                                      href={`/projects/${idParam}/tasks/${task.id}`}
+                                    >
+                                      Review
+                                    </Button>
+                                  )}
                                 </>
                               }
                               menu={

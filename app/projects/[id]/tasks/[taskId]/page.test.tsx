@@ -18,7 +18,7 @@ const mount = (
   )
 
 describe('task detail page', () => {
-  it('lets the assignee mark a task done, and reads Claimed on until they post an update', async () => {
+  it('lets the assignee submit their work, and reads Claimed on until they post an update', async () => {
     const me = await createVolunteer()
     const someoneElse = await createVolunteer()
     const project = await createProject({ status: 'in_progress' })
@@ -30,7 +30,7 @@ describe('task detail page', () => {
     })
     await mount(project.id, task.id, someoneElse)
     await screen.findByRole('heading', { name: 'Mine' })
-    expect(screen.queryByRole('button', { name: 'Mark done' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Submit work' })).toBeNull()
 
     cleanup()
     await mount(project.id, task.id, me)
@@ -41,10 +41,130 @@ describe('task detail page', () => {
     cleanup()
     await mount(project.id, task.id, me)
     await screen.findByText(/Started 2 January 2030/)
-    await userEvent.click(screen.getByRole('button', { name: 'Mark done' }))
-    await screen.findByText('Task completed!')
+
+    // A project with no owner to review it takes the work as done.
+    await userEvent.click(screen.getByRole('button', { name: 'Submit work' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Submit your work' })
+    expect(within(dialog).getByText(/This marks the task done/)).toBeInTheDocument()
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Submit work' }))
+    const again = await screen.findByRole('dialog', { name: 'Submit your work' })
+    await userEvent.click(within(again).getByRole('button', { name: 'Submit work' }))
+    expect(within(again).getByText('Say what you did or add a link to it.')).toBeInTheDocument()
+    await userEvent.type(
+      within(again).getByLabelText('Link to your work (optional)'),
+      'https://x.org',
+    )
+    await userEvent.clear(within(again).getByLabelText('Link to your work (optional)'))
+    await userEvent.type(within(again).getByLabelText('What did you do?'), 'Wrote it up')
+    expect(within(again).queryByText('Say what you did or add a link to it.')).toBeNull()
+    await userEvent.click(within(again).getByRole('button', { name: 'Submit work' }))
+    await screen.findByText('Task done. What you did is saved on the task.')
     await waitFor(async () => expect((await row(task.id)).status).toBe('completed'))
-    await waitFor(() => expect(screen.queryByRole('button', { name: 'Mark done' })).toBeNull())
+    await screen.findByRole('heading', { name: 'Submitted work' })
+    expect(screen.getByText('Wrote it up')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Submit work' })).toBeNull()
+  })
+
+  it('queues work for the owner, who accepts it or asks for changes', async () => {
+    const owner = await createVolunteer({ name: 'Ola Owner' })
+    const me = await createVolunteer({ name: 'Hal Helper' })
+    const project = await createProject({
+      assigneeId: owner.id,
+      status: 'in_progress',
+      autoAcceptTasks: false,
+    })
+    const task = await createTask(project.id, {
+      title: 'Leaflet',
+      status: 'in_progress',
+      assigneeId: me.id,
+    })
+
+    await mount(project.id, task.id, me)
+    await userEvent.click(await screen.findByRole('button', { name: 'Submit work' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Submit your work' })
+    expect(within(dialog).getByText(/The project owner will look at it/)).toBeInTheDocument()
+    await userEvent.type(
+      within(dialog).getByLabelText('Link to your work (optional)'),
+      'https://example.org/leaflet',
+    )
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Submit work' }))
+    await screen.findByText(/Submitted. The project owner will review it/)
+    await screen.findByRole('link', { name: 'https://example.org/leaflet' })
+    expect(screen.queryByRole('button', { name: 'Accept' })).toBeNull()
+
+    cleanup()
+    await mount(project.id, task.id, owner)
+    await userEvent.click(await screen.findByRole('button', { name: 'Ask for changes' }))
+    const ask = await screen.findByRole('dialog', { name: 'Ask for changes' })
+    expect(within(ask).getByText(/goes back to Hal Helper/)).toBeInTheDocument()
+    // Enter can submit the form while Send back is disabled; nothing is sent.
+    fireEvent.submit(within(ask).getByLabelText('What needs changing?').closest('form')!)
+    await userEvent.click(within(ask).getByRole('button', { name: 'Cancel' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Ask for changes' }))
+    const ask2 = await screen.findByRole('dialog', { name: 'Ask for changes' })
+    await userEvent.type(within(ask2).getByLabelText('What needs changing?'), 'Add the date')
+    await userEvent.click(within(ask2).getByRole('button', { name: 'Send back' }))
+    await screen.findByText('Sent back to Hal Helper with your message.')
+    await waitFor(async () =>
+      expect(await row(task.id)).toMatchObject({
+        status: 'in_progress',
+        changesRequestedNote: 'Add the date',
+      }),
+    )
+
+    cleanup()
+    await mount(project.id, task.id, me)
+    await screen.findByRole('heading', { name: 'Changes requested by Ola Owner' })
+    expect(screen.getByText('Add the date')).toBeInTheDocument()
+    await userEvent.click(await screen.findByRole('button', { name: 'Submit work' }))
+    const resubmit = await screen.findByRole('dialog', { name: 'Submit your work' })
+    await userEvent.type(within(resubmit).getByLabelText('What did you do?'), 'Dated it')
+    await userEvent.click(within(resubmit).getByRole('button', { name: 'Submit work' }))
+    await screen.findByText(/Submitted. The project owner will review it/)
+    await waitFor(() =>
+      expect(screen.queryByRole('heading', { name: /Changes requested/ })).toBeNull(),
+    )
+
+    cleanup()
+    await mount(project.id, task.id, owner)
+    await userEvent.click(await screen.findByRole('button', { name: 'Accept' }))
+    await screen.findByText('Accepted. The task is done.')
+    await waitFor(async () => expect((await row(task.id)).status).toBe('completed'))
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Accept' })).toBeNull())
+  })
+
+  it('reports submit and review failures', async () => {
+    const owner = await createVolunteer()
+    const me = await createVolunteer()
+    const project = await createProject({
+      assigneeId: owner.id,
+      status: 'in_progress',
+      autoAcceptTasks: false,
+    })
+    const task = await createTask(project.id, { status: 'in_progress', assigneeId: me.id })
+    await mount(project.id, task.id, me)
+    await userEvent.click(await screen.findByRole('button', { name: 'Submit work' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Submit your work' })
+    await userEvent.type(within(dialog).getByLabelText('What did you do?'), 'Done')
+    await prisma.workItem.update({ where: { id: task.id }, data: { status: 'open' } })
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Submit work' }))
+    await screen.findByText('Only a task in progress can be submitted')
+
+    cleanup()
+    await prisma.workItem.update({ where: { id: task.id }, data: { status: 'under_review' } })
+    await mount(project.id, task.id, owner)
+    await screen.findByRole('button', { name: 'Accept' })
+    await prisma.workItem.update({ where: { id: task.id }, data: { status: 'in_progress' } })
+    await userEvent.click(screen.getByRole('button', { name: 'Accept' }))
+    await screen.findByText('This task is not waiting for review')
+    await userEvent.click(screen.getByRole('button', { name: 'Ask for changes' }))
+    const ask = await screen.findByRole('dialog', { name: 'Ask for changes' })
+    await userEvent.type(within(ask).getByLabelText('What needs changing?'), 'x')
+    await userEvent.click(within(ask).getByRole('button', { name: 'Send back' }))
+    await waitFor(() =>
+      expect(screen.getAllByText('This task is not waiting for review')).toHaveLength(2),
+    )
   })
 
   it('shows a task, lets a volunteer claim it, and the owner edit it and manage dependencies', async () => {
@@ -90,8 +210,8 @@ describe('task detail page', () => {
     await screen.findByText(
       'Task claimed. Post an update within 14 days; after 28 days with none, the task is released.',
     )
-    // The assignee keeps the rule in view beside Mark done.
-    await screen.findByRole('button', { name: 'Mark done' })
+    // The assignee keeps the rule in view beside Submit work.
+    await screen.findByRole('button', { name: 'Submit work' })
     expect(screen.getByText(rule)).toBeInTheDocument()
     await waitFor(async () => expect((await row(task.id)).assigneeId).toBe(me.id))
     await screen.findByText(`Assigned to ${me.name}`)

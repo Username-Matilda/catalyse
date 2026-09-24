@@ -1,4 +1,4 @@
-import { test, expect, createApprovedVolunteerNamed } from '../fixtures'
+import { test, expect, getAlert, createApprovedVolunteerNamed } from '../fixtures'
 import { adminCreateProjectViaApi, transferProjectOwnership } from '../actions/projects'
 import { homeHeading } from '../actions/dashboard'
 import { createApiClient } from '../client'
@@ -73,5 +73,62 @@ test.describe('Home', () => {
     await page.goto(`${baseUrl}/dashboard`)
     await expect(homeHeading(page)).toBeVisible({ timeout: 10_000 })
     await expect(attention.getByRole('listitem').filter({ hasText: title })).toHaveCount(0)
+  })
+
+  test('Work submitted on my project waits for me to accept it or ask for changes', async ({
+    adminPage,
+    volunteer,
+    baseUrl,
+  }) => {
+    test.setTimeout(90_000)
+    const projectId = await adminCreateProjectViaApi(baseUrl, fake.projectTitle(), 'Review e2e')
+    await transferProjectOwnership(baseUrl, adminPage, projectId, volunteer.name)
+
+    const page = volunteer.page
+    await page.goto(`${baseUrl}/dashboard`)
+    await expect(homeHeading(page)).toBeVisible({ timeout: 10_000 })
+    const ownerApi = createApiClient(
+      baseUrl,
+      await page.evaluate(() => localStorage.getItem('authToken')),
+    )
+    const taskTitle = `Review me ${fake.projectTitle()}`
+    const project = await ownerApi.projects.getById({ body: { id: projectId } })
+    const taskId = (project.body as { tasks: { id: number }[] }).tasks[0].id
+    await ownerApi.projects.updateTask({ body: { projectId, taskId, data: { title: taskTitle } } })
+    await ownerApi.projects.update({ body: { id: projectId, autoAcceptTasks: false } })
+
+    const helper = await createApprovedVolunteerNamed(baseUrl, fake.person().name)
+    const helperApi = createApiClient(baseUrl, helper.token)
+    await helperApi.projects.updateTask({
+      body: { projectId, taskId, data: { status: 'in_progress', assigneeId: helper.id } },
+    })
+    const submitted = await helperApi.projects.submitTask({
+      body: { projectId, taskId, note: 'First draft', url: 'https://example.org/draft' },
+    })
+    expect(submitted.body).toMatchObject({ status: 'under_review' })
+
+    await page.goto(`${baseUrl}/dashboard`)
+    const attention = page.getByRole('region', { name: /Needs your attention/ })
+    const item = attention.getByRole('listitem').filter({ hasText: taskTitle })
+    await expect(item).toContainText('is submitted for review', { timeout: 10_000 })
+    await item.getByRole('link', { name: /^Review:/ }).click()
+    await expect(page).toHaveURL(`${baseUrl}/projects/${projectId}/tasks/${taskId}`)
+    await expect(page.getByText('First draft')).toBeVisible({ timeout: 10_000 })
+
+    await page.getByRole('button', { name: 'Ask for changes' }).click()
+    const ask = page.getByRole('dialog', { name: 'Ask for changes' })
+    await ask.getByLabel('What needs changing?').fill('Add the sources')
+    await ask.getByRole('button', { name: 'Send back' }).click()
+    await expect(getAlert(page)).toContainText(`Sent back to ${helper.name}`, { timeout: 10_000 })
+
+    await helperApi.projects.submitTask({ body: { projectId, taskId, note: 'With sources' } })
+    await page.reload()
+    await expect(page.getByText('With sources')).toBeVisible({ timeout: 10_000 })
+    await page.getByRole('button', { name: 'Accept', exact: true }).click()
+    await expect(getAlert(page)).toContainText('Accepted. The task is done.', { timeout: 10_000 })
+
+    await page.goto(`${baseUrl}/dashboard`)
+    await expect(homeHeading(page)).toBeVisible({ timeout: 10_000 })
+    await expect(attention.getByRole('listitem').filter({ hasText: taskTitle })).toHaveCount(0)
   })
 })

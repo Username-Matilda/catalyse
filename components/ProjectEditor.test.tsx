@@ -402,6 +402,8 @@ describe('ProjectEditor — editing an existing project', () => {
 
     await userEvent.click(screen.getByLabelText('Help / contributors'))
     await waitFor(async () => expect((await row(project.id)).isSeekingHelp).toBe(true))
+    await userEvent.click(screen.getByLabelText('Accept submitted work automatically'))
+    await waitFor(async () => expect((await row(project.id)).autoAcceptTasks).toBe(false))
     await userEvent.click(screen.getByLabelText(/I want to lead/))
     await waitFor(async () => expect((await row(project.id)).assigneeId).toBe(me.id))
     await userEvent.click(screen.getByLabelText('This project needs an owner / lead'))

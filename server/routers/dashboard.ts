@@ -69,7 +69,7 @@ function taskHref(t: { id: number; type: string; parentId: number | null }): str
 }
 
 async function attentionFor(viewer: Viewer): Promise<AttentionItem[]> {
-  const [applicants, changes, quietTasks, mentions, submissions] = await Promise.all([
+  const [applicants, changes, quietTasks, mentions, submissions, sentBack] = await Promise.all([
     prisma.workItemInterest.findMany({
       where: {
         status: InterestStatus.pending,
@@ -95,6 +95,7 @@ async function attentionFor(viewer: Viewer): Promise<AttentionItem[]> {
     prisma.workItem.findMany({
       where: {
         assigneeId: viewer.id,
+        changesRequestedNote: null,
         OR: [
           { type: WorkItemType.TASK, status: TaskStatus.in_progress },
           { type: WorkItemType.QUICK_TASK, status: QuickTaskStatus.in_progress },
@@ -106,13 +107,37 @@ async function attentionFor(viewer: Viewer): Promise<AttentionItem[]> {
       where: { volunteerId: viewer.id, type: 'mention', readAt: null },
       orderBy: { createdAt: 'desc' },
     }),
+    // Quick Tasks I set, or any nobody set when I'm an admin; tasks on projects I own.
     prisma.workItem.findMany({
       where: {
-        type: WorkItemType.QUICK_TASK,
-        creatorId: viewer.id,
         status: QuickTaskStatus.under_review,
+        OR: [
+          {
+            type: WorkItemType.QUICK_TASK,
+            OR: [{ creatorId: viewer.id }, ...(viewer.isAdmin ? [{ creatorId: null }] : [])],
+          },
+          { type: WorkItemType.TASK, parent: { assigneeId: viewer.id } },
+        ],
       },
-      select: { id: true, title: true, updatedAt: true },
+      select: { id: true, type: true, title: true, parentId: true, submittedAt: true },
+    }),
+    prisma.workItem.findMany({
+      where: {
+        assigneeId: viewer.id,
+        changesRequestedNote: { not: null },
+        OR: [
+          { type: WorkItemType.TASK, status: TaskStatus.in_progress },
+          { type: WorkItemType.QUICK_TASK, status: QuickTaskStatus.in_progress },
+        ],
+      },
+      select: {
+        id: true,
+        type: true,
+        title: true,
+        parentId: true,
+        changesRequestedNote: true,
+        reviewedAt: true,
+      },
     }),
   ])
 
@@ -150,6 +175,19 @@ async function attentionFor(viewer: Viewer): Promise<AttentionItem[]> {
     })
   }
 
+  for (const t of sentBack) {
+    items.push({
+      key: `task-changes-${t.id}`,
+      kind: 'changes_requested',
+      title: `Changes requested on "${t.title}"`,
+      detail: t.changesRequestedNote,
+      href: taskHref(t),
+      action: 'Open',
+      notificationId: null,
+      at: t.reviewedAt,
+    })
+  }
+
   for (const t of quietTasks) {
     const days = daysQuiet(t.updatedAt)
     if (days === null) continue
@@ -184,10 +222,10 @@ async function attentionFor(viewer: Viewer): Promise<AttentionItem[]> {
       kind: 'submission',
       title: `"${t.title}" is submitted for review`,
       detail: null,
-      href: `/quick-tasks/${t.id}`,
+      href: taskHref(t),
       action: 'Review',
       notificationId: null,
-      at: t.updatedAt,
+      at: t.submittedAt,
     })
   }
 
@@ -221,7 +259,10 @@ async function workFor(viewer: Viewer): Promise<WorkRow[]> {
       where: {
         assigneeId: viewer.id,
         OR: [
-          { type: WorkItemType.TASK, status: TaskStatus.in_progress },
+          {
+            type: WorkItemType.TASK,
+            status: { in: [TaskStatus.in_progress, TaskStatus.under_review] },
+          },
           {
             type: WorkItemType.QUICK_TASK,
             status: { in: [QuickTaskStatus.in_progress, QuickTaskStatus.under_review] },

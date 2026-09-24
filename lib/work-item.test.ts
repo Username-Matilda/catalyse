@@ -12,6 +12,8 @@ import {
   withProjectExtras,
   serializeTask,
   serializeStarterTask,
+  serializeSubmission,
+  submissionData,
   applyScheduleWrite,
   projectInclude,
   type EnrichedProject,
@@ -243,6 +245,7 @@ describe('serializers', () => {
     scheduleUpdatedAt: null,
     startedAt: null,
   }
+  const unsubmitted = { submissionNote: null, submissionUrl: null, submittedAt: null }
   it('serializeTask maps work item columns to the task API shape', () => {
     const out = serializeTask({
       ...schedule,
@@ -258,6 +261,7 @@ describe('serializers', () => {
       completedAt: null,
       createdAt: null,
       updatedAt: null,
+      ...unsubmitted,
     })
     expect(out).toMatchObject({
       projectId: 2,
@@ -284,8 +288,39 @@ describe('serializers', () => {
       estimatedHours: null,
       createdAt: null,
       updatedAt: null,
+      changesRequestedNote: 'Add the link',
+      ...unsubmitted,
     })
-    expect(out).toMatchObject({ projectId: 2, assignedToId: 3, assignedById: 4 })
+    expect(out).toMatchObject({
+      projectId: 2,
+      assignedToId: 3,
+      assignedById: 4,
+      submission: null,
+      changesRequested: 'Add the link',
+    })
+  })
+  it('serializeSubmission is null until the task is first submitted', () => {
+    expect(serializeSubmission(unsubmitted)).toBeNull()
+    const at = new Date()
+    expect(
+      serializeSubmission({ submissionNote: 'Did it', submissionUrl: null, submittedAt: at }),
+    ).toEqual({ note: 'Did it', url: null, submittedAt: at })
+  })
+})
+
+describe('submissionData', () => {
+  it('needs a note or a link, and treats blanks as absent', () => {
+    expect(submissionData({})).toBeNull()
+    expect(submissionData({ note: '  ', url: '' })).toBeNull()
+    expect(submissionData({ note: ' Wrote it ', url: ' ' })).toMatchObject({
+      submissionNote: 'Wrote it',
+      submissionUrl: null,
+      changesRequestedNote: null,
+    })
+    expect(submissionData({ url: 'https://example.org/doc' })).toMatchObject({
+      submissionNote: null,
+      submissionUrl: 'https://example.org/doc',
+    })
   })
 })
 

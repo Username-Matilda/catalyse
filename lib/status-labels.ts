@@ -24,16 +24,18 @@ export const QUICK_TASK_STATUS_VARIANTS: Record<string, BadgeVariant> = {
   completed: 'success',
 }
 
-/** Project tasks have no review step: they are claimed and then finished. */
+/** Project tasks: claimed, then submitted, and accepted by the owner unless they auto-accept. */
 export const TASK_STATUS_LABELS: Record<string, string> = {
   open: 'Not started',
   in_progress: 'In progress',
+  under_review: 'Submitted for review',
   completed: 'Done',
 }
 
 export const TASK_STATUS_VARIANTS: Record<string, BadgeVariant> = {
   open: 'neutral',
   in_progress: 'info',
+  under_review: 'caution',
   completed: 'success',
 }
 
