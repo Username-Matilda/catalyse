@@ -47,7 +47,7 @@ describe('messages', () => {
       (await prisma.notification.findMany({ where: { volunteerId: recipient.id } })).map(
         (n) => n.link,
       ),
-    ).toContain('/dashboard#tab-notifications')
+    ).toContain('/inbox')
 
     const { received, sent } = await clientAs(recipient).messages.list()
     expect(received.map((m) => m.subject)).toEqual(['Three', 'Two', 'Hi'])

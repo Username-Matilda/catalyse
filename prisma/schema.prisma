@@ -799,6 +799,8 @@ model Volunteer {
   deletedAt                               DateTime?                @map("deleted_at")
   country                                 String?
   emailDigest                             String?                  @default("none") @map("email_digest") // TODO: enum — none, daily, weekly
+  /// Inbox categories (lib/notification-categories.ts) whose notifications are not also emailed.
+  emailMutedCategories                    String[]                 @default([]) @map("email_muted_categories")
   notifyRemoteProjects                    Boolean                  @default(false) @map("notify_remote_projects")
   localGroup                              String?                  @map("local_group")
   locationConfirmedAt                     DateTime?                @map("location_confirmed_at")

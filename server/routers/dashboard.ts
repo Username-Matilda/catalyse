@@ -18,7 +18,6 @@ import {
   WorkItemType,
 } from '@/generated/prisma/enums'
 import type { Prisma } from '@/generated/prisma/client'
-import { ADMIN_NOTIFICATION_TYPES } from '@/lib/admin-notifications'
 
 // Home orders the page as: what needs me, what I'm doing, then what I could pick up.
 
@@ -427,7 +426,7 @@ export const dashboardRouter = {
     })
     const isMember = volunteer.approvalStatus === ApprovalStatus.approved || viewer.isAdmin
 
-    const [attention, work, find, unreadCount, hasTakenWork] = await Promise.all([
+    const [attention, work, find, hasTakenWork] = await Promise.all([
       isMember ? attentionFor(viewer) : [],
       isMember ? workFor(viewer) : [],
       isMember
@@ -436,13 +435,6 @@ export const dashboardRouter = {
             (me?.skills ?? []).map((s) => s.skillId),
           )
         : null,
-      prisma.notification.count({
-        where: {
-          volunteerId: volunteer.id,
-          readAt: null,
-          ...(viewer.isAdmin ? { type: { notIn: ADMIN_NOTIFICATION_TYPES } } : {}),
-        },
-      }),
       prisma.workItem.count({
         where: {
           assigneeId: volunteer.id,
@@ -464,7 +456,6 @@ export const dashboardRouter = {
       find,
       gettingStarted,
       hasSkills: (me?.skills.length ?? 0) > 0,
-      unreadNotificationCount: unreadCount,
       // Shown once as a welcome dialog; reading the notification dismisses it for good.
       approvalWelcome: approvalWelcome
         ? { notificationId: approvalWelcome.id, emailConfirmed: me?.emailConfirmed ?? false }

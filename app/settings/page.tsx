@@ -13,6 +13,11 @@ import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import { useUrlParam } from '@/lib/hooks/url-filters'
 import {
+  EMAIL_CATEGORY_LABELS,
+  MUTABLE_EMAIL_CATEGORIES,
+  type MutableEmailCategory,
+} from '@/lib/notification-categories'
+import {
   COUNTRY_OPTIONS,
   NO_LOCAL_GROUP,
   buildLocalGroupOptionsForCountry,
@@ -91,6 +96,7 @@ function SettingsPageContent() {
     'none',
   )
   const [notifyRemoteProjects, setNotifyRemoteProjects] = useState(false)
+  const [emailMutedCategories, setEmailMutedCategories] = useState<MutableEmailCategory[]>([])
   const [consentMakeProfileVisibleInDirectory, setConsentMakeProfileVisibleInDirectory] =
     useState(true)
   const [consentContactableByProjectOwners, setConsentContactableByProjectOwners] = useState(true)
@@ -177,6 +183,9 @@ function SettingsPageContent() {
     setContactNotes(me.contactNotes ?? '')
     setEmailDigest(me.emailDigest ?? 'none')
     setNotifyRemoteProjects(!!me.notifyRemoteProjects)
+    setEmailMutedCategories(
+      MUTABLE_EMAIL_CATEGORIES.filter((c) => me.emailMutedCategories?.includes(c)),
+    )
     setOtherSkills(me.otherSkills ?? '')
     setConsentMakeProfileVisibleInDirectory(!!me.consentMakeProfileVisibleInDirectory)
     setConsentContactableByProjectOwners(!!me.consentContactableByProjectOwners)
@@ -298,6 +307,7 @@ function SettingsPageContent() {
       contactNotes: contactNotes.trim() || null,
       emailDigest,
       notifyRemoteProjects,
+      emailMutedCategories,
       otherSkills: otherSkills.trim() || null,
       skillIds: skills.map((s) => s.skillId),
       consentMakeProfileVisibleInDirectory,
@@ -716,6 +726,29 @@ function SettingsPageContent() {
               also get alerts for projects elsewhere that are marked remote-friendly worldwide.
             </p>
           </div>
+          <fieldset className="mb-5 border-0 p-0">
+            <legend className="font-medium mb-2">Also email me</legend>
+            <div className="flex flex-col gap-2">
+              {MUTABLE_EMAIL_CATEGORIES.map((c) => (
+                <Checkbox
+                  key={c}
+                  id={`email_${c}`}
+                  checked={!emailMutedCategories.includes(c)}
+                  onChange={(e) =>
+                    setEmailMutedCategories((muted) =>
+                      e.target.checked ? muted.filter((m) => m !== c) : [...muted, c],
+                    )
+                  }
+                >
+                  {EMAIL_CATEGORY_LABELS[c]}
+                </Checkbox>
+              ))}
+            </div>
+            <p className="text-sm text-text-light mt-1 ml-7">
+              Everything still arrives in your Inbox. Messages from other volunteers are always
+              emailed, since that is how they reach you.
+            </p>
+          </fieldset>
           {saveButton}
         </form>
       )}

@@ -2,7 +2,7 @@ import { test, expect, getAlert, readAdminToken, createApprovedVolunteer } from 
 import type { Page } from '@playwright/test'
 import { createSkillViaApi } from '../actions/skills'
 import type { SkillInfo } from '../actions/skills'
-import { goToDashboardNotifications } from '../actions/dashboard'
+import { goToInbox } from '../actions/dashboard'
 import { fake } from '../fake'
 import { selectFilterDropdown } from '../actions/ui'
 import { createApiClient } from '../client'
@@ -135,7 +135,7 @@ test.describe('Quick Tasks (admin)', () => {
     await expect(taskCard.getByRole('status')).toContainText('In progress', { timeout: 10_000 })
 
     // Volunteer receives an assignment notification
-    await goToDashboardNotifications(baseUrl, volunteer.page)
+    await goToInbox(baseUrl, volunteer.page)
     await expect(
       volunteer.page.locator('strong').filter({ hasText: 'Assigned: Quick Task' }),
     ).toBeVisible({ timeout: 10_000 })
@@ -239,7 +239,7 @@ test.describe('Quick Tasks (admin)', () => {
     })
 
     // Admin receives a notification (admins are also volunteers and can view their dashboard)
-    await goToDashboardNotifications(baseUrl, adminPage)
+    await goToInbox(baseUrl, adminPage)
     await expect(
       adminPage.locator('strong').filter({ hasText: `${volunteer.name} submitted:` }),
     ).toBeVisible({ timeout: 10_000 })
@@ -281,7 +281,7 @@ test.describe('Quick Tasks (admin)', () => {
     await expect(taskCard.getByRole('status')).toContainText('Done', { timeout: 10_000 })
 
     // Volunteer receives a feedback notification
-    await goToDashboardNotifications(baseUrl, volunteer.page)
+    await goToInbox(baseUrl, volunteer.page)
     await expect(
       volunteer.page.locator('strong').filter({ hasText: 'Reviewed: your Quick Task' }),
     ).toBeVisible({ timeout: 10_000 })
@@ -332,7 +332,7 @@ test.describe('Quick Tasks (admin)', () => {
     await expect(taskCard.getByRole('status')).toContainText('Done', { timeout: 10_000 })
 
     // Volunteer receives a feedback notification
-    await goToDashboardNotifications(baseUrl, volunteer.page)
+    await goToInbox(baseUrl, volunteer.page)
     await expect(
       volunteer.page.locator('strong').filter({ hasText: 'Reviewed: your Quick Task' }),
     ).toBeVisible({ timeout: 10_000 })

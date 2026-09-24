@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { MUTABLE_EMAIL_CATEGORIES } from './notification-categories'
 import {
   AdminInviteSchema,
   AdminNoteSchema,
@@ -468,4 +469,5 @@ export const UpdateVolunteerSchema = VolunteerSchema.omit({
       .max(5000, 'Application message must be no more than 5000 characters')
       .nullable()
       .optional(),
+    emailMutedCategories: z.array(z.enum(MUTABLE_EMAIL_CATEGORIES)).optional(),
   })

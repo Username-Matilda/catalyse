@@ -328,6 +328,7 @@ export const volunteersRouter = {
       'localGroup',
       'otherSkills',
       'emailDigest',
+      'emailMutedCategories',
       'notifyRemoteProjects',
       'applicationMessage',
     ] as const

@@ -9,6 +9,7 @@ import {
 import { adminCreateProjectViaApi, transferProjectOwnership } from '../actions/projects'
 import { fake } from '../fake'
 import { createApiClient } from '../client'
+import { goToInbox } from '../actions/dashboard'
 
 test.describe('Messaging', () => {
   test('Volunteer sends a contact message to another volunteer', async ({
@@ -91,13 +92,12 @@ test.describe('Messaging', () => {
     )
     await transferProjectOwnership(baseUrl, adminPage, projectId, volunteer.name)
 
-    // Confirm the recipient starts with no unread notifications.
-    await volunteer.page.goto(`${baseUrl}/dashboard`)
-    await expect(volunteer.page.getByRole('heading', { level: 1, name: /^Hi / })).toBeVisible({
-      timeout: 10_000,
-    })
-    const notifTab = volunteer.page.locator('[data-tab="notifications"]')
-    await expect(notifTab.locator('.notification-badge')).not.toBeVisible()
+    // Confirm the recipient starts with no unread messages.
+    const messagesFilter = volunteer.page
+      .getByRole('group', { name: 'Show' })
+      .getByRole('button', { name: /^Messages/ })
+    await goToInbox(baseUrl, volunteer.page)
+    await expect(messagesFilter).toHaveText('Messages')
 
     // Sender sends the message.
     const sender = fake.person()
@@ -141,18 +141,16 @@ test.describe('Messaging', () => {
       await senderCtx.close()
     }
 
-    // Recipient refreshes the dashboard — the notification badge now shows 1.
-    await volunteer.page.goto(`${baseUrl}/dashboard`)
-    await expect(volunteer.page.getByRole('heading', { level: 1, name: /^Hi / })).toBeVisible({
-      timeout: 10_000,
-    })
-    const notifTabAfter = volunteer.page.locator('[data-tab="notifications"]')
-    await expect(notifTabAfter.locator('.notification-badge')).toBeVisible({ timeout: 10_000 })
-    await expect(notifTabAfter.locator('.notification-badge')).toContainText('1')
+    // Recipient opens the Inbox again: one unread message.
+    await goToInbox(baseUrl, volunteer.page)
+    await expect(messagesFilter).toHaveText('Messages1', { timeout: 10_000 })
 
     await expect(volunteer.page.getByText(/Message from /)).toBeVisible({ timeout: 10_000 })
     await expect(volunteer.page.getByText(subject)).toBeVisible({ timeout: 10_000 })
-    const viewLink = volunteer.page.getByRole('link', { name: 'View' }).first()
+    const viewLink = volunteer.page
+      .getByRole('listitem')
+      .filter({ hasText: subject })
+      .getByRole('link', { name: 'Open' })
     await expect(viewLink).toHaveAttribute('href', `/projects/${projectId}`)
     await viewLink.click()
     await expect(volunteer.page).toHaveURL(`${baseUrl}/projects/${projectId}`)

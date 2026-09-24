@@ -1,31 +1,8 @@
 import { test, expect, createApprovedVolunteerNamed } from '../fixtures'
-import type { Page } from '@playwright/test'
-import {
-  proposeProject,
-  adminApproveProject,
-  adminCreateProjectViaApi,
-  transferProjectOwnership,
-} from '../actions/projects'
-import { goToDashboardNotifications, homeHeading, notificationsHeading } from '../actions/dashboard'
+import { adminCreateProjectViaApi, transferProjectOwnership } from '../actions/projects'
+import { homeHeading } from '../actions/dashboard'
 import { createApiClient } from '../client'
 import { fake } from '../fake'
-
-async function createNotificationForVolunteer(
-  baseUrl: string,
-  volunteerPage: Page,
-  adminPage: Page,
-  title: string,
-): Promise<void> {
-  await proposeProject(
-    baseUrl,
-    volunteerPage,
-    title,
-    'Project created for notification e2e testing',
-  )
-  await adminApproveProject(baseUrl, adminPage, title)
-}
-
-const notificationBadge = (page: Page) => notificationsHeading(page).locator('.notification-badge')
 
 test.describe('Home', () => {
   test('A new volunteer sees what to do first, with Find open', async ({ volunteer, baseUrl }) => {
@@ -96,32 +73,5 @@ test.describe('Home', () => {
     await page.goto(`${baseUrl}/dashboard`)
     await expect(homeHeading(page)).toBeVisible({ timeout: 10_000 })
     await expect(attention.getByRole('listitem').filter({ hasText: title })).toHaveCount(0)
-  })
-
-  test('Home shows the unread notification badge', async ({ adminPage, volunteer, baseUrl }) => {
-    const title = fake.projectTitle()
-    await createNotificationForVolunteer(baseUrl, volunteer.page, adminPage, title)
-
-    await volunteer.page.goto(`${baseUrl}/dashboard`)
-    await expect(homeHeading(volunteer.page)).toBeVisible({ timeout: 10_000 })
-    await expect(notificationBadge(volunteer.page)).toBeVisible({ timeout: 10_000 })
-  })
-
-  test('Volunteer marks all notifications as read', async ({ adminPage, volunteer, baseUrl }) => {
-    const title = fake.projectTitle()
-    await createNotificationForVolunteer(baseUrl, volunteer.page, adminPage, title)
-
-    await goToDashboardNotifications(baseUrl, volunteer.page)
-    await expect(notificationBadge(volunteer.page)).toBeVisible({ timeout: 10_000 })
-    await expect(volunteer.page.getByRole('button', { name: 'Mark all as read' })).toBeVisible({
-      timeout: 10_000,
-    })
-
-    await volunteer.page.getByRole('button', { name: 'Mark all as read' }).click()
-
-    await expect(notificationBadge(volunteer.page)).not.toBeVisible({ timeout: 10_000 })
-    await expect(volunteer.page.getByRole('button', { name: 'Mark all as read' })).not.toBeVisible({
-      timeout: 10_000,
-    })
   })
 })

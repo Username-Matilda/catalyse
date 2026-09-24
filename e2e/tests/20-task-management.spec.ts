@@ -1,7 +1,7 @@
 import { test, expect, readAdminToken, confirmVolunteerEmail, approveVolunteer } from '../fixtures'
 import { fake } from '../fake'
 import { createApiClient } from '../client'
-import { goToDashboardNotifications } from '../actions/dashboard'
+import { goToInbox } from '../actions/dashboard'
 import type { RouterClient } from '@orpc/server'
 import type { appRouter } from '@/server/router'
 
@@ -238,7 +238,7 @@ test.describe('Task Assignment', () => {
     }, volunteer.token)
     const volPage = await context.newPage()
 
-    await goToDashboardNotifications(baseUrl, volPage)
+    await goToInbox(baseUrl, volPage)
     await expect(volPage.getByText(/assigned/i).first()).toBeVisible({ timeout: 10_000 })
 
     await context.close()

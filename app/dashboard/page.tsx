@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRequireAuth } from '@/lib/hooks/auth'
@@ -9,7 +10,6 @@ import Button from '@/components/Button'
 import { Badge, type BadgeVariant } from '@/components/Badge'
 import Modal from '@/components/ui/Modal'
 import Skeleton from '@/components/Skeleton'
-import NotificationsPanel from '@/components/NotificationsPanel'
 import { ApprovalStatus } from '@/generated/prisma/enums'
 import type { AppRouter } from '@/server/router'
 import type { InferRouterOutputs } from '@orpc/server'
@@ -40,7 +40,6 @@ const LEGACY_HASHES: Record<string, { section: string; filter?: WorkFilter }> = 
   ...Object.fromEntries(PROJECT_HASHES.map((h) => [h, { section: 'my-work', filter: 'project' }])),
   '#tab-applications': { section: 'my-work', filter: 'project' },
   '#tab-suggested': { section: 'find' },
-  '#tab-notifications': { section: 'notifications' },
 }
 
 function Count({ n }: { n: number }) {
@@ -154,6 +153,7 @@ function FindRowView({
 export default function HomePage() {
   const { user, loading } = useRequireAuth()
   const queryClient = useQueryClient()
+  const router = useRouter()
   const [filter, setFilter] = useState<WorkFilter>('all')
   const [findOpen, setFindOpen] = useState<boolean | null>(null)
   const [emailBannerDismissed, setEmailBannerDismissed] = useState(false)
@@ -176,7 +176,11 @@ export default function HomePage() {
     document.title = 'Catalyse | Home'
   }, [])
 
-  // Old `#tab-…` links pick a filter or open a section, then scroll to it once it exists.
+  // Old `#tab-…` links pick a filter or open a section, then scroll to it once it exists;
+  // the notifications tab is the Inbox now.
+  useEffect(() => {
+    if (window.location.hash === '#tab-notifications') router.replace('/inbox')
+  }, [router])
   useEffect(() => {
     if (loadingData) return
     function follow() {
@@ -439,22 +443,6 @@ export default function HomePage() {
             )}
           </section>
         )}
-
-        <section
-          id="notifications"
-          aria-labelledby="notifications-heading"
-          className="scroll-mt-20"
-        >
-          <h2 id="notifications-heading" data-tab="notifications">
-            Notifications
-            {data.unreadNotificationCount > 0 && (
-              <span className="notification-badge bg-primary text-gray-900 text-xs px-2 py-0.5 rounded-full ml-2 align-middle">
-                {data.unreadNotificationCount}
-              </span>
-            )}
-          </h2>
-          <NotificationsPanel unreadCount={data.unreadNotificationCount} />
-        </section>
       </main>
     </>
   )

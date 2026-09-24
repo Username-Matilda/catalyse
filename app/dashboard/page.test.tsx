@@ -11,6 +11,7 @@ import {
   createTeam,
 } from '@/test/factories'
 import { renderApp } from '@/test/render'
+import { navigation } from '@/test/next-navigation'
 import HomePage from './page'
 
 const DAY = 24 * 60 * 60 * 1000
@@ -20,7 +21,7 @@ const before = (a: Node, b: Node) =>
   Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
 
 describe('home', () => {
-  it('shows a new applicant the checklist and notifications only', async () => {
+  it('shows a new applicant the checklist only', async () => {
     const pending = await createVolunteer({
       approvalStatus: 'pending',
       emailConfirmed: false,
@@ -42,7 +43,8 @@ describe('home', () => {
     expect(screen.queryByRole('region', { name: /Needs your attention/ })).toBeNull()
     expect(screen.queryByRole('region', { name: 'My work' })).toBeNull()
     expect(screen.queryByRole('link', { name: 'Propose a project' })).toBeNull()
-    expect(screen.getByRole('region', { name: 'Notifications' })).toBeInTheDocument()
+    // Notifications live in the Inbox.
+    expect(screen.queryByRole('region', { name: /Notifications/ })).toBeNull()
 
     expect(screen.getByText(/Stay in the loop/)).toBeInTheDocument()
     await userEvent.click(screen.getByLabelText('Dismiss'))
@@ -129,8 +131,7 @@ describe('home', () => {
     const attention = await screen.findByRole('region', { name: /Needs your attention/ })
     const work = screen.getByRole('region', { name: 'My work' })
     const find = screen.getByRole('region', { name: 'Find something to do' })
-    const notifications = screen.getByRole('region', { name: /Notifications/ })
-    expect(before(attention, work) && before(work, find) && before(find, notifications)).toBe(true)
+    expect(before(attention, work) && before(work, find)).toBe(true)
     // Nothing left to get started on: a task is claimed.
     expect(screen.queryByRole('region', { name: 'Getting started' })).toBeNull()
 
@@ -221,94 +222,20 @@ describe('home', () => {
       window.dispatchEvent(new HashChangeEvent('hashchange'))
     })
     act(() => {
-      window.location.hash = '#tab-notifications'
+      window.location.hash = '#tab-suggested'
       window.dispatchEvent(new HashChangeEvent('hashchange'))
     })
     expect(scrollIntoView).toHaveBeenCalledTimes(2)
+    expect(screen.getByRole('button', { name: /Find something to do/ })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
   })
 
-  it('pages, filters and marks notifications', async () => {
+  it('sends the old notifications tab to the Inbox', async () => {
     const me = await createVolunteer()
-    await prisma.notification.createMany({
-      data: Array.from({ length: 21 }, (_, i) => ({
-        volunteerId: me.id,
-        type: 'x',
-        title: `Note ${i}`,
-        link: i === 0 ? '/projects/1' : null,
-        readAt: i === 1 ? new Date() : null,
-        createdAt: new Date(Date.UTC(2026, 0, 1 + i)),
-      })),
-    })
     await renderApp(<HomePage />, { as: me, url: '/dashboard#tab-notifications' })
-    await screen.findByText('Note 20')
-    expect(screen.getByText('Page 1 of 2')).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Next' }))
-    await screen.findByText('Page 2 of 2')
-    await userEvent.click(screen.getByRole('button', { name: 'Previous' }))
-    await screen.findByText('Page 1 of 2')
-    await userEvent.click(screen.getByRole('button', { name: 'Read' }))
-    await screen.findByText('Note 1')
-    await waitFor(() => expect(screen.queryByText('Note 20')).toBeNull())
-    await userEvent.click(screen.getByRole('button', { name: 'Mark as unread' }))
-    await waitFor(() =>
-      expect(screen.getByText(/No notifications marked read/)).toBeInTheDocument(),
-    )
-    await userEvent.click(screen.getByRole('button', { name: 'Read' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Unread' }))
-    await screen.findByText('Note 20')
-    await userEvent.click(screen.getAllByRole('button', { name: 'Mark as read' })[0])
-    await waitFor(async () =>
-      expect(await prisma.notification.count({ where: { volunteerId: me.id, readAt: null } })).toBe(
-        20,
-      ),
-    )
-    await userEvent.click(screen.getByRole('button', { name: 'Unread' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Mark all as read' }))
-    await waitFor(() =>
-      expect(screen.queryByRole('button', { name: 'Mark all as read' })).toBeNull(),
-    )
-    expect(await prisma.notification.count({ where: { volunteerId: me.id, readAt: null } })).toBe(0)
-    // Note 0 (the one with a link) is the oldest: on the second page of "all".
-    await userEvent.click(await screen.findByRole('button', { name: 'Next' }))
-    expect(await screen.findByRole('link', { name: 'View' })).toHaveAttribute('href', '/projects/1')
-    // The page was cached from the first visit, when Note 0 was unread; wait for the refetch.
-    await screen.findByRole('button', { name: 'Mark as unread' })
-    // Following the link marks the notification read, unless it already was.
-    const linked = () => prisma.notification.findFirstOrThrow({ where: { title: 'Note 0' } })
-    const readAt = (await linked()).readAt
-    await userEvent.click(screen.getByRole('link', { name: 'View' }))
-    expect((await linked()).readAt).toEqual(readAt)
-    await userEvent.click(screen.getByRole('button', { name: 'Mark as unread' }))
-    // Unread items lead the list, so Note 0 moves to the top of the first page.
-    await userEvent.click(await screen.findByRole('button', { name: 'Previous' }))
-    await screen.findByRole('button', { name: 'Mark as read' })
-    expect((await linked()).readAt).toBeNull()
-    await userEvent.click(screen.getByRole('link', { name: 'View' }))
-    await waitFor(async () => expect((await linked()).readAt).not.toBeNull())
-  })
-
-  it('groups notifications under Unread and Earlier, and only when both are present', async () => {
-    const me = await createVolunteer()
-    const day = (d: number) => new Date(Date.UTC(2026, 0, d))
-    await prisma.notification.createMany({
-      data: [
-        { volunteerId: me.id, type: 'x', title: 'Fresh', createdAt: day(1) },
-        { volunteerId: me.id, type: 'x', title: 'Seen', readAt: day(9), createdAt: day(5) },
-      ],
-    })
-    await renderApp(<HomePage />, { as: me, url: '/dashboard#tab-notifications' })
-    const unread = await screen.findByRole('heading', { name: 'Unread' })
-    const earlier = screen.getByRole('heading', { name: 'Earlier' })
-    const fresh = screen.getByText('Fresh')
-    const seen = screen.getByText('Seen')
-    expect(before(unread, fresh)).toBe(true)
-    expect(before(fresh, earlier)).toBe(true)
-    expect(before(earlier, seen)).toBe(true)
-
-    await userEvent.click(screen.getByRole('button', { name: 'Read' }))
-    await waitFor(() => expect(screen.queryByText('Fresh')).toBeNull())
-    expect(screen.queryByRole('heading', { name: 'Unread' })).toBeNull()
-    expect(screen.queryByRole('heading', { name: 'Earlier' })).toBeNull()
+    await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith('/inbox'))
   })
 
   it('welcomes an approved volunteer once, pointing at projects or email confirmation', async () => {

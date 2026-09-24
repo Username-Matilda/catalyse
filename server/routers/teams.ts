@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { ORPCError } from '@orpc/server'
 import { prisma } from '@/lib/prisma'
-import { notifyUser } from '@/lib/notify'
+import { clearNotifications, notifyUser } from '@/lib/notify'
 import { html } from '@/lib/email'
 import { TeamBodySchema } from '@/lib/schemas'
 import { authedProcedure, approvedProcedure } from '../procedures'
@@ -178,7 +178,7 @@ export const teamsRouter = {
         throw new ORPCError('BAD_REQUEST', { message: 'Already applied, awaiting review' })
       }
 
-      await prisma.teamJoinRequest.create({
+      const joinRequest = await prisma.teamJoinRequest.create({
         data: {
           teamId: input.id,
           volunteerId: context.volunteer.id,
@@ -195,15 +195,23 @@ export const teamsRouter = {
         const title = `${context.volunteer.name} applied to join ${team.name}`
         await Promise.all(
           recipientIds.map((id) =>
-            notifyUser(id, 'team_join_request', title, null, `/admin/teams/${input.id}`, {
-              subject: title,
-              message: input.message
-                ? html`${context.volunteer.name} applied to join <strong>${team.name}</strong>:
-                    "${input.message.trim()}"`
-                : html`${context.volunteer.name} applied to join <strong>${team.name}</strong>.`,
-              ctaLabel: 'Review Application',
-              ctaUrl: `/admin/teams/${input.id}`,
-            }),
+            notifyUser(
+              id,
+              'team_join_request',
+              title,
+              null,
+              `/admin/teams/${input.id}`,
+              {
+                subject: title,
+                message: input.message
+                  ? html`${context.volunteer.name} applied to join <strong>${team.name}</strong>:
+                      "${input.message.trim()}"`
+                  : html`${context.volunteer.name} applied to join <strong>${team.name}</strong>.`,
+                ctaLabel: 'Review Application',
+                ctaUrl: `/admin/teams/${input.id}`,
+              },
+              joinRequest.id,
+            ),
           ),
         )
       }
@@ -275,6 +283,8 @@ export const teamsRouter = {
           : []),
       ])
 
+      // Every leader was told; once one answers, the request leaves each of their inboxes.
+      await clearNotifications('team_join_request', request.id)
       const team = await prisma.team.findUnique({ where: { id: request.teamId } })
       await notifyUser(
         request.volunteerId,

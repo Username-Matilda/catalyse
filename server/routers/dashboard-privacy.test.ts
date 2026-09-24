@@ -290,21 +290,6 @@ describe('dashboard.get', () => {
     expect(asAdmin.find).not.toBeNull()
   })
 
-  it('counts unread notifications, leaving admin-only types out for admins', async () => {
-    const me = await createVolunteer()
-    const admin = await createAdmin()
-    await prisma.notification.createMany({
-      data: [
-        { volunteerId: me.id, type: 'x', title: 'unread' },
-        { volunteerId: me.id, type: 'x', title: 'read', readAt: new Date() },
-        { volunteerId: admin.id, type: 'new_project_proposal', title: 'admin only' },
-        { volunteerId: admin.id, type: 'x', title: 'personal' },
-      ],
-    })
-    expect((await clientAs(me).dashboard.get()).unreadNotificationCount).toBe(1)
-    expect((await clientAs(admin).dashboard.get()).unreadNotificationCount).toBe(1)
-  })
-
   it('offers the approval welcome until its notification is read', async () => {
     const me = await createVolunteer({ emailConfirmed: false })
     const c = clientAs(me)

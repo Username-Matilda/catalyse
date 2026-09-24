@@ -3,14 +3,17 @@ import { Page, expect } from '@playwright/test'
 /** The Home page's greeting, which shows once the page has loaded. */
 export const homeHeading = (page: Page) => page.getByRole('heading', { level: 1, name: /^Hi / })
 
-/** The Notifications heading on Home, which carries the unread badge. */
-export const notificationsHeading = (page: Page) => page.locator('[data-tab="notifications"]')
+/** The nav's Inbox item, which carries the needs-action count. */
+export const inboxButton = (page: Page) =>
+  page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: /^Inbox/ })
 
-export async function goToDashboardNotifications(baseUrl: string, page: Page): Promise<void> {
-  // From another /dashboard address this would only change the hash, keeping the list
-  // loaded before; leave the page first so Home loads afresh.
-  await page.goto('about:blank')
-  await page.goto(`${baseUrl}/dashboard#tab-notifications`)
-  await expect(homeHeading(page)).toBeVisible({ timeout: 10_000 })
-  await expect(notificationsHeading(page)).toBeVisible()
+/** Opens the Inbox showing every notification, whichever filter it would open on. */
+export async function goToInbox(baseUrl: string, page: Page): Promise<void> {
+  await page.goto(`${baseUrl}/inbox`)
+  await expect(page.getByRole('heading', { level: 1, name: 'Inbox' })).toBeVisible({
+    timeout: 10_000,
+  })
+  const all = page.getByRole('group', { name: 'Show' }).getByRole('button', { name: 'All' })
+  await all.click()
+  await expect(all).toHaveAttribute('aria-pressed', 'true')
 }

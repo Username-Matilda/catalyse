@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -10,6 +10,7 @@ import Button from '@/components/Button'
 import { orpc } from '@/lib/orpc'
 import { ThemeToggle } from './ThemeToggle'
 import BugReportDialog from './BugReportDialog'
+import InboxPopover from './InboxPopover'
 
 function MobileNavLink({
   href,
@@ -40,16 +41,13 @@ function MobileNavSection({ children, admin }: { children: React.ReactNode; admi
   )
 }
 
-const INBOX_HASH = '#tab-notifications'
-
 /** `path` is `base` or a page below it. */
 const under = (path: string, base: string) => path === base || path.startsWith(`${base}/`)
 
-type NavItem = { href: string; label: string; active: (path: string, hash: string) => boolean }
+type NavItem = { href: string; label: string; active: (path: string) => boolean }
 
-// The Inbox is Home's notifications section until it has a page of its own.
 const NAV_ITEMS: NavItem[] = [
-  { href: '/dashboard', label: 'Home', active: (p, h) => p === '/dashboard' && h !== INBOX_HASH },
+  { href: '/dashboard', label: 'Home', active: (p) => p === '/dashboard' },
   {
     href: '/projects',
     label: 'Projects',
@@ -61,55 +59,14 @@ const NAV_ITEMS: NavItem[] = [
     label: 'People',
     active: (p) => under(p, '/volunteers') || under(p, '/teams') || under(p, '/suggest-team'),
   },
-  {
-    href: `/dashboard${INBOX_HASH}`,
-    label: 'Inbox',
-    active: (p, h) => p === '/dashboard' && h === INBOX_HASH,
-  },
+  { href: '/inbox', label: 'Inbox', active: (p) => under(p, '/inbox') },
 ]
 
-/** The address hash, which the router does not track. */
-function useHash(): string {
-  const pathname = usePathname()
-  const [hash, setHash] = useState(() =>
-    typeof window !== 'undefined' ? window.location.hash : '',
-  )
-  useEffect(() => {
-    const onHashChange = () => setHash(window.location.hash)
-    window.addEventListener('hashchange', onHashChange)
-    return () => window.removeEventListener('hashchange', onHashChange)
-  }, [])
-  // Re-read after a client navigation, which does not fire hashchange.
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setHash(window.location.hash)
-  }, [pathname])
-  return hash
-}
-
-/**
- * Home and Inbox are one page, so between them only the hash changes: set it directly
- * rather than navigating, and let the page scroll to the section.
- */
-function onSamePage(href: string, pathname: string) {
-  return (e: React.MouseEvent) => {
-    if (pathname !== '/dashboard' || !href.startsWith('/dashboard')) return
-    e.preventDefault()
-    if (href.includes('#')) {
-      window.location.hash = href.slice(href.indexOf('#'))
-    } else {
-      history.pushState(null, '', '/dashboard')
-      window.dispatchEvent(new HashChangeEvent('hashchange'))
-      window.scrollTo({ top: 0 })
-    }
-  }
-}
-
-function UnreadBadge({ count }: { count: number }) {
+function NeedsActionBadge({ count }: { count: number }) {
   if (count === 0) return null
   return (
     <span className="bg-primary text-[#111827] text-xs px-2 py-0.5 rounded-full ml-1">
-      <span className="sr-only">, unread: </span>
+      <span className="sr-only">, needing action: </span>
       {count}
     </span>
   )
@@ -132,14 +89,19 @@ export default function Header() {
     setMounted(true)
   }, [])
 
-  const { data: notificationsData } = useQuery({
-    ...orpc.notifications.list.queryOptions({ input: { filter: 'unread', limit: 1 } }),
+  const { data: counts } = useQuery({
+    ...orpc.notifications.counts.queryOptions(),
     enabled: !!user,
   })
-  const unreadCount = notificationsData?.total ?? 0
+  const needsAction = counts?.needs_action ?? 0
+  const [inboxOpen, setInboxOpen] = useState(false)
+  const closeInbox = useCallback(() => setInboxOpen(false), [])
 
   useEffect(() => {
-    if (user) void queryClient.invalidateQueries({ queryKey: orpc.notifications.list.key() })
+    if (user) void queryClient.invalidateQueries({ queryKey: orpc.notifications.counts.key() })
+    // Following a link out of the popover closes it.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setInboxOpen(false)
   }, [pathname, user, queryClient])
 
   useEffect(() => {
@@ -160,8 +122,6 @@ export default function Header() {
     setMobileMenuOpen(false)
   }, [pathname])
 
-  const hash = useHash()
-
   // Signed-in volunteers expect the wordmark to take them Home; signed-out visitors
   // should land on the public explainer at /.
   const homeHref = user ? '/dashboard' : '/'
@@ -181,19 +141,34 @@ export default function Header() {
             {mounted &&
               !loading &&
               user &&
-              NAV_ITEMS.map(({ href, label, active }) => (
-                <Button
-                  key={href}
-                  href={href}
-                  variant={active(pathname, hash) ? 'primary' : 'ghost'}
-                  aria-current={active(pathname, hash) ? 'page' : undefined}
-                  size="sm"
-                  onClick={onSamePage(href, pathname)}
-                >
-                  {label}
-                  {label === 'Inbox' && <UnreadBadge count={unreadCount} />}
-                </Button>
-              ))}
+              NAV_ITEMS.map(({ href, label, active }) =>
+                href === '/inbox' ? (
+                  <div key={href} className="relative">
+                    <Button
+                      variant={active(pathname) || inboxOpen ? 'primary' : 'ghost'}
+                      aria-current={active(pathname) ? 'page' : undefined}
+                      aria-expanded={inboxOpen}
+                      aria-haspopup="dialog"
+                      size="sm"
+                      onClick={() => setInboxOpen((o) => !o)}
+                    >
+                      {label}
+                      <NeedsActionBadge count={needsAction} />
+                    </Button>
+                    {inboxOpen && <InboxPopover onClose={closeInbox} />}
+                  </div>
+                ) : (
+                  <Button
+                    key={href}
+                    href={href}
+                    variant={active(pathname) ? 'primary' : 'ghost'}
+                    aria-current={active(pathname) ? 'page' : undefined}
+                    size="sm"
+                  >
+                    {label}
+                  </Button>
+                ),
+              )}
           </nav>
 
           <div className="hidden xl:flex gap-2 items-center">
@@ -366,9 +341,9 @@ export default function Header() {
           <div className="flex-1 overflow-y-auto">
             {user &&
               NAV_ITEMS.map(({ href, label, active }) => (
-                <MobileNavLink key={href} href={href} active={active(pathname, hash)}>
+                <MobileNavLink key={href} href={href} active={active(pathname)}>
                   {label}
-                  {label === 'Inbox' && <UnreadBadge count={unreadCount} />}
+                  {href === '/inbox' && <NeedsActionBadge count={needsAction} />}
                 </MobileNavLink>
               ))}
 

@@ -1,5 +1,5 @@
 import { test, expect, getAlert } from '../fixtures'
-import { goToDashboardNotifications } from '../actions/dashboard'
+import { goToInbox } from '../actions/dashboard'
 import { fake } from '../fake'
 import {
   proposeProject,
@@ -144,7 +144,7 @@ test.describe('Project Interests and Assignment', () => {
     ).toContainText('Accepted', { timeout: 10_000 })
 
     // Volunteer receives a notification
-    await goToDashboardNotifications(baseUrl, volunteer.page)
+    await goToInbox(baseUrl, volunteer.page)
     await expect(
       volunteer.page.locator('strong').filter({ hasText: 'Accepted: your interest in' }),
     ).toBeVisible({
@@ -237,7 +237,7 @@ test.describe('Project Interests and Assignment', () => {
     await expect(assignedCard).not.toContainText('wants to help')
 
     // Volunteer receives an assignment notification
-    await goToDashboardNotifications(baseUrl, volunteer.page)
+    await goToInbox(baseUrl, volunteer.page)
     await expect(
       volunteer.page.locator('strong').filter({ hasText: "Assigned: you're on" }),
     ).toBeVisible({ timeout: 10_000 })
@@ -265,7 +265,7 @@ test.describe('Project Interests and Assignment', () => {
     await expect(volunteerCard.getByRole('button', { name: 'Remove' })).toHaveCount(0)
 
     // The volunteer is told they were removed, not declined.
-    await goToDashboardNotifications(baseUrl, volunteer.page)
+    await goToInbox(baseUrl, volunteer.page)
     await expect(
       volunteer.page.locator('strong').filter({ hasText: "Removed: you're no longer on" }),
     ).toBeVisible({ timeout: 10_000 })
@@ -349,7 +349,7 @@ test.describe('Project Interests and Assignment', () => {
     await expect(volunteer.page.getByText(commentText)).toBeVisible({ timeout: 10_000 })
 
     // Admin (the project creator) receives a comment notification
-    await goToDashboardNotifications(baseUrl, adminPage)
+    await goToInbox(baseUrl, adminPage)
     await expect(
       adminPage.locator('strong').filter({ hasText: `New comment on "${title}"` }),
     ).toBeVisible({
@@ -357,7 +357,7 @@ test.describe('Project Interests and Assignment', () => {
     })
 
     // The author (volunteer) is NOT notified of their own comment
-    await goToDashboardNotifications(baseUrl, volunteer.page)
+    await goToInbox(baseUrl, volunteer.page)
     await expect(
       volunteer.page.locator('strong').filter({ hasText: `New comment on "${title}"` }),
     ).not.toBeVisible({ timeout: 5_000 })

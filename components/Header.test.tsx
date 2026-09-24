@@ -31,6 +31,9 @@ const mount = (as: Awaited<ReturnType<typeof createVolunteer>> | null, url = '/p
     { as, url },
   )
 
+/** The main nav's items, links and the Inbox button alike, in order. */
+const navItems = (nav: HTMLElement) => Array.from(nav.querySelectorAll<HTMLElement>('a, button'))
+
 describe('Header', () => {
   it('shows login/signup when signed out, on desktop and in the mobile menu', async () => {
     await mount(null, '/')
@@ -45,10 +48,14 @@ describe('Header', () => {
 
   it('shows nav, unread badge, user menu and admin links for a signed-in admin', async () => {
     const admin = await createSuperAdmin({ locationConfirmedAt: new Date() })
-    await prisma.notification.create({ data: { volunteerId: admin.id, type: 'x', title: 't' } })
+    await prisma.notification.create({
+      data: { volunteerId: admin.id, type: 'mention', title: 't' },
+    })
     await mount(admin, '/projects')
     const nameButton = await screen.findByRole('button', { name: new RegExp(admin.name) })
-    await waitFor(() => expect(screen.getByRole('link', { name: /^Inbox/ })).toHaveTextContent('1'))
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /^Inbox/ })).toHaveTextContent('1'),
+    )
     expect(screen.getByRole('link', { name: 'Projects' })).toHaveClass('bg-primary')
     expect(screen.getByRole('link', { name: 'Projects' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('link', { name: 'People' })).not.toHaveClass('bg-primary')
@@ -86,23 +93,67 @@ describe('Header', () => {
     await waitFor(() => expect(navigation.push).toHaveBeenCalledWith('/login'))
   })
 
-  it('shows five items, always linking to the Inbox, with a count only while something is unread', async () => {
+  it('shows five items; the Inbox badge counts only what needs action', async () => {
     const vol = await createVolunteer({ locationConfirmedAt: new Date() })
+    await prisma.notification.create({
+      data: { volunteerId: vol.id, type: 'project_approved', title: 'an update' },
+    })
     await mount(vol, '/projects')
     const nav = await screen.findByRole('navigation', { name: 'Main' })
     await waitFor(() =>
-      expect(
-        within(nav)
-          .getAllByRole('link')
-          .map((l) => l.textContent),
-      ).toEqual(['Home', 'Projects', 'Tasks', 'People', 'Inbox']),
+      expect(navItems(nav).map((l) => l.textContent)).toEqual([
+        'Home',
+        'Projects',
+        'Tasks',
+        'People',
+        'Inbox',
+      ]),
     )
-    const link = within(nav).getByRole('link', { name: 'Inbox' })
-    expect(link).toHaveAttribute('href', '/dashboard#tab-notifications')
+    // An update is unread but needs nothing, so no badge.
+    expect(within(nav).getByRole('button', { name: 'Inbox' })).toHaveTextContent(/^Inbox$/)
+    // On mobile the Inbox is a plain link.
     await userEvent.click(screen.getByLabelText('Open menu'))
-    const links = screen.getAllByRole('link', { name: /^Inbox/ })
-    expect(links).toHaveLength(2)
-    expect(links[1]).toHaveAttribute('href', '/dashboard#tab-notifications')
+    expect(screen.getByRole('link', { name: 'Inbox' })).toHaveAttribute('href', '/inbox')
+  })
+
+  it('opens recent notifications from the Inbox item, and closes them again', async () => {
+    const vol = await createVolunteer({ locationConfirmedAt: new Date() })
+    await mount(vol, '/projects')
+    const inbox = await screen.findByRole('button', { name: 'Inbox' })
+    await userEvent.click(inbox)
+    let popover = await screen.findByRole('dialog', { name: 'Recent notifications' })
+    expect(await within(popover).findByText('Nothing new.')).toBeInTheDocument()
+    expect(inbox).toHaveAttribute('aria-expanded', 'true')
+    // Clicking the trigger again toggles it shut; clicking inside keeps it open.
+    await userEvent.click(inbox)
+    expect(screen.queryByRole('dialog')).toBeNull()
+
+    await prisma.notification.create({
+      data: { volunteerId: vol.id, type: 'mention', title: 'Sam mentioned you', link: '/x' },
+    })
+    await userEvent.click(inbox)
+    popover = await screen.findByRole('dialog', { name: 'Recent notifications' })
+    expect(await within(popover).findByText('Sam mentioned you')).toBeInTheDocument()
+    fireEvent.mouseDown(within(popover).getByText('Sam mentioned you'))
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).toBeNull()
+
+    await userEvent.click(inbox)
+    await screen.findByRole('dialog')
+    fireEvent.mouseDown(document.body)
+    expect(screen.queryByRole('dialog')).toBeNull()
+
+    await userEvent.click(inbox)
+    const open = await screen.findByRole('link', { name: 'Open inbox →' })
+    expect(open).toHaveAttribute('href', '/inbox')
+    await userEvent.click(open)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    // Any navigation closes it too.
+    await userEvent.click(inbox)
+    await screen.findByRole('dialog')
+    act(() => navigation.push('/teams'))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   })
 
   it.each([
@@ -112,21 +163,17 @@ describe('Header', () => {
     ['/templates', 'Projects'],
     ['/projects/gantt', 'Projects'],
     ['/volunteers', 'People'],
+    ['/dashboard', 'Home'],
+    ['/inbox', 'Inbox'],
   ])('marks the right item active on %s', async (url, label) => {
     const vol = await createVolunteer({ locationConfirmedAt: new Date() })
     await mount(vol, url)
     const nav = await screen.findByRole('navigation', { name: 'Main' })
     await waitFor(() =>
-      expect(within(nav).getByRole('link', { name: label })).toHaveAttribute(
-        'aria-current',
-        'page',
-      ),
+      expect(navItems(nav).filter((l) => l.hasAttribute('aria-current'))).toEqual([
+        navItems(nav).find((l) => l.textContent === label),
+      ]),
     )
-    expect(
-      within(nav)
-        .getAllByRole('link')
-        .filter((l) => l.hasAttribute('aria-current')),
-    ).toHaveLength(1)
   })
 
   it('links to my own profile and Settings from both menus, and Privacy only from Settings', async () => {
@@ -156,30 +203,11 @@ describe('Header', () => {
     expect(screen.getAllByRole('link', { name: 'Admin panel' })).toHaveLength(2)
   })
 
-  it('moves between Home and Inbox via the hash without a navigation', async () => {
+  it('closes the mobile menu on navigation', async () => {
     const vol = await createVolunteer({ locationConfirmedAt: new Date() })
-    await prisma.notification.create({ data: { volunteerId: vol.id, type: 'x', title: 't' } })
-    window.scrollTo = vi.fn()
     await mount(vol, '/dashboard')
-    const home = await screen.findByRole('link', { name: 'Home' })
-    expect(home).toHaveClass('bg-primary')
-    await userEvent.click(await screen.findByRole('link', { name: /^Inbox/ }))
-    act(() => window.dispatchEvent(new HashChangeEvent('hashchange')))
-    expect(window.location.hash).toBe('#tab-notifications')
-    await waitFor(() =>
-      expect(screen.getByRole('link', { name: /^Inbox/ })).toHaveClass('bg-primary'),
-    )
-    await userEvent.click(home)
-    expect(window.location.hash).toBe('')
-    expect(window.scrollTo).toHaveBeenCalledWith({ top: 0 })
-    await waitFor(() => expect(home).toHaveClass('bg-primary'))
-    // Links to other pages navigate as usual.
-    fireEvent.click(screen.getByRole('link', { name: 'Projects' }))
-    // Off Home the items are plain links and the menu closes on navigation.
-    await userEvent.click(screen.getByLabelText('Open menu'))
+    await userEvent.click(await screen.findByLabelText('Open menu'))
     act(() => navigation.push('/projects'))
     await waitFor(() => expect(screen.queryByLabelText('Close menu')).toBeNull())
-    fireEvent.click(screen.getByRole('link', { name: 'Home' }))
-    expect(screen.getByRole('link', { name: 'Home' })).not.toHaveClass('bg-primary')
   })
 })

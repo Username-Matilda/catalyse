@@ -1,6 +1,6 @@
 import { test, expect } from '../fixtures'
 import { proposeProject, adminApproveProject, transferProjectOwnership } from '../actions/projects'
-import { goToDashboardNotifications } from '../actions/dashboard'
+import { goToInbox } from '../actions/dashboard'
 import { Page } from '@playwright/test'
 import { fake } from '../fake'
 
@@ -162,7 +162,7 @@ test.describe('Project Management (Owner)', () => {
     await expect(page.getByText('Comment removed')).toBeVisible({ timeout: 10_000 })
     await expect(page.getByText('Answered in the doc')).toHaveCount(0)
 
-    await goToDashboardNotifications(baseUrl, adminPage)
+    await goToInbox(baseUrl, adminPage)
     await expect(adminPage.getByText(/mentioned you on/).first()).toBeVisible({ timeout: 10_000 })
   })
 })

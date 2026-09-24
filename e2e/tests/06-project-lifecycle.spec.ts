@@ -1,5 +1,5 @@
 import { test, expect, getAlert, readAdminToken, createApprovedVolunteer } from '../fixtures'
-import { goToDashboardNotifications } from '../actions/dashboard'
+import { goToInbox } from '../actions/dashboard'
 import { fake } from '../fake'
 import { createApiClient } from '../client'
 import {
@@ -68,16 +68,19 @@ test.describe('Project Lifecycle', () => {
       timeout: 10_000,
     })
 
-    // Proposer receives a notification containing the feedback message, and Home lists the
-    // request as needing their attention.
-    await goToDashboardNotifications(baseUrl, volunteer.page)
-    const home = (name: RegExp) => volunteer.page.getByRole('region', { name })
+    // Proposer receives a notification needing action with the feedback message, and Home
+    // lists the request as needing their attention.
+    await goToInbox(baseUrl, volunteer.page)
     await expect(
-      home(/^Notifications/)
+      volunteer.page
+        .getByRole('region', { name: 'Needs action' })
         .locator('p')
         .filter({ hasText: feedbackText }),
     ).toBeVisible({ timeout: 10_000 })
-    await expect(home(/^Needs your attention/)).toContainText(`Changes requested on "${title}"`)
+    await volunteer.page.goto(`${baseUrl}/dashboard`)
+    await expect(
+      volunteer.page.getByRole('region', { name: /^Needs your attention/ }),
+    ).toContainText(`Changes requested on "${title}"`, { timeout: 10_000 })
 
     // The project page shows the request with a Resubmit button; resubmitting sends it
     // back to the triage queue.

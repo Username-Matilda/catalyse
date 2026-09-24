@@ -205,11 +205,20 @@ describe('settings — notifications and privacy tabs', () => {
     )
     await userEvent.click(screen.getByRole('option', { name: 'Send me a fortnightly digest' }))
     await userEvent.click(screen.getByLabelText(/remote/i))
+    // Both email categories start on; turn updates off, then needs-action off and on again.
+    const needs = screen.getByLabelText(/^Things that need me/)
+    const updates = screen.getByLabelText(/^Updates:/)
+    expect(needs).toBeChecked()
+    expect(updates).toBeChecked()
+    await userEvent.click(updates)
+    await userEvent.click(needs)
+    await userEvent.click(needs)
     await userEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
     await screen.findByText('Profile updated!')
     expect(await me(vol.id)).toMatchObject({
       emailDigest: 'fortnightly',
       notifyRemoteProjects: true,
+      emailMutedCategories: ['update'],
     })
 
     await userEvent.click(screen.getByRole('tab', { name: 'Privacy & Data' }))
