@@ -170,6 +170,7 @@ export default function HomePage() {
   const router = useRouter()
   const [filter, setFilter] = useState<WorkFilter>('all')
   const [findOpen, setFindOpen] = useState<boolean | null>(null)
+  const [finishedOpen, setFinishedOpen] = useState(false)
   const [emailBannerDismissed, setEmailBannerDismissed] = useState(false)
   const [welcomeDismissed, setWelcomeDismissed] = useState(false)
 
@@ -221,9 +222,33 @@ export default function HomePage() {
 
   const isMember = user.approvalStatus === ApprovalStatus.approved || Boolean(user.isAdmin)
   const welcome = welcomeDismissed ? null : data.approvalWelcome
-  const work = data.work.filter((w) => filter === 'all' || w.kind === filter)
+  const current = data.work.filter((w) => !w.done)
+  const finished = data.work.filter((w) => w.done)
+  const work = current.filter((w) => filter === 'all' || w.kind === filter)
   // Discovery waits until someone has nothing of their own to get on with.
-  const showFind = findOpen ?? data.work.length === 0
+  const showFind = findOpen ?? current.length === 0
+
+  const workList = (rows: typeof work) => (
+    <ul className="list-none p-0 m-0 bg-surface rounded-xl shadow">
+      {rows.map((w) => (
+        <li
+          key={w.key}
+          className="flex flex-wrap items-center justify-between gap-2 p-4 border-b border-brand-border last:border-0 wrap-break-word"
+        >
+          <div className="min-w-0">
+            <Link href={w.href} className="font-semibold">
+              {w.title}
+            </Link>
+            {w.context && <span className="text-sm text-text-light"> in {w.context}</span>}
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant={ROLE_VARIANTS[w.role]}>{w.role}</Badge>
+            {w.status && <span className="text-sm text-text-light">{w.status}</span>}
+          </div>
+        </li>
+      ))}
+    </ul>
+  )
 
   function dismissWelcome(notificationId: number) {
     setWelcomeDismissed(true)
@@ -367,9 +392,11 @@ export default function HomePage() {
             </div>
             {work.length === 0 ? (
               <p className="text-text-light">
-                {data.work.length === 0 ? (
+                {current.length === 0 ? (
                   <>
-                    You&apos;re not working on anything yet.{' '}
+                    {finished.length > 0
+                      ? 'Nothing on the go right now.'
+                      : "You're not working on anything yet."}{' '}
                     <Link href="/quick-tasks">Pick up a Quick Task</Link> or{' '}
                     <Link href="/projects">browse projects</Link>.
                   </>
@@ -378,27 +405,7 @@ export default function HomePage() {
                 )}
               </p>
             ) : (
-              <ul className="list-none p-0 m-0 bg-surface rounded-xl shadow">
-                {work.map((w) => (
-                  <li
-                    key={w.key}
-                    className={`flex flex-wrap items-center justify-between gap-2 p-4 border-b border-brand-border last:border-0 wrap-break-word ${w.done ? 'opacity-70' : ''}`}
-                  >
-                    <div className="min-w-0">
-                      <Link href={w.href} className="font-semibold">
-                        {w.title}
-                      </Link>
-                      {w.context && (
-                        <span className="text-sm text-text-light"> in {w.context}</span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={ROLE_VARIANTS[w.role]}>{w.role}</Badge>
-                      {w.status && <span className="text-sm text-text-light">{w.status}</span>}
-                    </div>
-                  </li>
-                ))}
-              </ul>
+              workList(work)
             )}
           </section>
         )}
@@ -457,6 +464,26 @@ export default function HomePage() {
                 />
               </div>
             )}
+          </section>
+        )}
+
+        {isMember && finished.length > 0 && (
+          <section id="finished" aria-labelledby="finished-heading" className="mb-8 scroll-mt-20">
+            <h2 id="finished-heading">
+              <button
+                type="button"
+                aria-expanded={finishedOpen}
+                aria-controls="finished-body"
+                onClick={() => setFinishedOpen(!finishedOpen)}
+                className="cursor-pointer bg-transparent border-0 p-0 text-inherit font-inherit"
+              >
+                <span aria-hidden="true" className="inline-block w-5">
+                  {finishedOpen ? '▾' : '▸'}
+                </span>
+                Finished ({finished.length})
+              </button>
+            </h2>
+            {finishedOpen && <div id="finished-body">{workList(finished)}</div>}
           </section>
         )}
       </main>

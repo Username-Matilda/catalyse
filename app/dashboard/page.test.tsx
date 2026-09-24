@@ -184,6 +184,34 @@ describe('home', () => {
     expect(within(find).getByRole('link', { name: 'Local one' })).toBeInTheDocument()
   })
 
+  it('moves finished projects out of My work into a folded Finished section after Find', async () => {
+    const me = await createVolunteer()
+    await createProject({ title: 'Wrapped up', assigneeId: me.id, status: 'completed' })
+    await createProject({ title: 'Shelved', assigneeId: me.id, status: 'archived' })
+    await renderApp(<HomePage />, { as: me, url: '/dashboard' })
+    const work = await screen.findByRole('region', { name: 'My work' })
+    expect(within(work).getByText(/Nothing on the go right now/)).toBeInTheDocument()
+    expect(within(work).queryByText('Wrapped up')).toBeNull()
+    // With nothing current, Find opens as it would for someone new.
+    expect(screen.getByRole('button', { name: /Find something to do/ })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
+
+    const finished = screen.getByRole('region', { name: 'Finished (2)' })
+    expect(before(screen.getByRole('region', { name: 'Find something to do' }), finished)).toBe(
+      true,
+    )
+    const toggle = within(finished).getByRole('button', { name: 'Finished (2)' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(within(finished).queryByRole('link', { name: 'Wrapped up' })).toBeNull()
+    await userEvent.click(toggle)
+    expect(within(finished).getByRole('link', { name: 'Wrapped up' })).toBeInTheDocument()
+    expect(within(finished).getByRole('link', { name: 'Shelved' })).toBeInTheDocument()
+    await userEvent.click(toggle)
+    expect(within(finished).queryByRole('link', { name: 'Shelved' })).toBeNull()
+  })
+
   it('says so when a filter leaves nothing, and when nothing matches', async () => {
     const skill = await createSkill()
     const me = await createVolunteer({
