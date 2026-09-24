@@ -1752,7 +1752,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     className="mt-3"
                     onClick={() => setShowContactModal(true)}
                   >
-                    Contact Owner
+                    Message owner
                   </Button>
                 )}
 
@@ -2098,7 +2098,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       {showContactModal && ownerId !== null && (
         <MessageDialog
           id="contact-owner"
-          title="Contact Owner"
+          title="Message owner"
           recipientId={ownerId}
           recipientName={project.owner?.name ?? 'The owner'}
           relatedProjectId={project.id}

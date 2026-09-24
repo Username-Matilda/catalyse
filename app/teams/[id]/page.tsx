@@ -11,6 +11,7 @@ import { teamApplicationSentMessage } from '@/lib/action-messages'
 import { useCooldown } from '@/lib/hooks/useCooldown'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import NotFoundCard from '@/components/NotFoundCard'
+import MessageDialog from '@/components/MessageDialog'
 
 export default function TeamDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = use(params)
@@ -42,6 +43,7 @@ export default function TeamDetailPage({ params }: { params: Promise<{ id: strin
   })
 
   const [confirmingLeave, setConfirmingLeave] = useState(false)
+  const [messaging, setMessaging] = useState<{ id: number; name: string } | null>(null)
   const { isCooling, start: startCooldown } = useCooldown()
 
   const leaveMutation = useMutation({
@@ -129,6 +131,17 @@ export default function TeamDetailPage({ params }: { params: Promise<{ id: strin
         {team.memberCount} member{team.memberCount === 1 ? '' : 's'}
         {team.leaders.length > 0 && ` · Led by ${team.leaders.map((l) => l.name).join(', ')}`}
       </p>
+      {team.leaders.some((l) => l.contactable && l.id !== user.id) && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          {team.leaders
+            .filter((l) => l.contactable && l.id !== user.id)
+            .map((l) => (
+              <Button key={l.id} size="sm" variant="secondary" onClick={() => setMessaging(l)}>
+                Message {l.name}
+              </Button>
+            ))}
+        </div>
+      )}
 
       {(team.lumaUrl || team.docUrl) && (
         <div className="flex gap-4 text-sm bg-surface rounded-xl shadow px-5 py-4">
@@ -170,6 +183,15 @@ export default function TeamDetailPage({ params }: { params: Promise<{ id: strin
             setConfirmingLeave(false)
           }}
           onClose={() => setConfirmingLeave(false)}
+        />
+      )}
+      {messaging && (
+        <MessageDialog
+          id="message-leader"
+          title={`Message ${messaging.name}`}
+          recipientId={messaging.id}
+          recipientName={messaging.name}
+          onClose={() => setMessaging(null)}
         />
       )}
     </main>

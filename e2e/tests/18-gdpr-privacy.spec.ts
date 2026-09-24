@@ -94,10 +94,10 @@ test.describe('GDPR & Privacy', () => {
 
     // Volunteer contacts vol2 on that project — creates a messagesSent record
     await volunteer.page.goto(`${baseUrl}/projects/${contactProjectId}`)
-    await expect(volunteer.page.getByRole('button', { name: 'Contact Owner' })).toBeVisible({
+    await expect(volunteer.page.getByRole('button', { name: 'Message owner' })).toBeVisible({
       timeout: 10_000,
     })
-    await volunteer.page.getByRole('button', { name: 'Contact Owner' }).click()
+    await volunteer.page.getByRole('button', { name: 'Message owner' }).click()
     const outboundDialog = volunteer.page.getByRole('dialog')
     await expect(outboundDialog.getByLabel('Subject')).toBeVisible({ timeout: 10_000 })
     await outboundDialog.getByLabel('Subject').fill(fake.messageSubject())
@@ -114,7 +114,7 @@ test.describe('GDPR & Privacy', () => {
     try {
       await vol2Page.goto(`${baseUrl}/projects/${volunteerProjectId}`)
       await expect(vol2Page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 })
-      await vol2Page.getByRole('button', { name: 'Contact Owner' }).click()
+      await vol2Page.getByRole('button', { name: 'Message owner' }).click()
       const inboundDialog = vol2Page.getByRole('dialog')
       await expect(inboundDialog.getByLabel('Subject')).toBeVisible({ timeout: 10_000 })
       await inboundDialog.getByLabel('Subject').fill(fake.messageSubject())

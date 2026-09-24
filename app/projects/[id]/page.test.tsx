@@ -117,16 +117,16 @@ describe('project page — visitor', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Express Interest' }))
     await screen.findByText(/You'll get a notification when they reply/)
 
-    const contact = screen.getByRole('button', { name: /Contact/ })
+    const contact = screen.getByRole('button', { name: 'Message owner' })
     await userEvent.click(contact)
     // It says how the message is delivered, and Escape closes it with focus back on the button.
     expect(
-      within(screen.getByRole('dialog', { name: 'Contact Owner' })).getByText(
-        `${owner.name} will get this by email and in their notifications. Your email address is shared so they can reply.`,
+      within(screen.getByRole('dialog', { name: 'Message owner' })).getByText(
+        `${owner.name} will see this in their Inbox and get a copy by email. You can both reply on Catalyse; your email address stays private unless you share it below.`,
       ),
     ).toBeInTheDocument()
     await userEvent.keyboard('{Escape}')
-    expect(screen.queryByRole('dialog', { name: 'Contact Owner' })).toBeNull()
+    expect(screen.queryByRole('dialog', { name: 'Message owner' })).toBeNull()
     expect(contact).toHaveFocus()
     await userEvent.click(contact)
     await userEvent.type(screen.getByLabelText('Subject'), 'Hello')
@@ -136,13 +136,13 @@ describe('project page — visitor', () => {
     expect(
       await prisma.message.count({ where: { fromVolunteerId: me.id, toVolunteerId: owner.id } }),
     ).toBe(1)
-    await userEvent.click(screen.getByRole('button', { name: /Contact/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'Message owner' }))
     await userEvent.click(screen.getByLabelText('Close'))
-    await userEvent.click(screen.getByRole('button', { name: /Contact/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'Message owner' }))
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
-    await userEvent.click(screen.getByRole('button', { name: /Contact/ }))
-    fireEvent.click(screen.getByRole('dialog', { name: 'Contact Owner' }).parentElement!)
-    expect(screen.queryByRole('dialog', { name: 'Contact Owner' })).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: 'Message owner' }))
+    fireEvent.click(screen.getByRole('dialog', { name: 'Message owner' }).parentElement!)
+    expect(screen.queryByRole('dialog', { name: 'Message owner' })).toBeNull()
   })
 
   it('redirects for unknown projects and drafts, and shows want-to-own interest with a response', async () => {
@@ -803,7 +803,7 @@ describe('project page — remaining edges', () => {
     await prisma.workItem.update({ where: { id: project.id }, data: { isSeekingHelp: false } })
     await userEvent.click(screen.getByRole('button', { name: 'Express Interest' }))
     await screen.findByText('This project is not currently seeking volunteers')
-    await userEvent.click(screen.getByRole('button', { name: /Contact/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'Message owner' }))
     await userEvent.type(screen.getByLabelText('Subject'), 'Hi')
     await userEvent.type(screen.getByLabelText('Message'), 'There')
     await prisma.volunteer.update({
@@ -845,7 +845,7 @@ describe('project page — remaining edges', () => {
     })
     await mount(project.id, me)
     await screen.findByRole('heading', { name: 'Contact edge' })
-    await userEvent.click(screen.getByRole('button', { name: /Contact/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'Message owner' }))
     await screen.findByText(/own#1/)
 
     cleanup()

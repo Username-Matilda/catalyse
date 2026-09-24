@@ -1488,7 +1488,7 @@ export const projectsRouter = {
       const task = await prisma.workItem.findFirst({
         where: { id: input.taskId, parentId: input.projectId, type: WorkItemType.TASK },
         include: {
-          assignee: { select: { name: true } },
+          assignee: { select: { name: true, consentContactableByProjectOwners: true } },
           creator: { select: { name: true } },
         },
       })
@@ -1543,6 +1543,7 @@ export const projectsRouter = {
         canClaim,
         canManage: canManageProject(project, volunteer),
         assignedToName: task.assignee?.name ?? null,
+        assigneeContactable: task.assignee?.consentContactableByProjectOwners ?? false,
         createdByName: task.creator?.name ?? null,
         featuredAsQuickTask: task.featuredAsQuickTask ?? false,
         predecessors: predecessorRows.map((r) => ({

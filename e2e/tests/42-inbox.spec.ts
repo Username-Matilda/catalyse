@@ -26,8 +26,8 @@ test.describe('Inbox', () => {
 
     const page = volunteer.page
     await page.goto(`${baseUrl}/projects`)
-    // Only what needs action counts in the badge.
-    await expect(inboxButton(page)).toHaveText('Inbox, needing action: 1', { timeout: 10_000 })
+    // The applicant is waiting on the owner, so the badge counts it.
+    await expect(inboxButton(page)).toHaveText('Inbox, waiting for you: 1', { timeout: 10_000 })
 
     await inboxButton(page).click()
     const popover = page.getByRole('dialog', { name: 'Recent notifications' })

@@ -93,7 +93,24 @@ describe('Header', () => {
     await waitFor(() => expect(navigation.push).toHaveBeenCalledWith('/login'))
   })
 
-  it('shows five items; the Inbox badge counts only what needs action', async () => {
+  it('counts what needs action and unread messages in the Inbox badge, not updates', async () => {
+    const vol = await createVolunteer({ locationConfirmedAt: new Date() })
+    await prisma.notification.createMany({
+      data: [
+        { volunteerId: vol.id, type: 'project_approved', title: 'an update' },
+        { volunteerId: vol.id, type: 'mention', title: 'act' },
+        { volunteerId: vol.id, type: 'message_received', title: 'msg' },
+      ],
+    })
+    await mount(vol, '/projects')
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /^Inbox/ })).toHaveTextContent(
+        'Inbox, waiting for you: 2',
+      ),
+    )
+  })
+
+  it('shows five items; the Inbox badge counts only what is waiting', async () => {
     const vol = await createVolunteer({ locationConfirmedAt: new Date() })
     await prisma.notification.create({
       data: { volunteerId: vol.id, type: 'project_approved', title: 'an update' },

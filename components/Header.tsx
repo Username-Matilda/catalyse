@@ -62,11 +62,11 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/inbox', label: 'Inbox', active: (p) => under(p, '/inbox') },
 ]
 
-function NeedsActionBadge({ count }: { count: number }) {
+function WaitingBadge({ count }: { count: number }) {
   if (count === 0) return null
   return (
     <span className="bg-primary text-[#111827] text-xs px-2 py-0.5 rounded-full ml-1">
-      <span className="sr-only">, needing action: </span>
+      <span className="sr-only">, waiting for you: </span>
       {count}
     </span>
   )
@@ -93,7 +93,8 @@ export default function Header() {
     ...orpc.notifications.counts.queryOptions(),
     enabled: !!user,
   })
-  const needsAction = counts?.needs_action ?? 0
+  // What is waiting on the viewer: things to act on and messages to read, not updates.
+  const waiting = (counts?.needs_action ?? 0) + (counts?.message ?? 0)
   const [inboxOpen, setInboxOpen] = useState(false)
   const closeInbox = useCallback(() => setInboxOpen(false), [])
 
@@ -153,7 +154,7 @@ export default function Header() {
                       onClick={() => setInboxOpen((o) => !o)}
                     >
                       {label}
-                      <NeedsActionBadge count={needsAction} />
+                      <WaitingBadge count={waiting} />
                     </Button>
                     {inboxOpen && <InboxPopover onClose={closeInbox} />}
                   </div>
@@ -343,7 +344,7 @@ export default function Header() {
               NAV_ITEMS.map(({ href, label, active }) => (
                 <MobileNavLink key={href} href={href} active={active(pathname)}>
                   {label}
-                  {href === '/inbox' && <NeedsActionBadge count={needsAction} />}
+                  {href === '/inbox' && <WaitingBadge count={waiting} />}
                 </MobileNavLink>
               ))}
 

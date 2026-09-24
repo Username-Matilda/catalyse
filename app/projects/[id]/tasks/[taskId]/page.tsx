@@ -9,6 +9,7 @@ import Button from '@/components/Button'
 import Checkbox from '@/components/Checkbox'
 import { Badge } from '@/components/Badge'
 import CommentThread from '@/components/CommentThread'
+import MessageDialog from '@/components/MessageDialog'
 import Linkify from '@/components/Linkify'
 import { useToast } from '@/lib/toast'
 import { formatDate, toDateInputValue, fromDateInputValue } from '@/lib/format-date'
@@ -47,6 +48,7 @@ export default function TaskDetailPage({
   const [editFeatured, setEditFeatured] = useState(false)
   const [initialized, setInitialized] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
+  const [messaging, setMessaging] = useState(false)
 
   useEffect(() => {
     if (!task || initialized) return
@@ -208,6 +210,13 @@ export default function TaskDetailPage({
               Assigned to {task.assignedToName}
             </span>
           )}
+          {task.assignedToId !== null &&
+            task.assignedToId !== user.id &&
+            task.assigneeContactable && (
+              <Button size="sm" variant="secondary" onClick={() => setMessaging(true)}>
+                Message {task.assignedToName}
+              </Button>
+            )}
           {task.estimatedHours !== null && (
             <span className="text-text-light text-sm self-center">
               ~{task.estimatedHours}h estimated
@@ -485,6 +494,16 @@ export default function TaskDetailPage({
         </p>
         <CommentThread workItemId={task.id} />
       </div>
+      {messaging && task.assignedToId !== null && (
+        <MessageDialog
+          id="message-assignee"
+          title={`Message ${task.assignedToName}`}
+          recipientId={task.assignedToId}
+          recipientName={task.assignedToName ?? 'The assignee'}
+          relatedProjectId={projectId}
+          onClose={() => setMessaging(false)}
+        />
+      )}
     </main>
   )
 }

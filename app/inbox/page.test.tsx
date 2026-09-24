@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { prisma } from '@/lib/prisma'
 import { createProject, createTeam, createVolunteer } from '@/test/factories'
 import { renderApp } from '@/test/render'
+import { clientAs } from '@/test/rpc'
 import InboxPage from './page'
 
 const day = (d: number) => new Date(Date.UTC(2026, 0, d))
@@ -48,9 +49,9 @@ describe('inbox', () => {
       ),
     )
 
-    await userEvent.click(screen.getByRole('button', { name: /^Messages/ }))
-    await waitFor(() => expect(screen.queryByText('Sam mentioned you')).toBeNull())
-    expect(screen.getByText('Message from Ann')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /^Needs action/ }))
+    await waitFor(() => expect(screen.queryByText('Message from Ann')).toBeNull())
+    expect(screen.getByText('Sam mentioned you')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Mark all read' }))
     await waitFor(async () =>
       expect(await prisma.notification.count({ where: { volunteerId: me.id, readAt: null } })).toBe(
@@ -68,8 +69,8 @@ describe('inbox', () => {
     for (const [label, empty] of [
       ['Needs action', 'Nothing is waiting on you.'],
       ['Updates', 'No updates.'],
-      ['Messages', 'No messages.'],
-    ]) {
+      ['Messages', /No messages yet/],
+    ] as const) {
       await userEvent.click(screen.getByRole('button', { name: label }))
       expect(await screen.findByText(empty)).toBeInTheDocument()
     }
@@ -241,5 +242,35 @@ describe('inbox', () => {
     expect(await screen.findByText('Note 0')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Previous' }))
     expect(await screen.findByText('Page 1 of 2')).toBeInTheDocument()
+  })
+})
+
+describe('inbox messages', () => {
+  it('lists conversations under Messages, and a link can open there', async () => {
+    const me = await createVolunteer()
+    const ann = await createVolunteer({ name: 'Ann' })
+    const bob = await createVolunteer({ name: 'Bob' })
+    const project = await createProject({ title: 'Stall' })
+    await clientAs(ann).messages.send({
+      recipientId: me.id,
+      subject: 'Banners',
+      message: 'Bring them?',
+      relatedProjectId: project.id,
+    })
+    const { threadId } = await clientAs(me).messages.send({
+      recipientId: bob.id,
+      subject: 'Leaflets',
+      message: 'I have 200',
+    })
+    await renderApp(<InboxPage />, { as: me, url: '/inbox?filter=message' })
+    const annRow = (await screen.findByText('Banners')).closest('a') as HTMLElement
+    expect(within(annRow).getByText('Ann')).toBeInTheDocument()
+    expect(within(annRow).getByText('1')).toBeInTheDocument()
+    expect(within(annRow).getByText('Stall')).toBeInTheDocument()
+    const bobRow = screen.getByText('Leaflets').closest('a') as HTMLElement
+    expect(bobRow).toHaveAttribute('href', `/inbox/messages/${threadId}`)
+    expect(bobRow).toHaveTextContent('You: I have 200')
+    // Conversations are read by opening them, so there is nothing to mark here.
+    expect(screen.queryByRole('button', { name: 'Mark all read' })).toBeNull()
   })
 })

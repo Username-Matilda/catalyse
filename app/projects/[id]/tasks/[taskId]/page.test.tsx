@@ -231,3 +231,36 @@ describe('task detail page', () => {
     await screen.findByText(/would create a loop/)
   })
 })
+
+describe('task detail page — messaging the assignee', () => {
+  it('offers Message to others when the assignee accepts messages', async () => {
+    const owner = await createVolunteer()
+    const assignee = await createVolunteer({ name: 'Ann' })
+    const shy = await createVolunteer({ name: 'Shy', consentContactableByProjectOwners: false })
+    const project = await createProject({ assigneeId: owner.id, status: 'in_progress' })
+    const task = await createTask(project.id, { assigneeId: assignee.id, status: 'in_progress' })
+    await mount(project.id, task.id, owner)
+    await userEvent.click(await screen.findByRole('button', { name: 'Message Ann' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Message Ann' })
+    await userEvent.type(within(dialog).getByLabelText('Subject'), 'Progress')
+    await userEvent.type(within(dialog).getByLabelText('Message'), 'How is it going?')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Send Message' }))
+    await screen.findByText(/Message sent/)
+    expect(
+      await prisma.message.findFirst({
+        where: { fromVolunteerId: owner.id, toVolunteerId: assignee.id },
+      }),
+    ).toMatchObject({ subject: 'Progress', relatedWorkItemId: project.id })
+    cleanup()
+
+    // Not to yourself, and not to someone who doesn't accept messages.
+    await mount(project.id, task.id, assignee)
+    await screen.findByText('Assigned to Ann')
+    expect(screen.queryByRole('button', { name: /^Message/ })).toBeNull()
+    cleanup()
+    const other = await createTask(project.id, { assigneeId: shy.id, status: 'in_progress' })
+    await mount(project.id, other.id, owner)
+    await screen.findByText('Assigned to Shy')
+    expect(screen.queryByRole('button', { name: /^Message/ })).toBeNull()
+  })
+})

@@ -17,7 +17,7 @@ function serializeTeam(
     members: {
       volunteerId: number
       role: TeamMembershipRole
-      volunteer: { id: number; name: string }
+      volunteer: { id: number; name: string; consentContactableByProjectOwners: boolean | null }
     }[]
   },
   viewerId?: number,
@@ -39,7 +39,11 @@ function serializeTeam(
     memberCount: team.members.length,
     leaders: team.members
       .filter((m) => m.role === TeamMembershipRole.leader)
-      .map((m) => ({ id: m.volunteer.id, name: m.volunteer.name })),
+      .map((m) => ({
+        id: m.volunteer.id,
+        name: m.volunteer.name,
+        contactable: Boolean(m.volunteer.consentContactableByProjectOwners),
+      })),
     viewerRole: viewerMembership?.role ?? null,
     viewerRequestStatus: viewerRequestStatus ?? null,
   }
@@ -63,7 +67,15 @@ export const teamsRouter = {
   list: authedProcedure.handler(async ({ context }) => {
     const teams = await prisma.team.findMany({
       orderBy: { name: 'asc' },
-      include: { members: { include: { volunteer: { select: { id: true, name: true } } } } },
+      include: {
+        members: {
+          include: {
+            volunteer: {
+              select: { id: true, name: true, consentContactableByProjectOwners: true },
+            },
+          },
+        },
+      },
     })
     const viewerId = context.volunteer?.id
     const pendingRequests = viewerId
@@ -86,7 +98,15 @@ export const teamsRouter = {
     .handler(async ({ input, context }) => {
       const team = await prisma.team.findUnique({
         where: { id: input.id },
-        include: { members: { include: { volunteer: { select: { id: true, name: true } } } } },
+        include: {
+          members: {
+            include: {
+              volunteer: {
+                select: { id: true, name: true, consentContactableByProjectOwners: true },
+              },
+            },
+          },
+        },
       })
       if (!team) throw new ORPCError('NOT_FOUND', { message: 'Team not found' })
       const viewerId = context.volunteer?.id

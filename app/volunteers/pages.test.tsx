@@ -137,15 +137,20 @@ describe('volunteer profile', () => {
     expect(screen.getByText('Contact via message')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Message' }))
     const dialog = screen.getByRole('dialog', { name: 'Message Reachable' })
-    expect(dialog).toHaveTextContent('Reachable will get this by email and in their notifications.')
+    expect(dialog).toHaveTextContent(
+      'Reachable will see this in their Inbox and get a copy by email.',
+    )
     await userEvent.type(within(dialog).getByLabelText('Subject'), 'Hello')
     await userEvent.type(within(dialog).getByLabelText('Message'), 'Can we talk?')
+    // Sharing my address lets them reply to the email itself.
+    await userEvent.click(within(dialog).getByLabelText(/Let Reachable reply by email/))
     await userEvent.click(within(dialog).getByRole('button', { name: 'Send Message' }))
-    await screen.findByText(/Message sent!/)
+    await screen.findByText(/Message sent\./)
     expect(screen.queryByRole('dialog')).toBeNull()
     await waitFor(() =>
       expect(emails.lastTo('reachable@example.org')?.html).toContain('Can we talk?'),
     )
+    expect(emails.lastTo('reachable@example.org')?.replyTo).toBe(me.email)
     expect(
       await prisma.message.findFirstOrThrow({ where: { toVolunteerId: vol.id } }),
     ).toMatchObject({ fromVolunteerId: me.id, subject: 'Hello', relatedWorkItemId: null })

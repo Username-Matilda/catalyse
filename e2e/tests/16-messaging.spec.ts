@@ -5,6 +5,7 @@ import {
   approveVolunteer,
   confirmVolunteerEmail,
   dismissCookieConsentScript,
+  createApprovedVolunteerNamed,
 } from '../fixtures'
 import { adminCreateProjectViaApi, transferProjectOwnership } from '../actions/projects'
 import { fake } from '../fake'
@@ -59,7 +60,7 @@ test.describe('Messaging', () => {
       await senderPage.goto(`${baseUrl}/projects/${projectId}`)
       await expect(senderPage.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 })
 
-      await senderPage.getByRole('button', { name: 'Contact Owner' }).click()
+      await senderPage.getByRole('button', { name: 'Message owner' }).click()
 
       // The recipient has consent_share_contact_info_with_project_owner = false (default), so the relay
       // form appears instead of direct contact details.
@@ -130,7 +131,7 @@ test.describe('Messaging', () => {
     try {
       await senderPage.goto(`${baseUrl}/projects/${projectId}`)
       await expect(senderPage.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10_000 })
-      await senderPage.getByRole('button', { name: 'Contact Owner' }).click()
+      await senderPage.getByRole('button', { name: 'Message owner' }).click()
       const dialog = senderPage.getByRole('dialog')
       await expect(dialog.getByLabel('Subject')).toBeVisible({ timeout: 10_000 })
       await dialog.getByLabel('Subject').fill(subject)
@@ -145,28 +146,46 @@ test.describe('Messaging', () => {
     await goToInbox(baseUrl, volunteer.page)
     await expect(messagesFilter).toHaveText('Messages1', { timeout: 10_000 })
 
-    await expect(volunteer.page.getByText(/Message from /)).toBeVisible({ timeout: 10_000 })
-    await expect(volunteer.page.getByText(subject)).toBeVisible({ timeout: 10_000 })
-    const viewLink = volunteer.page
-      .getByRole('listitem')
-      .filter({ hasText: subject })
-      .getByRole('link', { name: 'Open' })
-    await expect(viewLink).toHaveAttribute('href', `/projects/${projectId}`)
-    await viewLink.click()
-    await expect(volunteer.page).toHaveURL(`${baseUrl}/projects/${projectId}`)
+    // The Messages tab lists the conversation; opening it shows the message and reads it.
+    await messagesFilter.click()
+    const conversation = volunteer.page.getByRole('link').filter({ hasText: subject })
+    await expect(conversation).toContainText(sender.name, { timeout: 10_000 })
+    await conversation.click()
+    await expect(volunteer.page.getByRole('heading', { level: 1, name: subject })).toBeVisible({
+      timeout: 10_000,
+    })
+    await expect(volunteer.page.getByText('Notification test body')).toBeVisible()
+    await goToInbox(baseUrl, volunteer.page)
+    await expect(messagesFilter).toHaveText('Messages', { timeout: 10_000 })
   })
 
-  test.skip('Both parties see the message in their history', async () => {
-    // Not possible: the /api/messages endpoint exists, but no messages inbox,
-    // history view, or tab has been built in the frontend. A real user has no
-    // way to browse sent or received messages through the UI.
-  })
+  test('Both people see the conversation, and a reply reaches the other', async ({
+    volunteer,
+    baseUrl,
+  }) => {
+    const other = await createApprovedVolunteerNamed(baseUrl, fake.person().name)
+    const subject = fake.messageSubject()
+    await volunteer.page.goto(`${baseUrl}/dashboard`)
+    const token = await volunteer.page.evaluate(() => localStorage.getItem('authToken'))
+    const me = await createApiClient(baseUrl, token).auth.me()
+    const volunteerId = (me.body as { id: number }).id
+    const sent = await createApiClient(baseUrl, other.token).messages.send({
+      body: { recipientId: volunteerId, subject, message: 'Are you coming on Saturday?' },
+    })
+    expect(sent.status).toBe(200)
+    const { threadId } = sent.body as { threadId: number }
 
-  test.skip('Volunteer marks a message as read', async () => {
-    // Not possible: the /api/messages/{id}/read endpoint exists, but there is no
-    // per-message read/unread UI in the frontend. The dashboard "Mark all as read"
-    // button marks notifications as read (notifications table), not contact messages
-    // (contact_messages.read_at), so there is no user-visible action that fulfils
-    // this scenario.
+    const page = volunteer.page
+    await page.goto(`${baseUrl}/inbox/messages/${threadId}`)
+    await expect(page.getByText('Are you coming on Saturday?')).toBeVisible({ timeout: 10_000 })
+    await page.getByLabel('Write a reply').fill('Yes, see you there')
+    await page.getByRole('button', { name: 'Send reply' }).click()
+    await expect(page.getByText('Yes, see you there')).toBeVisible({ timeout: 10_000 })
+
+    const theirs = await createApiClient(baseUrl, other.token).messages.thread({
+      body: { id: threadId },
+    })
+    const bodies = (theirs.body as { messages: { body: string }[] }).messages.map((m) => m.body)
+    expect(bodies).toEqual(['Are you coming on Saturday?', 'Yes, see you there'])
   })
 })

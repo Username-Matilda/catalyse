@@ -6,6 +6,7 @@ import { useRequireAuth } from '@/lib/hooks/auth'
 import { orpc } from '@/lib/orpc'
 import Button from '@/components/Button'
 import InboxList from '@/components/InboxList'
+import ConversationList from '@/components/ConversationList'
 import { useRefreshInbox, type InboxNotification } from '@/components/InboxRow'
 import PageLoading from '@/components/PageLoading'
 import Skeleton from '@/components/Skeleton'
@@ -18,10 +19,9 @@ import {
 const PAGE_SIZE = 20
 type Filter = NotificationCategory | 'all'
 
-const EMPTY: Record<Filter, string> = {
+const EMPTY: Record<Exclude<Filter, 'message'>, string> = {
   needs_action: 'Nothing is waiting on you.',
   update: 'No updates.',
-  message: 'No messages.',
   all: 'Your inbox is empty.',
 }
 
@@ -37,10 +37,13 @@ export default function InboxPage() {
     enabled: !!user,
   })
   // Opens on what needs action while anything does, and stays put as items are dealt with.
+  // A link can ask for a filter (`?filter=message`, from a conversation's back link).
   useEffect(() => {
     if (chosen !== null || !counts) return
+    const asked = new URLSearchParams(window.location.search).get('filter')
+    const valid = [...NOTIFICATION_CATEGORIES, 'all'].find((f) => f === asked) as Filter | undefined
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setChosen(counts.needs_action > 0 ? 'needs_action' : 'all')
+    setChosen(valid ?? (counts.needs_action > 0 ? 'needs_action' : 'all'))
   }, [chosen, counts])
   const filter: Filter = chosen ?? 'all'
 
@@ -52,7 +55,8 @@ export default function InboxPage() {
         offset: (page - 1) * PAGE_SIZE,
       },
     }),
-    enabled: !!user && chosen !== null,
+    // Messages are shown as conversations instead.
+    enabled: !!user && chosen !== null && chosen !== 'message',
     placeholderData: keepPreviousData,
   })
   const notifications = data?.notifications ?? []
@@ -103,7 +107,7 @@ export default function InboxPage() {
     <main className="container py-5 pb-15 max-w-3xl">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h1 className="m-0">Inbox</h1>
-        {unreadInView > 0 && (
+        {unreadInView > 0 && filter !== 'message' && (
           <Button
             size="sm"
             variant="secondary"
@@ -132,7 +136,9 @@ export default function InboxPage() {
         })}
       </div>
 
-      {isPending ? (
+      {filter === 'message' ? (
+        <ConversationList />
+      ) : isPending ? (
         <Skeleton label="Loading your inbox…" />
       ) : notifications.length === 0 ? (
         <p className="text-text-light">{EMPTY[filter]}</p>
@@ -149,7 +155,7 @@ export default function InboxPage() {
         ))
       )}
 
-      {totalPages > 1 && (
+      {totalPages > 1 && filter !== 'message' && (
         <div className="flex items-center justify-center gap-4 mt-6">
           <Button
             variant="outline"

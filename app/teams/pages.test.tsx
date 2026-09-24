@@ -198,3 +198,28 @@ describe('local group adoption', () => {
     await screen.findByText('Unauthorized')
   })
 })
+
+describe('team detail — messaging a leader', () => {
+  it('offers Message for each leader who accepts messages, but not yourself', async () => {
+    const { me, open, led } = await setup()
+    const shy = await createVolunteer({ name: 'Shy', consentContactableByProjectOwners: false })
+    await prisma.teamMembership.create({
+      data: { teamId: open.id, volunteerId: shy.id, role: 'leader' },
+    })
+    await renderApp(<TeamDetailPage params={Promise.resolve({ id: String(open.id) })} />, {
+      as: me,
+    })
+    await userEvent.click(await screen.findByRole('button', { name: 'Message Lead Person' }))
+    expect(screen.queryByRole('button', { name: 'Message Shy' })).toBeNull()
+    const dialog = await screen.findByRole('dialog', { name: 'Message Lead Person' })
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    cleanup()
+
+    await renderApp(<TeamDetailPage params={Promise.resolve({ id: String(led.id) })} />, {
+      as: me,
+    })
+    await screen.findByRole('heading', { name: /Led Team/ })
+    expect(screen.queryByRole('button', { name: /^Message/ })).toBeNull()
+  })
+})
