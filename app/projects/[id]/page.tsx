@@ -358,7 +358,7 @@ function TaskTimeline({
   const setAnchor = useMutation({
     ...orpc.projects.updateTask.mutationOptions(),
     onSuccess: () => void invalidate(),
-    onError: onErr('update the anchor'),
+    onError: onErr('update the key date'),
   })
 
   if (loading || !timeline) {
@@ -700,12 +700,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const setBaselineMutation = useMutation({
     ...orpc.projects.setBaseline.mutationOptions(),
     onSuccess: () => {
-      showToast('Baseline updated', 'success')
+      showToast('Original plan updated', 'success')
       setShowBaselineDialog(false)
       void queryClient.invalidateQueries({ queryKey: orpc.projects.listTasks.key() })
     },
     onError: (err: unknown) =>
-      showToast(err instanceof Error ? err.message : 'Failed to update baseline', 'error'),
+      showToast(err instanceof Error ? err.message : 'Failed to update the original plan', 'error'),
   })
 
   // The most recent baseline capture across the project's tasks — null until one is set.
@@ -1673,7 +1673,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                       <>
                         {baselineSetAt && (
                           <span className="text-text-light text-xs">
-                            Baseline set {formatDateShort(baselineSetAt)}
+                            Original plan set {formatDateShort(baselineSetAt)}
                           </span>
                         )}
                         <Button
@@ -1682,7 +1682,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                           disabled={setBaselineMutation.isPending}
                           onClick={() => setShowBaselineDialog(true)}
                         >
-                          {baselineSetAt ? 'Re-baseline' : 'Set baseline'}
+                          {baselineSetAt ? 'Replace original plan' : 'Set original plan'}
                         </Button>
                       </>
                     )}
@@ -1897,7 +1897,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                     )}
                                     {task.deadline && (
                                       <span className="text-text-light text-xs whitespace-nowrap">
-                                        Due {formatDate(task.deadline)}
+                                        Deadline {formatDate(task.deadline)}
                                       </span>
                                     )}
                                     {task.commentCount > 0 && (

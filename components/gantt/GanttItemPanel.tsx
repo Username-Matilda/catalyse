@@ -115,8 +115,8 @@ export default function GanttItemPanel({
   const variance =
     p.startVarianceDays && p.startVarianceDays !== 0
       ? p.startVarianceDays > 0
-        ? `${p.startVarianceDays} day${p.startVarianceDays === 1 ? '' : 's'} late`
-        : `${-p.startVarianceDays} day${p.startVarianceDays === -1 ? '' : 's'} early`
+        ? `${p.startVarianceDays} day${p.startVarianceDays === 1 ? '' : 's'} later`
+        : `${-p.startVarianceDays} day${p.startVarianceDays === -1 ? '' : 's'} earlier`
       : 'On plan'
 
   const span = p.isMilestone
@@ -154,7 +154,7 @@ export default function GanttItemPanel({
               className="rounded-full px-2 py-0.5"
               style={{ background: 'var(--gantt-anchor)', color: 'var(--gantt-bar-text)' }}
             >
-              ★ Anchor
+              ★ Key date
             </span>
           </Tooltip>
         )}
@@ -186,8 +186,8 @@ export default function GanttItemPanel({
 
       {/* Derived facts only. Anything editable is stated once, by its own control below — the
           panel should never print a value and then offer the field for it half a screen away. */}
-      <dl className="grid grid-cols-[5.5rem_1fr] gap-x-3 gap-y-1.5 text-sm">
-        <Fact label="Scheduled">{span}</Fact>
+      <dl className="grid grid-cols-[6.5rem_1fr] gap-x-3 gap-y-1.5 text-sm">
+        <Fact label="Planned">{span}</Fact>
         {deadline && <Fact label="Deadline">{formatDateShort(deadline)}</Fact>}
         {estimatedHours !== null && estimatedHours !== undefined && (
           <Fact label="Effort">
@@ -195,15 +195,15 @@ export default function GanttItemPanel({
           </Fact>
         )}
         {p.baseline && (
-          <Fact label="Planned">
+          <Fact label="Original plan">
             {formatDateShort(p.baseline.start)} – {formatDateShort(p.baseline.end)}
           </Fact>
         )}
-        {/* Variance only means something against a committed baseline. With none set there is
+        {/* Days moved only mean something against a saved original plan. With none there is
             nothing to compare to, so the row is absent rather than reading a misleading
             "On plan". */}
         {p.baseline && (
-          <Fact label="Variance">
+          <Fact label="Moved">
             <span className={p.startVarianceDays ? 'text-warning-text' : undefined}>
               {variance}
             </span>
@@ -218,7 +218,9 @@ export default function GanttItemPanel({
       </dl>
 
       {canManage && !p.baseline && (
-        <p className="text-text-light mt-2 mb-0 text-xs">No baseline set, so no variance yet.</p>
+        <p className="text-text-light mt-2 mb-0 text-xs">
+          No original plan saved yet, so nothing to compare.
+        </p>
       )}
 
       {p.pinnedBeforePredecessor && (
@@ -270,7 +272,7 @@ export default function GanttItemPanel({
               duration of 0 makes it a milestone.
             </p>
 
-            {/* The anchor belongs with the dates it governs, not in a section of its own. */}
+            {/* The key date belongs with the dates it governs, not in a section of its own. */}
             {onSetAnchor && (
               <label className="mb-3 flex items-center gap-2 font-normal">
                 <input
@@ -282,7 +284,7 @@ export default function GanttItemPanel({
                 />
                 <Tooltip content={ANCHOR_HINT}>
                   <span className="text-sm decoration-dotted underline-offset-2 [text-decoration-line:underline]">
-                    Anchor — a fixed point the plan is built around
+                    Key date — a fixed point the plan is built around
                   </span>
                 </Tooltip>
               </label>

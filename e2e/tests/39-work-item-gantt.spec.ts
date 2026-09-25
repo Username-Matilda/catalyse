@@ -535,7 +535,7 @@ test.describe('Work item scheduling and dependencies', () => {
     // `click`, not `check`: the box is driven by server state, so it only ticks once the write
     // lands and the schedule comes back. The chip is the honest proof that it did.
     await panel.getByRole('checkbox').click()
-    await expect(panel.getByText('★ Anchor')).toBeVisible()
+    await expect(panel.getByText('★ Key date')).toBeVisible()
     await expect(panel.getByRole('checkbox')).toBeChecked()
 
     await expect(panel.getByRole('button', { name: /Assign/ }).first()).toBeVisible()

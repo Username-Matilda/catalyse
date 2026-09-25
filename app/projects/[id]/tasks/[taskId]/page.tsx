@@ -234,7 +234,7 @@ export default function TaskDetailPage({
           )}
           {task.deadline && (
             <span className="text-text-light text-sm self-center">
-              Due {formatDate(task.deadline)}
+              Deadline {formatDate(task.deadline)}
             </span>
           )}
           {task.startDate && (

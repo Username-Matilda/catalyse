@@ -901,7 +901,7 @@ describe('project page — timeline tab', () => {
     expect(screen.getByRole('tab', { name: 'Timeline' })).toHaveAttribute('aria-selected', 'true')
     await screen.findByRole('button', { name: /^Alpha:/ })
     expect(screen.getByText('Unscheduled (1)')).toBeInTheDocument()
-    expect(screen.getByText(/Baseline set/)).toBeInTheDocument()
+    expect(screen.getByText(/Original plan set/)).toBeInTheDocument()
 
     // Tab switching pushes history; the popstate/hashchange listeners read it back.
     await userEvent.click(screen.getByRole('tab', { name: 'Overview' }))
@@ -1008,11 +1008,11 @@ describe('project page — timeline tab', () => {
       expect(await prisma.workItemDependency.count({ where: { successorId: b.id } })).toBe(0),
     )
 
-    await userEvent.click(screen.getByRole('button', { name: 'Re-baseline' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Replace original plan' }))
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Re-baseline' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Replace baseline' }))
-    await screen.findByText('Baseline updated')
+    await userEvent.click(screen.getByRole('button', { name: 'Replace original plan' }))
+    await userEvent.click(screen.getAllByRole('button', { name: 'Replace original plan' })[1])
+    await screen.findByText('Original plan updated')
     await waitFor(async () => expect((await row(b.id)).baselineDurationDays).toBe(4))
     const startBefore = (await row(b.id)).startDate
 
@@ -1047,9 +1047,9 @@ describe('project page — timeline tab', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Add all to timeline' }))
     await waitFor(async () => expect((await row(t2.id)).durationDays).toBe(1))
     await screen.findByRole('button', { name: /^Loose one:/ })
-    await userEvent.click(screen.getByRole('button', { name: 'Set baseline' }))
-    await userEvent.click(screen.getAllByRole('button', { name: 'Set baseline' })[1])
-    await screen.findByText('Baseline updated')
+    await userEvent.click(screen.getByRole('button', { name: 'Set original plan' }))
+    await userEvent.click(screen.getAllByRole('button', { name: 'Set original plan' })[1])
+    await screen.findByText('Original plan updated')
 
     // Failures: an anchor change and a reschedule on a task that vanished.
     await userEvent.click(screen.getByRole('button', { name: /^Loose one:/ }))
@@ -1063,9 +1063,9 @@ describe('project page — timeline tab', () => {
     // A failed reschedule is rolled back and the timeline refetched (which drops the panel).
     fireEvent.submit(within(panel).getByLabelText('Duration').closest('form')!)
     await screen.findByText('One or more items were not found')
-    await userEvent.click(await screen.findByRole('button', { name: 'Re-baseline' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Replace original plan' }))
     localStorage.setItem('authToken', 'stale')
-    await userEvent.click(screen.getByRole('button', { name: 'Replace baseline' }))
+    await userEvent.click(screen.getAllByRole('button', { name: 'Replace original plan' })[1])
     await screen.findByText('Unauthorized')
   })
 

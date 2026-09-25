@@ -113,8 +113,8 @@ export default function GanttRow({
     placement.startVarianceDays === null || placement.startVarianceDays === 0
       ? null
       : placement.startVarianceDays > 0
-        ? `${placement.startVarianceDays} day${placement.startVarianceDays === 1 ? '' : 's'} later than planned`
-        : `${-placement.startVarianceDays} day${placement.startVarianceDays === -1 ? '' : 's'} earlier than planned`
+        ? `${placement.startVarianceDays} day${placement.startVarianceDays === 1 ? '' : 's'} later than the original plan`
+        : `${-placement.startVarianceDays} day${placement.startVarianceDays === -1 ? '' : 's'} earlier than the original plan`
 
   const moveOffset = draggable ? (moveTransform?.x ?? 0) : 0
   // A milestone has no duration to stretch, so only bars take the resize offset.
@@ -175,7 +175,7 @@ export default function GanttRow({
             height: RULE_HEIGHT,
             background: 'var(--gantt-baseline)',
           }}
-          title={`Planned ${formatDate(placement.baseline.start)} – ${formatDate(placement.baseline.end)}`}
+          title={`Original plan ${formatDate(placement.baseline.start)} – ${formatDate(placement.baseline.end)}`}
         />
       )}
 
@@ -188,15 +188,15 @@ export default function GanttRow({
         {...(draggable ? moveListeners : {})}
         {...(draggable ? moveAttrs : {})}
         onClick={onSelect ? () => onSelect(row.id) : undefined}
-        aria-label={`${row.label}: ${milestone ? `milestone on ${rangeLabel}` : rangeLabel}${variance ? `, ${variance}` : ''}${isAnchor ? ', anchor' : ''}${isCritical ? ', on the critical path' : ''}${offWindow ? ', outside the visible range' : ''}`}
+        aria-label={`${row.label}: ${milestone ? `milestone on ${rangeLabel}` : rangeLabel}${variance ? `, ${variance}` : ''}${isAnchor ? ', key date' : ''}${isCritical ? ', on the critical path' : ''}${offWindow ? ', outside the visible range' : ''}`}
         aria-pressed={selected}
         title={[
           row.label,
           milestone ? `Milestone — ${rangeLabel}` : rangeLabel,
           variance,
-          isAnchor && '★ Anchor — the plan is built around this date',
+          isAnchor && '★ Key date — the plan is built around this date',
           isCritical &&
-            'Critical path — zero slack, so a day late here is a day late for the anchor',
+            'Critical path — zero slack, so a day late here is a day late for the key date',
           offWindow && 'Outside the visible range',
         ]
           .filter(Boolean)

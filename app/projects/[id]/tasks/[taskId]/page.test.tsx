@@ -216,7 +216,7 @@ describe('task detail page', () => {
       `/projects/${project.id}`,
     )
     expect(screen.getByText('~2h estimated')).toBeInTheDocument()
-    expect(screen.getByText('Due 1 January 2030')).toBeInTheDocument()
+    expect(screen.getByText('Deadline 1 January 2030')).toBeInTheDocument()
     expect(screen.getByText(/Planned 1 December 2029 · 1 day/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Predecessor' })).toBeInTheDocument()
     const depRow = (name: string) => screen.getByRole('link', { name }).closest('li') as HTMLElement

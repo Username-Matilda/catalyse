@@ -32,9 +32,9 @@ function Swatch({
 
 /** The two markings that need more than a name to be understood. */
 export const ANCHOR_HINT =
-  'A fixed point the plan is built around — an event date, a launch, a deadline. The critical path is measured towards the anchors, so work that only follows one is correctly shown as having slack.'
+  'A fixed point the plan is built around — an event date, a launch, a deadline. The critical path is measured towards the key dates, so work that only follows one is correctly shown as having slack.'
 export const CRITICAL_HINT =
-  'Zero slack: this runs right up against the next thing, so a one-day delay here delays the anchor by a day. Work with a gap before its successor is not on the path — it can slip by that much and change nothing.'
+  'Zero slack: this runs right up against the next thing, so a one-day delay here delays the key date by a day. Work with a gap before its successor is not on the path — it can slip by that much and change nothing.'
 
 /**
  * A compact key for the chart. Every mark the timeline can draw appears here once, so the
@@ -67,10 +67,10 @@ export default function GanttLegend({ editable }: { editable: boolean }) {
       </div>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        {/* Planned, Anchor and Critical path are planning aids, drawn only for those who can
+        {/* Original plan, Key date and Critical path are planning aids, drawn only for those who can
             change the plan (see GanttRow). */}
         {editable && (
-          <Swatch label="Planned">
+          <Swatch label="Original plan">
             <span
               className="block h-1 w-6 rounded-full"
               style={{ background: 'var(--gantt-baseline)' }}
@@ -87,7 +87,7 @@ export default function GanttLegend({ editable }: { editable: boolean }) {
         </Swatch>
         {editable && (
           <>
-            <Swatch label="Anchor" hint={ANCHOR_HINT}>
+            <Swatch label="Key date" hint={ANCHOR_HINT}>
               <span aria-hidden="true" style={{ color: 'var(--gantt-anchor)' }}>
                 ★
               </span>
@@ -140,18 +140,18 @@ export default function GanttLegend({ editable }: { editable: boolean }) {
       {editable && (
         <dl className="border-brand-border m-0 grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 border-t pt-2">
           <dt className="whitespace-nowrap" style={{ color: 'var(--gantt-anchor)' }}>
-            ★ Anchor
+            ★ Key date
           </dt>
           <dd className="m-0">
             The fixed point the plan is built around — the event date itself. Mark one by selecting
-            a bar and ticking <em>Anchor</em>. With none set, the last item to finish stands in for
-            one.
+            a bar and ticking <em>Key date</em>. With none set, the last item to finish stands in
+            for one.
           </dd>
           <dt className="whitespace-nowrap" style={{ color: 'var(--gantt-critical)' }}>
             Critical path
           </dt>
           <dd className="m-0">
-            Zero slack: a one-day delay here delays the anchor by a day. Work that finishes with a
+            Zero slack: a one-day delay here delays the key date by a day. Work that finishes with a
             gap before whatever follows it has that many days spare, so it is not on the path.
           </dd>
         </dl>
