@@ -2,6 +2,7 @@
 
 import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { formatDate } from '@/lib/format-date'
+import { deadlineSlip, lateText, movedSlip, movedText, pinConflictSlip } from '@/lib/slip'
 import { barFill } from './palette'
 import {
   dateToX,
@@ -29,6 +30,7 @@ export default function GanttRow({
   dimmed,
   onSelect,
   onHover,
+  pinConflictLabel,
 }: {
   row: GanttRowData
   origin: Date
@@ -43,6 +45,8 @@ export default function GanttRow({
   dimmed: boolean
   onSelect?: (id: number) => void
   onHover?: (id: number | null) => void
+  /** Name of the predecessor a conflicting pin starts too early for. */
+  pinConflictLabel?: string
 }) {
   const { placement } = row
   const milestone = placement.isMilestone
@@ -109,12 +113,23 @@ export default function GanttRow({
   const rangeLabel = milestone
     ? formatDate(placement.start)
     : `${formatDate(placement.start)} – ${formatDate(placement.end)}`
-  const variance =
-    placement.startVarianceDays === null || placement.startVarianceDays === 0
-      ? null
-      : placement.startVarianceDays > 0
-        ? `${placement.startVarianceDays} day${placement.startVarianceDays === 1 ? '' : 's'} later than the original plan`
-        : `${-placement.startVarianceDays} day${placement.startVarianceDays === -1 ? '' : 's'} earlier than the original plan`
+  const variance = placement.finishVarianceDays
+    ? `${movedText(placement.finishVarianceDays)} than the original plan`
+    : null
+  const late = deadlineSlip(placement)
+  const lateAria =
+    placement.deadline && placement.daysLate !== null
+      ? `deadline ${formatDate(placement.deadline)}, ${lateText(placement.daysLate)}`
+      : null
+  const conflict = pinConflictSlip(placement, pinConflictLabel)
+
+  const deadlineCentre = placement.deadline
+    ? dateToX(placement.deadline, origin, pxPerDay) + pxPerDay / 2
+    : null
+  const deadlineX =
+    deadlineCentre !== null && deadlineCentre >= 0 && deadlineCentre <= windowWidth
+      ? deadlineCentre
+      : null
 
   const moveOffset = draggable ? (moveTransform?.x ?? 0) : 0
   // A milestone has no duration to stretch, so only bars take the resize offset.
@@ -188,12 +203,14 @@ export default function GanttRow({
         {...(draggable ? moveListeners : {})}
         {...(draggable ? moveAttrs : {})}
         onClick={onSelect ? () => onSelect(row.id) : undefined}
-        aria-label={`${row.label}: ${milestone ? `milestone on ${rangeLabel}` : rangeLabel}${variance ? `, ${variance}` : ''}${isAnchor ? ', key date' : ''}${isCritical ? ', on the critical path' : ''}${offWindow ? ', outside the visible range' : ''}`}
+        aria-label={`${row.label}: ${milestone ? `milestone on ${rangeLabel}` : rangeLabel}${lateAria ? `, ${lateAria}` : ''}${variance ? `, ${variance}` : ''}${isAnchor ? ', key date' : ''}${isCritical ? ', on the critical path' : ''}${offWindow ? ', outside the visible range' : ''}`}
         aria-pressed={selected}
         title={[
           row.label,
           milestone ? `Milestone — ${rangeLabel}` : rangeLabel,
-          variance,
+          late,
+          movedSlip(placement),
+          conflict,
           isAnchor && '★ Key date — the plan is built around this date',
           isCritical &&
             'Critical path — zero slack, so a day late here is a day late for the key date',
@@ -251,7 +268,7 @@ export default function GanttRow({
               background: 'var(--gantt-today)',
               boxShadow: '0 0 0 1.5px var(--color-surface)',
             }}
-            title="Pinned earlier than its dependencies allow"
+            title={conflict ?? undefined}
           />
         )}
       </button>
@@ -334,20 +351,23 @@ export default function GanttRow({
         />
       )}
 
-      {/* Deadline marker, offset past the link handle so the two never collide. */}
-      {placement.breachesDeadline && !offWindow && (
+      {/* Deadline marker, on the deadline day itself; red with the day count once the plan
+          runs past it. */}
+      {deadlineX !== null && (
         <div
-          className="pointer-events-none absolute"
+          className="pointer-events-none absolute flex items-center gap-0.5 whitespace-nowrap"
           style={{
-            left: barLeft + barWidth + (draggable ? 20 : 4),
-            top: midY - 6,
-            color: 'var(--gantt-today)',
-            fontSize: 12,
+            left: deadlineX - 5,
+            top: midY + BAR_HEIGHT / 2 - 4,
+            color: placement.breachesDeadline ? 'var(--gantt-today)' : 'var(--color-text-light)',
+            fontSize: 10,
             lineHeight: 1,
+            fontWeight: 600,
           }}
-          title="Runs past its deadline"
+          title={late ?? undefined}
         >
-          ▲
+          <span aria-hidden="true">▲</span>
+          {placement.breachesDeadline && <span>+{placement.daysLate}d</span>}
         </div>
       )}
     </div>

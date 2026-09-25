@@ -433,6 +433,7 @@ function TaskTimeline({
               edges={timeline.dependencies}
               rangeStart={new Date(timeline.scopeStart)}
               rangeEnd={new Date(timeline.scopeEnd)}
+              deadline={timeline.projectDeadline ? new Date(timeline.projectDeadline) : null}
               editable={canManage}
               selectedId={selectedId}
               onSelect={(id) => setSelectedId((cur) => (cur === id ? null : id))}
@@ -467,7 +468,6 @@ function TaskTimeline({
                 durationDays={selectedTask.durationDays}
                 description={selectedTask.description}
                 assigneeName={selectedTask.assignedToName}
-                deadline={selectedTask.deadline}
                 estimatedHours={selectedTask.estimatedHours}
                 canManage={canManage}
                 busy={busy}

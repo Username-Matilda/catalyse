@@ -25,6 +25,7 @@ import {
 } from '@/lib/work-item'
 import { notifyUser, notifyAdmins, notifyTeamOfProject, clearNotifications } from '@/lib/notify'
 import {
+  lateProjects,
   loadProjectTaskSchedule,
   loadProjectEdges,
   scheduleProjectsByIds,
@@ -399,10 +400,14 @@ export const projectsRouter = {
       })
 
       const projectMap = new Map(rawProjects.map((p) => [p.id, p]))
+      const late = await lateProjects(rawProjects)
       const projects = ids
         .map((id) => projectMap.get(id))
         .filter((p): p is NonNullable<typeof p> => p !== undefined)
-        .map((p) => withProjectExtras(p as EnrichedProject, volunteerSkillIds, viewerTeamIds))
+        .map((p) => ({
+          ...withProjectExtras(p as EnrichedProject, volunteerSkillIds, viewerTeamIds),
+          daysLate: late.get(p.id) ?? null,
+        }))
 
       // Match sorting can't be done in SQL, so this branch fetched every matching id and
       // paginates here. The slice has to happen whether or not the volunteer has skills to
@@ -533,6 +538,7 @@ export const projectsRouter = {
         include: projectInclude,
       })
       const projectMap = new Map(rawProjects.map((p) => [p.id, p]))
+      const late = await lateProjects(rawProjects)
 
       return {
         groups: bucketResults.map(({ key, total, ids }) => ({
@@ -541,7 +547,10 @@ export const projectsRouter = {
           projects: ids
             .map((id) => projectMap.get(id))
             .filter((p): p is NonNullable<typeof p> => p !== undefined)
-            .map((p) => withProjectExtras(p as EnrichedProject, volunteerSkillIds, viewerTeamIds)),
+            .map((p) => ({
+              ...withProjectExtras(p as EnrichedProject, volunteerSkillIds, viewerTeamIds),
+              daysLate: late.get(p.id) ?? null,
+            })),
         })),
       }
     }),
@@ -1816,6 +1825,7 @@ export const projectsRouter = {
         scopeEnd: schedule.end,
         // Sent so the client can recompute this exact schedule while a drag is in flight.
         scopeOrigin: origin,
+        projectDeadline: project.deadline,
         canManageTasks: canManageProjectTasks(
           project,
           volunteer,

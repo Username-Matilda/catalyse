@@ -212,6 +212,22 @@ describe('home', () => {
     expect(within(finished).queryByRole('link', { name: 'Shelved' })).toBeNull()
   })
 
+  it('flags a project whose plan runs past its deadline', async () => {
+    const me = await createVolunteer()
+    const project = await createProject({
+      title: 'Behind',
+      assigneeId: me.id,
+      status: 'in_progress',
+      startDate: new Date('2026-09-20T00:00:00Z'),
+      deadline: new Date('2026-09-28T00:00:00Z'),
+    })
+    await createTask(project.id, { durationDays: 12 })
+    await renderApp(<HomePage />, { as: me, url: '/dashboard' })
+    const work = await screen.findByRole('region', { name: 'My work' })
+    const row = within(work).getByRole('link', { name: 'Behind' }).closest('li')!
+    expect(within(row).getByText('3 days late')).toBeInTheDocument()
+  })
+
   it('says so when a filter leaves nothing, and when nothing matches', async () => {
     const skill = await createSkill()
     const me = await createVolunteer({

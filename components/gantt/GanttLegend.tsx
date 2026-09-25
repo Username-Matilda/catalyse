@@ -118,12 +118,12 @@ export default function GanttLegend({ editable }: { editable: boolean }) {
             aria-hidden="true"
           />
         </Swatch>
-        <Swatch label="Past deadline">
+        <Swatch label="Deadline (red once the plan runs past it)">
           <span aria-hidden="true" style={{ color: 'var(--gantt-today)' }}>
             ▲
           </span>
         </Swatch>
-        <Swatch label="Pinned earlier than dependencies allow">
+        <Swatch label="Starts before its dependencies allow">
           <span
             className="block h-2.5 w-2.5 rounded-full"
             style={{

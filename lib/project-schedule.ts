@@ -9,7 +9,7 @@
  */
 
 import { prisma } from './prisma'
-import { WorkItemType } from '@/generated/prisma/enums'
+import { ProjectStatus, WorkItemType } from '@/generated/prisma/enums'
 import {
   computeSchedule,
   diffInDays,
@@ -180,4 +180,40 @@ export async function loadProjectTaskSchedule(
   ])
   const schedule = computeSchedule(tasks.map(toScheduleInput), edges, origin)
   return { schedule, edges, origin }
+}
+
+const CLOSED_PROJECT_STATUSES: string[] = [ProjectStatus.completed, ProjectStatus.archived]
+
+/**
+ * How many days each open project's plan runs past its own deadline, keyed by id. Only projects
+ * that are late appear: one with no deadline, no dated task, or time to spare is left out. The
+ * plan's end is the latest end among tasks that have a start, a duration or a predecessor, so a
+ * task nobody has put on the timeline does not count as finishing on the first day.
+ */
+export async function lateProjects(
+  projects: { id: number; status: string; startDate: Date | null; deadline: Date | null }[],
+): Promise<Map<number, number>> {
+  const late = new Map<number, number>()
+  const candidates = projects.filter(
+    (p): p is typeof p & { deadline: Date } =>
+      p.deadline !== null && !CLOSED_PROJECT_STATUSES.includes(p.status),
+  )
+  await Promise.all(
+    candidates.map(async (project) => {
+      const tasks = await prisma.workItem.findMany({
+        where: { parentId: project.id, type: WorkItemType.TASK },
+        select: SCHEDULABLE_SELECT,
+      })
+      const { schedule, edges } = await loadProjectTaskSchedule(project, tasks)
+      const hasPredecessor = new Set(edges.map((e) => e.successorId))
+      const dated = tasks.filter(
+        (t) => t.startDate !== null || t.durationDays !== null || hasPredecessor.has(t.id),
+      )
+      if (dated.length === 0) return
+      const end = Math.max(...dated.map((t) => schedule.byId.get(t.id)?.end.getTime() ?? 0))
+      const days = diffInDays(project.deadline, new Date(end))
+      if (days > 0) late.set(project.id, days)
+    }),
+  )
+  return late
 }

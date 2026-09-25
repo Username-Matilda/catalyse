@@ -8,6 +8,7 @@ import {
   TASK_STATUS_LABELS,
 } from '@/lib/status-labels'
 import { daysQuiet } from '@/lib/staleness'
+import { lateProjects } from '@/lib/project-schedule'
 import {
   ApprovalStatus,
   ContactRequestStatus,
@@ -56,6 +57,8 @@ export type WorkRow = {
   context: string | null
   /** Finished or archived work, listed after the rest. */
   done: boolean
+  /** A project whose plan runs past its deadline, by this many days. */
+  daysLate?: number
 }
 
 export type FindItem = { id: number; title: string; href: string; reason: string | null }
@@ -280,7 +283,14 @@ async function attentionFor(viewer: Viewer): Promise<AttentionItem[]> {
 }
 
 async function workFor(viewer: Viewer): Promise<WorkRow[]> {
-  const projectSelect = { id: true, title: true, status: true, updatedAt: true } as const
+  const projectSelect = {
+    id: true,
+    title: true,
+    status: true,
+    updatedAt: true,
+    startDate: true,
+    deadline: true,
+  } as const
   const [owned, interests, proposed, tasks, memberships, deputyRows] = await Promise.all([
     prisma.workItem.findMany({
       where: { type: WorkItemType.PROJECT, assigneeId: viewer.id },
@@ -334,12 +344,10 @@ async function workFor(viewer: Viewer): Promise<WorkRow[]> {
   // A project appears once, under the closest tie: leading, deputising, helping, proposing,
   // applying.
   const projects = new Map<number, WorkRow & { updatedAt: Date | null }>()
-  const addProject = (
-    p: { id: number; title: string; status: string; updatedAt: Date | null },
-    role: WorkRow['role'],
-    status: string,
-  ) => {
+  const projectRowsById = new Map<number, (typeof owned)[number]>()
+  const addProject = (p: (typeof owned)[number], role: WorkRow['role'], status: string) => {
     if (projects.has(p.id)) return
+    projectRowsById.set(p.id, p)
     projects.set(p.id, {
       key: `project-${p.id}`,
       kind: 'project',
@@ -367,6 +375,12 @@ async function workFor(viewer: Viewer): Promise<WorkRow[]> {
       i.interestType === 'want_to_own' ? 'Lead' : 'Helper',
       INTEREST_STATUS_LABELS[i.status],
     )
+  }
+
+  const late = await lateProjects([...projectRowsById.values()])
+  for (const [id, row] of projects) {
+    const days = late.get(id)
+    if (days) row.daysLate = days
   }
 
   const projectRows = [...projects.values()]

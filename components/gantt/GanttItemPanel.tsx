@@ -6,6 +6,7 @@ import Button from '@/components/Button'
 import Linkify from '@/components/Linkify'
 import Tooltip from '@/components/Tooltip'
 import { formatDateShort, toDateInputValue, fromDateInputValue } from '@/lib/format-date'
+import { lateText, movedText, pinConflictSlip } from '@/lib/slip'
 import { barFill, barTone, TONE_LABELS } from './palette'
 import { ANCHOR_HINT, CRITICAL_HINT } from './GanttLegend'
 import type { GanttRow } from './types'
@@ -62,7 +63,6 @@ export default function GanttItemPanel({
   durationDays,
   description,
   assigneeName,
-  deadline,
   estimatedHours,
   canManage,
   siblings,
@@ -81,7 +81,6 @@ export default function GanttItemPanel({
   durationDays: number | null
   description?: string | null
   assigneeName?: string | null
-  deadline?: Date | string | null
   /** Effort, as opposed to `durationDays` elapsed — the two are independent. */
   estimatedHours?: number | null
   canManage: boolean
@@ -112,12 +111,10 @@ export default function GanttItemPanel({
   }, [row.id, startDate, durationDays])
 
   const p = row.placement
-  const variance =
-    p.startVarianceDays && p.startVarianceDays !== 0
-      ? p.startVarianceDays > 0
-        ? `${p.startVarianceDays} day${p.startVarianceDays === 1 ? '' : 's'} later`
-        : `${-p.startVarianceDays} day${p.startVarianceDays === -1 ? '' : 's'} earlier`
-      : 'On plan'
+  const conflict = pinConflictSlip(
+    p,
+    predecessors.find((d) => d.predecessorId === p.pinConflictWith)?.predecessorTitle,
+  )
 
   const span = p.isMilestone
     ? formatDateShort(p.start)
@@ -168,12 +165,12 @@ export default function GanttItemPanel({
             </span>
           </Tooltip>
         )}
-        {p.breachesDeadline && (
+        {p.breachesDeadline && p.daysLate !== null && (
           <span
             className="rounded-full px-2 py-0.5"
             style={{ background: 'var(--gantt-today)', color: 'var(--gantt-bar-text)' }}
           >
-            Past deadline
+            {lateText(p.daysLate)}
           </span>
         )}
       </div>
@@ -188,7 +185,14 @@ export default function GanttItemPanel({
           panel should never print a value and then offer the field for it half a screen away. */}
       <dl className="grid grid-cols-[6.5rem_1fr] gap-x-3 gap-y-1.5 text-sm">
         <Fact label="Planned">{span}</Fact>
-        {deadline && <Fact label="Deadline">{formatDateShort(deadline)}</Fact>}
+        {p.deadline && p.daysLate !== null && (
+          <Fact label="Deadline">
+            {formatDateShort(p.deadline)}{' '}
+            <span className={p.breachesDeadline ? 'text-error' : 'text-text-light'}>
+              · {lateText(p.daysLate)}
+            </span>
+          </Fact>
+        )}
         {estimatedHours !== null && estimatedHours !== undefined && (
           <Fact label="Effort">
             {estimatedHours} hour{estimatedHours === 1 ? '' : 's'} of work
@@ -204,8 +208,10 @@ export default function GanttItemPanel({
             "On plan". */}
         {p.baseline && (
           <Fact label="Moved">
-            <span className={p.startVarianceDays ? 'text-warning-text' : undefined}>
-              {variance}
+            <span className={p.finishVarianceDays ? 'text-warning-text' : undefined}>
+              {p.finishVarianceDays
+                ? `${movedText(p.finishVarianceDays)} (${formatDateShort(p.baseline.end)} → ${formatDateShort(p.end)})`
+                : 'On plan'}
             </span>
           </Fact>
         )}
@@ -223,9 +229,7 @@ export default function GanttItemPanel({
         </p>
       )}
 
-      {p.pinnedBeforePredecessor && (
-        <p className="text-error mt-2 mb-0 text-sm">Pinned earlier than its dependencies allow.</p>
-      )}
+      {conflict && <p className="text-error mt-2 mb-0 text-sm">{conflict}</p>}
 
       {canManage && (
         <Section title="Dates">

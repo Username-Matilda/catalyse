@@ -8,6 +8,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRequireAuth } from '@/lib/hooks/auth'
 import { orpc } from '@/lib/orpc'
 import Button from '@/components/Button'
+import { plural } from '@/lib/plural'
 import { Badge, type BadgeVariant } from '@/components/Badge'
 import Modal from '@/components/ui/Modal'
 import Skeleton from '@/components/Skeleton'
@@ -243,6 +244,7 @@ export default function HomePage() {
           </div>
           <div className="flex items-center gap-2">
             <Badge variant={ROLE_VARIANTS[w.role]}>{w.role}</Badge>
+            {w.daysLate ? <Badge variant="danger">{plural(w.daysLate, 'day')} late</Badge> : null}
             {w.status && <span className="text-sm text-text-light">{w.status}</span>}
           </div>
         </li>
