@@ -321,7 +321,7 @@ test.describe('Task Deadlines', () => {
     await expect(adminPage.getByText('Task added!')).toBeVisible({ timeout: 10_000 })
     const taskItem = adminPage.locator('li').filter({ hasText: 'Task with deadline' })
     await expect(taskItem.getByText('~4h')).toBeVisible({ timeout: 10_000 })
-    await expect(taskItem.getByText(/Due/)).toBeVisible({ timeout: 10_000 })
+    await expect(taskItem.getByText(/^Deadline /)).toBeVisible({ timeout: 10_000 })
     await expect(taskItem.getByText('Overdue')).toHaveCount(0)
   })
 

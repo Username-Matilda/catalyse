@@ -579,7 +579,7 @@ test.describe('Work item scheduling and dependencies', () => {
       .toBe(true)
   })
 
-  test('hovering the anchor label explains what an anchor is', async ({ baseUrl, adminPage }) => {
+  test('hovering the key date label explains what a key date is', async ({ baseUrl, adminPage }) => {
     const api = createApiClient(baseUrl, readAdminToken(baseUrl))
     const projectId = await makeProject(api, { startDate: day('2027-07-05') })
     await addTask(api, projectId, {
@@ -593,6 +593,6 @@ test.describe('Work item scheduling and dependencies', () => {
 
     const panel = adminPage.getByRole('complementary')
     await panel.getByText('A fixed point the plan is built around').hover()
-    await expect(adminPage.getByRole('tooltip')).toContainText('measured towards the anchors')
+    await expect(adminPage.getByRole('tooltip')).toContainText('measured towards the key dates')
   })
 })
