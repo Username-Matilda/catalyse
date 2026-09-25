@@ -228,15 +228,15 @@ export type PastPlanTask = {
   projectId: number
   projectTitle: string
   daysPast: number
-  assigneeId: number | null
-  assigneeName: string | null
+  assigneeId: number
+  assigneeName: string
   /** When the assignee last posted on the task, or null if they never have. */
   lastUpdateAt: Date | null
 }
 
 /**
- * Tasks on live projects whose planned end has passed while they are not done. Only tasks on
- * the timeline count: one with no dates has no plan to be past.
+ * Tasks on live projects whose planned end has passed while someone holds them and they are
+ * not done. Only tasks on the timeline count: one with no dates has no plan to be past.
  */
 export async function pastPlanTasks(
   projectIds: number[],
@@ -268,15 +268,17 @@ export async function pastPlanTasks(
     for (const [i, t] of tasks.entries()) {
       if (t.startDate === null && t.durationDays === null && !hasPredecessor.has(t.id)) continue
       const placed = schedule.scheduled[i]
-      const days = daysPastPlan(placed.end, t.status === TaskStatus.completed, today)
-      if (days === null) continue
-      const lastUpdate = t.assigneeId
-        ? await prisma.workItemComment.findFirst({
-            where: { workItemId: t.id, authorId: t.assigneeId, deletedAt: null },
-            orderBy: { createdAt: 'desc' },
-            select: { createdAt: true },
-          })
-        : null
+      const days = daysPastPlan(
+        placed.end,
+        { done: t.status === TaskStatus.completed, assigned: t.assignee !== null },
+        today,
+      )
+      if (days === null || t.assigneeId === null || t.assignee === null) continue
+      const lastUpdate = await prisma.workItemComment.findFirst({
+        where: { workItemId: t.id, authorId: t.assigneeId, deletedAt: null },
+        orderBy: { createdAt: 'desc' },
+        select: { createdAt: true },
+      })
       found.push({
         id: t.id,
         title: t.title,
@@ -284,7 +286,7 @@ export async function pastPlanTasks(
         projectTitle: project.title,
         daysPast: days,
         assigneeId: t.assigneeId,
-        assigneeName: t.assignee?.name ?? null,
+        assigneeName: t.assignee.name,
         lastUpdateAt: lastUpdate?.createdAt ?? null,
       })
     }

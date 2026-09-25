@@ -28,37 +28,47 @@ const value = () => JSON.parse(screen.getByTestId('value').textContent!) as Date
 
 describe('DatesBlock', () => {
   it('keeps start, end and days in step and relates the end to the deadline', async () => {
-    render(<Harness initial={{ deadline: '2026-09-17' }} />)
+    render(<Harness initial={{ deadline: '2030-09-17' }} />)
     expect(screen.getByText(/No start date: it goes at the beginning of the plan/)).toBeTruthy()
     expect(screen.queryByLabelText('To')).toBeNull()
 
-    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-09-14' } })
-    expect(screen.getByLabelText('To')).toHaveValue('2026-09-14')
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2030-09-14' } })
+    expect(screen.getByLabelText('To')).toHaveValue('2030-09-14')
     expect(screen.getByText('Starts on this date.')).toBeTruthy()
-    expect(screen.getByText('Planned to finish 14 Sept 2026, 3 days before the deadline.'))
+    expect(screen.getByText('Planned to finish 14 Sept 2030, 3 days before the deadline.'))
 
-    fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-09-20' } })
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '2030-09-20' } })
     expect(value().durationDays).toBe('7')
-    const late = screen.getByText('Planned to finish 20 Sept 2026, 3 days after the deadline.')
+    const late = screen.getByText('Planned to finish 20 Sept 2030, 3 days after the deadline.')
     expect(late).toHaveClass('text-error')
 
     // Moving the start keeps the length and moves the end.
-    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-09-15' } })
-    expect(screen.getByLabelText('To')).toHaveValue('2026-09-21')
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2030-09-15' } })
+    expect(screen.getByLabelText('To')).toHaveValue('2030-09-21')
 
     fireEvent.change(screen.getByLabelText('Days'), { target: { value: '2' } })
-    expect(screen.getByLabelText('To')).toHaveValue('2026-09-16')
+    expect(screen.getByLabelText('To')).toHaveValue('2030-09-16')
 
     // One click makes the window end on the deadline.
     await userEvent.click(screen.getByRole('button', { name: 'Fit to deadline' }))
     expect(value().durationDays).toBe('3')
-    expect(screen.getByText('Planned to finish 17 Sept 2026, on the deadline.'))
+    expect(screen.getByText('Planned to finish 17 Sept 2030, on the deadline.'))
     expect(screen.queryByRole('button', { name: 'Fit to deadline' })).toBeNull()
 
     await userEvent.type(screen.getByLabelText('Effort (hours of work)'), '6')
     expect(value().estimatedHours).toBe('6')
     fireEvent.change(screen.getByLabelText('Deadline (optional)'), { target: { value: '' } })
     expect(screen.queryByText(/Planned to finish/)).toBeNull()
+  })
+
+  it('says when the deadline has gone by, and stops offering to fit the window to it', () => {
+    render(
+      <Harness initial={{ startDate: '2026-09-14', durationDays: '1', deadline: '2026-09-17' }} />,
+    )
+    expect(
+      screen.getByText(/^Planned to finish 14 Sept 2026; the deadline passed \d+ days ago\.$/),
+    ).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Fit to deadline' })).toBeNull()
   })
 
   it('refuses an end before the start until it is fixed', () => {
@@ -84,7 +94,12 @@ describe('DatesBlock', () => {
     await userEvent.click(screen.getByRole('radio', { name: /On set dates/ }))
     expect(screen.getByLabelText('Runs from')).toBeTruthy()
     expect(screen.queryByLabelText('Deadline (optional)')).toBeNull()
-    expect(screen.getByText('No deadline: the dates themselves are fixed.')).toBeTruthy()
+    // The deadline it had is named, so switching is not a silent loss.
+    expect(
+      screen.getByText(
+        'No deadline: the dates themselves are fixed. Saving removes the deadline of 30 Sept 2026.',
+      ),
+    ).toBeTruthy()
     expect(screen.queryByText(/Planned to finish/)).toBeNull()
 
     const moment = screen.getByRole('checkbox', { name: /a moment, not a stretch of work/ })

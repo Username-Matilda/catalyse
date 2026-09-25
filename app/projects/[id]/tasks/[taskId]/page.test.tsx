@@ -513,19 +513,28 @@ describe('task detail page — past plan', () => {
     await screen.findByText('Reassigned. The previous assignee has been told.')
     await waitFor(async () => expect((await row(late.id)).assigneeId).toBe(pat.id))
 
-    await userEvent.click(await within(box).findByRole('button', { name: 'Release' }))
-    await waitFor(async () => expect((await row(late.id)).assigneeId).toBeNull())
-    expect(await within(box).findByText(/Nobody has it/)).toBeInTheDocument()
     // A failed reassignment says why.
     await userEvent.click(within(box).getByRole('button', { name: 'Reassign to' }))
     await userEvent.click((await screen.findAllByRole('option', { name: 'Pat Next B' }))[0])
     await prisma.workItem.update({ where: { id: late.id }, data: { status: 'completed' } })
     await userEvent.click(within(box).getByRole('button', { name: 'Reassign' }))
     await screen.findByText('Cannot assign a completed task')
+    await prisma.workItem.update({ where: { id: late.id }, data: { status: 'in_progress' } })
+
+    // Released, the task is nobody's to be late with, so there is no decision left to make.
+    await userEvent.click(await within(box).findByRole('button', { name: 'Release' }))
+    await waitFor(async () => expect((await row(late.id)).assigneeId).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Past plan' })).toBeNull())
 
     // A replan that fails says why.
-    await prisma.workItem.update({ where: { id: late.id }, data: { status: 'in_progress' } })
-    await userEvent.click(within(box).getByRole('button', { name: 'Replan' }))
+    await prisma.workItem.update({
+      where: { id: late.id },
+      data: { status: 'in_progress', assigneeId: pat.id },
+    })
+    cleanup()
+    await mount(project.id, late.id, owner)
+    const again = await screen.findByRole('region', { name: 'Past plan' })
+    await userEvent.click(within(again).getByRole('button', { name: 'Replan' }))
     const dialog = await screen.findByRole('dialog')
     await within(dialog).findByText(/moves \d+ days? later/)
     await userEvent.type(within(dialog).getByLabelText('Why is the plan changing?'), 'x')

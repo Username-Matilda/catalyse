@@ -76,7 +76,11 @@ export default function TaskDetailPage({
           ? TASK_REQUESTED_MESSAGE
           : variables.data.status === TaskStatus.in_progress
             ? PROJECT_TASK_CLAIMED_MESSAGE
-            : 'Task updated!',
+            : variables.data.isAnchor === true
+              ? 'This is now the key date.'
+              : variables.data.isAnchor === false
+                ? 'No longer the key date.'
+                : 'Task updated!',
         'success',
       )
       setIsEditing(false)
@@ -223,27 +227,28 @@ export default function TaskDetailPage({
           </div>
         </div>
 
-        <TaskDatesSummary
-          timing={task.timing}
-          durationDays={task.durationDays}
-          estimatedHours={task.estimatedHours}
-          deadline={task.deadline}
-          placement={task.placement}
-          assigneeName={task.assignedToName}
-          startedAt={task.startedAt}
-          completedAt={task.completedAt}
-          hasPosted={task.assigneeHasPosted}
-        />
-        {task.pastPlanDays !== null && task.canManage && (
+        {/* The form below holds the same dates, so the summary steps aside while it is open. */}
+        {!isEditing && (
+          <TaskDatesSummary
+            timing={task.timing}
+            durationDays={task.durationDays}
+            estimatedHours={task.estimatedHours}
+            deadline={task.deadline}
+            placement={task.placement}
+            assigneeName={task.assignedToName}
+            startedAt={task.startedAt}
+            completedAt={task.completedAt}
+            hasPosted={task.assigneeHasPosted}
+          />
+        )}
+        {task.pastPlanDays !== null && task.canManage && !isEditing && (
           <section
             aria-label="Past plan"
             className="border-warning-text mb-4 rounded-lg border p-4 text-sm"
           >
             <p className="mt-0 mb-3">
-              <strong>{plural(task.pastPlanDays, 'day')} past plan.</strong>{' '}
-              {task.assignedToName
-                ? `${task.assignedToName} has it. Replan it, give it to someone else, or open it up again.`
-                : 'Nobody has it. Replan it or give it to someone.'}
+              <strong>{plural(task.pastPlanDays, 'day')} past plan.</strong> {task.assignedToName}{' '}
+              has it. Replan it, give it to someone else, or open it up again.
             </p>
             <div className="flex flex-wrap items-end gap-3">
               <Button size="sm" onClick={() => setReplanning(true)}>
@@ -272,18 +277,16 @@ export default function TaskDetailPage({
               >
                 Reassign
               </Button>
-              {task.assignedToId !== null && (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  disabled={updateMutation.isPending}
-                  onClick={() =>
-                    updateMutation.mutate({ projectId, taskId, data: { status: TaskStatus.open } })
-                  }
-                >
-                  Release
-                </Button>
-              )}
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={updateMutation.isPending}
+                onClick={() =>
+                  updateMutation.mutate({ projectId, taskId, data: { status: TaskStatus.open } })
+                }
+              >
+                Release
+              </Button>
             </div>
           </section>
         )}
@@ -305,9 +308,14 @@ export default function TaskDetailPage({
         )}
         {(task.isAnchor || task.canSetKeyDate) && (
           <div className="mb-4 flex flex-wrap items-center gap-3 text-sm">
-            {task.isAnchor && (
+            {task.isAnchor ? (
               <span style={{ color: 'var(--gantt-anchor)' }}>
                 ★ Key date: the date this project is planned around
+              </span>
+            ) : (
+              <span className="text-text-light">
+                The event itself? Make it the key date and the plan is read as work before it and
+                work after it.
               </span>
             )}
             {task.canSetKeyDate && (

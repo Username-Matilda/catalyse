@@ -9,7 +9,7 @@ import { formatDateShort } from '@/lib/format-date'
 import DatesBlock from '@/components/DatesBlock'
 import { daysPastPlan } from '@/lib/replan'
 import { plural } from '@/lib/plural'
-import { datesPayload, type DatesPayload, type DatesValue } from '@/lib/task-dates'
+import { datesPayload, windowText, type DatesPayload, type DatesValue } from '@/lib/task-dates'
 import { deadlineStanding, movedText, pinConflictSlip } from '@/lib/slip'
 import { barFill, barTone, TONE_LABELS } from './palette'
 import { ANCHOR_HINT, CRITICAL_HINT } from './GanttLegend'
@@ -76,6 +76,7 @@ export default function GanttItemPanel({
   onRemoveDependency,
   onUpdateLag,
   onSetAnchor,
+  onReplan,
   assignment,
 }: {
   row: GanttRow
@@ -93,6 +94,8 @@ export default function GanttItemPanel({
   onRemoveDependency: (dependencyId: number) => void
   onUpdateLag: (dependencyId: number, lagDays: number) => void
   onSetAnchor?: (isAnchor: boolean) => void
+  /** Opens the replan dialog for a task that has run past its plan; omit where it cannot. */
+  onReplan?: () => void
   /** Omit to leave the panel read-only about who is doing the work. */
   assignment?: PanelAssignment
 }) {
@@ -118,16 +121,17 @@ export default function GanttItemPanel({
 
   const p = row.placement
   const estimatedHours = dates.estimatedHours ? parseFloat(dates.estimatedHours) : null
-  const pastPlan = daysPastPlan(p.end, row.status === 'completed')
+  const pastPlan = daysPastPlan(p.end, {
+    done: row.status === 'completed',
+    assigned: !!assigneeName,
+  })
   const standing = deadlineStanding(p, row.status === 'completed')
   const conflict = pinConflictSlip(
     p,
     predecessors.find((d) => d.predecessorId === p.pinConflictWith)?.predecessorTitle,
   )
 
-  const span = p.isMilestone
-    ? formatDateShort(p.start)
-    : `${formatDateShort(p.start)} – ${formatDateShort(p.end)}`
+  const span = windowText(p.start, p.end)
 
   const taken = new Set(predecessors.map((d) => d.predecessorId))
   const addable = siblings.filter((s) => !taken.has(s.id) && s.id !== row.id)
@@ -178,6 +182,11 @@ export default function GanttItemPanel({
           <span className="border-warning-text text-warning-text rounded-full border px-2 py-0.5">
             {plural(pastPlan, 'day')} past plan
           </span>
+        )}
+        {pastPlan !== null && onReplan && (
+          <Button size="sm" variant="secondary" disabled={busy} onClick={onReplan}>
+            Replan
+          </Button>
         )}
         {standing?.late && (
           <span

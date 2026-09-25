@@ -14,9 +14,17 @@ import {
 } from './schedule'
 import { plural } from './plural'
 
-/** Days a task's plan ended before today, or null when it is done or its plan still runs. */
-export function daysPastPlan(end: Date, done: boolean, today: Date = new Date()): number | null {
-  if (done) return null
+/**
+ * Days a task's plan ended before today, or null when there is nothing to decide: the task is
+ * done, its plan still runs, or nobody holds it. An unclaimed task with a stale bar is not
+ * someone running late; it is work still waiting for hands, and the open list already says so.
+ */
+export function daysPastPlan(
+  end: Date,
+  task: { done: boolean; assigned: boolean },
+  today: Date = new Date(),
+): number | null {
+  if (task.done || !task.assigned) return null
   const days = diffInDays(end, today)
   return days > 0 ? days : null
 }
@@ -93,18 +101,21 @@ export const REPLAN_STEPS = [
   { label: '+1 week', days: 7 },
 ] as const
 
-/** A new end `days` after today's date or the old end, whichever is later. */
+/** The day the quick choices count from: the old end while it is still ahead, otherwise today. */
+export function stepBase(oldEnd: Date, today: Date = new Date()): Date {
+  return oldEnd.getTime() > startOfUtcDay(today).getTime() ? oldEnd : startOfUtcDay(today)
+}
+
+/** A new end `days` after the step base. */
 export function steppedEnd(oldEnd: Date, days: number, today: Date = new Date()): Date {
-  const from = oldEnd.getTime() > startOfUtcDay(today).getTime() ? oldEnd : startOfUtcDay(today)
-  return addDays(from, days)
+  return addDays(stepBase(oldEnd, today), days)
 }
 
 /** "Assignee: Sam, last update 5 days ago. Replan, reassign or release." */
 export function pastPlanDetail(
-  t: { assigneeName: string | null; lastUpdateAt: Date | null },
+  t: { assigneeName: string; lastUpdateAt: Date | null },
   today: Date = new Date(),
 ): string {
-  if (t.assigneeName === null) return 'Nobody has it. Replan it or give it to someone.'
   const last =
     t.lastUpdateAt === null
       ? 'no update yet'

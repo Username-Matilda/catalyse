@@ -77,36 +77,45 @@ describe('task dates', () => {
 
   it('fits the window to end on the deadline', () => {
     const v = { ...EMPTY_DATES, deadline: '2026-09-20' }
+    const today = day('2026-09-16')
     // A set start keeps its start.
-    expect(fitToDeadline({ ...v, startDate: '2026-09-14', durationDays: '1' }, null)).toMatchObject(
-      {
-        startDate: '2026-09-14',
-        durationDays: '7',
-      },
-    )
+    expect(
+      fitToDeadline({ ...v, startDate: '2026-09-14', durationDays: '1' }, null, today),
+    ).toMatchObject({ startDate: '2026-09-14', durationDays: '7' })
     // A task that follows another keeps following.
-    expect(fitToDeadline(v, day('2026-09-18'))).toMatchObject({ startDate: '', durationDays: '3' })
+    expect(fitToDeadline(v, day('2026-09-18'), today)).toMatchObject({
+      startDate: '',
+      durationDays: '3',
+    })
     // With neither, it starts today.
-    expect(fitToDeadline(v, null, day('2026-09-16'))).toMatchObject({
+    expect(fitToDeadline(v, null, today)).toMatchObject({
       startDate: '2026-09-16',
       durationDays: '5',
     })
-    // Nothing to do: no deadline, set dates, already on it, or a deadline before the start.
-    expect(fitToDeadline({ ...v, deadline: '' }, null)).toBeNull()
-    expect(fitToDeadline({ ...v, timing: 'fixed' }, null)).toBeNull()
-    expect(fitToDeadline({ ...v, startDate: '2026-09-14', durationDays: '7' }, null)).toBeNull()
-    expect(fitToDeadline({ ...v, startDate: '2026-09-25' }, null)).toBeNull()
+    // Nothing to do: no deadline, set dates, already on it, a deadline before the start, or one
+    // that has already passed.
+    expect(fitToDeadline({ ...v, deadline: '' }, null, today)).toBeNull()
+    expect(fitToDeadline({ ...v, timing: 'fixed' }, null, today)).toBeNull()
+    expect(
+      fitToDeadline({ ...v, startDate: '2026-09-14', durationDays: '7' }, null, today),
+    ).toBeNull()
+    expect(fitToDeadline({ ...v, startDate: '2026-09-25' }, null, today)).toBeNull()
+    expect(fitToDeadline({ ...v, startDate: '2026-09-14' }, null, day('2026-09-21'))).toBeNull()
   })
 
-  it('relates the planned finish to the deadline', () => {
-    expect(finishSentence(day('2026-09-20'), day('2026-09-17'))).toBe(
+  it('relates the planned finish to the deadline, until the deadline has gone by', () => {
+    const today = day('2026-09-15')
+    expect(finishSentence(day('2026-09-20'), day('2026-09-17'), today)).toBe(
       'Planned to finish 20 Sept 2026, 3 days after the deadline.',
     )
-    expect(finishSentence(day('2026-09-16'), day('2026-09-17'))).toBe(
+    expect(finishSentence(day('2026-09-16'), day('2026-09-17'), today)).toBe(
       'Planned to finish 16 Sept 2026, 1 day before the deadline.',
     )
-    expect(finishSentence(day('2026-09-17'), day('2026-09-17'))).toBe(
+    expect(finishSentence(day('2026-09-17'), day('2026-09-17'), today)).toBe(
       'Planned to finish 17 Sept 2026, on the deadline.',
+    )
+    expect(finishSentence(day('2026-09-14'), day('2026-09-17'), day('2026-09-25'))).toBe(
+      'Planned to finish 14 Sept 2026; the deadline passed 8 days ago.',
     )
   })
 

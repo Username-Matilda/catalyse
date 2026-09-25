@@ -91,14 +91,26 @@ export function plannedEnd(v: DatesValue, derivedStart: Date | null): Date | nul
   return start ? addDays(start, spanDays(v.durationDays) - 1) : null
 }
 
-/** "Planned to finish 20 Sept 2026, 3 days after the deadline." */
-export function finishSentence(end: Date, deadline: Date): string {
+/**
+ * "Planned to finish 20 Sept 2026, 3 days after the deadline." Once the deadline has gone by,
+ * how the plan compared to it no longer matters; what matters is that it has passed.
+ */
+export function finishSentence(end: Date, deadline: Date, today: Date = new Date()): string {
+  const overdue = diffInDays(deadline, today)
+  if (overdue > 0) {
+    return `Planned to finish ${formatDateShort(end)}; the deadline passed ${plural(overdue, 'day')} ago.`
+  }
   const late = diffInDays(deadline, end)
   const gap =
     late === 0
       ? 'on the deadline'
       : `${plural(Math.abs(late), 'day')} ${late > 0 ? 'after' : 'before'} the deadline`
   return `Planned to finish ${formatDateShort(end)}, ${gap}.`
+}
+
+/** Whether the deadline has already passed, so fitting the window to it would end in the past. */
+export function deadlinePassed(deadline: Date, today: Date = new Date()): boolean {
+  return diffInDays(deadline, today) > 0
 }
 
 /** "14 Sept 2026" or "14 Sept 2026 – 20 Sept 2026". */
@@ -132,7 +144,7 @@ export function windowReading(
 /**
  * The dates that make the window end on the deadline: the same start (or the one the schedule
  * gives it, or today when it has neither), and the days to reach the deadline. Null when there
- * is no deadline, it already ends there, or the deadline comes before the start.
+ * is no deadline, it has passed, it already ends there, or the deadline comes before the start.
  */
 export function fitToDeadline(
   v: DatesValue,
@@ -140,7 +152,7 @@ export function fitToDeadline(
   today: Date = new Date(),
 ): DatesValue | null {
   const deadline = fromDateInputValue(v.deadline)
-  if (v.timing === 'fixed' || !deadline) return null
+  if (v.timing === 'fixed' || !deadline || deadlinePassed(deadline, today)) return null
   const start = fromDateInputValue(v.startDate) ?? derivedStart ?? startOfUtcDay(today)
   const days = diffInDays(start, deadline) + 1
   if (days < 1) return null

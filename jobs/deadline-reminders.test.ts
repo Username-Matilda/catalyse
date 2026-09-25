@@ -9,6 +9,7 @@ import {
 } from '@/test/factories'
 import { emails } from '@/test/fakes/email'
 import { addDays, startOfUtcDay } from '@/lib/schedule'
+import { formatDateShort } from '@/lib/format-date'
 import { DEADLINE_REMINDERS_JOB, runDeadlineRemindersJob } from './deadline-reminders'
 
 const now = new Date('2026-10-11T08:00:00Z')
@@ -64,7 +65,10 @@ describe('runDeadlineRemindersJob', () => {
     expect(toOlive[0].html).toContain('Your tasks')
     expect(toOlive[0].html).toContain('Westminster')
     expect(toOlive[0].html).toContain('“Book venue” is due today')
-    expect(toOlive[0].html).toContain('“Write press release” is due soon')
+    expect(toOlive[0].html).toContain(
+      `“Write press release” is due ${formatDateShort(addDays(today, 1))}`,
+    )
+    expect(toOlive[0].html).toContain('Projects you lead')
 
     const sent = emails.sent.length
     expect(await runDeadlineRemindersJob(now)).toMatchObject({ recipients: 0, emails: 0 })
@@ -77,9 +81,17 @@ describe('runDeadlineRemindersJob', () => {
     const deputy = await createVolunteer({ email: 'd2@example.org' })
     const project = await createProject({ status: 'in_progress', assigneeId: owner.id })
     await prisma.projectDeputy.create({ data: { projectId: project.id, volunteerId: deputy.id } })
+    const sam = await createVolunteer({ name: 'Sam Slow', email: 's2@example.org' })
     const late = await createTask(project.id, {
       title: 'Print flyers',
       status: 'in_progress',
+      assigneeId: sam.id,
+      startDate: addDays(today, -6),
+      durationDays: 3,
+    })
+    // Past its plan too, but nobody holds it: not a decision, so it nags no one.
+    await createTask(project.id, {
+      title: 'Unclaimed',
       startDate: addDays(today, -6),
       durationDays: 3,
     })
@@ -88,7 +100,7 @@ describe('runDeadlineRemindersJob', () => {
     expect(decision).toHaveLength(1)
     expect(decision[0]).toMatchObject({
       title: '“Print flyers” is 4 days past plan',
-      body: 'Nobody has it. Replan it or give it to someone.',
+      body: expect.stringMatching(/^Assignee: Sam Slow, .*\. Replan, reassign or release\.$/),
       entityId: late.id,
     })
     expect(await notes(deputy.id, 'task_needs_decision')).toHaveLength(1)

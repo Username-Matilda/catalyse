@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Radio from '@/components/Radio'
 import Checkbox from '@/components/Checkbox'
 import Button from '@/components/Button'
-import { fromDateInputValue } from '@/lib/format-date'
+import { formatDateShort, fromDateInputValue } from '@/lib/format-date'
 import {
   daysBetween,
   endInputValue,
@@ -193,6 +193,9 @@ export default function DatesBlock({
       {fixed && (
         <p className="text-text-light mt-0 mb-3 text-xs">
           No deadline: the dates themselves are fixed.
+          {value.deadline && (
+            <> Saving removes the deadline of {formatDateShort(value.deadline)}.</>
+          )}
         </p>
       )}
 

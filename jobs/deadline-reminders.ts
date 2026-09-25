@@ -183,7 +183,7 @@ export async function runDeadlineRemindersJob(now: Date = new Date()) {
           await tell(
             assigneeId,
             key(stage),
-            { ...base, kind: 'due_tomorrow', text: `${t} is due soon` },
+            { ...base, kind: 'due_tomorrow', text: `${t} is due ${formatDateShort(finishBy)}` },
             {
               type: 'finish_by_soon',
               title: `${t} is due ${formatDateShort(finishBy)}`,
@@ -282,13 +282,12 @@ export async function runDeadlineRemindersJob(now: Date = new Date()) {
         task.startDate !== null || task.durationDays !== null || hasPredecessor.has(task.id)
       const placed = dated ? schedule.scheduled[i] : null
 
-      const pastPlan = placed ? daysPastPlan(placed.end, false, today) : null
-      if (placed && pastPlan !== null) {
+      const pastPlan = placed
+        ? daysPastPlan(placed.end, { done: false, assigned: task.assignee !== null }, today)
+        : null
+      if (placed && pastPlan !== null && task.assignee !== null) {
         const detail = pastPlanDetail(
-          {
-            assigneeName: task.assignee?.name ?? null,
-            lastUpdateAt: await lastUpdate(task),
-          },
+          { assigneeName: task.assignee.name, lastUpdateAt: await lastUpdate(task) },
           today,
         )
         const title = `“${task.title}” is ${plural(pastPlan, 'day')} past plan`

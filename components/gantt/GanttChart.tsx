@@ -122,9 +122,19 @@ export default function GanttChart({
     useSensor(KeyboardSensor),
   )
 
+  // The scope runs to the last deadline as well as the last bar, so a marker for a date the
+  // plan has not reached yet is drawn rather than left off the right-hand edge.
+  const scopeEnd = useMemo(() => {
+    const ends = [
+      rangeEnd,
+      ...(deadline ? [deadline] : []),
+      ...rows.flatMap((r) => r.placement.deadline ?? []),
+    ]
+    return ends.reduce((a, b) => (b.getTime() > a.getTime() ? b : a))
+  }, [rangeEnd, deadline, rows])
   const visible = useMemo(
-    () => windowFor(range, rangeStart, rangeEnd, new Date()),
-    [range, rangeStart, rangeEnd],
+    () => windowFor(range, rangeStart, scopeEnd, new Date()),
+    [range, rangeStart, scopeEnd],
   )
   const origin = startOfUtcDay(visible.start)
   // Leave a sliver spare so "Fit" never rounds up into a horizontal scrollbar.

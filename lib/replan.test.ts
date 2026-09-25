@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { daysPastPlan, pastPlanDetail, previewReplan, replanWrite, steppedEnd } from './replan'
+import {
+  daysPastPlan,
+  pastPlanDetail,
+  previewReplan,
+  replanWrite,
+  stepBase,
+  steppedEnd,
+} from './replan'
 import type { ScheduleInput } from './schedule'
 
 const day = (iso: string) => new Date(`${iso}T00:00:00.000Z`)
@@ -27,10 +34,12 @@ const link = (predecessorId: number, successorId: number, lagDays = 0) => ({
 describe('replan', () => {
   const today = day('2026-10-10')
 
-  it('counts days past plan only for unfinished work whose plan has ended', () => {
-    expect(daysPastPlan(day('2026-10-07'), false, today)).toBe(3)
-    expect(daysPastPlan(day('2026-10-10'), false, today)).toBeNull()
-    expect(daysPastPlan(day('2026-10-07'), true, today)).toBeNull()
+  it('counts days past plan only for unfinished work someone holds whose plan has ended', () => {
+    const held = { done: false, assigned: true }
+    expect(daysPastPlan(day('2026-10-07'), held, today)).toBe(3)
+    expect(daysPastPlan(day('2026-10-10'), held, today)).toBeNull()
+    expect(daysPastPlan(day('2026-10-07'), { ...held, done: true }, today)).toBeNull()
+    expect(daysPastPlan(day('2026-10-07'), { ...held, assigned: false }, today)).toBeNull()
   })
 
   it('keeps a set start, keeps following a predecessor, and starts today with neither', () => {
@@ -56,6 +65,8 @@ describe('replan', () => {
   it('steps from today when the old end has passed, and from the old end when it has not', () => {
     expect(ymd(steppedEnd(day('2026-10-07'), 3, today))).toBe('2026-10-13')
     expect(ymd(steppedEnd(day('2026-10-20'), 1, today))).toBe('2026-10-21')
+    expect(ymd(stepBase(day('2026-10-07'), today))).toBe('2026-10-10')
+    expect(ymd(stepBase(day('2026-10-20'), today))).toBe('2026-10-20')
   })
 
   it('previews what moves, what now conflicts, and the key dates it overruns', () => {
@@ -97,9 +108,6 @@ describe('replan', () => {
     )
     expect(pastPlanDetail({ assigneeName: 'Sam', lastUpdateAt: null }, today)).toBe(
       'Assignee: Sam, no update yet. Replan, reassign or release.',
-    )
-    expect(pastPlanDetail({ assigneeName: null, lastUpdateAt: null }, today)).toBe(
-      'Nobody has it. Replan it or give it to someone.',
     )
     expect(pastPlanDetail({ assigneeName: 'Sam', lastUpdateAt: day('2026-10-09') })).toMatch(
       /^Assignee: Sam, last update \d+ days? ago/,

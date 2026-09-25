@@ -59,6 +59,13 @@ confusing than it needed to be, and that will do so again.
       the handler closure — belongs in `AGENTS.md` next to the coverage rules,
       and in `components/ui/ConfirmDialog.tsx`'s own usage note.
 
+- [ ] **There is no quick way to see coverage for just the files a change touched, so each
+      uncovered line costs a full `check-all`.** Phase 3 needed four extra runs (about 7 minutes
+      each) for single lines, and its UX-review follow-up a fifth (a hint's click handler): a cron registry wrapper, a dialog's error toast, an import path
+      no test fed a new field, a chip's own null guard. An npm script that runs the unit tests
+      with coverage limited to files changed since `main` and prints their uncovered lines would
+      find these in a minute.
+
 ## 1x
 
 - [ ] **Component tests count error toasts (`getAllByText(msg).length`), and a
@@ -99,9 +106,14 @@ confusing than it needed to be, and that will do so again.
       and Request contact both need it true; QA needed a hand-run `UPDATE`. The seed
       should set it true.
 
-- [ ] **There is no quick way to see coverage for just the files a change touched, so each
-      uncovered line costs a full `check-all`.** Phase 3 needed four extra runs (about 7 minutes
-      each) for single lines: a cron registry wrapper, a dialog's error toast, an import path
-      no test fed a new field, a chip's own null guard. An npm script that runs the unit tests
-      with coverage limited to files changed since `main` and prints their uncovered lines would
-      find these in a minute.
+- [ ] **A browser UX drive cannot start until a human logs in, because Claude may not type a
+      password and minting a session token from a script is refused as credential
+      materialization.** The Phase 3 review lost several turns finding this out before asking
+      the user. A development-only sign-in (a `?as=admin` route or button, gated on
+      `NODE_ENV === 'development'`) or a note in `CLAUDE.local.md` saying to ask up front would
+      remove the detour; a second role (owner and assignee at once) still needs two logins.
+
+- [ ] **Component tests that pin a calendar date but not "today" rot as the calendar passes
+      them.** `task-dates-ui.test.tsx` failed the day its 17 Sept 2026 deadline fell behind the
+      real date, though nothing about the component had changed. Tests of anything that compares
+      to today should either take a fixed today (`vi.setSystemTime`) or use dates far ahead.

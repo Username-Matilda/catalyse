@@ -20,12 +20,14 @@ describe('daily summary', () => {
       line({ kind: 'needs_decision', text: 'decide' }),
       line({ role: 'assignee', kind: 'overdue', text: 'late' }),
     ]
-    expect(summarySections(lines).map((s) => [s.heading, s.lines.map((l) => l.text)])).toEqual([
+    const sections = summarySections(lines)
+    expect(sections.map((s) => [s.heading, s.lines.map((l) => l.text)])).toEqual([
       ['Needs your decision', ['decide']],
       ['Your tasks', ['late', 'check in']],
       ['Westminster', ['at risk', 'Jo wants to help']],
       ['Library', ['post']],
     ])
+    expect(sections.map((s) => s.project)).toEqual([undefined, undefined, true, true])
     expect(summarySections([])).toEqual([])
   })
 

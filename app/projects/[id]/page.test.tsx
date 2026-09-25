@@ -609,6 +609,8 @@ describe('project page — key date', () => {
     await screen.findByText('Before the key date')
     expect(screen.getByText('After the key date')).toBeInTheDocument()
     expect(screen.getByText('★ Key date')).toBeInTheDocument()
+    // The list says which task the labels are about.
+    expect(screen.getByText(/The work it waits for is marked Before/)).toHaveTextContent('Event')
 
     await openTab(/^Timeline/)
     const bars = await screen.findAllByRole('button', { name: /^(Prep|Event|Press):/ })
@@ -638,9 +640,45 @@ describe('project page — past plan', () => {
     await screen.findByText('8 days past plan')
     await openTab(/^Timeline/)
     await userEvent.click(await screen.findByRole('button', { name: /^Behind:/ }))
-    expect(
-      within(screen.getByRole('complementary')).getByText('8 days past plan'),
-    ).toBeInTheDocument()
+    const panel = screen.getByRole('complementary')
+    expect(within(panel).getByText('8 days past plan')).toBeInTheDocument()
+    // The owner can replan from the panel without leaving the chart.
+    await userEvent.click(within(panel).getByRole('button', { name: 'Replan' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toHaveTextContent("Replan 'Behind'")
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('points a manager at the timeline when many tasks are past plan at once', async () => {
+    const owner = await createVolunteer()
+    const project = await createProject({ status: 'in_progress', assigneeId: owner.id })
+    for (let i = 0; i < 5; i++) {
+      await createTask(project.id, {
+        title: `Stale ${i}`,
+        status: 'in_progress',
+        assigneeId: owner.id,
+        startDate: new Date(Date.now() - 9 * 86_400_000),
+        durationDays: 1,
+      })
+    }
+    await mount(project.id, owner, '#tasks')
+    await screen.findByText(/5 tasks are past plan/)
+    await userEvent.click(screen.getByRole('button', { name: 'Timeline' }))
+    expect(await screen.findByRole('heading', { name: 'Timeline' })).toBeInTheDocument()
+  })
+
+  it('does not call an unclaimed task past its plan', async () => {
+    const owner = await createVolunteer()
+    const project = await createProject({ status: 'in_progress', assigneeId: owner.id })
+    await createTask(project.id, {
+      title: 'Waiting',
+      startDate: new Date(Date.now() - 9 * 86_400_000),
+      durationDays: 2,
+    })
+    await mount(project.id, owner, '#tasks')
+    await screen.findByText('Waiting')
+    expect(screen.queryByText(/past plan/)).toBeNull()
   })
 })
 
@@ -1029,6 +1067,7 @@ describe('project page — timeline tab', () => {
     )
     await userEvent.click(within(panel()).getByRole('checkbox', { name: /Key date/ }))
     await waitFor(async () => expect((await row(b.id)).isAnchor).toBe(true))
+    await screen.findByText('This is now the key date.')
     const lag = within(panel()).getByLabelText(/Lag/, { selector: 'input[id^="panel-lag-"]' })
     fireEvent.change(lag, { target: { value: '2' } })
     fireEvent.blur(lag)

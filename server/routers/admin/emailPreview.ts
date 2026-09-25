@@ -44,7 +44,7 @@ const SAMPLE_SUMMARY: SummaryLine[] = [
     kind: 'due_tomorrow',
     group: 'Westminster protest',
     href: '/projects/1/tasks/4',
-    text: '“Book the room” is due soon',
+    text: '“Book the room” is due 12 Oct 2026',
   },
   {
     role: 'owner',

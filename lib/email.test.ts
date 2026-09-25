@@ -175,13 +175,23 @@ describe('daily summary', () => {
         {
           heading: 'Westminster',
           lines: [{ text: 'Jo wants to help', href: '/projects/2#people' }],
+          project: true,
+        },
+        {
+          heading: 'Library',
+          lines: [{ text: 'Al posted', href: '/projects/3' }],
+          project: true,
         },
       ],
     })
     const sent = emails.lastTo('owner@example.com')!
     expect(sent.subject).toBe('Catalyse: 2 things need you today')
     expect(sent.html).toContain('Hi &lt;Olive&gt;')
-    expect(sent.html).toContain('<h3 style="margin: 24px 0 8px;">Westminster</h3>')
+    expect(sent.html).toContain('<h3 style="margin: 24px 0 8px;">Your tasks</h3>')
+    // The projects share one heading, each named under it.
+    expect(sent.html.match(/Projects you lead/g)).toHaveLength(1)
+    expect(sent.html).toContain('<h4 style="margin: 16px 0 6px;">Westminster</h4>')
+    expect(sent.html).toContain('<h4 style="margin: 16px 0 6px;">Library</h4>')
     expect(sent.html).toContain(`href="${env.APP_URL}/t/1"`)
     expect(sent.html).toContain('“Book &lt;venue&gt;” is due today')
   })

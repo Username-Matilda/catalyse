@@ -24,7 +24,12 @@ export type SummaryLine = {
   href: string
 }
 
-export type SummarySection = { heading: string; lines: SummaryLine[] }
+export type SummarySection = {
+  heading: string
+  lines: SummaryLine[]
+  /** One of the projects the person leads, listed under "Projects you lead". */
+  project?: true
+}
 
 const ORDER: Record<SummaryLineKind, number> = {
   needs_decision: 0,
@@ -59,7 +64,7 @@ export function summarySections(lines: SummaryLine[]): SummarySection[] {
   const groups = new Map<string, SummaryLine[]>()
   for (const l of led) groups.set(l.group, [...(groups.get(l.group) ?? []), l])
   const projects = [...groups.entries()]
-    .map(([heading, ls]) => ({ heading, lines: ls.sort(byUrgency) }))
+    .map(([heading, ls]) => ({ heading, lines: ls.sort(byUrgency), project: true as const }))
     .sort((a, b) => ORDER[a.lines[0].kind] - ORDER[b.lines[0].kind])
   sections.push(...projects)
   return sections

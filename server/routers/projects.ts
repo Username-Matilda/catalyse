@@ -854,7 +854,10 @@ export const projectsRouter = {
         keyDateSide: sides.get(t.id) ?? null,
         pastPlanDays:
           t.startDate !== null || t.durationDays !== null || hasPredecessor.has(t.id)
-            ? daysPastPlan(schedule.scheduled[i].end, t.status === TaskStatus.completed)
+            ? daysPastPlan(schedule.scheduled[i].end, {
+                done: t.status === TaskStatus.completed,
+                assigned: t.assigneeId !== null,
+              })
             : null,
         assignedToName: t.assignee?.name ?? null,
         createdByName: t.creator?.name ?? null,
@@ -2010,7 +2013,10 @@ export const projectsRouter = {
         siblingTasks,
         placement,
         pastPlanDays: placement
-          ? daysPastPlan(placement.end, task.status === TaskStatus.completed)
+          ? daysPastPlan(placement.end, {
+              done: task.status === TaskStatus.completed,
+              assigned: task.assigneeId !== null,
+            })
           : null,
         // The key date is the owner's, not a deputy's (the update enforces the same).
         canSetKeyDate: canManageProject(project, volunteer),

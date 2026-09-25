@@ -923,13 +923,21 @@ export async function sendTaskSurrenderedAssigneeEmail({
 }
 
 /** The daily summary: reminders and project activity in one email, most urgent first. */
-export function buildDailySummaryHtml(
-  name: string,
-  sections: { heading: string; lines: { text: string; href: string }[] }[],
-): string {
+type SummaryEmailSection = {
+  heading: string
+  lines: { text: string; href: string }[]
+  project?: true
+}
+
+export function buildDailySummaryHtml(name: string, sections: SummaryEmailSection[]): string {
+  // The projects a person leads sit together under one heading, each named beneath it.
   const body = sections
-    .map(
-      (s) => `<h3 style="margin: 24px 0 8px;">${escapeHtml(s.heading)}</h3>
+    .map((s, i) => {
+      const lead = s.project && !sections[i - 1]?.project
+      const heading = s.project
+        ? `${lead ? '<h3 style="margin: 24px 0 8px;">Projects you lead</h3>\n  ' : ''}<h4 style="margin: 16px 0 6px;">${escapeHtml(s.heading)}</h4>`
+        : `<h3 style="margin: 24px 0 8px;">${escapeHtml(s.heading)}</h3>`
+      return `${heading}
   <ul style="padding-left: 20px; margin: 0;">
     ${s.lines
       .map(
@@ -937,8 +945,8 @@ export function buildDailySummaryHtml(
           `<li style="margin-bottom: 6px;"><a href="${env.APP_URL}${escapeHtml(l.href)}">${escapeHtml(l.text)}</a></li>`,
       )
       .join('\n    ')}
-  </ul>`,
-    )
+  </ul>`
+    })
     .join('\n  ')
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseStyle}</style></head>
 <body><div class="container">
@@ -959,7 +967,7 @@ export async function sendDailySummaryEmail({
   to: string
   name: string
   subject: string
-  sections: { heading: string; lines: { text: string; href: string }[] }[]
+  sections: SummaryEmailSection[]
 }): Promise<boolean> {
   return sendEmail(to, subject, buildDailySummaryHtml(name, sections))
 }

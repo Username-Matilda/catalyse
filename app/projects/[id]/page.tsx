@@ -49,6 +49,7 @@ import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import { formatDate, formatDateShort } from '@/lib/format-date'
 import BaselineDialog from '@/components/gantt/BaselineDialog'
+import ReplanDialog from '@/components/ReplanDialog'
 import { PlanningTools } from '@/components/gantt/GanttLegend'
 import ProjectPorting from '@/components/ProjectPorting'
 import SaveAsTemplateButton from '@/components/SaveAsTemplateButton'
@@ -288,6 +289,7 @@ function TaskTimeline({
   const queryClient = useQueryClient()
   const showToast = useToast()
   const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [replanId, setReplanId] = useState<number | null>(null)
 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: orpc.projects.listTasks.key() })
@@ -523,9 +525,19 @@ function TaskTimeline({
                 onSetAnchor={
                   timeline.canSetKeyDate
                     ? (isAnchor) =>
-                        updateTask.mutate({ projectId, taskId: selectedRow.id, data: { isAnchor } })
+                        updateTask.mutate(
+                          { projectId, taskId: selectedRow.id, data: { isAnchor } },
+                          {
+                            onSuccess: () =>
+                              showToast(
+                                isAnchor ? 'This is now the key date.' : 'No longer the key date.',
+                                'success',
+                              ),
+                          },
+                        )
                     : undefined
                 }
+                onReplan={canManage ? () => setReplanId(selectedRow.id) : undefined}
                 assignment={{
                   canAssign: canAssignTasks,
                   // Claiming is only offered while the task is genuinely free.
@@ -540,6 +552,21 @@ function TaskTimeline({
           )}
         </div>
       )}
+      {replanId !== null &&
+        (() => {
+          const task = timeline.tasks.find((t) => t.id === replanId)
+          const placed = scheduledRows.find((r) => r.id === replanId)
+          return task && placed ? (
+            <ReplanDialog
+              projectId={projectId}
+              taskId={replanId}
+              taskTitle={task.title}
+              plannedEnd={placed.placement.end}
+              deadline={task.deadline ? new Date(task.deadline) : null}
+              onClose={() => setReplanId(null)}
+            />
+          ) : null
+        })()}
 
       {unscheduled.length > 0 && (
         <section
@@ -600,6 +627,11 @@ function TaskTimeline({
 type ProjectTab = 'overview' | 'tasks' | 'timeline' | 'discussion' | 'people'
 const SIDEBAR_PEOPLE = 5
 const HASH_TABS: ProjectTab[] = ['tasks', 'timeline', 'discussion', 'people']
+/**
+ * This many tasks past plan at once is a plan nobody laid out ("Add all to timeline" and
+ * never dragged), not this many people running late, so the list says so above the badges.
+ */
+const STALE_PLAN_FROM = 5
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -1350,6 +1382,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       ).length
     : 0
   const peopleCount = sidebarHelpers.length + (project.owner ? 1 : 0)
+  const keyDateTask = orderedTasks.find((t) => t.keyDateSide === 'key')
+  const pastPlanCount = orderedTasks.filter((t) => t.pastPlanDays).length
 
   const peopleTab = (
     <section aria-label="People on this project" className={card}>
@@ -1820,6 +1854,27 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   </div>
                 )}
 
+                {tab === 'tasks' && canManageTasks && pastPlanCount >= STALE_PLAN_FROM && (
+                  <p className="text-text-light mb-3 text-sm">
+                    {pastPlanCount} tasks are past plan. If their bars were never placed, set real
+                    dates on the{' '}
+                    <button
+                      type="button"
+                      className="text-primary-text cursor-pointer border-0 bg-transparent p-0 underline"
+                      onClick={() => selectTab('timeline')}
+                    >
+                      Timeline
+                    </button>{' '}
+                    rather than replanning one at a time.
+                  </p>
+                )}
+                {tab === 'tasks' && keyDateTask && (
+                  <p className="text-text-light mb-3 text-sm">
+                    <span style={{ color: 'var(--gantt-anchor)' }}>★ Key date:</span>{' '}
+                    <strong>{keyDateTask.title}</strong>. The work it waits for is marked Before;
+                    the work that follows it, After.
+                  </p>
+                )}
                 {tab === 'tasks' &&
                   (orderedTasks.length === 0 ? (
                     <p className="text-text-light">No tasks yet.</p>

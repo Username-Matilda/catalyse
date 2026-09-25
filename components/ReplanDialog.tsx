@@ -10,7 +10,7 @@ import { formatDateShort, fromDateInputValue, toDateInputValue } from '@/lib/for
 import { plural } from '@/lib/plural'
 import { diffInDays } from '@/lib/schedule'
 import { toClientScheduleInput } from '@/components/gantt/optimistic'
-import { REPLAN_STEPS, previewReplan, replanWrite, steppedEnd } from '@/lib/replan'
+import { REPLAN_STEPS, previewReplan, replanWrite, stepBase, steppedEnd } from '@/lib/replan'
 
 /** How many moved tasks the preview names before summing up the rest. */
 const PREVIEW_NAMES = 5
@@ -102,18 +102,22 @@ export default function ReplanDialog({
           )}
           . When will it finish now?
         </p>
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          {REPLAN_STEPS.map((s) => (
-            <Button
-              key={s.label}
-              type="button"
-              size="sm"
-              variant="secondary"
-              onClick={() => setEnd(toDateInputValue(steppedEnd(plannedEnd, s.days)))}
-            >
-              {s.label}
-            </Button>
-          ))}
+        <div className="mb-1 flex flex-wrap items-center gap-2">
+          {REPLAN_STEPS.map((s) => {
+            const stepped = toDateInputValue(steppedEnd(plannedEnd, s.days))
+            return (
+              <Button
+                key={s.label}
+                type="button"
+                size="sm"
+                variant={end === stepped ? 'primary' : 'secondary'}
+                aria-pressed={end === stepped}
+                onClick={() => setEnd(stepped)}
+              >
+                {s.label}
+              </Button>
+            )
+          })}
           <label className="sr-only" htmlFor="replan-end">
             New planned end
           </label>
@@ -125,6 +129,9 @@ export default function ReplanDialog({
             className="w-auto"
           />
         </div>
+        <p className="text-text-light mt-0 mb-3 text-xs">
+          Counted from {formatDateShort(stepBase(plannedEnd))}, since the planned end has passed.
+        </p>
         {newEnd && task && !write && (
           <p role="alert" className="text-error text-sm">
             That is before the task starts.
