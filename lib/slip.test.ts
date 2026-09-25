@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { deadlineSlip, lateText, movedSlip, movedText, pinConflictSlip } from './slip'
+import {
+  deadlineSlip,
+  deadlineStanding,
+  lateText,
+  movedSlip,
+  movedText,
+  pinConflictSlip,
+} from './slip'
 
 const day = (iso: string) => new Date(`${iso}T00:00:00.000Z`)
 
@@ -11,13 +18,42 @@ describe('slip wording', () => {
   })
 
   it('names the deadline alongside the gap', () => {
-    expect(deadlineSlip({ deadline: day('2026-09-30'), daysLate: 2 })).toBe(
-      '2 days late (Deadline 30 Sept 2026)',
+    expect(
+      deadlineSlip({ deadline: day('2026-09-30'), daysLate: 2 }, false, day('2026-09-20')),
+    ).toBe('2 days late (Deadline 30 Sept 2026)')
+    expect(
+      deadlineSlip({ deadline: day('2026-09-30'), daysLate: 0 }, false, day('2026-09-20')),
+    ).toBe('On the day (Deadline 30 Sept 2026)')
+    expect(deadlineSlip({ deadline: null, daysLate: null }, false)).toBeNull()
+  })
+
+  it('calls unfinished work past its deadline overdue, whatever the plan says', () => {
+    const today = day('2026-09-25')
+    // The plan ended before the deadline, but the deadline has passed and it is not done.
+    expect(deadlineStanding({ deadline: day('2026-09-17'), daysLate: -3 }, false, today)).toEqual({
+      text: '8 days overdue',
+      late: true,
+      days: 8,
+    })
+    expect(deadlineSlip({ deadline: day('2026-09-17'), daysLate: -3 }, false, today)).toBe(
+      '8 days overdue (Deadline 17 Sept 2026)',
     )
-    expect(deadlineSlip({ deadline: day('2026-09-30'), daysLate: 0 })).toBe(
-      'On the day (Deadline 30 Sept 2026)',
-    )
-    expect(deadlineSlip({ deadline: null, daysLate: null })).toBeNull()
+    // Done: it is judged by the plan, as before.
+    expect(deadlineStanding({ deadline: day('2026-09-17'), daysLate: -3 }, true, today)).toEqual({
+      text: '3 days to spare',
+      late: false,
+      days: -3,
+    })
+    // Off the timeline: overdue when past, nothing to compare before that.
+    expect(
+      deadlineStanding({ deadline: day('2026-09-30'), daysLate: null }, false, today),
+    ).toBeNull()
+    expect(
+      deadlineStanding({ deadline: day('2026-09-20'), daysLate: null }, false, today),
+    ).toMatchObject({
+      text: '5 days overdue',
+    })
+    expect(deadlineStanding({ deadline: null, daysLate: null }, false)).toBeNull()
   })
 
   it('says how far the finish moved from the original plan', () => {

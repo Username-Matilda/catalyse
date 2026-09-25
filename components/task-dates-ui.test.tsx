@@ -132,10 +132,10 @@ describe('TaskDatesSummary', () => {
     timing: 'flexible' as const,
     durationDays: 7,
     estimatedHours: 6,
-    deadline: day('2026-09-17'),
-    placement: { start: day('2026-09-14'), end: day('2026-09-20'), daysLate: 3 },
+    deadline: day('2099-09-17'),
+    placement: { start: day('2099-09-14'), end: day('2099-09-20'), daysLate: 3 },
     assigneeName: 'Chelsie',
-    startedAt: day('2026-09-14'),
+    startedAt: day('2099-09-14'),
     completedAt: null,
     hasPosted: false,
   }
@@ -144,10 +144,21 @@ describe('TaskDatesSummary', () => {
   it('reads a flexible window against its deadline', () => {
     render(<TaskDatesSummary {...base} />)
     expect(dd('When')).toHaveTextContent(
-      '14 Sept 2026 – 20 Sept 2026Any time in this window, about 6 hours of work',
+      '14 Sept 2099 – 20 Sept 2099Any time in this window, about 6 hours of work',
     )
-    expect(dd('Deadline')).toHaveTextContent('17 Sept 2026 · 3 days late')
-    expect(dd('Who')).toHaveTextContent('Chelsie, claimed on 14 Sept 2026')
+    expect(dd('Deadline')).toHaveTextContent('17 Sept 2099 · 3 days late')
+    expect(dd('Who')).toHaveTextContent('Chelsie, claimed on 14 Sept 2099')
+  })
+
+  it('calls a passed deadline on unfinished work overdue, whatever the plan says', () => {
+    render(
+      <TaskDatesSummary
+        {...base}
+        deadline={day('2020-01-02')}
+        placement={{ start: day('2020-01-01'), end: day('2020-01-01'), daysLate: -1 }}
+      />,
+    )
+    expect(dd('Deadline')).toHaveTextContent(/^2 Jan 2020 · \d+ days overdue$/)
   })
 
   it('reads set dates, a milestone and a task off the timeline', () => {
@@ -156,7 +167,7 @@ describe('TaskDatesSummary', () => {
     )
     expect(dd('When')).toHaveTextContent('A moment, not a stretch of work')
     expect(screen.queryByText('Deadline')).toBeNull()
-    expect(dd('Who')).toHaveTextContent('Chelsie, started 14 Sept 2026')
+    expect(dd('Who')).toHaveTextContent('Chelsie, started 14 Sept 2099')
 
     rerender(
       <TaskDatesSummary
@@ -176,11 +187,11 @@ describe('TaskDatesSummary', () => {
         placement={null}
         estimatedHours={null}
         assigneeName="Chelsie"
-        completedAt={day('2026-09-21')}
+        completedAt={day('2099-09-21')}
       />,
     )
     expect(dd('When')).toHaveTextContent(/^Not on the timeline yet$/)
-    expect(dd('Deadline')).toHaveTextContent(/^17 Sept 2026$/)
-    expect(dd('Who')).toHaveTextContent('Chelsie, finished 21 Sept 2026')
+    expect(dd('Deadline')).toHaveTextContent(/^17 Sept 2099$/)
+    expect(dd('Who')).toHaveTextContent('Chelsie, finished 21 Sept 2099')
   })
 })

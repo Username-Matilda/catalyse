@@ -1,5 +1,5 @@
 import { formatDateShort } from '@/lib/format-date'
-import { lateText } from '@/lib/slip'
+import { deadlineStanding } from '@/lib/slip'
 import { diffInDays } from '@/lib/schedule'
 import { plural } from '@/lib/plural'
 import { windowReading, windowText, type TaskTimingValue } from '@/lib/task-dates'
@@ -43,6 +43,12 @@ export default function TaskDatesSummary({
       : diffInDays(new Date(placement.start), new Date(placement.end)) + 1
     : null
   const showDeadline = deadline !== null && timing === 'flexible'
+  const standing = deadline
+    ? deadlineStanding(
+        { deadline: new Date(deadline), daysLate: placement?.daysLate ?? null },
+        completedAt !== null,
+      )
+    : null
 
   return (
     <dl className="mb-4 grid grid-cols-[5.5rem_1fr] gap-x-3 gap-y-2 text-sm">
@@ -74,10 +80,10 @@ export default function TaskDatesSummary({
           <dt className="text-text-light">Deadline</dt>
           <dd className="m-0">
             {formatDateShort(deadline)}
-            {placement && placement.daysLate !== null && (
-              <span className={placement.daysLate > 0 ? 'text-error' : 'text-text-light'}>
+            {standing && (
+              <span className={standing.late ? 'text-error' : 'text-text-light'}>
                 {' '}
-                · {lateText(placement.daysLate)}
+                · {standing.text}
               </span>
             )}
           </dd>

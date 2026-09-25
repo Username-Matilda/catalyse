@@ -5,7 +5,7 @@
 
 import { formatDateShort } from './format-date'
 import { plural } from './plural'
-import type { ScheduledItem } from './schedule'
+import { diffInDays, type ScheduledItem } from './schedule'
 
 function cap(text: string): string {
   return `${text[0].toUpperCase()}${text.slice(1)}`
@@ -19,9 +19,14 @@ export function lateText(daysLate: number): string {
 }
 
 /** "2 days late (Deadline 30 Sept)", or null when the item has no deadline. */
-export function deadlineSlip(p: Pick<ScheduledItem, 'deadline' | 'daysLate'>): string | null {
-  if (p.deadline === null || p.daysLate === null) return null
-  return `${cap(lateText(p.daysLate))} (Deadline ${formatDateShort(p.deadline)})`
+export function deadlineSlip(
+  p: Pick<ScheduledItem, 'deadline' | 'daysLate'>,
+  done: boolean,
+  today: Date = new Date(),
+): string | null {
+  const standing = deadlineStanding(p, done, today)
+  if (p.deadline === null || standing === null) return null
+  return `${cap(standing.text)} (Deadline ${formatDateShort(p.deadline)})`
 }
 
 /** "Finish moved 3 days later since the original plan (12 Oct → 15 Oct)", or null if it has not. */
@@ -58,4 +63,22 @@ export function pinConflictSlip(
     )
   }
   return `Starts ${plural(days, 'day')} too early for ${prep}. Move it, or clear its start date to follow it.`
+}
+
+/**
+ * How an item stands against its deadline today. Once the deadline has passed on unfinished
+ * work it is overdue, whatever the plan says; before that, the plan's end is compared with it.
+ */
+export function deadlineStanding(
+  p: Pick<ScheduledItem, 'deadline' | 'daysLate'>,
+  done: boolean,
+  today: Date = new Date(),
+): { text: string; late: boolean; days: number } | null {
+  if (p.deadline === null) return null
+  const overdue = diffInDays(p.deadline, today)
+  if (!done && overdue > 0) {
+    return { text: `${plural(overdue, 'day')} overdue`, late: true, days: overdue }
+  }
+  if (p.daysLate === null) return null
+  return { text: lateText(p.daysLate), late: p.daysLate > 0, days: p.daysLate }
 }

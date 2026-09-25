@@ -10,7 +10,7 @@ import DatesBlock from '@/components/DatesBlock'
 import { daysPastPlan } from '@/lib/replan'
 import { plural } from '@/lib/plural'
 import { datesPayload, type DatesPayload, type DatesValue } from '@/lib/task-dates'
-import { lateText, movedText, pinConflictSlip } from '@/lib/slip'
+import { deadlineStanding, movedText, pinConflictSlip } from '@/lib/slip'
 import { barFill, barTone, TONE_LABELS } from './palette'
 import { ANCHOR_HINT, CRITICAL_HINT } from './GanttLegend'
 import type { GanttRow } from './types'
@@ -119,6 +119,7 @@ export default function GanttItemPanel({
   const p = row.placement
   const estimatedHours = dates.estimatedHours ? parseFloat(dates.estimatedHours) : null
   const pastPlan = daysPastPlan(p.end, row.status === 'completed')
+  const standing = deadlineStanding(p, row.status === 'completed')
   const conflict = pinConflictSlip(
     p,
     predecessors.find((d) => d.predecessorId === p.pinConflictWith)?.predecessorTitle,
@@ -178,12 +179,12 @@ export default function GanttItemPanel({
             {plural(pastPlan, 'day')} past plan
           </span>
         )}
-        {p.breachesDeadline && p.daysLate !== null && (
+        {standing?.late && (
           <span
             className="rounded-full px-2 py-0.5"
             style={{ background: 'var(--gantt-today)', color: 'var(--gantt-bar-text)' }}
           >
-            {lateText(p.daysLate)}
+            {standing.text}
           </span>
         )}
       </div>
@@ -198,11 +199,11 @@ export default function GanttItemPanel({
           panel should never print a value and then offer the field for it half a screen away. */}
       <dl className="grid grid-cols-[6.5rem_1fr] gap-x-3 gap-y-1.5 text-sm">
         <Fact label="Planned">{span}</Fact>
-        {p.deadline && p.daysLate !== null && (
+        {p.deadline && standing && (
           <Fact label="Deadline">
             {formatDateShort(p.deadline)}{' '}
-            <span className={p.breachesDeadline ? 'text-error' : 'text-text-light'}>
-              · {lateText(p.daysLate)}
+            <span className={standing.late ? 'text-error' : 'text-text-light'}>
+              · {standing.text}
             </span>
           </Fact>
         )}

@@ -2,7 +2,7 @@
 
 import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { formatDate } from '@/lib/format-date'
-import { deadlineSlip, lateText, movedSlip, movedText, pinConflictSlip } from '@/lib/slip'
+import { deadlineSlip, deadlineStanding, movedSlip, movedText, pinConflictSlip } from '@/lib/slip'
 import { windowReading } from '@/lib/task-dates'
 import { diffInDays } from '@/lib/schedule'
 import { barFill } from './palette'
@@ -121,7 +121,7 @@ export default function GanttRow({
   const variance = placement.finishVarianceDays
     ? `${movedText(placement.finishVarianceDays)} than the original plan`
     : null
-  const late = deadlineSlip(placement)
+  const late = deadlineSlip(placement, row.status === 'completed')
   // A flexible window with less work in it than it spans is drawn faint, with the hours on it,
   // so it reads as "some time in here"; a fixed one is drawn solid with an edge.
   const fixedTiming = row.timing === 'fixed'
@@ -134,9 +134,10 @@ export default function GanttRow({
         effort,
       )
     : null
+  const standing = deadlineStanding(placement, row.status === 'completed')
   const lateAria =
-    placement.deadline && placement.daysLate !== null
-      ? `deadline ${formatDate(placement.deadline)}, ${lateText(placement.daysLate)}`
+    placement.deadline && standing
+      ? `deadline ${formatDate(placement.deadline)}, ${standing.text}`
       : null
   const conflict = pinConflictSlip(placement, pinConflictLabel)
 
@@ -392,7 +393,7 @@ export default function GanttRow({
           style={{
             left: deadlineX - 5,
             top: midY + BAR_HEIGHT / 2 - 4,
-            color: placement.breachesDeadline ? 'var(--gantt-today)' : 'var(--color-text-light)',
+            color: standing?.late ? 'var(--gantt-today)' : 'var(--color-text-light)',
             fontSize: 10,
             lineHeight: 1,
             fontWeight: 600,
@@ -400,7 +401,7 @@ export default function GanttRow({
           title={late ?? undefined}
         >
           <span aria-hidden="true">▲</span>
-          {placement.breachesDeadline && <span>+{placement.daysLate}d</span>}
+          {standing?.late && <span>+{standing.days}d</span>}
         </div>
       )}
     </div>
