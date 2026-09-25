@@ -408,6 +408,7 @@ export type EnrichedProject = ScheduleFieldsLike & {
   outcome: string | null
   outcomeNotes: string | null
   completedAt: Date | null
+  deadline: Date | null
   createdAt: Date | null
   updatedAt: Date | null
   country: string | null
@@ -456,6 +457,7 @@ export function withProjectExtras(
     outcome: p.outcome,
     outcomeNotes: p.outcomeNotes,
     completedAt: p.completedAt,
+    deadline: p.deadline,
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
     country: p.country,

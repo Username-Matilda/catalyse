@@ -24,8 +24,10 @@ import {
   resolveProjectMembership,
 } from '@/lib/work-item'
 import { notifyUser, notifyAdmins, notifyTeamOfProject, clearNotifications } from '@/lib/notify'
+import { keyDateSides, type KeyDateSide } from '@/lib/key-date'
 import {
   lateProjects,
+  loadTaskEdges,
   loadProjectTaskSchedule,
   loadProjectEdges,
   scheduleProjectsByIds,
@@ -817,8 +819,14 @@ export const projectsRouter = {
         return (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0)
       })
 
+      // Only a project with a key date has sides, so the edges are loaded only then.
+      const sides = sortedTasks.some((t) => t.isAnchor)
+        ? keyDateSides(sortedTasks, await loadTaskEdges(input.id))
+        : new Map<number, KeyDateSide>()
+
       const mappedTasks = sortedTasks.map((t) => ({
         ...serializeTask(t),
+        keyDateSide: sides.get(t.id) ?? null,
         assignedToName: t.assignee?.name ?? null,
         createdByName: t.creator?.name ?? null,
         requestedByName: t.requestedBy?.name ?? null,
@@ -1126,6 +1134,17 @@ export const projectsRouter = {
       if (body.timeCommitmentHoursPerWeek !== undefined)
         data.timeCommitmentHoursPerWeek = body.timeCommitmentHoursPerWeek
       applyScheduleWrite(data, body)
+
+      // The project's deadline is a promise the owner makes, so a proposer who never owned the
+      // project cannot move it.
+      if (body.deadline !== undefined) {
+        if (!canReassign && body.deadline?.getTime() !== project.deadline?.getTime()) {
+          throw new ORPCError('FORBIDDEN', {
+            message: 'Only the project owner or an admin can set the project deadline',
+          })
+        }
+        data.deadline = body.deadline
+      }
 
       if (body.assigneeId !== undefined && body.assigneeId !== project.assigneeId) {
         if (!canReassign) {
@@ -1827,6 +1846,7 @@ export const projectsRouter = {
         // Sent so the client can recompute this exact schedule while a drag is in flight.
         scopeOrigin: origin,
         projectDeadline: project.deadline,
+        canSetKeyDate: canManageProject(project, volunteer),
         canManageTasks: canManageProjectTasks(
           project,
           volunteer,
@@ -1960,6 +1980,8 @@ export const projectsRouter = {
         })),
         siblingTasks,
         placement,
+        // The key date is the owner's, not a deputy's (the update enforces the same).
+        canSetKeyDate: canManageProject(project, volunteer),
       }
     }),
 

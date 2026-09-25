@@ -219,6 +219,7 @@ export const UpdateProjectSchema = WorkItemSchema.pick({
   outcome: true,
   outcomeNotes: true,
   autoAcceptTasks: true,
+  deadline: true,
 })
   .partial()
   .extend({

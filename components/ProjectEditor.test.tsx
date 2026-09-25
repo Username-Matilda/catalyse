@@ -390,6 +390,14 @@ describe('ProjectEditor — editing an existing project', () => {
     blur(days)
     await waitFor(async () => expect((await row(project.id)).durationDays).toBe(12))
 
+    const deadline = screen.getByLabelText('Deadline (optional)')
+    blur(deadline) // unchanged
+    fireEvent.change(deadline, { target: { value: '2026-07-31' } })
+    blur(deadline)
+    await waitFor(async () =>
+      expect((await row(project.id)).deadline).toEqual(new Date('2026-07-31T00:00:00Z')),
+    )
+
     const link = screen.getByLabelText(/Collaboration Doc/)
     blur(link)
     fireEvent.change(link, { target: { value: 'https://doc' } })

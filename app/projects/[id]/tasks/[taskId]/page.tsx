@@ -218,6 +218,31 @@ export default function TaskDetailPage({
           completedAt={task.completedAt}
           hasPosted={task.assigneeHasPosted}
         />
+        {(task.isAnchor || task.canSetKeyDate) && (
+          <div className="mb-4 flex flex-wrap items-center gap-3 text-sm">
+            {task.isAnchor && (
+              <span style={{ color: 'var(--gantt-anchor)' }}>
+                ★ Key date: the date this project is planned around
+              </span>
+            )}
+            {task.canSetKeyDate && (
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={updateMutation.isPending}
+                onClick={() =>
+                  updateMutation.mutate({
+                    projectId,
+                    taskId,
+                    data: { isAnchor: !task.isAnchor },
+                  })
+                }
+              >
+                {task.isAnchor ? 'Stop using this as the key date' : 'Make this the key date'}
+              </Button>
+            )}
+          </div>
+        )}
         {task.assignedToId !== null &&
           task.assignedToId !== user.id &&
           task.assigneeContactable && (

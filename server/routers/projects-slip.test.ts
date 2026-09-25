@@ -87,3 +87,57 @@ describe('projects running past their deadline', () => {
     expect(timeline.projectDeadline).toEqual(day('2026-09-30'))
   })
 })
+
+describe('the project deadline and the key date', () => {
+  it('lets the owner or an admin set the project deadline, not a proposer who never owned it', async () => {
+    const owner = await createVolunteer()
+    const proposer = await createVolunteer()
+    const project = await createProject({
+      status: 'in_progress',
+      assigneeId: owner.id,
+      creatorId: proposer.id,
+    })
+    await clientAs(owner).projects.update({ id: project.id, deadline: day('2026-10-30') })
+    expect((await clientAs(owner).projects.getById({ id: project.id })).deadline).toEqual(
+      day('2026-10-30'),
+    )
+    await expect(
+      clientAs(proposer).projects.update({ id: project.id, deadline: day('2026-11-30') }),
+    ).rejects.toMatchObject({
+      message: 'Only the project owner or an admin can set the project deadline',
+    })
+    // The edit form posts every field back; an unchanged deadline is not a change.
+    await clientAs(proposer).projects.update({ id: project.id, deadline: day('2026-10-30') })
+    await clientAs(owner).projects.update({ id: project.id, deadline: null })
+    expect((await clientAs(owner).projects.getById({ id: project.id })).deadline).toBeNull()
+  })
+
+  it('labels each task with its side of the key date', async () => {
+    const owner = await createVolunteer()
+    const project = await createProject({ status: 'in_progress', assigneeId: owner.id })
+    const prep = await createTask(project.id, { title: 'Prep' })
+    const event = await createTask(project.id, { title: 'Event', isAnchor: true })
+    const press = await createTask(project.id, { title: 'Press' })
+    const loose = await createTask(project.id, { title: 'Loose' })
+    await prisma.workItemDependency.createMany({
+      data: [
+        { predecessorId: prep.id, successorId: event.id },
+        { predecessorId: event.id, successorId: press.id },
+      ],
+    })
+    const tasks = (await clientAs(owner).projects.getById({ id: project.id })).tasks
+    const side = (id: number) => tasks.find((t) => t.id === id)?.keyDateSide
+    expect([side(prep.id), side(event.id), side(press.id), side(loose.id)]).toEqual([
+      'before',
+      'key',
+      'after',
+      'other',
+    ])
+
+    // Without a key date there are no sides at all.
+    const plain = await createProject({ status: 'in_progress', assigneeId: owner.id })
+    const only = await createTask(plain.id)
+    const plainTasks = (await clientAs(owner).projects.getById({ id: plain.id })).tasks
+    expect(plainTasks.find((t) => t.id === only.id)?.keyDateSide).toBeNull()
+  })
+})

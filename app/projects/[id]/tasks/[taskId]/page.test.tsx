@@ -274,6 +274,14 @@ describe('task detail page', () => {
     })
     await screen.findByRole('heading', { name: 'Renamed task' })
 
+    // The owner can make a task the key date, and everyone then sees it marked.
+    await userEvent.click(screen.getByRole('button', { name: 'Make this the key date' }))
+    await screen.findByText('★ Key date: the date this project is planned around')
+    expect((await row(task.id)).isAnchor).toBe(true)
+    await userEvent.click(screen.getByRole('button', { name: 'Stop using this as the key date' }))
+    await screen.findByRole('button', { name: 'Make this the key date' })
+    expect((await row(task.id)).isAnchor).toBe(false)
+
     // Lag edits write only on change; dependencies can be removed and added.
     const lag = within(depRow('Predecessor')).getByRole('spinbutton')
     fireEvent.change(lag, { target: { value: '1' } })

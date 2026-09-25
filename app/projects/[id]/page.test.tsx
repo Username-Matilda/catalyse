@@ -590,6 +590,36 @@ describe('project page — owner', () => {
   })
 })
 
+describe('project page — key date', () => {
+  it('labels tasks by their side of the key date and orders the timeline the same way', async () => {
+    const owner = await createVolunteer()
+    const project = await createProject({ status: 'in_progress', assigneeId: owner.id })
+    const start = new Date('2030-03-01T00:00:00Z')
+    // Created after-first, so the timeline has to reorder them.
+    const press = await createTask(project.id, { title: 'Press', durationDays: 1 })
+    const event = await createTask(project.id, { title: 'Event', isAnchor: true, durationDays: 0 })
+    const prep = await createTask(project.id, { title: 'Prep', startDate: start, durationDays: 2 })
+    await prisma.workItemDependency.createMany({
+      data: [
+        { predecessorId: prep.id, successorId: event.id },
+        { predecessorId: event.id, successorId: press.id },
+      ],
+    })
+    await mount(project.id, owner, '#tasks')
+    await screen.findByText('Before the key date')
+    expect(screen.getByText('After the key date')).toBeInTheDocument()
+    expect(screen.getByText('★ Key date')).toBeInTheDocument()
+
+    await openTab(/^Timeline/)
+    const bars = await screen.findAllByRole('button', { name: /^(Prep|Event|Press):/ })
+    expect(bars.map((b) => b.getAttribute('aria-label')!.split(':')[0])).toEqual([
+      'Prep',
+      'Event',
+      'Press',
+    ])
+  })
+})
+
 describe('project page — deputies', () => {
   async function deputyProject() {
     const owner = await createVolunteer({ name: 'Owen Owner' })

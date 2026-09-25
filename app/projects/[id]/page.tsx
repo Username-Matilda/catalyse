@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import Checkbox from '@/components/Checkbox'
 import DatesBlock from '@/components/DatesBlock'
+import { KEY_DATE_SIDE_LABELS, bySide, keyDateSides } from '@/lib/key-date'
 import { EMPTY_DATES, datesPayload, datesValueFrom, type DatesValue } from '@/lib/task-dates'
 import { Badge } from '@/components/Badge'
 import Tooltip from '@/components/Tooltip'
@@ -433,7 +434,7 @@ function TaskTimeline({
         <div className="flex flex-col gap-4 lg:flex-row">
           <div className="min-w-0 flex-1">
             <GanttChart
-              rows={scheduledRows}
+              rows={bySide(scheduledRows, keyDateSides(timeline.tasks, timeline.dependencies))}
               edges={timeline.dependencies}
               rangeStart={new Date(timeline.scopeStart)}
               rangeEnd={new Date(timeline.scopeEnd)}
@@ -513,8 +514,11 @@ function TaskTimeline({
                 }
                 onRemoveDependency={(dependencyId) => removeDep.mutate({ dependencyId })}
                 onUpdateLag={(dependencyId, lagDays) => updateLag.mutate({ dependencyId, lagDays })}
-                onSetAnchor={(isAnchor) =>
-                  updateTask.mutate({ projectId, taskId: selectedRow.id, data: { isAnchor } })
+                onSetAnchor={
+                  timeline.canSetKeyDate
+                    ? (isAnchor) =>
+                        updateTask.mutate({ projectId, taskId: selectedRow.id, data: { isAnchor } })
+                    : undefined
                 }
                 assignment={{
                   canAssign: canAssignTasks,
@@ -1871,6 +1875,18 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                       </span>
                                     )}
                                     {isOverdue && <Badge variant="danger">Overdue</Badge>}
+                                    {task.keyDateSide && task.keyDateSide !== 'other' && (
+                                      <span
+                                        className="text-xs whitespace-nowrap"
+                                        style={
+                                          task.keyDateSide === 'key'
+                                            ? { color: 'var(--gantt-anchor)' }
+                                            : undefined
+                                        }
+                                      >
+                                        {KEY_DATE_SIDE_LABELS[task.keyDateSide]}
+                                      </span>
+                                    )}
                                     {task.estimatedHours !== null && (
                                       <span className="text-text-light text-xs whitespace-nowrap">
                                         ~{task.estimatedHours}h
