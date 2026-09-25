@@ -8,6 +8,8 @@ import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import Checkbox from '@/components/Checkbox'
+import DatesBlock from '@/components/DatesBlock'
+import { EMPTY_DATES, datesPayload, datesValueFrom, type DatesValue } from '@/lib/task-dates'
 import { Badge } from '@/components/Badge'
 import Tooltip from '@/components/Tooltip'
 import { projectStatusVariant } from '@/components/ProjectCard'
@@ -42,7 +44,7 @@ import type { GanttRow as GanttRowData } from '@/components/gantt/types'
 import GanttItemPanel from '@/components/gantt/GanttItemPanel'
 import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
-import { formatDate, formatDateShort, fromDateInputValue } from '@/lib/format-date'
+import { formatDate, formatDateShort } from '@/lib/format-date'
 import BaselineDialog from '@/components/gantt/BaselineDialog'
 import ProjectPorting from '@/components/ProjectPorting'
 import SaveAsTemplateButton from '@/components/SaveAsTemplateButton'
@@ -355,10 +357,10 @@ function TaskTimeline({
     onSuccess: () => void invalidate(),
     onError: onErr('update lag'),
   })
-  const setAnchor = useMutation({
+  const updateTask = useMutation({
     ...orpc.projects.updateTask.mutationOptions(),
     onSuccess: () => void invalidate(),
-    onError: onErr('update the key date'),
+    onError: onErr('update the task'),
   })
 
   if (loading || !timeline) {
@@ -388,6 +390,8 @@ function TaskTimeline({
         href: `/projects/${projectId}/tasks/${task.id}`,
         status: task.status,
         placement,
+        timing: task.timing,
+        effortHours: task.estimatedHours,
       })
     }
   }
@@ -416,7 +420,7 @@ function TaskTimeline({
     addDep.isPending ||
     removeDep.isPending ||
     updateLag.isPending ||
-    setAnchor.isPending
+    updateTask.isPending
 
   return (
     <div>
@@ -464,11 +468,9 @@ function TaskTimeline({
             <div className="lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:w-96 lg:shrink-0 lg:self-start lg:overflow-y-auto">
               <GanttItemPanel
                 row={selectedRow}
-                startDate={selectedTask.startDate ? new Date(selectedTask.startDate) : null}
-                durationDays={selectedTask.durationDays}
+                dates={datesValueFrom(selectedTask)}
                 description={selectedTask.description}
                 assigneeName={selectedTask.assignedToName}
-                estimatedHours={selectedTask.estimatedHours}
                 canManage={canManage}
                 busy={busy}
                 siblings={timeline.tasks.map((t) => ({ id: t.id, title: t.title }))}
@@ -481,20 +483,38 @@ function TaskTimeline({
                     lagDays: d.lagDays,
                   }))}
                 onClose={() => setSelectedId(null)}
-                onSaveDates={(p) =>
+                onSaveDates={(p) => {
                   reschedule.mutate({
                     items: [
                       { id: selectedRow.id, startDate: p.startDate, durationDays: p.durationDays },
                     ],
                   })
-                }
+                  // The rest is not schedule, so it goes by the ordinary task update, and only
+                  // when something there changed.
+                  const was = datesPayload(datesValueFrom(selectedTask))
+                  if (
+                    p.timing !== was.timing ||
+                    p.estimatedHours !== was.estimatedHours ||
+                    p.deadline?.getTime() !== was.deadline?.getTime()
+                  ) {
+                    updateTask.mutate({
+                      projectId,
+                      taskId: selectedRow.id,
+                      data: {
+                        timing: p.timing,
+                        estimatedHours: p.estimatedHours,
+                        deadline: p.deadline,
+                      },
+                    })
+                  }
+                }}
                 onAddDependency={(predecessorId, lagDays) =>
                   addDep.mutate({ predecessorId, successorId: selectedRow.id, lagDays })
                 }
                 onRemoveDependency={(dependencyId) => removeDep.mutate({ dependencyId })}
                 onUpdateLag={(dependencyId, lagDays) => updateLag.mutate({ dependencyId, lagDays })}
                 onSetAnchor={(isAnchor) =>
-                  setAnchor.mutate({ projectId, taskId: selectedRow.id, data: { isAnchor } })
+                  updateTask.mutate({ projectId, taskId: selectedRow.id, data: { isAnchor } })
                 }
                 assignment={{
                   canAssign: canAssignTasks,
@@ -581,10 +601,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const [showTaskForm, setShowTaskForm] = useState(false)
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [newTaskDescription, setNewTaskDescription] = useState('')
-  const [newTaskEstimatedHours, setNewTaskEstimatedHours] = useState('')
-  const [newTaskDeadline, setNewTaskDeadline] = useState('')
-  const [newTaskStartDate, setNewTaskStartDate] = useState('')
-  const [newTaskDurationDays, setNewTaskDurationDays] = useState('')
+  const [newTaskDates, setNewTaskDates] = useState<DatesValue>(EMPTY_DATES)
   const [newTaskFeatured, setNewTaskFeatured] = useState(false)
   const [orderedTasks, setOrderedTasks] = useState<ProjectTask[]>([])
   const [tab, setTab] = useState<ProjectTab>('overview')
@@ -785,8 +802,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     onSuccess: () => {
       setNewTaskTitle('')
       setNewTaskDescription('')
-      setNewTaskEstimatedHours('')
-      setNewTaskDeadline('')
+      setNewTaskDates(EMPTY_DATES)
       setNewTaskFeatured(false)
       setShowTaskForm(false)
       showToast('Task added!', 'success')
@@ -1173,10 +1189,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       projectId: parseInt(idParam, 10),
       title: newTaskTitle.trim(),
       description: newTaskDescription.trim() || undefined,
-      estimatedHours: newTaskEstimatedHours ? parseFloat(newTaskEstimatedHours) : null,
-      deadline: fromDateInputValue(newTaskDeadline),
-      startDate: fromDateInputValue(newTaskStartDate),
-      durationDays: newTaskDurationDays ? parseInt(newTaskDurationDays, 10) : null,
+      ...datesPayload(newTaskDates),
       featuredAsQuickTask: newTaskFeatured,
     })
   }
@@ -1720,55 +1733,17 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                           placeholder="Add any context, examples, or guidelines…"
                         />
                       </div>
-                      <div className="flex gap-3 flex-wrap mb-3">
-                        <div>
-                          <label htmlFor="new-task-hours">Estimated hours</label>
-                          <input
-                            id="new-task-hours"
-                            type="number"
-                            min="0"
-                            step="0.5"
-                            aria-label="Estimated hours"
-                            value={newTaskEstimatedHours}
-                            onChange={(e) => setNewTaskEstimatedHours(e.target.value)}
-                            placeholder="e.g. 3"
-                            className="w-30"
-                          />
-                        </div>
-                        <div>
-                          <label htmlFor="new-task-deadline">Deadline</label>
-                          <input
-                            id="new-task-deadline"
-                            type="date"
-                            aria-label="Deadline"
-                            value={newTaskDeadline}
-                            onChange={(e) => setNewTaskDeadline(e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label htmlFor="new-task-start">Start date</label>
-                          <input
-                            id="new-task-start"
-                            type="date"
-                            aria-label="Start date"
-                            value={newTaskStartDate}
-                            onChange={(e) => setNewTaskStartDate(e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label htmlFor="new-task-duration">Duration (days)</label>
-                          <input
-                            id="new-task-duration"
-                            type="number"
-                            min="1"
-                            step="1"
-                            aria-label="Duration (days)"
-                            value={newTaskDurationDays}
-                            onChange={(e) => setNewTaskDurationDays(e.target.value)}
-                            placeholder="e.g. 5"
-                            className="w-30"
-                          />
-                        </div>
+                      <div className="mb-1">
+                        <DatesBlock
+                          id="new-task"
+                          value={newTaskDates}
+                          onChange={setNewTaskDates}
+                          note={
+                            canManageTasks
+                              ? undefined
+                              : 'Only the project owner can change these dates once the task exists.'
+                          }
+                        />
                       </div>
                       <div className="mb-3">
                         <Checkbox

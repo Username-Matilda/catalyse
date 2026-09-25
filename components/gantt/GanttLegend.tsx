@@ -53,6 +53,25 @@ export default function GanttLegend({ editable }: { editable: boolean }) {
             />
           </Swatch>
         ))}
+        <Swatch label="Any time in the window (hours of work shown)">
+          <span
+            className="block h-3 w-6 rounded-sm"
+            style={{
+              background: 'color-mix(in srgb, var(--gantt-bar-todo) 40%, transparent)',
+            }}
+            aria-hidden="true"
+          />
+        </Swatch>
+        <Swatch label="On set dates">
+          <span
+            className="block h-3 w-6 rounded-sm"
+            style={{
+              background: 'var(--gantt-bar-todo)',
+              boxShadow: 'inset 0 0 0 2px var(--gantt-finish)',
+            }}
+            aria-hidden="true"
+          />
+        </Swatch>
         <Swatch label="Milestone (no duration)">
           <span
             className="block h-2.5 w-2.5"

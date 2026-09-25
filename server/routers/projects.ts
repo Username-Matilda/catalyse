@@ -64,6 +64,7 @@ import {
   ProjectStatus,
   TaskStatus,
   WorkItemType,
+  TaskTiming,
 } from '@/generated/prisma/enums'
 
 /** Is the project within this volunteer's scope (team and country)? See lib/work-item.ts. */
@@ -1900,6 +1901,20 @@ export const projectsRouter = {
         }),
       ])
 
+      // Where the plan puts this task. A task with no start, length or predecessor is not on
+      // the timeline, so it has no placement to report.
+      const placement =
+        task.startDate !== null || task.durationDays !== null || predecessorRows.length > 0
+          ? ((
+              await loadProjectTaskSchedule(
+                project,
+                await prisma.workItem.findMany({
+                  where: { parentId: input.projectId, type: WorkItemType.TASK },
+                }),
+              )
+            ).schedule.byId.get(task.id) ?? null)
+          : null
+
       const canManage = canManageProjectTasks(
         project,
         volunteer,
@@ -1944,6 +1959,7 @@ export const projectsRouter = {
           lagDays: r.lagDays,
         })),
         siblingTasks,
+        placement,
       }
     }),
 
@@ -1985,6 +2001,7 @@ export const projectsRouter = {
             estimatedHours: input.estimatedHours ?? null,
             deadline: input.deadline ?? null,
             featuredAsQuickTask: input.featuredAsQuickTask ?? false,
+            timing: input.timing ?? TaskTiming.flexible,
             creatorId: volunteer.id,
             sortOrder: (max._max.sortOrder ?? 0) + 1,
             ...scheduleOnCreate,
@@ -2176,6 +2193,7 @@ export const projectsRouter = {
         input.data.deadline === undefined &&
         input.data.featuredAsQuickTask === undefined &&
         input.data.isAnchor === undefined &&
+        input.data.timing === undefined &&
         input.data.startDate === undefined &&
         input.data.durationDays === undefined
       const isSelfClaim =
@@ -2258,6 +2276,7 @@ export const projectsRouter = {
       if (input.data.featuredAsQuickTask !== undefined)
         data.featuredAsQuickTask = input.data.featuredAsQuickTask
       if (input.data.isAnchor !== undefined) data.isAnchor = input.data.isAnchor
+      if (input.data.timing !== undefined) data.timing = input.data.timing
       applyScheduleWrite(data, input.data)
       if (input.data.status !== undefined) {
         data.status = input.data.status

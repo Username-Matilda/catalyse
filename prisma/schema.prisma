@@ -57,6 +57,12 @@ enum TaskStatus {
   completed
 }
 
+/// How a task's dates are read: any time within the window, or on exactly those dates.
+enum TaskTiming {
+  flexible
+  fixed
+}
+
 enum QuickTaskStatus {
   open
   in_progress
@@ -359,6 +365,9 @@ model WorkItem {
   // critical path is measured towards anchors when any exist, rather than towards whatever
   // simply finishes last, so follow-up work trailing an anchor is correctly slack.
   isAnchor             Boolean   @default(false) @map("is_anchor")
+  // `flexible`: the work happens any time within start..start+duration (effort may be far less).
+  // `fixed`: it happens on exactly those dates — a shift, a stall, the event itself.
+  timing               TaskTiming @default(flexible)
   // Last change to startDate/durationDays or to this item's dependency edges.
   scheduleUpdatedAt    DateTime? @map("schedule_updated_at")
   // Actual start. `completedAt` above is the actual finish.

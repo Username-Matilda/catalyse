@@ -372,15 +372,27 @@ describe('project page — owner', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Add Task' }))
     await userEvent.type(screen.getByLabelText('Task title'), 'Third task')
     await userEvent.type(screen.getByLabelText('Description'), 'details')
-    await userEvent.type(screen.getByLabelText('Estimated hours'), '2')
-    fireEvent.change(screen.getByLabelText('Deadline'), { target: { value: '2030-01-01' } })
-    fireEvent.change(screen.getByLabelText('Start date'), { target: { value: '2029-12-01' } })
-    await userEvent.type(screen.getByLabelText('Duration (days)'), '3')
+    await userEvent.type(screen.getByLabelText('Effort (hours of work)'), '2')
+    fireEvent.change(screen.getByLabelText('Deadline (optional)'), {
+      target: { value: '2030-01-01' },
+    })
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2029-12-01' } })
+    // The end date and the day count keep each other in step; only the days are stored.
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '2029-12-03' } })
+    expect(screen.getByLabelText('Days')).toHaveValue(3)
+    expect(screen.getByText(/Planned to finish 3 Dec 2029, 29 days before the deadline/))
+    // An owner is not told that only the owner can change the dates later.
+    expect(screen.queryByText(/Only the project owner can change these dates/)).toBeNull()
     await userEvent.click(screen.getByRole('checkbox', { name: /quick task/i }))
     fireEvent.submit(screen.getByLabelText('Task title').closest('form')!)
     await screen.findByText('Task added!')
     const t3 = await prisma.workItem.findFirstOrThrow({ where: { title: 'Third task' } })
-    expect(t3).toMatchObject({ estimatedHours: 2, durationDays: 3, featuredAsQuickTask: true })
+    expect(t3).toMatchObject({
+      estimatedHours: 2,
+      durationDays: 3,
+      featuredAsQuickTask: true,
+      timing: 'flexible',
+    })
 
     // Accept one interest, decline the other with a message.
     await openTab(/^People/)
@@ -951,10 +963,17 @@ describe('project page — timeline tab', () => {
     await userEvent.click(screen.getByRole('button', { name: /^Beta:/ }))
     const panel = () => screen.getByRole('complementary')
     await within(panel()).findByText('Beta')
-    fireEvent.change(within(panel()).getByLabelText('Duration'), { target: { value: '4' } })
-    fireEvent.submit(within(panel()).getByLabelText('Duration').closest('form')!)
+    fireEvent.change(within(panel()).getByLabelText('Days'), { target: { value: '4' } })
+    fireEvent.submit(within(panel()).getByLabelText('Days').closest('form')!)
     await waitFor(async () => expect((await row(b.id)).durationDays).toBe(4))
-    await userEvent.click(within(panel()).getByRole('checkbox'))
+    // Timing and effort are not schedule, so they go by the task update rather than the drag path.
+    await userEvent.click(within(panel()).getByRole('radio', { name: /On set dates/ }))
+    await userEvent.type(within(panel()).getByLabelText('Effort (hours of work)'), '3')
+    fireEvent.submit(within(panel()).getByLabelText('Days').closest('form')!)
+    await waitFor(async () =>
+      expect(await row(b.id)).toMatchObject({ timing: 'fixed', estimatedHours: 3 }),
+    )
+    await userEvent.click(within(panel()).getByRole('checkbox', { name: /Key date/ }))
     await waitFor(async () => expect((await row(b.id)).isAnchor).toBe(true))
     const lag = within(panel()).getByLabelText(/Lag/, { selector: 'input[id^="panel-lag-"]' })
     fireEvent.change(lag, { target: { value: '2' } })
@@ -1061,7 +1080,7 @@ describe('project page — timeline tab', () => {
     await userEvent.click(within(panel).getByRole('button', { name: 'Add' }))
     await screen.findByText('One or both items were not found')
     // A failed reschedule is rolled back and the timeline refetched (which drops the panel).
-    fireEvent.submit(within(panel).getByLabelText('Duration').closest('form')!)
+    fireEvent.submit(within(panel).getByLabelText('Days').closest('form')!)
     await screen.findByText('One or more items were not found')
     await userEvent.click(await screen.findByRole('button', { name: 'Replace original plan' }))
     localStorage.setItem('authToken', 'stale')

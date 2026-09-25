@@ -3,6 +3,8 @@
 import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { formatDate } from '@/lib/format-date'
 import { deadlineSlip, lateText, movedSlip, movedText, pinConflictSlip } from '@/lib/slip'
+import { windowReading } from '@/lib/task-dates'
+import { diffInDays } from '@/lib/schedule'
 import { barFill } from './palette'
 import {
   dateToX,
@@ -117,6 +119,18 @@ export default function GanttRow({
     ? `${movedText(placement.finishVarianceDays)} than the original plan`
     : null
   const late = deadlineSlip(placement)
+  // A flexible window with less work in it than it spans is drawn faint, with the hours on it,
+  // so it reads as "some time in here"; a fixed one is drawn solid with an edge.
+  const fixedTiming = row.timing === 'fixed'
+  const effort = row.effortHours ?? null
+  const faint = row.timing === 'flexible' && effort !== null && !milestone
+  const reading = row.timing
+    ? windowReading(
+        row.timing,
+        milestone ? 0 : diffInDays(placement.start, placement.end) + 1,
+        effort,
+      )
+    : null
   const lateAria =
     placement.deadline && placement.daysLate !== null
       ? `deadline ${formatDate(placement.deadline)}, ${lateText(placement.daysLate)}`
@@ -157,7 +171,9 @@ export default function GanttRow({
     ? '0 0 0 2px var(--color-brand-text)'
     : isCritical
       ? 'inset 0 0 0 2px var(--gantt-critical)'
-      : undefined
+      : fixedTiming
+        ? 'inset 0 0 0 2px var(--gantt-finish)'
+        : undefined
 
   // A cut end is squared off, so a bar running past the window does not read as finishing there.
   const corner = (clipped: boolean) => (clipped ? 0 : 6)
@@ -203,11 +219,12 @@ export default function GanttRow({
         {...(draggable ? moveListeners : {})}
         {...(draggable ? moveAttrs : {})}
         onClick={onSelect ? () => onSelect(row.id) : undefined}
-        aria-label={`${row.label}: ${milestone ? `milestone on ${rangeLabel}` : rangeLabel}${lateAria ? `, ${lateAria}` : ''}${variance ? `, ${variance}` : ''}${isAnchor ? ', key date' : ''}${isCritical ? ', on the critical path' : ''}${offWindow ? ', outside the visible range' : ''}`}
+        aria-label={`${row.label}: ${milestone ? `milestone on ${rangeLabel}` : rangeLabel}${reading ? `, ${reading.toLowerCase()}` : ''}${lateAria ? `, ${lateAria}` : ''}${variance ? `, ${variance}` : ''}${isAnchor ? ', key date' : ''}${isCritical ? ', on the critical path' : ''}${offWindow ? ', outside the visible range' : ''}`}
         aria-pressed={selected}
         title={[
           row.label,
           milestone ? `Milestone — ${rangeLabel}` : rangeLabel,
+          reading,
           late,
           movedSlip(placement),
           conflict,
@@ -225,7 +242,12 @@ export default function GanttRow({
           top: barTop,
           height: barHeight,
           borderRadius: barRadius,
-          background: milestone && !offWindow ? 'transparent' : barFill(row.status),
+          background:
+            milestone && !offWindow
+              ? 'transparent'
+              : faint
+                ? `color-mix(in srgb, ${barFill(row.status)} 40%, transparent)`
+                : barFill(row.status),
           opacity: offWindow ? 0.4 : 1,
           cursor: draggable ? 'grab' : 'pointer',
           boxShadow: milestone && !offWindow ? undefined : ring,
@@ -234,6 +256,14 @@ export default function GanttRow({
           touchAction: 'none',
         }}
       >
+        {faint && !offWindow && barWidth >= 28 && (
+          <span
+            aria-hidden="true"
+            className="text-brand-text pointer-events-none flex h-full items-center px-1.5 text-[10px] leading-none font-semibold"
+          >
+            {effort}h
+          </span>
+        )}
         {milestone && !offWindow && (
           <span
             aria-hidden="true"

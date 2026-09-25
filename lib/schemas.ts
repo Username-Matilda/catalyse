@@ -240,12 +240,14 @@ export const CreateProjectTaskSchema = WorkItemSchema.pick({
   estimatedHours: true,
   deadline: true,
   featuredAsQuickTask: true,
+  timing: true,
   ...SCHEDULE_INPUT_FIELDS,
 }).partial({
   description: true,
   estimatedHours: true,
   deadline: true,
   featuredAsQuickTask: true,
+  timing: true,
   ...SCHEDULE_INPUT_FIELDS,
 })
 
@@ -257,6 +259,7 @@ export const UpdateProjectTaskSchema = WorkItemSchema.pick({
   deadline: true,
   featuredAsQuickTask: true,
   isAnchor: true,
+  timing: true,
   ...SCHEDULE_INPUT_FIELDS,
 })
   .partial()

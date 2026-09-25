@@ -503,9 +503,9 @@ test.describe('Work item scheduling and dependencies', () => {
     const panel = adminPage.getByRole('complementary')
     await expect(panel.getByRole('heading', { name: 'Visible task' })).toBeVisible()
     // Every editing affordance the panel owns is reachable for a manager.
-    await expect(panel.getByLabel('Start date')).toBeVisible()
-    await expect(panel.getByLabel('Duration')).toBeVisible()
-    await expect(panel.getByRole('checkbox')).toBeVisible()
+    await expect(panel.getByLabel('From', { exact: true })).toBeVisible()
+    await expect(panel.getByLabel('Days', { exact: true })).toBeVisible()
+    await expect(panel.getByRole('checkbox', { name: /Key date/ })).toBeVisible()
     await expect(panel.getByRole('button', { name: 'Save' })).toBeVisible()
     await expect(panel.getByRole('link', { name: 'Open task' })).toBeVisible()
 
@@ -534,9 +534,9 @@ test.describe('Work item scheduling and dependencies', () => {
     const panel = adminPage.getByRole('complementary')
     // `click`, not `check`: the box is driven by server state, so it only ticks once the write
     // lands and the schedule comes back. The chip is the honest proof that it did.
-    await panel.getByRole('checkbox').click()
+    await panel.getByRole('checkbox', { name: /Key date/ }).click()
     await expect(panel.getByText('★ Key date')).toBeVisible()
-    await expect(panel.getByRole('checkbox')).toBeChecked()
+    await expect(panel.getByRole('checkbox', { name: /Key date/ })).toBeChecked()
 
     await expect(panel.getByRole('button', { name: /Assign/ }).first()).toBeVisible()
   })
@@ -579,7 +579,10 @@ test.describe('Work item scheduling and dependencies', () => {
       .toBe(true)
   })
 
-  test('hovering the key date label explains what a key date is', async ({ baseUrl, adminPage }) => {
+  test('hovering the key date label explains what a key date is', async ({
+    baseUrl,
+    adminPage,
+  }) => {
     const api = createApiClient(baseUrl, readAdminToken(baseUrl))
     const projectId = await makeProject(api, { startDate: day('2027-07-05') })
     await addTask(api, projectId, {

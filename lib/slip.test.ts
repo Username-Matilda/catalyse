@@ -41,7 +41,7 @@ describe('slip wording', () => {
       'The work before it finishes on the key date itself.',
     )
     expect(pinConflictSlip({ pinConflictDays: 2, isAnchor: false }, 'Book venue')).toBe(
-      'Starts 2 days too early for “Book venue”. Move it or unpin it.',
+      'Starts 2 days too early for “Book venue”. Move it, or clear its start date to follow it.',
     )
     expect(pinConflictSlip({ pinConflictDays: null, isAnchor: false }, undefined)).toBeNull()
   })

@@ -9,6 +9,7 @@ import {
   RemoteEligibility,
   TaskStatus,
   WorkItemType,
+  TaskTiming,
 } from '@/generated/prisma/enums'
 
 // ── Comment access ────────────────────────────────────────────────────────────
@@ -527,6 +528,7 @@ export type ScheduleFieldsLike = {
   scheduleUpdatedAt: Date | null
   startedAt: Date | null
   isAnchor?: boolean
+  timing?: TaskTiming
 }
 
 export function serializeScheduleFields(t: ScheduleFieldsLike) {
@@ -539,6 +541,7 @@ export function serializeScheduleFields(t: ScheduleFieldsLike) {
     scheduleUpdatedAt: t.scheduleUpdatedAt,
     startedAt: t.startedAt,
     isAnchor: t.isAnchor ?? false,
+    timing: t.timing ?? TaskTiming.flexible,
   }
 }
 

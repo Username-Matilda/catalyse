@@ -34,13 +34,13 @@ describe('task detail page', () => {
 
     cleanup()
     await mount(project.id, task.id, me)
-    await screen.findByText(/Claimed on 2 January 2030/)
+    await screen.findByText(/claimed on 2 Jan 2030/)
     await prisma.workItemComment.create({
       data: { workItemId: task.id, authorId: me.id, content: 'Going well' },
     })
     cleanup()
     await mount(project.id, task.id, me)
-    await screen.findByText(/Started 2 January 2030/)
+    await screen.findByText(/started 2 Jan 2030/)
 
     // A project with no owner to review it takes the work as done.
     await userEvent.click(screen.getByRole('button', { name: 'Submit work' }))
@@ -215,9 +215,14 @@ describe('task detail page', () => {
       'href',
       `/projects/${project.id}`,
     )
-    expect(screen.getByText('~2h estimated')).toBeInTheDocument()
-    expect(screen.getByText('Deadline 1 January 2030')).toBeInTheDocument()
-    expect(screen.getByText(/Planned 1 December 2029 · 1 day/)).toBeInTheDocument()
+    // When, Deadline and Who, in the words the Dates block uses.
+    expect(screen.getByText('When').nextSibling).toHaveTextContent(
+      '1 Dec 2029Any time that day, about 2 hours of work',
+    )
+    expect(screen.getByText('Deadline').nextSibling).toHaveTextContent(
+      '1 Jan 2030 · 31 days to spare',
+    )
+    expect(screen.getByText('Who').nextSibling).toHaveTextContent('Nobody yet')
     expect(screen.getByRole('link', { name: 'Predecessor' })).toBeInTheDocument()
     const depRow = (name: string) => screen.getByRole('link', { name }).closest('li') as HTMLElement
     expect(within(depRow('Predecessor')).getByRole('spinbutton')).toBeDisabled()
@@ -233,8 +238,7 @@ describe('task detail page', () => {
     await screen.findByRole('button', { name: 'Submit work' })
     expect(screen.getByText(rule)).toBeInTheDocument()
     await waitFor(async () => expect((await row(task.id)).assigneeId).toBe(me.id))
-    await screen.findByText(`Assigned to ${me.name}`)
-    await screen.findByText(/Claimed on/)
+    await screen.findByText(`${me.name}, claimed on`, { exact: false })
 
     cleanup()
     await mount(project.id, task.id, owner)
@@ -247,11 +251,15 @@ describe('task detail page', () => {
     fireEvent.submit(title.closest('form')!)
     await userEvent.type(title, 'Renamed task')
     await userEvent.clear(screen.getByLabelText('Description'))
-    await userEvent.clear(screen.getByLabelText('Estimated hours'))
-    fireEvent.change(screen.getByLabelText('Deadline'), { target: { value: '' } })
-    fireEvent.change(screen.getByLabelText('Start date'), { target: { value: '' } })
-    await userEvent.clear(screen.getByLabelText('Duration (days)'))
-    await userEvent.click(screen.getByRole('checkbox'))
+    await userEvent.clear(screen.getByLabelText('Effort (hours of work)'))
+    fireEvent.change(screen.getByLabelText('Deadline (optional)'), { target: { value: '' } })
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '' } })
+    expect(screen.getByText(/Starts when “Predecessor” finishes/)).toBeInTheDocument()
+    await userEvent.clear(screen.getByLabelText('Days'))
+    // On set dates there is no deadline to set: the dates are the commitment.
+    await userEvent.click(screen.getByRole('radio', { name: /On set dates/ }))
+    expect(screen.queryByLabelText('Deadline (optional)')).toBeNull()
+    await userEvent.click(screen.getByRole('checkbox', { name: /quick task/i }))
     fireEvent.submit(title.closest('form')!)
     await screen.findByText('Task updated!')
     expect(await row(task.id)).toMatchObject({
@@ -262,6 +270,7 @@ describe('task detail page', () => {
       startDate: null,
       durationDays: null,
       featuredAsQuickTask: true,
+      timing: 'fixed',
     })
     await screen.findByRole('heading', { name: 'Renamed task' })
 
@@ -313,7 +322,7 @@ describe('task detail page', () => {
       startedAt: new Date('2026-02-01T00:00:00Z'),
     })
     await mount(project.id, done.id, admin)
-    await screen.findByText(/finished 2 February 2026/)
+    await screen.findByText('Finished 2 Feb 2026')
     cleanup()
     await mount(project.id, 999999, admin)
     await screen.findByRole('link', { name: 'Back to Project' })
@@ -394,11 +403,11 @@ describe('task detail page — messaging the assignee', () => {
 
     // Not to yourself, and not from someone who does not work on the project.
     await mount(project.id, task.id, assignee)
-    await screen.findByText('Assigned to Ann')
+    await screen.findByText(/^Ann\b/)
     expect(screen.queryByRole('button', { name: /^Message/ })).toBeNull()
     cleanup()
     await mount(project.id, task.id, outsider)
-    await screen.findByText('Assigned to Ann')
+    await screen.findByText(/^Ann\b/)
     // The remount first shows the previous viewer's cached answer.
     await waitFor(() => expect(screen.queryByRole('button', { name: /^Message/ })).toBeNull())
   })
