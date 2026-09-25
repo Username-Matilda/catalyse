@@ -661,6 +661,7 @@ export type StarterTaskLike = {
   reviewedById: number | null
   reviewedAt: Date | null
   estimatedHours: number | null
+  deadline: Date | null
   createdAt: Date | null
   updatedAt: Date | null
   changesRequestedNote: string | null
@@ -681,6 +682,7 @@ export function serializeStarterTask(t: StarterTaskLike) {
     reviewedById: t.reviewedById,
     reviewedAt: t.reviewedAt,
     estimatedHours: t.estimatedHours,
+    deadline: t.deadline,
     createdAt: t.createdAt,
     updatedAt: t.updatedAt,
     submission: serializeSubmission(t),

@@ -59,6 +59,8 @@ export type WorkRow = {
   done: boolean
   /** A project whose plan runs past its deadline, by this many days. */
   daysLate?: number
+  /** A task's deadline, shown with its Overdue flag. */
+  deadline?: Date | null
 }
 
 export type FindItem = { id: number; title: string; href: string; reason: string | null }
@@ -403,6 +405,7 @@ async function workFor(viewer: Viewer): Promise<WorkRow[]> {
         : TASK_STATUS_LABELS[t.status],
     context: t.parent?.title ?? null,
     done: false,
+    deadline: t.deadline,
   }))
 
   const teamRows: WorkRow[] = memberships.map((m) => ({

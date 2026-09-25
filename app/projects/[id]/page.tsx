@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import Checkbox from '@/components/Checkbox'
 import DatesBlock from '@/components/DatesBlock'
+import { isOverdue as deadlinePassed } from '@/lib/overdue'
 import { KEY_DATE_SIDE_LABELS, bySide, keyDateSides } from '@/lib/key-date'
 import { EMPTY_DATES, datesPayload, datesValueFrom, type DatesValue } from '@/lib/task-dates'
 import { Badge } from '@/components/Badge'
@@ -1817,11 +1818,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                       >
                         <ul className="list-none p-0 m-0">
                           {orderedTasks.map((task) => {
-                            const isOverdue =
-                              task.deadline &&
-                              task.status !== TaskStatus.completed &&
-                              // eslint-disable-next-line react-hooks/purity -- wall-clock comparison for overdue display
-                              new Date(task.deadline).getTime() < Date.now()
+                            const isOverdue = deadlinePassed(
+                              task.deadline,
+                              task.status === TaskStatus.completed,
+                            )
                             const canAssign =
                               canRunTasks &&
                               task.status !== TaskStatus.completed &&

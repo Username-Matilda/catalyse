@@ -228,6 +228,21 @@ describe('home', () => {
     expect(within(row).getByText('3 days late')).toBeInTheDocument()
   })
 
+  it('shows the deadline of a task on Home, flagged Overdue once it has passed', async () => {
+    const me = await createVolunteer()
+    await createQuickTask({
+      title: 'Late quick',
+      assigneeId: me.id,
+      status: 'in_progress',
+      deadline: new Date('2020-01-02T00:00:00Z'),
+    })
+    await renderApp(<HomePage />, { as: me, url: '/dashboard' })
+    const work = await screen.findByRole('region', { name: 'My work' })
+    const row = within(work).getByRole('link', { name: 'Late quick' }).closest('li')!
+    expect(within(row).getByText('Deadline 2 Jan 2020')).toBeInTheDocument()
+    expect(within(row).getByText('Overdue')).toBeInTheDocument()
+  })
+
   it('says so when a filter leaves nothing, and when nothing matches', async () => {
     const skill = await createSkill()
     const me = await createVolunteer({

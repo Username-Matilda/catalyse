@@ -428,7 +428,8 @@ export const CreateQuickTaskSchema = WorkItemSchema.pick({
   skillId: true,
   contextProjectId: true,
   estimatedHours: true,
-}).partial({ skillId: true, contextProjectId: true, estimatedHours: true })
+  deadline: true,
+}).partial({ skillId: true, contextProjectId: true, estimatedHours: true, deadline: true })
 
 export const AssignQuickTaskSchema = z.object({
   volunteerId: z.number().int({ message: 'volunteerId is required' }),
