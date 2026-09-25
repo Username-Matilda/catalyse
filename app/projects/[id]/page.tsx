@@ -541,14 +541,20 @@ function TaskTimeline({
               Unscheduled ({unscheduled.length})
             </h3>
             {canManage && (
-              <Button size="sm" variant="secondary" disabled={busy} onClick={addAllToTimeline}>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={busy}
+                onClick={addAllToTimeline}
+                title="Adds a one-day bar for each task, all starting on the first day of the plan. Spread them out or link them afterwards."
+              >
                 Add all to timeline
               </Button>
             )}
           </div>
           <p className="text-text-light mt-0 mb-2 text-xs">
             {canManage
-              ? 'Adding a task puts a one-day bar at the start of the plan. Drag it to when it happens, drag its edge to set how long it takes, and drag the circle at its end onto whatever follows it.'
+              ? 'Adding a task puts a one-day bar on the first day of the plan and sets that as its start date. Drag it to when it happens, drag its edge to set how long it takes, and drag the circle at its end onto whatever follows it.'
               : 'These tasks have no dates yet, so they are not on the timeline.'}
           </p>
           <ul className="m-0 flex flex-wrap gap-2 p-0">
@@ -566,7 +572,7 @@ function TaskTimeline({
                     disabled={busy}
                     onClick={() => addToTimeline([t.id])}
                     aria-label={`Add ${t.title} to the timeline`}
-                    title="Add to the timeline"
+                    title="Adds a one-day bar starting on the first day of the plan; drag it or edit its dates to change that."
                     className="text-primary-text ml-1 rounded px-1 leading-none hover:underline"
                   >
                     + Add
