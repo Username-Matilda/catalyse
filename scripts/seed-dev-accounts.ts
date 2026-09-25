@@ -1,6 +1,7 @@
 import { createHash, pbkdf2Sync, randomBytes } from 'node:crypto'
 import type { Client } from 'pg'
 import { resolveDbUrl } from '../lib/db-url'
+import { assertDisposable } from './disposable-db'
 
 export function makePasswordHash(password: string): string {
   const salt = randomBytes(32)
@@ -93,6 +94,7 @@ export async function seedDevAccounts(
   counts: DevAccountCounts = devAccountCountsFromEnv(),
   withSessions: boolean = devSessionsAllowed(resolveDbUrl()),
 ): Promise<void> {
+  await assertDisposable(db, 'seed dev accounts into it')
   for (const { key, label, isAdmin } of ROLES) {
     const emails = devAccountEmails(key, counts[key])
     for (const [i, email] of emails.entries()) {
