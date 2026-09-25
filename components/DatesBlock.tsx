@@ -3,10 +3,12 @@
 import { useEffect, useRef, useState } from 'react'
 import Radio from '@/components/Radio'
 import Checkbox from '@/components/Checkbox'
+import Button from '@/components/Button'
 import { fromDateInputValue } from '@/lib/format-date'
 import {
   daysBetween,
   endInputValue,
+  fitToDeadline,
   finishSentence,
   plannedEnd,
   windowText,
@@ -73,6 +75,7 @@ export default function DatesBlock({
   const start = fromDateInputValue(value.startDate) ?? derivedStart ?? null
   const end = plannedEnd(value, derivedStart ?? null)
   const deadline = fixed ? null : fromDateInputValue(value.deadline)
+  const fitted = fitToDeadline(value, derivedStart ?? null)
 
   return (
     <fieldset className="m-0 border-0 p-0" disabled={disabled}>
@@ -200,6 +203,16 @@ export default function DatesBlock({
         >
           {finishSentence(end, deadline)}
         </p>
+      )}
+      {fitted && (
+        <div className="mb-3">
+          <Button type="button" size="sm" variant="secondary" onClick={() => onChange(fitted)}>
+            Fit to deadline
+          </Button>
+          <span className="text-text-light ml-2 text-xs">
+            Stretch or shrink the window so it ends on the deadline.
+          </span>
+        </div>
       )}
       {note && <p className="text-text-light mt-0 mb-3 text-xs">{note}</p>}
     </fieldset>

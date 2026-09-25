@@ -6,6 +6,7 @@ import {
   daysBetween,
   endInputValue,
   finishSentence,
+  fitToDeadline,
   plannedEnd,
   windowReading,
   windowText,
@@ -72,6 +73,29 @@ describe('task dates', () => {
     expect(plannedEnd({ ...v, startDate: '2026-09-14' }, null)).toEqual(day('2026-09-16'))
     expect(plannedEnd(v, day('2026-09-20'))).toEqual(day('2026-09-22'))
     expect(plannedEnd(v, null)).toBeNull()
+  })
+
+  it('fits the window to end on the deadline', () => {
+    const v = { ...EMPTY_DATES, deadline: '2026-09-20' }
+    // A set start keeps its start.
+    expect(fitToDeadline({ ...v, startDate: '2026-09-14', durationDays: '1' }, null)).toMatchObject(
+      {
+        startDate: '2026-09-14',
+        durationDays: '7',
+      },
+    )
+    // A task that follows another keeps following.
+    expect(fitToDeadline(v, day('2026-09-18'))).toMatchObject({ startDate: '', durationDays: '3' })
+    // With neither, it starts today.
+    expect(fitToDeadline(v, null, day('2026-09-16'))).toMatchObject({
+      startDate: '2026-09-16',
+      durationDays: '5',
+    })
+    // Nothing to do: no deadline, set dates, already on it, or a deadline before the start.
+    expect(fitToDeadline({ ...v, deadline: '' }, null)).toBeNull()
+    expect(fitToDeadline({ ...v, timing: 'fixed' }, null)).toBeNull()
+    expect(fitToDeadline({ ...v, startDate: '2026-09-14', durationDays: '7' }, null)).toBeNull()
+    expect(fitToDeadline({ ...v, startDate: '2026-09-25' }, null)).toBeNull()
   })
 
   it('relates the planned finish to the deadline', () => {

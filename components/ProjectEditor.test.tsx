@@ -212,7 +212,10 @@ describe('ProjectEditor — new volunteer proposal', () => {
 
     // The error stays until a task exists, and then submitting works.
     await userEvent.type(screen.getByLabelText('Task title'), 'First step')
-    await userEvent.click(screen.getByRole('button', { name: 'Add Task' }))
+    // The title's autosave creates the draft, and the button reads "Adding…" until it has.
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Add Task' }, { timeout: 20_000 }),
+    )
     await waitFor(() =>
       expect(screen.queryByText('Add at least one task before submitting.')).toBeNull(),
     )

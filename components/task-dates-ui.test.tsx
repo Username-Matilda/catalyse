@@ -49,6 +49,12 @@ describe('DatesBlock', () => {
     fireEvent.change(screen.getByLabelText('Days'), { target: { value: '2' } })
     expect(screen.getByLabelText('To')).toHaveValue('2026-09-16')
 
+    // One click makes the window end on the deadline.
+    await userEvent.click(screen.getByRole('button', { name: 'Fit to deadline' }))
+    expect(value().durationDays).toBe('3')
+    expect(screen.getByText('Planned to finish 17 Sept 2026, on the deadline.'))
+    expect(screen.queryByRole('button', { name: 'Fit to deadline' })).toBeNull()
+
     await userEvent.type(screen.getByLabelText('Effort (hours of work)'), '6')
     expect(value().estimatedHours).toBe('6')
     fireEvent.change(screen.getByLabelText('Deadline (optional)'), { target: { value: '' } })

@@ -7,7 +7,7 @@
  * exactly those dates (a shift, a stall, the event itself).
  */
 
-import { addDays, diffInDays } from './schedule'
+import { addDays, diffInDays, startOfUtcDay } from './schedule'
 import { formatDateShort, fromDateInputValue, toDateInputValue } from './format-date'
 import { plural } from './plural'
 
@@ -127,4 +127,28 @@ export function windowReading(
   }
   if (effort) return `Any time ${one ? 'that day' : 'in this window'}, ${effort}`
   return one ? 'Takes the day' : 'Takes the whole window'
+}
+
+/**
+ * The dates that make the window end on the deadline: the same start (or the one the schedule
+ * gives it, or today when it has neither), and the days to reach the deadline. Null when there
+ * is no deadline, it already ends there, or the deadline comes before the start.
+ */
+export function fitToDeadline(
+  v: DatesValue,
+  derivedStart: Date | null,
+  today: Date = new Date(),
+): DatesValue | null {
+  const deadline = fromDateInputValue(v.deadline)
+  if (v.timing === 'fixed' || !deadline) return null
+  const start = fromDateInputValue(v.startDate) ?? derivedStart ?? startOfUtcDay(today)
+  const days = diffInDays(start, deadline) + 1
+  if (days < 1) return null
+  const end = plannedEnd(v, derivedStart)
+  if (end && end.getTime() === deadline.getTime()) return null
+  return {
+    ...v,
+    startDate: v.startDate || (derivedStart ? '' : toDateInputValue(start)),
+    durationDays: String(days),
+  }
 }
