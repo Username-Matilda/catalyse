@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import type { DragEndEvent } from '@dnd-kit/core'
 import type { ScheduledItem } from '@/lib/schedule'
 import GanttChart, { lockYForBarDrags } from './GanttChart'
-import GanttLegend from './GanttLegend'
+import GanttLegend, { PlanningTools } from './GanttLegend'
 import GanttItemPanel from './GanttItemPanel'
 import BaselineDialog from './BaselineDialog'
 import GanttDependencyLayer from './GanttDependencyLayer'
@@ -353,7 +353,8 @@ describe('GanttChart', () => {
       screen.getByRole('button', { name: 'Remove dependency Book venue → Print flyers' }),
     )
     expect(onUnlink).toHaveBeenCalledWith(10)
-    expect(screen.getByText(/Drag a bar to move it/)).toBeInTheDocument()
+    // The how-to lives in Planning tools, not under the chart.
+    expect(screen.queryByText(/Drag a bar to move it/)).toBeNull()
   })
 
   it('measures its container with ResizeObserver', () => {
@@ -451,20 +452,33 @@ describe('GanttDependencyLayer', () => {
 })
 
 describe('GanttLegend / BaselineDialog', () => {
-  it('lists every mark, with hover hints, and the editing help when editable', async () => {
+  it('lists every mark, with hover hints, and the critical path only while highlighted', async () => {
     const user = userEvent.setup({ advanceTimers: () => {} })
-    render(<GanttLegend editable />)
+    const { rerender } = render(<GanttLegend editable />)
     await user.hover(screen.getByText('Key date', { selector: 'span span' }))
     expect(screen.getByRole('tooltip')).toBeInTheDocument()
-    expect(screen.getByText(/Drag a bar/)).toBeInTheDocument()
+    expect(screen.getByText('Critical path', { selector: 'span span' })).toBeInTheDocument()
+    rerender(<GanttLegend editable highlightCritical={false} />)
+    expect(screen.queryByText('Critical path', { selector: 'span span' })).toBeNull()
   })
 
-  it('leaves the planning marks out of a read-only legend', () => {
+  it('folds the planner’s help into Planning tools', async () => {
+    render(
+      <PlanningTools>
+        <button type="button">Extra control</button>
+      </PlanningTools>,
+    )
+    expect(screen.getByText('Planning tools')).toBeInTheDocument()
+    expect(screen.getByText(/Drag a bar/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Extra control' })).toBeInTheDocument()
+  })
+
+  it('leaves the planning marks out of a read-only legend, but not the key date', () => {
     render(<GanttLegend editable={false} />)
-    for (const mark of ['Original plan', 'Key date', 'Critical path']) {
+    for (const mark of ['Original plan', 'Critical path']) {
       expect(screen.queryByText(mark, { selector: 'span span' })).toBeNull()
     }
-    expect(screen.queryByText(/The fixed point the plan is built around/)).toBeNull()
+    expect(screen.getByText('Key date', { selector: 'span span' })).toBeInTheDocument()
     expect(screen.queryByText(/Drag a bar/)).toBeNull()
     expect(screen.getByText('Today')).toBeInTheDocument()
     expect(screen.getByText(/^Deadline/)).toBeInTheDocument()
@@ -580,7 +594,8 @@ describe('GanttItemPanel', () => {
       />,
     )
     expect(screen.getByText('Milestone')).toBeInTheDocument()
-    expect(screen.queryByText('★ Key date')).toBeNull()
+    // Everyone sees the key date; only the critical path is a manager's aid.
+    expect(screen.getByText('★ Key date')).toBeInTheDocument()
     expect(screen.getByText('2 hours of work')).toBeInTheDocument()
     expect(screen.queryByText(/No original plan saved/)).toBeNull()
     expect(

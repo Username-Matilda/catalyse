@@ -40,7 +40,13 @@ export const CRITICAL_HINT =
  * A compact key for the chart. Every mark the timeline can draw appears here once, so the
  * chart itself needs no inline text to explain a colour.
  */
-export default function GanttLegend({ editable }: { editable: boolean }) {
+export default function GanttLegend({
+  editable,
+  highlightCritical = true,
+}: {
+  editable: boolean
+  highlightCritical?: boolean
+}) {
   return (
     <div className="text-text-light mt-3 flex flex-col gap-2 text-xs">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -86,8 +92,8 @@ export default function GanttLegend({ editable }: { editable: boolean }) {
       </div>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        {/* Original plan, Key date and Critical path are planning aids, drawn only for those who can
-            change the plan (see GanttRow). */}
+        {/* The original plan and the critical path are planning aids, drawn only for those who
+            can change the plan (see GanttRow). */}
         {editable && (
           <Swatch label="Original plan">
             <span
@@ -104,24 +110,22 @@ export default function GanttLegend({ editable }: { editable: boolean }) {
             aria-hidden="true"
           />
         </Swatch>
-        {editable && (
-          <>
-            <Swatch label="Key date" hint={ANCHOR_HINT}>
-              <span aria-hidden="true" style={{ color: 'var(--gantt-anchor)' }}>
-                ★
-              </span>
-            </Swatch>
-            <Swatch label="Critical path" hint={CRITICAL_HINT}>
-              <span
-                className="block h-3 w-6 rounded-sm"
-                style={{
-                  background: 'transparent',
-                  boxShadow: 'inset 0 0 0 2px var(--gantt-critical)',
-                }}
-                aria-hidden="true"
-              />
-            </Swatch>
-          </>
+        <Swatch label="Key date" hint={ANCHOR_HINT}>
+          <span aria-hidden="true" style={{ color: 'var(--gantt-anchor)' }}>
+            ★
+          </span>
+        </Swatch>
+        {editable && highlightCritical && (
+          <Swatch label="Critical path" hint={CRITICAL_HINT}>
+            <span
+              className="block h-3 w-6 rounded-sm"
+              style={{
+                background: 'transparent',
+                boxShadow: 'inset 0 0 0 2px var(--gantt-critical)',
+              }}
+              aria-hidden="true"
+            />
+          </Swatch>
         )}
         <Swatch label="Today">
           <span
@@ -153,11 +157,22 @@ export default function GanttLegend({ editable }: { editable: boolean }) {
           />
         </Swatch>
       </div>
+    </div>
+  )
+}
 
-      {/* Two markings carry a whole scheduling idea between them, so they get a sentence each
-          rather than only a swatch. Everything else on the chart explains itself. */}
-      {editable && (
-        <dl className="border-brand-border m-0 grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 border-t pt-2">
+/**
+ * The planner's corner of the timeline, folded away so a newcomer reading the chart meets none
+ * of it: how to drag and link, what the key date and the critical path mean, and whatever
+ * controls the page adds (the original plan, the critical-path highlight).
+ */
+export function PlanningTools({ children }: { children?: React.ReactNode }) {
+  return (
+    <details className="border-brand-border mt-3 rounded-lg border px-3 py-2 text-sm">
+      <summary className="cursor-pointer font-medium">Planning tools</summary>
+      <div className="mt-3 flex flex-col gap-3">
+        {children}
+        <dl className="text-text-light m-0 grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-xs">
           <dt className="whitespace-nowrap" style={{ color: 'var(--gantt-anchor)' }}>
             ★ Key date
           </dt>
@@ -174,15 +189,12 @@ export default function GanttLegend({ editable }: { editable: boolean }) {
             gap before whatever follows it has that many days spare, so it is not on the path.
           </dd>
         </dl>
-      )}
-
-      {editable && (
-        <p className="m-0">
+        <p className="text-text-light m-0 text-xs">
           Drag a bar to move it, its right edge to change duration, or the circle at its end onto
           another row to link them. Click a bar to select it — a × appears on each of its dependency
           arrows, and removes that link.
         </p>
-      )}
-    </div>
+      </div>
+    </details>
   )
 }

@@ -153,7 +153,7 @@ export default function GanttItemPanel({
             Milestone
           </span>
         )}
-        {canManage && p.isAnchor && (
+        {p.isAnchor && (
           <Tooltip content={ANCHOR_HINT}>
             <span
               className="rounded-full px-2 py-0.5"

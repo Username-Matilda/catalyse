@@ -49,6 +49,7 @@ import { orpc } from '@/lib/orpc'
 import { useToast } from '@/lib/toast'
 import { formatDate, formatDateShort } from '@/lib/format-date'
 import BaselineDialog from '@/components/gantt/BaselineDialog'
+import { PlanningTools } from '@/components/gantt/GanttLegend'
 import ProjectPorting from '@/components/ProjectPorting'
 import SaveAsTemplateButton from '@/components/SaveAsTemplateButton'
 import { scheduleWithPatches } from '@/components/gantt/optimistic'
@@ -271,6 +272,7 @@ function TaskTimeline({
   onAssignTask,
   onClaimTask,
   onUnassignTask,
+  highlightCritical,
 }: {
   timeline: TimelineData | undefined
   projectId: number
@@ -281,6 +283,7 @@ function TaskTimeline({
   onAssignTask: (taskId: number, volunteerId: number) => void
   onClaimTask: (taskId: number) => void
   onUnassignTask: (taskId: number) => void
+  highlightCritical: boolean
 }) {
   const queryClient = useQueryClient()
   const showToast = useToast()
@@ -441,6 +444,7 @@ function TaskTimeline({
               rangeStart={new Date(timeline.scopeStart)}
               rangeEnd={new Date(timeline.scopeEnd)}
               deadline={timeline.projectDeadline ? new Date(timeline.projectDeadline) : null}
+              highlightCritical={highlightCritical}
               editable={canManage}
               selectedId={selectedId}
               onSelect={(id) => setSelectedId((cur) => (cur === id ? null : id))}
@@ -614,6 +618,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [newTaskDescription, setNewTaskDescription] = useState('')
   const [newTaskDates, setNewTaskDates] = useState<DatesValue>(EMPTY_DATES)
+  const [highlightCritical, setHighlightCritical] = useState(false)
   const [newTaskFeatured, setNewTaskFeatured] = useState(false)
   const [orderedTasks, setOrderedTasks] = useState<ProjectTask[]>([])
   const [tab, setTab] = useState<ProjectTab>('overview')
@@ -1694,23 +1699,6 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 <div className="flex justify-between items-center mb-3">
                   <h2 className="m-0">{tab === 'timeline' ? 'Timeline' : 'Tasks'}</h2>
                   <div className="flex items-center gap-2">
-                    {tab === 'timeline' && canManageProject && (
-                      <>
-                        {baselineSetAt && (
-                          <span className="text-text-light text-xs">
-                            Original plan set {formatDateShort(baselineSetAt)}
-                          </span>
-                        )}
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          disabled={setBaselineMutation.isPending}
-                          onClick={() => setShowBaselineDialog(true)}
-                        >
-                          {baselineSetAt ? 'Replace original plan' : 'Set original plan'}
-                        </Button>
-                      </>
-                    )}
                     {canCreateTasks && (
                       <Button variant="secondary" onClick={() => setShowTaskForm((v) => !v)}>
                         Add Task
@@ -1800,7 +1788,35 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                       }
                       onClaimTask={handleClaimTask}
                       onUnassignTask={handleUnassignTask}
+                      highlightCritical={highlightCritical}
                     />
+                    {canManageTasks && (
+                      <PlanningTools>
+                        {canManageProject && (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              disabled={setBaselineMutation.isPending}
+                              onClick={() => setShowBaselineDialog(true)}
+                            >
+                              {baselineSetAt ? 'Replace original plan' : 'Set original plan'}
+                            </Button>
+                            <span className="text-text-light text-xs">
+                              {baselineSetAt
+                                ? `Original plan set ${formatDateShort(baselineSetAt)}`
+                                : 'Save today’s dates as the plan to measure moves against.'}
+                            </span>
+                          </div>
+                        )}
+                        <Checkbox
+                          checked={highlightCritical}
+                          onChange={(e) => setHighlightCritical(e.target.checked)}
+                        >
+                          Highlight the critical path
+                        </Checkbox>
+                      </PlanningTools>
+                    )}
                   </div>
                 )}
 

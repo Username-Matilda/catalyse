@@ -33,6 +33,7 @@ export default function GanttRow({
   onSelect,
   onHover,
   pinConflictLabel,
+  highlightCritical = true,
 }: {
   row: GanttRowData
   origin: Date
@@ -49,6 +50,8 @@ export default function GanttRow({
   onHover?: (id: number | null) => void
   /** Name of the predecessor a conflicting pin starts too early for. */
   pinConflictLabel?: string
+  /** Ring the critical path; a planning aid, so only for those who can change the plan. */
+  highlightCritical?: boolean
 }) {
   const { placement } = row
   const milestone = placement.isMilestone
@@ -163,10 +166,10 @@ export default function GanttRow({
   const barTop = midY - barHeight / 2
 
   // Selection wins over the critical-path ring so the ring never hides which bar you picked.
-  // Anchor, critical path and the planned baseline are planning aids, shown only to those
-  // who can change the plan.
-  const isAnchor = editable && placement.isAnchor
-  const isCritical = editable && placement.isCritical
+  // The key date is for everyone; the critical path and the original plan are planning aids,
+  // shown only to those who can change the plan.
+  const isAnchor = placement.isAnchor
+  const isCritical = editable && highlightCritical && placement.isCritical
   const ring = selected
     ? '0 0 0 2px var(--color-brand-text)'
     : isCritical

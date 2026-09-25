@@ -494,7 +494,10 @@ test.describe('Work item scheduling and dependencies', () => {
 
     // The plan summary and the legend both stay on the page with the chart.
     await expect(adminPage.getByText('Starts', { exact: true })).toBeVisible()
-    await expect(adminPage.getByText('Critical path').first()).toBeVisible()
+    await expect(adminPage.getByText('Key date').first()).toBeVisible()
+    // The planner's controls are folded away until asked for.
+    await adminPage.getByText('Planning tools').click()
+    await expect(adminPage.getByLabel('Highlight the critical path')).toBeVisible()
 
     // Back to a scale that places the bar, then open it.
     await adminPage.getByRole('button', { name: 'All', exact: true }).click()

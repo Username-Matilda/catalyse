@@ -1081,6 +1081,12 @@ describe('project page — timeline tab', () => {
       expect(await prisma.workItemDependency.count({ where: { successorId: b.id } })).toBe(0),
     )
 
+    // The critical path is a planning aid, ringed only when asked for.
+    expect(screen.queryByRole('button', { name: /on the critical path/ })).toBeNull()
+    await userEvent.click(screen.getByLabelText('Highlight the critical path'))
+    expect(screen.getAllByRole('button', { name: /on the critical path/ }).length).toBeGreaterThan(
+      0,
+    )
     await userEvent.click(screen.getByRole('button', { name: 'Replace original plan' }))
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     await userEvent.click(screen.getByRole('button', { name: 'Replace original plan' }))

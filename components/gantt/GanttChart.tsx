@@ -78,6 +78,7 @@ export default function GanttChart({
   onUnlink,
   busy,
   deadline,
+  highlightCritical = true,
 }: {
   rows: GanttRowData[]
   edges: GanttEdge[]
@@ -93,6 +94,7 @@ export default function GanttChart({
   busy?: boolean
   /** The scope's own deadline (a project's), measured against where the plan ends. */
   deadline?: Date | null
+  highlightCritical?: boolean
 }) {
   const [zoom, setZoom] = useState<ZoomLevel>('fit')
   const [range, setRange] = useState<RangeKey>('all')
@@ -381,6 +383,7 @@ export default function GanttChart({
                     dimmed={relatedIds !== null && !relatedIds.has(r.id)}
                     onSelect={onSelect}
                     onHover={setHoveredId}
+                    highlightCritical={highlightCritical}
                     pinConflictLabel={
                       r.placement.pinConflictWith === null
                         ? undefined
@@ -507,7 +510,7 @@ export default function GanttChart({
         {body}
       </DndContext>
 
-      <GanttLegend editable={editable} />
+      <GanttLegend editable={editable} highlightCritical={highlightCritical} />
     </div>
   )
 }
