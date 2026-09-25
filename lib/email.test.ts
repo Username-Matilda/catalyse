@@ -164,6 +164,29 @@ describe('email transports', () => {
   })
 })
 
+describe('daily summary', () => {
+  it('sends one email with each section and its links, escaped', async () => {
+    await e.sendDailySummaryEmail({
+      to: 'owner@example.com',
+      name: '<Olive>',
+      subject: 'Catalyse: 2 things need you today',
+      sections: [
+        { heading: 'Your tasks', lines: [{ text: '“Book <venue>” is due today', href: '/t/1' }] },
+        {
+          heading: 'Westminster',
+          lines: [{ text: 'Jo wants to help', href: '/projects/2#people' }],
+        },
+      ],
+    })
+    const sent = emails.lastTo('owner@example.com')!
+    expect(sent.subject).toBe('Catalyse: 2 things need you today')
+    expect(sent.html).toContain('Hi &lt;Olive&gt;')
+    expect(sent.html).toContain('<h3 style="margin: 24px 0 8px;">Westminster</h3>')
+    expect(sent.html).toContain(`href="${env.APP_URL}/t/1"`)
+    expect(sent.html).toContain('“Book &lt;venue&gt;” is due today')
+  })
+})
+
 describe('templates', () => {
   it('builds every template with escaped content and the right links', () => {
     const app = env.APP_URL

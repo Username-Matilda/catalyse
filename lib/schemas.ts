@@ -503,4 +503,5 @@ export const UpdateVolunteerSchema = VolunteerSchema.omit({
       .nullable()
       .optional(),
     emailMutedCategories: z.array(z.enum(MUTABLE_EMAIL_CATEGORIES)).optional(),
+    dailySummary: z.enum(['email_and_in_app', 'in_app_only', 'off']).optional(),
   })
