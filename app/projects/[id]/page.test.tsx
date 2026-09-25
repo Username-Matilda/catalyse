@@ -620,6 +620,30 @@ describe('project page — key date', () => {
   })
 })
 
+describe('project page — past plan', () => {
+  it('flags a task past its plan in the list and in the timeline panel', async () => {
+    const owner = await createVolunteer()
+    const project = await createProject({ status: 'in_progress', assigneeId: owner.id })
+    const start = new Date(Date.now() - 9 * 86_400_000)
+    await createTask(project.id, {
+      title: 'Behind',
+      status: 'in_progress',
+      assigneeId: owner.id,
+      startDate: new Date(
+        Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()),
+      ),
+      durationDays: 2,
+    })
+    await mount(project.id, owner, '#tasks')
+    await screen.findByText('8 days past plan')
+    await openTab(/^Timeline/)
+    await userEvent.click(await screen.findByRole('button', { name: /^Behind:/ }))
+    expect(
+      within(screen.getByRole('complementary')).getByText('8 days past plan'),
+    ).toBeInTheDocument()
+  })
+})
+
 describe('project page — deputies', () => {
   async function deputyProject() {
     const owner = await createVolunteer({ name: 'Owen Owner' })

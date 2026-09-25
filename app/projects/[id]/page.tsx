@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '@/components/Button'
 import Checkbox from '@/components/Checkbox'
 import DatesBlock from '@/components/DatesBlock'
+import { plural } from '@/lib/plural'
 import { isOverdue as deadlinePassed } from '@/lib/overdue'
 import { KEY_DATE_SIDE_LABELS, bySide, keyDateSides } from '@/lib/key-date'
 import { EMPTY_DATES, datesPayload, datesValueFrom, type DatesValue } from '@/lib/task-dates'
@@ -1875,6 +1876,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                       </span>
                                     )}
                                     {isOverdue && <Badge variant="danger">Overdue</Badge>}
+                                    {task.pastPlanDays ? (
+                                      <Badge variant="warning">
+                                        {plural(task.pastPlanDays, 'day')} past plan
+                                      </Badge>
+                                    ) : null}
                                     {task.keyDateSide && task.keyDateSide !== 'other' && (
                                       <span
                                         className="text-xs whitespace-nowrap"

@@ -9,7 +9,8 @@
  */
 
 import { prisma } from './prisma'
-import { ProjectStatus, WorkItemType } from '@/generated/prisma/enums'
+import { ProjectStatus, TaskStatus, WorkItemType } from '@/generated/prisma/enums'
+import { daysPastPlan } from './replan'
 import {
   computeSchedule,
   diffInDays,
@@ -216,4 +217,77 @@ export async function lateProjects(
     }),
   )
   return late
+}
+
+/** Statuses in which a project's plan is live, so a task running past it needs a decision. */
+const LIVE_PROJECT_STATUSES: string[] = [ProjectStatus.ready, ProjectStatus.in_progress]
+
+export type PastPlanTask = {
+  id: number
+  title: string
+  projectId: number
+  projectTitle: string
+  daysPast: number
+  assigneeId: number | null
+  assigneeName: string | null
+  /** When the assignee last posted on the task, or null if they never have. */
+  lastUpdateAt: Date | null
+}
+
+/**
+ * Tasks on live projects whose planned end has passed while they are not done. Only tasks on
+ * the timeline count: one with no dates has no plan to be past.
+ */
+export async function pastPlanTasks(
+  projectIds: number[],
+  today: Date = new Date(),
+): Promise<PastPlanTask[]> {
+  const projects = await prisma.workItem.findMany({
+    where: {
+      id: { in: projectIds },
+      type: WorkItemType.PROJECT,
+      status: { in: LIVE_PROJECT_STATUSES },
+    },
+    select: { id: true, title: true, startDate: true },
+  })
+  const found: PastPlanTask[] = []
+  for (const project of projects) {
+    const tasks = await prisma.workItem.findMany({
+      where: { parentId: project.id, type: WorkItemType.TASK },
+      select: {
+        ...SCHEDULABLE_SELECT,
+        title: true,
+        status: true,
+        assigneeId: true,
+        assignee: { select: { name: true } },
+      },
+    })
+    const { schedule, edges } = await loadProjectTaskSchedule(project, tasks)
+    const hasPredecessor = new Set(edges.map((e) => e.successorId))
+    // The schedule lists the tasks in the order they were given.
+    for (const [i, t] of tasks.entries()) {
+      if (t.startDate === null && t.durationDays === null && !hasPredecessor.has(t.id)) continue
+      const placed = schedule.scheduled[i]
+      const days = daysPastPlan(placed.end, t.status === TaskStatus.completed, today)
+      if (days === null) continue
+      const lastUpdate = t.assigneeId
+        ? await prisma.workItemComment.findFirst({
+            where: { workItemId: t.id, authorId: t.assigneeId, deletedAt: null },
+            orderBy: { createdAt: 'desc' },
+            select: { createdAt: true },
+          })
+        : null
+      found.push({
+        id: t.id,
+        title: t.title,
+        projectId: project.id,
+        projectTitle: project.title,
+        daysPast: days,
+        assigneeId: t.assigneeId,
+        assigneeName: t.assignee?.name ?? null,
+        lastUpdateAt: lastUpdate?.createdAt ?? null,
+      })
+    }
+  }
+  return found
 }

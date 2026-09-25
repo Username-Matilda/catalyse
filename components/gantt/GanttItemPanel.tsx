@@ -7,6 +7,8 @@ import Linkify from '@/components/Linkify'
 import Tooltip from '@/components/Tooltip'
 import { formatDateShort } from '@/lib/format-date'
 import DatesBlock from '@/components/DatesBlock'
+import { daysPastPlan } from '@/lib/replan'
+import { plural } from '@/lib/plural'
 import { datesPayload, type DatesPayload, type DatesValue } from '@/lib/task-dates'
 import { lateText, movedText, pinConflictSlip } from '@/lib/slip'
 import { barFill, barTone, TONE_LABELS } from './palette'
@@ -116,6 +118,7 @@ export default function GanttItemPanel({
 
   const p = row.placement
   const estimatedHours = dates.estimatedHours ? parseFloat(dates.estimatedHours) : null
+  const pastPlan = daysPastPlan(p.end, row.status === 'completed')
   const conflict = pinConflictSlip(
     p,
     predecessors.find((d) => d.predecessorId === p.pinConflictWith)?.predecessorTitle,
@@ -169,6 +172,11 @@ export default function GanttItemPanel({
               Critical path
             </span>
           </Tooltip>
+        )}
+        {pastPlan !== null && (
+          <span className="border-warning-text text-warning-text rounded-full border px-2 py-0.5">
+            {plural(pastPlan, 'day')} past plan
+          </span>
         )}
         {p.breachesDeadline && p.daysLate !== null && (
           <span

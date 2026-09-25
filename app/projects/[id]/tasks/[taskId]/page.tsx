@@ -8,6 +8,9 @@ import { orpc } from '@/lib/orpc'
 import Button from '@/components/Button'
 import Checkbox from '@/components/Checkbox'
 import DatesBlock from '@/components/DatesBlock'
+import ReplanDialog from '@/components/ReplanDialog'
+import VolunteerSelect from '@/components/VolunteerSelect'
+import { plural } from '@/lib/plural'
 import TaskDatesSummary from '@/components/TaskDatesSummary'
 import { EMPTY_DATES, datesPayload, datesValueFrom, type DatesValue } from '@/lib/task-dates'
 import { Badge } from '@/components/Badge'
@@ -52,6 +55,8 @@ export default function TaskDetailPage({
   const [initialized, setInitialized] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [messaging, setMessaging] = useState(false)
+  const [replanning, setReplanning] = useState(false)
+  const [reassignTo, setReassignTo] = useState('')
 
   useEffect(() => {
     if (!task || initialized) return
@@ -84,6 +89,17 @@ export default function TaskDetailPage({
 
   const invalidateTask = () =>
     queryClient.invalidateQueries({ queryKey: orpc.projects.getTask.key() })
+
+  const reassignMutation = useMutation({
+    ...orpc.projects.assignTask.mutationOptions(),
+    onSuccess: () => {
+      showToast('Reassigned. The previous assignee has been told.', 'success')
+      setReassignTo('')
+      void invalidateTask()
+    },
+    onError: (err: unknown) =>
+      showToast(err instanceof Error ? err.message : 'Failed to reassign', 'error'),
+  })
 
   const acceptMutation = useMutation({
     ...orpc.projects.acceptTask.mutationOptions(),
@@ -218,6 +234,75 @@ export default function TaskDetailPage({
           completedAt={task.completedAt}
           hasPosted={task.assigneeHasPosted}
         />
+        {task.pastPlanDays !== null && task.canManage && (
+          <section
+            aria-label="Past plan"
+            className="border-warning-text mb-4 rounded-lg border p-4 text-sm"
+          >
+            <p className="mt-0 mb-3">
+              <strong>{plural(task.pastPlanDays, 'day')} past plan.</strong>{' '}
+              {task.assignedToName
+                ? `${task.assignedToName} has it. Replan it, give it to someone else, or open it up again.`
+                : 'Nobody has it. Replan it or give it to someone.'}
+            </p>
+            <div className="flex flex-wrap items-end gap-3">
+              <Button size="sm" onClick={() => setReplanning(true)}>
+                Replan
+              </Button>
+              <div className="w-64">
+                <VolunteerSelect
+                  id="reassign-task"
+                  label="Reassign to"
+                  ariaLabel="Reassign to"
+                  value={reassignTo}
+                  onChange={setReassignTo}
+                />
+              </div>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={!reassignTo || reassignMutation.isPending}
+                onClick={() =>
+                  reassignMutation.mutate({
+                    projectId,
+                    taskId,
+                    assigneeId: parseInt(reassignTo, 10),
+                  })
+                }
+              >
+                Reassign
+              </Button>
+              {task.assignedToId !== null && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={updateMutation.isPending}
+                  onClick={() =>
+                    updateMutation.mutate({ projectId, taskId, data: { status: TaskStatus.open } })
+                  }
+                >
+                  Release
+                </Button>
+              )}
+            </div>
+          </section>
+        )}
+        {task.pastPlanDays !== null && !task.canManage && task.assignedToId === user.id && (
+          <p role="status" className="border-warning-text mb-4 rounded-lg border p-3 text-sm">
+            <strong>{plural(task.pastPlanDays, 'day')} past plan.</strong> The owner has been told.
+            Post an update below, or submit your work if it is done.
+          </p>
+        )}
+        {replanning && task.placement && (
+          <ReplanDialog
+            projectId={projectId}
+            taskId={taskId}
+            taskTitle={task.title}
+            plannedEnd={new Date(task.placement.end)}
+            deadline={task.deadline ? new Date(task.deadline) : null}
+            onClose={() => setReplanning(false)}
+          />
+        )}
         {(task.isAnchor || task.canSetKeyDate) && (
           <div className="mb-4 flex flex-wrap items-center gap-3 text-sm">
             {task.isAnchor && (

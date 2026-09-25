@@ -19,6 +19,7 @@ const NEEDS_ACTION_TYPES = [
   'quick_task_submitted',
   'task_submitted',
   'task_changes_requested',
+  'task_needs_decision',
   'project_invite',
   'contact_request',
   // Admin-only (hidden from the Inbox, but their emails follow this category).

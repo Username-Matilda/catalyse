@@ -247,6 +247,9 @@ export default function HomePage() {
             <Badge variant={ROLE_VARIANTS[w.role]}>{w.role}</Badge>
             {w.daysLate ? <Badge variant="danger">{plural(w.daysLate, 'day')} late</Badge> : null}
             {w.deadline && <DeadlineChip deadline={w.deadline} done={false} />}
+            {w.pastPlanDays ? (
+              <Badge variant="warning">{plural(w.pastPlanDays, 'day')} past plan</Badge>
+            ) : null}
             {w.status && <span className="text-sm text-text-light">{w.status}</span>}
           </div>
         </li>
