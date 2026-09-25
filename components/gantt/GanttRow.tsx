@@ -320,6 +320,9 @@ export default function GanttRow({
               role="button"
               aria-label={`Resize ${row.label} — currently ${rangeLabel}`}
               tabIndex={0}
+              // The grip covers most of a short bar, so a plain click on it selects the row
+              // as a click on the bar would; only a drag resizes.
+              onClick={onSelect ? () => onSelect(row.id) : undefined}
               className="absolute flex items-center justify-end opacity-0 transition-opacity group-hover/row:opacity-100 focus-visible:opacity-100"
               style={{
                 left: barLeft + barWidth - 6,

@@ -121,14 +121,13 @@ export default function DatesBlock({
           </div>
         )}
         {!milestone && (
-          <div>
+          <div className="w-24">
             <label htmlFor={`${id}-days`}>Days</label>
             <input
               id={`${id}-days`}
               type="number"
               min="1"
               step="1"
-              className="w-20"
               value={value.durationDays}
               placeholder="1"
               onChange={(e) => set({ durationDays: e.target.value })}
@@ -165,14 +164,13 @@ export default function DatesBlock({
       )}
 
       <div className="mb-3 flex flex-wrap items-start gap-3">
-        <div>
+        <div className="w-48">
           <label htmlFor={`${id}-hours`}>Effort (hours of work)</label>
           <input
             id={`${id}-hours`}
             type="number"
             min="0"
             step="0.5"
-            className="w-30"
             placeholder="e.g. 3"
             value={value.estimatedHours}
             onChange={(e) => set({ estimatedHours: e.target.value })}

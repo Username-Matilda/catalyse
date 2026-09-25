@@ -200,6 +200,9 @@ describe('GanttChart', () => {
       }),
     )
     expect(onSelect).toHaveBeenCalledWith(2)
+    // A short bar is mostly grip, so a click there selects too.
+    await user.click(screen.getByRole('button', { name: /^Resize Book venue/ }))
+    expect(onSelect).toHaveBeenLastCalledWith(1)
 
     await user.click(screen.getByRole('button', { name: 'Day' }))
     expect(screen.getByRole('button', { name: 'Day' })).toHaveAttribute('aria-pressed', 'true')
